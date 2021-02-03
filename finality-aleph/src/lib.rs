@@ -17,3 +17,6 @@ mod app {
 pub type AuthorityId = app::Public;
 
 pub type AuthoritySignature = app::Signature;
+
+// TODO: To be added from protocol, dummy for now.
+pub struct Sync {}

@@ -1,87 +1,62 @@
-use crate::{nodes::NodeIndex, AuthorityId};
+use crate::{
+    communication::{
+        peer::{
+            rep::{PeerGoodBehavior, PeerMisbehavior},
+            Peers,
+        },
+        Epoch,
+    },
+    nodes::NodeIndex,
+    AuthorityId, Sync,
+};
+use codec::Decode;
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{register, CounterVec, Opts, PrometheusError, Registry, U64};
-use sc_network::{ObservedRole, PeerId};
+use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
+use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_core::traits::BareCryptoStorePtr;
-use sp_runtime::traits::{Block, CheckedConversion, NumberFor, Zero};
+use sp_runtime::traits::{Block, CheckedConversion};
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
-use rand::seq::SliceRandom;
+use std::time::{Duration, Instant};
 
 const REBROADCAST_AFTER: Duration = Duration::from_secs(60 * 5);
 
-enum MessageAction {
+enum IncomingMessageAction {
     Accept,
     RejectPast,
     RejectFuture,
     RejectOutOfScope,
 }
 
-// TODO
-struct GlobalViewState<N> {}
+// // TODO
+// struct GlobalViewState<N> {}
+//
+// // TODO
+// struct LocalViewState {}
 
-// TODO
-struct LocalViewState {}
+// struct PeerInfo<N> {
+//     view: GlobalViewState<N>,
+// }
 
-struct PeerInfo<N> {
-    view: GlobalViewState<N>,
-}
-
-struct Peers<N>(HashMap<PeerId, PeerInfo<N>>);
-
-impl<N> Peers<N> {
-    fn insert_peer(&mut self, who: PeerId, role: ObservedRole) {
-        self.0.insert(who, PeerInfo::new(role));
-    }
-
-    fn remove_peer(&mut self, who: &PeerId) {
-        self.0.remove(who.as_ref());
-    }
-
-    fn get_peer(&self, who: &PeerId) -> Option<&PeerInfo<N>> {
-        self.0.get(who.as_ref())
-    }
-
-    fn authorities(&self) -> usize {
-        self.0
-            .iter()
-            .filter(|_, info| matches!(info.roles, ObservedRole::Authority))
-            .count()
-    }
-
-    fn non_authorities(&self) -> usize {
-        self.0
-            .iter()
-            .filter(|(_, info)| matches!(info.roles, ObservedRole::Full | ObservedRole::Light))
-            .count()
-    }
-
-    fn shuffle(&mut self) {
-        let mut peers = self.0.clone();
-        peers.partial_shuffle(&mut rand::thread_rng(), self.0.len());
-        peers.truncate(self.0.len());
-        self.0.clear();
-        self.0.extend(peers.into_iter());
-    }
-}
-
-// TODO
-enum PeerAction {
-    Keep,
-    ProcessAndDiscard,
-    Discard,
+enum MessageAction<H> {
+    Keep(H, ReputationChange),
+    ProcessAndDiscard(H, ReputationChange),
+    Discard(ReputationChange),
 }
 
 // TODO
 enum PendingSync {
     None,
-    Requesting,
-    Processing,
+    Requesting {
+        who: PeerId,
+        request: SyncRequest,
+        instant: Instant,
+    },
+    Processing {
+        instant: Instant,
+    },
 }
 
 enum SyncConfig {
@@ -102,8 +77,10 @@ struct FetchResponse<H> {
     unit_id: NodeIndex,
 }
 
-// TODO
-struct SyncRequest {}
+struct SyncRequest {
+    epoch: Epoch,
+    message: Sync,
+}
 
 // TODO
 struct SyncResponse {}
@@ -111,8 +88,18 @@ struct SyncResponse {}
 // TODO
 struct Alert {}
 
-// TODO
-struct PeerReport {}
+pub(super) enum GossipMessage<H> {
+    FetchRequest(FetchRequest),
+    FetchResponse(FetchResponse<H>),
+    SyncRequest(SyncRequest),
+    SyncResponse(SyncResponse),
+    Alert(Alert),
+}
+
+struct PeerReport {
+    who: PeerId,
+    change: ReputationChange,
+}
 
 type PrometheusResult<T> = Result<T, PrometheusError>;
 
@@ -138,14 +125,6 @@ impl Metrics {
     }
 }
 
-pub(super) enum GossipMessage<H> {
-    FetchRequest(FetchRequest),
-    FetchResponse(FetchResponse<H>),
-    SyncRequest(SyncRequest),
-    SyncResponse(SyncResponse),
-    Alert(Alert),
-}
-
 struct GossipValidatorConfig {
     pub gossip_duration: Duration,
     pub justification_period: u32,
@@ -157,7 +136,7 @@ struct GossipValidatorConfig {
 
 pub(super) struct GossipValidator<B: Block> {
     // local_view: RwLock<Option<LocalViewState>>,
-    peers: RwLock<Peers<NumberFor<B>>>,
+    peers: RwLock<Peers>,
     // live_topics // TODO
     authorities: RwLock<Vec<AuthorityId>>,
     config: RwLock<GossipValidatorConfig>,
@@ -210,6 +189,46 @@ impl<B: Block> GossipValidator<B> {
 
         (val, rx)
     }
+
+    pub(super) fn report_peer(&self, who: PeerId, change: ReputationChange) {
+        self.report_sender
+            .unbounded_send(PeerReport { who, change });
+    }
+
+    // NOTE: The two `SyncRequest`s may need to be different from each other.
+    // I think internally a reformed version can be used.
+    fn validate_sync_request(
+        &mut self,
+        who: &PeerId,
+        incoming_request: &SyncRequest,
+    ) -> MessageAction<B::Hash> {
+        use PendingSync::*;
+        match &self.pending_sync {
+            Requesting {
+                who: peer,
+                request,
+                instant,
+            } => {
+                if peer != who {
+                    return MessageAction::Discard(PeerMisbehavior::OutOfScopeMessage.cost());
+                }
+
+                if request.epoch != incoming_request.epoch {
+                    return MessageAction::Discard(PeerMisbehavior::MalformedSync.cost());
+                }
+
+                // TODO: I do not know at this point in time if this field will exist. That needs
+                // to come from the Aleph protocol.
+                // if incoming_request.message.prevotes.is_empty()
+
+                *self.pending_sync.write() = PendingSync::Processing { instant: *instant };
+
+                let topic = super::global_topic::<B>(incoming_request.epoch);
+                MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.cost())
+            }
+            _ => MessageAction::Discard(PeerMisbehavior::OutOfScopeMessage.cost()),
+        }
+    }
 }
 
 impl<B: Block> Validator<B> for GossipValidator<B> {
@@ -223,24 +242,63 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 
     fn validate(
         &self,
-        _context: &mut dyn ValidatorContext<B>,
-        _sender: &PeerId,
-        _data: &[u8],
+        context: &mut dyn ValidatorContext<B>,
+        who: &PeerId,
+        data: &mut [u8],
     ) -> ValidationResult<B::Hash> {
-        todo!()
+        // Can fail if the packet is malformed and can't be decoded or the
+        // unit's signature is wrong.
+        let mut broadcast_topics = Vec::new();
+        let mut peer_reply = None;
+
+        let message_name: Option<&str>;
+
+        let action = {
+            match GossipMessage::<B>::decode(&mut data) {
+                Ok(GossipMessage::SyncRequest(ref message)) => {
+                    message_name = Some("sync_request");
+                    self.validate_sync_request(who, message)
+                }
+                Ok(GossipMessage::SyncResponse(ref message)) => {
+                    message_name = Some("sync_response");
+                    todo!();
+                }
+                Ok(GossipMessage::FetchRequest(ref message)) => {
+                    message_name = Some("fetch_request");
+                    todo!();
+                }
+                Ok(GossipMessage::FetchResponse(ref message)) => {
+                    message_name = Some("fetch_response");
+                    todo!();
+                }
+                Ok(GossipMessage::Alert(ref message)) => {
+                    message_name = Some("alert");
+                    todo!();
+                }
+                Err(e) => {
+                    message_name = None;
+                    debug!(target: "afa", "Error decoding message: {}", e.what());
+                    telemetry!(CONSENSUS_DEBUG; "afa.err_decoding_msg"; "" => "");
+
+                    let len = std::cmp::min(i32::max_value() as usize, data.len()) as i32;
+                    let rep = PeerMisbehavior::UndecodablePacket(len).cost();
+                    self.report_peer(who.clone(), rep)
+                }
+            };
+        };
+
+        context.broadcast_message()
     }
 
     fn message_expired(&self) -> Box<dyn FnMut(B::Hash, &[u8]) -> bool> {
-        Box::new(move |topic, mut data| {
-            match GossipMessage::<B>::decode(&mut data) {
-                Err(_) => true,
-                Ok(GossipMessage::)
-            }
-        })
+        // We do not do anything special if a message expires.
+        Box::new(move |_topic, _data| false)
     }
 
     fn message_allowed(&self) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool> {
-        todo!()
+        // There should be epoch tracking somewhere. If the data is for a
+        // previous epoch, deny.
+        Box::new(move |_who, _intent, _topic, _data| true)
     }
 }
 
