@@ -313,6 +313,14 @@ impl<B: Block> GossipValidator<B> {
 
         MessageAction::ProcessAndDiscard(PeerGoodBehavior::ValidatedSync.benefit())
     }
+
+    fn validate_fetch_request(
+        &self,
+        _sender: &PeerId,
+        _message: &FetchRequest,
+    ) -> MessageAction<B::Hash> {
+        MessageAction::ProcessAndDiscard(PeerGoodBehavior::GoodFetchRequest.benefit())
+    }
 }
 
 impl<B: Block> Validator<B> for GossipValidator<B> {
@@ -341,17 +349,15 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
             match GossipMessage::<B>::decode(&mut data) {
                 Ok(GossipMessage::Multicast(ref message)) => {
                     message_name = Some("multicast");
-                    self.validate_multicast(sender, message);
-                    todo!();
+                    self.validate_multicast(sender, message)
                 }
                 // Ok(GossipMessage::Neighbor(update)) => {
                 //     message_name = Some("neighbor");
                 //     // self.import_neighbor_message(sender, update.into())
                 // }
-                Ok(GossipMessage::FetchRequest(_)) => {
+                Ok(GossipMessage::FetchRequest(ref message)) => {
                     message_name = Some("fetch_request");
-                    // process
-                    todo!();
+                    self.validate_fetch_request(sender, message)
                 }
                 Ok(GossipMessage::FetchResponse(ref message)) => {
                     message_name = Some("fetch_response");

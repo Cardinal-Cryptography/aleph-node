@@ -49,12 +49,15 @@ impl PeerMisbehavior {
 /// Benefit scalars used to report good peers.
 mod benefit {
     pub(crate) const VALIDATED_SYNC: i32 = 200;
+    // NOTE: Not sure if we actually want to give rep for a simple fetch request.
+    pub(crate) const GOOD_FETCH_REQUEST: i32 = 0;
     pub(crate) const GOOD_FETCH_RESPONSE: i32 = 100;
     pub(crate) const GOOD_MULTICAST: i32 = 100;
 }
 
 pub(crate) enum PeerGoodBehavior {
     ValidatedSync,
+    GoodFetchRequest,
     GoodFetchResponse,
     GoodMulticast,
 }
@@ -65,6 +68,7 @@ impl PeerGoodBehavior {
 
         match *self {
             ValidatedSync => Rep::new(benefit::VALIDATED_SYNC, "Aleph: Validated sync message"),
+            GoodFetchRequest => Rep::new(benefit::GOOD_FETCH_REQUEST, "Aleph: Good fetch request"),
             GoodFetchResponse => {
                 Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response")
             }
