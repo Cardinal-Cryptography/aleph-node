@@ -26,8 +26,8 @@ enum IncomingMessageAction {
 }
 
 enum MessageAction<H> {
-    Keep(ReputationChange),
-    ProcessAndDiscard(H, ReputationChange),
+    Keep(H, ReputationChange),
+    ProcessAndDiscard(ReputationChange),
     Discard(ReputationChange),
 }
 
@@ -50,15 +50,20 @@ enum MessageAction<H> {
 // }
 
 // TODO
-struct Multicast {}
+#[derive(Debug, Encode, Decode)]
+struct Multicast<B: Block> {
+    signed_unit: SignedCHUnit<B>,
+}
 
+#[derive(Debug, Encode, Decode)]
 struct FetchRequest {
     hashes: Vec<NodeIndex>,
     unit_id: NodeIndex,
 }
 
-struct FetchResponse<H> {
-    units: Vec<SignedCHUnit<H>>,
+#[derive(Debug, Encode, Decode)]
+struct FetchResponse<B: Block> {
+    signed_units: Vec<SignedCHUnit<B>>,
     unit_id: NodeIndex,
 }
 
@@ -72,32 +77,34 @@ struct FetchResponse<H> {
 // }
 
 // TODO
+#[derive(Debug, Encode, Decode)]
 struct Alert {}
 
-#[derive(Debug, Encode, Decode)]
-pub(crate) struct NeighborPacketV1 {
-    pub epoch_id: EpochId,
-}
+// #[derive(Debug, Encode, Decode)]
+// pub(crate) struct NeighborPacketV1 {
+//     pub epoch_id: EpochId,
+// }
+
+// #[derive(Debug, Encode, Decode)]
+// pub(crate) enum VersionedNeighborPacket {
+//     V1(NeighborPacketV1),
+// }
+//
+// // If multiple versions, should be improved with TryFrom
+// impl From<VersionedNeighborPacket> for NeighborPacketV1 {
+//     fn from(packet: VersionedNeighborPacket) -> Self {
+//         match packet {
+//             VersionedNeighborPacket::V1(p) => p,
+//         }
+//     }
+// }
 
 #[derive(Debug, Encode, Decode)]
-pub(crate) enum VersionedNeighborPacket {
-    V1(NeighborPacketV1),
-}
-
-// If multiple versions, should be improved with TryFrom
-impl From<VersionedNeighborPacket> for NeighborPacketV1 {
-    fn from(packet: VersionedNeighborPacket) -> Self {
-        match packet {
-            VersionedNeighborPacket::V1(p) => p,
-        }
-    }
-}
-
-pub(super) enum GossipMessage<H: Hash> {
-    Multicast(Multicast),
+pub(super) enum GossipMessage<B: Block> {
+    Multicast(Multicast<B>),
     FetchRequest(FetchRequest),
-    FetchResponse(FetchResponse<H>),
-    Neighbor(VersionedNeighborPacket),
+    FetchResponse(FetchResponse<B>),
+    // Neighbor(VersionedNeighborPacket),
     // SyncRequest(SyncRequest),
     // SyncResponse(SyncResponse),
     Alert(Alert),
@@ -157,7 +164,7 @@ pub(super) struct GossipValidator<B: Block> {
     phantom: PhantomData<B>,
 }
 
-impl<B: Block, H> GossipValidator<B> {
+impl<B: Block> GossipValidator<B> {
     pub(super) fn new(
         config: GossipValidatorConfig,
         epoch: EpochId,
@@ -246,22 +253,42 @@ impl<B: Block, H> GossipValidator<B> {
     //     // let (cost_benefit)
     // }
 
-    fn validate_fetch_response(&self, sender: &PeerId, message: &FetchResponse<H>) -> MessageAction<H> {
-        for signed_ch_unit in message.units {
-            let id = signed_ch_unit.id;
-            if !self.authorities.contains(id) {
-                debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
-                // telemetry!(CONSENSUS_DEBUG, "afa.bad_msg_signature"; "sig")
-                return MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost());
-            }
+    fn validate_ch_unit(&self, sender: &PeerId, signed_ch_unit: &SignedCHUnit<B>) -> Result<(), MessageAction<B::Hash>> {
+        let id = &signed_ch_unit.id;
+        if !self.authorities.read().contains(id) {
+            debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
+            // TODO telemetry
+            // telemetry!(CONSENSUS_DEBUG, "afa.bad_msg_signature"; "sig")
+            return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
+        }
 
-            if !super::verify_unit_signature(&signed_ch_unit) {
-                debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
-                return MessageAction::Discard(PeerMisbehavior::BadSignature.cost());
+        if !super::verify_unit_signature(&signed_ch_unit) {
+            debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
+            // TODO telemetry
+            return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
+        }
+
+        Ok(())
+    }
+
+    fn validate_multicast(&self, sender: &PeerId, message: &Multicast<B>) -> MessageAction<B::Hash> {
+        match self.validate_ch_unit(sender, &message.signed_unit) {
+            Ok(_) => {
+                let topic = super::topic(message.signed_unit.unit.round(), message.signed_unit.unit.epoch());
+                MessageAction::Keep(topic, PeerGoodBehavior::GoodMulticast.benefit())
+            },
+            Err(e) => e,
+        }
+    }
+
+    fn validate_fetch_response<H: Hash>(&self, sender: &PeerId, message: &FetchResponse<B>) -> MessageAction<B::Hash> {
+        for signed_ch_unit in &message.signed_units {
+            if let Err(e) = self.validate_ch_unit(sender, signed_ch_unit) {
+                return e;
             }
         }
 
-        MessageAction::Keep(PeerGoodBehavior::ValidatedSync.cost())
+        MessageAction::ProcessAndDiscard(PeerGoodBehavior::ValidatedSync.benefit())
     }
 }
 
@@ -289,38 +316,27 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 
         let action = {
             match GossipMessage::<B>::decode(&mut data) {
-                // The sync request should be as simple as checking what epoch
-                // we are on and wait for the next epoch if it is unexpected.
-                // Ok(GossipMessage::SyncRequest(ref message)) => {
-                //     message_name = Some("sync_request");
-                //     self.validate_sync_request(who, message)
-                // }
-                // // The sync response should response with what epoch we are on.
-                // Ok(GossipMessage::SyncResponse(ref message)) => {
-                //     message_name = Some("sync_response");
-                //     todo!();
-                // }
-                // Ok(GossipMessage::Multicast(_)) => {
-                //     todo!();
-                // }
+                Ok(GossipMessage::Multicast(ref message)) => {
+                    message_name = Some("multicast");
+                    self.validate_multicast(sender, message);
+                    todo!();
+                }
                 // Ok(GossipMessage::Neighbor(update)) => {
                 //     message_name = Some("neighbor");
-                //     self.import_neighbor_message(sender, update.into())
+                //     // self.import_neighbor_message(sender, update.into())
                 // }
-                // Ok(GossipMessage::FetchRequest(ref message)) => {
-                //     message_name = Some("fetch_request");
-                //     self.validate_fetch_request();
-                // }
+                Ok(GossipMessage::FetchRequest(_)) => {
+                    message_name = Some("fetch_request");
+                    // process
+                    todo!();
+                }
                 Ok(GossipMessage::FetchResponse(ref message)) => {
                     message_name = Some("fetch_response");
-                    self.validate_fetch_response(sender, message);
+                    self.validate_fetch_response(sender, message)
                 }
                 Ok(GossipMessage::Alert(ref message)) => {
                     message_name = Some("alert");
                     todo!();
-                }
-                Ok(_) => {
-                    MessageAction::Keep(),
                 }
                 Err(e) => {
                     message_name = None;

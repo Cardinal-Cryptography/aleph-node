@@ -50,11 +50,13 @@ impl PeerMisbehavior {
 mod benefit {
     pub(crate) const VALIDATED_SYNC: i32 = 200;
     pub(crate) const GOOD_FETCH_RESPONSE: i32 = 100;
+    pub(crate) const GOOD_MULTICAST: i32 = 100;
 }
 
 pub(crate) enum PeerGoodBehavior {
     ValidatedSync,
     GoodFetchResponse,
+    GoodMulticast,
 }
 
 impl PeerGoodBehavior {
@@ -64,6 +66,7 @@ impl PeerGoodBehavior {
         match *self {
             ValidatedSync => Rep::new(benefit::VALIDATED_SYNC, "Aleph: Validated sync message"),
             GoodFetchResponse => Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response"),
+            GoodMulticast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
         }
     }
 }

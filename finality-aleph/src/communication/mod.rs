@@ -8,7 +8,7 @@ use std::{
     fmt::{Formatter, Result as FmtResult},
     sync::{Arc, Mutex},
 };
-use crate::temp::CHUnit;
+use crate::temp::{CHUnit, Round};
 use codec::{Encode, Decode};
 use sp_application_crypto::RuntimeAppPublic;
 use log::debug;
@@ -24,25 +24,26 @@ pub struct NetworkBridge<B: Block, N: Network<B>> {
     validator: Arc<GossipValidator<B>>,
 }
 
-struct SignedCHUnit<H> {
-    unit: CHUnit<H>,
+#[derive(Debug, Encode, Decode)]
+struct SignedCHUnit<B: Block> {
+    unit: CHUnit<B>,
     signature: AuthoritySignature,
     id: AuthorityId,
 }
 
-pub fn encode_unit_with_buffer<H>(unit: &CHUnit<H>, buf: &mut Vec<u8>) {
+pub fn encode_unit_with_buffer<B: Block>(unit: &CHUnit<B>, buf: &mut Vec<u8>) {
     buf.clear();
     unit.encode_to(buf);
 }
 
-pub fn encode_unit<H>(unit: &CHUnit<H>) -> Vec<u8> {
+pub fn encode_unit<B: Block>(unit: &CHUnit<B>) -> Vec<u8> {
     let mut buf = Vec::new();
     encode_unit_with_buffer(unit, &mut buf);
     buf
 }
 
-pub fn verify_unit_signature_with_buffer<H>(
-    signed_ch_unit: &SignedCHUnit<H>,
+pub fn verify_unit_signature_with_buffer<B: Block>(
+    signed_ch_unit: &SignedCHUnit<B>,
     buf: &mut Vec<u8>,
 ) -> bool {
     encode_unit_with_buffer(&signed_ch_unit.unit, buf);
@@ -55,14 +56,12 @@ pub fn verify_unit_signature_with_buffer<H>(
     valid
 }
 
-pub fn verify_unit_signature<H>(
-    signed_ch_unit: &SignedCHUnit<H>
+pub fn verify_unit_signature<B: Block>(
+    signed_ch_unit: &SignedCHUnit<B>
 ) -> bool {
     verify_unit_signature_with_buffer(signed_ch_unit, &mut Vec::new())
 }
 
-
-// TODO: remove if verified it won't be use as the protocol is async.
-// pub(crate) fn global_topic<B: Block>(epoch: EpochId) -> B::Hash {
-//     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-GLOBAL", epoch).as_bytes())
-// }
+pub(crate) fn topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
+    <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", epoch, round).as_bytes())
+}

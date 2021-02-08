@@ -21,14 +21,21 @@ pub type AuthoritySignature = app::Signature;
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
     use codec::{Decode, Encode};
-    use sp_runtime::traits::Hash;
+    use sp_runtime::traits::{Hash, Block};
     use std::fmt::{Display, Formatter, Result as FmtResult};
 
-    pub struct RoundId(pub u64);
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
+    pub struct Round(pub u64);
 
-    impl From<u64> for RoundId {
+    impl Display for Round {
+        fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl From<u64> for Round {
         fn from(id: u64) -> Self {
-            RoundId(id)
+            Round(id)
         }
     }
 
@@ -47,7 +54,7 @@ pub(crate) mod temp {
         }
     }
 
-    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
     pub struct CreatorId(pub u64);
 
     impl From<u64> for CreatorId {
@@ -56,28 +63,36 @@ pub(crate) mod temp {
         }
     }
 
-    #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+    #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Encode, Decode)]
     pub struct NodeMap<T>(Vec<T>);
 
     #[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
-    pub struct ControlHash<H: Hash> {
+    pub struct ControlHash<B: Block> {
         parents: NodeMap<bool>,
-        hash: H,
+        hash: B::Hash,
     }
 
-    #[derive(Encode, Decode)]
-    pub struct CHUnit<H: Hash> {
+    #[derive(Debug, Encode, Decode)]
+    pub struct CHUnit<B: Block> {
         creator: CreatorId,
-        round: u64,
+        round: Round,
         epoch_id: EpochId,
-        hash: H,
-        control_hash: ControlHash<H>,
-        best_block: H,
+        hash: B::Hash,
+        control_hash: ControlHash<B>,
+        best_block: B::Hash,
     }
 
-    impl<H: Hash> CHUnit<H> {
+    impl<B: Block> CHUnit<B> {
         pub fn creator(&self) -> CreatorId {
             self.creator
+        }
+
+        pub fn round(&self) -> Round {
+            self.round
+        }
+
+        pub fn epoch(&self) -> EpochId {
+            self.epoch_id
         }
     }
 
