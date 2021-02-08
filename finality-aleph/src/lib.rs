@@ -18,15 +18,19 @@ pub type AuthorityId = app::Public;
 
 pub type AuthoritySignature = app::Signature;
 
-pub fn check_unit_signature_with_buffer<H, N>(
-    unit: &
-)
-
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
     use codec::{Decode, Encode};
     use sp_runtime::traits::Hash;
     use std::fmt::{Display, Formatter, Result as FmtResult};
+
+    pub struct RoundId(pub u64);
+
+    impl From<u64> for RoundId {
+        fn from(id: u64) -> Self {
+            RoundId(id)
+        }
+    }
 
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
     pub struct EpochId(pub u64);
@@ -43,6 +47,7 @@ pub(crate) mod temp {
         }
     }
 
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct CreatorId(pub u64);
 
     impl From<u64> for CreatorId {
@@ -54,19 +59,26 @@ pub(crate) mod temp {
     #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
     pub struct NodeMap<T>(Vec<T>);
 
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
     pub struct ControlHash<H: Hash> {
         parents: NodeMap<bool>,
         hash: H,
     }
 
+    #[derive(Encode, Decode)]
     pub struct CHUnit<H: Hash> {
         creator: CreatorId,
         round: u64,
-        epoch_id: u64,
+        epoch_id: EpochId,
         hash: H,
         control_hash: ControlHash<H>,
         best_block: H,
+    }
+
+    impl<H: Hash> CHUnit<H> {
+        pub fn creator(&self) -> CreatorId {
+            self.creator
+        }
     }
 
     pub struct Unit<H: Hash> {

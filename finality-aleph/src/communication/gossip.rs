@@ -1,8 +1,4 @@
-use crate::{
-    communication::peer::{rep::PeerMisbehavior, Peers},
-    nodes::NodeIndex,
-    AuthorityId, CHUnit, EpochId,
-};
+use crate::{communication::peer::{rep::PeerMisbehavior, Peers}, nodes::NodeIndex, AuthorityId, CHUnit, EpochId, AuthoritySignature};
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
@@ -17,6 +13,8 @@ use std::{
     marker::PhantomData,
     time::{Duration, Instant},
 };
+use crate::communication::SignedCHUnit;
+use crate::communication::peer::rep::PeerGoodBehavior;
 
 const REBROADCAST_AFTER: Duration = Duration::from_secs(60 * 5);
 
@@ -28,7 +26,7 @@ enum IncomingMessageAction {
 }
 
 enum MessageAction<H> {
-    Keep(H, ReputationChange),
+    Keep(ReputationChange),
     ProcessAndDiscard(H, ReputationChange),
     Discard(ReputationChange),
 }
@@ -53,11 +51,6 @@ enum MessageAction<H> {
 
 // TODO
 struct Multicast {}
-
-struct SignedCHUnit<H> {
-    unit: CHUnit<H>,
-    // signature:
-}
 
 struct FetchRequest {
     hashes: Vec<NodeIndex>,
@@ -253,10 +246,22 @@ impl<B: Block, H> GossipValidator<B> {
     //     // let (cost_benefit)
     // }
 
-    fn validate_fetch_request(&self, sender: &PeerId, message: &FetchResponse<H>) {
-        for unit in message.units {
+    fn validate_fetch_response(&self, sender: &PeerId, message: &FetchResponse<H>) -> MessageAction<H> {
+        for signed_ch_unit in message.units {
+            let id = signed_ch_unit.id;
+            if !self.authorities.contains(id) {
+                debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
+                // telemetry!(CONSENSUS_DEBUG, "afa.bad_msg_signature"; "sig")
+                return MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost());
+            }
 
+            if !super::verify_unit_signature(&signed_ch_unit) {
+                debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
+                return MessageAction::Discard(PeerMisbehavior::BadSignature.cost());
+            }
         }
+
+        MessageAction::Keep(PeerGoodBehavior::ValidatedSync.cost())
     }
 }
 
@@ -308,7 +313,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 // }
                 Ok(GossipMessage::FetchResponse(ref message)) => {
                     message_name = Some("fetch_response");
-                    todo!();
+                    self.validate_fetch_response(sender, message);
                 }
                 Ok(GossipMessage::Alert(ref message)) => {
                     message_name = Some("alert");
