@@ -5,6 +5,7 @@ mod cost {
     pub(crate) const MALFORMED_CATCH_UP: i32 = -1000;
     pub(crate) const PER_UNDECODABLE_BYTE: i32 = -5;
     pub(crate) const PER_SIGNATURE_CHECKED: i32 = -25;
+    pub(crate) const INVALID_VIEW_CHANGE: i32 = -500;
 }
 
 pub(crate) enum PeerMisbehavior {
@@ -15,6 +16,7 @@ pub(crate) enum PeerMisbehavior {
         // equivocations_caught: i32,
     },
     MalformedSync,
+    InvalidEpochId,
     // FutureMessage,
     // OutOfScopeMessage,
 }
@@ -33,6 +35,7 @@ impl PeerMisbehavior {
                 "Aleph: Bad sync message",
             ),
             MalformedSync => Rep::new(cost::MALFORMED_CATCH_UP, "Aleph: Malformed sync"),
+            InvalidEpochId => Rep::new(cost::INVALID_VIEW_CHANGE, "Aleph: Invalid epoch ID"),
         }
     }
 }
