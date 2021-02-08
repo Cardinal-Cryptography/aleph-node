@@ -65,7 +65,9 @@ impl PeerGoodBehavior {
 
         match *self {
             ValidatedSync => Rep::new(benefit::VALIDATED_SYNC, "Aleph: Validated sync message"),
-            GoodFetchResponse => Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response"),
+            GoodFetchResponse => {
+                Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response")
+            }
             GoodMulticast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
         }
     }

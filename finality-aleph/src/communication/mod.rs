@@ -1,17 +1,20 @@
 mod gossip;
 pub(super) mod peer;
 
-use crate::{communication::gossip::GossipValidator, temp::EpochId, AuthoritySignature, AuthorityId};
+use crate::{
+    communication::gossip::GossipValidator,
+    temp::{CHUnit, EpochId, Round},
+    AuthorityId, AuthoritySignature,
+};
+use codec::{Decode, Encode};
+use log::debug;
 use sc_network_gossip::{GossipEngine, Network};
+use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{
     fmt::{Formatter, Result as FmtResult},
     sync::{Arc, Mutex},
 };
-use crate::temp::{CHUnit, Round};
-use codec::{Encode, Decode};
-use sp_application_crypto::RuntimeAppPublic;
-use log::debug;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
@@ -56,9 +59,7 @@ pub fn verify_unit_signature_with_buffer<B: Block>(
     valid
 }
 
-pub fn verify_unit_signature<B: Block>(
-    signed_ch_unit: &SignedCHUnit<B>
-) -> bool {
+pub fn verify_unit_signature<B: Block>(signed_ch_unit: &SignedCHUnit<B>) -> bool {
     verify_unit_signature_with_buffer(signed_ch_unit, &mut Vec::new())
 }
 

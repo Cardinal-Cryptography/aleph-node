@@ -1,4 +1,4 @@
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
 
 #[derive(Debug, Encode, Decode)]
 pub struct NodeIndex(pub(crate) u32);

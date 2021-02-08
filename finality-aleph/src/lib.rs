@@ -21,7 +21,7 @@ pub type AuthoritySignature = app::Signature;
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
     use codec::{Decode, Encode};
-    use sp_runtime::traits::{Hash, Block};
+    use sp_runtime::traits::{Block, Hash};
     use std::fmt::{Display, Formatter, Result as FmtResult};
 
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]

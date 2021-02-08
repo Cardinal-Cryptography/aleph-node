@@ -1,4 +1,14 @@
-use crate::{communication::peer::{rep::PeerMisbehavior, Peers}, nodes::NodeIndex, AuthorityId, CHUnit, EpochId, AuthoritySignature};
+use crate::{
+    communication::{
+        peer::{
+            rep::{PeerGoodBehavior, PeerMisbehavior},
+            Peers,
+        },
+        SignedCHUnit,
+    },
+    nodes::NodeIndex,
+    AuthorityId, AuthoritySignature, CHUnit, EpochId,
+};
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
@@ -13,8 +23,6 @@ use std::{
     marker::PhantomData,
     time::{Duration, Instant},
 };
-use crate::communication::SignedCHUnit;
-use crate::communication::peer::rep::PeerGoodBehavior;
 
 const REBROADCAST_AFTER: Duration = Duration::from_secs(60 * 5);
 
@@ -253,7 +261,11 @@ impl<B: Block> GossipValidator<B> {
     //     // let (cost_benefit)
     // }
 
-    fn validate_ch_unit(&self, sender: &PeerId, signed_ch_unit: &SignedCHUnit<B>) -> Result<(), MessageAction<B::Hash>> {
+    fn validate_ch_unit(
+        &self,
+        sender: &PeerId,
+        signed_ch_unit: &SignedCHUnit<B>,
+    ) -> Result<(), MessageAction<B::Hash>> {
         let id = &signed_ch_unit.id;
         if !self.authorities.read().contains(id) {
             debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
@@ -271,17 +283,28 @@ impl<B: Block> GossipValidator<B> {
         Ok(())
     }
 
-    fn validate_multicast(&self, sender: &PeerId, message: &Multicast<B>) -> MessageAction<B::Hash> {
+    fn validate_multicast(
+        &self,
+        sender: &PeerId,
+        message: &Multicast<B>,
+    ) -> MessageAction<B::Hash> {
         match self.validate_ch_unit(sender, &message.signed_unit) {
             Ok(_) => {
-                let topic = super::topic(message.signed_unit.unit.round(), message.signed_unit.unit.epoch());
+                let topic = super::topic(
+                    message.signed_unit.unit.round(),
+                    message.signed_unit.unit.epoch(),
+                );
                 MessageAction::Keep(topic, PeerGoodBehavior::GoodMulticast.benefit())
-            },
+            }
             Err(e) => e,
         }
     }
 
-    fn validate_fetch_response<H: Hash>(&self, sender: &PeerId, message: &FetchResponse<B>) -> MessageAction<B::Hash> {
+    fn validate_fetch_response<H: Hash>(
+        &self,
+        sender: &PeerId,
+        message: &FetchResponse<B>,
+    ) -> MessageAction<B::Hash> {
         for signed_ch_unit in &message.signed_units {
             if let Err(e) = self.validate_ch_unit(sender, signed_ch_unit) {
                 return e;
@@ -305,7 +328,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
         &self,
         context: &mut dyn ValidatorContext<B>,
         sender: &PeerId,
-        mut data: &[u8]
+        mut data: &[u8],
     ) -> ValidationResult<B::Hash> {
         // Can fail if the packet is malformed and can't be decoded or the
         // unit's signature is wrong.
