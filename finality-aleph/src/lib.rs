@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 pub(crate) mod communication;
 pub(crate) mod environment;
 pub(crate) mod nodes;

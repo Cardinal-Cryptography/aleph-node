@@ -11,9 +11,8 @@ use log::debug;
 use sc_network_gossip::{GossipEngine, Network};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block, Hash, Header};
-use std::{
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
+use crate::nodes::NodeIndex;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
@@ -45,23 +44,27 @@ pub fn encode_unit<B: Block>(unit: &CHUnit<B>) -> Vec<u8> {
 }
 
 pub fn verify_unit_signature_with_buffer<B: Block>(
-    signed_ch_unit: &SignedCHUnit<B>,
+    unit: &CHUnit<B>, signature: &AuthoritySignature, id: &AuthorityId,
     buf: &mut Vec<u8>,
 ) -> bool {
-    encode_unit_with_buffer(&signed_ch_unit.unit, buf);
+    encode_unit_with_buffer(&unit, buf);
 
-    let valid = signed_ch_unit.id.verify(&buf, &signed_ch_unit.signature);
+    let valid = id.verify(&buf, signature);
     if !valid {
-        debug!(target: "afa", "Bad signature message from {:?}", signed_ch_unit.unit.creator_id);
+        debug!(target: "afa", "Bad signature message from {:?}", unit.creator());
     }
 
     valid
 }
 
-pub fn verify_unit_signature<B: Block>(signed_ch_unit: &SignedCHUnit<B>) -> bool {
-    verify_unit_signature_with_buffer(signed_ch_unit, &mut Vec::new())
+pub fn verify_unit_signature<B: Block>(unit: &CHUnit<B>, signature: &AuthoritySignature, id: &AuthorityId) -> bool {
+    verify_unit_signature_with_buffer(unit, signature, id, &mut Vec::new())
 }
 
-pub(crate) fn topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
-    <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", epoch, round).as_bytes())
+pub(crate) fn multicast_topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
+    <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", round, epoch).as_bytes())
+}
+
+pub(crate) fn index_topic<B: Block>(index: NodeIndex) -> B::Hash {
+    <<B::Header as Header>::Hashing as Hash>::hash(format!("{}", index).as_bytes())
 }

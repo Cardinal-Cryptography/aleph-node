@@ -1,10 +1,8 @@
-use crate::{
-    communication::{peer::rep::PeerMisbehavior},
-    EpochId,
-};
+use crate::{communication::peer::rep::PeerMisbehavior, EpochId};
 use log::trace;
 use sc_network::{ObservedRole, PeerId};
 use std::collections::HashMap;
+use crate::communication::gossip::NeighborPacketV1;
 
 pub(crate) mod rep;
 
