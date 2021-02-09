@@ -12,7 +12,6 @@ use sc_network_gossip::{GossipEngine, Network};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block, Hash, Header};
 use std::{
-    fmt::{Formatter, Result as FmtResult},
     sync::{Arc, Mutex},
 };
 

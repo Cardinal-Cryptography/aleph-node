@@ -96,14 +96,14 @@ pub(crate) mod temp {
         }
     }
 
-    pub struct Unit<H: Hash> {
+    pub struct Unit<B: Block> {
         creator: CreatorId,
         round: u32,
         epoch_id: EpochId,
-        hash: H,
-        control_hash: ControlHash<H>,
-        parents: NodeMap<Option<H>>,
-        best_block: H,
+        hash: B::Hash,
+        control_hash: ControlHash<B>,
+        parents: NodeMap<Option<B>>,
+        best_block: B::Hash,
     }
 }
 

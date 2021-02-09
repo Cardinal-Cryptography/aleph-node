@@ -7,7 +7,7 @@ use crate::{
         SignedCHUnit,
     },
     nodes::NodeIndex,
-    AuthorityId, AuthoritySignature, CHUnit, EpochId,
+    AuthorityId, EpochId,
 };
 use codec::{Decode, Encode};
 use log::debug;
@@ -39,24 +39,6 @@ enum MessageAction<H> {
     Discard(ReputationChange),
 }
 
-// // TODO
-// enum PendingSync {
-//     None,
-//     Requesting {
-//         who: PeerId,
-//         request: SyncRequest,
-//         instant: Instant,
-//     },
-//     Processing {
-//         instant: Instant,
-//     },
-// }
-//
-// enum SyncConfig {
-//     Enabled { only_from_authorities: bool },
-//     Disabled,
-// }
-
 // TODO
 #[derive(Debug, Encode, Decode)]
 struct Multicast<B: Block> {
@@ -74,15 +56,6 @@ struct FetchResponse<B: Block> {
     signed_units: Vec<SignedCHUnit<B>>,
     unit_id: NodeIndex,
 }
-
-// struct SyncRequest {
-//     epoch_id: EpochId,
-// }
-
-// // TODO
-// struct SyncResponse {
-//     epoch_id: EpochId,
-// }
 
 // TODO
 #[derive(Debug, Encode, Decode)]
@@ -113,8 +86,6 @@ pub(super) enum GossipMessage<B: Block> {
     FetchRequest(FetchRequest),
     FetchResponse(FetchResponse<B>),
     // Neighbor(VersionedNeighborPacket),
-    // SyncRequest(SyncRequest),
-    // SyncResponse(SyncResponse),
     Alert(Alert),
 }
 
@@ -125,7 +96,6 @@ struct PeerReport {
 
 type PrometheusResult<T> = Result<T, PrometheusError>;
 
-// TODO
 struct Metrics {
     messages_validated: CounterVec<U64>,
 }
@@ -219,41 +189,6 @@ impl<B: Block> GossipValidator<B> {
         self.report_sender
             .unbounded_send(PeerReport { who, change });
     }
-
-    // // NOTE: The two `SyncRequest`s may need to be different from each other.
-    // // I think internally a reformed version can be used.
-    // // NOTE: This is kind of weird and I don't understand why with Grandpa it
-    // // throws away every other request. Maybe it will become more clear once
-    // // I add more to it.
-    // // It goes from note_catch_up
-    // fn validate_sync_request(
-    //     &mut self,
-    //     who: &PeerId,
-    //     incoming_request: &SyncRequest,
-    // ) -> MessageAction<B::Hash> {
-    //     use PendingSync::*;
-    //     match &self.pending_sync {
-    //         Requesting {
-    //             who: peer,
-    //             request,
-    //             instant,
-    //         } => {
-    //             if peer != who {
-    //                 return MessageAction::Discard(PeerMisbehavior::OutOfScopeMessage.cost());
-    //             }
-    //
-    //             if request.epoch != incoming_request.epoch {
-    //                 return MessageAction::Discard(PeerMisbehavior::MalformedSync.cost());
-    //             }
-    //
-    //             *self.pending_sync.write() = PendingSync::Processing { instant: *instant };
-    //
-    //             let topic = super::global_topic::<B>(incoming_request.epoch);
-    //             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.cost())
-    //         }
-    //         _ => MessageAction::Discard(PeerMisbehavior::OutOfScopeMessage.cost()),
-    //     }
-    // }
 
     // fn import_neighbor_message(&self, sender: &PeerId, packet: NeighborPacketV1) {
     //     let update_res = self.peers.write().update_peer(sender, packet);

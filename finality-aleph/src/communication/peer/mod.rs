@@ -1,9 +1,8 @@
 use crate::{
-    communication::{gossip::NeighborPacketV1, peer::rep::PeerMisbehavior},
+    communication::{peer::rep::PeerMisbehavior},
     EpochId,
 };
 use log::trace;
-// use rand::seq::SliceRandom;
 use sc_network::{ObservedRole, PeerId};
 use std::collections::HashMap;
 
@@ -53,14 +52,6 @@ impl Peers {
             .filter(|(_, info)| matches!(info.role, ObservedRole::Full | ObservedRole::Light))
             .count()
     }
-
-    // pub(crate) fn shuffle(&mut self) {
-    //     let mut peers = self.0.clone();
-    //     peers.partial_shuffle(&mut rand::thread_rng(), self.0.len());
-    //     peers.truncate(self.0.len());
-    //     self.0.clear();
-    //     self.0.extend(peers.into_iter());
-    // }
 
     /// Returns a new epoch id if the peer is known.
     // TODO: error
