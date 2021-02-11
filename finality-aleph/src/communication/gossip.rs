@@ -181,6 +181,9 @@ impl<B: Block> GossipValidator<B> {
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.benefit())
     }
 
+    // TODO: Rate limiting should be applied here. We would not want to let an unlimited amount of
+    // requests. Though, it should be checked if this is already done on the other layers. Not to
+    // my knowledge though.
     fn validate_fetch_request(
         &self,
         _sender: &PeerId,
