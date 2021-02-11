@@ -12,7 +12,7 @@ use crate::{
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
-use prometheus_endpoint::Registry;
+use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
@@ -62,55 +62,57 @@ pub(crate) struct PeerReport {
     change: ReputationChange,
 }
 
-// type PrometheusResult<T> = Result<T, PrometheusError>;
+type PrometheusResult<T> = Result<T, PrometheusError>;
 
-// struct Metrics {
-//     messages_validated: CounterVec<U64>,
-// }
+struct Metrics {
+    messages_validated: CounterVec<U64>,
+}
 
-// impl Metrics {
-//     pub(crate) fn register(registry: &prometheus_endpoint::Registry) -> PrometheusResult<Self> {
-//         Ok(Self {
-//             messages_validated: register(
-//                 CounterVec::new(
-//                     Opts::new(
-//                         "finality_aleph_communication_gossip_validator_messages",
-//                         "Number of messages validated by the finality aleph gossip validator.",
-//                     ),
-//                     &["message", "action"],
-//                 )?,
-//                 registry,
-//             )?,
-//         })
-//     }
-// }
+impl Metrics {
+    pub(crate) fn register(registry: &prometheus_endpoint::Registry) -> PrometheusResult<Self> {
+        Ok(Self {
+            messages_validated: prometheus_endpoint::register(
+                CounterVec::new(
+                    Opts::new(
+                        "finality_aleph_communication_gossip_validator_messages",
+                        "Number of messages validated by the finality aleph gossip validator.",
+                    ),
+                    &["message", "action"],
+                )?,
+                registry,
+            )?,
+        })
+    }
+}
 
 pub(super) struct GossipValidator<B: Block> {
     peers: RwLock<Peers>,
     authorities: RwLock<Vec<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
-    // metrics: Option<Metrics>,
+    metrics: Option<Metrics>,
     phantom: PhantomData<B>,
 }
 
 impl<B: Block> GossipValidator<B> {
     pub(crate) fn new(
-        // config: GossipValidatorConfig,
-        // epoch: EpochId,
-        _prometheus_registry: Option<&Registry>,
+        prometheus_registry: Option<&Registry>,
     ) -> (GossipValidator<B>, TracingUnboundedReceiver<PeerReport>) {
-        // let metrics: Option<Metrics> = prometheus_registry.and_then(|reg| {
-        //     Metrics::register(reg)
-        //         .map_err(|e| debug!(target: "afa", "Failed to register metrics: {:?}", e))
-        //         .checked_into()
-        // });
+        let metrics: Option<Metrics> =
+            prometheus_registry.and_then(|reg| {
+                match Metrics::register(reg)
+                    .map_err(|e| debug!(target: "afa", "Failed to register metrics: {:?}", e))
+                {
+                    Ok(m) => Some(m),
+                    Err(_) => None,
+                }
+            });
 
         let (tx, rx) = tracing_unbounded("mpsc_aleph_gossip_validator");
         let val = GossipValidator {
             peers: RwLock::new(Peers::default()),
             authorities: RwLock::new(Vec::new()),
             report_sender: tx,
-            // metrics,
+            metrics,
             phantom: PhantomData::default(),
         };
 
@@ -131,18 +133,12 @@ impl<B: Block> GossipValidator<B> {
         let id = &signed_unit.id;
         if !self.authorities.read().contains(id) {
             debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
-            // TODO telemetry
-            // telemetry!(CONSENSUS_DEBUG, "afa.bad_msg_signature"; "sig")
             return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
         }
 
-        if !super::verify_unit_signature(
-            &signed_unit.unit,
-            &signed_unit.signature,
-            &signed_unit.id,
-        ) {
+        if !super::verify_unit_signature(&signed_unit.unit, &signed_unit.signature, &signed_unit.id)
+        {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
-            // TODO telemetry
             return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
         }
 
@@ -210,26 +206,26 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
         sender: &PeerId,
         mut data: &[u8],
     ) -> ValidationResult<B::Hash> {
-        // let message_name: Option<&str>;
+        let message_name: Option<&str>;
         let action = match GossipMessage::<B>::decode(&mut data) {
             Ok(GossipMessage::Multicast(ref message)) => {
-                // message_name = Some("multicast");
+                message_name = Some("multicast");
                 self.validate_multicast(sender, message)
             }
             Ok(GossipMessage::FetchRequest(ref message)) => {
-                // message_name = Some("fetch_request");
+                message_name = Some("fetch_request");
                 self.validate_fetch_request(sender, message)
             }
             Ok(GossipMessage::FetchResponse(ref message)) => {
-                // message_name = Some("fetch_response");
+                message_name = Some("fetch_response");
                 self.validate_fetch_response(sender, message)
             }
             Ok(GossipMessage::Alert(ref _message)) => {
-                // message_name = Some("alert");
+                message_name = Some("alert");
                 todo!()
             }
             Err(e) => {
-                // message_name = None;
+                message_name = None;
                 debug!(target: "afa", "Error decoding message: {}", e.what());
                 telemetry!(CONSENSUS_DEBUG; "afa.err_decoding_msg"; "" => "");
 
@@ -238,6 +234,15 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 MessageAction::Discard(rep)
             }
         };
+
+        if let (Some(metrics), Some(message_name)) = (&self.metrics, message_name) {
+            let action_name = match action {
+                MessageAction::Keep(_, _) => "keep",
+                MessageAction::ProcessAndDiscard(_, _) => "process_and_discard",
+                MessageAction::Discard(_) => "discard",
+            };
+            metrics.messages_validated.with_label_values(&[message_name, action_name]).inc();
+        }
 
         match action {
             MessageAction::Keep(topic, cb) => {
@@ -271,7 +276,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::temp::{ControlHash, CreatorId, NodeMap, Round, Unit};
+    use crate::temp::{ControlHash, CreatorId, EpochId, NodeMap, Round, Unit};
     use sp_core::{Public, H256};
     use sp_runtime::traits::Extrinsic as ExtrinsicT;
 
