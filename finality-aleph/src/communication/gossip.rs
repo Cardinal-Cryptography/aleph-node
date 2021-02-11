@@ -6,7 +6,7 @@ use crate::{
         },
         SignedCHUnit,
     },
-    nodes::NodeIndex,
+    temp::{NodeIndex, UnitCoord},
     AuthorityId, EpochId,
 };
 use codec::{Decode, Encode};
@@ -18,9 +18,7 @@ use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorCon
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 enum MessageAction<H> {
     Keep(H, ReputationChange),

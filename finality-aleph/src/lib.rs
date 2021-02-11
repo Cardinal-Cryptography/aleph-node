@@ -2,7 +2,6 @@
 
 pub(crate) mod communication;
 pub(crate) mod environment;
-pub(crate) mod nodes;
 
 mod key_types {
     use sp_runtime::KeyTypeId;
@@ -25,6 +24,23 @@ pub(crate) mod temp {
     use codec::{Decode, Encode};
     use sp_runtime::traits::{Block, Hash};
     use std::fmt::{Display, Formatter, Result as FmtResult};
+
+    #[derive(Debug, Clone, Copy, Encode, Decode)]
+    pub struct NodeIndex(pub(crate) u32);
+
+    impl Display for NodeIndex {
+        fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl From<u32> for NodeIndex {
+        fn from(idx: u32) -> Self {
+            NodeIndex(idx)
+        }
+    }
+
+    pub type UnitCoord = (u32, NodeIndex);
 
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
     pub struct Round(pub u64);

@@ -3,7 +3,7 @@ pub(super) mod peer;
 
 use crate::{
     communication::gossip::GossipValidator,
-    temp::{CHUnit, EpochId, Round},
+    temp::{EpochId, NodeIndex, Round, Unit},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
@@ -12,7 +12,6 @@ use sc_network_gossip::{GossipEngine, Network};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block, Hash, Header};
 use std::sync::{Arc, Mutex};
-use crate::nodes::NodeIndex;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
