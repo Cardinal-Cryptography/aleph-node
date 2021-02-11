@@ -7,7 +7,7 @@ use crate::{
         SignedUnit,
     },
     temp::{NodeIndex, UnitCoord},
-    AuthorityId, EpochId,
+    AuthorityId,
 };
 use codec::{Decode, Encode};
 use log::debug;
@@ -50,25 +50,6 @@ struct FetchResponse<B: Block> {
 struct Alert {}
 
 #[derive(Debug, Encode, Decode)]
-pub(crate) struct NeighborPacketV1 {
-    pub epoch_id: EpochId,
-}
-
-#[derive(Debug, Encode, Decode)]
-pub(crate) enum VersionedNeighborPacket {
-    V1(NeighborPacketV1),
-}
-
-// If multiple versions, should be improved with TryFrom
-impl From<VersionedNeighborPacket> for NeighborPacketV1 {
-    fn from(packet: VersionedNeighborPacket) -> Self {
-        match packet {
-            VersionedNeighborPacket::V1(p) => p,
-        }
-    }
-}
-
-#[derive(Debug, Encode, Decode)]
 enum GossipMessage<B: Block> {
     Multicast(Multicast<B>),
     FetchRequest(FetchRequest),
@@ -102,15 +83,6 @@ pub(crate) struct PeerReport {
 //             )?,
 //         })
 //     }
-// }
-
-// pub struct GossipValidatorConfig {
-//     pub gossip_duration: Duration,
-//     pub justification_period: u32,
-//     pub observer_enabled: bool,
-//     pub is_authority: bool,
-//     pub name: Option<String>,
-//     pub keystore: Option<BareCryptoStorePtr>,
 // }
 
 pub(super) struct GossipValidator<B: Block> {
@@ -154,12 +126,6 @@ impl<B: Block> GossipValidator<B> {
             .report_sender
             .unbounded_send(PeerReport { who, change });
     }
-
-    // fn import_neighbor_message(&self, sender: &PeerId, packet: NeighborPacketV1) {
-    //     let update_res = self.peers.write().update_peer(sender, packet);
-    //
-    //     // let (cost_benefit)
-    // }
 
     fn validate_ch_unit(
         &self,
@@ -251,10 +217,6 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 // message_name = Some("multicast");
                 self.validate_multicast(sender, message)
             }
-            // Ok(GossipMessage::Neighbor(update)) => {
-            //     message_name = Some("neighbor");
-            //     // self.import_neighbor_message(sender, update.into())
-            // }
             Ok(GossipMessage::FetchRequest(ref message)) => {
                 // message_name = Some("fetch_request");
                 self.validate_fetch_request(sender, message)
@@ -310,4 +272,57 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::temp::{ControlHash, CreatorId, NodeMap, Round, Unit};
+    use sp_core::{Public, H256};
+    use sp_runtime::traits::Extrinsic as ExtrinsicT;
+
+    #[derive(Debug, PartialEq, Clone, Eq, Encode, Decode, serde::Serialize)]
+    pub struct Extrinsic {}
+
+    parity_util_mem::malloc_size_of_is_0!(Extrinsic);
+
+    impl ExtrinsicT for Extrinsic {
+        type Call = Extrinsic;
+        type SignaturePayload = ();
+    }
+
+    pub type BlockNumber = u64;
+
+    pub type Hashing = sp_runtime::traits::BlakeTwo256;
+
+    pub type Header = sp_runtime::generic::Header<BlockNumber, Hashing>;
+
+    pub type Hash = H256;
+
+    pub type Block = sp_runtime::generic::Block<Header, Extrinsic>;
+
+    #[test]
+    fn multicast_message() {
+        let (val, _) = GossipValidator::<Hash>::new(None);
+        let control_hash: ControlHash<Hash> = ControlHash {
+            parents: NodeMap(vec![false]),
+            hash: H256::from([1u8; 32]),
+        };
+        let unit = Unit {
+            creator: CreatorId(0),
+            round: Round(0),
+            epoch_id: EpochId(0),
+            hash: H256::from([1u8; 32]),
+            control_hash,
+            best_block: H256::from([1u8; 32]),
+        };
+        let message = Multicast {
+            signed_unit: SignedUnit {
+                unit,
+                signature: Default::default(),
+                id: AuthorityId::from_slice(&[1u8; 32]),
+            },
+        };
+        let peer = PeerId::random();
+        val.peers
+            .write()
+            .insert_peer(peer.clone(), ObservedRole::Authority);
+        let res = val.validate_multicast(&peer, &message);
+        println!("{:?}", res);
+    }
 }
