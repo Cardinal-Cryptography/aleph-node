@@ -91,9 +91,9 @@ pub(crate) mod temp {
     }
 
     #[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
-    pub struct ControlHash<B: Block> {
-        parents: NodeMap<bool>,
-        hash: B::Hash,
+    pub struct ControlHash<H> {
+        pub parents: NodeMap<bool>,
+        pub hash: H,
     }
 
     #[derive(Debug, Encode, Decode)]
@@ -101,9 +101,9 @@ pub(crate) mod temp {
         pub creator: CreatorId,
         pub round: Round,
         pub epoch_id: EpochId,
-        pub hash: B,
-        pub control_hash: ControlHash<B>,
-        pub best_block: B,
+        pub hash: <B as Block>::Hash,
+        pub control_hash: ControlHash<<B as Block>::Hash>,
+        pub best_block: <B as Block>::Hash,
     }
 }
 

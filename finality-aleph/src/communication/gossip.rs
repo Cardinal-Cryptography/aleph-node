@@ -27,7 +27,6 @@ enum MessageAction<H> {
     Discard(ReputationChange),
 }
 
-// TODO
 #[derive(Debug, Encode, Decode)]
 struct Multicast<B: Block> {
     signed_unit: SignedUnit<B>,
@@ -152,7 +151,7 @@ impl<B: Block> GossipValidator<B> {
     ) -> MessageAction<B::Hash> {
         match self.validate_unit(sender, &message.signed_unit) {
             Ok(_) => {
-                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
+                let topic = super::multicast_topic::<B>(
                     message.signed_unit.unit.round,
                     message.signed_unit.unit.epoch_id,
                 );
