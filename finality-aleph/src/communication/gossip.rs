@@ -88,8 +88,6 @@ pub(crate) struct PeerReport {
 pub(super) struct GossipValidator<B: Block> {
     peers: RwLock<Peers>,
     authorities: RwLock<Vec<AuthorityId>>,
-    // config: RwLock<GossipValidatorConfig>,
-    // epoch: EpochId,
     report_sender: TracingUnboundedSender<PeerReport>,
     // metrics: Option<Metrics>,
     phantom: PhantomData<B>,
@@ -111,8 +109,6 @@ impl<B: Block> GossipValidator<B> {
         let val = GossipValidator {
             peers: RwLock::new(Peers::default()),
             authorities: RwLock::new(Vec::new()),
-            // config: RwLock::new(config),
-            // epoch,
             report_sender: tx,
             // metrics,
             phantom: PhantomData::default(),
@@ -127,12 +123,12 @@ impl<B: Block> GossipValidator<B> {
             .unbounded_send(PeerReport { who, change });
     }
 
-    fn validate_ch_unit(
+    fn validate_unit(
         &self,
         sender: &PeerId,
-        signed_ch_unit: &SignedUnit<B>,
+        signed_unit: &SignedUnit<B>,
     ) -> Result<(), MessageAction<B::Hash>> {
-        let id = &signed_ch_unit.id;
+        let id = &signed_unit.id;
         if !self.authorities.read().contains(id) {
             debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
             // TODO telemetry
@@ -141,9 +137,9 @@ impl<B: Block> GossipValidator<B> {
         }
 
         if !super::verify_unit_signature(
-            &signed_ch_unit.unit,
-            &signed_ch_unit.signature,
-            &signed_ch_unit.id,
+            &signed_unit.unit,
+            &signed_unit.signature,
+            &signed_unit.id,
         ) {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
             // TODO telemetry
@@ -158,7 +154,7 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &Multicast<B>,
     ) -> MessageAction<B::Hash> {
-        match self.validate_ch_unit(sender, &message.signed_unit) {
+        match self.validate_unit(sender, &message.signed_unit) {
             Ok(_) => {
                 let topic: <B as Block>::Hash = super::multicast_topic::<B>(
                     message.signed_unit.unit.round,
@@ -175,8 +171,8 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
-        for signed_ch_unit in &message.signed_units {
-            if let Err(e) = self.validate_ch_unit(sender, signed_ch_unit) {
+        for signed_unit in &message.signed_units {
+            if let Err(e) = self.validate_unit(sender, signed_unit) {
                 return e;
             }
         }
