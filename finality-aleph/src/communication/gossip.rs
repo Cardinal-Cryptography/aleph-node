@@ -4,7 +4,7 @@ use crate::{
             rep::{PeerGoodBehavior, PeerMisbehavior},
             Peers,
         },
-        SignedCHUnit,
+        SignedUnit,
     },
     temp::{NodeIndex, UnitCoord},
     AuthorityId, EpochId,
@@ -20,6 +20,7 @@ use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 enum MessageAction<H> {
     Keep(H, ReputationChange),
     ProcessAndDiscard(H, ReputationChange),
@@ -29,19 +30,19 @@ enum MessageAction<H> {
 // TODO
 #[derive(Debug, Encode, Decode)]
 struct Multicast<B: Block> {
-    signed_unit: SignedCHUnit<B>,
+    signed_unit: SignedUnit<B>,
 }
 
 #[derive(Debug, Encode, Decode)]
 struct FetchRequest {
-    hashes: Vec<NodeIndex>,
-    unit_id: NodeIndex,
+    coords: Vec<UnitCoord>,
+    peer_id: NodeIndex,
 }
 
 #[derive(Debug, Encode, Decode)]
 struct FetchResponse<B: Block> {
-    signed_units: Vec<SignedCHUnit<B>>,
-    unit_id: NodeIndex,
+    signed_units: Vec<SignedUnit<B>>,
+    peer_id: NodeIndex,
 }
 
 // TODO
@@ -72,7 +73,6 @@ enum GossipMessage<B: Block> {
     Multicast(Multicast<B>),
     FetchRequest(FetchRequest),
     FetchResponse(FetchResponse<B>),
-    // Neighbor(VersionedNeighborPacket),
     Alert(Alert),
 }
 
@@ -150,7 +150,8 @@ impl<B: Block> GossipValidator<B> {
     }
 
     pub(crate) fn report_peer(&self, who: PeerId, change: ReputationChange) {
-        let _ = self.report_sender
+        let _ = self
+            .report_sender
             .unbounded_send(PeerReport { who, change });
     }
 
@@ -163,7 +164,7 @@ impl<B: Block> GossipValidator<B> {
     fn validate_ch_unit(
         &self,
         sender: &PeerId,
-        signed_ch_unit: &SignedCHUnit<B>,
+        signed_ch_unit: &SignedUnit<B>,
     ) -> Result<(), MessageAction<B::Hash>> {
         let id = &signed_ch_unit.id;
         if !self.authorities.read().contains(id) {
@@ -173,7 +174,11 @@ impl<B: Block> GossipValidator<B> {
             return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
         }
 
-        if !super::verify_unit_signature(&signed_ch_unit.unit, &signed_ch_unit.signature, &signed_ch_unit.id) {
+        if !super::verify_unit_signature(
+            &signed_ch_unit.unit,
+            &signed_ch_unit.signature,
+            &signed_ch_unit.id,
+        ) {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
             // TODO telemetry
             return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
@@ -190,8 +195,8 @@ impl<B: Block> GossipValidator<B> {
         match self.validate_ch_unit(sender, &message.signed_unit) {
             Ok(_) => {
                 let topic: <B as Block>::Hash = super::multicast_topic::<B>(
-                    message.signed_unit.unit.round(),
-                    message.signed_unit.unit.epoch(),
+                    message.signed_unit.unit.round,
+                    message.signed_unit.unit.epoch_id,
                 );
                 MessageAction::Keep(topic, PeerGoodBehavior::GoodMulticast.benefit())
             }
@@ -209,9 +214,7 @@ impl<B: Block> GossipValidator<B> {
                 return e;
             }
         }
-        let topic: <B as Block>::Hash = super::index_topic::<B>(
-            message.unit_id,
-        );
+        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.benefit())
     }
@@ -221,9 +224,7 @@ impl<B: Block> GossipValidator<B> {
         _sender: &PeerId,
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
-        let topic: <B as Block>::Hash = super::index_topic::<B>(
-            message.unit_id,
-        );
+        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::GoodFetchRequest.benefit())
     }

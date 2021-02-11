@@ -25,38 +25,40 @@ pub struct NetworkBridge<B: Block, N: Network<B>> {
 }
 
 #[derive(Debug, Encode, Decode)]
-struct SignedCHUnit<B: Block> {
-    unit: CHUnit<B>,
+struct SignedUnit<B: Block> {
+    unit: Unit<B>,
     signature: AuthoritySignature,
+    // NOTE: This will likely be changed to a usize to get the authority out of
+    // a map in the future to reduce data sizes of packets.
     id: AuthorityId,
 }
 
-pub fn encode_unit_with_buffer<B: Block>(unit: &CHUnit<B>, buf: &mut Vec<u8>) {
+pub fn encode_unit_with_buffer<B: Block>(unit: &Unit<B>, buf: &mut Vec<u8>) {
     buf.clear();
     unit.encode_to(buf);
 }
 
-pub fn encode_unit<B: Block>(unit: &CHUnit<B>) -> Vec<u8> {
-    let mut buf = Vec::new();
-    encode_unit_with_buffer(unit, &mut buf);
-    buf
-}
-
 pub fn verify_unit_signature_with_buffer<B: Block>(
-    unit: &CHUnit<B>, signature: &AuthoritySignature, id: &AuthorityId,
+    unit: &Unit<B>,
+    signature: &AuthoritySignature,
+    id: &AuthorityId,
     buf: &mut Vec<u8>,
 ) -> bool {
     encode_unit_with_buffer(&unit, buf);
 
     let valid = id.verify(&buf, signature);
     if !valid {
-        debug!(target: "afa", "Bad signature message from {:?}", unit.creator());
+        debug!(target: "afa", "Bad signature message from {:?}", unit.creator);
     }
 
     valid
 }
 
-pub fn verify_unit_signature<B: Block>(unit: &CHUnit<B>, signature: &AuthoritySignature, id: &AuthorityId) -> bool {
+pub fn verify_unit_signature<B: Block>(
+    unit: &Unit<B>,
+    signature: &AuthoritySignature,
+    id: &AuthorityId,
+) -> bool {
     verify_unit_signature_with_buffer(unit, signature, id, &mut Vec::new())
 }
 

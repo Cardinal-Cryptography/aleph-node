@@ -22,7 +22,7 @@ pub type AuthoritySignature = app::Signature;
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
     use codec::{Decode, Encode};
-    use sp_runtime::traits::{Block, Hash};
+    use sp_runtime::traits::Block;
     use std::fmt::{Display, Formatter, Result as FmtResult};
 
     #[derive(Debug, Clone, Copy, Encode, Decode)]
@@ -82,7 +82,13 @@ pub(crate) mod temp {
     }
 
     #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Encode, Decode)]
-    pub struct NodeMap<T>(Vec<T>);
+    pub struct NodeMap<T>(pub Vec<T>);
+
+    impl<T> From<Vec<T>> for NodeMap<T> {
+        fn from(vec: Vec<T>) -> Self {
+            NodeMap(vec)
+        }
+    }
 
     #[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
     pub struct ControlHash<B: Block> {
@@ -91,37 +97,13 @@ pub(crate) mod temp {
     }
 
     #[derive(Debug, Encode, Decode)]
-    pub struct CHUnit<B: Block> {
-        creator: CreatorId,
-        round: Round,
-        epoch_id: EpochId,
-        hash: B::Hash,
-        control_hash: ControlHash<B>,
-        best_block: B::Hash,
-    }
-
-    impl<B: Block> CHUnit<B> {
-        pub fn creator(&self) -> CreatorId {
-            self.creator
-        }
-
-        pub fn round(&self) -> Round {
-            self.round
-        }
-
-        pub fn epoch(&self) -> EpochId {
-            self.epoch_id
-        }
-    }
-
     pub struct Unit<B: Block> {
-        creator: CreatorId,
-        round: u32,
-        epoch_id: EpochId,
-        hash: B::Hash,
-        control_hash: ControlHash<B>,
-        parents: NodeMap<Option<B>>,
-        best_block: B::Hash,
+        pub creator: CreatorId,
+        pub round: Round,
+        pub epoch_id: EpochId,
+        pub hash: B,
+        pub control_hash: ControlHash<B>,
+        pub best_block: B,
     }
 }
 
