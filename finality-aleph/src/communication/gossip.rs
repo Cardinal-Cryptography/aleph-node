@@ -135,7 +135,7 @@ impl<B: Block> GossipValidator<B> {
             return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
         }
 
-        if !super::verify_unit_signature(&signed_unit.unit, &signed_unit.signature, &signed_unit.id)
+        if !signed_unit.verify_unit_signature(&signed_unit.signature, &signed_unit.id)
         {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
             return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
@@ -151,7 +151,7 @@ impl<B: Block> GossipValidator<B> {
     ) -> MessageAction<B::Hash> {
         match self.validate_unit(sender, &message.signed_unit) {
             Ok(_) => {
-                let topic = super::multicast_topic::<B>(
+                let topic = super::multicast_topic(
                     message.signed_unit.unit.round,
                     message.signed_unit.unit.epoch_id,
                 );
@@ -171,7 +171,7 @@ impl<B: Block> GossipValidator<B> {
                 return e;
             }
         }
-        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+        let topic: <B as Block>::Hash = super::index_topic(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.benefit())
     }
@@ -184,7 +184,7 @@ impl<B: Block> GossipValidator<B> {
         _sender: &PeerId,
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
-        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+        let topic: <B as Block>::Hash = super::index_topic(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::GoodFetchRequest.benefit())
     }
@@ -301,12 +301,12 @@ mod tests {
 
     #[test]
     fn multicast_message() {
-        let (val, _) = GossipValidator::<Hash>::new(None);
-        let control_hash: ControlHash<Hash> = ControlHash {
+        let (val, _) = GossipValidator::<Block>::new(None);
+        let control_hash = ControlHash {
             parents: NodeMap(vec![false]),
             hash: H256::from([1u8; 32]),
         };
-        let unit = Unit {
+        let unit: Unit<Block> = Unit {
             creator: CreatorId(0),
             round: Round(0),
             epoch_id: EpochId(0),
@@ -314,7 +314,7 @@ mod tests {
             control_hash,
             best_block: H256::from([1u8; 32]),
         };
-        let message = Multicast {
+        let message: Multicast<Block> = Multicast {
             signed_unit: SignedUnit {
                 unit,
                 signature: Default::default(),

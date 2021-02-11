@@ -33,39 +33,41 @@ struct SignedUnit<B: Block> {
     id: AuthorityId,
 }
 
-pub fn encode_unit_with_buffer<B: Block>(unit: &Unit<B>, buf: &mut Vec<u8>) {
-    buf.clear();
-    unit.encode_to(buf);
-}
-
-pub fn verify_unit_signature_with_buffer<B: Block>(
-    unit: &Unit<B>,
-    signature: &AuthoritySignature,
-    id: &AuthorityId,
-    buf: &mut Vec<u8>,
-) -> bool {
-    encode_unit_with_buffer(&unit, buf);
-
-    let valid = id.verify(&buf, signature);
-    if !valid {
-        debug!(target: "afa", "Bad signature message from {:?}", unit.creator);
+impl<B: Block> SignedUnit<B> {
+    pub(crate) fn encode_unit_with_buffer(&self, buf: &mut Vec<u8>) {
+        buf.clear();
+        self.unit.encode_to(buf);
     }
 
-    valid
+    pub fn verify_unit_signature_with_buffer(
+        &self,
+        signature: &AuthoritySignature,
+        id: &AuthorityId,
+        buf: &mut Vec<u8>,
+    ) -> bool {
+        self.encode_unit_with_buffer(buf);
+
+        let valid = id.verify(&buf, signature);
+        if !valid {
+            debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator);
+        }
+
+        valid
+    }
+
+    pub fn verify_unit_signature(
+        &self,
+        signature: &AuthoritySignature,
+        id: &AuthorityId,
+    ) -> bool {
+        self.verify_unit_signature_with_buffer(signature, id, &mut Vec::new())
+    }
 }
 
-pub fn verify_unit_signature<B: Block>(
-    unit: &Unit<B>,
-    signature: &AuthoritySignature,
-    id: &AuthorityId,
-) -> bool {
-    verify_unit_signature_with_buffer(unit, signature, id, &mut Vec::new())
-}
-
-pub(crate) fn multicast_topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
+pub(crate) fn multicast_topic(round: Round, epoch: EpochId) -> B::Hash {
     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", round, epoch).as_bytes())
 }
 
-pub(crate) fn index_topic<B: Block>(index: NodeIndex) -> B::Hash {
+pub(crate) fn index_topic(index: NodeIndex) -> B::Hash {
     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}", index).as_bytes())
 }
