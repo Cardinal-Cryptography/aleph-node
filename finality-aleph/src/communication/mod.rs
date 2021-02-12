@@ -64,10 +64,10 @@ impl<B: Block> SignedUnit<B> {
     }
 }
 
-pub(crate) fn multicast_topic(round: Round, epoch: EpochId) -> B::Hash {
+pub(crate) fn multicast_topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", round, epoch).as_bytes())
 }
 
-pub(crate) fn index_topic(index: NodeIndex) -> B::Hash {
+pub(crate) fn index_topic<B: Block>(index: NodeIndex) -> B::Hash {
     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}", index).as_bytes())
 }
