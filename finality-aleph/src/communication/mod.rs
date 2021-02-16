@@ -2,19 +2,13 @@ mod gossip;
 pub(super) mod peer;
 
 use crate::{
-    communication::gossip::{GossipValidator, PeerReport},
     temp::{EpochId, NodeIndex, Round, Unit},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
 use log::debug;
-use prometheus_endpoint::Registry;
-use sc_network_gossip::{GossipEngine, Network};
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::traits::BareCryptoStorePtr;
 use sp_runtime::traits::{Block, Hash, Header};
-use sp_utils::mpsc::TracingUnboundedReceiver;
-use std::sync::{Arc, Mutex};
 use sp_runtime::ConsensusEngineId;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages

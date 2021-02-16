@@ -154,7 +154,7 @@ impl<B: Block> GossipValidator<B> {
                     message.signed_unit.unit.round,
                     message.signed_unit.unit.epoch_id,
                 );
-                MessageAction::Keep(topic, PeerGoodBehavior::GoodMulticast.benefit())
+                MessageAction::Keep(topic, PeerGoodBehavior::Multicast.benefit())
             }
             Err(e) => e,
         }
@@ -172,7 +172,7 @@ impl<B: Block> GossipValidator<B> {
         }
         let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
-        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.benefit())
+        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.benefit())
     }
 
     // TODO: Rate limiting should be applied here. We would not want to let an unlimited amount of
@@ -185,7 +185,7 @@ impl<B: Block> GossipValidator<B> {
     ) -> MessageAction<B::Hash> {
         let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
-        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::GoodFetchRequest.benefit())
+        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.benefit())
     }
 }
 
@@ -219,7 +219,6 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 self.validate_fetch_response(sender, message)
             }
             Ok(GossipMessage::Alert(ref _message)) => {
-                message_name = Some("alert");
                 todo!()
             }
             Err(e) => {

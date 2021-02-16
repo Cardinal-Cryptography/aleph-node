@@ -4,15 +4,12 @@ use sc_network::ReputationChange as Rep;
 mod cost {
     pub(crate) const PER_UNDECODABLE_BYTE: i32 = -5;
     // TODO for FetchResponse error
-    pub(crate) const PER_SIGNATURE_CHECKED: i32 = -25;
-    pub(crate) const INVALID_VIEW_CHANGE: i32 = -500;
     pub(crate) const UNKNOWN_VOTER: i32 = -150;
     pub(crate) const BAD_SIGNATURE: i32 = -100;
 }
 
 pub(crate) enum PeerMisbehavior {
     UndecodablePacket(i32),
-    InvalidEpochId,
     UnknownVoter,
     BadSignature,
 }
@@ -26,7 +23,6 @@ impl PeerMisbehavior {
                 bytes.saturating_mul(cost::PER_UNDECODABLE_BYTE),
                 "Aleph: Bad packet",
             ),
-            InvalidEpochId => Rep::new(cost::INVALID_VIEW_CHANGE, "Aleph: Invalid epoch ID"),
             UnknownVoter => Rep::new(cost::UNKNOWN_VOTER, "Aleph: Unknown voter"),
             BadSignature => Rep::new(cost::BAD_SIGNATURE, "Aleph: Bad signature"),
         }
@@ -35,7 +31,6 @@ impl PeerMisbehavior {
 
 /// Benefit scalars used to report good peers.
 mod benefit {
-    pub(crate) const VALIDATED_SYNC: i32 = 200;
     // NOTE: Not sure if we actually want to give rep for a simple fetch request.
     pub(crate) const GOOD_FETCH_REQUEST: i32 = 0;
     pub(crate) const GOOD_FETCH_RESPONSE: i32 = 100;
@@ -43,10 +38,9 @@ mod benefit {
 }
 
 pub(crate) enum PeerGoodBehavior {
-    ValidatedSync,
-    GoodFetchRequest,
-    GoodFetchResponse,
-    GoodMulticast,
+    FetchRequest,
+    FetchResponse,
+    Multicast,
 }
 
 impl PeerGoodBehavior {
@@ -54,12 +48,11 @@ impl PeerGoodBehavior {
         use PeerGoodBehavior::*;
 
         match *self {
-            ValidatedSync => Rep::new(benefit::VALIDATED_SYNC, "Aleph: Validated sync message"),
-            GoodFetchRequest => Rep::new(benefit::GOOD_FETCH_REQUEST, "Aleph: Good fetch request"),
-            GoodFetchResponse => {
+            FetchRequest => Rep::new(benefit::GOOD_FETCH_REQUEST, "Aleph: Good fetch request"),
+            FetchResponse => {
                 Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response")
             }
-            GoodMulticast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
+            Multicast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
         }
     }
 }
