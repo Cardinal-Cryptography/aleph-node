@@ -124,7 +124,7 @@ impl<B: Block> GossipValidator<B> {
             .unbounded_send(PeerReport { who, change });
     }
 
-    fn validate_unit(
+    fn validate_signed_unit(
         &self,
         sender: &PeerId,
         signed_unit: &SignedUnit<B>,
@@ -135,8 +135,7 @@ impl<B: Block> GossipValidator<B> {
             return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
         }
 
-        if !signed_unit.verify_unit_signature(&signed_unit.signature, &signed_unit.id)
-        {
+        if !signed_unit.verify_unit_signature() {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
             return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
         }
@@ -149,9 +148,9 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &Multicast<B>,
     ) -> MessageAction<B::Hash> {
-        match self.validate_unit(sender, &message.signed_unit) {
+        match self.validate_signed_unit(sender, &message.signed_unit) {
             Ok(_) => {
-                let topic = super::multicast_topic(
+                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
                     message.signed_unit.unit.round,
                     message.signed_unit.unit.epoch_id,
                 );
@@ -167,11 +166,11 @@ impl<B: Block> GossipValidator<B> {
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
         for signed_unit in &message.signed_units {
-            if let Err(e) = self.validate_unit(sender, signed_unit) {
+            if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
                 return e;
             }
         }
-        let topic: <B as Block>::Hash = super::index_topic(message.peer_id);
+        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::ValidatedSync.benefit())
     }
@@ -184,7 +183,7 @@ impl<B: Block> GossipValidator<B> {
         _sender: &PeerId,
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
-        let topic: <B as Block>::Hash = super::index_topic(message.peer_id);
+        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
         MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::GoodFetchRequest.benefit())
     }
@@ -240,7 +239,10 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 MessageAction::ProcessAndDiscard(_, _) => "process_and_discard",
                 MessageAction::Discard(_) => "discard",
             };
-            metrics.messages_validated.with_label_values(&[message_name, action_name]).inc();
+            metrics
+                .messages_validated
+                .with_label_values(&[message_name, action_name])
+                .inc();
         }
 
         match action {

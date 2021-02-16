@@ -2,27 +2,29 @@ mod gossip;
 pub(super) mod peer;
 
 use crate::{
-    communication::gossip::GossipValidator,
+    communication::gossip::{GossipValidator, PeerReport},
     temp::{EpochId, NodeIndex, Round, Unit},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
 use log::debug;
+use prometheus_endpoint::Registry;
 use sc_network_gossip::{GossipEngine, Network};
 use sp_application_crypto::RuntimeAppPublic;
+use sp_core::traits::BareCryptoStorePtr;
 use sp_runtime::traits::{Block, Hash, Header};
+use sp_utils::mpsc::TracingUnboundedReceiver;
 use std::sync::{Arc, Mutex};
+use sp_runtime::ConsensusEngineId;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
 /// own network.
 pub const ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/1";
 
-pub struct NetworkBridge<B: Block, N: Network<B>> {
-    service: N,
-    gossip_engine: Arc<Mutex<GossipEngine<B>>>,
-    validator: Arc<GossipValidator<B>>,
-}
+pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ALPH";
+
+pub const ALEPH_AUTHORITIES_KEY: &[u8] = b":aleph_authorities";
 
 #[derive(Debug, Encode, Decode)]
 struct SignedUnit<B: Block> {
@@ -41,13 +43,11 @@ impl<B: Block> SignedUnit<B> {
 
     pub fn verify_unit_signature_with_buffer(
         &self,
-        signature: &AuthoritySignature,
-        id: &AuthorityId,
         buf: &mut Vec<u8>,
     ) -> bool {
         self.encode_unit_with_buffer(buf);
 
-        let valid = id.verify(&buf, signature);
+        let valid = self.id.verify(&buf, &self.signature);
         if !valid {
             debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator);
         }
@@ -55,12 +55,8 @@ impl<B: Block> SignedUnit<B> {
         valid
     }
 
-    pub fn verify_unit_signature(
-        &self,
-        signature: &AuthoritySignature,
-        id: &AuthorityId,
-    ) -> bool {
-        self.verify_unit_signature_with_buffer(signature, id, &mut Vec::new())
+    pub fn verify_unit_signature(&self) -> bool {
+        self.verify_unit_signature_with_buffer(&mut Vec::new())
     }
 }
 
