@@ -19,7 +19,6 @@ use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
-use crate::communication::peer::rep::Reputation;
 
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -384,8 +383,7 @@ mod tests {
         let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
         let unit = new_unit();
         let signature = keypair.sign(&unit.encode());
-        let message: Multicast<Block> =
-            new_multicast(unit, signature, keypair.public());
+        let message: Multicast<Block> = new_multicast(unit, signature, keypair.public());
         let peer = PeerId::random();
         val.set_authorities(vec![keypair.public()]);
         val.peers
@@ -405,11 +403,14 @@ mod tests {
         let message: Multicast<Block> = new_multicast(unit, signature, keypair.public());
         let peer = PeerId::random();
         val.set_authorities(vec![keypair.public()]);
-        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+        val.peers
+            .write()
+            .insert_peer(peer.clone(), ObservedRole::Authority);
 
         let res = val.validate_multicast(&peer, &message);
         println!("{:?}", res);
-        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::BadSignature.into());
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::BadSignature.into());
         assert!(matches!(res, _action));
     }
 
@@ -422,11 +423,14 @@ mod tests {
         let message: Multicast<Block> = new_multicast(unit, signature, keypair.public());
         let peer = PeerId::random();
         val.set_authorities(vec![AuthorityId::default()]);
-        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+        val.peers
+            .write()
+            .insert_peer(peer.clone(), ObservedRole::Authority);
 
         let res = val.validate_multicast(&peer, &message);
         println!("{:?}", res);
-        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
         assert!(matches!(res, _action));
     }
 }
