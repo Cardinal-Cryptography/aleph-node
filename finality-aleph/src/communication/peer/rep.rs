@@ -3,15 +3,16 @@ use sc_network::ReputationChange as Rep;
 /// Cost scalars to be used when reporting peers.
 mod cost {
     pub(crate) const PER_UNDECODABLE_BYTE: i32 = -5;
-    // TODO for FetchResponse error
     pub(crate) const UNKNOWN_VOTER: i32 = -150;
     pub(crate) const BAD_SIGNATURE: i32 = -100;
+    pub(crate) const OUT_OF_SCOPE_RESPONSE: i32 = -500;
 }
 
 pub(crate) enum PeerMisbehavior {
     UndecodablePacket(i32),
     UnknownVoter,
     BadSignature,
+    OutOfScopeResponse,
 }
 
 impl PeerMisbehavior {
@@ -25,6 +26,10 @@ impl PeerMisbehavior {
             ),
             UnknownVoter => Rep::new(cost::UNKNOWN_VOTER, "Aleph: Unknown voter"),
             BadSignature => Rep::new(cost::BAD_SIGNATURE, "Aleph: Bad signature"),
+            OutOfScopeResponse => Rep::new(
+                cost::OUT_OF_SCOPE_RESPONSE,
+                "Aleph: Out-of-scope response message",
+            ),
         }
     }
 }
@@ -49,9 +54,7 @@ impl PeerGoodBehavior {
 
         match *self {
             FetchRequest => Rep::new(benefit::GOOD_FETCH_REQUEST, "Aleph: Good fetch request"),
-            FetchResponse => {
-                Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response")
-            }
+            FetchResponse => Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response"),
             Multicast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
         }
     }

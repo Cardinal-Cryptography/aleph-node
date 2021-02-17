@@ -1,7 +1,7 @@
 use crate::{
     communication::{
         peer::{
-            rep::{PeerGoodBehavior, PeerMisbehavior},
+            rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
             Peers,
         },
         SignedUnit,
@@ -18,7 +18,7 @@ use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorCon
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::marker::PhantomData;
+use std::{collections::HashSet, marker::PhantomData, time::Instant};
 
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -61,6 +61,12 @@ pub(crate) struct PeerReport {
     change: ReputationChange,
 }
 
+#[derive(Debug)]
+enum PendingRequest {
+    None,
+    Requesting(PeerId),
+}
+
 type PrometheusResult<T> = Result<T, PrometheusError>;
 
 struct Metrics {
@@ -89,6 +95,7 @@ pub(super) struct GossipValidator<B: Block> {
     authorities: RwLock<Vec<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
+    pending_request: RwLock<PendingRequest>,
     phantom: PhantomData<B>,
 }
 
@@ -112,6 +119,7 @@ impl<B: Block> GossipValidator<B> {
             authorities: RwLock::new(Vec::new()),
             report_sender: tx,
             metrics,
+            pending_request: RwLock::new(PendingRequest::None),
             phantom: PhantomData::default(),
         };
 
@@ -122,6 +130,11 @@ impl<B: Block> GossipValidator<B> {
         let _ = self
             .report_sender
             .unbounded_send(PeerReport { who, change });
+    }
+    
+    pub(crate) fn note_pending_request(&self, peer: PeerId) {
+        let pending_request = &mut *self.pending_request.write();
+        *pending_request = PendingRequest::Requesting(peer);
     }
 
     fn validate_signed_unit(
@@ -165,14 +178,28 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
-        for signed_unit in &message.signed_units {
-            if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
-                return e;
-            }
-        }
-        let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+        let pending_request = &mut *self.pending_request.write();
+        match pending_request {
+            PendingRequest::Requesting(peer) => {
+                if sender != peer {
+                    return MessageAction::Discard(Reputation::from(
+                        PeerMisbehavior::OutOfScopeResponse,
+                    ));
+                }
 
-        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.benefit())
+                for signed_unit in &message.signed_units {
+                    if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
+                        return e;
+                    }
+                }
+                let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+
+                *pending_request = PendingRequest::None;
+
+                MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
+            }
+            _ => MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse)),
+        }
     }
 
     // TODO: Rate limiting should be applied here. We would not want to let an unlimited amount of

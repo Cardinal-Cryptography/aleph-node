@@ -8,8 +8,10 @@ use crate::{
 use codec::{Decode, Encode};
 use log::debug;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_runtime::traits::{Block, Hash, Header};
-use sp_runtime::ConsensusEngineId;
+use sp_runtime::{
+    traits::{Block, Hash, Header},
+    ConsensusEngineId,
+};
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
@@ -35,10 +37,7 @@ impl<B: Block> SignedUnit<B> {
         self.unit.encode_to(buf);
     }
 
-    pub fn verify_unit_signature_with_buffer(
-        &self,
-        buf: &mut Vec<u8>,
-    ) -> bool {
+    pub fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
         self.encode_unit_with_buffer(buf);
 
         let valid = self.id.verify(&buf, &self.signature);
