@@ -408,7 +408,6 @@ mod tests {
             .insert_peer(peer.clone(), ObservedRole::Authority);
 
         let res = val.validate_multicast(&peer, &message);
-        println!("{:?}", res);
         let _action: MessageAction<Hash> =
             MessageAction::Discard(PeerMisbehavior::BadSignature.into());
         assert!(matches!(res, _action));
@@ -428,7 +427,6 @@ mod tests {
             .insert_peer(peer.clone(), ObservedRole::Authority);
 
         let res = val.validate_multicast(&peer, &message);
-        println!("{:?}", res);
         let _action: MessageAction<Hash> =
             MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
         assert!(matches!(res, _action));
