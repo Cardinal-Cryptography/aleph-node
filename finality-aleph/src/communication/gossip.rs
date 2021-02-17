@@ -19,6 +19,7 @@ use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -61,12 +62,6 @@ pub(crate) struct PeerReport {
     change: ReputationChange,
 }
 
-#[derive(Debug)]
-enum PendingRequest {
-    None,
-    Requesting(PeerId),
-}
-
 type PrometheusResult<T> = Result<T, PrometheusError>;
 
 struct Metrics {
@@ -95,7 +90,7 @@ pub(super) struct GossipValidator<B: Block> {
     authorities: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_request: RwLock<PendingRequest>,
+    pending_requests: RwLock<HashMap<PeerId, u32>>,
     phantom: PhantomData<B>,
 }
 
@@ -115,7 +110,7 @@ impl<B: Block> GossipValidator<B> {
             authorities: RwLock::new(HashSet::new()),
             report_sender: tx,
             metrics,
-            pending_request: RwLock::new(PendingRequest::None),
+            pending_requests: RwLock::new(HashMap::new()),
             phantom: PhantomData::default(),
         };
 
@@ -129,8 +124,9 @@ impl<B: Block> GossipValidator<B> {
     }
 
     pub(crate) fn note_pending_request(&self, peer: PeerId) {
-        let pending_request = &mut *self.pending_request.write();
-        *pending_request = PendingRequest::Requesting(peer);
+        let pending_request = &mut *self.pending_requests.write();
+        let count = pending_request.entry(peer).or_insert(0);
+        *count += 1;
     }
 
     pub(crate) fn set_authorities<I>(&mut self, authorities: I)
@@ -188,27 +184,20 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
-        let pending_request = &mut *self.pending_request.write();
-        match pending_request {
-            PendingRequest::Requesting(peer) => {
-                if sender != peer {
-                    return MessageAction::Discard(Reputation::from(
-                        PeerMisbehavior::OutOfScopeResponse,
-                    ));
+        let pending_requests = &mut *self.pending_requests.write();
+        if let Some(count) = pending_requests.get_mut(sender.as_ref()) {
+            for signed_unit in &message.signed_units {
+                if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
+                    return e;
                 }
-
-                for signed_unit in &message.signed_units {
-                    if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
-                        return e;
-                    }
-                }
-                let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
-
-                *pending_request = PendingRequest::None;
-
-                MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
             }
-            _ => MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse)),
+            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+
+            *count -= 1;
+
+            MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
+        } else {
+            MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
         }
     }
 
