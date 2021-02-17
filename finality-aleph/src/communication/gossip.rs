@@ -104,15 +104,11 @@ impl<B: Block> GossipValidator<B> {
     pub(crate) fn new(
         prometheus_registry: Option<&Registry>,
     ) -> (GossipValidator<B>, TracingUnboundedReceiver<PeerReport>) {
-        let metrics: Option<Metrics> =
-            prometheus_registry.and_then(|reg| {
-                match Metrics::register(reg)
-                    .map_err(|e| debug!(target: "afa", "Failed to register metrics: {:?}", e))
-                {
-                    Ok(m) => Some(m),
-                    Err(_) => None,
-                }
-            });
+        let metrics: Option<Metrics> = prometheus_registry.and_then(|reg| {
+            Metrics::register(reg)
+                .map_err(|e| debug!(target: "afa", "Failed to register metrics: {:?}", e))
+                .ok()
+        });
 
         let (tx, rx) = tracing_unbounded("mpsc_aleph_gossip_validator");
         let val = GossipValidator {
@@ -132,7 +128,7 @@ impl<B: Block> GossipValidator<B> {
             .report_sender
             .unbounded_send(PeerReport { who, change });
     }
-    
+
     pub(crate) fn note_pending_request(&self, peer: PeerId) {
         let pending_request = &mut *self.pending_request.write();
         *pending_request = PendingRequest::Requesting(peer);
