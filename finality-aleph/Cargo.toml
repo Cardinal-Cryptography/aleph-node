@@ -20,3 +20,7 @@ sp-application-crypto = "2.0"
 sp-core = "2.0"
 sp-runtime = "2.0"
 sp-utils = "2.0"
+
+[dev-dependencies]
+parity-util-mem = "0.7"
+serde = "1.0"

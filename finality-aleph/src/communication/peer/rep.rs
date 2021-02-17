@@ -1,4 +1,4 @@
-use sc_network::ReputationChange as Rep;
+use sc_network::{ReputationChange as Rep, ReputationChange};
 
 /// Cost scalars to be used when reporting peers.
 mod cost {
@@ -8,6 +8,11 @@ mod cost {
     pub(crate) const OUT_OF_SCOPE_RESPONSE: i32 = -500;
 }
 
+pub trait CostBenefit: 'static {
+    fn reputation_change(&self) -> Rep;
+}
+
+#[derive(Debug)]
 pub(crate) enum PeerMisbehavior {
     UndecodablePacket(i32),
     UnknownVoter,
@@ -34,6 +39,12 @@ impl PeerMisbehavior {
     }
 }
 
+impl CostBenefit for PeerMisbehavior {
+    fn reputation_change(&self) -> ReputationChange {
+        self.cost()
+    }
+}
+
 /// Benefit scalars used to report good peers.
 mod benefit {
     // NOTE: Not sure if we actually want to give rep for a simple fetch request.
@@ -42,6 +53,7 @@ mod benefit {
     pub(crate) const GOOD_MULTICAST: i32 = 100;
 }
 
+#[derive(Debug)]
 pub(crate) enum PeerGoodBehavior {
     FetchRequest,
     FetchResponse,
@@ -57,5 +69,46 @@ impl PeerGoodBehavior {
             FetchResponse => Rep::new(benefit::GOOD_FETCH_RESPONSE, "Aleph: Good fetch response"),
             Multicast => Rep::new(benefit::GOOD_MULTICAST, "Aleph: Good multicast message"),
         }
+    }
+}
+
+impl CostBenefit for PeerGoodBehavior {
+    fn reputation_change(&self) -> ReputationChange {
+        self.benefit()
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Reputation {
+    PeerMisbehavior(PeerMisbehavior),
+    PeerGoodBehavior(PeerGoodBehavior),
+}
+
+impl AsRef<dyn CostBenefit> for Reputation {
+    fn as_ref(&self) -> &dyn CostBenefit {
+        use Reputation::*;
+
+        match self {
+            PeerMisbehavior(m) => m,
+            PeerGoodBehavior(g) => g,
+        }
+    }
+}
+
+impl Reputation {
+    pub(crate) fn change(&self) -> Rep {
+        self.as_ref().reputation_change()
+    }
+}
+
+impl From<PeerMisbehavior> for Reputation {
+    fn from(misbehavior: PeerMisbehavior) -> Self {
+        Reputation::PeerMisbehavior(misbehavior)
+    }
+}
+
+impl From<PeerGoodBehavior> for Reputation {
+    fn from(good_behavior: PeerGoodBehavior) -> Self {
+        Reputation::PeerGoodBehavior(good_behavior)
     }
 }

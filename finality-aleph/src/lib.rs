@@ -19,6 +19,8 @@ pub type AuthorityId = app::Public;
 
 pub type AuthoritySignature = app::Signature;
 
+pub type AuthorityPair = app::Pair;
+
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
     use codec::{Decode, Encode};

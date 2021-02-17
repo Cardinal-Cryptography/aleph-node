@@ -18,13 +18,14 @@ use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorCon
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{collections::HashSet, marker::PhantomData, time::Instant};
+use std::{collections::HashSet, marker::PhantomData};
+use crate::communication::peer::rep::Reputation;
 
 #[derive(Debug)]
 enum MessageAction<H> {
-    Keep(H, ReputationChange),
-    ProcessAndDiscard(H, ReputationChange),
-    Discard(ReputationChange),
+    Keep(H, Reputation),
+    ProcessAndDiscard(H, Reputation),
+    Discard(Reputation),
 }
 
 #[derive(Debug, Encode, Decode)]
@@ -92,7 +93,7 @@ impl Metrics {
 
 pub(super) struct GossipValidator<B: Block> {
     peers: RwLock<Peers>,
-    authorities: RwLock<Vec<AuthorityId>>,
+    authorities: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
     pending_request: RwLock<PendingRequest>,
@@ -116,7 +117,7 @@ impl<B: Block> GossipValidator<B> {
         let (tx, rx) = tracing_unbounded("mpsc_aleph_gossip_validator");
         let val = GossipValidator {
             peers: RwLock::new(Peers::default()),
-            authorities: RwLock::new(Vec::new()),
+            authorities: RwLock::new(HashSet::new()),
             report_sender: tx,
             metrics,
             pending_request: RwLock::new(PendingRequest::None),
@@ -137,6 +138,20 @@ impl<B: Block> GossipValidator<B> {
         *pending_request = PendingRequest::Requesting(peer);
     }
 
+    pub(crate) fn set_authorities<I>(&mut self, authorities: I)
+    where
+        I: IntoIterator<Item = AuthorityId>,
+    {
+        let mut old_authorities = self.authorities.write();
+        old_authorities.clear();
+        old_authorities.extend(authorities.into_iter());
+    }
+
+    pub(crate) fn remove_authority(&mut self, authority: &AuthorityId) {
+        let mut authorities = self.authorities.write();
+        authorities.remove(authority);
+    }
+
     fn validate_signed_unit(
         &self,
         sender: &PeerId,
@@ -145,12 +160,12 @@ impl<B: Block> GossipValidator<B> {
         let id = &signed_unit.id;
         if !self.authorities.read().contains(id) {
             debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
-            return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.cost()));
+            return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.into()));
         }
 
         if !signed_unit.verify_unit_signature() {
             debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
-            return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.cost()));
+            return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.into()));
         }
 
         Ok(())
@@ -167,7 +182,7 @@ impl<B: Block> GossipValidator<B> {
                     message.signed_unit.unit.round,
                     message.signed_unit.unit.epoch_id,
                 );
-                MessageAction::Keep(topic, PeerGoodBehavior::Multicast.benefit())
+                MessageAction::Keep(topic, PeerGoodBehavior::Multicast.into())
             }
             Err(e) => e,
         }
@@ -212,7 +227,7 @@ impl<B: Block> GossipValidator<B> {
     ) -> MessageAction<B::Hash> {
         let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
 
-        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.benefit())
+        MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
     }
 }
 
@@ -246,6 +261,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 self.validate_fetch_response(sender, message)
             }
             Ok(GossipMessage::Alert(ref _message)) => {
+                message_name = Some("fetch_response");
                 todo!()
             }
             Err(e) => {
@@ -254,8 +270,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
                 telemetry!(CONSENSUS_DEBUG; "afa.err_decoding_msg"; "" => "");
 
                 let len = std::cmp::min(i32::max_value() as usize, data.len()) as i32;
-                let rep = PeerMisbehavior::UndecodablePacket(len).cost();
-                MessageAction::Discard(rep)
+                MessageAction::Discard(PeerMisbehavior::UndecodablePacket(len).into())
             }
         };
 
@@ -272,17 +287,17 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
         }
 
         match action {
-            MessageAction::Keep(topic, cb) => {
-                self.report_peer(sender.clone(), cb);
+            MessageAction::Keep(topic, rep_change) => {
+                self.report_peer(sender.clone(), rep_change.change());
                 context.broadcast_message(topic, data.to_vec(), false);
                 ValidationResult::ProcessAndKeep(topic)
             }
-            MessageAction::ProcessAndDiscard(topic, cb) => {
-                self.report_peer(sender.clone(), cb);
+            MessageAction::ProcessAndDiscard(topic, rep_change) => {
+                self.report_peer(sender.clone(), rep_change.change());
                 ValidationResult::ProcessAndDiscard(topic)
             }
-            MessageAction::Discard(cb) => {
-                self.report_peer(sender.clone(), cb);
+            MessageAction::Discard(rep_change) => {
+                self.report_peer(sender.clone(), rep_change.change());
                 ValidationResult::Discard
             }
         }
@@ -303,8 +318,11 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::temp::{ControlHash, CreatorId, EpochId, NodeMap, Round, Unit};
-    use sp_core::{Public, H256};
+    use crate::{
+        temp::{ControlHash, CreatorId, EpochId, NodeMap, Round, Unit},
+        AuthorityPair, AuthoritySignature,
+    };
+    use sp_core::{Pair, H256};
     use sp_runtime::traits::Extrinsic as ExtrinsicT;
 
     #[derive(Debug, PartialEq, Clone, Eq, Encode, Decode, serde::Serialize)]
@@ -327,33 +345,92 @@ mod tests {
 
     pub type Block = sp_runtime::generic::Block<Header, Extrinsic>;
 
-    #[test]
-    fn multicast_message() {
-        let (val, _) = GossipValidator::<Block>::new(None);
-        let control_hash = ControlHash {
+    fn new_gossip_validator() -> GossipValidator<Block> {
+        GossipValidator::<Block>::new(None).0
+    }
+
+    fn new_control_hash() -> ControlHash<Hash> {
+        ControlHash {
             parents: NodeMap(vec![false]),
-            hash: H256::from([1u8; 32]),
-        };
-        let unit: Unit<Block> = Unit {
+            hash: Hash::from([1u8; 32]),
+        }
+    }
+
+    fn new_unit() -> Unit<Block> {
+        let control_hash = new_control_hash();
+        Unit {
             creator: CreatorId(0),
             round: Round(0),
             epoch_id: EpochId(0),
-            hash: H256::from([1u8; 32]),
+            hash: Hash::from([1u8; 32]),
             control_hash,
-            best_block: H256::from([1u8; 32]),
-        };
-        let message: Multicast<Block> = Multicast {
+            best_block: Hash::from([1u8; 32]),
+        }
+    }
+
+    fn new_multicast(
+        unit: Unit<Block>,
+        signature: AuthoritySignature,
+        id: AuthorityId,
+    ) -> Multicast<Block> {
+        Multicast {
             signed_unit: SignedUnit {
                 unit,
-                signature: Default::default(),
-                id: AuthorityId::from_slice(&[1u8; 32]),
+                signature,
+                id,
             },
-        };
+        }
+    }
+
+    #[test]
+    fn good_multicast() {
+        let mut val = new_gossip_validator();
+        let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
+        let unit = new_unit();
+        let signature = keypair.sign(&unit.encode());
+        let message: Multicast<Block> =
+            new_multicast(unit, signature, keypair.public());
         let peer = PeerId::random();
+        val.set_authorities(vec![keypair.public()]);
         val.peers
             .write()
             .insert_peer(peer.clone(), ObservedRole::Authority);
         let res = val.validate_multicast(&peer, &message);
+
+        assert!(matches!(res, MessageAction::Keep(..)));
+    }
+
+    #[test]
+    fn bad_signature_multicast() {
+        let mut val = new_gossip_validator();
+        let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
+        let unit = new_unit();
+        let signature = AuthoritySignature::default();
+        let message: Multicast<Block> = new_multicast(unit, signature, keypair.public());
+        let peer = PeerId::random();
+        val.set_authorities(vec![keypair.public()]);
+        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+
+        let res = val.validate_multicast(&peer, &message);
         println!("{:?}", res);
+        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::BadSignature.into());
+        assert!(matches!(res, _action));
+    }
+
+    #[test]
+    fn unknown_authority_multicast() {
+        let mut val = new_gossip_validator();
+        let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
+        let unit = new_unit();
+        let signature = keypair.sign(&unit.encode());
+        let message: Multicast<Block> = new_multicast(unit, signature, keypair.public());
+        let peer = PeerId::random();
+        val.set_authorities(vec![AuthorityId::default()]);
+        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+
+        let res = val.validate_multicast(&peer, &message);
+        println!("{:?}", res);
+        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
+        assert!(matches!(res, _action));
     }
 }
