@@ -3,7 +3,7 @@ use crate::{
         rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
         Peers,
     },
-    temp::{CreatorId, NodeIndex, Unit, UnitCoord},
+    temp::{NodeIndex, Unit, UnitCoord},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
@@ -17,7 +17,7 @@ use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     marker::PhantomData,
 };
 
