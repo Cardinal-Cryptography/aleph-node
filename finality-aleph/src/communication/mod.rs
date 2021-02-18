@@ -2,7 +2,7 @@ mod gossip;
 pub(super) mod peer;
 
 use crate::{
-    temp::{EpochId, NodeIndex, Round, Unit},
+    temp::{EpochId, NodeIndex, Round, Unit, UnitCoord},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
@@ -12,7 +12,6 @@ use sp_runtime::{
     traits::{Block, Hash, Header},
     ConsensusEngineId,
 };
-use crate::temp::UnitCoord;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
