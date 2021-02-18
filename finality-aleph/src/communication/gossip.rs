@@ -64,7 +64,7 @@ pub(crate) struct Multicast<B: Block> {
     signed_unit: SignedUnit<B>,
 }
 
-#[derive(Debug, Encode, Decode, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchRequest {
     coords: Vec<UnitCoord>,
     peer_id: NodeIndex,
