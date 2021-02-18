@@ -12,6 +12,7 @@ use sp_runtime::{
     traits::{Block, Hash, Header},
     ConsensusEngineId,
 };
+use crate::temp::UnitCoord;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
@@ -21,37 +22,6 @@ pub const ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/1";
 pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ALPH";
 
 pub const ALEPH_AUTHORITIES_KEY: &[u8] = b":aleph_authorities";
-
-#[derive(Debug, Encode, Decode)]
-struct SignedUnit<B: Block> {
-    unit: Unit<B>,
-    signature: AuthoritySignature,
-    // NOTE: This will likely be changed to a usize to get the authority out of
-    // a map in the future to reduce data sizes of packets.
-    id: AuthorityId,
-}
-
-impl<B: Block> SignedUnit<B> {
-    pub(crate) fn encode_unit_with_buffer(&self, buf: &mut Vec<u8>) {
-        buf.clear();
-        self.unit.encode_to(buf);
-    }
-
-    pub fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
-        self.encode_unit_with_buffer(buf);
-
-        let valid = self.id.verify(&buf, &self.signature);
-        if !valid {
-            debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator);
-        }
-
-        valid
-    }
-
-    pub fn verify_unit_signature(&self) -> bool {
-        self.verify_unit_signature_with_buffer(&mut Vec::new())
-    }
-}
 
 pub(crate) fn multicast_topic<B: Block>(round: Round, epoch: EpochId) -> B::Hash {
     <<B::Header as Header>::Hashing as Hash>::hash(format!("{}-{}", round, epoch).as_bytes())

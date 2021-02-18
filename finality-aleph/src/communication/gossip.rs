@@ -1,14 +1,9 @@
-use crate::{
-    communication::{
-        peer::{
-            rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
-            Peers,
-        },
-        SignedUnit,
+use crate::{communication::{
+    peer::{
+        rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
+        Peers,
     },
-    temp::{NodeIndex, UnitCoord},
-    AuthorityId,
-};
+}, temp::{NodeIndex, UnitCoord}, AuthorityId, AuthoritySignature};
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
@@ -20,6 +15,39 @@ use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
 use std::collections::HashMap;
+use crate::temp::{Unit, CreatorId};
+use sp_application_crypto::RuntimeAppPublic;
+
+#[derive(Debug, Encode, Decode)]
+pub(crate) struct SignedUnit<B: Block> {
+    unit: Unit<B>,
+    signature: AuthoritySignature,
+    // NOTE: This will likely be changed to a usize to get the authority out of
+    // a map in the future to reduce data sizes of packets.
+    id: AuthorityId,
+}
+
+impl<B: Block> SignedUnit<B> {
+    pub(crate) fn encode_unit_with_buffer(&self, buf: &mut Vec<u8>) {
+        buf.clear();
+        self.unit.encode_to(buf);
+    }
+
+    pub fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
+        self.encode_unit_with_buffer(buf);
+
+        let valid = self.id.verify(&buf, &self.signature);
+        if !valid {
+            debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator);
+        }
+
+        valid
+    }
+
+    pub fn verify_unit_signature(&self) -> bool {
+        self.verify_unit_signature_with_buffer(&mut Vec::new())
+    }
+}
 
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -29,18 +57,18 @@ enum MessageAction<H> {
 }
 
 #[derive(Debug, Encode, Decode)]
-struct Multicast<B: Block> {
+pub(crate) struct Multicast<B: Block> {
     signed_unit: SignedUnit<B>,
 }
 
-#[derive(Debug, Encode, Decode)]
-struct FetchRequest {
+#[derive(Debug, Encode, Decode, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct FetchRequest {
     coords: Vec<UnitCoord>,
     peer_id: NodeIndex,
 }
 
 #[derive(Debug, Encode, Decode)]
-struct FetchResponse<B: Block> {
+pub(crate) struct FetchResponse<B: Block> {
     signed_units: Vec<SignedUnit<B>>,
     peer_id: NodeIndex,
 }
@@ -85,12 +113,14 @@ impl Metrics {
     }
 }
 
+type PeerIdBytes = Vec<u8>;
+
 pub(super) struct GossipValidator<B: Block> {
     peers: RwLock<Peers>,
     authorities: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_requests: RwLock<HashMap<PeerId, u32>>,
+    pending_requests: RwLock<HashSet<(PeerIdBytes, Vec<UnitCoord>)>>,
     phantom: PhantomData<B>,
 }
 
@@ -110,7 +140,7 @@ impl<B: Block> GossipValidator<B> {
             authorities: RwLock::new(HashSet::new()),
             report_sender: tx,
             metrics,
-            pending_requests: RwLock::new(HashMap::new()),
+            pending_requests: RwLock::new(HashSet::new()),
             phantom: PhantomData::default(),
         };
 
@@ -123,10 +153,10 @@ impl<B: Block> GossipValidator<B> {
             .unbounded_send(PeerReport { who, change });
     }
 
-    pub(crate) fn note_pending_request(&self, peer: PeerId) {
-        let pending_request = &mut *self.pending_requests.write();
-        let count = pending_request.entry(peer).or_insert(0);
-        *count += 1;
+    pub(crate) fn note_pending_fetch_request(&mut self, who: PeerId, mut request: FetchRequest) {
+        let mut pending_request = self.pending_requests.write();
+        request.coords.sort();
+        pending_request.insert((who.into_bytes(), request.coords));
     }
 
     pub(crate) fn set_authorities<I>(&mut self, authorities: I)
@@ -184,18 +214,28 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
-        let pending_requests = &mut *self.pending_requests.write();
-        if let Some(count) = pending_requests.get_mut(sender.as_ref()) {
+        let mut pending_requests = self.pending_requests.write();
+        if pending_requests.len() != 0 {
+            let mut coords = Vec::with_capacity(message.signed_units.len());
+            for signed_unit in &message.signed_units {
+                let unit = &signed_unit.unit;
+                let coord: UnitCoord = unit.into();
+                coords.push(coord);
+            }
+            coords.sort();
+
+            if !pending_requests.remove(&(sender.clone().into_bytes(), coords)) {
+                return MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse));
+            }
+
             for signed_unit in &message.signed_units {
                 if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
                     return e;
                 }
             }
+
             let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
-
-            *count -= 1;
-
-            MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
+            MessageAction::Keep(topic, PeerGoodBehavior::FetchResponse.into())
         } else {
             MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
         }
@@ -352,17 +392,21 @@ mod tests {
         }
     }
 
+    fn new_signed_unit(unit: Unit<Block>, signature: AuthoritySignature, id: AuthorityId) -> SignedUnit<Block> {
+        SignedUnit {
+            unit,
+            signature,
+            id
+        }
+    }
+
     fn new_multicast(
         unit: Unit<Block>,
         signature: AuthoritySignature,
         id: AuthorityId,
     ) -> Multicast<Block> {
         Multicast {
-            signed_unit: SignedUnit {
-                unit,
-                signature,
-                id,
-            },
+            signed_unit: new_signed_unit(unit, signature, id),
         }
     }
 
@@ -420,4 +464,171 @@ mod tests {
             MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
         assert!(matches!(res, _action));
     }
+
+    #[test]
+    fn good_fetch_response() {
+        let mut val = new_gossip_validator();
+        let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
+
+        let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit_coord = UnitCoord {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+            };
+            coords.push(unit_coord);
+        }
+
+        let peer = PeerId::random();
+        let fetch_request = FetchRequest {
+            coords,
+            peer_id: NodeIndex(0),
+        };
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
+
+        val.set_authorities(vec![keypair.public()]);
+        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+
+        let mut signed_units = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit: Unit<Block> = Unit {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+                epoch_id: EpochId(0),
+                hash: Hash::from([1u8; 32]),
+                control_hash: new_control_hash(),
+                best_block: Hash::from([1u8; 32]),
+            };
+            let signature = keypair.sign(&unit.encode());
+
+            let signed_unit = SignedUnit {
+                unit,
+                signature,
+                id: keypair.public(),
+            };
+
+            signed_units.push(signed_unit);
+        }
+
+        let fetch_response = FetchResponse {
+            signed_units,
+            peer_id: Default::default()
+        };
+
+        let res = val.validate_fetch_response(&peer, &fetch_response);
+        assert!(matches!(res, MessageAction::Keep(..)))
+    }
+
+    #[test]
+    fn bad_signature_fetch_response() {
+        let mut val = new_gossip_validator();
+
+        let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit_coord = UnitCoord {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+            };
+            coords.push(unit_coord);
+        }
+
+        let peer = PeerId::random();
+        let fetch_request = FetchRequest {
+            coords,
+            peer_id: NodeIndex(0),
+        };
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
+
+        val.set_authorities(vec![AuthorityId::default()]);
+        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+
+        let mut signed_units = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit: Unit<Block> = Unit {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+                epoch_id: EpochId(0),
+                hash: Hash::from([1u8; 32]),
+                control_hash: new_control_hash(),
+                best_block: Hash::from([1u8; 32]),
+            };
+            let signature = AuthoritySignature::default();
+
+            let signed_unit = SignedUnit {
+                unit,
+                signature,
+                id: AuthorityId::default(),
+            };
+
+            signed_units.push(signed_unit);
+        }
+
+        let fetch_response = FetchResponse {
+            signed_units,
+            peer_id: Default::default()
+        };
+
+        let res = val.validate_fetch_response(&peer, &fetch_response);
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::BadSignature.into());
+        assert!(matches!(res, _action));
+    }
+
+    #[test]
+    fn unknown_authority_fetch_response() {
+        let mut val = new_gossip_validator();
+        let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
+
+        let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit_coord = UnitCoord {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+            };
+            coords.push(unit_coord);
+        }
+
+        let peer = PeerId::random();
+        let fetch_request = FetchRequest {
+            coords,
+            peer_id: NodeIndex(0),
+        };
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
+
+        val.peers.write().insert_peer(peer.clone(), ObservedRole::Authority);
+
+        let mut signed_units = Vec::with_capacity(10);
+        for x in 0..10 {
+            let unit: Unit<Block> = Unit {
+                creator: CreatorId(x),
+                round: Round(x + 1),
+                epoch_id: EpochId(0),
+                hash: Hash::from([1u8; 32]),
+                control_hash: new_control_hash(),
+                best_block: Hash::from([1u8; 32]),
+            };
+            let signature = keypair.sign(&unit.encode());
+
+            let signed_unit = SignedUnit {
+                unit,
+                signature,
+                id: keypair.public(),
+            };
+
+            signed_units.push(signed_unit);
+        }
+
+        let fetch_response = FetchResponse {
+            signed_units,
+            peer_id: Default::default()
+        };
+
+        let res = val.validate_fetch_response(&peer, &fetch_response);
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
+        assert!(matches!(res, _action));
+    }
+
+    // TODO: Once the fetch request has a bit more logic in it, there needs to
+    // be a test for it.
 }

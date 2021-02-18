@@ -27,7 +27,7 @@ pub(crate) mod temp {
     use sp_runtime::traits::Block;
     use std::fmt::{Display, Formatter, Result as FmtResult};
 
-    #[derive(Debug, Clone, Copy, Encode, Decode)]
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
     pub struct NodeIndex(pub(crate) u32);
 
     impl Display for NodeIndex {
@@ -102,7 +102,7 @@ pub(crate) mod temp {
         pub hash: H,
     }
 
-    #[derive(Debug, Encode, Decode)]
+    #[derive(Debug, Encode, Decode, Clone)]
     pub struct Unit<B: Block> {
         pub creator: CreatorId,
         pub round: Round,
@@ -110,6 +110,24 @@ pub(crate) mod temp {
         pub hash: <B as Block>::Hash,
         pub control_hash: ControlHash<<B as Block>::Hash>,
         pub best_block: <B as Block>::Hash,
+    }
+
+    impl<B: Block> From<Unit<B>> for UnitCoord {
+        fn from(unit: Unit<B>) -> Self {
+            UnitCoord {
+                creator: unit.creator,
+                round: unit.round,
+            }
+        }
+    }
+
+    impl<B: Block> From<&Unit<B>> for UnitCoord {
+        fn from(unit: &Unit<B>) -> Self {
+            UnitCoord {
+                creator: unit.creator,
+                round: unit.round,
+            }
+        }
     }
 }
 
