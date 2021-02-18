@@ -42,10 +42,8 @@ pub(crate) mod temp {
         }
     }
 
-    pub type UnitCoord = (u32, NodeIndex);
-
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
-    pub struct Round(pub u64);
+    pub struct Round(pub u32);
 
     impl Display for Round {
         fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
@@ -53,8 +51,8 @@ pub(crate) mod temp {
         }
     }
 
-    impl From<u64> for Round {
-        fn from(id: u64) -> Self {
+    impl From<u32> for Round {
+        fn from(id: u32) -> Self {
             Round(id)
         }
     }
@@ -74,13 +72,19 @@ pub(crate) mod temp {
         }
     }
 
-    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
-    pub struct CreatorId(pub u64);
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
+    pub struct CreatorId(pub u32);
 
-    impl From<u64> for CreatorId {
-        fn from(id: u64) -> Self {
+    impl From<u32> for CreatorId {
+        fn from(id: u32) -> Self {
             CreatorId(id)
         }
+    }
+
+    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
+    pub struct UnitCoord {
+        pub creator: CreatorId,
+        pub round: Round,
     }
 
     #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Encode, Decode)]
