@@ -256,8 +256,8 @@ impl<B: Block> GossipValidator<B> {
 
     /// Validates a fetch response.
     ///
-    /// These messages much come from a peer that is an authority, not
-    /// necessarily part of the authority set. If the message is not what we
+    /// These messages must come from a peer that has the role of an authority,
+    /// not necessarily part of the authority set. If the message is not what we
     /// requested it too is flagged. The signed unit is then checked to ensure
     /// that the authority is known and if the signature is valid.
     fn validate_fetch_response(
@@ -265,7 +265,7 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchResponse<B>,
     ) -> MessageAction<B::Hash> {
-        if !self.peers.read().is_authority(sender) {
+        if !self.peers.read().contains_authority(sender) {
             return MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
         }
 
@@ -309,7 +309,7 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
-        if self.peers.read().is_authority(sender) {
+        if self.peers.read().contains_authority(sender) {
             let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {

@@ -42,7 +42,7 @@ impl Peers {
         self.authorities.contains_key(peer.as_ref()) || self.others.contains_key(peer.as_ref())
     }
 
-    pub(crate) fn is_authority(&self, peer: &PeerId) -> bool {
+    pub(crate) fn contains_authority(&self, peer: &PeerId) -> bool {
         self.authorities.contains_key(peer.as_ref())
     }
 }
