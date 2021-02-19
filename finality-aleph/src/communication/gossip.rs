@@ -37,7 +37,7 @@ impl<B: Block> SignedUnit<B> {
     }
 
     /// Verifies the unit's signature with a buffer.
-    pub fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
+    pub(crate) fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
         self.encode_unit_with_buffer(buf);
 
         let valid = self.id.verify(&buf, &self.signature);
@@ -49,7 +49,7 @@ impl<B: Block> SignedUnit<B> {
     }
 
     /// Verifies the unit's signature.
-    pub fn verify_unit_signature(&self) -> bool {
+    pub(crate) fn verify_unit_signature(&self) -> bool {
         self.verify_unit_signature_with_buffer(&mut Vec::new())
     }
 }
