@@ -18,6 +18,7 @@ use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
 
+/// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct SignedUnit<B: Block> {
     unit: Unit<B>,
@@ -28,11 +29,13 @@ pub(crate) struct SignedUnit<B: Block> {
 }
 
 impl<B: Block> SignedUnit<B> {
+    /// Encodes the unit with a buffer vector.
     pub(crate) fn encode_unit_with_buffer(&self, buf: &mut Vec<u8>) {
         buf.clear();
         self.unit.encode_to(buf);
     }
 
+    /// Verifies the unit's signature with a buffer.
     pub fn verify_unit_signature_with_buffer(&self, buf: &mut Vec<u8>) -> bool {
         self.encode_unit_with_buffer(buf);
 
@@ -44,29 +47,39 @@ impl<B: Block> SignedUnit<B> {
         valid
     }
 
+    /// Verifies the unit's signature.
     pub fn verify_unit_signature(&self) -> bool {
         self.verify_unit_signature_with_buffer(&mut Vec::new())
     }
 }
 
+/// Actions for incoming messages.
 #[derive(Debug)]
 enum MessageAction<H> {
+    /// Keeps the incoming message to be re-propagated.
     Keep(H, Reputation),
+    /// Flags the message to be processed then discarded. It does not get
+    /// re-propagated.
     ProcessAndDiscard(H, Reputation),
+    /// Discards the incoming message usually because of some fault or
+    /// violation.
     Discard(Reputation),
 }
 
+/// Multicast sends a message to all peers.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct Multicast<B: Block> {
     signed_unit: SignedUnit<B>,
 }
 
+/// A fetch request which asks for units from coordinates.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchRequest {
     coords: Vec<UnitCoord>,
     peer_id: NodeIndex,
 }
 
+/// A fetch response which returns units from requested coordinates.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchResponse<B: Block> {
     signed_units: Vec<SignedUnit<B>>,
@@ -77,26 +90,35 @@ pub(crate) struct FetchResponse<B: Block> {
 #[derive(Debug, Encode, Decode)]
 struct Alert {}
 
+/// The kind of message that is being sent.
 #[derive(Debug, Encode, Decode)]
 enum GossipMessage<B: Block> {
+    /// A multicast message kind.
     Multicast(Multicast<B>),
+    /// A fetch request message kind.
     FetchRequest(FetchRequest),
+    /// A fetch response message kind.
     FetchResponse(FetchResponse<B>),
+    /// An alert message kind.
     Alert(Alert),
 }
 
+/// Reports a peer with a reputation change.
 pub(crate) struct PeerReport {
     who: PeerId,
     change: ReputationChange,
 }
 
+/// A prometheus result.
 type PrometheusResult<T> = Result<T, PrometheusError>;
 
+/// Metrics used for prometheus.
 struct Metrics {
     messages_validated: CounterVec<U64>,
 }
 
 impl Metrics {
+    /// Registers a prometheus end point.
     pub(crate) fn register(registry: &prometheus_endpoint::Registry) -> PrometheusResult<Self> {
         Ok(Self {
             messages_validated: prometheus_endpoint::register(
@@ -113,8 +135,14 @@ impl Metrics {
     }
 }
 
+/// PeerId but as bytes.
 type PeerIdBytes = Vec<u8>;
 
+/// A gossip validator which is used to validate incoming messages.
+///
+/// When we receive a message it is first checked here to see if it passes
+/// basic validation rules that are not part of consensus but related to the
+/// message itself.
 pub(super) struct GossipValidator<B: Block> {
     peers: RwLock<Peers>,
     authority_set: RwLock<HashSet<AuthorityId>>,
@@ -125,6 +153,8 @@ pub(super) struct GossipValidator<B: Block> {
 }
 
 impl<B: Block> GossipValidator<B> {
+    /// Constructs a new gossip validator and unbounded `PeerReport` receiver
+    /// channel with an optional prometheus registry.
     pub(crate) fn new(
         prometheus_registry: Option<&Registry>,
     ) -> (GossipValidator<B>, TracingUnboundedReceiver<PeerReport>) {
@@ -147,18 +177,23 @@ impl<B: Block> GossipValidator<B> {
         (val, rx)
     }
 
+    /// Reports a peer with a reputation change.
     pub(crate) fn report_peer(&self, who: PeerId, change: ReputationChange) {
         let _ = self
             .report_sender
             .unbounded_send(PeerReport { who, change });
     }
 
+    /// Notes pending fetch requests so that the gossip validator is aware of
+    /// incoming fetch responses to watch out for.
     pub(crate) fn note_pending_fetch_request(&mut self, who: PeerId, mut request: FetchRequest) {
         let mut pending_request = self.pending_requests.write();
         request.coords.sort();
         pending_request.insert((who.into_bytes(), request.coords));
     }
 
+    /// Sets the current authorities which are used to ensure that the incoming
+    /// messages are indeed signed by these authorities.
     pub(crate) fn set_authorities<I>(&mut self, authorities: I)
     where
         I: IntoIterator<Item = AuthorityId>,
@@ -168,11 +203,16 @@ impl<B: Block> GossipValidator<B> {
         old_authorities.extend(authorities.into_iter());
     }
 
+    /// Removes a single authority in case they had been forked out.
     pub(crate) fn remove_authority(&mut self, authority: &AuthorityId) {
         let mut authorities = self.authority_set.write();
         authorities.remove(authority);
     }
 
+    /// Validates a signed unit message.
+    ///
+    /// This first checks if the message came from a known authority from the
+    /// authority set and if the signature is valid.
     fn validate_signed_unit(
         &self,
         sender: &PeerId,
@@ -192,6 +232,10 @@ impl<B: Block> GossipValidator<B> {
         Ok(())
     }
 
+    /// Validates a multicast message.
+    ///
+    /// It checks if the message came from a known authority in the current set
+    /// as well as if the signature is valid.
     fn validate_multicast(
         &self,
         sender: &PeerId,
@@ -209,6 +253,12 @@ impl<B: Block> GossipValidator<B> {
         }
     }
 
+    /// Validates a fetch response.
+    ///
+    /// These messages much come from a peer that is an authority, not
+    /// necessarily part of the authority set. If the message is not what we
+    /// requested it too is flagged. The signed unit is then checked to ensure
+    /// that the authority is known and if the signature is valid.
     fn validate_fetch_response(
         &self,
         sender: &PeerId,
@@ -250,6 +300,9 @@ impl<B: Block> GossipValidator<B> {
     // TODO: Rate limiting should be applied here. We would not want to let an unlimited amount of
     // requests. Though, it should be checked if this is already done on the other layers. Not to
     // my knowledge though.
+    /// Validates a fetch request.
+    ///
+    /// These must come from a known peer with the role of a validator.
     fn validate_fetch_request(
         &self,
         sender: &PeerId,
