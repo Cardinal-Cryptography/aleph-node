@@ -1,3 +1,4 @@
+//! Gossip validator which validates incoming messages with basic packet checks.
 use crate::{
     communication::peer::{
         rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
