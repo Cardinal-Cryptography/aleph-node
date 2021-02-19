@@ -6,6 +6,7 @@ mod cost {
     pub(crate) const UNKNOWN_VOTER: i32 = -150;
     pub(crate) const BAD_SIGNATURE: i32 = -100;
     pub(crate) const OUT_OF_SCOPE_RESPONSE: i32 = -500;
+    pub(crate) const NOT_AUTHORITY: i32 = -500;
 }
 
 pub trait CostBenefit: 'static {
@@ -18,6 +19,7 @@ pub(crate) enum PeerMisbehavior {
     UnknownVoter,
     BadSignature,
     OutOfScopeResponse,
+    NotAuthority,
 }
 
 impl PeerMisbehavior {
@@ -35,6 +37,7 @@ impl PeerMisbehavior {
                 cost::OUT_OF_SCOPE_RESPONSE,
                 "Aleph: Out-of-scope response message",
             ),
+            NotAuthority => Rep::new(cost::NOT_AUTHORITY, "Aleph: Not authority"),
         }
     }
 }
