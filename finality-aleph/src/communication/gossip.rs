@@ -308,15 +308,11 @@ impl<B: Block> GossipValidator<B> {
         sender: &PeerId,
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
-        if !self.peers.read().is_authority(sender) {
-            return MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
-        }
-
-        if self.peers.read().contains(sender) {
+        if self.peers.read().is_authority(sender) {
             let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {
-            MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
+            MessageAction::Discard(PeerMisbehavior::NotAuthority.into())
         }
     }
 }
@@ -652,7 +648,8 @@ mod tests {
         val.note_pending_fetch_request(peer.clone(), fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
-        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
         assert!(matches!(res, _action));
     }
 
@@ -784,11 +781,12 @@ mod tests {
         };
 
         let peer = PeerId::random();
-        let val = GossipValidator::new_dummy()
-            .with_dummy_peers(vec![(peer.clone(), ObservedRole::Full)]);
+        let val =
+            GossipValidator::new_dummy().with_dummy_peers(vec![(peer.clone(), ObservedRole::Full)]);
 
         let res = val.validate_fetch_request(&peer, &fetch_request);
-        let _action: MessageAction<Hash> = MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
+        let _action: MessageAction<Hash> =
+            MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
         assert!(matches!(res, _action))
     }
 }
