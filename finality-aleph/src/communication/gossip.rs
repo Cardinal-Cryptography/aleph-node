@@ -235,8 +235,8 @@ impl<B: Block> GossipValidator<B> {
 
     /// Validates a multicast message.
     ///
-    /// It checks if the message came from a known authority in the current set
-    /// as well as if the signature is valid.
+    /// It checks if the message is signed by a known authority in the current
+    /// set as well as if the signature is valid.
     fn validate_multicast(
         &self,
         sender: &PeerId,
