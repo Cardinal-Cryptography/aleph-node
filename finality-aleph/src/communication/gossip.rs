@@ -17,7 +17,10 @@ use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{collections::HashSet, marker::PhantomData};
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+};
 
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Encode, Decode)]
@@ -136,9 +139,6 @@ impl Metrics {
     }
 }
 
-/// PeerId but as bytes.
-type PeerIdBytes = Vec<u8>;
-
 /// A gossip validator which is used to validate incoming messages.
 ///
 /// When we receive a message it is first checked here to see if it passes
@@ -149,7 +149,7 @@ pub(super) struct GossipValidator<B: Block> {
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_requests: RwLock<HashSet<(PeerIdBytes, Vec<UnitCoord>)>>,
+    pending_requests: RwLock<HashSet<Vec<UnitCoord>>>,
     phantom: PhantomData<B>,
 }
 
@@ -187,10 +187,10 @@ impl<B: Block> GossipValidator<B> {
 
     /// Notes pending fetch requests so that the gossip validator is aware of
     /// incoming fetch responses to watch out for.
-    pub(crate) fn note_pending_fetch_request(&mut self, who: PeerId, mut request: FetchRequest) {
+    pub(crate) fn note_pending_fetch_request(&mut self, mut request: FetchRequest) {
         let mut pending_request = self.pending_requests.write();
         request.coords.sort();
-        pending_request.insert((who.into_bytes(), request.coords));
+        pending_request.insert(request.coords);
     }
 
     /// Sets the current authorities which are used to ensure that the incoming
@@ -216,17 +216,16 @@ impl<B: Block> GossipValidator<B> {
     /// authority set and if the signature is valid.
     fn validate_signed_unit(
         &self,
-        sender: &PeerId,
         signed_unit: &SignedUnit<B>,
     ) -> Result<(), MessageAction<B::Hash>> {
         let id = &signed_unit.id;
         if !self.authority_set.read().contains(id) {
-            debug!(target: "afa", "Message from unknown authority: {} from {}", id, sender);
+            debug!(target: "afa", "Message from unknown authority: {}", id);
             return Err(MessageAction::Discard(PeerMisbehavior::UnknownVoter.into()));
         }
 
         if !signed_unit.verify_unit_signature() {
-            debug!(target: "afa", "Bad message signature: {} from {}", id, sender);
+            debug!(target: "afa", "Bad message signature: {}", id);
             return Err(MessageAction::Discard(PeerMisbehavior::BadSignature.into()));
         }
 
@@ -237,12 +236,8 @@ impl<B: Block> GossipValidator<B> {
     ///
     /// It checks if the message is signed by a known authority in the current
     /// set as well as if the signature is valid.
-    fn validate_multicast(
-        &self,
-        sender: &PeerId,
-        message: &Multicast<B>,
-    ) -> MessageAction<B::Hash> {
-        match self.validate_signed_unit(sender, &message.signed_unit) {
+    fn validate_multicast(&self, message: &Multicast<B>) -> MessageAction<B::Hash> {
+        match self.validate_signed_unit(&message.signed_unit) {
             Ok(_) => {
                 let topic: <B as Block>::Hash = super::multicast_topic::<B>(
                     message.signed_unit.unit.round,
@@ -279,14 +274,16 @@ impl<B: Block> GossipValidator<B> {
             }
             coords.sort();
 
-            if !pending_requests.remove(&(sender.clone().into_bytes(), coords)) {
+            // This is done with the knowledge that the message could come from
+            // anywhere.
+            if !pending_requests.remove(&coords) {
                 return MessageAction::Discard(Reputation::from(
                     PeerMisbehavior::OutOfScopeResponse,
-                ));
+                ))
             }
 
             for signed_unit in &message.signed_units {
-                if let Err(e) = self.validate_signed_unit(sender, signed_unit) {
+                if let Err(e) = self.validate_signed_unit(signed_unit) {
                     return e;
                 }
             }
@@ -337,7 +334,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
         let action = match GossipMessage::<B>::decode(&mut data) {
             Ok(GossipMessage::Multicast(ref message)) => {
                 message_name = Some("multicast");
-                self.validate_multicast(sender, message)
+                self.validate_multicast(message)
             }
             Ok(GossipMessage::FetchRequest(ref message)) => {
                 message_name = Some("fetch_request");
@@ -500,9 +497,9 @@ mod tests {
 
         let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![keypair.public()])
-            .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
+            .with_dummy_peers(vec![(peer, ObservedRole::Authority)]);
 
-        let res = val.validate_multicast(&peer, &message);
+        let res = val.validate_multicast(&message);
         assert!(matches!(res, MessageAction::Keep(..)));
     }
 
@@ -519,9 +516,9 @@ mod tests {
         let peer = PeerId::random();
         let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![keypair.public()])
-            .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
+            .with_dummy_peers(vec![(peer, ObservedRole::Authority)]);
 
-        let res = val.validate_multicast(&peer, &message);
+        let res = val.validate_multicast(&message);
         let _action: MessageAction<Hash> =
             MessageAction::Discard(PeerMisbehavior::BadSignature.into());
         assert!(matches!(res, _action));
@@ -542,9 +539,9 @@ mod tests {
         let peer = PeerId::random();
         let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![AuthorityId::default()])
-            .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
+            .with_dummy_peers(vec![(peer, ObservedRole::Authority)]);
 
-        let res = val.validate_multicast(&peer, &message);
+        let res = val.validate_multicast(&message);
         let _action: MessageAction<Hash> =
             MessageAction::Discard(PeerMisbehavior::UnknownVoter.into());
         assert!(matches!(res, _action));
@@ -596,7 +593,7 @@ mod tests {
             .with_dummy_authorities(vec![keypair.public()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(peer.clone(), fetch_request);
+        val.note_pending_fetch_request(fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         assert!(matches!(res, MessageAction::ProcessAndDiscard(..)))
@@ -646,7 +643,7 @@ mod tests {
             .with_dummy_authorities(vec![authority_id])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Full)]);
 
-        val.note_pending_fetch_request(peer.clone(), fetch_request);
+        val.note_pending_fetch_request(fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
@@ -696,7 +693,7 @@ mod tests {
             .with_dummy_authorities(vec![AuthorityId::default()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(peer.clone(), fetch_request);
+        val.note_pending_fetch_request(fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
@@ -749,7 +746,7 @@ mod tests {
         let mut val = GossipValidator::new_dummy()
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(peer.clone(), fetch_request);
+        val.note_pending_fetch_request(fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
