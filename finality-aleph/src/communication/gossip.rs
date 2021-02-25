@@ -165,7 +165,7 @@ pub(super) struct GossipValidator<B: Block> {
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_requests: RwLock<HashMap<PeerIdBytes, Vec<UnitCoord>>>,
+    pending_requests: RwLock<HashSet<(PeerIdBytes, Vec<UnitCoord>)>>,
     phantom: PhantomData<B>,
 }
 
@@ -187,7 +187,7 @@ impl<B: Block> GossipValidator<B> {
             authority_set: RwLock::new(HashSet::new()),
             report_sender: tx,
             metrics,
-            pending_requests: RwLock::new(HashMap::new()),
+            pending_requests: RwLock::new(HashSet::new()),
             phantom: PhantomData::default(),
         };
 
@@ -206,7 +206,7 @@ impl<B: Block> GossipValidator<B> {
     pub(crate) fn note_pending_fetch_request(&mut self, peer: PeerId, mut request: FetchRequest) {
         let mut pending_request = self.pending_requests.write();
         request.coords.sort();
-        pending_request.insert(PeerIdBytes::from(peer), request.coords);
+        pending_request.insert((PeerIdBytes::from(peer), request.coords));
     }
 
     /// Sets the current authorities which are used to ensure that the incoming
@@ -289,15 +289,9 @@ impl<B: Block> GossipValidator<B> {
                 coords.push(coord);
             }
             coords.sort();
-
             let sender: PeerIdBytes = sender.clone().into();
-            match pending_requests.remove(&sender) {
-                Some(c) => {
-                    if c != coords {
-                        return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into());
-                    }
-                }
-                None => return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into()),
+            if !pending_requests.remove(&(sender, coords)) {
+                return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into());
             }
 
             for signed_unit in &message.signed_units {
