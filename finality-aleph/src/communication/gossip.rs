@@ -22,6 +22,22 @@ use std::{
     marker::PhantomData,
 };
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+/// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
+struct PeerIdBytes(Vec<u8>);
+
+impl From<PeerId> for PeerIdBytes {
+    fn from(peer_id: PeerId) -> Self {
+        PeerIdBytes(peer_id.into_bytes())
+    }
+}
+
+impl AsRef<[u8]> for PeerIdBytes {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct SignedUnit<B: Block> {
@@ -149,7 +165,7 @@ pub(super) struct GossipValidator<B: Block> {
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_requests: RwLock<HashMap<Vec<UnitCoord>, PeerId>>,
+    pending_requests: RwLock<HashMap<PeerIdBytes, Vec<UnitCoord>>>,
     phantom: PhantomData<B>,
 }
 
@@ -187,10 +203,10 @@ impl<B: Block> GossipValidator<B> {
 
     /// Notes pending fetch requests so that the gossip validator is aware of
     /// incoming fetch responses to watch out for.
-    pub(crate) fn note_pending_fetch_request(&mut self, mut request: FetchRequest, peer: PeerId) {
+    pub(crate) fn note_pending_fetch_request(&mut self, peer: PeerId, mut request: FetchRequest) {
         let mut pending_request = self.pending_requests.write();
         request.coords.sort();
-        pending_request.insert(request.coords, peer);
+        pending_request.insert(PeerIdBytes::from(peer), request.coords);
     }
 
     /// Sets the current authorities which are used to ensure that the incoming
@@ -274,22 +290,15 @@ impl<B: Block> GossipValidator<B> {
             }
             coords.sort();
 
-            // This is done with the knowledge that the message could come from
-            // anywhere.
-            let get_res = pending_requests.get(&coords).map(|p| {
-                if p != sender {
-                    Err(MessageAction::Discard(
-                        PeerMisbehavior::UnexpectedSender.into(),
-                    ))
-                } else {
-                    Ok(())
+            let sender: PeerIdBytes = sender.clone().into();
+            match pending_requests.remove(&sender) {
+                Some(c) => {
+                    if c != coords {
+                        return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into());
+                    }
                 }
-            });
-            match get_res {
-                Some(Ok(_)) => pending_requests.remove(&coords),
-                Some(Err(e)) => return e,
                 None => return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into()),
-            };
+            }
 
             for signed_unit in &message.signed_units {
                 if let Err(e) = self.validate_signed_unit(signed_unit) {
@@ -602,7 +611,7 @@ mod tests {
             .with_dummy_authorities(vec![keypair.public()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(fetch_request, peer.clone());
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         assert!(matches!(res, MessageAction::ProcessAndDiscard(..)))
@@ -652,7 +661,7 @@ mod tests {
             .with_dummy_authorities(vec![authority_id])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Full)]);
 
-        val.note_pending_fetch_request(fetch_request, peer.clone());
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
@@ -702,7 +711,7 @@ mod tests {
             .with_dummy_authorities(vec![AuthorityId::default()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(fetch_request, peer.clone());
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
@@ -755,7 +764,7 @@ mod tests {
         let mut val = GossipValidator::new_dummy()
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
-        val.note_pending_fetch_request(fetch_request, peer.clone());
+        val.note_pending_fetch_request(peer.clone(), fetch_request);
 
         let res = val.validate_fetch_response(&peer, &fetch_response);
         let _action: MessageAction<Hash> =
