@@ -1,4 +1,7 @@
 #![allow(clippy::type_complexity)]
+use temp::*;
+use std::time::Duration;
+use sp_core::traits::BareCryptoStorePtr;
 
 pub(crate) mod communication;
 pub(crate) mod environment;
@@ -20,6 +23,24 @@ pub type AuthorityId = app::Public;
 pub type AuthoritySignature = app::Signature;
 
 pub type AuthorityPair = app::Pair;
+
+/// Configuration for the Aleph protocol service.
+pub struct Config {
+    /// The duration of a message to be sent across the network.
+    pub gossip_duration: Duration,
+    /// If the node is running as an authority.
+    pub is_authority: bool,
+    /// The name of this particular node.
+    pub name: Option<String>,
+    /// The keystore which stores the keys.
+    pub keystore: Option<BareCryptoStorePtr>,
+}
+
+impl Config {
+    fn name(&self) -> &str {
+        self.name.as_ref().map(|s| s.as_str()).unwrap_or("<unknown>")
+    }
+}
 
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
@@ -130,5 +151,3 @@ pub(crate) mod temp {
         }
     }
 }
-
-use temp::*;
