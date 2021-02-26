@@ -25,7 +25,10 @@ pub type AuthorityPair = app::Pair;
 pub(crate) mod temp {
     use codec::{Decode, Encode};
     use sp_runtime::traits::Block;
-    use std::fmt::{Display, Formatter, Result as FmtResult};
+    use std::{
+        fmt::{Display, Formatter, Result as FmtResult},
+        slice::Iter,
+    };
 
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
     pub struct NodeIndex(pub(crate) u32);
@@ -85,6 +88,22 @@ pub(crate) mod temp {
     pub struct UnitCoord {
         pub creator: CreatorId,
         pub round: Round,
+    }
+
+    #[derive(Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
+    pub struct UnitCoords(Vec<UnitCoord>);
+
+    impl UnitCoords {
+        pub fn iter(&self) -> Iter<'_, UnitCoord> {
+            self.0.iter()
+        }
+    }
+
+    impl From<Vec<UnitCoord>> for UnitCoords {
+        fn from(mut coords: Vec<UnitCoord>) -> Self {
+            coords.sort();
+            UnitCoords(coords)
+        }
     }
 
     #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Encode, Decode)]

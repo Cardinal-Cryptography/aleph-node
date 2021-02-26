@@ -4,7 +4,7 @@ use crate::{
         rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
         Peers,
     },
-    temp::{NodeIndex, Unit, UnitCoord},
+    temp::{NodeIndex, Unit, UnitCoord, UnitCoords},
     AuthorityId, AuthoritySignature,
 };
 use codec::{Decode, Encode};
@@ -17,10 +17,7 @@ use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-};
+use std::{collections::HashSet, marker::PhantomData};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
@@ -73,6 +70,20 @@ impl<B: Block> SignedUnit<B> {
     }
 }
 
+impl<B: Block> From<&[SignedUnit<B>]> for UnitCoords {
+    fn from(units: &[SignedUnit<B>]) -> Self {
+        let mut coords = Vec::with_capacity(units.len());
+        for signed_unit in units {
+            let unit = &signed_unit.unit;
+            let coord: UnitCoord = unit.into();
+            coords.push(coord);
+        }
+        coords.sort();
+
+        UnitCoords::from(coords)
+    }
+}
+
 /// Actions for incoming messages.
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -95,7 +106,7 @@ pub(crate) struct Multicast<B: Block> {
 /// A fetch request which asks for units from coordinates.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchRequest {
-    coords: Vec<UnitCoord>,
+    coords: UnitCoords,
     peer_id: NodeIndex,
 }
 
@@ -165,7 +176,7 @@ pub(super) struct GossipValidator<B: Block> {
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
-    pending_requests: RwLock<HashSet<(PeerIdBytes, Vec<UnitCoord>)>>,
+    pending_requests: RwLock<HashSet<(PeerIdBytes, UnitCoords)>>,
     phantom: PhantomData<B>,
 }
 
@@ -205,7 +216,6 @@ impl<B: Block> GossipValidator<B> {
     /// incoming fetch responses to watch out for.
     pub(crate) fn note_pending_fetch_request(&mut self, peer: PeerId, mut request: FetchRequest) {
         let mut pending_request = self.pending_requests.write();
-        request.coords.sort();
         pending_request.insert((PeerIdBytes::from(peer), request.coords));
     }
 
@@ -255,9 +265,9 @@ impl<B: Block> GossipValidator<B> {
     fn validate_multicast(&self, message: &Multicast<B>) -> MessageAction<B::Hash> {
         match self.validate_signed_unit(&message.signed_unit) {
             Ok(_) => {
-                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
-                    message.signed_unit.unit.round,
-                    message.signed_unit.unit.epoch_id,
+                let topic: <B as Block>::Hash = super::coord_topic::<B>(
+                    &message.signed_unit.unit.creator,
+                    &message.signed_unit.unit.round,
                 );
                 MessageAction::Keep(topic, PeerGoodBehavior::Multicast.into())
             }
@@ -282,13 +292,9 @@ impl<B: Block> GossipValidator<B> {
 
         let mut pending_requests = self.pending_requests.write();
         if pending_requests.len() != 0 {
-            let mut coords = Vec::with_capacity(message.signed_units.len());
-            for signed_unit in &message.signed_units {
-                let unit = &signed_unit.unit;
-                let coord: UnitCoord = unit.into();
-                coords.push(coord);
-            }
-            coords.sort();
+            let coords: UnitCoords = message.signed_units.as_slice().into();
+            let topic: <B as Block>::Hash = super::coords_topic::<B>(&coords);
+
             let sender: PeerIdBytes = sender.clone().into();
             if !pending_requests.remove(&(sender, coords)) {
                 return MessageAction::Discard(PeerMisbehavior::OutOfScopeResponse.into());
@@ -300,7 +306,6 @@ impl<B: Block> GossipValidator<B> {
                 }
             }
 
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
         } else {
             MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
@@ -319,7 +324,7 @@ impl<B: Block> GossipValidator<B> {
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
         if self.peers.read().contains_authority(sender) {
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as Block>::Hash = super::coords_topic::<B>(&message.coords);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {
             MessageAction::Discard(PeerMisbehavior::NotAuthority.into())
@@ -596,7 +601,7 @@ mod tests {
         };
 
         let fetch_request = FetchRequest {
-            coords,
+            coords: UnitCoords::from(coords),
             peer_id: NodeIndex(0),
         };
 
@@ -646,7 +651,7 @@ mod tests {
             coords.push(unit_coord);
         }
         let fetch_request = FetchRequest {
-            coords,
+            coords: UnitCoords::from(coords),
             peer_id: NodeIndex(0),
         };
 
@@ -691,7 +696,7 @@ mod tests {
         }
 
         let fetch_request = FetchRequest {
-            coords,
+            coords: UnitCoords::from(coords),
             peer_id: NodeIndex(0),
         };
 
@@ -745,7 +750,7 @@ mod tests {
         }
 
         let fetch_request = FetchRequest {
-            coords,
+            coords: UnitCoords::from(coords),
             peer_id: NodeIndex(0),
         };
 
@@ -771,7 +776,7 @@ mod tests {
     #[test]
     fn good_fetch_request() {
         let fetch_request = FetchRequest {
-            coords: Vec::new(),
+            coords: UnitCoords::default(),
             peer_id: NodeIndex(0),
         };
 
@@ -786,7 +791,7 @@ mod tests {
     #[test]
     fn not_authority_request() {
         let fetch_request = FetchRequest {
-            coords: Vec::new(),
+            coords: UnitCoords::default(),
             peer_id: NodeIndex(0),
         };
 
