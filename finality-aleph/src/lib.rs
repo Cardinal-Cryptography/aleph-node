@@ -1,4 +1,6 @@
 #![allow(clippy::type_complexity)]
+use sp_core::traits::BareCryptoStorePtr;
+use temp::*;
 
 pub(crate) mod communication;
 pub(crate) mod environment;
@@ -20,6 +22,39 @@ pub type AuthorityId = app::Public;
 pub type AuthoritySignature = app::Signature;
 
 pub type AuthorityPair = app::Pair;
+
+/// Ties an authority identification and a cryptography keystore together for use in
+/// signing that requires an authority.
+pub struct AuthorityCryptoStore {
+    authority_id: AuthorityId,
+    crypto_store: BareCryptoStorePtr,
+}
+
+impl AuthorityCryptoStore {
+    /// Constructs a new authority cryptography keystore.
+    pub fn new(authority_id: AuthorityId, crypto_store: BareCryptoStorePtr) -> Self {
+        AuthorityCryptoStore {
+            authority_id,
+            crypto_store,
+        }
+    }
+
+    /// Returns a references to the authority id.
+    pub fn authority_id(&self) -> &AuthorityId {
+        &self.authority_id
+    }
+
+    /// Returns a reference to the cryptography keystore.
+    pub fn crypto_store(&self) -> &BareCryptoStorePtr {
+        &self.crypto_store
+    }
+}
+
+impl AsRef<BareCryptoStorePtr> for AuthorityCryptoStore {
+    fn as_ref(&self) -> &BareCryptoStorePtr {
+        self.crypto_store()
+    }
+}
 
 /// Temporary structs and traits until initial version of Aleph is published.
 pub(crate) mod temp {
