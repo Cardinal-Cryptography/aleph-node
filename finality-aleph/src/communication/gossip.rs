@@ -1,12 +1,8 @@
 //! Gossip validator which validates incoming messages with basic packet checks.
-use crate::{
-    communication::peer::{
-        rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
-        Peers,
-    },
-    temp::{NodeIndex, Unit, UnitCoord},
-    AuthorityId, AuthoritySignature,
-};
+use crate::{communication::peer::{
+    rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
+    Peers,
+}, AuthorityId, AuthoritySignature, UnitCoord, Block};
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
@@ -15,9 +11,10 @@ use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::RuntimeAppPublic;
-use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
+use rush::{nodes::NodeIndex, Unit};
+use sp_runtime::traits::Block as SubstrateBlock;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
@@ -38,7 +35,7 @@ impl AsRef<[u8]> for PeerIdBytes {
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct SignedUnit<B: Block> {
-    unit: Unit<B>,
+    unit: Unit<B::BlockHash, B::Hash>,
     signature: AuthoritySignature,
     // NOTE: This will likely be changed to a usize to get the authority out of
     // a map in the future to reduce data sizes of packets.
@@ -58,7 +55,7 @@ impl<B: Block> SignedUnit<B> {
 
         let valid = self.id.verify(&buf, &self.signature);
         if !valid {
-            debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator);
+            debug!(target: "afa", "Bad signature message from {:?}", self.unit.creator());
         }
 
         valid
@@ -157,7 +154,7 @@ impl Metrics {
 /// When we receive a message it is first checked here to see if it passes
 /// basic validation rules that are not part of consensus but related to the
 /// message itself.
-pub(super) struct GossipValidator<B: Block> {
+pub(super) struct GossipValidator<B: SubstrateBlock> {
     peers: RwLock<Peers>,
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
@@ -252,9 +249,9 @@ impl<B: Block> GossipValidator<B> {
     fn validate_multicast(&self, message: &Multicast<B>) -> MessageAction<B::Hash> {
         match self.validate_signed_unit(&message.signed_unit) {
             Ok(_) => {
-                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
-                    message.signed_unit.unit.round,
-                    message.signed_unit.unit.epoch_id,
+                let topic: <B as SubstrateBlock>::Hash = super::multicast_topic::<B>(
+                    message.signed_unit.unit.round(),
+                    message.signed_unit.unit.epoch_id(),
                 );
                 MessageAction::Keep(topic, PeerGoodBehavior::Multicast.into())
             }
@@ -297,7 +294,7 @@ impl<B: Block> GossipValidator<B> {
                 }
             }
 
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as SubstrateBlock>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
         } else {
             MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
@@ -316,7 +313,7 @@ impl<B: Block> GossipValidator<B> {
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
         if self.peers.read().contains_authority(sender) {
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as SubstrateBlock>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {
             MessageAction::Discard(PeerMisbehavior::NotAuthority.into())
@@ -412,7 +409,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 mod tests {
     use super::*;
     use crate::{
-        temp::{ControlHash, CreatorId, EpochId, NodeMap, Round, Unit},
+        temp::{ControlHash, NodeMap},
         AuthorityPair, AuthoritySignature,
     };
     use sp_core::{Pair, H256};
@@ -463,19 +460,6 @@ mod tests {
             ControlHash {
                 parents: NodeMap(vec![false]),
                 hash: Hash::from([1u8; 32]),
-            }
-        }
-    }
-
-    impl Unit<Block> {
-        fn new_dummy() -> Self {
-            Unit {
-                creator: CreatorId(0),
-                round: Round(0),
-                epoch_id: EpochId(0),
-                hash: Hash::from([1u8; 32]),
-                control_hash: ControlHash::new_dummy(),
-                best_block: Hash::from([1u8; 32]),
             }
         }
     }
@@ -564,7 +548,7 @@ mod tests {
         for x in 0..10 {
             let unit_coord = UnitCoord {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as usize,
             };
             coords.push(unit_coord);
         }
@@ -573,7 +557,7 @@ mod tests {
         for x in 0..10 {
             let unit: Unit<Block> = Unit {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as usize,
                 ..Unit::new_dummy()
             };
             let signature = keypair.sign(&unit.encode());
@@ -616,7 +600,7 @@ mod tests {
         for x in 0..10 {
             let unit: Unit<Block> = Unit {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as usize,
                 ..Unit::new_dummy()
             };
             let signature = keypair.sign(&unit.encode());
@@ -638,7 +622,7 @@ mod tests {
         for x in 0..10 {
             let unit_coord = UnitCoord {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as usize,
             };
             coords.push(unit_coord);
         }
@@ -666,7 +650,7 @@ mod tests {
         for x in 0..10 {
             let unit_coord = UnitCoord {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as u64,
             };
             coords.push(unit_coord);
         }
@@ -675,7 +659,7 @@ mod tests {
         for x in 0..10 {
             let unit: Unit<Block> = Unit {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1),
                 ..Unit::new_dummy()
             };
 
@@ -718,7 +702,7 @@ mod tests {
         for x in 0..10 {
             let unit_coord = UnitCoord {
                 creator: CreatorId(x),
-                round: Round(x + 1),
+                round: (x + 1) as usize,
             };
             coords.push(unit_coord);
         }
@@ -727,7 +711,7 @@ mod tests {
         for x in 0..10 {
             let unit: Unit<Block> = Unit {
                 creator: CreatorId(x),
-                round: Round(x + 2),
+                round: (x + 1) as usize,
                 ..Unit::new_dummy()
             };
             let signature = keypair.sign(&unit.encode());
