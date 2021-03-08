@@ -1,6 +1,6 @@
+use rush::EpochId;
 use sc_network::{ObservedRole, PeerId};
 use std::collections::HashMap;
-use rush::EpochId;
 
 pub(crate) mod rep;
 

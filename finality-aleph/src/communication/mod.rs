@@ -1,19 +1,9 @@
 mod gossip;
-pub(super) mod peer;
+pub(crate) mod network;
+pub(crate) mod peer;
 
-use sp_runtime::{
-    traits::{Block, Hash, Header},
-    ConsensusEngineId,
-};
-use rush::{Round, EpochId};
-use rush::nodes::NodeIndex;
-
-/// Name of the notifications protocol used by Aleph Zero. This is how messages
-/// are subscribed to to ensure that we are gossiping and communicating with our
-/// own network.
-pub const ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/1";
-
-pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ALPH";
+use rush::{nodes::NodeIndex, EpochId, Round};
+use sp_runtime::traits::{Block, Hash, Header};
 
 pub const ALEPH_AUTHORITIES_KEY: &[u8] = b":aleph_authorities";
 

@@ -2,17 +2,21 @@
 // TODO: Remove before we do a release to ensure there is no hanging code.
 #![allow(dead_code)]
 #![allow(clippy::type_complexity)]
+use sp_core::traits::BareCryptoStorePtr;
 
-use rush::Unit;
-use rush::nodes::NodeIndex;
-use rush::HashT;
-use codec::{Codec, Encode, Decode};
-use sp_runtime::traits::{Block as SubstrateBlock, Member, MaybeSerializeDeserialize, MaybeDisplay, SimpleBitOps, MaybeMallocSizeOf, MaybeSerialize};
+use codec::{Codec, Decode, Encode};
+use rush::{nodes::NodeIndex, HashT, Unit};
+use sp_runtime::traits::{
+    Block as SubstrateBlock, Header as SubstrateHeader, MaybeDisplay, MaybeMallocSizeOf,
+    MaybeSerialize, MaybeSerializeDeserialize, Member, SimpleBitOps,
+};
 use std::fmt::Debug;
 
+mod block;
 pub(crate) mod communication;
 pub mod config;
 pub(crate) mod environment;
+pub mod traits;
 
 mod key_types {
     use sp_runtime::KeyTypeId;
@@ -32,7 +36,40 @@ pub type AuthoritySignature = app::Signature;
 
 pub type AuthorityPair = app::Pair;
 
-pub type Round = u64;
+/// Ties an authority identification and a cryptography keystore together for use in
+/// signing that requires an authority.
+pub struct AuthorityCryptoStore {
+    authority_id: AuthorityId,
+    crypto_store: BareCryptoStorePtr,
+}
+
+impl AuthorityCryptoStore {
+    /// Constructs a new authority cryptography keystore.
+    pub fn new(authority_id: AuthorityId, crypto_store: BareCryptoStorePtr) -> Self {
+        AuthorityCryptoStore {
+            authority_id,
+            crypto_store,
+        }
+    }
+
+    /// Returns a references to the authority id.
+    pub fn authority_id(&self) -> &AuthorityId {
+        &self.authority_id
+    }
+
+    /// Returns a reference to the cryptography keystore.
+    pub fn crypto_store(&self) -> &BareCryptoStorePtr {
+        &self.crypto_store
+    }
+}
+
+impl AsRef<BareCryptoStorePtr> for AuthorityCryptoStore {
+    fn as_ref(&self) -> &BareCryptoStorePtr {
+        self.crypto_store()
+    }
+}
+
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct UnitCoord {
@@ -55,40 +92,5 @@ impl<B: HashT, H: HashT> From<&Unit<B, H>> for UnitCoord {
             creator: unit.creator(),
             round: unit.round() as u64,
         }
-    }
-}
-
-pub trait BlockExt {
-    // type BlockHash: Member + MaybeSerializeDeserialize + Debug + std::hash::Hash + Ord
-    // + Copy + MaybeDisplay + Default + SimpleBitOps + Codec + AsRef<[u8]> + AsMut<[u8]>
-    // + MaybeMallocSizeOf
-    type BlockHash: Member + MaybeSerializeDeserialize + Debug + std::hash::Hash + Ord
-    + Copy + MaybeDisplay + Default + SimpleBitOps + Codec + AsRef<[u8]> + AsMut<[u8]>
-    + MaybeMallocSizeOf;
-
-    // type Thing: Codec + AsRef<[u8]> + AsMut<[u8]> + MaybeMallocSizeOf;
-
-    fn best_block_hash(&self) -> Self::BlockHash;
-}
-
-pub trait Block: SubstrateBlock + BlockExt {}
-
-/// Temporary structs and traits until initial version of Aleph is published.
-pub(crate) mod temp {
-    use codec::{Decode, Encode};
-
-    #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Encode, Decode)]
-    pub struct NodeMap<T>(pub Vec<T>);
-
-    impl<T> From<Vec<T>> for NodeMap<T> {
-        fn from(vec: Vec<T>) -> Self {
-            NodeMap(vec)
-        }
-    }
-
-    #[derive(Clone, Debug, Default, PartialEq, Encode, Decode)]
-    pub struct ControlHash<H> {
-        pub parents: NodeMap<bool>,
-        pub hash: H,
     }
 }

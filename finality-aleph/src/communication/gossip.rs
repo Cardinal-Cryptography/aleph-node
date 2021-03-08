@@ -1,20 +1,24 @@
 //! Gossip validator which validates incoming messages with basic packet checks.
-use crate::{communication::peer::{
-    rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
-    Peers,
-}, AuthorityId, AuthoritySignature, UnitCoord, Block};
+use crate::{
+    communication::peer::{
+        rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
+        Peers,
+    },
+    AuthorityId, AuthoritySignature, UnitCoord,
+};
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
+use rush::{nodes::NodeIndex, Unit};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::RuntimeAppPublic;
+use sp_runtime::traits::Block as SubstrateBlock;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
-use rush::{nodes::NodeIndex, Unit};
-use sp_runtime::traits::Block as SubstrateBlock;
+use crate::traits::Block;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
@@ -408,10 +412,8 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        temp::{ControlHash, NodeMap},
-        AuthorityPair, AuthoritySignature,
-    };
+    use crate::{AuthorityPair, AuthoritySignature};
+    use rush::{nodes::NodeMap, ControlHash};
     use sp_core::{Pair, H256};
     use sp_runtime::traits::Extrinsic as ExtrinsicT;
 
@@ -433,7 +435,7 @@ mod tests {
 
     pub type Hash = H256;
 
-    pub type Block = sp_runtime::generic::Block<Header, Extrinsic>;
+    pub type Block = crate::block::AlephBlock<Header, Extrinsic>;
 
     impl GossipValidator<Block> {
         fn new_dummy() -> Self {
@@ -455,13 +457,8 @@ mod tests {
         }
     }
 
-    impl ControlHash<Hash> {
-        fn new_dummy() -> Self {
-            ControlHash {
-                parents: NodeMap(vec![false]),
-                hash: Hash::from([1u8; 32]),
-            }
-        }
+    fn new_control_hash() -> ControlHash<Hash> {
+        ControlHash::new_with_len(1)
     }
 
     impl SignedUnit<Block> {
