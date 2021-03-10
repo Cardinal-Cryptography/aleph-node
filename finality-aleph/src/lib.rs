@@ -12,11 +12,10 @@ use sp_runtime::traits::{
 };
 use std::fmt::Debug;
 
-mod block;
 pub(crate) mod communication;
 pub mod config;
 pub(crate) mod environment;
-pub mod traits;
+pub mod hash;
 
 mod key_types {
     use sp_runtime::KeyTypeId;
