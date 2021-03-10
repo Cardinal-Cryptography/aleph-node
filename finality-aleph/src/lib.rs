@@ -4,12 +4,8 @@
 #![allow(clippy::type_complexity)]
 use sp_core::traits::BareCryptoStorePtr;
 
-use codec::{Codec, Decode, Encode};
+use codec::{Decode, Encode};
 use rush::{nodes::NodeIndex, HashT, Unit};
-use sp_runtime::traits::{
-    Block as SubstrateBlock, Header as SubstrateHeader, MaybeDisplay, MaybeMallocSizeOf,
-    MaybeSerialize, MaybeSerializeDeserialize, Member, SimpleBitOps,
-};
 use std::fmt::Debug;
 
 pub(crate) mod communication;
@@ -67,8 +63,6 @@ impl AsRef<BareCryptoStorePtr> for AuthorityCryptoStore {
         self.crypto_store()
     }
 }
-
-use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub struct UnitCoord {

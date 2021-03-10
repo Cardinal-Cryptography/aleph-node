@@ -4,6 +4,7 @@ use crate::{
         rep::{PeerGoodBehavior, PeerMisbehavior, Reputation},
         Peers,
     },
+    hash::Hash,
     AuthorityId, AuthoritySignature, UnitCoord,
 };
 use codec::{Decode, Encode};
@@ -15,10 +16,9 @@ use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::RuntimeAppPublic;
-use sp_runtime::traits::Block as SubstrateBlock;
+use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
-use crate::traits::Block;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
@@ -38,15 +38,15 @@ impl AsRef<[u8]> for PeerIdBytes {
 
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Encode, Decode)]
-pub(crate) struct SignedUnit<B: Block> {
-    unit: Unit<B::BlockHash, B::Hash>,
+pub(crate) struct SignedUnit<B: Block, H: Hash> {
+    unit: Unit<H, B::Hash>,
     signature: AuthoritySignature,
     // NOTE: This will likely be changed to a usize to get the authority out of
     // a map in the future to reduce data sizes of packets.
     id: AuthorityId,
 }
 
-impl<B: Block> SignedUnit<B> {
+impl<B: Block, H: Hash> SignedUnit<B, H> {
     /// Encodes the unit with a buffer vector.
     pub(crate) fn encode_unit_with_buffer(&self, buf: &mut Vec<u8>) {
         buf.clear();
@@ -86,8 +86,8 @@ enum MessageAction<H> {
 
 /// Multicast sends a message to all peers.
 #[derive(Debug, Encode, Decode)]
-pub(crate) struct Multicast<B: Block> {
-    signed_unit: SignedUnit<B>,
+pub(crate) struct Multicast<B: Block, H: Hash> {
+    signed_unit: SignedUnit<B, H>,
 }
 
 /// A fetch request which asks for units from coordinates.
@@ -99,8 +99,8 @@ pub(crate) struct FetchRequest {
 
 /// A fetch response which returns units from requested coordinates.
 #[derive(Debug, Encode, Decode)]
-pub(crate) struct FetchResponse<B: Block> {
-    signed_units: Vec<SignedUnit<B>>,
+pub(crate) struct FetchResponse<B: Block, H: Hash> {
+    signed_units: Vec<SignedUnit<B, H>>,
     peer_id: NodeIndex,
 }
 
@@ -110,13 +110,13 @@ struct Alert {}
 
 /// The kind of message that is being sent.
 #[derive(Debug, Encode, Decode)]
-enum GossipMessage<B: Block> {
+enum GossipMessage<B: Block, H: Hash> {
     /// A multicast message kind.
-    Multicast(Multicast<B>),
+    Multicast(Multicast<B, H>),
     /// A fetch request message kind.
     FetchRequest(FetchRequest),
     /// A fetch response message kind.
-    FetchResponse(FetchResponse<B>),
+    FetchResponse(FetchResponse<B, H>),
     /// An alert message kind.
     Alert(Alert),
 }
@@ -158,21 +158,22 @@ impl Metrics {
 /// When we receive a message it is first checked here to see if it passes
 /// basic validation rules that are not part of consensus but related to the
 /// message itself.
-pub(super) struct GossipValidator<B: SubstrateBlock> {
+pub(super) struct GossipValidator<B: Block, H> {
     peers: RwLock<Peers>,
     authority_set: RwLock<HashSet<AuthorityId>>,
     report_sender: TracingUnboundedSender<PeerReport>,
     metrics: Option<Metrics>,
     pending_requests: RwLock<HashSet<(PeerIdBytes, Vec<UnitCoord>)>>,
-    phantom: PhantomData<B>,
+    block_phantom: PhantomData<B>,
+    hash_phantom: PhantomData<H>,
 }
 
-impl<B: Block> GossipValidator<B> {
+impl<B: Block, H: Hash> GossipValidator<B, H> {
     /// Constructs a new gossip validator and unbounded `PeerReport` receiver
     /// channel with an optional prometheus registry.
     pub(crate) fn new(
         prometheus_registry: Option<&Registry>,
-    ) -> (GossipValidator<B>, TracingUnboundedReceiver<PeerReport>) {
+    ) -> (GossipValidator<B, H>, TracingUnboundedReceiver<PeerReport>) {
         let metrics: Option<Metrics> = prometheus_registry.and_then(|reg| {
             Metrics::register(reg)
                 .map_err(|e| debug!(target: "afa", "Failed to register metrics: {:?}", e))
@@ -186,7 +187,8 @@ impl<B: Block> GossipValidator<B> {
             report_sender: tx,
             metrics,
             pending_requests: RwLock::new(HashSet::new()),
-            phantom: PhantomData::default(),
+            block_phantom: PhantomData::default(),
+            hash_phantom: PhantomData::default(),
         };
 
         (val, rx)
@@ -230,7 +232,7 @@ impl<B: Block> GossipValidator<B> {
     /// authority set and if the signature is valid.
     fn validate_signed_unit(
         &self,
-        signed_unit: &SignedUnit<B>,
+        signed_unit: &SignedUnit<B, H>,
     ) -> Result<(), MessageAction<B::Hash>> {
         let id = &signed_unit.id;
         if !self.authority_set.read().contains(id) {
@@ -250,10 +252,10 @@ impl<B: Block> GossipValidator<B> {
     ///
     /// It checks if the message is signed by a known authority in the current
     /// set as well as if the signature is valid.
-    fn validate_multicast(&self, message: &Multicast<B>) -> MessageAction<B::Hash> {
+    fn validate_multicast(&self, message: &Multicast<B, H>) -> MessageAction<B::Hash> {
         match self.validate_signed_unit(&message.signed_unit) {
             Ok(_) => {
-                let topic: <B as SubstrateBlock>::Hash = super::multicast_topic::<B>(
+                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
                     message.signed_unit.unit.round(),
                     message.signed_unit.unit.epoch_id(),
                 );
@@ -272,7 +274,7 @@ impl<B: Block> GossipValidator<B> {
     fn validate_fetch_response(
         &self,
         sender: &PeerId,
-        message: &FetchResponse<B>,
+        message: &FetchResponse<B, H>,
     ) -> MessageAction<B::Hash> {
         if !self.peers.read().contains_authority(sender) {
             return MessageAction::Discard(PeerMisbehavior::NotAuthority.into());
@@ -298,7 +300,7 @@ impl<B: Block> GossipValidator<B> {
                 }
             }
 
-            let topic: <B as SubstrateBlock>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
         } else {
             MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
@@ -317,7 +319,7 @@ impl<B: Block> GossipValidator<B> {
         message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
         if self.peers.read().contains_authority(sender) {
-            let topic: <B as SubstrateBlock>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {
             MessageAction::Discard(PeerMisbehavior::NotAuthority.into())
@@ -325,7 +327,7 @@ impl<B: Block> GossipValidator<B> {
     }
 }
 
-impl<B: Block> Validator<B> for GossipValidator<B> {
+impl<B: Block, H: Hash> Validator<B> for GossipValidator<B, H> {
     fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, who: &PeerId, role: ObservedRole) {
         self.peers.write().insert(who.clone(), role);
     }
@@ -341,7 +343,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
         mut data: &[u8],
     ) -> ValidationResult<B::Hash> {
         let message_name: Option<&str>;
-        let action = match GossipMessage::<B>::decode(&mut data) {
+        let action = match GossipMessage::<B, H>::decode(&mut data) {
             Ok(GossipMessage::Multicast(ref message)) => {
                 message_name = Some("multicast");
                 self.validate_multicast(message)
@@ -413,7 +415,7 @@ impl<B: Block> Validator<B> for GossipValidator<B> {
 mod tests {
     use super::*;
     use crate::{AuthorityPair, AuthoritySignature};
-    use rush::{nodes::NodeMap, ControlHash};
+    use rush::{ControlHash, EpochId};
     use sp_core::{Pair, H256};
     use sp_runtime::traits::Extrinsic as ExtrinsicT;
 
@@ -435,11 +437,11 @@ mod tests {
 
     pub type Hash = H256;
 
-    pub type Block = crate::block::AlephBlock<Header, Extrinsic>;
+    pub type Block = sp_runtime::generic::Block<Header, Extrinsic>;
 
-    impl GossipValidator<Block> {
+    impl GossipValidator<Block, Hash> {
         fn new_dummy() -> Self {
-            GossipValidator::<Block>::new(None).0
+            GossipValidator::<Block, Hash>::new(None).0
         }
 
         fn with_dummy_authorities(self, authorities: Vec<AuthorityId>) -> Self {
@@ -458,13 +460,13 @@ mod tests {
     }
 
     fn new_control_hash() -> ControlHash<Hash> {
-        ControlHash::new_with_len(1)
+        ControlHash::default()
     }
 
-    impl SignedUnit<Block> {
+    impl SignedUnit<Block, Hash> {
         fn new_dummy() -> Self {
             SignedUnit {
-                unit: Unit::new_dummy(),
+                unit: Unit::default(),
                 signature: AuthoritySignature::default(),
                 id: AuthorityId::default(),
             }
@@ -474,7 +476,7 @@ mod tests {
     #[test]
     fn good_multicast() {
         let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
-        let unit = Unit::new_dummy();
+        let unit = Unit::default();
         let signature = keypair.sign(&unit.encode());
         let message = Multicast {
             signed_unit: SignedUnit {
@@ -496,7 +498,7 @@ mod tests {
     #[test]
     fn bad_signature_multicast() {
         let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
-        let message: Multicast<Block> = Multicast {
+        let message: Multicast<Block, Hash> = Multicast {
             signed_unit: SignedUnit {
                 id: keypair.public(),
                 ..SignedUnit::new_dummy()
@@ -517,9 +519,9 @@ mod tests {
     #[test]
     fn unknown_authority_multicast() {
         let keypair = AuthorityPair::from_seed_slice(&[1u8; 32]).unwrap();
-        let unit = Unit::new_dummy();
+        let unit = Unit::default();
         let signature = keypair.sign(&unit.encode());
-        let message: Multicast<Block> = Multicast {
+        let message: Multicast<Block, Hash> = Multicast {
             signed_unit: SignedUnit {
                 unit,
                 signature,
@@ -544,19 +546,22 @@ mod tests {
         let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
         for x in 0..10 {
             let unit_coord = UnitCoord {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
+                creator: NodeIndex(x),
+                round: (x + 1),
             };
             coords.push(unit_coord);
         }
 
         let mut signed_units = Vec::with_capacity(10);
         for x in 0..10 {
-            let unit: Unit<Block> = Unit {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
-                ..Unit::new_dummy()
-            };
+            let unit = Unit::new(
+                NodeIndex(x),
+                (x + 1) as usize,
+                EpochId(0),
+                Hash::default(),
+                ControlHash::default(),
+                Hash::default(),
+            );
             let signature = keypair.sign(&unit.encode());
 
             let signed_unit = SignedUnit {
@@ -579,7 +584,7 @@ mod tests {
         };
 
         let peer = PeerId::random();
-        let mut val = GossipValidator::new_dummy()
+        let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![keypair.public()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
@@ -595,11 +600,14 @@ mod tests {
         let authority_id = keypair.public();
         let mut signed_units = Vec::with_capacity(10);
         for x in 0..10 {
-            let unit: Unit<Block> = Unit {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
-                ..Unit::new_dummy()
-            };
+            let unit = Unit::new(
+                NodeIndex(x),
+                (x + 1) as usize,
+                EpochId(0),
+                Hash::default(),
+                ControlHash::default(),
+                Hash::default(),
+            );
             let signature = keypair.sign(&unit.encode());
 
             let signed_unit = SignedUnit {
@@ -618,8 +626,8 @@ mod tests {
         let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
         for x in 0..10 {
             let unit_coord = UnitCoord {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
+                creator: NodeIndex(x),
+                round: (x + 1),
             };
             coords.push(unit_coord);
         }
@@ -629,7 +637,7 @@ mod tests {
         };
 
         let peer = PeerId::random();
-        let mut val = GossipValidator::new_dummy()
+        let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![authority_id])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Full)]);
 
@@ -646,19 +654,22 @@ mod tests {
         let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
         for x in 0..10 {
             let unit_coord = UnitCoord {
-                creator: CreatorId(x),
-                round: (x + 1) as u64,
+                creator: NodeIndex(x),
+                round: (x + 1),
             };
             coords.push(unit_coord);
         }
 
         let mut signed_units = Vec::with_capacity(10);
         for x in 0..10 {
-            let unit: Unit<Block> = Unit {
-                creator: CreatorId(x),
-                round: (x + 1),
-                ..Unit::new_dummy()
-            };
+            let unit = Unit::new(
+                NodeIndex(x),
+                (x + 1) as usize,
+                EpochId(0),
+                Hash::default(),
+                ControlHash::default(),
+                Hash::default(),
+            );
 
             let signed_unit = SignedUnit {
                 unit,
@@ -679,7 +690,7 @@ mod tests {
         };
 
         let peer = PeerId::random();
-        let mut val = GossipValidator::new_dummy()
+        let val = GossipValidator::new_dummy()
             .with_dummy_authorities(vec![AuthorityId::default()])
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
@@ -698,19 +709,22 @@ mod tests {
         let mut coords: Vec<UnitCoord> = Vec::with_capacity(10);
         for x in 0..10 {
             let unit_coord = UnitCoord {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
+                creator: NodeIndex(x),
+                round: x + 1,
             };
             coords.push(unit_coord);
         }
 
         let mut signed_units = Vec::with_capacity(10);
         for x in 0..10 {
-            let unit: Unit<Block> = Unit {
-                creator: CreatorId(x),
-                round: (x + 1) as usize,
-                ..Unit::new_dummy()
-            };
+            let unit = Unit::new(
+                NodeIndex(x),
+                (x + 1) as usize,
+                EpochId(0),
+                Hash::default(),
+                ControlHash::default(),
+                Hash::default(),
+            );
             let signature = keypair.sign(&unit.encode());
 
             let signed_unit = SignedUnit {
@@ -733,7 +747,7 @@ mod tests {
         };
 
         let peer = PeerId::random();
-        let mut val = GossipValidator::new_dummy()
+        let val = GossipValidator::new_dummy()
             .with_dummy_peers(vec![(peer.clone(), ObservedRole::Authority)]);
 
         val.note_pending_fetch_request(peer.clone(), fetch_request);
