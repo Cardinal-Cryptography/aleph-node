@@ -5,20 +5,21 @@ use crate::{
         Peers,
     },
     hash::Hash,
-    AuthorityId, AuthoritySignature, UnitCoord,
+    AuthorityCryptoStore, AuthorityId, AuthoritySignature, UnitCoord,
 };
 use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
-use rush::{nodes::NodeIndex, Unit};
+use rush::{nodes::NodeIndex, EpochId, Unit};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
-use sp_application_crypto::RuntimeAppPublic;
+use sp_application_crypto::{Public, RuntimeAppPublic};
+use sp_core::traits::BareCryptoStorePtr;
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{collections::HashSet, marker::PhantomData};
+use std::{collections::HashSet, convert::TryInto, marker::PhantomData};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// As `PeerId` does not implement `Hash`, we need to turn it into bytes.
@@ -37,9 +38,9 @@ impl AsRef<[u8]> for PeerIdBytes {
 }
 
 /// A wrapped unit which contains both an authority public key and signature.
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub(crate) struct SignedUnit<B: Block, H: Hash> {
-    unit: Unit<H, B::Hash>,
+    pub(crate) unit: Unit<H, B::Hash>,
     signature: AuthoritySignature,
     // NOTE: This will likely be changed to a usize to get the authority out of
     // a map in the future to reduce data sizes of packets.
@@ -71,6 +72,30 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
     }
 }
 
+pub fn sign_unit<B: Block, H: Hash>(
+    auth_crypto_store: &AuthorityCryptoStore,
+    unit: Unit<H, B::Hash>,
+) -> Option<SignedUnit<B, H>> {
+    let encoded = unit.encode();
+    let crypto_store = &auth_crypto_store.crypto_store;
+    let signature = crypto_store
+        .read()
+        .sign_with(
+            AuthorityId::ID,
+            &auth_crypto_store.authority_id.to_public_crypto_pair(),
+            &encoded[..],
+        )
+        .ok()?
+        .try_into()
+        .ok()?;
+
+    Some(SignedUnit {
+        unit,
+        signature,
+        id: auth_crypto_store.authority_id.clone(),
+    })
+}
+
 /// Actions for incoming messages.
 #[derive(Debug)]
 enum MessageAction<H> {
@@ -87,14 +112,14 @@ enum MessageAction<H> {
 /// Multicast sends a message to all peers.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct Multicast<B: Block, H: Hash> {
-    signed_unit: SignedUnit<B, H>,
+    pub(crate) signed_unit: SignedUnit<B, H>,
 }
 
 /// A fetch request which asks for units from coordinates.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchRequest {
-    coords: Vec<UnitCoord>,
-    peer_id: NodeIndex,
+    pub(crate) coords: Vec<UnitCoord>,
+    pub(crate) peer_id: NodeIndex,
 }
 
 /// A fetch response which returns units from requested coordinates.
@@ -110,7 +135,7 @@ struct Alert {}
 
 /// The kind of message that is being sent.
 #[derive(Debug, Encode, Decode)]
-enum GossipMessage<B: Block, H: Hash> {
+pub(crate) enum GossipMessage<B: Block, H: Hash> {
     /// A multicast message kind.
     Multicast(Multicast<B, H>),
     /// A fetch request message kind.
@@ -255,10 +280,8 @@ impl<B: Block, H: Hash> GossipValidator<B, H> {
     fn validate_multicast(&self, message: &Multicast<B, H>) -> MessageAction<B::Hash> {
         match self.validate_signed_unit(&message.signed_unit) {
             Ok(_) => {
-                let topic: <B as Block>::Hash = super::multicast_topic::<B>(
-                    message.signed_unit.unit.round(),
-                    message.signed_unit.unit.epoch_id(),
-                );
+                let topic: <B as Block>::Hash =
+                    super::epoch_topic::<B>(message.signed_unit.unit.epoch_id());
                 MessageAction::Keep(topic, PeerGoodBehavior::Multicast.into())
             }
             Err(e) => e,

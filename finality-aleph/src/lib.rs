@@ -5,10 +5,12 @@
 use sp_core::traits::BareCryptoStorePtr;
 use std::sync::Arc;
 
-use futures::Future;
-
+use crate::hash::Hash;
 use codec::{Decode, Encode};
-use rush::{nodes::NodeIndex, HashT, Unit};
+use rush::{nodes::NodeIndex, EpochId, HashT, Unit};
+use sp_application_crypto::{AppKey, Public};
+use sp_runtime::traits::Block;
+use std::{convert::TryInto, fmt::Debug};
 use sc_service::SpawnTaskHandle;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use std::fmt::Debug;
@@ -111,6 +113,15 @@ impl<B: HashT, H: HashT> From<&Unit<B, H>> for UnitCoord {
         UnitCoord {
             creator: unit.creator(),
             round: unit.round() as u64,
+        }
+    }
+}
+
+impl From<(usize, NodeIndex)> for UnitCoord {
+    fn from(coord: (usize, NodeIndex)) -> Self {
+        UnitCoord {
+            creator: coord.1,
+            round: coord.0 as u64,
         }
     }
 }
