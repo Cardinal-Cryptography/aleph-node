@@ -1,8 +1,7 @@
 #![allow(clippy::type_complexity)]
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 
-use futures::Future;
-
+use crate::hash::Hash;
 use codec::{Decode, Encode};
 use rush::{nodes::NodeIndex, HashT, Unit};
 pub use rush::{Config as ConsensusConfig, EpochId};

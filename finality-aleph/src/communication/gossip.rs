@@ -11,7 +11,7 @@ use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
-use rush::{nodes::NodeIndex, Unit};
+use rush::{nodes::NodeIndex, EpochId, Unit};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
@@ -19,7 +19,7 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{collections::HashSet, marker::PhantomData};
+use std::{collections::HashSet, convert::TryInto, marker::PhantomData};
 
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Clone, Encode, Decode)]
@@ -56,12 +56,22 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
     }
 }
 
-pub(crate) fn sign_unit<B: Block, H: Hash>(
-    auth_crypto_store: &AuthorityKeystore,
-    unit: Unit<B::Hash, H>,
+pub fn sign_unit<B: Block, H: Hash>(
+    auth_crypto_store: &AuthorityCryptoStore,
+    unit: Unit<H, B::Hash>,
 ) -> Option<SignedUnit<B, H>> {
     let encoded = unit.encode();
-    let signature = auth_crypto_store.sign(&encoded[..]);
+    let crypto_store = &auth_crypto_store.crypto_store;
+    let signature = crypto_store
+        .read()
+        .sign_with(
+            AuthorityId::ID,
+            &auth_crypto_store.authority_id.to_public_crypto_pair(),
+            &encoded[..],
+        )
+        .ok()?
+        .try_into()
+        .ok()?;
 
     Some(SignedUnit {
         unit,
