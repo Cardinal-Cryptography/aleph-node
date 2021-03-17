@@ -58,7 +58,7 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
 
 pub(crate) fn sign_unit<B: Block, H: Hash>(
     auth_crypto_store: &AuthorityCryptoStore,
-    unit: Unit<H, B::Hash>,
+    unit: Unit<B::Hash, H>,
 ) -> Option<SignedUnit<B, H>> {
     let encoded = unit.encode();
     let crypto_store = &auth_crypto_store.crypto_store;
