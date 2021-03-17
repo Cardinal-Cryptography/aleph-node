@@ -11,12 +11,12 @@ use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
-use rush::{nodes::NodeIndex, EpochId, Unit};
+use rush::{nodes::NodeIndex, Unit};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
 use sp_application_crypto::{Public, RuntimeAppPublic};
-use sp_core::traits::BareCryptoStorePtr;
+
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, convert::TryInto, marker::PhantomData};
@@ -72,7 +72,7 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
     }
 }
 
-pub fn sign_unit<B: Block, H: Hash>(
+pub(crate) fn sign_unit<B: Block, H: Hash>(
     auth_crypto_store: &AuthorityCryptoStore,
     unit: Unit<H, B::Hash>,
 ) -> Option<SignedUnit<B, H>> {
@@ -130,8 +130,8 @@ pub(crate) struct FetchResponse<B: Block, H: Hash> {
 }
 
 // TODO
-#[derive(Debug, Encode, Decode)]
-struct Alert {}
+// #[derive(Debug, Encode, Decode)]
+// pub(crate) struct Alert {}
 
 /// The kind of message that is being sent.
 #[derive(Debug, Encode, Decode)]
@@ -142,8 +142,8 @@ pub(crate) enum GossipMessage<B: Block, H: Hash> {
     FetchRequest(FetchRequest),
     /// A fetch response message kind.
     FetchResponse(FetchResponse<B, H>),
-    /// An alert message kind.
-    Alert(Alert),
+    // /// An alert message kind.
+    // Alert(Alert),
 }
 
 /// Reports a peer with a reputation change.
@@ -379,9 +379,10 @@ impl<B: Block, H: Hash> Validator<B> for GossipValidator<B, H> {
                 message_name = Some("fetch_response");
                 self.validate_fetch_response(sender, message)
             }
-            Ok(GossipMessage::Alert(ref _message)) => {
-                todo!()
-            }
+            // Ok(GossipMessage::Alert(ref _message)) => {
+            //     message_name = Some("fetch_response");
+            //     // TODO
+            // }
             Err(e) => {
                 message_name = None;
                 debug!(target: "afa", "Error decoding message: {}", e.what());

@@ -5,7 +5,6 @@
 use sp_core::traits::BareCryptoStorePtr;
 use std::sync::Arc;
 
-use crate::hash::Hash;
 use codec::{Decode, Encode};
 use rush::{nodes::NodeIndex, EpochId, HashT, Unit};
 use sp_application_crypto::{AppKey, Public};
@@ -15,7 +14,9 @@ use sc_service::SpawnTaskHandle;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use std::fmt::Debug;
 
-use sp_consensus::{BlockImport, SelectChain};
+use std::fmt::Debug;
+
+use sp_consensus::BlockImport;
 
 use sc_client_api::{
     backend::{AuxStore, Backend},

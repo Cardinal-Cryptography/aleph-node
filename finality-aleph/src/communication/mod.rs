@@ -2,7 +2,7 @@ mod gossip;
 mod network;
 pub(crate) mod peer;
 
-use rush::{nodes::NodeIndex, EpochId, Round};
+use rush::{nodes::NodeIndex, EpochId};
 use sp_runtime::traits::{Block, Hash, Header};
 
 pub const ALEPH_AUTHORITIES_KEY: &[u8] = b":aleph_authorities";
