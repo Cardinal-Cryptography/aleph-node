@@ -11,7 +11,7 @@ use codec::{Decode, Encode};
 use log::debug;
 use parking_lot::RwLock;
 use prometheus_endpoint::{CounterVec, Opts, PrometheusError, Registry, U64};
-use rush::{nodes::NodeIndex, EpochId, Unit};
+use rush::{nodes::NodeIndex, Unit};
 use sc_network::{ObservedRole, PeerId, ReputationChange};
 use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorContext};
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG};
@@ -56,7 +56,7 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
     }
 }
 
-pub fn sign_unit<B: Block, H: Hash>(
+pub(crate) fn sign_unit<B: Block, H: Hash>(
     auth_crypto_store: &AuthorityCryptoStore,
     unit: Unit<H, B::Hash>,
 ) -> Option<SignedUnit<B, H>> {

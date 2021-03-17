@@ -1,10 +1,13 @@
 #![allow(clippy::type_complexity)]
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 
-use crate::hash::Hash;
 use codec::{Decode, Encode};
 use rush::{nodes::NodeIndex, HashT, Unit};
 pub use rush::{Config as ConsensusConfig, EpochId};
+
+use std::fmt::Debug;
+
+use sp_consensus::BlockImport;
 
 use sc_client_api::{
     backend::{AuxStore, Backend},
