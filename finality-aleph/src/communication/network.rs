@@ -32,14 +32,16 @@ pub(crate) const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ALPH";
 
 pub(crate) trait Network<B: Block>: GossipNetwork<B> + Clone + Send + 'static {}
 
-struct NotificationOuts<B: Block, H: Hash> {
+pub struct NotificationOuts<B: Block, H: Hash> {
     network: Arc<Mutex<GossipEngine<B>>>,
-    sender: mpsc::Sender<NotificationIn<H, B::Hash>>,
+    sender: mpsc::Sender<NotificationIn<B::Hash, H>>,
     epoch_id: EpochId,
     auth_cryptostore: AuthorityCryptoStore,
 }
 
-impl<B: Block, H: Hash> Sink<NotificationOut<H, B::Hash>> for NotificationOuts<B, H> {
+unsafe impl<B: Block, H: Hash> Send for NotificationOuts<B, H> {}
+
+impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOuts<B, H> {
     // TODO! error
     type Error = ();
 
@@ -49,7 +51,7 @@ impl<B: Block, H: Hash> Sink<NotificationOut<H, B::Hash>> for NotificationOuts<B
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: NotificationOut<H, B::Hash>,
+        item: NotificationOut<B::Hash, H>,
     ) -> Result<(), Self::Error> {
         return match item {
             NotificationOut::CreatedUnit(u) => {
@@ -147,8 +149,8 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
         epoch_id: EpochId,
         auth_cryptostore: AuthorityCryptoStore,
     ) -> (
-        impl Stream<Item = NotificationIn<H, B::Hash>> + Unpin,
-        impl Sink<NotificationOut<H, B::Hash>> + Unpin,
+        impl Stream<Item = NotificationIn<B::Hash, H>> + Unpin,
+        impl Sink<NotificationOut<B::Hash, H>> + Unpin,
     ) {
         let topic = epoch_topic::<B>(epoch_id);
         let gossip_engine = self.gossip_engine.clone();

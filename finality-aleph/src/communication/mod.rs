@@ -1,5 +1,5 @@
 mod gossip;
-mod network;
+pub mod network;
 pub(crate) mod peer;
 
 use rush::{nodes::NodeIndex, EpochId};

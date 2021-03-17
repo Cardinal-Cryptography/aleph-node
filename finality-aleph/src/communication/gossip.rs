@@ -40,7 +40,7 @@ impl AsRef<[u8]> for PeerIdBytes {
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Clone, Encode, Decode)]
 pub(crate) struct SignedUnit<B: Block, H: Hash> {
-    pub(crate) unit: Unit<H, B::Hash>,
+    pub(crate) unit: Unit<B::Hash, H>,
     signature: AuthoritySignature,
     // NOTE: This will likely be changed to a usize to get the authority out of
     // a map in the future to reduce data sizes of packets.
@@ -74,7 +74,7 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
 
 pub(crate) fn sign_unit<B: Block, H: Hash>(
     auth_crypto_store: &AuthorityCryptoStore,
-    unit: Unit<H, B::Hash>,
+    unit: Unit<B::Hash, H>,
 ) -> Option<SignedUnit<B, H>> {
     let encoded = unit.encode();
     let crypto_store = &auth_crypto_store.crypto_store;
