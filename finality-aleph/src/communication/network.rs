@@ -72,28 +72,29 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOuts<B
                 let notification = NotificationIn::NewUnit(signed_unit.unit);
                 self.sender.start_send(notification).map_err(|_e| ())
             }
-            // TODO: Can't do the below without the `RequestParents` part of `NotificaitonIn`.
-            // NotificationOut::MissingUnits(coords, aux) => {
-            //     let n_coords = {
-            //         let mut n_coords: Vec<UnitCoord> = Vec::with_capacity(coords.len());
-            //         for coord in coords {
-            //             n_coords.push(coord.into());
-            //         }
-            //         n_coords
-            //     };
-            //     let message: GossipMessage<B, H> = GossipMessage::FetchRequest(FetchRequest {
-            //         coords: n_coords,
-            //         peer_id: aux.child_creator(),
-            //     });
-            //
-            //     debug!(target: "afa", "Sending out message to our peers for epoch {}", self.epoch_id.0);
-            //     let topic: <B as Block>::Hash = super::index_topic::<B>(aux.child_creator());
-            //
-            //     self.network.lock().gossip_message(topic, message.encode(), false);
-            //
-            //     self.sender.start_send(item.clone()).map_err(|_e| ())
-            // }
-            _ => unimplemented!(),
+            NotificationOut::MissingUnits(coords, aux) => {
+                let n_coords = {
+                    let mut n_coords: Vec<UnitCoord> = Vec::with_capacity(coords.len());
+                    for coord in coords {
+                        n_coords.push(coord.into());
+                    }
+                    n_coords
+                };
+                let message: GossipMessage<B, H> = GossipMessage::FetchRequest(FetchRequest {
+                    coords: n_coords,
+                    peer_id: aux.child_creator(),
+                });
+
+                debug!(target: "afa", "Sending out message to our peers for epoch {}", self.epoch_id.0);
+                let topic: <B as Block>::Hash = super::index_topic::<B>(aux.child_creator());
+                self.network
+                    .lock()
+                    .gossip_message(topic, message.encode(), false);
+
+                // TODO: Can't send to inner sender until `RequestParents` part
+                // of `NotificationIn` in implemented in the rush lib.
+                // self.sender.start_send(item.clone()).map_err(|_e| ())
+            }
         };
     }
 
