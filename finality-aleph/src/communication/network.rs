@@ -5,11 +5,11 @@ use crate::{
     },
     config::Config,
     hash::Hash,
-    AuthorityCryptoStore,
+    AuthorityCryptoStore, UnitCoord,
 };
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, prelude::*};
-use log::trace;
+use log::{debug, trace};
 use parking_lot::Mutex;
 use prometheus_endpoint::Registry;
 use rush::{EpochId, NotificationIn, NotificationOut};
@@ -162,12 +162,15 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
                     let notification = match message {
                         GossipMessage::Multicast(m) => {
                             let s_unit = m.signed_unit;
-                            Some(NotificationIn::NewUnit(s_unit.unit))
+                            Some(NotificationIn::NewUnits(vec![s_unit.unit]))
                         }
-                        // TODO: Wait for implementation of `ResponseParents` for `NotificationIn`.
-                        // GossipMessage::FetchResponse(m) => {
-                        //     let response = m.signed_unit;
-                        // }
+                        GossipMessage::FetchResponse(m) => {
+                            let mut units = Vec::with_capacity(m.signed_units.len());
+                            for s_unit in m.signed_units {
+                                units.push(s_unit.unit);
+                            }
+                            Some(NotificationIn::NewUnits(units))
+                        }
                         _ => None,
                     };
                     futures::future::ready(notification)

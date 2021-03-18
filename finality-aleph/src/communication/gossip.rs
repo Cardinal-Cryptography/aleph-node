@@ -125,8 +125,8 @@ pub(crate) struct FetchRequest {
 /// A fetch response which returns units from requested coordinates.
 #[derive(Debug, Encode, Decode)]
 pub(crate) struct FetchResponse<B: Block, H: Hash> {
-    signed_units: Vec<SignedUnit<B, H>>,
-    peer_id: NodeIndex,
+    pub(crate) signed_units: Vec<SignedUnit<B, H>>,
+    pub(crate) peer_id: NodeIndex,
 }
 
 // TODO
