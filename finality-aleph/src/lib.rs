@@ -2,6 +2,7 @@
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 
 use codec::{Decode, Encode};
+use futures::Future;
 use rush::{nodes::NodeIndex, HashT, Unit};
 pub use rush::{Config as ConsensusConfig, EpochId};
 
