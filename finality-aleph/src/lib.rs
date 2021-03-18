@@ -28,6 +28,7 @@ use std::{
 pub(crate) mod communication;
 pub mod config;
 pub(crate) mod environment;
+mod error;
 pub mod hash;
 mod party;
 

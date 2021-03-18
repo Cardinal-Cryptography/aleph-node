@@ -19,7 +19,8 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use std::{collections::HashSet, convert::TryInto, marker::PhantomData};
+use std::{collections::HashSet, marker::PhantomData};
+use std::convert::TryInto;
 
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Clone, Encode, Decode)]
@@ -59,7 +60,7 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
 pub(crate) fn sign_unit<B: Block, H: Hash>(
     auth_crypto_store: &AuthorityCryptoStore,
     unit: Unit<B::Hash, H>,
-) -> Option<SignedUnit<B, H>> {
+) -> Result<SignedUnit<B, H>, SignError> {
     let encoded = unit.encode();
     let crypto_store = &auth_crypto_store.crypto_store;
     let signature = crypto_store
@@ -68,12 +69,11 @@ pub(crate) fn sign_unit<B: Block, H: Hash>(
             AuthorityId::ID,
             &auth_crypto_store.authority_id.to_public_crypto_pair(),
             &encoded[..],
-        )
-        .ok()?
-        .try_into()
-        .ok()?;
+        )?
+        .try_into() // This shouldn't be able to fail.
+        .unwrap();
 
-    Some(SignedUnit {
+    Ok(SignedUnit {
         unit,
         signature,
         id: auth_crypto_store.authority_id.clone(),
