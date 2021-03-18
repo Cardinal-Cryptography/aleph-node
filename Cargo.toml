@@ -2,6 +2,7 @@
 
 members = [
     "finality-aleph",
-    "node",
+    "bin/node",
+    "bin/runtime",
     "pallet"
 ]
