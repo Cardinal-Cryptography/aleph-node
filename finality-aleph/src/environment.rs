@@ -1,13 +1,12 @@
 use crate::{communication::network::NotificationOuts, NodeId};
 use futures::{Future, Stream};
-use rush::{Hashing, NotificationIn};
 use sc_client_api::backend::Backend;
 
 use sp_consensus::SelectChain;
 use sp_core::{blake2_256, H256};
 use sp_runtime::{
     generic::BlockId,
-    traits::{Block, Header as HeaderT},
+    traits::{Block, Header},
 };
 use std::{marker::PhantomData, sync::Arc};
 

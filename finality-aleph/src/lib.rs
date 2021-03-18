@@ -22,8 +22,12 @@ use sc_client_api::{
     backend::{AuxStore, Backend},
     BlockchainEvents, ExecutorProvider, Finalizer, LockImportRun, TransactionFor,
 };
+use sc_service::SpawnTaskHandle;
 use sp_api::ProvideRuntimeApi;
+use sp_consensus::BlockImport;
 use sp_runtime::traits::Block;
+use std::fmt::Debug;
+use futures::Future;
 
 pub(crate) mod communication;
 pub mod config;
