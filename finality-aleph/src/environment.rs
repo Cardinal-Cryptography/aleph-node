@@ -1,5 +1,6 @@
 use crate::{communication::network::NotificationOuts, NodeId};
-use futures::{Future, Stream};
+use futures::{Stream};
+use rush::{Hashing, NotificationIn};
 use sc_client_api::backend::Backend;
 
 use sp_consensus::SelectChain;

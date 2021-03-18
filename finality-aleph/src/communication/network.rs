@@ -69,7 +69,7 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOuts<B
                     .lock()
                     .gossip_message(topic, message.encode(), false);
 
-                let notification = NotificationIn::NewUnit(signed_unit.unit);
+                let notification = NotificationIn::NewUnits(vec![signed_unit.unit]);
                 self.sender.start_send(notification).map_err(|_e| ())
             }
             NotificationOut::MissingUnits(coords, aux) => {
@@ -94,6 +94,8 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOuts<B
                 // TODO: Can't send to inner sender until `RequestParents` part
                 // of `NotificationIn` in implemented in the rush lib.
                 // self.sender.start_send(item.clone()).map_err(|_e| ())
+
+                Ok(())
             }
         };
     }
