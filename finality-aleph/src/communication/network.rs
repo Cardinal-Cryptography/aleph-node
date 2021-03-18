@@ -113,8 +113,6 @@ pub(crate) struct NetworkBridge<B: Block, H, N: Network<B>> {
     peer_report_handle: Arc<Mutex<TracingUnboundedReceiver<PeerReport>>>,
 }
 
-// Need to figure out exactly how to pass Notifications to rush.
-
 impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
     pub(crate) fn new(network_service: N, _config: Config, registry: Option<&Registry>) -> Self {
         let (gossip_validator, peer_report_handle) = {
