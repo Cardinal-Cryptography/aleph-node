@@ -323,7 +323,7 @@ impl<B: Block, H: Hash> GossipValidator<B, H> {
                 }
             }
 
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as Block>::Hash = super::request_topic::<B>();
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchResponse.into())
         } else {
             MessageAction::Discard(Reputation::from(PeerMisbehavior::OutOfScopeResponse))
@@ -339,10 +339,10 @@ impl<B: Block, H: Hash> GossipValidator<B, H> {
     fn validate_fetch_request(
         &self,
         sender: &PeerId,
-        message: &FetchRequest,
+        _message: &FetchRequest,
     ) -> MessageAction<B::Hash> {
         if self.peers.read().contains_authority(sender) {
-            let topic: <B as Block>::Hash = super::index_topic::<B>(message.peer_id);
+            let topic: <B as Block>::Hash = super::request_topic::<B>();
             MessageAction::ProcessAndDiscard(topic, PeerGoodBehavior::FetchRequest.into())
         } else {
             MessageAction::Discard(PeerMisbehavior::NotAuthority.into())

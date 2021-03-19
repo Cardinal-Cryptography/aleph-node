@@ -56,7 +56,7 @@ where
 
     type Crypto = ();
     type In = Box<dyn Stream<Item = NotificationIn<Self::BlockHash, Self::Hash>> + Send + Unpin>;
-    type Out = Box<NotificationOuts<B, Self::Hash>>;
+    type Out = Box<NotificationOutSender<B, Self::Hash>>;
     type Error = ();
 
     fn finalize_block(&self, h: Self::BlockHash) {

@@ -22,6 +22,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
+use crate::communication::request_topic;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our
@@ -86,7 +87,7 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSen
                 });
 
                 debug!(target: "afa", "Sending out message to our peers for epoch {}", self.epoch_id.0);
-                let topic: <B as Block>::Hash = super::index_topic::<B>(aux.child_creator());
+                let topic: <B as Block>::Hash = super::request_topic::<B>();
                 self.network
                     .lock()
                     .gossip_message(topic, message.encode(), false);
@@ -156,7 +157,7 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
         let topic = epoch_topic::<B>(epoch_id);
         let gossip_engine = self.gossip_engine.clone();
 
-        let incoming = gossip_engine
+        let incoming_units = gossip_engine
             .lock()
             .messages_for(topic)
             .filter_map(move |notification| {
@@ -178,12 +179,34 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
                     };
                     futures::future::ready(notification)
                 } else {
-                    trace!(target: "afa", "Skipping malformed incoming message {:?}", notification);
+                    // NOTE: This should be unreachable due to the validator.
+                    trace!(target: "afa", "Skipping malformed incoming message: {:?}", notification);
                     futures::future::ready(None)
                 }
             });
 
-        let (tx, out_rx) = mpsc::channel(0);
+        let request_topic = request_topic::<B>();
+        let incoming_requests = gossip_engine
+            .lock()
+            .messages_for(request_topic)
+            .filter_map(move |notification| {
+                let decoded = GossipMessage::<B, H>::decode(&mut &notification.message[..]);
+                if let Ok(message) = decoded {
+                    let notification = match message {
+                        GossipMessage::FetchRequest(_m) => {
+                            todo!()
+                        }
+                        _ => None,
+                    };
+                    futures::future::ready(notification)
+                } else {
+                    // NOTE: This should be unreachable due to the validator.
+                    trace!(target: "afa", "Skipping malformed incoming message: {:?}", notification);
+                    futures::future::ready(None)
+                }
+            });
+
+        let (tx, rx) = mpsc::channel(0);
         let outgoing = NotificationOutSender::<B, H> {
             network: self.gossip_engine.clone(),
             sender: tx,
@@ -191,7 +214,11 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
             auth_cryptostore,
         };
 
-        let incoming = stream::select(incoming, out_rx);
+        // NOTE: From how I understand this code and documentation, this should
+        // be ok. If you whatever reason we are getting no incoming, this might
+        // be the culprit.
+        let external_incoming = stream::select(incoming_units, incoming_requests);
+        let incoming = stream::select(external_incoming, rx);
 
         (incoming, outgoing)
     }
