@@ -1,4 +1,4 @@
-use crate::{communication::network::NotificationOuts, NodeId};
+use crate::{communication::network::NotificationOutSender, NodeId};
 use futures::{Stream};
 use rush::{Hashing, NotificationIn};
 use sc_client_api::backend::Backend;

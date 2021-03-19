@@ -32,16 +32,16 @@ pub(crate) const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ALPH";
 
 pub(crate) trait Network<B: Block>: GossipNetwork<B> + Clone + Send + 'static {}
 
-pub struct NotificationOuts<B: Block, H: Hash> {
+pub struct NotificationOutSender<B: Block, H: Hash> {
     network: Arc<Mutex<GossipEngine<B>>>,
     sender: mpsc::Sender<NotificationIn<B::Hash, H>>,
     epoch_id: EpochId,
     auth_cryptostore: AuthorityCryptoStore,
 }
 
-unsafe impl<B: Block, H: Hash> Send for NotificationOuts<B, H> {}
+unsafe impl<B: Block, H: Hash> Send for NotificationOutSender<B, H> {}
 
-impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOuts<B, H> {
+impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSender<B, H> {
     // TODO! error
     type Error = ();
 
@@ -184,7 +184,7 @@ impl<B: Block, H: Hash, N: Network<B>> NetworkBridge<B, H, N> {
             });
 
         let (tx, out_rx) = mpsc::channel(0);
-        let outgoing = NotificationOuts::<B, H> {
+        let outgoing = NotificationOutSender::<B, H> {
             network: self.gossip_engine.clone(),
             sender: tx,
             epoch_id,
