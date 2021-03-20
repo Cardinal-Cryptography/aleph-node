@@ -1,8 +1,8 @@
 use crate::{communication::network::NotificationOutSender, NodeId};
-use futures::{Stream};
+use futures::Stream;
+use log::debug;
 use rush::{Hashing, NotificationIn};
 use sc_client_api::backend::Backend;
-
 use sp_consensus::SelectChain;
 use sp_core::{blake2_256, H256};
 use sp_runtime::{
@@ -10,10 +10,6 @@ use sp_runtime::{
     traits::{Block, Header},
 };
 use std::{marker::PhantomData, sync::Arc};
-
-use rush::{Hashing, NotificationIn, NotificationOut};
-
-use crate::NodeId;
 
 pub struct Environment<C, N, B: Block, BE, SC> {
     pub(crate) client: Arc<C>,

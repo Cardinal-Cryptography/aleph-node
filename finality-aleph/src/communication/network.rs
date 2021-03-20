@@ -2,6 +2,7 @@ use crate::{
     communication::{
         epoch_topic,
         gossip::{FetchRequest, GossipMessage, GossipValidator, Multicast, PeerReport},
+        request_topic,
     },
     config::Config,
     hash::Hash,
@@ -22,7 +23,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
-use crate::communication::request_topic;
 
 /// Name of the notifications protocol used by Aleph Zero. This is how messages
 /// are subscribed to to ensure that we are gossiping and communicating with our

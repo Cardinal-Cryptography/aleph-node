@@ -2,31 +2,20 @@
 // TODO: Remove before we do a release to ensure there is no hanging code.
 #![allow(dead_code)]
 #![allow(clippy::type_complexity)]
-use sp_core::traits::BareCryptoStorePtr;
-use std::sync::Arc;
-
 use codec::{Decode, Encode};
-use rush::{nodes::NodeIndex, EpochId, HashT, Unit};
-use sp_application_crypto::{AppKey, Public};
-use sp_runtime::traits::Block;
-use std::{convert::TryInto, fmt::Debug};
-use sc_service::SpawnTaskHandle;
-use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use std::fmt::Debug;
-
-use std::fmt::Debug;
-
-use sp_consensus::BlockImport;
-
+use futures::Future;
+use rush::{nodes::NodeIndex, HashT, Unit};
 use sc_client_api::{
     backend::{AuxStore, Backend},
     BlockchainEvents, ExecutorProvider, Finalizer, LockImportRun, TransactionFor,
 };
 use sc_service::SpawnTaskHandle;
 use sp_api::ProvideRuntimeApi;
-use sp_consensus::BlockImport;
+use sp_blockchain::{HeaderBackend, HeaderMetadata};
+use sp_consensus::{BlockImport, SelectChain};
+use sp_core::traits::BareCryptoStorePtr;
 use sp_runtime::traits::Block;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 pub(crate) mod communication;
 pub mod config;
