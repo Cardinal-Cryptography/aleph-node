@@ -92,10 +92,6 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSen
                     .lock()
                     .gossip_message(topic, message.encode(), false);
 
-                // TODO: Can't send to inner sender until `RequestParents` part
-                // of `NotificationIn` in implemented in the rush lib.
-                // self.sender.start_send(item.clone()).map_err(|_e| ())
-
                 Ok(())
             }
         };
