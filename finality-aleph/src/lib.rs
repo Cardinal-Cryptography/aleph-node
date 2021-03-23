@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)]
+
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::KeyTypeId;
 
@@ -93,7 +94,6 @@ impl AuthorityKeystore {
             &self.authority_id.clone().into(),
             msg,
         )
-        .ok()
         .expect("key is in store")
         .try_into()
         .ok()

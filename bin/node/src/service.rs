@@ -89,10 +89,8 @@ fn get_authority(seed: &str) -> finality_aleph::AuthorityId {
     let seed = &format!("//{}", seed);
     use sp_core::Pair;
     <sp_consensus_aura::sr25519::AuthorityPair as Pair>::from_string(seed, None)
-        .ok()
         .expect("all strings are valid")
         .public()
-        .into()
 }
 
 fn consensus_config(
@@ -184,7 +182,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
             block_import,
             proposer_factory,
             network.clone(),
-            inherent_data_providers.clone(),
+            inherent_data_providers,
             force_authoring,
             backoff_authoring_blocks,
             keystore_container.sync_keystore(),
