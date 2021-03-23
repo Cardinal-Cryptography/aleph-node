@@ -2,7 +2,7 @@
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::KeyTypeId;
 
-use futures::Future;
+use futures::{Future, FutureExt};
 
 use codec::{Decode, Encode};
 use rush::{nodes::NodeIndex, HashT, Unit};
@@ -215,5 +215,5 @@ where
         EpochId(0),
     );
 
-    consensus.run(spawn_handle.into())
+    consensus.run(spawn_handle.into()).then(|_| futures::future::pending::<()>())
 }
