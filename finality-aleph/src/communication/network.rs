@@ -9,7 +9,7 @@ use crate::{
     AuthorityKeystore, UnitCoord,
 };
 use codec::{Decode, Encode};
-use futures::{channel::mpsc, prelude::*, Future};
+use futures::{channel::mpsc, prelude::*, Future, FutureExt, StreamExt};
 use log::debug;
 use parking_lot::Mutex;
 use prometheus_endpoint::Registry;
@@ -25,11 +25,11 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
+use futures::channel::mpsc::SendError;
 
 #[derive(Debug)]
 enum ErrorKind {
     StartSendFail(SendError),
-    SignatureError(SignError),
 }
 
 impl Display for ErrorKind {
@@ -37,7 +37,6 @@ impl Display for ErrorKind {
         use ErrorKind::*;
         match self {
             StartSendFail(e) => write!(f, "failed to send on channel: {}", e),
-            SignatureError(e) => Display::fmt(&e, f),
         }
     }
 }
@@ -68,12 +67,6 @@ impl From<ErrorKind> for NetworkError {
 impl From<SendError> for NetworkError {
     fn from(e: SendError) -> Self {
         NetworkError(Box::new(ErrorKind::StartSendFail(e)))
-    }
-}
-
-impl From<SignError> for NetworkError {
-    fn from(e: SignError) -> Self {
-        NetworkError(Box::new(ErrorKind::SignatureError(e)))
     }
 }
 
@@ -108,10 +101,10 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSen
     fn start_send(
         mut self: Pin<&mut Self>,
         item: NotificationOut<B::Hash, H>,
-    ) -> Result<(), Self::Error> {
+    ) -> NetworkResult<()> {
         return match item {
             NotificationOut::CreatedUnit(u) => {
-                let signed_unit = super::gossip::sign_unit::<B, H>(&self.auth_cryptostore, u)?;
+                let signed_unit = super::gossip::sign_unit::<B, H>(&self.auth_cryptostore, u);
 
                 let message = GossipMessage::Multicast(Multicast {
                     signed_unit: signed_unit.clone(),
@@ -149,11 +142,11 @@ impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSen
         };
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<NetworkResult<()>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<NetworkResult<()>> {
         Sink::poll_close(Pin::new(&mut self.sender), cx).map(|elem| elem.map_err(|e| e.into()))
     }
 }

@@ -20,7 +20,6 @@ use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::Block;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashSet, marker::PhantomData};
-use std::convert::TryInto;
 
 /// A wrapped unit which contains both an authority public key and signature.
 #[derive(Debug, Clone, Encode, Decode)]
@@ -58,26 +57,17 @@ impl<B: Block, H: Hash> SignedUnit<B, H> {
 }
 
 pub(crate) fn sign_unit<B: Block, H: Hash>(
-    auth_crypto_store: &AuthorityCryptoStore,
+    auth_crypto_store: &AuthorityKeystore,
     unit: Unit<B::Hash, H>,
-) -> Result<SignedUnit<B, H>, SignError> {
+) -> SignedUnit<B, H> {
     let encoded = unit.encode();
-    let crypto_store = &auth_crypto_store.crypto_store;
-    let signature = crypto_store
-        .read()
-        .sign_with(
-            AuthorityId::ID,
-            &auth_crypto_store.authority_id.to_public_crypto_pair(),
-            &encoded[..],
-        )?
-        .try_into() // This shouldn't be able to fail.
-        .unwrap();
+    let signature = auth_crypto_store.sign(&encoded[..]);
 
-    Ok(SignedUnit {
+    SignedUnit {
         unit,
         signature,
         id: auth_crypto_store.authority_id.clone(),
-    })
+    }
 }
 
 /// Actions for incoming messages.

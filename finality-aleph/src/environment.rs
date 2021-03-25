@@ -13,6 +13,7 @@ use sp_runtime::{
     traits::{Block, Header},
 };
 use std::{marker::PhantomData, sync::Arc};
+use crate::communication::network::NetworkError;
 
 pub(crate) struct Environment<B: Block, N: Network<B>, C, BE, SC> {
     pub(crate) client: Arc<C>,
@@ -65,7 +66,7 @@ where
     type Crypto = ();
     type In = Box<dyn Stream<Item = NotificationIn<Self::BlockHash, Self::Hash>> + Send + Unpin>;
     type Out = NotificationOutSender<B, Self::Hash>;
-    type Error = ();
+    type Error = NetworkError;
 
     fn finalize_block(&self, h: Self::BlockHash) {
         finalize_block(self.client.clone(), h);
