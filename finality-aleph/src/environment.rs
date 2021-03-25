@@ -1,5 +1,5 @@
 use crate::{
-    communication::network::{Network, NetworkBridge, NotificationOutSender},
+    communication::network::{Network, NetworkBridge, NetworkError, NotificationOutSender},
     AuthorityKeystore, NodeId,
 };
 use futures::Stream;
@@ -13,7 +13,6 @@ use sp_runtime::{
     traits::{Block, Header},
 };
 use std::{marker::PhantomData, sync::Arc};
-use crate::communication::network::NetworkError;
 
 pub(crate) struct Environment<B: Block, N: Network<B>, C, BE, SC> {
     pub(crate) client: Arc<C>,
@@ -74,13 +73,16 @@ where
 
     fn check_extends_finalized(&self, h: Self::BlockHash) -> bool {
         let head_finalized = self.client.info().finalized_hash;
-        let lca =
-            sp_blockchain::lowest_common_ancestor(self.client.as_ref(), h, head_finalized).unwrap();
+        let lca = sp_blockchain::lowest_common_ancestor(self.client.as_ref(), h, head_finalized)
+            .expect("No lowest common ancestor");
         lca.hash == head_finalized
     }
 
     fn best_block(&self) -> Self::BlockHash {
-        self.select_chain.best_chain().unwrap().hash()
+        self.select_chain
+            .best_chain()
+            .expect("No best chain")
+            .hash()
     }
 
     fn consensus_data(&self) -> (Self::Out, Self::In) {

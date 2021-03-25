@@ -9,7 +9,11 @@ use crate::{
     AuthorityKeystore, UnitCoord,
 };
 use codec::{Decode, Encode};
-use futures::{channel::mpsc, prelude::*, Future, FutureExt, StreamExt};
+use futures::{
+    channel::{mpsc, mpsc::SendError},
+    prelude::*,
+    Future, FutureExt, StreamExt,
+};
 use log::debug;
 use parking_lot::Mutex;
 use prometheus_endpoint::Registry;
@@ -25,7 +29,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
-use futures::channel::mpsc::SendError;
 
 #[derive(Debug)]
 enum ErrorKind {
@@ -91,7 +94,6 @@ pub struct NotificationOutSender<B: Block, H: Hash> {
 unsafe impl<B: Block, H: Hash> Send for NotificationOutSender<B, H> {}
 
 impl<B: Block, H: Hash> Sink<NotificationOut<B::Hash, H>> for NotificationOutSender<B, H> {
-    // TODO! error
     type Error = NetworkError;
 
     fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
