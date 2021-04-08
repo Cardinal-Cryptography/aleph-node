@@ -8,7 +8,7 @@ use sc_service::ChainType;
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use aleph_primitives::AuthorityId as AlephId;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{ed25519, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 pub(crate) const LOCAL_AUTHORITIES: [&str; 8] = [
@@ -49,8 +49,6 @@ pub fn development_config() -> Result<ChainSpec, String> {
     let auth_keys = std::fs::read_to_string(KEY_PATH).expect("keys were not generated");
     let auth_keys: HashMap<u32, Vec<[u8; 32]>> =
         serde_json::from_str(&auth_keys).expect("should contain list of keys");
-
-    use sp_application_crypto::{ed25519, sr25519};
 
     let aura_keys: Vec<_> = auth_keys
         .get(&key_types::AURA.into())
