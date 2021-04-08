@@ -254,7 +254,7 @@ construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-        Aleph: pallet_aleph::{Module, Call, Storage},
+        Aleph: pallet_aleph::{Module, Call, Config<T>, Storage},
     }
 );
 
