@@ -19,6 +19,7 @@ pallet-aura = { version = "3.0.0", default-features = false}
 pallet-balances = { version = "3.0.0", default-features = false}
 frame-support = { version = "3.0.0", default-features = false}
 pallet-randomness-collective-flip = { version = "3.0.0", default-features = false}
+pallet-session = { version = "3.0.0", default-features = false}
 pallet-sudo = { version = "3.0.0", default-features = false}
 frame-system = { version = "3.0.0", default-features = false}
 pallet-timestamp = { version = "3.0.0", default-features = false}
@@ -54,6 +55,7 @@ std = [
 	"pallet-aura/std",
 	"pallet-balances/std",
 	"pallet-randomness-collective-flip/std",
+	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment/std",

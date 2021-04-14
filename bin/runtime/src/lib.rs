@@ -11,9 +11,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify},
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, Verify},
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature,
+    ApplyExtrinsicResult, MultiSignature, Perbill,
 };
 
 use sp_std::prelude::*;
@@ -38,7 +38,9 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+
+use pallet_session::SessionManager;
+use frame_support::sp_runtime::traits::OpaqueKeys;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -240,6 +242,48 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
 }
 
+impl_opaque_keys! {
+    pub struct SessionKeys {
+        pub aura: Aura,
+    }
+}
+
+parameter_types! {
+    pub const Period: u32 = 1;
+    pub const Offset: u32 = 0;
+}
+
+parameter_types! {
+    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
+}
+
+pub struct AlephSessionManager {}
+
+impl SessionManager<AccountId> for AlephSessionManager {
+    fn new_session(_new_index: u32) -> Option<Vec<AccountId>> {
+        let validators = Aleph::validators();
+        assert!(!validators.is_empty());
+        Some(validators)
+    }
+
+    fn end_session(_end_index: u32) {}
+
+    fn start_session(_start_index: u32) {}
+}
+
+impl pallet_session::Config for Runtime {
+    type Event = Event;
+    type ValidatorId = <Self as frame_system::Config>::AccountId;
+    type ValidatorIdOf = ConvertInto;
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type SessionManager = AlephSessionManager;
+    type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+    type Keys = SessionKeys;
+    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
+    type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -255,6 +299,7 @@ construct_runtime!(
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
         Aleph: pallet_aleph::{Module, Call, Config<T>, Storage},
+        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
     }
 );
 
@@ -397,6 +442,9 @@ impl_runtime_apis! {
     impl primitives::AlephApi<Block> for Runtime {
         fn authorities() -> Vec<AlephId> {
             Aleph::authorities()
+        }
+        fn validators() -> Vec<AccountId> {
+            Aleph::validators()
         }
     }
 }

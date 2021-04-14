@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use aleph_primitives::AuthorityId as AlephId;
-use aleph_runtime::{
-    AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, Signature, SudoConfig,
-    SystemConfig, WASM_BINARY,
-};
+use aleph_runtime::{AccountId, AlephConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys, Signature, SudoConfig, SystemConfig, WASM_BINARY};
 use sc_service::ChainType;
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -85,6 +82,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
                 // Pre-funded accounts
                 LOCAL_AUTHORITIES
                     .iter()
+                    .take(n_members)
                     .map(get_account_id_from_seed::<sr25519::Public>)
                     .collect(),
                 true,
@@ -112,6 +110,12 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
+    let session_keys: Vec<_> = endowed_accounts
+        .iter()
+        .zip(aura_authorities.iter())
+        .map(|(account_id, aura_id)|
+            (account_id.clone(), account_id.clone(), SessionKeys {aura: aura_id.clone()}))
+        .collect();
     GenesisConfig {
         frame_system: Some(SystemConfig {
             // Add Wasm runtime to storage.
@@ -126,15 +130,18 @@ fn testnet_genesis(
                 .map(|k| (k, 1 << 60))
                 .collect(),
         }),
-        pallet_aura: Some(AuraConfig {
-            authorities: aura_authorities,
-        }),
+        // Authorities are initialized by the session pallet
+        pallet_aura: None,
         pallet_sudo: Some(SudoConfig {
             // Assign network admin rights.
             key: root_key,
         }),
         pallet_aleph: Some(AlephConfig {
             authorities: aleph_authorities,
+            validators: endowed_accounts
         }),
+        pallet_session: Some(SessionConfig {
+            keys: session_keys,
+        })
     }
 }

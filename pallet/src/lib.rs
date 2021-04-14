@@ -33,9 +33,14 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn validators)]
+    pub(super) type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub authorities: Vec<T::AuthorityId>,
+        pub validators: Vec<T::AccountId>
     }
 
     #[cfg(feature = "std")]
@@ -43,6 +48,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 authorities: Vec::new(),
+                validators: Vec::new()
             }
         }
     }
@@ -51,6 +57,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             Pallet::<T>::initialize_authorities(&self.authorities);
+            Pallet::<T>::initialize_validators(&self.validators);
         }
     }
 }
@@ -63,6 +70,18 @@ impl<T: Config> Pallet<T> {
                 "Authorities are already initialized!"
             );
             <Authorities<T>>::put(authorities);
+        }
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    fn initialize_validators(validators: &[T::AccountId]) {
+        if !validators.is_empty() {
+            assert!(
+                <Validators<T>>::get().is_empty(),
+                "Validators are already initialized!"
+            );
+            <Validators<T>>::put(validators);
         }
     }
 }
