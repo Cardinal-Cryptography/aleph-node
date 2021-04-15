@@ -1,9 +1,11 @@
+use codec::Encode;
 use log::{debug, error};
 use sc_client_api::backend::Backend;
 use sp_consensus::SelectChain;
 use sp_runtime::{
     generic::BlockId,
     traits::{Block, Header},
+    Justification,
 };
 use std::{marker::PhantomData, sync::Arc};
 
@@ -24,6 +26,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::justification::AlephJustification;
 use std::cmp::Ordering;
 use tokio::time;
 
@@ -408,7 +411,11 @@ where
     }
 
     fn finalize_block(&self, h: B::Hash) {
-        finalize_block(self.client.clone(), h);
+        finalize_block(
+            self.client.clone(),
+            h,
+            Some(AlephJustification::trivial_proof().encode()),
+        );
     }
 }
 
@@ -487,8 +494,11 @@ where
     }
 }
 
-pub(crate) fn finalize_block<BE, B, C>(client: Arc<C>, hash: B::Hash)
-where
+pub(crate) fn finalize_block<BE, B, C>(
+    client: Arc<C>,
+    hash: B::Hash,
+    justification: Option<Justification>,
+) where
     B: Block,
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
@@ -513,9 +523,9 @@ where
 
     let _update_res = client.lock_import_and_run(|import_op| {
         // NOTE: all other finalization logic should come here, inside the lock
-        client.apply_finality(import_op, BlockId::Hash(hash), None, true)
+        client.apply_finality(import_op, BlockId::Hash(hash), justification, true)
     });
 
     let status = client.info();
-    debug!(target: "env", "Finalized block with hash {:?}. Current best: #{:?}.", hash,status.finalized_number);
+    debug!(target: "env", "Finalized block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
 }
