@@ -40,7 +40,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub authorities: Vec<T::AuthorityId>,
-        pub validators: Vec<T::AccountId>
+        pub validators: Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
@@ -48,7 +48,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 authorities: Vec::new(),
-                validators: Vec::new()
+                validators: Vec::new(),
             }
         }
     }

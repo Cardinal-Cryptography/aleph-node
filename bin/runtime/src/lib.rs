@@ -39,8 +39,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-use pallet_session::SessionManager;
 use frame_support::sp_runtime::traits::OpaqueKeys;
+use pallet_session::SessionManager;
 
 /// An index to a block.
 pub type BlockNumber = u32;

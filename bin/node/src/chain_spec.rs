@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use aleph_primitives::AuthorityId as AlephId;
-use aleph_runtime::{AccountId, AlephConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys, Signature, SudoConfig, SystemConfig, WASM_BINARY};
+use aleph_runtime::{
+    AccountId, AlephConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys, Signature,
+    SudoConfig, SystemConfig, WASM_BINARY,
+};
 use sc_service::ChainType;
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -113,8 +116,15 @@ fn testnet_genesis(
     let session_keys: Vec<_> = endowed_accounts
         .iter()
         .zip(aura_authorities.iter())
-        .map(|(account_id, aura_id)|
-            (account_id.clone(), account_id.clone(), SessionKeys {aura: aura_id.clone()}))
+        .map(|(account_id, aura_id)| {
+            (
+                account_id.clone(),
+                account_id.clone(),
+                SessionKeys {
+                    aura: aura_id.clone(),
+                },
+            )
+        })
         .collect();
     GenesisConfig {
         frame_system: Some(SystemConfig {
@@ -138,10 +148,8 @@ fn testnet_genesis(
         }),
         pallet_aleph: Some(AlephConfig {
             authorities: aleph_authorities,
-            validators: endowed_accounts
+            validators: endowed_accounts,
         }),
-        pallet_session: Some(SessionConfig {
-            keys: session_keys,
-        })
+        pallet_session: Some(SessionConfig { keys: session_keys }),
     }
 }
