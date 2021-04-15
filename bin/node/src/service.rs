@@ -117,12 +117,7 @@ fn consensus_config(auth: AuthorityId, authorities: &[AuthorityId]) -> Consensus
     let node_id = NodeId { auth, index };
     let n_members = authorities.len().into();
 
-    ConsensusConfig::new(
-        node_id,
-        n_members,
-        EpochId(0),
-        std::time::Duration::from_millis(500),
-    )
+    ConsensusConfig::new(node_id, n_members, std::time::Duration::from_millis(500))
 }
 
 /// Builds a new service for a full client.
