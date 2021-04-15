@@ -24,7 +24,10 @@ pub mod config;
 pub(crate) mod environment;
 mod error;
 pub mod hash;
+mod import;
 mod party;
+
+pub use import::AlephBlockImport;
 
 // NOTE until we have our own pallet, we need to use Aura authorities
 // mod key_types {
