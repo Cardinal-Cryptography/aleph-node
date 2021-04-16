@@ -2,15 +2,17 @@ use std::collections::HashMap;
 
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::{
-    AccountId, AlephConfig, BalancesConfig, GenesisConfig, SessionConfig, StakingConfig, SessionKeys, Signature,
-    StakerStatus, SudoConfig, SystemConfig, WASM_BINARY,
+    AccountId, AlephConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys, Signature,
+    StakerStatus, StakingConfig, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{ed25519, sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_runtime::Perbill;
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    Perbill,
+};
 
 pub(crate) const LOCAL_AUTHORITIES: [&str; 8] = [
     "Damian", "Tomasz", "Zbyszko", "Hansu", "Adam", "Matt", "Antoni", "Michal",
@@ -105,7 +107,6 @@ pub fn development_config() -> Result<ChainSpec, String> {
     ))
 }
 
-
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
     wasm_binary: &[u8],
@@ -156,13 +157,13 @@ fn testnet_genesis(
         pallet_staking: Some(StakingConfig {
             validator_count: endowed_accounts.len() as u32 * 2,
             minimum_validator_count: endowed_accounts.len() as u32,
-            stakers: endowed_accounts.iter().map(|x| {
-                (x.clone(), x.clone(), 1 << 50, StakerStatus::Validator)
-            }).collect(),
+            stakers: endowed_accounts
+                .iter()
+                .map(|x| (x.clone(), x.clone(), 1 << 50, StakerStatus::Validator))
+                .collect(),
             invulnerables: endowed_accounts.clone(),
             slash_reward_fraction: Perbill::from_percent(10),
-            .. Default::default()
-
-        })
+            ..Default::default()
+        }),
     }
 }

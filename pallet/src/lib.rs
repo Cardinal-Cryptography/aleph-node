@@ -3,9 +3,8 @@
 use frame_support::Parameter;
 use sp_std::prelude::*;
 
-pub use pallet::*;
 use frame_support::traits::OneSessionHandler;
-use frame_support::pallet_prelude::Decode;
+pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -95,18 +94,25 @@ impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
 impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
     type Key = T::AuthorityId;
 
-    fn on_genesis_session<'a, I: 'a>(validators: I) where I: Iterator<Item=(&'a T::AccountId, Self::Key)>, T::AccountId: 'a {
+    fn on_genesis_session<'a, I: 'a>(validators: I)
+    where
+        I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+        T::AccountId: 'a,
+    {
         let authorities: Vec<_> = validators.map(|(_, aleph_id)| aleph_id).collect();
         <Authorities<T>>::put(authorities);
     }
 
-    fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I) where I: Iterator<Item=(&'a T::AccountId, Self::Key)>, T::AccountId: 'a {
+    fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I)
+    where
+        I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+        T::AccountId: 'a,
+    {
         if changed {
             let authorities: Vec<_> = validators.map(|(_, aleph_id)| aleph_id).collect();
             <Authorities<T>>::put(authorities);
         }
     }
 
-    fn on_disabled(_validator_index: usize) {
-    }
+    fn on_disabled(_validator_index: usize) {}
 }

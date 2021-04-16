@@ -8,7 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata,};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, Verify},
@@ -41,9 +41,10 @@ pub use sp_runtime::BuildStorage;
 
 pub use pallet_staking::*;
 
-use frame_support::sp_runtime::traits::OpaqueKeys;
-use frame_support::traits::U128CurrencyToVote;
-use frame_support::sp_runtime::curve::PiecewiseLinear;
+use frame_support::{
+    sp_runtime::{curve::PiecewiseLinear, traits::OpaqueKeys},
+    traits::U128CurrencyToVote,
+};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -278,37 +279,41 @@ impl pallet_session::historical::Config for Runtime {
     type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
 }
 
-
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-    where
-        Call: From<C>,
+where
+    Call: From<C>,
 {
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = Call;
 }
 
+// The curve is wrapped in a module to suppress the `non_fmt_panic` warning only in the `build!` macro.
+mod curve {
+    #![allow(non_fmt_panic)]
 
-// TODO: ensure that the parameters copied from the substrate node are reasonable for our use case.
-pallet_staking_reward_curve::build! {
-	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
+    // TODO: ensure that the parameters copied from the substrate node are reasonable for our use case.
+
+    pallet_staking_reward_curve::build! {
+        const REWARD_CURVE0: crate::PiecewiseLinear<'static> = curve!(
+            min_inflation: 0_025_000,
+            max_inflation: 0_100_000,
+            ideal_stake: 0_500_000,
+            falloff: 0_050_000,
+            max_piece_count: 40,
+            test_precision: 0_005_000,
+        );
+    }
+    pub const REWARD_CURVE: crate::PiecewiseLinear<'static> = REWARD_CURVE0;
 }
-
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
-	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-	pub const MaxNominatorRewardedPerValidator: u32 = 256;
+    pub const SessionsPerEra: sp_staking::SessionIndex = 6;
+    pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
+    pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+    pub const RewardCurve: &'static PiecewiseLinear<'static> = &curve::REWARD_CURVE;
+    pub const MaxNominatorRewardedPerValidator: u32 = 256;
     // the following are uneducated guesses
-	pub const ElectionLookahead: u32 = 0;
-	pub const MaxIterations: u32 = 1;
+    pub const ElectionLookahead: u32 = 0;
+    pub const MaxIterations: u32 = 1;
 
 }
 
