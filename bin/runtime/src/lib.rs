@@ -8,7 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata,};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, Verify},
@@ -39,8 +39,11 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
+pub use pallet_staking::*;
+
 use frame_support::sp_runtime::traits::OpaqueKeys;
-use pallet_session::SessionManager;
+use frame_support::traits::U128CurrencyToVote;
+use frame_support::sp_runtime::curve::PiecewiseLinear;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -257,33 +260,82 @@ parameter_types! {
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
 }
 
-pub struct AlephSessionManager {}
-
-impl SessionManager<AccountId> for AlephSessionManager {
-    fn new_session(_new_index: u32) -> Option<Vec<AccountId>> {
-        let validators = Aleph::validators();
-        assert!(!validators.is_empty());
-        Some(validators)
-    }
-
-    fn end_session(_end_index: u32) {}
-
-    fn start_session(_start_index: u32) {}
-}
-
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-    type SessionManager = AlephSessionManager;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
 }
 
+impl pallet_session::historical::Config for Runtime {
+    type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
+    type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
+}
+
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+    where
+        Call: From<C>,
+{
+    type Extrinsic = UncheckedExtrinsic;
+    type OverarchingCall = Call;
+}
+
+
+// TODO: ensure that the parameters copied from the substrate node are reasonable for our use case.
+pallet_staking_reward_curve::build! {
+	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+		min_inflation: 0_025_000,
+		max_inflation: 0_100_000,
+		ideal_stake: 0_500_000,
+		falloff: 0_050_000,
+		max_piece_count: 40,
+		test_precision: 0_005_000,
+	);
+}
+
+parameter_types! {
+	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
+	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+	pub const MaxNominatorRewardedPerValidator: u32 = 256;
+    // the following are uneducated guesses
+	pub const ElectionLookahead: u32 = 0;
+	pub const MaxIterations: u32 = 1;
+
+}
+
+impl pallet_staking::Config for Runtime {
+    type Currency = Balances;
+    type UnixTime = Timestamp;
+    type CurrencyToVote = U128CurrencyToVote;
+    type RewardRemainder = (); // Treasury
+    type Event = Event;
+    type Slash = ();
+    type Reward = ();
+    type SessionsPerEra = SessionsPerEra;
+    type BondingDuration = BondingDuration;
+    type SlashDeferDuration = SlashDeferDuration;
+    type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type SessionInterface = Self;
+    type RewardCurve = RewardCurve;
+    type NextNewSession = Session;
+    type ElectionLookahead = ElectionLookahead;
+    type Call = Call;
+    type MaxIterations = MaxIterations;
+    type MinSolutionScoreBump = ();
+    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type UnsignedPriority = ();
+    type OffchainSolutionWeightLimit = ();
+    type WeightInfo = ();
+}
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -300,6 +352,7 @@ construct_runtime!(
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
         Aleph: pallet_aleph::{Module, Call, Config<T>, Storage},
         Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+        Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
     }
 );
 

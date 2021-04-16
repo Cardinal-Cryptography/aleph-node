@@ -20,6 +20,8 @@ pallet-balances = { version = "3.0.0", default-features = false}
 frame-support = { version = "3.0.0", default-features = false}
 pallet-randomness-collective-flip = { version = "3.0.0", default-features = false}
 pallet-session = { version = "3.0.0", default-features = false}
+pallet-staking = { version = "3.0.0", default-features = false}
+pallet-staking-reward-curve = { version = "3.0.0", default-features = false }
 pallet-sudo = { version = "3.0.0", default-features = false}
 frame-system = { version = "3.0.0", default-features = false}
 pallet-timestamp = { version = "3.0.0", default-features = false}
@@ -33,6 +35,7 @@ sp-core = { version = "3.0.0", default-features = false}
 sp-inherents = { default-features = false, version = "3.0.0"}
 sp-runtime = { version = "3.0.0", default-features = false}
 sp-session = { version = "3.0.0", default-features = false}
+sp-staking = { version = "3.0.0", default-features = false}
 sp-std = { version = "3.0.0", default-features = false}
 sp-transaction-pool = { version = "3.0.0", default-features = false}
 sp-version = { version = "3.0.0", default-features = false}
@@ -56,6 +59,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-randomness-collective-flip/std",
 	"pallet-session/std",
+	"pallet-staking/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment/std",
@@ -67,6 +71,7 @@ std = [
 	"sp-inherents/std",
 	"sp-runtime/std",
 	"sp-session/std",
+	"sp-staking/std",
 	"sp-std/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
