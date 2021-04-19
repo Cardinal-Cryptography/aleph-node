@@ -45,7 +45,6 @@ use frame_support::{
     sp_runtime::{curve::PiecewiseLinear, traits::OpaqueKeys},
     traits::U128CurrencyToVote,
 };
-use frame_election_provider_support::{PerThing128, ElectionDataProvider};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -288,14 +287,6 @@ where
     type OverarchingCall = Call;
 }
 
-impl frame_election_provider_support::onchain::Config for Runtime {
-    type BlockWeights = ();
-    type AccountId = AccountId;
-    type BlockNumber = BlockNumber;
-    type Accuracy = Perbill;
-    type DataProvider = Staking;
-}
-
 // The curve is wrapped in a module to suppress the `non_fmt_panic` warning only in the `build!` macro.
 mod curve {
     #![allow(non_fmt_panic)]
@@ -326,15 +317,6 @@ parameter_types! {
 
 }
 
-sp_npos_elections::generate_solution_type!(
-	#[compact]
-	pub struct NposCompactSolution16::<
-		VoterIndex = u32,
-		TargetIndex = u16,
-		Accuracy = sp_runtime::PerU16,
-	>(16)
-);
-
 impl pallet_staking::Config for Runtime {
     type Currency = Balances;
     type UnixTime = Timestamp;
@@ -348,12 +330,16 @@ impl pallet_staking::Config for Runtime {
     type SlashDeferDuration = SlashDeferDuration;
     type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type SessionInterface = Self;
+    type RewardCurve = RewardCurve;
     type NextNewSession = Session;
+    type ElectionLookahead = ElectionLookahead;
+    type Call = Call;
+    type MaxIterations = MaxIterations;
+    type MinSolutionScoreBump = ();
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type UnsignedPriority = ();
+    type OffchainSolutionWeightLimit = ();
     type WeightInfo = ();
-    type ElectionProvider =  frame_election_provider_support::onchain::OnChainSequentialPhragmen<Runtime>;
-    const MAX_NOMINATIONS: u32 = <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
-    type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 }
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
