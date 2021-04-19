@@ -19,8 +19,10 @@ pallet-aura = { version = "3.0.0", default-features = false}
 pallet-balances = { version = "3.0.0", default-features = false}
 frame-support = { version = "3.0.0", default-features = false}
 pallet-randomness-collective-flip = { version = "3.0.0", default-features = false}
-pallet-session = { version = "3.0.0", default-features = false}
-pallet-staking = { version = "3.0.0", default-features = false}
+pallet-session = { version = "3.0.0", features = ["historical"], default-features = false}
+# pallet-staking = { version = "3.0.0", default-features = false}
+pallet-staking = { git = "https://github.com/paritytech/substrate/", default-features = false }
+
 pallet-staking-reward-curve = { version = "3.0.0", default-features = false }
 pallet-sudo = { version = "3.0.0", default-features = false}
 frame-system = { version = "3.0.0", default-features = false}
@@ -32,13 +34,16 @@ sp-api = { version = "3.0.0", default-features = false}
 sp-block-builder = { default-features = false, version = "3.0.0"}
 sp-consensus-aura = { version = "0.9.0", default-features = false}
 sp-core = { version = "3.0.0", default-features = false}
-sp-inherents = { default-features = false, version = "3.0.0"}
+sp-inherents = { default-features = false, version = "3.0.0" }
+sp-npos-elections =  { git = "https://github.com/paritytech/substrate/", version = "3.0.0", default-features = false }
+sp-npos-elections-compact =  { git = "https://github.com/paritytech/substrate/", version = "3.0.0", default-features = false }
 sp-runtime = { version = "3.0.0", default-features = false}
 sp-session = { version = "3.0.0", default-features = false}
 sp-staking = { version = "3.0.0", default-features = false}
 sp-std = { version = "3.0.0", default-features = false}
 sp-transaction-pool = { version = "3.0.0", default-features = false}
 sp-version = { version = "3.0.0", default-features = false}
+frame-election-provider-support = { git = "https://github.com/paritytech/substrate/", default-features = false}
 
 frame-system-rpc-runtime-api = { version = "3.0.0", default-features = false}
 pallet-transaction-payment-rpc-runtime-api = { version = "3.0.0", default-features = false}
@@ -52,6 +57,7 @@ substrate-wasm-builder = { version = "4.0.0"}
 default = ["std"]
 std = [
 	"codec/std",
+	"frame-election-provider-support/std",
 	"frame-executive/std",
 	"frame-support/std",
 	"pallet-aleph/std",
@@ -69,6 +75,8 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-inherents/std",
+	"sp-npos-elections/std",
+	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
 	"sp-staking/std",
@@ -78,6 +86,7 @@ std = [
 	"frame-system/std",
     "sp-offchain/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
+	"frame-support/std",
     "frame-system-rpc-runtime-api/std",
 	"primitives/std",
 ]
