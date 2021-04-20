@@ -122,7 +122,12 @@ where
 
         if let Ok(justification) = AlephJustification::decode(&mut &*justification) {
             log::debug!(target: "afg", "Finalizing block #{:?} from justification import", number);
-            finalize_block(Arc::clone(&self.inner), hash, Some(justification.encode()));
+            finalize_block(
+                Arc::clone(&self.inner),
+                hash,
+                number,
+                Some(justification.encode()),
+            );
             Ok(())
         } else {
             Err(ConsensusError::ClientImport("Bad justification".into()))

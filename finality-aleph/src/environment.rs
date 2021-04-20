@@ -27,6 +27,7 @@ use std::{
 };
 
 use crate::justification::AlephJustification;
+use sp_api::NumberFor;
 use std::cmp::Ordering;
 use tokio::time;
 
@@ -411,9 +412,17 @@ where
     }
 
     fn finalize_block(&self, h: B::Hash) {
+        let block_number = match self.client.number(h) {
+            Ok(Some(number)) => number,
+            _ => {
+                error!(target: "env", "a block with hash {} should already be in chain", h);
+                return;
+            }
+        };
         finalize_block(
             self.client.clone(),
             h,
+            block_number,
             Some(AlephJustification::new::<B>(&self.auth_cryptostore, h).encode()),
         );
     }
@@ -497,19 +506,13 @@ where
 pub(crate) fn finalize_block<BE, B, C>(
     client: Arc<C>,
     hash: B::Hash,
+    block_number: NumberFor<B>,
     justification: Option<Justification>,
 ) where
     B: Block,
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
 {
-    let block_number = match client.number(hash) {
-        Ok(Some(number)) => number,
-        _ => {
-            error!(target: "env", "a block with hash {} should already be in chain", hash);
-            return;
-        }
-    };
     let info = client.info();
 
     if info.finalized_number >= block_number {
