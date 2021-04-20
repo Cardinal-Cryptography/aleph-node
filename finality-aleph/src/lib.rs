@@ -203,15 +203,9 @@ where
         authorities,
     } = config;
     let consensus = party::ConsensusParty::new(client, network, select_chain, auth_keystore);
-    consensus.run_network(spawn_handle.clone().into());
     async move {
         consensus
-            .run_epoch(
-                EpochId(0),
-                authorities,
-                consensus_config,
-                spawn_handle.into(),
-            )
+            .run(authorities, consensus_config, spawn_handle.into())
             .await;
     }
 }

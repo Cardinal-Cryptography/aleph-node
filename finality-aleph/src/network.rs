@@ -166,9 +166,6 @@ pub(crate) struct ConsensusNetwork<B: BlockT, H: Hash, N: Network<B> + Clone> {
     //TODO: some optimizations can be made by changing Mutex to RwLock
     network: N,
     protocol: Cow<'static, str>,
-    // a copy of this endpoint made and returned whenever start_epoch is called
-    env_command_tx: mpsc::UnboundedSender<NetworkCommand<B, H>>,
-    env_command_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<NetworkCommand<B, H>>>>>,
 
     /// Outgoing events to the consumer.
     epochs: Arc<Mutex<HashMap<EpochId, EpochData<B, H>>>>,
@@ -176,20 +173,13 @@ pub(crate) struct ConsensusNetwork<B: BlockT, H: Hash, N: Network<B> + Clone> {
     peers: Arc<Mutex<Peers>>,
 }
 
-impl<B: BlockT, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
+impl<B: BlockT + 'static, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
     /// Create a new instance.
-    pub fn new(network: N, protocol: impl Into<Cow<'static, str>>) -> Self
-    where
-        B: 'static,
-    {
+    pub fn new(network: N, protocol: impl Into<Cow<'static, str>>) -> Self {
         let protocol = protocol.into();
-        //let network_event_stream = Arc::new(Mutex::new(network.event_stream()));
-        let (tx, rx) = mpsc::unbounded();
         ConsensusNetwork {
             network,
             protocol,
-            env_command_tx: tx,
-            env_command_rx: Arc::new(Mutex::new(Some(rx))),
             epochs: Arc::new(Mutex::new(HashMap::new())),
             peers: Arc::new(Mutex::new(Peers::new())),
         }
@@ -200,10 +190,7 @@ impl<B: BlockT, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
         &self,
         epoch_id: EpochId,
         _authorities: Vec<AuthorityId>,
-    ) -> (
-        mpsc::UnboundedSender<NetworkCommand<B, H>>,
-        mpsc::UnboundedReceiver<NetworkEvent<B, H>>,
-    ) {
+    ) -> mpsc::UnboundedReceiver<NetworkEvent<B, H>> {
         let (tx_out, rx_out) = mpsc::unbounded();
         let epoch_data = EpochData {
             tx: tx_out,
@@ -211,7 +198,7 @@ impl<B: BlockT, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
             _authorities,
         };
         self.epochs.lock().insert(epoch_id, epoch_data);
-        (self.env_command_tx.clone(), rx_out)
+        rx_out
     }
 
     fn sample_random_peer(&self) -> Option<PeerId> {
@@ -299,13 +286,8 @@ impl<B: BlockT, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
         }
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&self, mut net_command_rx: mpsc::UnboundedReceiver<NetworkCommand<B, H>>) {
         let mut network_event_stream = self.network.event_stream();
-        let mut env_command_rx = self
-            .env_command_rx
-            .lock()
-            .take()
-            .expect("Network must be run() exactly once.");
 
         loop {
             tokio::select! {
@@ -356,7 +338,7 @@ impl<B: BlockT, H: Hash, N: Network<B> + Clone> ConsensusNetwork<B, H, N> {
                         }
 
                 },
-                maybe_cmd = env_command_rx.next() => {
+                maybe_cmd = net_command_rx.next() => {
                     if let Some(cmd) = maybe_cmd {
                         self.on_command(cmd);
                     } else {
