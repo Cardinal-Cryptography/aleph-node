@@ -19,8 +19,7 @@ where
     I: crate::ClientForAleph<Block, Be>,
 {
     inner: Arc<I>,
-    _phantom_block: PhantomData<Block>,
-    _phantom_backend: PhantomData<Be>,
+    _phantom: PhantomData<(Be, Block)>,
 }
 
 impl<Block, Be, I> AlephBlockImport<Block, Be, I>
@@ -32,8 +31,7 @@ where
     pub fn new(inner: Arc<I>) -> AlephBlockImport<Block, Be, I> {
         AlephBlockImport {
             inner,
-            _phantom_block: PhantomData,
-            _phantom_backend: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -47,8 +45,7 @@ where
     fn clone(&self) -> Self {
         AlephBlockImport {
             inner: self.inner.clone(),
-            _phantom_backend: PhantomData,
-            _phantom_block: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -74,28 +71,29 @@ where
 
     async fn import_block(
         &mut self,
-        block: BlockImportParams<Block, Self::Transaction>,
+        mut block: BlockImportParams<Block, Self::Transaction>,
         cache: HashMap<[u8; 4], Vec<u8>>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
-
-        log::debug!(target: "afg", "Importing block #{:?}", number);
-        let needs_justification = block.justification.is_none();
+        let hash = block.header.hash();
+        let justification = block.justification.take();
 
         let import_result = self.inner.import_block(block, cache).await;
-        match import_result {
-            Ok(import) => {
-                let import = match import {
-                    ImportResult::Imported(mut aux) => {
-                        aux.needs_justification = needs_justification;
-                        ImportResult::Imported(aux)
-                    }
-                    _ => import,
-                };
-                Ok(import)
-            }
-            Err(e) => Err(e),
+        let mut imported_aux = match import_result {
+            Ok(ImportResult::Imported(aux)) => aux,
+            Ok(r) => return Ok(r),
+            Err(e) => return Err(e),
+        };
+
+        if let Some(justification) = justification {
+            let res = self.import_justification(hash, number, justification).await;
+            res.unwrap_or_else(|_err| {
+                imported_aux.bad_justification = true;
+                imported_aux.needs_justification = true;
+            });
         }
+
+        Ok(ImportResult::Imported(imported_aux))
     }
 }
 

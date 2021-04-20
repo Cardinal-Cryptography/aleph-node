@@ -1,14 +1,16 @@
+use crate::{AuthorityKeystore, AuthoritySignature};
 use codec::{Decode, Encode};
+use sp_api::BlockT;
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
 pub struct AlephJustification {
-    pub(crate) data: Vec<u8>,
+    pub(crate) signature: AuthoritySignature,
 }
 
 impl AlephJustification {
-    pub fn trivial_proof() -> Self {
+    pub fn new<Block: BlockT>(auth_crypto_store: &AuthorityKeystore, hash: Block::Hash) -> Self {
         Self {
-            data: vec![0, 1, 2, 3],
+            signature: auth_crypto_store.sign(&hash.encode()[..]),
         }
     }
 }

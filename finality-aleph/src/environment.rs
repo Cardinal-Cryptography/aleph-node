@@ -414,7 +414,7 @@ where
         finalize_block(
             self.client.clone(),
             h,
-            Some(AlephJustification::trivial_proof().encode()),
+            Some(AlephJustification::new::<B>(&self.auth_cryptostore, h).encode()),
         );
     }
 }
