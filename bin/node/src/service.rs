@@ -78,7 +78,8 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let aleph_block_import = AlephBlockImport::new(client.clone() as Arc<_>);
+    let (_, authorities) = get_authorities(client.clone(), keystore_container.sync_keystore());
+    let aleph_block_import = AlephBlockImport::new(client.clone() as Arc<_>, authorities);
 
     let aura_block_import = sc_consensus_aura::AuraBlockImport::<_, _, _, AuraPair>::new(
         aleph_block_import.clone(),

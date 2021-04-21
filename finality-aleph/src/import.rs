@@ -1,5 +1,5 @@
-use crate::{environment::finalize_block, justification::AlephJustification};
-use codec::{Decode, Encode};
+use crate::{environment::finalize_block, justification::AlephJustification, AuthorityId};
+use codec::Encode;
 use sc_client_api::backend::Backend;
 use sp_api::TransactionFor;
 use sp_consensus::{
@@ -19,6 +19,7 @@ where
     I: crate::ClientForAleph<Block, Be>,
 {
     inner: Arc<I>,
+    authorities: Vec<AuthorityId>,
     _phantom: PhantomData<(Be, Block)>,
 }
 
@@ -28,9 +29,10 @@ where
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
 {
-    pub fn new(inner: Arc<I>) -> AlephBlockImport<Block, Be, I> {
+    pub fn new(inner: Arc<I>, authorities: Vec<AuthorityId>) -> AlephBlockImport<Block, Be, I> {
         AlephBlockImport {
             inner,
+            authorities,
             _phantom: PhantomData,
         }
     }
@@ -45,6 +47,7 @@ where
     fn clone(&self) -> Self {
         AlephBlockImport {
             inner: self.inner.clone(),
+            authorities: self.authorities.clone(),
             _phantom: PhantomData,
         }
     }
@@ -120,7 +123,12 @@ where
     ) -> Result<(), Self::Error> {
         log::debug!(target: "afg", "Importing justification for block #{:?}", number);
 
-        if let Ok(justification) = AlephJustification::decode(&mut &*justification) {
+        if let Ok(justification) = AlephJustification::decode_and_verify::<Block>(
+            &*justification,
+            hash,
+            &self.authorities,
+            number,
+        ) {
             log::debug!(target: "afg", "Finalizing block #{:?} from justification import", number);
             finalize_block(
                 Arc::clone(&self.inner),
