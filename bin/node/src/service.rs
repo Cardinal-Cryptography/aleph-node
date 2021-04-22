@@ -88,8 +88,8 @@ pub fn new_partial(
 
     let import_queue =
         sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(ImportQueueParams {
-            aura_block_import.clone(),
-            Some(Box::new(aleph_block_import)),
+            block_import: aura_block_import.clone(),
+            justification_import: Some(Box::new(aleph_block_import)),
             client: client.clone(),
             inherent_data_providers: inherent_data_providers.clone(),
             spawner: &task_manager.spawn_essential_handle(),

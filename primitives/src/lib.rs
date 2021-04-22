@@ -1,8 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use sp_core::crypto::KeyTypeId;
+use sp_runtime::ConsensusEngineId;
 use sp_std::vec::Vec;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
+
+pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ADMM";
 
 mod app {
     use sp_application_crypto::{app_crypto, ed25519};

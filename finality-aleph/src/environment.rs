@@ -1,3 +1,4 @@
+use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::Encode;
 use log::{debug, error};
 use sc_client_api::backend::Backend;
@@ -423,7 +424,10 @@ where
             self.client.clone(),
             h,
             block_number,
-            Some(AlephJustification::new::<B>(&self.auth_cryptostore, h).encode()),
+            Some((
+                ALEPH_ENGINE_ID,
+                AlephJustification::new::<B>(&self.auth_cryptostore, h).encode(),
+            )),
         );
     }
 }
