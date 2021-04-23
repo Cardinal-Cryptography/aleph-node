@@ -5,7 +5,9 @@ use sp_std::vec::Vec;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 
-pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"ADMM";
+// Same as GRANDPA_ENGINE_ID because as of right now substrate
+// sends only grandpa justifications over network.
+pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"FRNK";
 
 mod app {
     use sp_application_crypto::{app_crypto, ed25519};

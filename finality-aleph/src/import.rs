@@ -82,10 +82,8 @@ where
         let number = *block.header.number();
         let hash = block.header.hash();
         let justifications = block.justifications.take();
-        let finalized = block.finalized;
 
         log::debug!(target: "afg", "Importing block #{:?}", number);
-
         let import_result = self.inner.import_block(block, cache).await;
 
         let mut imported_aux = match import_result {
@@ -102,8 +100,6 @@ where
                 imported_aux.bad_justification = true;
                 imported_aux.needs_justification = true;
             });
-        } else if finalized {
-            imported_aux.needs_justification = true;
         }
 
         Ok(ImportResult::Imported(imported_aux))
