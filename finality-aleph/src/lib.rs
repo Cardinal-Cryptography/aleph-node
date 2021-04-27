@@ -133,10 +133,7 @@ impl AuthorityKeystore {
 pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>
     + Finalizer<B, BE>
-    + AuxStore
-    + BlockchainEvents<B>
     + ProvideRuntimeApi<B>
-    + ExecutorProvider<B>
     + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
@@ -152,10 +149,7 @@ where
     B: Block,
     T: LockImportRun<B, BE>
         + Finalizer<B, BE>
-        + AuxStore
-        + BlockchainEvents<B>
         + ProvideRuntimeApi<B>
-        + ExecutorProvider<B>
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
