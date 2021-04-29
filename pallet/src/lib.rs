@@ -12,11 +12,11 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        sp_runtime::{DigestItem, RuntimeAppPublic},
+        sp_runtime::{traits::NumberFor, DigestItem, RuntimeAppPublic},
         sp_std,
     };
     use frame_system::pallet_prelude::*;
-    use primitives::{LogChange, ALEPH_ENGINE_ID};
+    use primitives::{AuthoritiesLog, ALEPH_ENGINE_ID};
 
     #[derive(Encode, Decode)]
     pub struct SessionChange<T>
@@ -48,10 +48,12 @@ pub mod pallet {
             if let Some(session_info) = <SessionInfo<T>>::get() {
                 if session_info.changed && session_info.created_at == block_number {
                     Self::update_authorities(session_info.next_authorities.as_slice());
-                    Self::deposit_log(LogChange::NewAuthorities(
-                        session_info.next_authorities,
-                        session_info.session_id,
-                    ));
+                    Self::deposit_log(AuthoritiesLog::WillChange {
+                        session_id: session_info.session_id,
+                        // TODO: this is stub for now.
+                        when: block_number,
+                        next_authorities: session_info.next_authorities,
+                    });
                 }
             }
         }
@@ -122,8 +124,7 @@ pub mod pallet {
             }
         }
 
-        /// Deposit one of this module's logs.
-        fn deposit_log(change: LogChange<T::AuthorityId>) {
+        fn deposit_log(change: AuthoritiesLog<T::AuthorityId, T::BlockNumber>) {
             let log: DigestItem<T::Hash> = DigestItem::Consensus(ALEPH_ENGINE_ID, change.encode());
             <frame_system::Pallet<T>>::deposit_log(log);
         }

@@ -25,9 +25,14 @@ sp_api::decl_runtime_apis! {
 }
 
 #[derive(Decode, Encode, PartialEq, Eq, Clone)]
-pub enum LogChange<Id>
+pub enum AuthoritiesLog<Id, Number>
 where
     Id: Encode + Decode,
+    Number: Encode + Decode,
 {
-    NewAuthorities(Vec<Id>, u64),
+    WillChange {
+        session_id: u64,
+        when: Number,
+        next_authorities: Vec<Id>,
+    },
 }

@@ -1,5 +1,5 @@
 use crate::{environment::finalize_block, justification::AlephJustification, AuthorityId};
-use aleph_primitives::{LogChange, ALEPH_ENGINE_ID};
+use aleph_primitives::{AuthoritiesLog, ALEPH_ENGINE_ID};
 use codec::Encode;
 use sc_client_api::backend::Backend;
 use sp_api::TransactionFor;
@@ -43,14 +43,22 @@ where
         let id = OpaqueDigestItemId::Consensus(&ALEPH_ENGINE_ID);
 
         let log = header.digest().convert_first(|l| {
-            l.try_to(id)
-                .map(|log: LogChange<NumberFor<Block>>| match log {
-                    LogChange::NewAuthorities(auths, session_id) => (auths, session_id),
-                })
+            l.try_to(id).map(
+                |log: AuthoritiesLog<AuthorityId, NumberFor<Block>>| match log {
+                    AuthoritiesLog::WillChange {
+                        session_id,
+                        when,
+                        next_authorities,
+                    } => (session_id, when, next_authorities),
+                },
+            )
         });
 
-        if let Some((auths, session_id)) = log {
-            log::debug!(target: "afa", "Got new authorities {:?} on session #{:?}", auths, session_id);
+        if let Some((session_id, when, _)) = log {
+            log::debug!(
+                target: "afa",
+                "Got new authorities for session #{:?} scheduled for block #{:?}", session_id, when
+            );
         }
     }
 }
