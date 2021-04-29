@@ -1,5 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 use codec::{Decode, Encode};
 use frame_support::Parameter;
 use sp_std::prelude::*;
@@ -12,7 +17,7 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        sp_runtime::{traits::NumberFor, DigestItem, RuntimeAppPublic},
+        sp_runtime::{DigestItem, RuntimeAppPublic},
         sp_std,
     };
     use frame_system::pallet_prelude::*;
