@@ -31,7 +31,7 @@ pub mod pallet {
         /// The block number the session was created.
         pub created_at: T::BlockNumber,
         pub session_id: u64,
-        pub changed: bool,
+        pub authorities_changed: bool,
         pub next_authorities: Vec<T::AuthorityId>,
     }
 
@@ -51,11 +51,11 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_finalize(block_number: T::BlockNumber) {
             if let Some(session_info) = <SessionInfo<T>>::get() {
-                if session_info.changed && session_info.created_at == block_number {
+                if session_info.authorities_changed && session_info.created_at == block_number {
                     Self::update_authorities(session_info.next_authorities.as_slice());
                     Self::deposit_log(AuthoritiesLog::WillChange {
                         session_id: session_info.session_id,
-                        // TODO: this is stub for now.
+                        // TODO: this is a stub for now.
                         when: block_number,
                         next_authorities: session_info.next_authorities,
                     });
@@ -95,7 +95,7 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        fn initialize_authorities(authorities: &[T::AuthorityId]) {
+        pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
             if !authorities.is_empty() {
                 assert!(
                     <Authorities<T>>::get().is_empty(),
@@ -106,30 +106,30 @@ pub mod pallet {
 
             <SessionInfo<T>>::put(SessionChange {
                 session_id: 0,
-                changed: true,
+                authorities_changed: true,
                 created_at: <frame_system::Pallet<T>>::block_number(),
                 next_authorities: authorities.to_vec(),
             })
         }
 
-        fn update_authorities(authorities: &[T::AuthorityId]) {
+        pub(crate) fn update_authorities(authorities: &[T::AuthorityId]) {
             <Authorities<T>>::put(authorities);
         }
 
-        fn new_session(changed: bool, authorities: Vec<T::AuthorityId>) {
+        pub(crate) fn new_session(changed: bool, authorities: Vec<T::AuthorityId>) {
             if let Some(old_session) = <SessionInfo<T>>::get() {
                 let current_block = <frame_system::Pallet<T>>::block_number();
 
                 <SessionInfo<T>>::put(SessionChange {
                     session_id: old_session.session_id + 1,
-                    changed,
+                    authorities_changed: changed,
                     created_at: current_block,
                     next_authorities: authorities,
                 });
             }
         }
 
-        fn deposit_log(change: AuthoritiesLog<T::AuthorityId, T::BlockNumber>) {
+        pub(crate) fn deposit_log(change: AuthoritiesLog<T::AuthorityId, T::BlockNumber>) {
             let log: DigestItem<T::Hash> = DigestItem::Consensus(ALEPH_ENGINE_ID, change.encode());
             <frame_system::Pallet<T>>::deposit_log(log);
         }

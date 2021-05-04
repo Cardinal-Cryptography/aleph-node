@@ -193,6 +193,13 @@ impl Config for Test {
     type AuthorityId = AuthorityId;
 }
 
+pub fn to_authorities(authorities: &[u64]) -> Vec<AuthorityId> {
+    authorities
+        .iter()
+        .map(|id| UintAuthorityId(*id).to_public_key::<AuthorityId>())
+        .collect()
+}
+
 pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
