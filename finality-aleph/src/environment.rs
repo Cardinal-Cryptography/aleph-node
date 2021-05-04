@@ -313,6 +313,7 @@ where
             NotificationOut::MissingUnits(coords, _aux) => {
                 self.on_missing_notification(coords);
             }
+            _ => unimplemented!(),
         }
     }
 

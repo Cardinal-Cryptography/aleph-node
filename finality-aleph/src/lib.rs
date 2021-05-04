@@ -4,10 +4,7 @@ use codec::{Decode, Encode};
 use futures::Future;
 pub use rush::Config as ConsensusConfig;
 use rush::{nodes::NodeIndex, UnitCoord};
-use sc_client_api::{
-    backend::{AuxStore, Backend},
-    BlockchainEvents, ExecutorProvider, Finalizer, LockImportRun, TransactionFor,
-};
+use sc_client_api::{backend::Backend, Finalizer, LockImportRun, TransactionFor};
 use sc_service::SpawnTaskHandle;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
@@ -122,8 +119,7 @@ impl AuthorityKeystore {
             &self.authority_id.clone().into(),
             msg,
         )
-        .ok()
-        .flatten()
+        .unwrap()
         .unwrap()
         .try_into()
         .unwrap()
