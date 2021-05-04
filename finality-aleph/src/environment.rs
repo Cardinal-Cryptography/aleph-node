@@ -342,7 +342,6 @@ where
                 //TODO: this is very RAM-heavy to store, optimizations needed
                 self.store.add_parents(h, p_hashes);
             }
-            _ => unimplemented!(),
         }
     }
 

@@ -1,5 +1,6 @@
 use super::*;
 use codec::{Decode, Encode};
+use futures::SinkExt;
 use rush::{nodes::NodeIndex, PreUnit};
 use sp_consensus_aura::sr25519::AuthorityId;
 use sp_keystore::CryptoStore;
@@ -112,6 +113,14 @@ fn test_simple_scenario() {
     let alice_authority_keystore = rt.block_on(generate_authority_keystore("//Alice"));
     let bob_authority_keystore = rt.block_on(generate_authority_keystore("//Bob"));
     let charlie_authority_keystore = rt.block_on(generate_authority_keystore("//Charlie"));
+    let authorities: Vec<_> = [
+        &alice_authority_keystore,
+        &bob_authority_keystore,
+        &charlie_authority_keystore,
+    ]
+    .iter()
+    .map(|&keystore| keystore.authority_id.clone())
+    .collect();
 
     let alice_node_index: NodeIndex = 0.into();
     let bob_node_index: NodeIndex = 1.into();
@@ -128,6 +137,7 @@ fn test_simple_scenario() {
     // Create environment
     let client: Arc<dummy::Dummy<Backend>> = Arc::new(Default::default());
     let select_chain = SelectChain::new();
+    let epoch_id = EpochId(0);
     let env = Environment::new(
         client,
         select_chain.clone(),
@@ -136,9 +146,10 @@ fn test_simple_scenario() {
         network_command_tx,
         network_event_rx,
         order_rx,
+        authorities,
         alice_authority_keystore,
         |data| <BlakeTwo256 as sp_core::Hasher>::hash(data),
-        EpochId(0),
+        epoch_id,
     );
 
     // spawn a task simulating the consensus
@@ -221,6 +232,7 @@ fn test_simple_scenario() {
                 let full_unit = FullUnit {
                     inner: pre_unit,
                     block_hash: blocks[round as usize].hash(),
+                    epoch_id,
                 };
                 let signed_unit = sign_unit(&keystore, full_unit);
 
