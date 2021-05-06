@@ -1,7 +1,9 @@
 use super::*;
+use crate::KEY_TYPE;
 use futures::SinkExt;
 use rush::{nodes::NodeIndex, PreUnit};
 use sc_block_builder::BlockBuilderProvider;
+use sp_consensus::BlockOrigin;
 use sp_consensus_aura::sr25519::AuthorityId;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash};
@@ -10,10 +12,6 @@ use substrate_test_runtime_client::{
 };
 
 type Client = TestClient;
-
-use crate::KEY_TYPE;
-use sc_client_api::blockchain::HeaderMetadata;
-use sp_consensus::BlockOrigin;
 
 async fn generate_authority_keystore(s: &str) -> AuthorityKeystore {
     let keystore = Arc::new(sp_keystore::testing::KeyStore::new());
@@ -72,7 +70,7 @@ fn test_simple_scenario() {
     let epoch_id = EpochId(0);
     let env = Environment::new(
         client.clone(),
-        select_chain.clone(),
+        select_chain,
         notification_in_tx,
         notification_out_rx,
         network_command_tx,
@@ -99,10 +97,7 @@ fn test_simple_scenario() {
                     .unwrap()
                     .block;
                 let hash = block.hash();
-                // we should import the block but we end up stuck if we uncomment the following.
-                // client.import(BlockOrigin::Own, block).await.unwrap();
-                // the client does not contain the hash, the following will panic!
-                client.header_metadata(hash).unwrap();
+                client.import(BlockOrigin::Own, block).await.unwrap();
 
                 let node_map = vec![prev_hash; 3].into();
                 let pre_unit =
@@ -127,13 +122,9 @@ fn test_simple_scenario() {
                 }
                 assert_eq!(did_create, [true; 3]);
             }
-            // For simplicity, we do not emit the batch of blocks. At the moment of writing tests,
-            // Environment's run_epoch method does not have a nice termination condition,
-            // and anyway implementing client's logic would be too troublesome.
             _order_tx
                 .send(all_units.iter().map(|u| u.hash()).collect())
                 .unwrap();
-            (notification_out_tx, _order_tx)
         })
     };
 
@@ -195,11 +186,14 @@ fn test_simple_scenario() {
                     .unwrap();
             }
         }
+        // we return the sender because it has to outlive the epoch thread
         network_event_tx
     });
 
+    // The epoch thread will terminate when the consensus thread ends and the
+    // batch and notification senders are dropped.
     rt.block_on(env.run_epoch());
 
-    rt.block_on(consensus_handle).unwrap();
     rt.block_on(network_handle).unwrap();
+    rt.block_on(consensus_handle).unwrap();
 }
