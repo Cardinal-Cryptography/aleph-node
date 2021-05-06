@@ -43,4 +43,6 @@ env_logger = "0.8.3"
 async-trait = "0.1.42"
 
 [dev-dependencies]
-async-std = "1.6.5"
+substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
+substrate-test-runtime = { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
+sc-block-builder = { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
