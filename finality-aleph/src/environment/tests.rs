@@ -154,7 +154,7 @@ fn test_simple_scenario() {
             };
             assert!(signed_unit.verify_unit_signature());
             let pre_unit = signed_unit.unit.inner;
-            // assert_eq!(pre_unit.round(), round as usize);
+            assert_eq!(pre_unit.round(), round as usize);
             assert_eq!(pre_unit.creator(), alice_node_index);
 
             let bob_and_charlie = [
