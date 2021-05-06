@@ -138,7 +138,6 @@ impl Peers {
 #[derive(Clone, Debug)]
 pub(crate) enum NetworkCommand<B: BlockT, H: Hash> {
     SendToAll(NetworkMessage<B, H>),
-
     SendToPeer(NetworkMessage<B, H>, PeerId),
     SendToRandPeer(NetworkMessage<B, H>),
 }
