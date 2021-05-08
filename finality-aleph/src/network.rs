@@ -7,6 +7,9 @@ use std::{borrow::Cow, collections::HashMap, iter, pin::Pin, sync::Arc};
 
 use log::debug;
 
+#[cfg(test)]
+mod tests;
+
 use crate::{
     hash::Hash,
     messages::{ConsensusMessage, NetworkMessage},
