@@ -20,6 +20,7 @@ fn channel<T>() -> Channel<T> {
     (Arc::new(Mutex::new(tx)), Arc::new(Mutex::new(rx)))
 }
 
+#[derive(Clone)]
 struct TestNetwork<B: BlockT> {
     event_sinks: Arc<Mutex<Vec<mpsc::UnboundedSender<Event>>>>,
     oneshot_sender: Arc<Mutex<Option<oneshot::Sender<()>>>>,
@@ -45,6 +46,7 @@ impl<B: BlockT> TestNetwork<B> {
         }
     }
 }
+/*
 impl<B: BlockT> Clone for TestNetwork<B> {
     fn clone(&self) -> Self {
         TestNetwork {
@@ -58,7 +60,7 @@ impl<B: BlockT> Clone for TestNetwork<B> {
             remove_set_reserved: self.remove_set_reserved.clone(),
         }
     }
-}
+}*/
 
 impl<B: BlockT> Network<B> for TestNetwork<B> {
     fn event_stream(&self) -> Pin<Box<dyn Stream<Item = Event> + Send>> {
@@ -314,10 +316,10 @@ async fn test_network_commands() {
                         assert_eq!(session_id_.0, 0);
                         assert_eq!(message, fake_message);
                     }
-                    _ => panic!("Expected a message"),
+                    _ => panic!("Expected a properly encoded message"),
                 }
             }
-            _ => panic!("Expecting a network message"),
+            _ => panic!("Expecting a message"),
         }
     }
 
@@ -345,10 +347,10 @@ async fn test_network_commands() {
                             assert_eq!(session_id.0, 0);
                             assert_eq!(message, fake_message);
                         }
-                        _ => panic!("Expected a request parents consensus message"),
+                        _ => panic!("Expected a properly encoded message"),
                     }
                 }
-                _ => panic!("Expecting two network messages"),
+                _ => panic!("Expected two messages"),
             }
         }
         let expected_peer_ids: HashSet<_> = [data.bob.peer_id, data.charlie.peer_id]
@@ -378,10 +380,10 @@ async fn test_network_commands() {
                         assert_eq!(session_id.0, 0);
                         assert_eq!(message, fake_message);
                     }
-                    _ => panic!("Expected a request parents consensus message"),
+                    _ => panic!("Expected a properly encoded message"),
                 }
             }
-            _ => panic!("Expecting a network message"),
+            _ => panic!("Expected a message"),
         }
     }
 
@@ -412,10 +414,10 @@ async fn test_network_commands() {
                         assert_eq!(session_id.0, 0);
                         assert_eq!(message, fake_message);
                     }
-                    _ => panic!("Expected a request parents consensus message"),
+                    _ => panic!("Expected a properly encoded message"),
                 }
             }
-            _ => panic!("Expecting a network message"),
+            _ => panic!("Expected a message"),
         }
     }
 
