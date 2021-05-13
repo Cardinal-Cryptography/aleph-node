@@ -46,21 +46,6 @@ impl<B: BlockT> TestNetwork<B> {
         }
     }
 }
-/*
-impl<B: BlockT> Clone for TestNetwork<B> {
-    fn clone(&self) -> Self {
-        TestNetwork {
-            event_sinks: self.event_sinks.clone(),
-            oneshot_sender: self.oneshot_sender.clone(),
-            report_peer: self.report_peer.clone(),
-            disconnect_peer: self.disconnect_peer.clone(),
-            send_message: self.send_message.clone(),
-            announce: self.announce.clone(),
-            add_set_reserved: self.add_set_reserved.clone(),
-            remove_set_reserved: self.remove_set_reserved.clone(),
-        }
-    }
-}*/
 
 impl<B: BlockT> Network<B> for TestNetwork<B> {
     fn event_stream(&self) -> Pin<Box<dyn Stream<Item = Event> + Send>> {
