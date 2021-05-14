@@ -1,26 +1,23 @@
-use aleph_primitives::ALEPH_ENGINE_ID;
-use codec::Encode;
+use crate::{party::NumberOps, Error};
+use futures::{channel::mpsc, prelude::*, StreamExt};
 use log::{debug, error};
 use rush::OrderedBatch;
 use sc_client_api::backend::Backend;
-use sp_consensus::SelectChain;
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block, Header},
-    Justification,
-};
-use std::{marker::PhantomData, sync::Arc};
-
-use crate::{AuthorityKeystore, Error};
-use futures::{channel::mpsc, StreamExt};
-
-use crate::justification::AlephJustification;
 use sp_api::NumberFor;
+use sp_consensus::SelectChain;
+use sp_runtime::traits::{Block, Header};
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 pub(crate) struct BlockFinalizer<C, B: Block, BE> {
     client: Arc<C>,
-    auth_keystore: AuthorityKeystore,
     ordered_batch_rx: mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>,
+    proposition_tx: mpsc::UnboundedSender<B::Hash>,
     phantom: PhantomData<BE>,
 }
 
@@ -28,16 +25,17 @@ impl<C, B: Block, BE> BlockFinalizer<C, B, BE>
 where
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
+    NumberFor<B>: NumberOps,
 {
     pub(crate) fn new(
         client: Arc<C>,
-        auth_keystore: AuthorityKeystore,
         ordered_batch_rx: mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>,
+        proposition_tx: mpsc::UnboundedSender<B::Hash>,
     ) -> Self {
         BlockFinalizer {
             client,
-            auth_keystore,
             ordered_batch_rx,
+            proposition_tx,
             phantom: PhantomData,
         }
     }
@@ -52,31 +50,14 @@ where
         lca.hash == head_finalized
     }
 
-    fn finalize_block(&self, h: B::Hash) {
-        let block_number = match self.client.number(h) {
-            Ok(Some(number)) => number,
-            _ => {
-                error!(target: "afa", "a block with hash {} should already be in chain", h);
-                return;
-            }
-        };
-        finalize_block(
-            self.client.clone(),
-            h,
-            block_number,
-            Some((
-                ALEPH_ENGINE_ID,
-                AlephJustification::new::<B>(&self.auth_keystore, h).encode(),
-            )),
-        );
-    }
-
     pub(crate) async fn run(mut self) {
         while let Some(batch) = self.ordered_batch_rx.next().await {
             for block_hash in batch {
                 if self.check_extends_finalized(block_hash) {
-                    self.finalize_block(block_hash);
-                    debug!(target: "afa", "Finalized block hash {}.", block_hash);
+                    debug!(target: "afa", "Sending proposition to finalize block hash {}.", block_hash);
+                    self.proposition_tx
+                        .unbounded_send(block_hash)
+                        .expect("Proposing new blocks should succeed");
                 }
             }
         }
@@ -108,32 +89,58 @@ impl<B: Block, SC: SelectChain<B>> rush::DataIO<B::Hash> for DataIO<B, SC> {
     }
 }
 
-pub(crate) fn finalize_block<BE, B, C>(
-    client: Arc<C>,
-    hash: B::Hash,
-    block_number: NumberFor<B>,
-    justification: Option<Justification>,
-) where
-    B: Block,
-    BE: Backend<B>,
-    C: crate::ClientForAleph<B, BE>,
-{
-    let info = client.info();
+pub(crate) struct ProposalSelect<B: Block> {
+    receivers: Vec<(u64, mpsc::UnboundedReceiver<B::Hash>)>,
+    new_receivers_rx: mpsc::UnboundedReceiver<(u64, mpsc::UnboundedReceiver<B::Hash>)>,
+}
 
-    if info.finalized_number >= block_number {
-        error!(target: "afa", "trying to finalized a block with hash {} and number {}
-               that is not greater than already finalized {}", hash, block_number, info.finalized_number);
-        return;
+impl<B: Block> ProposalSelect<B> {
+    pub(crate) fn new(
+        new_receivers_rx: mpsc::UnboundedReceiver<(u64, mpsc::UnboundedReceiver<B::Hash>)>,
+    ) -> Self {
+        Self {
+            new_receivers_rx,
+            receivers: Vec::new(),
+        }
     }
+}
 
-    let status = client.info();
-    debug!(target: "afa", "Finalizing block with hash {:?}. Previous best: #{:?}.", hash, status.finalized_number);
+impl<B: Block> Stream for ProposalSelect<B> {
+    type Item = (u64, B::Hash);
 
-    let _update_res = client.lock_import_and_run(|import_op| {
-        // NOTE: all other finalization logic should come here, inside the lock
-        client.apply_finality(import_op, BlockId::Hash(hash), justification, true)
-    });
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = &mut *self;
 
-    let status = client.info();
-    debug!(target: "afa", "Finalized block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
+        // Accept new receivers
+        match this.new_receivers_rx.poll_next_unpin(cx) {
+            Poll::Ready(Some((session_id, session_tx))) => {
+                this.receivers.push((session_id, session_tx));
+            }
+            Poll::Ready(None) => {}
+            _ => {}
+        }
+
+        let mut ids_to_remove = HashSet::new();
+        let mut res = None;
+
+        for (id, receiver) in this.receivers.iter_mut() {
+            match receiver.poll_next_unpin(cx) {
+                Poll::Ready(Some(ordered_batch)) => {
+                    res = Some(Poll::Ready(Some((*id, ordered_batch))));
+                    break;
+                }
+                Poll::Ready(None) => {
+                    ids_to_remove.insert(*id);
+                }
+                Poll::Pending => {}
+            }
+        }
+
+        this.receivers.retain(|(id, _)| !ids_to_remove.contains(id));
+
+        match res {
+            None => Poll::Pending,
+            Some(res) => res,
+        }
+    }
 }

@@ -13,6 +13,7 @@ use sp_runtime::{traits::Block, RuntimeAppPublic};
 use std::{convert::TryInto, fmt::Debug, sync::Arc};
 pub mod config;
 mod data_io;
+mod finalization;
 mod hash;
 mod import;
 mod justification;
@@ -64,7 +65,7 @@ use sp_core::crypto::KeyTypeId;
 // pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub const KEY_TYPE: KeyTypeId = sp_application_crypto::key_types::AURA;
 use crate::party::{run_consensus_party, AlephParams};
-pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
+use futures::channel::mpsc;
 
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.
@@ -181,18 +182,20 @@ impl rush::SpawnHandle for SpawnHandle {
     }
 }
 
-pub struct AlephConfig<N, C, SC> {
+pub struct AlephConfig<B: Block, N, C, SC> {
     pub network: N,
     pub consensus_config: ConsensusConfig,
     pub client: Arc<C>,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub auth_keystore: AuthorityKeystore,
+    pub authority: AuthorityId,
     pub authorities: Vec<AuthorityId>,
+    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(
-    config: AlephConfig<N, C, SC>,
+    config: AlephConfig<B, N, C, SC>,
 ) -> impl Future<Output = ()>
 where
     BE: Backend<B> + 'static,

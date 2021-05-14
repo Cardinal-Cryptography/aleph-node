@@ -169,7 +169,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, _receiver, mut telemetry),
+        other: (block_import, justification_rx, mut telemetry),
     } = new_partial(&config)?;
 
     config
@@ -279,8 +279,14 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             client,
             select_chain,
             spawn_handle: task_manager.spawn_handle(),
-            auth_keystore: AuthorityKeystore::new(authority_id, keystore_container.sync_keystore()),
+            auth_keystore: AuthorityKeystore::new(
+                authority_id.clone(),
+                keystore_container.sync_keystore(),
+            ),
+            authority: authority_id,
+            // TODO: clean this once we have pallet information
             authorities,
+            justification_rx,
         };
         task_manager
             .spawn_essential_handle()
