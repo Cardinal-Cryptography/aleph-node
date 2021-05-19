@@ -1,6 +1,8 @@
 use crate::{
-    data_io::{BlockFinalizer, DataIO, ProposalSelect},
-    finalization::{finalize_block, finalize_block_as_authority},
+    data_io::{DataIO, ProposalSelect},
+    finalization::{
+        check_extends_finalized, finalize_block, finalize_block_as_authority, reduce_block_up_to,
+    },
     hash,
     justification::JustificationHandler,
     network,
@@ -11,6 +13,7 @@ use crate::{
 use aleph_primitives::{Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, select, StreamExt};
 use log::{debug, error};
+use rush::OrderedBatch;
 use sc_client_api::backend::Backend;
 use sp_api::NumberFor;
 use sp_consensus::SelectChain;
@@ -133,21 +136,17 @@ where
         authority: AuthorityId,
         auth_keystore: AuthorityKeystore,
         select_chain: SC,
-        client: Arc<C>,
         spawn_handle: SpawnHandle,
         session: Session<AuthorityId, NumberFor<B>>,
         session_manager: &SessionManagar,
-    ) -> Option<(SessionInstance<B>, mpsc::UnboundedReceiver<B::Hash>)> {
+    ) -> Option<(
+        SessionInstance<B>,
+        mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>,
+    )> {
         // If we are in session authorities run consensus.
         if let Some(node_id) = Self::get_node_index(&session.authorities, &authority) {
             let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
-            let (proposition_tx, proposition_rx) = mpsc::unbounded();
             let (exit_tx, exit_rx) = tokio::sync::oneshot::channel();
-
-            let block_finalizer = BlockFinalizer::new(client, ordered_batch_rx, proposition_tx);
-            let task = async move { block_finalizer.run().await };
-            spawn_handle.0.spawn("aleph/finalizer", task);
-            debug!(target: "afa", "Block finalizer has started.");
 
             let session_network = session_manager
                 .start_session(SessionId(session.session_id), session.authorities.clone());
@@ -190,7 +189,7 @@ where
                     session,
                     exit_tx: Some(exit_tx),
                 },
-                proposition_rx,
+                ordered_batch_rx,
             ));
         }
 
@@ -224,7 +223,8 @@ where
         debug!(target: "afa", "Consensus network has started.");
 
         let (new_receivers_tx, new_receivers_rx) = mpsc::unbounded();
-        let mut proposition_select = ProposalSelect::<B>::new(new_receivers_rx).fuse();
+        let mut proposition_select =
+            ProposalSelect::<OrderedBatch<B::Hash>>::new(new_receivers_rx).fuse();
 
         for curr_id in 0.. {
             // TODO: Ask runtime for current Session and future sessions and run/store them.
@@ -241,7 +241,6 @@ where
                 self.authority.clone(),
                 self.auth_keystore.clone(),
                 self.select_chain.clone(),
-                self.client.clone(),
                 self.spawn_handle.clone(),
                 current_session,
                 &session_manager,
@@ -253,14 +252,19 @@ where
             }
 
             // TODO: handle waiting blocks
-            ;
             while self.client.info().finalized_number != current_stop_h {
                 select! {
                     x = proposition_select.next() => {
-                        if let Some((id, hash)) = x {
+                        if let Some((id, batch)) = x {
                             if id == curr_id {
                                 // TODO: given current session and authorities finalize block
-                                finalize_block_as_authority(&self.client, hash, &self.auth_keystore);
+                                for hash in batch {
+                                    if let Some(reduced) = reduce_block_up_to(&self.client, hash, current_stop_h) {
+                                        if check_extends_finalized(&self.client, reduced) {
+                                            finalize_block_as_authority(&self.client, reduced, &self.auth_keystore);
+                                        }
+                                    }
+                                }
                             } else {
                                 // TODO: add to queue to process when session with `id` will start.
                             }
