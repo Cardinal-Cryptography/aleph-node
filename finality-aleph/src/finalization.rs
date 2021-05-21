@@ -109,3 +109,162 @@ where
 
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sc_block_builder::BlockBuilderProvider;
+    use sp_blockchain::HeaderBackend;
+    use sp_consensus::BlockOrigin;
+    use substrate_test_runtime_client::{
+        runtime::Block, ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient,
+        TestClientBuilder, TestClientBuilderExt,
+    };
+
+    fn create_chain(client: &mut Arc<TestClient>, n: u64) -> Vec<Block> {
+        let mut blocks = Vec::new();
+        for _ in 0..n {
+            let block = client
+                .new_block(Default::default())
+                .unwrap()
+                .build()
+                .unwrap()
+                .block;
+
+            blocks.push(block.clone());
+
+            futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
+        }
+
+        blocks
+    }
+
+    #[test]
+    fn reduce_return_without_reduction() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        let reduce_up_to = 10u64;
+
+        // blocks nr are equal to index + 1;
+        for nr in 0..=reduce_up_to {
+            assert_eq!(
+                Some(blocks[nr as usize].header.hash()),
+                reduce_block_up_to(&client, blocks[nr as usize].header.hash(), reduce_up_to + 1),
+                "Expected block #{} to not be reduced",
+                nr + 1
+            );
+        }
+    }
+
+    #[test]
+    fn reduce_to_max_h() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        let reduce_up_to = 10u64;
+
+        // blocks nr are equal to index + 1;
+        for nr in reduce_up_to..100 {
+            assert_eq!(
+                Some(blocks[reduce_up_to as usize].header.hash()),
+                reduce_block_up_to(&client, blocks[nr as usize].header.hash(), reduce_up_to + 1),
+                "Expected block #{} to be reduced up to #{}",
+                nr,
+                reduce_up_to + 1
+            );
+        }
+    }
+
+    #[test]
+    fn not_finalizing_non_existing_block() {
+        let client = Arc::new(TestClientBuilder::new().build());
+        let block = client
+            .new_block(Default::default())
+            .unwrap()
+            .build()
+            .unwrap()
+            .block;
+
+        // Not existing because we did not imported it yet
+        finalize_block(client.clone(), block.header.hash(), 1, None);
+        assert_eq!(client.info().finalized_number, 0)
+    }
+
+    #[test]
+    fn finalizing_existing_block() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+        let block = client
+            .new_block(Default::default())
+            .unwrap()
+            .build()
+            .unwrap()
+            .block;
+
+        futures::executor::block_on(client.import(BlockOrigin::Own, block.clone())).unwrap();
+
+        finalize_block(client.clone(), block.header.hash(), 1, None);
+        assert_eq!(client.info().finalized_number, 1)
+    }
+
+    #[test]
+    fn not_finalizing_existing_nonsense_block() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+        let block = client
+            .new_block(Default::default())
+            .unwrap()
+            .build()
+            .unwrap()
+            .block;
+
+        futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
+
+        let block = client
+            .new_block(Default::default())
+            .unwrap()
+            .build()
+            .unwrap()
+            .block;
+
+        finalize_block(client.clone(), block.header.hash(), 1, None);
+        assert_eq!(client.info().finalized_number, 0)
+    }
+
+    #[test]
+    fn simple_extends_finalized_true_cases() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        finalize_block(client.clone(), blocks[10].header.hash(), 11, None);
+
+        for block in blocks.iter().skip(11) {
+            assert_eq!(true, check_extends_finalized(&client, block.header.hash()))
+        }
+    }
+
+    #[test]
+    fn simple_extends_finalized_false_cases() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        finalize_block(client.clone(), blocks[10].header.hash(), 11, None);
+
+        for nr in 0..11 {
+            let block = client
+                .new_block_at(&BlockId::Number(nr), Default::default(), false)
+                .unwrap()
+                .build()
+                .unwrap()
+                .block;
+            assert_eq!(
+                false,
+                check_extends_finalized(&client, blocks[nr as usize].header.hash())
+            );
+            assert_eq!(false, check_extends_finalized(&client, block.header.hash()));
+        }
+    }
+}
