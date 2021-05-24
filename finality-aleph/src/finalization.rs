@@ -1,4 +1,4 @@
-use crate::{justification::AlephJustification, party::NumberOps, AuthorityKeystore};
+use crate::{justification::AlephJustification, AuthorityKeystore, NumberOps};
 use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::Encode;
 use log::{debug, error};

@@ -136,6 +136,23 @@ where
 {
 }
 
+pub trait NumberOps:
+    std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + From<u32>
+{
+}
+
+impl<T> NumberOps for T
+where
+    T: std::ops::Add<Output = Self>,
+    T: std::ops::Sub<Output = Self>,
+    T: std::ops::Mul<Output = Self>,
+    T: From<u32>,
+{
+}
+
 #[derive(Clone, Default, Debug, Decode, Encode)]
 struct Signature {
     id: NodeIndex,

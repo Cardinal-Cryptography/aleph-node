@@ -34,13 +34,13 @@ impl<B: Block, SC: SelectChain<B>> rush::DataIO<B::Hash> for DataIO<B, SC> {
 }
 
 pub(crate) struct ProposalSelect<T> {
-    receivers: Vec<(u64, mpsc::UnboundedReceiver<T>)>,
-    new_receivers_rx: mpsc::UnboundedReceiver<(u64, mpsc::UnboundedReceiver<T>)>,
+    receivers: Vec<(u32, mpsc::UnboundedReceiver<T>)>,
+    new_receivers_rx: mpsc::UnboundedReceiver<(u32, mpsc::UnboundedReceiver<T>)>,
 }
 
 impl<T> ProposalSelect<T> {
     pub(crate) fn new(
-        new_receivers_rx: mpsc::UnboundedReceiver<(u64, mpsc::UnboundedReceiver<T>)>,
+        new_receivers_rx: mpsc::UnboundedReceiver<(u32, mpsc::UnboundedReceiver<T>)>,
     ) -> Self {
         Self {
             new_receivers_rx,
@@ -50,7 +50,7 @@ impl<T> ProposalSelect<T> {
 }
 
 impl<T> Stream for ProposalSelect<T> {
-    type Item = (u64, T);
+    type Item = (u32, T);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
