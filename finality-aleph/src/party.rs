@@ -10,13 +10,13 @@ use crate::{
     AuthorityId, AuthorityKeystore, ConsensusConfig, JustificationNotification, KeyBox, NodeIndex,
     NumberOps, SessionId, SpawnHandle,
 };
-use aleph_primitives::{Session, ALEPH_ENGINE_ID};
+use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, select, StreamExt};
 use log::{debug, error};
 use rush::OrderedBatch;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
-use sp_api::NumberFor;
+use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{BlakeTwo256, Block};
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
@@ -30,6 +30,7 @@ where
     B: Block,
     N: network::Network<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
@@ -43,7 +44,6 @@ where
                 auth_keystore,
                 authority,
                 justification_rx,
-                authorities,
                 ..
             },
     } = aleph_params;
@@ -60,7 +60,7 @@ where
     );
 
     debug!(target: "afa", "Consensus party has started.");
-    party.run(authorities).await;
+    party.run().await;
     error!(target: "afa", "Consensus party has finished unexpectedly.");
 }
 
@@ -171,6 +171,7 @@ where
     B: Block,
     N: network::Network<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
@@ -190,6 +191,7 @@ where
     B: Block,
     N: network::Network<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     NumberFor<B>: NumberOps,
@@ -216,7 +218,7 @@ where
         }
     }
 
-    async fn run(mut self, authorities: Vec<AuthorityId>) {
+    async fn run(mut self) {
         // Prepare and start the network
         let network = ConsensusNetwork::new(self.network.clone(), "/cardinals/aleph/1");
         let session_manager = network.session_manager();
@@ -233,11 +235,17 @@ where
         let max_len = 100;
 
         for curr_id in 0.. {
-            // TODO: Ask runtime for current Session and future sessions and run/store them.
-            let current_session: Session<AuthorityId, NumberFor<B>> = Session {
-                session_id: curr_id,
-                stop_h: ((curr_id as u32 + 1) * 100).into(),
-                authorities: authorities.clone(),
+            let last_finalized = self.client.info().finalized_hash;
+            let current_session = match self
+                .client
+                .runtime_api()
+                .current_session(&BlockId::Hash(last_finalized))
+            {
+                Ok(session) => session,
+                _ => {
+                    error!(target: "afa", "No session found for current block #{}", last_finalized);
+                    return;
+                }
             };
 
             // Stopping block is the last before the new session kick is
@@ -339,5 +347,6 @@ where
     }
 }
 
+// TODO: :(
 #[cfg(test)]
 mod tests {}

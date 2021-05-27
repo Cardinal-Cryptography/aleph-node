@@ -6,7 +6,7 @@ use futures::Future;
 pub use rush::{nodes::NodeIndex, Config as ConsensusConfig};
 use sc_client_api::{backend::Backend, Finalizer, LockImportRun, TransactionFor};
 use sc_service::SpawnTaskHandle;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::{BlockImport, SelectChain};
 use sp_runtime::{traits::Block, RuntimeAppPublic};
@@ -207,7 +207,6 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub spawn_handle: SpawnTaskHandle,
     pub auth_keystore: AuthorityKeystore,
     pub authority: AuthorityId,
-    pub authorities: Vec<AuthorityId>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 }
 
@@ -218,6 +217,7 @@ where
     BE: Backend<B> + 'static,
     N: network::Network<B> + 'static,
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     SC: SelectChain<B> + 'static,
 {
     run_consensus_party(AlephParams { config })

@@ -284,8 +284,6 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
                 keystore_container.sync_keystore(),
             ),
             authority: authority_id,
-            // TODO: clean this once we have pallet information
-            authorities,
             justification_rx,
         };
         task_manager
