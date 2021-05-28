@@ -36,8 +36,6 @@ sp-consensus= { git = "https://github.com/paritytech/substrate.git", rev = "681f
 sc-client-api = { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
 sp-io= { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
 derive_more = "0.99.7"
-# we need aura authorites till we have our own pallet
-sp-consensus-aura = { git = "https://github.com/paritytech/substrate.git", rev = "681f188"}
 env_logger = "0.8.3"
 async-trait = "0.1.42"
 

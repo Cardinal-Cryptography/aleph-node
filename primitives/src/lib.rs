@@ -16,7 +16,12 @@ mod app {
     app_crypto!(ed25519, crate::KEY_TYPE);
 }
 
-pub type AuthorityId = app::Public;
+// TODO: change this when we will have our own keys.
+sp_application_crypto::with_pair! {
+    pub type AuthorityPair = sp_consensus_aura::sr25519::AuthorityPair;
+}
+pub type AuthorityId = sp_consensus_aura::sr25519::AuthorityId;
+pub type AuthoritySignature = sp_consensus_aura::sr25519::AuthoritySignature;
 
 sp_api::decl_runtime_apis! {
     pub trait AlephApi {
