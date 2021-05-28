@@ -16,7 +16,6 @@ mod app {
     app_crypto!(sr25519, crate::KEY_TYPE);
 }
 
-
 sp_application_crypto::with_pair! {
     pub type AuthorityPair = app::Pair;
 }
