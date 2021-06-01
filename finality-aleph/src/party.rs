@@ -71,10 +71,10 @@ fn create_session<B, SC>(
     spawn_handle: SpawnHandle,
     session: Session<AuthorityId, NumberFor<B>>,
     session_manager: &SessionManagar,
-) -> Option<(
+) -> (
     SessionInstance<B>,
-    mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>,
-)>
+    Option<mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>,
+)
 where
     B: Block,
     SC: SelectChain<B> + 'static,
@@ -122,16 +122,22 @@ where
         spawn_handle.0.spawn("aleph/consensus_session", task);
         debug!(target: "afa", "Consensus party #{} has started.", session.session_id);
 
-        return Some((
+        return (
             SessionInstance {
                 session,
                 exit_tx: Some(exit_tx),
             },
-            ordered_batch_rx,
-        ));
+            Some(ordered_batch_rx),
+        );
     }
 
-    None
+    (
+        SessionInstance {
+            session,
+            exit_tx: None,
+        },
+        None,
+    )
 }
 
 fn get_node_index(authorities: &[AuthorityId], my_id: &AuthorityId) -> Option<NodeIndex> {
@@ -234,37 +240,42 @@ where
         let mut waiting_blocks = HashMap::<u32, Vec<B::Hash>>::new();
         let max_len = 100;
 
-        for curr_id in 0.. {
-            let last_finalized = self.client.info().finalized_hash;
-            let current_session = match self
-                .client
-                .runtime_api()
-                .current_session(&BlockId::Hash(last_finalized))
-            {
-                Ok(session) => session,
-                _ => {
-                    error!(target: "afa", "No session found for current block #{}", last_finalized);
-                    return;
-                }
-            };
-
-            // Stopping block is the last before the new session kick is
-            let current_stop_h = current_session.stop_h - 1.into();
-
-            // Start new session if we are in the authority set.
-            if let Some((instance, proposition_rx)) = create_session(
-                self.authority.clone(),
-                self.auth_keystore.clone(),
-                self.select_chain.clone(),
-                self.spawn_handle.clone(),
-                current_session,
-                &session_manager,
-            ) {
-                self.sessions.insert(curr_id, instance);
-                new_receivers_tx
-                    .unbounded_send((curr_id, proposition_rx))
-                    .expect("Sending channel should succeed");
+        let genesis_session = match self
+            .client
+            .runtime_api()
+            .current_session(&BlockId::Number(0.into()))
+        {
+            Ok(session) => session,
+            _ => {
+                error!(target: "afa", "No session found for current block #{}", 0);
+                return;
             }
+        };
+
+        // Start new session if we are in the authority set.
+        let (instance, proposition_rx) = create_session(
+            self.authority.clone(),
+            self.auth_keystore.clone(),
+            self.select_chain.clone(),
+            self.spawn_handle.clone(),
+            genesis_session,
+            &session_manager,
+        );
+        self.sessions.insert(0, instance);
+        if let Some(proposition_rx) = proposition_rx {
+            new_receivers_tx
+                .unbounded_send((0, proposition_rx))
+                .expect("Sending channel should succeed");
+        }
+
+        for curr_id in 0.. {
+            // Stopping block is the last before the new session kick ins
+            let current_stop_h = self
+                .sessions
+                .get(&0)
+                .expect("The current session should be known already")
+                .session
+                .stop_h;
 
             let handle_proposal = |this: &mut Self, h: B::Hash| {
                 if let Some(reduced) = reduce_block_up_to(&this.client, h, current_stop_h) {
@@ -282,7 +293,7 @@ where
 
             waiting_blocks.remove(&curr_id);
 
-            while self.client.info().finalized_number != current_stop_h {
+            while self.client.info().finalized_number < current_stop_h {
                 select! {
                     x = proposition_select.next() => {
                         match x {
@@ -343,6 +354,33 @@ where
             }
 
             debug!(target: "afa", "Moving to new session #{}.", curr_id + 1);
+
+            let next_session = match self
+                .client
+                .runtime_api()
+                .next_session(&BlockId::Number(current_stop_h.into()))
+            {
+                Ok(Ok(session)) => session,
+                _ => {
+                    error!(target: "afa", "No next session found for current block #{}", current_stop_h);
+                    return;
+                }
+            };
+            // Start new session if we are in the authority set.
+            let (instance, proposition_rx) = create_session(
+                self.authority.clone(),
+                self.auth_keystore.clone(),
+                self.select_chain.clone(),
+                self.spawn_handle.clone(),
+                next_session,
+                &session_manager,
+            );
+            self.sessions.insert(curr_id + 1, instance);
+            if let Some(proposition_rx) = proposition_rx {
+                new_receivers_tx
+                    .unbounded_send((curr_id + 1, proposition_rx))
+                    .expect("Sending channel should succeed");
+            }
         }
     }
 }

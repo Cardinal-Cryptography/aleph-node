@@ -16,7 +16,7 @@ use sp_runtime::{
         Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
+    ApplyExtrinsicResult, MultiSignature,
 };
 
 use sp_std::prelude::*;

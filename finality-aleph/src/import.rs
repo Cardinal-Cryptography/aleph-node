@@ -175,23 +175,6 @@ where
             Err(SendJustificationError::Consensus(error)) => Err(*error),
             Ok(()) => Ok(()),
         }
-        log::debug!(target: "afa", "Importing justification for block #{:?}", number);
-        if justification.0 != ALEPH_ENGINE_ID {
-            return Err(ConsensusError::ClientImport(
-                "Aleph can import only Aleph justifications.".into(),
-            ));
-        }
-        self.justification_tx
-            .unbounded_send(JustificationNotification {
-                hash,
-                number,
-                justification: justification.1,
-            })
-            .map_err(|_| {
-                ConsensusError::ClientImport(
-                    "Could not send justification to ConsensusParty".into(),
-                )
-            })
     }
 }
 

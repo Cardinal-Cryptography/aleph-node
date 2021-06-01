@@ -65,6 +65,7 @@ use sp_core::crypto::KeyTypeId;
 // pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub const KEY_TYPE: KeyTypeId = sp_application_crypto::key_types::AURA;
 use crate::party::{run_consensus_party, AlephParams};
+pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 use futures::channel::mpsc;
 
 /// Ties an authority identification and a cryptography keystore together for use in
