@@ -18,10 +18,10 @@ mod app {
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 sp_application_crypto::with_pair! {
-    pub type AuthorityPair = app::Pair;
+    pub type AuthorityPair = sp_consensus_aura::sr25519::AuthorityPair;
 }
-pub type AuthoritySignature = app::Signature;
-pub type AuthorityId = app::Public;
+pub type AuthoritySignature = sp_consensus_aura::sr25519::AuthoritySignature;
+pub type AuthorityId = sp_consensus_aura::sr25519::AuthorityId;
 
 #[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum ApiError {

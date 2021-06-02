@@ -272,7 +272,7 @@ where
             // Stopping block is the last before the new session kick ins
             let current_stop_h = self
                 .sessions
-                .get(&0)
+                .get(&curr_id)
                 .expect("The current session should be known already")
                 .session
                 .stop_h;
@@ -358,7 +358,7 @@ where
             let next_session = match self
                 .client
                 .runtime_api()
-                .next_session(&BlockId::Number(current_stop_h.into()))
+                .next_session(&BlockId::Number(current_stop_h))
             {
                 Ok(Ok(session)) => session,
                 _ => {

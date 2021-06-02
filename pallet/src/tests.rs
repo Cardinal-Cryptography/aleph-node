@@ -26,7 +26,7 @@ fn test_initialize_authorities() {
 #[should_panic]
 fn fails_to_initialize_again_authorities() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        assert_eq!(Aleph::authorities(), to_authorities(&[1, 2]));
+        Aleph::initialize_authorities(&to_authorities(&[1, 2, 3]));
     });
 }
 
