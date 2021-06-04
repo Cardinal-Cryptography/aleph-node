@@ -130,12 +130,12 @@ fn get_authorities(
     client: Arc<FullClient>,
     keystore: SyncCryptoStorePtr,
 ) -> (AuthorityId, Vec<AuthorityId>) {
-    let auth = SyncCryptoStore::sr25519_public_keys(&*keystore, finality_aleph::KEY_TYPE)[0];
+    let auth = SyncCryptoStore::ed25519_public_keys(&*keystore, finality_aleph::KEY_TYPE)[0];
     let authorities = client
         .executor()
         .call(
             &BlockId::Number(Zero::zero()),
-            "AuraApi_authorities",
+            "AlephSessionApi_authorities",
             &[],
             ExecutionStrategy::NativeElseWasm,
             None,

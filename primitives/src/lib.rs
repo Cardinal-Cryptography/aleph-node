@@ -12,16 +12,16 @@ pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"FRNK";
 
 mod app {
-    use sp_application_crypto::{app_crypto, sr25519};
-    app_crypto!(sr25519, crate::KEY_TYPE);
+    use sp_application_crypto::{app_crypto, ed25519};
+    app_crypto!(ed25519, crate::KEY_TYPE);
 }
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 sp_application_crypto::with_pair! {
-    pub type AuthorityPair = sp_consensus_aura::sr25519::AuthorityPair;
+    pub type AuthorityPair = app::Pair;
 }
-pub type AuthoritySignature = sp_consensus_aura::sr25519::AuthoritySignature;
-pub type AuthorityId = sp_consensus_aura::sr25519::AuthorityId;
+pub type AuthoritySignature = app::Signature;
+pub type AuthorityId = app::Public;
 
 #[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum ApiError {
@@ -36,6 +36,7 @@ sp_api::decl_runtime_apis! {
     {
         fn current_session() -> Session<Id, BlockNumber>;
         fn next_session() -> Result<Session<Id, BlockNumber>, ApiError>;
+        fn authorities() -> Vec<AuthorityId>;
     }
 }
 

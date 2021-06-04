@@ -62,8 +62,8 @@ pub fn peers_set_config() -> sc_network::config::NonDefaultSetConfig {
 pub struct SessionId(pub u64);
 
 use sp_core::crypto::KeyTypeId;
-// pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
-pub const KEY_TYPE: KeyTypeId = sp_application_crypto::key_types::AURA;
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
+// pub const KEY_TYPE: KeyTypeId = sp_application_crypto::key_types::AURA;
 use crate::party::{run_consensus_party, AlephParams};
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 use futures::channel::mpsc;

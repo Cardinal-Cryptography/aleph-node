@@ -355,12 +355,14 @@ where
 
             debug!(target: "afa", "Moving to new session #{}.", curr_id + 1);
 
+            // We are asking for the next_session on the last block, which we know that is finalized, of the current session.
+            // We are calling the `current_session` function not the `next_session` the sessions rotates on the last blocks of the session.
             let next_session = match self
                 .client
                 .runtime_api()
-                .next_session(&BlockId::Number(current_stop_h))
+                .current_session(&BlockId::Number(current_stop_h))
             {
-                Ok(Ok(session)) => session,
+                Ok(session) => session,
                 _ => {
                     error!(target: "afa", "No next session found for current block #{}", current_stop_h);
                     return;
