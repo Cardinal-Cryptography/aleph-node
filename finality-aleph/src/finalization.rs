@@ -113,14 +113,14 @@ mod tests {
     use sp_blockchain::HeaderBackend;
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime_client::{
-        runtime::Block, ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient,
+        runtime::Block, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
         TestClientBuilder, TestClientBuilderExt,
     };
 
-    fn create_chain(client: &mut Arc<TestClient>, n: u64) -> Vec<Block> {
-        let mut blocks = Vec::new();
+    fn create_chain(client: &mut Arc<TestClient>, n: u64) -> Vec<sp_core::H256> {
+        let mut blocks = vec![client.genesis_hash()];
 
-        for _ in 0..n {
+        for _ in 1..=n {
             let block = client
                 .new_block(Default::default())
                 .unwrap()
@@ -128,8 +128,7 @@ mod tests {
                 .unwrap()
                 .block;
 
-            blocks.push(block.clone());
-
+            blocks.push(block.header.hash());
             futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
         }
 
@@ -147,12 +146,8 @@ mod tests {
         // blocks nr are equal to index + 1;
         for nr in 0..=reduce_up_to {
             assert_eq!(
-                Some(blocks[nr as usize].header.hash()),
-                reduce_block_up_to(
-                    client.clone(),
-                    blocks[nr as usize].header.hash(),
-                    reduce_up_to + 1
-                ),
+                Some(blocks[nr as usize]),
+                reduce_block_up_to(client.clone(), blocks[nr as usize], reduce_up_to + 1),
                 "Expected block #{} to not be reduced",
                 nr + 1
             );
@@ -167,15 +162,10 @@ mod tests {
 
         let reduce_up_to = 10u64;
 
-        // blocks nr are equal to index + 1;
         for nr in reduce_up_to..100 {
             assert_eq!(
-                Some(blocks[reduce_up_to as usize].header.hash()),
-                reduce_block_up_to(
-                    client.clone(),
-                    blocks[nr as usize].header.hash(),
-                    reduce_up_to + 1
-                ),
+                Some(blocks[reduce_up_to as usize]),
+                reduce_block_up_to(client.clone(), blocks[nr as usize], reduce_up_to),
                 "Expected block #{} to be reduced up to #{}",
                 nr,
                 reduce_up_to + 1
@@ -243,11 +233,21 @@ mod tests {
 
         let blocks = create_chain(&mut client, 100);
 
-        finalize_block(client.clone(), blocks[10].header.hash(), 10, None);
+        finalize_block(client.clone(), blocks[10], 10, None);
 
-        for block in blocks.iter().skip(11) {
-            assert!(check_extends_finalized(client.clone(), block.header.hash()))
+        for hash in blocks.iter().skip(11) {
+            assert!(check_extends_finalized(client.clone(), *hash))
         }
+    }
+
+    #[test]
+    fn last_finalized_not_extending_finalized() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        finalize_block(client.clone(), blocks[10], 10, None);
+        assert!(!check_extends_finalized(client, blocks[10]))
     }
 
     #[test]
@@ -256,9 +256,9 @@ mod tests {
 
         let blocks = create_chain(&mut client, 100);
 
-        finalize_block(client.clone(), blocks[10].header.hash(), 11, None);
+        finalize_block(client.clone(), blocks[10], 10, None);
 
-        for nr in 0..11 {
+        for nr in 0..10 {
             let block = client
                 .new_block_at(&BlockId::Number(nr), Default::default(), false)
                 .unwrap()
@@ -267,7 +267,7 @@ mod tests {
                 .block;
             assert!(!check_extends_finalized(
                 client.clone(),
-                blocks[nr as usize].header.hash()
+                blocks[nr as usize]
             ));
             assert!(!check_extends_finalized(
                 client.clone(),
