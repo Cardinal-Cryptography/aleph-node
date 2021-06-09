@@ -11,7 +11,7 @@ use sp_runtime::{
 use std::sync::Arc;
 
 pub(crate) fn finalize_block_as_authority<BE, B, C>(
-    client: &Arc<C>,
+    client: Arc<C>,
     h: B::Hash,
     auth_keystore: &AuthorityKeystore,
 ) where
@@ -27,7 +27,7 @@ pub(crate) fn finalize_block_as_authority<BE, B, C>(
         }
     };
     finalize_block(
-        client.clone(),
+        client,
         h,
         block_number,
         Some((
@@ -47,15 +47,13 @@ pub(crate) fn finalize_block<BE, B, C>(
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
 {
-    let info = client.info();
-
-    if info.finalized_number >= block_number {
+    let status = client.info();
+    if status.finalized_number >= block_number {
         error!(target: "afa", "trying to finalized a block with hash {} and number {}
-               that is not greater than already finalized {}", hash, block_number, info.finalized_number);
+               that is not greater than already finalized {}", hash, block_number, status.finalized_number);
         return;
     }
 
-    let status = client.info();
     debug!(target: "afa", "Finalizing block with hash {:?}. Previous best: #{:?}.", hash, status.finalized_number);
 
     let _update_res = client.lock_import_and_run(|import_op| {
@@ -67,7 +65,7 @@ pub(crate) fn finalize_block<BE, B, C>(
     debug!(target: "afa", "Finalized block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
 }
 
-pub(crate) fn check_extends_finalized<BE, B, C>(client: &Arc<C>, h: B::Hash) -> bool
+pub(crate) fn check_extends_finalized<BE, B, C>(client: Arc<C>, h: B::Hash) -> bool
 where
     B: Block,
     BE: Backend<B>,
@@ -83,8 +81,8 @@ where
 }
 
 pub(crate) fn reduce_block_up_to<BE, B, C>(
-    client: &Arc<C>,
-    h: B::Hash,
+    client: Arc<C>,
+    mut h: B::Hash,
     max_h: NumberFor<B>,
 ) -> Option<B::Hash>
 where
@@ -93,8 +91,6 @@ where
     C: crate::ClientForAleph<B, BE>,
     NumberFor<B>: NumberOps,
 {
-    let mut h = h;
-
     while let Ok(Some(number)) = client.number(h) {
         if number <= max_h {
             return Some(h);
@@ -123,6 +119,7 @@ mod tests {
 
     fn create_chain(client: &mut Arc<TestClient>, n: u64) -> Vec<Block> {
         let mut blocks = Vec::new();
+
         for _ in 0..n {
             let block = client
                 .new_block(Default::default())
@@ -151,7 +148,11 @@ mod tests {
         for nr in 0..=reduce_up_to {
             assert_eq!(
                 Some(blocks[nr as usize].header.hash()),
-                reduce_block_up_to(&client, blocks[nr as usize].header.hash(), reduce_up_to + 1),
+                reduce_block_up_to(
+                    client.clone(),
+                    blocks[nr as usize].header.hash(),
+                    reduce_up_to + 1
+                ),
                 "Expected block #{} to not be reduced",
                 nr + 1
             );
@@ -170,7 +171,11 @@ mod tests {
         for nr in reduce_up_to..100 {
             assert_eq!(
                 Some(blocks[reduce_up_to as usize].header.hash()),
-                reduce_block_up_to(&client, blocks[nr as usize].header.hash(), reduce_up_to + 1),
+                reduce_block_up_to(
+                    client.clone(),
+                    blocks[nr as usize].header.hash(),
+                    reduce_up_to + 1
+                ),
                 "Expected block #{} to be reduced up to #{}",
                 nr,
                 reduce_up_to + 1
@@ -238,10 +243,10 @@ mod tests {
 
         let blocks = create_chain(&mut client, 100);
 
-        finalize_block(client.clone(), blocks[10].header.hash(), 11, None);
+        finalize_block(client.clone(), blocks[10].header.hash(), 10, None);
 
         for block in blocks.iter().skip(11) {
-            assert_eq!(true, check_extends_finalized(&client, block.header.hash()))
+            assert!(check_extends_finalized(client.clone(), block.header.hash()))
         }
     }
 
@@ -260,11 +265,14 @@ mod tests {
                 .build()
                 .unwrap()
                 .block;
-            assert_eq!(
-                false,
-                check_extends_finalized(&client, blocks[nr as usize].header.hash())
-            );
-            assert_eq!(false, check_extends_finalized(&client, block.header.hash()));
+            assert!(!check_extends_finalized(
+                client.clone(),
+                blocks[nr as usize].header.hash()
+            ));
+            assert!(!check_extends_finalized(
+                client.clone(),
+                block.header.hash()
+            ));
         }
     }
 }

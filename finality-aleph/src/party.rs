@@ -1,5 +1,5 @@
 use crate::{
-    data_io::{DataIO, ProposalSelect},
+    data_io::DataIO,
     finalization::{
         check_extends_finalized, finalize_block, finalize_block_as_authority, reduce_block_up_to,
     },
@@ -11,7 +11,12 @@ use crate::{
     NumberOps, SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
-use futures::{channel::mpsc, select, StreamExt};
+use futures::{
+    channel::mpsc,
+    select,
+    stream::{Repeat, SelectAll, Zip},
+    StreamExt,
+};
 use log::{debug, error};
 use rush::OrderedBatch;
 use sc_client_api::backend::Backend;
@@ -233,9 +238,8 @@ where
         self.spawn_handle.0.spawn("aleph/network", task);
         debug!(target: "afa", "Consensus network has started.");
 
-        let (new_receivers_tx, new_receivers_rx) = mpsc::unbounded();
         let mut proposition_select =
-            ProposalSelect::<OrderedBatch<B::Hash>>::new(new_receivers_rx).fuse();
+            SelectAll::<Zip<Repeat<u32>, mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>>::new();
 
         let mut waiting_blocks = HashMap::<u32, Vec<B::Hash>>::new();
         let max_len = 100;
@@ -263,9 +267,7 @@ where
         );
         self.sessions.insert(0, instance);
         if let Some(proposition_rx) = proposition_rx {
-            new_receivers_tx
-                .unbounded_send((0, proposition_rx))
-                .expect("Sending channel should succeed");
+            proposition_select.push(futures::stream::repeat(0).zip(proposition_rx));
         }
 
         for curr_id in 0.. {
@@ -278,9 +280,13 @@ where
                 .stop_h;
 
             let handle_proposal = |this: &mut Self, h: B::Hash| {
-                if let Some(reduced) = reduce_block_up_to(&this.client, h, current_stop_h) {
-                    if check_extends_finalized(&this.client, reduced) {
-                        finalize_block_as_authority(&this.client, reduced, &this.auth_keystore);
+                if let Some(reduced) = reduce_block_up_to(this.client.clone(), h, current_stop_h) {
+                    if check_extends_finalized(this.client.clone(), reduced) {
+                        finalize_block_as_authority(
+                            this.client.clone(),
+                            reduced,
+                            &this.auth_keystore,
+                        );
                     }
                 }
             };
@@ -379,9 +385,7 @@ where
             );
             self.sessions.insert(curr_id + 1, instance);
             if let Some(proposition_rx) = proposition_rx {
-                new_receivers_tx
-                    .unbounded_send((curr_id + 1, proposition_rx))
-                    .expect("Sending channel should succeed");
+                proposition_select.push(futures::stream::repeat(curr_id + 1).zip(proposition_rx));
             }
         }
     }
