@@ -21,6 +21,7 @@ mod finalization;
 mod hash;
 mod import;
 mod justification;
+pub mod metrics;
 mod network;
 mod party;
 
@@ -74,9 +75,11 @@ pub struct SessionId(pub u64);
 use sp_core::crypto::KeyTypeId;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 // pub const KEY_TYPE: KeyTypeId = sp_application_crypto::key_types::AURA;
+pub use crate::metrics::Metrics;
 use crate::party::{run_consensus_party, AlephParams};
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 use futures::channel::mpsc;
+use parking_lot::RwLock;
 
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.
@@ -212,6 +215,7 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub auth_keystore: AuthorityKeystore,
     pub authority: AuthorityId,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub metrics: Option<Arc<RwLock<Metrics<<B as Block>::Header>>>>,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(

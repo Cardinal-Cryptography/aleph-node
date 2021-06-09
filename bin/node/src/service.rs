@@ -4,9 +4,10 @@ use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use codec::Decode;
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, AuthorityId, AuthorityKeystore,
-    JustificationNotification,
+    JustificationNotification, Metrics,
 };
 use futures::channel::mpsc;
+use parking_lot::RwLock;
 use sc_client_api::{CallExecutor, ExecutionStrategy, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_executor::native_executor_instance;
@@ -16,7 +17,10 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-use sp_runtime::{generic::BlockId, traits::Zero};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{Block as BlockT, Zero},
+};
 use std::sync::Arc;
 
 // Our native executor instance.
@@ -44,6 +48,7 @@ pub fn new_partial(
             AlephBlockImport<Block, FullBackend, FullClient>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
             Option<Telemetry>,
+            Option<Arc<RwLock<Metrics<<Block as BlockT>::Header>>>>,
         ),
     >,
     ServiceError,
@@ -82,8 +87,18 @@ pub fn new_partial(
         client.clone(),
     );
 
+    let metrics = config.prometheus_registry().cloned().and_then(|r| {
+        Metrics::register(&r)
+            .map_err(|_err| {
+                log::warn!("Failed to register Prometheus metrics");
+            })
+            .map(|m| Arc::new(RwLock::new(m)))
+            .ok()
+    });
+
     let (justification_tx, justification_rx) = mpsc::unbounded();
-    let aleph_block_import = AlephBlockImport::new(client.clone() as Arc<_>, justification_tx);
+    let aleph_block_import =
+        AlephBlockImport::new(client.clone() as Arc<_>, justification_tx, metrics.clone());
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?.slot_duration();
 
@@ -120,7 +135,7 @@ pub fn new_partial(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (aleph_block_import, justification_rx, telemetry),
+        other: (aleph_block_import, justification_rx, telemetry, metrics),
     })
 }
 
@@ -155,7 +170,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, justification_rx, mut telemetry),
+        other: (block_import, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
     config
@@ -269,6 +284,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             ),
             authority: authority_id,
             justification_rx,
+            metrics,
         };
         task_manager
             .spawn_essential_handle()

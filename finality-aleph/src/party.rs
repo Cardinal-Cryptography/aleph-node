@@ -7,12 +7,13 @@ use crate::{
     justification::JustificationHandler,
     network,
     network::{split_network, ConsensusNetwork, NetworkData, SessionManager},
-    AuthorityId, AuthorityKeystore, JustificationNotification, KeyBox, MultiKeychain, NodeIndex,
-    SessionId, SpawnHandle,
+    AuthorityId, AuthorityKeystore, JustificationNotification, KeyBox, Metrics, MultiKeychain,
+    NodeIndex, SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, stream::FuturesUnordered, FutureExt, StreamExt};
 use log::{debug, error, info};
+use parking_lot::RwLock;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
@@ -43,6 +44,7 @@ where
                 auth_keystore,
                 authority,
                 justification_rx,
+                metrics,
                 ..
             },
     } = aleph_params;
@@ -56,6 +58,7 @@ where
         auth_keystore,
         authority,
         handler_rx,
+        metrics,
     );
 
     debug!(target: "afa", "Consensus party has started.");
@@ -106,6 +109,7 @@ where
     authority: AuthorityId,
     phantom: PhantomData<BE>,
     finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
 }
 
 /// If we are on the authority list for the given session, runs an
@@ -118,6 +122,7 @@ async fn maybe_run_session_as_authority<B, C, BE, SC>(
     session: Session<AuthorityId, NumberFor<B>>,
     spawn_handle: SpawnHandle,
     select_chain: SC,
+    metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
 ) -> bool
 where
     B: Block,
@@ -157,6 +162,7 @@ where
     );
     let data_io = DataIO {
         select_chain: select_chain.clone(),
+        metrics,
         ordered_batch_tx,
     };
     let aleph_task = {
@@ -228,6 +234,7 @@ where
         auth_keystore: AuthorityKeystore,
         authority: AuthorityId,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+        metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
     ) -> Self {
         Self {
             network,
@@ -236,6 +243,7 @@ where
             select_chain,
             authority,
             finalization_proposals_rx,
+            metrics,
             spawn_handle: spawn_handle.into(),
             sessions: HashMap::new(),
             phantom: PhantomData,
@@ -305,6 +313,7 @@ where
             session,
             self.spawn_handle.clone(),
             self.select_chain.clone(),
+            self.metrics.clone(),
         );
 
         // We run concurrently `proposal_task` and `session_task` until either
