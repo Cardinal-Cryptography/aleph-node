@@ -6,7 +6,7 @@ use crate::{
     hash,
     justification::JustificationHandler,
     network,
-    network::{ConsensusNetwork, SessionManagar},
+    network::{ConsensusNetwork, SessionManager},
     AuthorityId, AuthorityKeystore, ConsensusConfig, JustificationNotification, KeyBox, NodeIndex,
     NumberOps, SessionId, SpawnHandle,
 };
@@ -75,7 +75,7 @@ fn create_session<B, SC>(
     select_chain: SC,
     spawn_handle: SpawnHandle,
     session: Session<AuthorityId, NumberFor<B>>,
-    session_manager: &SessionManagar,
+    session_manager: &SessionManager,
 ) -> (
     SessionInstance<B>,
     Option<mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>,
