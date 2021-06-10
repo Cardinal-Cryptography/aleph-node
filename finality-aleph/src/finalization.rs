@@ -1,4 +1,4 @@
-use crate::{justification::AlephJustification, AuthorityKeystore, NumberOps};
+use crate::{justification::AlephJustification, AuthorityKeystore};
 use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::Encode;
 use log::{debug, error};
@@ -65,7 +65,9 @@ pub(crate) fn finalize_block<BE, B, C>(
     debug!(target: "afa", "Finalized block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
 }
 
-pub(crate) fn check_extends_finalized<BE, B, C>(client: Arc<C>, h: B::Hash) -> bool
+// Returns true if and only if h is descended from the last finalized block.
+// The last finalized block therefore does not extends finalized.
+pub(crate) fn check_extends_last_finalized<BE, B, C>(client: Arc<C>, h: B::Hash) -> bool
 where
     B: Block,
     BE: Backend<B>,
@@ -89,7 +91,6 @@ where
     B: Block,
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
-    NumberFor<B>: NumberOps,
 {
     while let Ok(Some(number)) = client.number(h) {
         if number <= max_h {
@@ -255,7 +256,7 @@ mod tests {
         finalize_block(client.clone(), blocks[10], 10, None);
 
         for hash in blocks.iter().skip(11) {
-            assert!(check_extends_finalized(client.clone(), *hash))
+            assert!(check_extends_last_finalized(client.clone(), *hash))
         }
     }
 
@@ -266,7 +267,7 @@ mod tests {
         let blocks = create_chain(&mut client, 100);
 
         finalize_block(client.clone(), blocks[10], 10, None);
-        assert!(!check_extends_finalized(client, blocks[10]))
+        assert!(!check_extends_last_finalized(client, blocks[10]))
     }
 
     #[test]
@@ -284,11 +285,11 @@ mod tests {
                 .build()
                 .unwrap()
                 .block;
-            assert!(!check_extends_finalized(
+            assert!(!check_extends_last_finalized(
                 client.clone(),
                 blocks[nr as usize]
             ));
-            assert!(!check_extends_finalized(
+            assert!(!check_extends_last_finalized(
                 client.clone(),
                 block.header.hash()
             ));

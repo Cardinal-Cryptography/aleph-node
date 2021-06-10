@@ -1,22 +1,18 @@
 use crate::{
     data_io::DataIO,
     finalization::{
-        check_extends_finalized, finalize_block, finalize_block_as_authority, reduce_block_up_to,
+        check_extends_last_finalized, finalize_block, finalize_block_as_authority,
+        reduce_block_up_to,
     },
     hash,
     justification::JustificationHandler,
     network,
     network::{ConsensusNetwork, SessionManager},
     AuthorityId, AuthorityKeystore, ConsensusConfig, JustificationNotification, KeyBox, NodeIndex,
-    NumberOps, SessionId, SpawnHandle,
+    SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
-use futures::{
-    channel::mpsc,
-    select,
-    stream::{Repeat, SelectAll, Zip},
-    StreamExt,
-};
+use futures::{channel::mpsc, select, stream::SelectAll, StreamExt};
 use log::{debug, error};
 use rush::OrderedBatch;
 use sc_client_api::backend::Backend;
@@ -83,65 +79,66 @@ fn create_session<B, SC>(
 where
     B: Block,
     SC: SelectChain<B> + 'static,
-    NumberFor<B>: NumberOps,
 {
     // If we are in session authorities run consensus.
-    if let Some(node_id) = get_node_index(&session.authorities, &authority) {
-        let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
-        let (exit_tx, exit_rx) = futures::channel::oneshot::channel();
+    let node_id = match get_node_index(&session.authorities, &authority) {
+        Some(node_id) => node_id,
+        None => {
+            return (
+                SessionInstance {
+                    session,
+                    exit_tx: None,
+                },
+                None,
+            )
+        }
+    };
+    let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
+    let (exit_tx, exit_rx) = futures::channel::oneshot::channel();
 
-        let session_id = session.session_id as u64;
-        let session_network =
-            session_manager.start_session(SessionId(session_id), session.authorities.clone());
+    let session_id = session.session_id as u64;
+    let session_network =
+        session_manager.start_session(SessionId(session_id), session.authorities.clone());
 
-        let data_io = DataIO {
-            select_chain,
-            ordered_batch_tx,
+    let data_io = DataIO {
+        select_chain,
+        ordered_batch_tx,
+    };
+
+    let consensus_config = ConsensusConfig {
+        node_id,
+        session_id,
+        n_members: session.authorities.len().into(),
+        create_lag: std::time::Duration::from_millis(500),
+    };
+
+    let spawn_clone = spawn_handle.clone();
+    let authorities = session.authorities.clone();
+
+    let task = async move {
+        let keybox = KeyBox {
+            auth_keystore,
+            authorities,
+            id: node_id,
         };
-
-        let consensus_config = ConsensusConfig {
-            node_id,
-            session_id,
-            n_members: session.authorities.len().into(),
-            create_lag: std::time::Duration::from_millis(500),
-        };
-
-        let spawn_clone = spawn_handle.clone();
-        let authorities = session.authorities.clone();
-
-        let task = async move {
-            let keybox = KeyBox {
-                auth_keystore,
-                authorities,
-                id: node_id,
-            };
-            let member = rush::Member::<hash::Wrapper<BlakeTwo256>, _, _, _, _>::new(
-                data_io,
-                &keybox,
-                session_network,
-                consensus_config,
-            );
-            member.run_session(spawn_clone, exit_rx).await;
-        };
-
-        spawn_handle.0.spawn("aleph/consensus_session", task);
-        debug!(target: "afa", "Consensus party #{} has started.", session.session_id);
-
-        return (
-            SessionInstance {
-                session,
-                exit_tx: Some(exit_tx),
-            },
-            Some(ordered_batch_rx),
+        let member = rush::Member::<hash::Wrapper<BlakeTwo256>, _, _, _, _>::new(
+            data_io,
+            &keybox,
+            session_network,
+            consensus_config,
         );
-    }
+        member.run_session(spawn_clone, exit_rx).await;
+    };
+
+    spawn_handle.0.spawn("aleph/consensus_session", task);
+    debug!(target: "afa", "Consensus party #{} has started.", session.session_id);
 
     (
         SessionInstance {
             session,
-            exit_tx: None,
+            exit_tx: Some(exit_tx),
         },
-        None,
+        Some(ordered_batch_rx),
     )
 }
 
@@ -185,6 +182,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
+    NumberFor<B>: From<u32>,
 {
     network: N,
     sessions: HashMap<u32, SessionInstance<B>>,
@@ -205,7 +203,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    NumberFor<B>: NumberOps,
+    NumberFor<B>: From<u32>,
 {
     pub(crate) fn new(
         network: N,
@@ -238,8 +236,7 @@ where
         self.spawn_handle.0.spawn("aleph/network", task);
         debug!(target: "afa", "Consensus network has started.");
 
-        let mut proposition_select =
-            SelectAll::<Zip<Repeat<u32>, mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>>::new();
+        let mut proposition_select = SelectAll::new();
 
         let mut waiting_blocks = HashMap::<u32, Vec<B::Hash>>::new();
 
@@ -278,25 +275,11 @@ where
                 .session
                 .stop_h;
 
-            let handle_proposal = |this: &mut Self, h: B::Hash| {
-                if let Some(reduced) = reduce_block_up_to(this.client.clone(), h, current_stop_h) {
-                    if check_extends_finalized(this.client.clone(), reduced) {
-                        finalize_block_as_authority(
-                            this.client.clone(),
-                            reduced,
-                            &this.auth_keystore,
-                        );
-                    }
-                }
-            };
-
-            if let Some(hashes) = waiting_blocks.get(&curr_id) {
+            if let Some(hashes) = waiting_blocks.remove(&curr_id) {
                 for hash in hashes {
-                    handle_proposal(&mut self, *hash);
+                    self.handle_proposal(hash, current_stop_h);
                 }
             }
-
-            waiting_blocks.remove(&curr_id);
 
             while self.client.info().finalized_number < current_stop_h {
                 select! {
@@ -304,7 +287,7 @@ where
                         match x {
                             Some((id, batch)) if id == curr_id => {
                                 for hash in batch {
-                                    handle_proposal(&mut self, hash);
+                                    self.handle_proposal(hash, current_stop_h);
                                 }
                             },
                             Some((id, _)) if id < curr_id => {
@@ -380,6 +363,14 @@ where
             self.sessions.insert(curr_id + 1, instance);
             if let Some(proposition_rx) = proposition_rx {
                 proposition_select.push(futures::stream::repeat(curr_id + 1).zip(proposition_rx));
+            }
+        }
+    }
+
+    fn handle_proposal(&mut self, h: B::Hash, max_height: NumberFor<B>) {
+        if let Some(reduced) = reduce_block_up_to(self.client.clone(), h, max_height) {
+            if check_extends_last_finalized(self.client.clone(), reduced) {
+                finalize_block_as_authority(self.client.clone(), reduced, &self.auth_keystore);
             }
         }
     }
