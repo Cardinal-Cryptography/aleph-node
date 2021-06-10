@@ -236,6 +236,7 @@ where
         self.spawn_handle.0.spawn("aleph/network", task);
         debug!(target: "afa", "Consensus network has started.");
 
+        // a set of streams of (u32, OrderedBatch<B::Hash>>) pairs
         let mut proposition_select = SelectAll::new();
 
         let mut waiting_blocks = HashMap::<u32, Vec<B::Hash>>::new();
