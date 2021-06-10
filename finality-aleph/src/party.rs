@@ -242,7 +242,6 @@ where
             SelectAll::<Zip<Repeat<u32>, mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>>::new();
 
         let mut waiting_blocks = HashMap::<u32, Vec<B::Hash>>::new();
-        let max_len = 100;
 
         let genesis_session = match self
             .client
@@ -314,11 +313,6 @@ where
                             Some((id, batch)) => {
                                 debug!(target: "afa", "Received finalization proposal for future round #{}, storing it for later consideration", id);
                                 waiting_blocks.entry(id).or_insert_with(Vec::new).extend(batch);
-
-                                // Guard against overflowing with future propositions
-                                if let Some(blocks) = waiting_blocks.get_mut(&id) {
-                                    blocks.drain(0..usize::max(0, blocks.len() - max_len)).for_each(drop);
-                                }
                             },
                             None => {},
                         };

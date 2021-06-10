@@ -113,7 +113,7 @@ mod tests {
     use sp_blockchain::HeaderBackend;
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime_client::{
-        runtime::Block, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
+        ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
         TestClientBuilder, TestClientBuilderExt,
     };
 
@@ -168,7 +168,26 @@ mod tests {
                 reduce_block_up_to(client.clone(), blocks[nr as usize], reduce_up_to),
                 "Expected block #{} to be reduced up to #{}",
                 nr,
-                reduce_up_to + 1
+                reduce_up_to
+            );
+        }
+    }
+
+    #[test]
+    fn reduce_to_0() {
+        let mut client = Arc::new(TestClientBuilder::new().build());
+
+        let blocks = create_chain(&mut client, 100);
+
+        let reduce_up_to = 0;
+
+        for nr in reduce_up_to..100 {
+            assert_eq!(
+                Some(blocks[reduce_up_to as usize]),
+                reduce_block_up_to(client.clone(), blocks[nr as usize], reduce_up_to),
+                "Expected block #{} to be reduced up to #{}",
+                nr,
+                reduce_up_to
             );
         }
     }
