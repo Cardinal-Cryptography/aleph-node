@@ -15,8 +15,8 @@ use crate::{Error, Hasher, KeyBox, SessionId, Signature};
 #[cfg(test)]
 mod tests;
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-struct PeerId(ScPeerId);
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+pub struct PeerId(ScPeerId);
 
 impl From<PeerId> for ScPeerId {
     fn from(wrapper: PeerId) -> Self {
@@ -31,8 +31,6 @@ impl From<ScPeerId> for PeerId {
 }
 
 impl Encode for PeerId {
-    // TODO: this probably has a constant number of bytes when encoded,
-    // so `size_hint` would be useful.
     fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
         self.0.to_bytes().using_encoded(f)
     }
@@ -41,10 +39,9 @@ impl Encode for PeerId {
 impl Decode for PeerId {
     fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
         let bytes = Vec::<u8>::decode(value)?;
-        match ScPeerId::from_bytes(&bytes) {
-            Err(_) => Err("PeerId not encoded with to_bytes".into()),
-            Ok(result) => Ok(result.into()),
-        }
+        ScPeerId::from_bytes(&bytes)
+            .map_err(|_| "PeerId not encoded with to_bytes".into())
+            .map(|pid| pid.into())
     }
 }
 
@@ -59,26 +56,26 @@ pub trait Network<B: BlockT>: Clone + Send + Sync + 'static {
     fn event_stream(&self) -> Pin<Box<dyn Stream<Item = Event> + Send>>;
 
     /// Adjust the reputation of a node.
-    fn _report_peer(&self, peer_id: ScPeerId, reputation: ReputationChange);
+    fn _report_peer(&self, peer_id: PeerId, reputation: ReputationChange);
 
     /// Force-disconnect a peer.
-    fn _disconnect_peer(&self, peer_id: ScPeerId, protocol: Cow<'static, str>);
+    fn _disconnect_peer(&self, peer_id: PeerId, protocol: Cow<'static, str>);
 
     /// Send a message to a given peer.
-    fn send_message(&self, peer_id: ScPeerId, protocol: Cow<'static, str>, message: Vec<u8>);
+    fn send_message(&self, peer_id: PeerId, protocol: Cow<'static, str>, message: Vec<u8>);
 
     /// Notify everyone we're connected to that we have the given block.
     /// This might be useful in the future.
     fn _announce(&self, block: B::Hash, associated_data: Option<Vec<u8>>);
 
     /// TODO: figure out what does this actually do...
-    fn add_set_reserved(&self, who: ScPeerId, protocol: Cow<'static, str>);
+    fn add_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>);
 
     /// TODO: figure out what does this actually do...
-    fn remove_set_reserved(&self, who: ScPeerId, protocol: Cow<'static, str>);
+    fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>);
 
     // The PeerId of this node.
-    fn peer_id(&self) -> ScPeerId;
+    fn peer_id(&self) -> PeerId;
 }
 
 impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
@@ -86,25 +83,25 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
         Box::pin(NetworkService::event_stream(self, "network-gossip"))
     }
 
-    fn _report_peer(&self, peer_id: ScPeerId, reputation: ReputationChange) {
-        NetworkService::report_peer(self, peer_id, reputation);
+    fn _report_peer(&self, peer_id: PeerId, reputation: ReputationChange) {
+        NetworkService::report_peer(self, peer_id.into(), reputation);
     }
 
-    fn _disconnect_peer(&self, peer_id: ScPeerId, protocol: Cow<'static, str>) {
-        NetworkService::disconnect_peer(self, peer_id, protocol)
+    fn _disconnect_peer(&self, peer_id: PeerId, protocol: Cow<'static, str>) {
+        NetworkService::disconnect_peer(self, peer_id.into(), protocol)
     }
 
-    fn send_message(&self, peer_id: ScPeerId, protocol: Cow<'static, str>, message: Vec<u8>) {
-        NetworkService::write_notification(self, peer_id, protocol, message)
+    fn send_message(&self, peer_id: PeerId, protocol: Cow<'static, str>, message: Vec<u8>) {
+        NetworkService::write_notification(self, peer_id.into(), protocol, message)
     }
 
     fn _announce(&self, block: B::Hash, associated_data: Option<Vec<u8>>) {
         NetworkService::announce_block(self, block, associated_data)
     }
 
-    fn add_set_reserved(&self, who: ScPeerId, protocol: Cow<'static, str>) {
+    fn add_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
         let addr =
-            iter::once(multiaddr::Protocol::P2p(who.into())).collect::<multiaddr::Multiaddr>();
+            iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
         let result =
             NetworkService::add_peers_to_reserved_set(self, protocol, iter::once(addr).collect());
         if let Err(e) = result {
@@ -112,9 +109,9 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
         }
     }
 
-    fn remove_set_reserved(&self, who: ScPeerId, protocol: Cow<'static, str>) {
+    fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
         let addr =
-            iter::once(multiaddr::Protocol::P2p(who.into())).collect::<multiaddr::Multiaddr>();
+            iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
         let result = NetworkService::remove_peers_from_reserved_set(
             self,
             protocol,
@@ -125,8 +122,8 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
         }
     }
 
-    fn peer_id(&self) -> ScPeerId {
-        *self.local_peer_id()
+    fn peer_id(&self) -> PeerId {
+        (*self.local_peer_id()).into()
     }
 }
 
@@ -157,7 +154,7 @@ impl PeerInfo {
 
 struct Peers {
     all_peers: HashMap<PeerId, PeerInfo>,
-    to_peer: HashMap<(SessionId, NodeIndex), PeerId>,
+    to_peer: HashMap<SessionId, HashMap<NodeIndex, PeerId>>,
 }
 
 impl Peers {
@@ -172,7 +169,7 @@ impl Peers {
         self.all_peers.insert(peer, PeerInfo::new());
     }
 
-    pub(crate) fn authenticated(&self, peer: &PeerId, session_id: &SessionId) -> bool {
+    pub(crate) fn is_authenticated(&self, peer: &PeerId, session_id: &SessionId) -> bool {
         match self.all_peers.get(peer) {
             Some(info) => info.authenticated_for(session_id),
             None => false,
@@ -186,33 +183,42 @@ impl Peers {
         node_id: NodeIndex,
     ) {
         if self.all_peers.get(peer).is_none() {
-            self.insert(peer.clone());
+            self.insert(*peer);
         }
         self.all_peers
-            .get_mut(peer)
-            .unwrap()
+            .entry(*peer)
+            .or_insert_with(PeerInfo::new)
             .authenticate(session_id, node_id);
-        self.to_peer.insert((session_id, node_id), peer.clone());
+        self.to_peer
+            .entry(session_id)
+            .or_insert_with(HashMap::new)
+            .insert(node_id, *peer);
     }
 
     pub(crate) fn remove(&mut self, peer: &PeerId) {
-        if let Some(peer_info) = self.all_peers.get(peer) {
+        if let Some(peer_info) = self.all_peers.remove(peer) {
             for (session_id, node_id) in peer_info.iter() {
-                self.to_peer.remove(&(*session_id, *node_id));
+                self.to_peer.entry(*session_id).and_modify(|hm| {
+                    hm.remove(node_id);
+                });
             }
         }
-        self.all_peers.remove(peer);
+        self.to_peer.retain(|_, hm| !hm.is_empty());
     }
 
-    pub(crate) fn iter(&self, session_id: SessionId) -> impl Iterator<Item = &PeerId> {
+    pub(crate) fn peers_authenticated_for(
+        &self,
+        session_id: SessionId,
+    ) -> impl Iterator<Item = &PeerId> {
         self.to_peer
-            .iter()
-            .filter(move |((s_id, _), _)| *s_id == session_id)
-            .map(|(_, p_id)| p_id)
+            .get(&session_id)
+            .into_iter()
+            .map(|hm| hm.values())
+            .flatten()
     }
 
     pub(crate) fn get(&self, session_id: SessionId, node_id: NodeIndex) -> Option<&PeerId> {
-        self.to_peer.get(&(session_id, node_id))
+        self.to_peer.get(&session_id)?.get(&node_id)
     }
 }
 
@@ -236,7 +242,7 @@ enum InternalMessage<D: Clone + Encode + Decode> {
 }
 
 struct SessionData<D: Clone + Encode + Decode> {
-    pub(crate) data_for_rush: mpsc::UnboundedSender<D>,
+    pub(crate) data_for_user: mpsc::UnboundedSender<D>,
     pub(crate) status: SessionStatus,
     pub(crate) keychain: KeyBox,
     auth_data: AuthData,
@@ -286,7 +292,7 @@ pub(crate) struct ConsensusNetwork<D: Clone + Encode + Decode, B: BlockT, N: Net
     sessions: Arc<Mutex<HashMap<SessionId, SessionData<D>>>>,
 
     commands_for_session: mpsc::UnboundedSender<SessionCommand<D>>,
-    commands_from_rush: mpsc::UnboundedReceiver<SessionCommand<D>>,
+    commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
 
     peers: Arc<Mutex<Peers>>,
     _phantom: PhantomData<B>,
@@ -304,15 +310,15 @@ impl<D: Clone + Encode + Decode> SessionManager<D> {
         session_id: SessionId,
         keychain: KeyBox,
     ) -> GenericNetwork<D> {
-        let (data_for_rush, data_from_network) = mpsc::unbounded();
+        let (data_for_user, data_from_network) = mpsc::unbounded();
         let auth_data = AuthData {
             session_id,
-            peer_id: self.peer_id.clone(),
+            peer_id: self.peer_id,
             node_id: keychain.index(),
         };
         let signature = keychain.sign(&auth_data.encode());
         let session_data = SessionData {
-            data_for_rush,
+            data_for_user,
             status: SessionStatus::InProgress,
             keychain,
             auth_data: auth_data.clone(),
@@ -337,15 +343,14 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     ConsensusNetwork<D, B, N>
 {
     /// Create a new instance.
-    pub(crate) fn new(network: N, protocol: impl Into<Cow<'static, str>>) -> Self {
-        let protocol = protocol.into();
-        let (commands_for_session, commands_from_rush) = mpsc::unbounded();
+    pub(crate) fn new(network: N, protocol: Cow<'static, str>) -> Self {
+        let (commands_for_session, commands_from_user) = mpsc::unbounded();
         ConsensusNetwork {
             network,
             protocol,
             sessions: Arc::new(Mutex::new(HashMap::new())),
             commands_for_session,
-            commands_from_rush,
+            commands_from_user,
             peers: Arc::new(Mutex::new(Peers::new())),
             _phantom: PhantomData,
         }
@@ -353,25 +358,22 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
 
     pub(crate) fn session_manager(&self) -> SessionManager<D> {
         SessionManager {
-            peer_id: self.network.peer_id().into(),
+            peer_id: self.network.peer_id(),
             sessions: self.sessions.clone(),
             commands_for_session: self.commands_for_session.clone(),
         }
     }
 
     fn send_message(&self, peer_id: &PeerId, message: InternalMessage<D>) {
-        self.network.send_message(
-            peer_id.clone().into(),
-            self.protocol.clone(),
-            message.encode(),
-        );
+        self.network
+            .send_message(*peer_id, self.protocol.clone(), message.encode());
     }
 
     fn on_incoming_data(&self, session_id: SessionId, data: D) {
         let mut sessions = self.sessions.lock();
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
-                if let Err(e) = session_data.data_for_rush.unbounded_send(data) {
+                if let Err(e) = session_data.data_for_user.unbounded_send(data) {
                     //TODO: need to write some logic on when an session should be terminated and make sure
                     // that there are no issues with synchronization when terminating.
                     session_data.status = SessionStatus::Terminated;
@@ -406,7 +408,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
             Ok(Data(session_id, data)) => {
                 // Accept data only from authenticated peers. Rush is robust enough that this is
                 // not strictly necessary, but it doesn't hurt.
-                if self.peers.lock().authenticated(&peer_id, &session_id) {
+                if self.peers.lock().is_authenticated(&peer_id, &session_id) {
                     self.on_incoming_data(session_id, data);
                 }
             }
@@ -441,7 +443,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                 let message = InternalMessage::Data(session_id, data);
                 match recipient {
                     None => {
-                        for peer_id in self.peers.lock().iter(session_id) {
+                        for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
                             self.send_message(peer_id, message.clone());
                         }
                     }
@@ -456,14 +458,14 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     }
 
     fn on_peer_connected(&self, peer_id: PeerId) {
-        self.peers.lock().insert(peer_id.clone());
+        self.peers.lock().insert(peer_id);
         for (_, session_data) in self.sessions.lock().iter() {
             if let Err(e) = self
                 .commands_for_session
                 .unbounded_send(SessionCommand::Meta(
                     session_data.auth_data.clone(),
                     session_data.auth_signature.clone(),
-                    Some(peer_id.clone()),
+                    Some(peer_id),
                 ))
             {
                 log::error!(target: "afa", "sending auth command to {:?} failed: {}", peer_id, e);
@@ -485,12 +487,12 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                             match event {
                                 Event::SyncConnected { remote } => {
                                     // TODO: understand what does this do
-                                    self.network.add_set_reserved(remote, self.protocol.clone());
+                                    self.network.add_set_reserved(remote.into(), self.protocol.clone());
                                 }
                                 Event::SyncDisconnected { remote } => {
                                     // TODO: understand what does this do
                                     self.network
-                                        .remove_set_reserved(remote, self.protocol.clone());
+                                        .remove_set_reserved(remote.into(), self.protocol.clone());
                                 }
                                 Event::NotificationStreamOpened {
                                     remote,
@@ -526,7 +528,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                             break;
                         }
                 },
-                maybe_cmd = self.commands_from_rush.next() => {
+                maybe_cmd = self.commands_from_user.next() => {
                     if let Some(cmd) = maybe_cmd {
                         self.on_command(cmd);
                     } else {

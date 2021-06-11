@@ -1,7 +1,7 @@
 use super::*;
 use crate::{AuthorityId, AuthorityKeystore, KEY_TYPE};
 use futures::channel::{mpsc, oneshot};
-use sc_network::{Event, ObservedRole, PeerId, ReputationChange};
+use sc_network::{Event, ObservedRole, PeerId as ScPeerId, ReputationChange};
 use sp_keystore::{testing::KeyStore, CryptoStore};
 use sp_runtime::traits::Block as BlockT;
 use substrate_test_runtime::Block;
@@ -157,7 +157,7 @@ async fn generate_authorities(ss: &[String]) -> Vec<Authority> {
     let mut result = Vec::with_capacity(ss.len());
     for i in 0..ss.len() {
         result.push(Authority {
-            peer_id: PeerId::random(),
+            peer_id: ScPeerId::random().into(),
             keychain: KeyBox {
                 id: NodeIndex(i),
                 auth_keystore: AuthorityKeystore::new(auth_ids[i].clone(), key_store.clone()),
@@ -203,7 +203,7 @@ async fn prepare_one_session_test_data() -> TestData {
     let network = TestNetwork::<Block>::new(peer_id, oneshot_tx);
     let consensus_network = ConsensusNetwork::<MockData, Block, TestNetwork<Block>>::new(
         network.clone(),
-        PROTOCOL_NAME,
+        PROTOCOL_NAME.into(),
     );
 
     let session_id = SessionId(0);
@@ -229,7 +229,7 @@ async fn test_network_event_sync_connnected() {
     let data = prepare_one_session_test_data().await;
     let bob_peer_id = data.authorities[1].peer_id;
     data.network.emit_event(Event::SyncConnected {
-        remote: bob_peer_id,
+        remote: bob_peer_id.into(),
     });
     let (peer_id, protocol) = data.network.add_set_reserved.1.lock().next().await.unwrap();
     assert_eq!(peer_id, bob_peer_id);
@@ -242,7 +242,7 @@ async fn test_network_event_sync_disconnected() {
     let data = prepare_one_session_test_data().await;
     let charlie_peer_id = data.authorities[2].peer_id;
     data.network.emit_event(Event::SyncDisconnected {
-        remote: charlie_peer_id,
+        remote: charlie_peer_id.into(),
     });
     let (peer_id, protocol) = data
         .network
@@ -262,7 +262,7 @@ async fn authenticates_to_connected() {
     let data = prepare_one_session_test_data().await;
     let bob_peer_id = data.authorities[1].peer_id;
     data.network.emit_event(Event::NotificationStreamOpened {
-        remote: bob_peer_id,
+        remote: bob_peer_id.into(),
         protocol: Cow::Borrowed(PROTOCOL_NAME),
         role: ObservedRole::Authority,
         negotiated_fallback: None,
@@ -281,7 +281,7 @@ async fn authenticates_to_connected() {
     let message =
         InternalMessage::<MockData>::decode(&mut message.as_slice()).expect("a correct message");
     if let InternalMessage::Meta(auth_data, _) = message {
-        assert_eq!(auth_data.peer_id.0, alice_peer_id);
+        assert_eq!(auth_data.peer_id, alice_peer_id);
     } else {
         panic!("Expected an authentication message.")
     }
@@ -295,7 +295,7 @@ async fn test_network_event_notifications_received() {
     let bob_node_id = data.authorities[1].keychain.index();
     let auth_data = AuthData {
         session_id: SessionId(0),
-        peer_id: PeerId(bob_peer_id),
+        peer_id: bob_peer_id,
         node_id: bob_node_id,
     };
     let signature = data.authorities[1].keychain.sign(&auth_data.encode());
@@ -308,7 +308,7 @@ async fn test_network_event_notifications_received() {
     ];
 
     data.network.emit_event(Event::NotificationsReceived {
-        remote: bob_peer_id,
+        remote: bob_peer_id.into(),
         messages,
     });
     if let Some(incoming_data) = data.rush_network.next_event().await {
@@ -327,7 +327,7 @@ async fn test_send() {
     let cur_session_id = SessionId(0);
     let auth_data = AuthData {
         session_id: cur_session_id,
-        peer_id: PeerId(bob_peer_id),
+        peer_id: bob_peer_id,
         node_id: bob_node_id,
     };
     let signature = data.authorities[1].keychain.sign(&auth_data.encode());
@@ -335,18 +335,17 @@ async fn test_send() {
     let messages = vec![(PROTOCOL_NAME.into(), auth_message.into())];
 
     data.network.emit_event(Event::NotificationsReceived {
-        remote: bob_peer_id,
+        remote: bob_peer_id.into(),
         messages,
     });
     data.network.emit_event(Event::NotificationStreamOpened {
-        remote: bob_peer_id,
+        remote: bob_peer_id.into(),
         protocol: Cow::Borrowed(PROTOCOL_NAME),
         role: ObservedRole::Authority,
         negotiated_fallback: None,
     });
     // Wait for acknowledgement that Alice noted Bob's presence.
-    let _ = data
-        .network
+    data.network
         .send_message
         .1
         .lock()
@@ -379,11 +378,11 @@ async fn test_broadcast() {
     let data = prepare_one_session_test_data().await;
     let cur_session_id = SessionId(0);
     for i in 1..2 {
-        let peer_id = PeerId(data.authorities[i].peer_id);
+        let peer_id = data.authorities[i].peer_id;
         let node_id = data.authorities[i].keychain.index();
         let auth_data = AuthData {
             session_id: cur_session_id,
-            peer_id: peer_id.clone(),
+            peer_id,
             node_id,
         };
         let signature = data.authorities[1].keychain.sign(&auth_data.encode());
@@ -401,8 +400,7 @@ async fn test_broadcast() {
             negotiated_fallback: None,
         });
         // Wait for acknowledgement that Alice noted the nodes presence.
-        let _ = data
-            .network
+        data.network
             .send_message
             .1
             .lock()

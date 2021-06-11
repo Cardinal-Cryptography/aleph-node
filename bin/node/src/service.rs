@@ -3,7 +3,7 @@
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use codec::Decode;
 use finality_aleph::{
-    default_rush_config, run_aleph_consensus, AlephBlockImport, AlephConfig, AuthorityId,
+    default_aleph_config, run_aleph_consensus, AlephBlockImport, AlephConfig, AuthorityId,
     AuthorityKeystore, ConsensusConfig, JustificationNotification,
 };
 use futures::channel::mpsc;
@@ -151,7 +151,7 @@ fn consensus_config(auth: AuthorityId, authorities: &[AuthorityId]) -> Consensus
     let node_id = authorities.iter().position(|a| a == &auth).unwrap().into();
     let n_members = authorities.len().into();
 
-    default_rush_config(n_members, node_id, 0)
+    default_aleph_config(n_members, node_id, 0)
 }
 
 /// Builds a new service for a full client.

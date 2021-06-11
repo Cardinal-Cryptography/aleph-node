@@ -1,14 +1,15 @@
 use crate::{
     data_io::DataIO,
+    default_aleph_config,
     finalization::{
         check_extends_last_finalized, finalize_block, finalize_block_as_authority,
         reduce_block_up_to,
     },
     justification::JustificationHandler,
     network,
-    network::{ConsensusNetwork, SessionManager, RushNetwork, RushNetworkData},
-    AuthorityId, AuthorityKeystore, default_rush_config, JustificationNotification, KeyBox, NodeIndex,
-    SessionId, SpawnHandle,
+    network::{ConsensusNetwork, RushNetwork, RushNetworkData, SessionManager},
+    AuthorityId, AuthorityKeystore, JustificationNotification, KeyBox, NodeIndex, SessionId,
+    SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, select, stream::SelectAll, StreamExt};
@@ -19,7 +20,7 @@ use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
-use std::{collections::HashMap, sync::Arc, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub struct AlephParams<B: Block, N, C, SC> {
     pub config: crate::AlephConfig<B, N, C, SC>,
@@ -64,6 +65,8 @@ where
     error!(target: "afa", "Consensus party has finished unexpectedly.");
 }
 
+type OrderedHashesReceiver<B> = mpsc::UnboundedReceiver<OrderedBatch<<B as Block>::Hash>>;
+
 fn create_session<B, SC>(
     authority: AuthorityId,
     auth_keystore: AuthorityKeystore,
@@ -71,10 +74,7 @@ fn create_session<B, SC>(
     spawn_handle: SpawnHandle,
     session: Session<AuthorityId, NumberFor<B>>,
     session_manager: &SessionManager<RushNetworkData<B>>,
-) -> (
-    SessionInstance<B>,
-    Option<mpsc::UnboundedReceiver<OrderedBatch<B::Hash>>>,
-)
+) -> (SessionInstance<B>, Option<OrderedHashesReceiver<B>>)
 where
     B: Block,
     SC: SelectChain<B> + 'static,
@@ -104,11 +104,8 @@ where
     let session_network =
         RushNetwork::<B>::new(session_manager.start_session(SessionId(session_id), keybox.clone()));
 
-    let consensus_config = default_rush_config(
-        session.authorities.len().into(),
-        node_id,
-        session_id,
-    );
+    let consensus_config =
+        default_aleph_config(session.authorities.len().into(), node_id, session_id);
     let data_io = DataIO {
         select_chain,
         ordered_batch_tx,
@@ -223,7 +220,7 @@ where
 
     async fn run(mut self) {
         // Prepare and start the network
-        let network = ConsensusNetwork::new(self.network.clone(), "/cardinals/aleph/1");
+        let network = ConsensusNetwork::new(self.network.clone(), "/cardinals/aleph/1".into());
         let session_manager = network.session_manager();
 
         let task = async move { network.run().await };
