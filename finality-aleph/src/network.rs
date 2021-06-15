@@ -128,7 +128,7 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
 }
 
 #[derive(Debug)]
-pub(crate) struct PeerInfo {
+struct PeerInfo {
     authentications: HashMap<SessionId, NodeIndex>,
 }
 
@@ -158,30 +158,25 @@ struct Peers {
 }
 
 impl Peers {
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Peers {
             all_peers: HashMap::new(),
             to_peer: HashMap::new(),
         }
     }
 
-    pub(crate) fn insert(&mut self, peer: PeerId) {
+    fn insert(&mut self, peer: PeerId) {
         self.all_peers.insert(peer, PeerInfo::new());
     }
 
-    pub(crate) fn is_authenticated(&self, peer: &PeerId, session_id: &SessionId) -> bool {
+    fn is_authenticated(&self, peer: &PeerId, session_id: &SessionId) -> bool {
         match self.all_peers.get(peer) {
             Some(info) => info.authenticated_for(session_id),
             None => false,
         }
     }
 
-    pub(crate) fn authenticate(
-        &mut self,
-        peer: &PeerId,
-        session_id: SessionId,
-        node_id: NodeIndex,
-    ) {
+    fn authenticate(&mut self, peer: &PeerId, session_id: SessionId, node_id: NodeIndex) {
         if self.all_peers.get(peer).is_none() {
             self.insert(*peer);
         }
@@ -195,7 +190,7 @@ impl Peers {
             .insert(node_id, *peer);
     }
 
-    pub(crate) fn remove(&mut self, peer: &PeerId) {
+    fn remove(&mut self, peer: &PeerId) {
         if let Some(peer_info) = self.all_peers.remove(peer) {
             for (session_id, node_id) in peer_info.iter() {
                 self.to_peer.entry(*session_id).and_modify(|hm| {
@@ -206,10 +201,7 @@ impl Peers {
         self.to_peer.retain(|_, hm| !hm.is_empty());
     }
 
-    pub(crate) fn peers_authenticated_for(
-        &self,
-        session_id: SessionId,
-    ) -> impl Iterator<Item = &PeerId> {
+    fn peers_authenticated_for(&self, session_id: SessionId) -> impl Iterator<Item = &PeerId> {
         self.to_peer
             .get(&session_id)
             .into_iter()
@@ -217,7 +209,7 @@ impl Peers {
             .flatten()
     }
 
-    pub(crate) fn get(&self, session_id: SessionId, node_id: NodeIndex) -> Option<&PeerId> {
+    fn get(&self, session_id: SessionId, node_id: NodeIndex) -> Option<&PeerId> {
         self.to_peer.get(&session_id)?.get(&node_id)
     }
 }

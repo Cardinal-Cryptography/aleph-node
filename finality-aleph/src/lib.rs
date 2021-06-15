@@ -3,9 +3,8 @@ use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use codec::{Decode, Encode};
 
 use futures::Future;
-pub use rush::{
-    default_config as default_aleph_config, nodes::NodeIndex, Config as ConsensusConfig,
-};
+use rush::NodeIndex;
+pub use rush::{default_config as default_aleph_config, Config as ConsensusConfig};
 use sc_client_api::{backend::Backend, Finalizer, LockImportRun, TransactionFor};
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
