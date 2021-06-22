@@ -248,9 +248,15 @@ struct SessionData<D: Clone + Encode + Decode> {
 }
 
 #[derive(Clone, Encode, Decode)]
+enum Recipient<T: Clone + Encode + Decode> {
+    All,
+    Target(T),
+}
+
+#[derive(Clone, Encode, Decode)]
 enum SessionCommand<D: Clone + Encode + Decode> {
-    Meta(MetaMessage, Option<PeerId>),
-    Data(SessionId, D, Option<NodeIndex>),
+    Meta(MetaMessage, Recipient<PeerId>),
+    Data(SessionId, D, Recipient<NodeIndex>),
 }
 
 pub(crate) struct GenericNetwork<D: Clone + Encode + Decode> {
@@ -261,7 +267,7 @@ pub(crate) struct GenericNetwork<D: Clone + Encode + Decode> {
 
 impl<D: Clone + Encode + Decode> GenericNetwork<D> {
     fn send(&self, data: D, node: NodeIndex) -> Result<(), Error> {
-        let sc = SessionCommand::Data(self.session_id, data, Some(node));
+        let sc = SessionCommand::Data(self.session_id, data, Recipient::Target(node));
         // TODO add better error conversion
         self.commands_for_session
             .unbounded_send(sc)
@@ -269,7 +275,7 @@ impl<D: Clone + Encode + Decode> GenericNetwork<D> {
     }
 
     fn broadcast(&self, data: D) -> Result<(), Error> {
-        let sc = SessionCommand::Data(self.session_id, data, None);
+        let sc = SessionCommand::Data(self.session_id, data, Recipient::All);
         // TODO add better error conversion
         self.commands_for_session
             .unbounded_send(sc)
@@ -327,7 +333,7 @@ impl<D: Clone + Encode + Decode> SessionManager<D> {
             .commands_for_session
             .unbounded_send(SessionCommand::Meta(
                 MetaMessage::Authentication(auth_data, signature),
-                None,
+                Recipient::All,
             ))
         {
             log::error!(target: "afa", "sending auth command failed in new session: {}", e);
@@ -377,7 +383,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                     session_data.auth_data.clone(),
                     session_data.auth_signature.clone(),
                 ),
-                Some(peer_id),
+                Recipient::Target(peer_id),
             ))
             .expect("Sending commands to session should work.");
     }
@@ -450,7 +456,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                     self.commands_for_session
                         .unbounded_send(SessionCommand::Meta(
                             MetaMessage::AuthenticationRequest(session_id),
-                            Some(peer_id),
+                            Recipient::Target(peer_id),
                         ))
                         .expect("Sending commands to session should work.");
                 }
@@ -470,23 +476,23 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
             Meta(message, recipient) => {
                 let message = InternalMessage::Meta(message);
                 match recipient {
-                    None => {
+                    Recipient::All => {
                         for (peer_id, _) in self.peers.lock().all_peers.iter() {
                             self.send_message(peer_id, message.clone());
                         }
                     }
-                    Some(peer_id) => self.send_message(&peer_id, message),
+                    Recipient::Target(peer_id) => self.send_message(&peer_id, message),
                 }
             }
             Data(session_id, data, recipient) => {
                 let message = InternalMessage::Data(session_id, data);
                 match recipient {
-                    None => {
+                    Recipient::All => {
                         for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
                             self.send_message(peer_id, message.clone());
                         }
                     }
-                    Some(node_id) => {
+                    Recipient::Target(node_id) => {
                         if let Some(peer_id) = self.peers.lock().get(session_id, node_id) {
                             self.send_message(peer_id, message);
                         }
