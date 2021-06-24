@@ -1,6 +1,7 @@
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, stream::Stream, StreamExt};
 use parking_lot::Mutex;
+use rand::prelude::SliceRandom;
 use rush::{nodes::NodeIndex, Index, KeyBox as _};
 use sc_network::{multiaddr, Event, ExHashT, NetworkService, PeerId as ScPeerId, ReputationChange};
 use sp_runtime::traits::Block as BlockT;
@@ -14,6 +15,10 @@ use crate::{Error, Hasher, KeyBox, SessionId, Signature};
 
 #[cfg(test)]
 mod tests;
+
+// TODO below constants should be calculated based on the size of validators set for given session
+const GOSSIP_FORWARD: usize = 5;
+const SEND_FORWARD: usize = 2;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(ScPeerId);
@@ -155,6 +160,7 @@ impl PeerInfo {
 struct Peers {
     all_peers: HashMap<PeerId, PeerInfo>,
     to_peer: HashMap<SessionId, HashMap<NodeIndex, PeerId>>,
+    session_peers: HashMap<SessionId, Vec<PeerId>>,
 }
 
 impl Peers {
@@ -162,6 +168,7 @@ impl Peers {
         Peers {
             all_peers: HashMap::new(),
             to_peer: HashMap::new(),
+            session_peers: HashMap::new(),
         }
     }
 
@@ -188,6 +195,10 @@ impl Peers {
             .entry(session_id)
             .or_insert_with(HashMap::new)
             .insert(node_id, *peer);
+        self.session_peers
+            .entry(session_id)
+            .or_insert_with(Vec::new)
+            .push(*peer);
     }
 
     fn remove(&mut self, peer: &PeerId) {
@@ -196,21 +207,28 @@ impl Peers {
                 self.to_peer.entry(*session_id).and_modify(|hm| {
                     hm.remove(node_id);
                 });
+                self.session_peers
+                    .entry(*session_id)
+                    .and_modify(|v| v.retain(|p| *p != *peer));
             }
         }
-        self.to_peer.retain(|_, hm| !hm.is_empty());
+        self.session_peers.retain(|_, v| !v.is_empty());
     }
 
     fn peers_authenticated_for(&self, session_id: SessionId) -> impl Iterator<Item = &PeerId> {
-        self.to_peer
-            .get(&session_id)
-            .into_iter()
-            .map(|hm| hm.values())
-            .flatten()
+        self.session_peers.get(&session_id).into_iter().flatten()
     }
 
     fn get(&self, session_id: SessionId, node_id: NodeIndex) -> Option<&PeerId> {
         self.to_peer.get(&session_id)?.get(&node_id)
+    }
+
+    fn get_rand(&self, session_id: SessionId, n_peers: usize) -> impl Iterator<Item = &PeerId> {
+        self.session_peers
+            .get(&session_id)
+            .expect("the session already started")
+            .as_slice()
+            .choose_multiple(&mut rand::thread_rng(), n_peers)
     }
 }
 
@@ -218,6 +236,12 @@ impl Peers {
 enum SessionStatus {
     InProgress,
     Terminated,
+}
+
+#[derive(Clone, Encode, Decode)]
+enum Recipient<T: Clone + Encode + Decode> {
+    All,
+    Target(T),
 }
 
 #[derive(Clone, Encode, Decode)]
@@ -236,7 +260,7 @@ enum MetaMessage {
 #[derive(Clone, Encode, Decode)]
 enum InternalMessage<D: Clone + Encode + Decode> {
     Meta(MetaMessage),
-    Data(SessionId, D),
+    Data(SessionId, D, Recipient<NodeIndex>),
 }
 
 struct SessionData<D: Clone + Encode + Decode> {
@@ -245,12 +269,6 @@ struct SessionData<D: Clone + Encode + Decode> {
     pub(crate) keychain: KeyBox,
     auth_data: AuthData,
     auth_signature: Signature,
-}
-
-#[derive(Clone, Encode, Decode)]
-enum Recipient<T: Clone + Encode + Decode> {
-    All,
-    Target(T),
 }
 
 #[derive(Clone, Encode, Decode)]
@@ -285,21 +303,6 @@ impl<D: Clone + Encode + Decode> GenericNetwork<D> {
     async fn next_event(&mut self) -> Option<D> {
         self.data_from_network.next().await
     }
-}
-
-pub(crate) struct ConsensusNetwork<D: Clone + Encode + Decode, B: BlockT, N: Network<B> + Clone> {
-    //TODO: some optimizations can be made by changing Mutex to RwLock
-    network: N,
-    protocol: Cow<'static, str>,
-
-    /// Outgoing events to the consumer.
-    sessions: Arc<Mutex<HashMap<SessionId, SessionData<D>>>>,
-
-    commands_for_session: mpsc::UnboundedSender<SessionCommand<D>>,
-    commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
-
-    peers: Arc<Mutex<Peers>>,
-    _phantom: PhantomData<B>,
 }
 
 pub(crate) struct SessionManager<D: Clone + Encode + Decode> {
@@ -346,6 +349,21 @@ impl<D: Clone + Encode + Decode> SessionManager<D> {
     }
 }
 
+pub(crate) struct ConsensusNetwork<D: Clone + Encode + Decode, B: BlockT, N: Network<B> + Clone> {
+    //TODO: some optimizations can be made by changing Mutex to RwLock
+    network: N,
+    protocol: Cow<'static, str>,
+
+    /// Outgoing events to the consumer.
+    sessions: Arc<Mutex<HashMap<SessionId, SessionData<D>>>>,
+
+    commands_for_session: mpsc::UnboundedSender<SessionCommand<D>>,
+    commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
+
+    peers: Arc<Mutex<Peers>>,
+    _phantom: PhantomData<B>,
+}
+
 impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     ConsensusNetwork<D, B, N>
 {
@@ -374,6 +392,31 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     fn send_message(&self, peer_id: &PeerId, message: InternalMessage<D>) {
         self.network
             .send_message(*peer_id, self.protocol.clone(), message.encode());
+    }
+
+    fn send_message_rand(
+        &self,
+        session_id: SessionId,
+        message: InternalMessage<D>,
+        n_peers: usize,
+    ) {
+        for peer_id in self.peers.lock().get_rand(session_id, n_peers) {
+            self.send_message(peer_id, message.clone());
+        }
+    }
+
+    fn forward(&self, session_id: SessionId, data: D, recipient: Recipient<NodeIndex>) {
+        let message = InternalMessage::Data(session_id, data, recipient.clone());
+        match recipient {
+            Recipient::All => self.send_message_rand(session_id, message, GOSSIP_FORWARD),
+            Recipient::Target(node_id) => {
+                if let Some(peer_id) = self.peers.lock().get(session_id, node_id) {
+                    self.send_message(peer_id, message);
+                } else {
+                    self.send_message_rand(session_id, message, SEND_FORWARD);
+                }
+            }
+        }
     }
 
     fn authenticate_to(&self, session_data: &SessionData<D>, peer_id: PeerId) {
@@ -410,15 +453,21 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
         }
     }
 
-    fn on_incoming_data(&self, session_id: SessionId, data: D) {
+    fn on_incoming_data(&self, session_id: SessionId, data: D, recipient: Recipient<NodeIndex>) {
         let mut sessions = self.sessions.lock();
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
-                if let Err(e) = session_data.data_for_user.unbounded_send(data) {
-                    //TODO: need to write some logic on when an session should be terminated and make sure
-                    // that there are no issues with synchronization when terminating.
-                    session_data.status = SessionStatus::Terminated;
-                    debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
+                if let Recipient::Target(node_id) = recipient {
+                    if node_id == session_data.auth_data.node_id {
+                        if let Err(e) = session_data.data_for_user.unbounded_send(data) {
+                            //TODO: need to write some logic on when an session should be terminated and make sure
+                            // that there are no issues with synchronization when terminating.
+                            session_data.status = SessionStatus::Terminated;
+                            debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
+                        }
+                    } else {
+                        self.forward(session_id, data, recipient);
+                    }
                 }
             }
         }
@@ -446,11 +495,12 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     fn on_incoming_message(&self, peer_id: PeerId, raw_message: Vec<u8>) {
         use InternalMessage::*;
         match InternalMessage::<D>::decode(&mut &raw_message[..]) {
-            Ok(Data(session_id, data)) => {
+            Ok(Data(session_id, data, recipient)) => {
                 // Accept data only from authenticated peers. Rush is robust enough that this is
                 // not strictly necessary, but it doesn't hurt.
+                // TODO we may relax this condition if we want to allow nonvalidators to help in gossip
                 if self.peers.lock().is_authenticated(&peer_id, &session_id) {
-                    self.on_incoming_data(session_id, data);
+                    self.on_incoming_data(session_id, data, recipient);
                 } else {
                     debug!(target: "afa", "Received unauthenticated message from {:?} for session {:?}, requesting authentication.", peer_id, session_id);
                     self.commands_for_session
@@ -485,18 +535,9 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                 }
             }
             Data(session_id, data, recipient) => {
-                let message = InternalMessage::Data(session_id, data);
-                match recipient {
-                    Recipient::All => {
-                        for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
-                            self.send_message(peer_id, message.clone());
-                        }
-                    }
-                    Recipient::Target(node_id) => {
-                        if let Some(peer_id) = self.peers.lock().get(session_id, node_id) {
-                            self.send_message(peer_id, message);
-                        }
-                    }
+                let message = InternalMessage::Data(session_id, data, recipient);
+                for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
+                    self.send_message(peer_id, message.clone());
                 }
             }
         }

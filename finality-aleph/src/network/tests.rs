@@ -325,6 +325,7 @@ async fn authenticates_when_requested() {
 #[tokio::test]
 async fn test_network_event_notifications_received() {
     let mut data = prepare_one_session_test_data().await;
+    let alice_node_id = data.authorities[0].keychain.index();
     let bob_peer_id = data.authorities[1].peer_id;
     let bob_node_id = data.authorities[1].keychain.index();
     let auth_data = AuthData {
@@ -337,7 +338,9 @@ async fn test_network_event_notifications_received() {
         InternalMessage::<MockData>::Meta(MetaMessage::Authentication(auth_data, signature))
             .encode();
     let note = vec![157];
-    let message = InternalMessage::Data(SessionId(0), note.clone()).encode();
+    let message =
+        InternalMessage::Data(SessionId(0), note.clone(), Recipient::Target(alice_node_id))
+            .encode();
     let messages = vec![
         (PROTOCOL_NAME.into(), auth_message.into()),
         (PROTOCOL_NAME.into(), message.clone().into()),
@@ -358,10 +361,12 @@ async fn test_network_event_notifications_received() {
 #[tokio::test]
 async fn requests_authentication_from_unauthenticated() {
     let data = prepare_one_session_test_data().await;
+    let alice_node_id = data.authorities[0].keychain.index();
     let bob_peer_id = data.authorities[1].peer_id;
     let cur_session_id = SessionId(0);
     let note = vec![157];
-    let message = InternalMessage::Data(cur_session_id, note).encode();
+    let message =
+        InternalMessage::Data(cur_session_id, note, Recipient::Target(alice_node_id)).encode();
     let messages = vec![(PROTOCOL_NAME.into(), message.into())];
 
     data.network.emit_event(Event::NotificationsReceived {
@@ -432,9 +437,10 @@ async fn test_send() {
             assert_eq!(peer_id, bob_peer_id);
             assert_eq!(protocol, PROTOCOL_NAME);
             match InternalMessage::<MockData>::decode(&mut message.as_slice()) {
-                Ok(InternalMessage::Data(session_id, data)) => {
+                Ok(InternalMessage::Data(session_id, data, Recipient::Target(recipient_id))) => {
                     assert_eq!(session_id, cur_session_id);
                     assert_eq!(data, note);
+                    assert_eq!(bob_node_id, recipient_id);
                 }
                 _ => panic!("Expected a properly encoded message"),
             }
@@ -490,7 +496,7 @@ async fn test_broadcast() {
             Some((_, protocol, message)) => {
                 assert_eq!(protocol, PROTOCOL_NAME);
                 match InternalMessage::<MockData>::decode(&mut message.as_slice()) {
-                    Ok(InternalMessage::Data(session_id, data)) => {
+                    Ok(InternalMessage::Data(session_id, data, Recipient::All)) => {
                         assert_eq!(session_id, cur_session_id);
                         assert_eq!(data, note);
                     }

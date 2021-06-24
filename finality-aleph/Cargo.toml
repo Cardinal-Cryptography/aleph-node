@@ -11,6 +11,7 @@ aleph-primitives = { package = "primitives", version = "0.1.0", path = "../primi
 tokio = { version = "0.2.21", features = [ "sync" ]}
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
 hash-db = { version = "0.15.2", default-features = false }
+lru = "0.6"
 log = "0.4"
 futures = "0.3"
 parity-util-mem = "0.9"
@@ -19,7 +20,6 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 rand = "0.8"
 sp-keystore = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
 sc-network = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-network-gossip = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
 rush = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", rev = "381d388" }
 serde = "1.0"
