@@ -2,12 +2,17 @@ use codec::{Decode, Encode};
 use futures::{channel::mpsc, stream::Stream, StreamExt};
 use lru::LruCache;
 use parking_lot::Mutex;
-use rand::prelude::SliceRandom;
 use rush::{nodes::NodeIndex, Index, KeyBox as _};
 use sc_network::{multiaddr, Event, ExHashT, NetworkService, PeerId as ScPeerId, ReputationChange};
 use sp_runtime::traits::Block as BlockT;
 use std::{
-    borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
+    borrow::Cow,
+    collections::HashMap,
+    hash::{Hash, Hasher as StdHasher},
+    iter,
+    marker::PhantomData,
+    pin::Pin,
+    sync::Arc,
 };
 
 use log::debug;
@@ -162,7 +167,6 @@ impl PeerInfo {
 struct Peers {
     all_peers: HashMap<PeerId, PeerInfo>,
     to_peer: HashMap<SessionId, HashMap<NodeIndex, PeerId>>,
-    session_peers: HashMap<SessionId, Vec<PeerId>>,
 }
 
 impl Peers {
@@ -170,7 +174,6 @@ impl Peers {
         Peers {
             all_peers: HashMap::new(),
             to_peer: HashMap::new(),
-            session_peers: HashMap::new(),
         }
     }
 
@@ -197,10 +200,6 @@ impl Peers {
             .entry(session_id)
             .or_insert_with(HashMap::new)
             .insert(node_id, *peer);
-        self.session_peers
-            .entry(session_id)
-            .or_insert_with(Vec::new)
-            .push(*peer);
     }
 
     fn remove(&mut self, peer: &PeerId) {
@@ -209,28 +208,41 @@ impl Peers {
                 self.to_peer.entry(*session_id).and_modify(|hm| {
                     hm.remove(node_id);
                 });
-                self.session_peers
-                    .entry(*session_id)
-                    .and_modify(|v| v.retain(|p| *p != *peer));
             }
         }
-        self.session_peers.retain(|_, v| !v.is_empty());
+        self.to_peer.retain(|_, hm| !hm.is_empty());
     }
 
-    fn peers_authenticated_for(&self, session_id: SessionId) -> impl Iterator<Item = &PeerId> {
-        self.session_peers.get(&session_id).into_iter().flatten()
+    fn peers_authenticated_for(
+        &self,
+        session_id: SessionId,
+    ) -> impl Iterator<Item = &PeerId> + Clone {
+        self.to_peer
+            .get(&session_id)
+            .into_iter()
+            .map(|hm| hm.values())
+            .flatten()
     }
 
     fn get(&self, session_id: SessionId, node_id: NodeIndex) -> Option<&PeerId> {
         self.to_peer.get(&session_id)?.get(&node_id)
     }
 
-    fn get_rand(&self, session_id: SessionId, n_peers: usize) -> impl Iterator<Item = &PeerId> {
-        self.session_peers
-            .get(&session_id)
-            .expect("the session already started")
-            .as_slice()
-            .choose_multiple(&mut rand::thread_rng(), n_peers)
+    fn get_rand(
+        &self,
+        session_id: SessionId,
+        amount: usize,
+        offset: usize,
+    ) -> impl Iterator<Item = &PeerId> {
+        let skip = if let Some(n_peers) = self.to_peer.get(&session_id).map(|hm| hm.len()) {
+            offset % n_peers
+        } else {
+            0
+        };
+        self.peers_authenticated_for(session_id)
+            .cycle()
+            .skip(skip)
+            .take(amount)
     }
 }
 
@@ -262,16 +274,40 @@ enum MetaMessage {
 type MessageIndex = u64;
 
 #[derive(Clone, Encode, Decode)]
+struct DataMessage<D> {
+    session_id: SessionId,
+    index: MessageIndex,
+    data: D,
+    recipient: Recipient<NodeIndex>,
+}
+
+impl<D: Encode> Hash for DataMessage<D> {
+    fn hash<H: StdHasher>(&self, state: &mut H) {
+        self.index.hash(state);
+        self.data.encode().hash(state);
+    }
+}
+
+impl<D: Encode> PartialEq for DataMessage<D> {
+    fn eq(&self, other: &DataMessage<D>) -> bool {
+        self.index == other.index && self.data.encode() == other.data.encode()
+    }
+}
+
+impl<D: Encode> Eq for DataMessage<D> {}
+
+#[derive(Clone, Encode, Decode)]
 enum InternalMessage<D: Clone + Encode + Decode> {
     Meta(MetaMessage),
-    Data(SessionId, MessageIndex, D, Recipient<NodeIndex>),
+    Data(DataMessage<D>),
 }
 
 struct SessionData<D: Clone + Encode + Decode> {
     pub(crate) data_for_user: mpsc::UnboundedSender<D>,
     pub(crate) status: SessionStatus,
     pub(crate) keychain: KeyBox,
-    messages: LruCache<Vec<u8>, MessageIndex>,
+    messages: LruCache<DataMessage<D>, ()>,
+    messages_index: MessageIndex,
     auth_data: AuthData,
     auth_signature: Signature,
 }
@@ -334,6 +370,7 @@ impl<D: Clone + Encode + Decode> SessionManager<D> {
             status: SessionStatus::InProgress,
             keychain,
             messages: LruCache::new(CACHE_SIZE),
+            messages_index: 0,
             auth_data: auth_data.clone(),
             auth_signature: signature.clone(),
         };
@@ -398,20 +435,15 @@ where
         }
     }
 
-    fn check_or_insert_cache(&self, session_id: SessionId, msg_bytes: Vec<u8>) -> MessageIndex {
+    fn next_message_index(&self, session_id: SessionId) -> MessageIndex {
         let mut sessions = self.sessions.lock();
-        let messages = &mut sessions
+        let mut index = sessions
             .get_mut(&session_id)
-            .expect("session has started.")
-            .messages;
+            .expect("Session has stared.")
+            .messages_index;
+        index += 1;
 
-        if let Some(index) = messages.get_mut(&msg_bytes) {
-            *index += 1;
-            *index
-        } else {
-            messages.put(msg_bytes, 0);
-            0
-        }
+        index
     }
 
     fn send_message(&self, peer_id: &PeerId, message: InternalMessage<D>) {
@@ -423,9 +455,10 @@ where
         &self,
         session_id: SessionId,
         message: InternalMessage<D>,
-        n_peers: usize,
+        amount: usize,
+        offset: usize,
     ) {
-        for peer_id in self.peers.lock().get_rand(session_id, n_peers) {
+        for peer_id in self.peers.lock().get_rand(session_id, amount, offset) {
             self.send_message(peer_id, message.clone());
         }
     }
@@ -437,14 +470,22 @@ where
         data: D,
         recipient: Recipient<NodeIndex>,
     ) {
-        let message = InternalMessage::Data(session_id, index, data, recipient.clone());
+        let data_message = DataMessage {
+            session_id,
+            index,
+            data,
+            recipient: recipient.clone(),
+        };
+        let message = InternalMessage::Data(data_message);
         match recipient {
-            Recipient::All => self.send_message_rand(session_id, message, GOSSIP_FORWARD),
+            Recipient::All => {
+                self.send_message_rand(session_id, message, GOSSIP_FORWARD, index as usize)
+            }
             Recipient::Target(node_id) => {
                 if let Some(peer_id) = self.peers.lock().get(session_id, node_id) {
                     self.send_message(peer_id, message);
                 } else {
-                    self.send_message_rand(session_id, message, SEND_FORWARD);
+                    self.send_message_rand(session_id, message, SEND_FORWARD, index as usize);
                 }
             }
         }
@@ -491,18 +532,20 @@ where
         data: D,
         recipient: Recipient<NodeIndex>,
     ) {
+        let message = DataMessage {
+            session_id,
+            index,
+            data: data.clone(),
+            recipient: recipient.clone(),
+        };
         let mut sessions = self.sessions.lock();
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
-                let msg_bytes = data.encode();
-                if let Some(current_index) = session_data.messages.get_mut(&msg_bytes) {
-                    if index <= *current_index {
-                        debug!(target: "afa", "Received data with old index in session {:?}.", session_id);
-                    } else {
-                        *current_index = index;
-                    }
+                if session_data.messages.contains(&message) {
+                    debug!(target: "afa", "Received data with old index in session {:?}.", session_id);
+                    return;
                 } else {
-                    session_data.messages.put(msg_bytes, index);
+                    session_data.messages.put(message, ());
                 }
                 if let Recipient::Target(node_id) = recipient {
                     if node_id == session_data.auth_data.node_id {
@@ -512,10 +555,10 @@ where
                             session_data.status = SessionStatus::Terminated;
                             debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
                         }
-                    } else {
-                        self.forward(session_id, index, data, recipient);
+                        return;
                     }
                 }
+                self.forward(session_id, index, data, recipient);
             }
         }
     }
@@ -542,7 +585,12 @@ where
     fn on_incoming_message(&self, peer_id: PeerId, raw_message: Vec<u8>) {
         use InternalMessage::*;
         match InternalMessage::<D>::decode(&mut &raw_message[..]) {
-            Ok(Data(session_id, index, data, recipient)) => {
+            Ok(Data(DataMessage {
+                session_id,
+                index,
+                data,
+                recipient,
+            })) => {
                 // Accept data only from authenticated peers. Rush is robust enough that this is
                 // not strictly necessary, but it doesn't hurt.
                 // TODO we may relax this condition if we want to allow nonvalidators to help in gossip
@@ -582,9 +630,20 @@ where
                 }
             }
             Data(session_id, data, recipient) => {
-                let msg_bytes = data.encode();
-                let index = self.check_or_insert_cache(session_id, msg_bytes);
-                let message = InternalMessage::Data(session_id, index, data, recipient);
+                let index = self.next_message_index(session_id);
+                let data_message = DataMessage {
+                    session_id,
+                    index,
+                    data,
+                    recipient: recipient.clone(),
+                };
+                let message = InternalMessage::Data(data_message);
+                if let Recipient::Target(node_id) = recipient {
+                    if let Some(peer) = self.peers.lock().get(session_id, node_id) {
+                        self.send_message(peer, message);
+                        return;
+                    }
+                }
                 for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
                     self.send_message(peer_id, message.clone());
                 }
