@@ -1,5 +1,6 @@
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, stream::Stream, StreamExt};
+use lru::LruCache;
 use parking_lot::Mutex;
 use rand::prelude::SliceRandom;
 use rush::{nodes::NodeIndex, Index, KeyBox as _};
@@ -19,6 +20,7 @@ mod tests;
 // TODO below constants should be calculated based on the size of validators set for given session
 const GOSSIP_FORWARD: usize = 5;
 const SEND_FORWARD: usize = 2;
+const CACHE_SIZE: usize = 1_000_000;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(ScPeerId);
@@ -257,16 +259,19 @@ enum MetaMessage {
     AuthenticationRequest(SessionId),
 }
 
+type MessageIndex = u64;
+
 #[derive(Clone, Encode, Decode)]
 enum InternalMessage<D: Clone + Encode + Decode> {
     Meta(MetaMessage),
-    Data(SessionId, D, Recipient<NodeIndex>),
+    Data(SessionId, MessageIndex, D, Recipient<NodeIndex>),
 }
 
 struct SessionData<D: Clone + Encode + Decode> {
     pub(crate) data_for_user: mpsc::UnboundedSender<D>,
     pub(crate) status: SessionStatus,
     pub(crate) keychain: KeyBox,
+    messages: LruCache<Vec<u8>, MessageIndex>,
     auth_data: AuthData,
     auth_signature: Signature,
 }
@@ -328,6 +333,7 @@ impl<D: Clone + Encode + Decode> SessionManager<D> {
             data_for_user,
             status: SessionStatus::InProgress,
             keychain,
+            messages: LruCache::new(CACHE_SIZE),
             auth_data: auth_data.clone(),
             auth_signature: signature.clone(),
         };
@@ -364,8 +370,11 @@ pub(crate) struct ConsensusNetwork<D: Clone + Encode + Decode, B: BlockT, N: Net
     _phantom: PhantomData<B>,
 }
 
-impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
-    ConsensusNetwork<D, B, N>
+impl<D, B, N> ConsensusNetwork<D, B, N>
+where
+    D: Clone + Encode + Decode,
+    B: BlockT + 'static,
+    N: Network<B> + Clone,
 {
     /// Create a new instance.
     pub(crate) fn new(network: N, protocol: Cow<'static, str>) -> Self {
@@ -389,6 +398,22 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
         }
     }
 
+    fn check_or_insert_cache(&self, session_id: SessionId, msg_bytes: Vec<u8>) -> MessageIndex {
+        let mut sessions = self.sessions.lock();
+        let messages = &mut sessions
+            .get_mut(&session_id)
+            .expect("session has started.")
+            .messages;
+
+        if let Some(index) = messages.get_mut(&msg_bytes) {
+            *index += 1;
+            *index
+        } else {
+            messages.put(msg_bytes, 0);
+            0
+        }
+    }
+
     fn send_message(&self, peer_id: &PeerId, message: InternalMessage<D>) {
         self.network
             .send_message(*peer_id, self.protocol.clone(), message.encode());
@@ -405,8 +430,14 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
         }
     }
 
-    fn forward(&self, session_id: SessionId, data: D, recipient: Recipient<NodeIndex>) {
-        let message = InternalMessage::Data(session_id, data, recipient.clone());
+    fn forward(
+        &self,
+        session_id: SessionId,
+        index: MessageIndex,
+        data: D,
+        recipient: Recipient<NodeIndex>,
+    ) {
+        let message = InternalMessage::Data(session_id, index, data, recipient.clone());
         match recipient {
             Recipient::All => self.send_message_rand(session_id, message, GOSSIP_FORWARD),
             Recipient::Target(node_id) => {
@@ -453,10 +484,26 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
         }
     }
 
-    fn on_incoming_data(&self, session_id: SessionId, data: D, recipient: Recipient<NodeIndex>) {
+    fn on_incoming_data(
+        &self,
+        session_id: SessionId,
+        index: MessageIndex,
+        data: D,
+        recipient: Recipient<NodeIndex>,
+    ) {
         let mut sessions = self.sessions.lock();
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
+                let msg_bytes = data.encode();
+                if let Some(current_index) = session_data.messages.get_mut(&msg_bytes) {
+                    if index <= *current_index {
+                        debug!(target: "afa", "Received data with old index in session {:?}.", session_id);
+                    } else {
+                        *current_index = index;
+                    }
+                } else {
+                    session_data.messages.put(msg_bytes, index);
+                }
                 if let Recipient::Target(node_id) = recipient {
                     if node_id == session_data.auth_data.node_id {
                         if let Err(e) = session_data.data_for_user.unbounded_send(data) {
@@ -466,7 +513,7 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                             debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
                         }
                     } else {
-                        self.forward(session_id, data, recipient);
+                        self.forward(session_id, index, data, recipient);
                     }
                 }
             }
@@ -495,12 +542,12 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
     fn on_incoming_message(&self, peer_id: PeerId, raw_message: Vec<u8>) {
         use InternalMessage::*;
         match InternalMessage::<D>::decode(&mut &raw_message[..]) {
-            Ok(Data(session_id, data, recipient)) => {
+            Ok(Data(session_id, index, data, recipient)) => {
                 // Accept data only from authenticated peers. Rush is robust enough that this is
                 // not strictly necessary, but it doesn't hurt.
                 // TODO we may relax this condition if we want to allow nonvalidators to help in gossip
                 if self.peers.lock().is_authenticated(&peer_id, &session_id) {
-                    self.on_incoming_data(session_id, data, recipient);
+                    self.on_incoming_data(session_id, index, data, recipient);
                 } else {
                     debug!(target: "afa", "Received unauthenticated message from {:?} for session {:?}, requesting authentication.", peer_id, session_id);
                     self.commands_for_session
@@ -535,7 +582,9 @@ impl<D: Clone + Encode + Decode, B: BlockT + 'static, N: Network<B> + Clone>
                 }
             }
             Data(session_id, data, recipient) => {
-                let message = InternalMessage::Data(session_id, data, recipient);
+                let msg_bytes = data.encode();
+                let index = self.check_or_insert_cache(session_id, msg_bytes);
+                let message = InternalMessage::Data(session_id, index, data, recipient);
                 for peer_id in self.peers.lock().peers_authenticated_for(session_id) {
                     self.send_message(peer_id, message.clone());
                 }
