@@ -15,7 +15,7 @@ use std::{
     sync::Arc,
 };
 
-use log::debug;
+use log::{debug, trace};
 
 use crate::{Error, Hasher, KeyBox, SessionId, Signature};
 
@@ -25,7 +25,7 @@ mod tests;
 // TODO below constants should be calculated based on the size of validators set for given session
 const GOSSIP_FORWARD: usize = 5;
 const SEND_FORWARD: usize = 2;
-const CACHE_SIZE: usize = 1_000_000;
+const CACHE_SIZE: usize = 10000;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(ScPeerId);
@@ -463,7 +463,7 @@ where
         }
     }
 
-    fn forward(
+    fn forward_to_peers(
         &self,
         session_id: SessionId,
         index: MessageIndex,
@@ -491,6 +491,14 @@ where
         }
     }
 
+    fn send_to_user(&self, session_id: SessionId, data: D, session_data: &mut SessionData<D>) {
+        if let Err(e) = session_data.data_for_user.unbounded_send(data) {
+            //TODO: need to write some logic on when an session should be terminated and make sure
+            // that there are no issues with synchronization when terminating.
+            session_data.status = SessionStatus::Terminated;
+            debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
+        }
+    }
     fn authenticate_to(&self, session_data: &SessionData<D>, peer_id: PeerId) {
         self.commands_for_session
             .unbounded_send(SessionCommand::Meta(
@@ -512,14 +520,14 @@ where
                 if peer_id == auth_data.peer_id {
                     self.on_incoming_authentication(auth_data, signature);
                 } else {
-                    debug!(target: "afa", "Peer {:?} attempting to authenticate as peer {:?}.", peer_id, auth_data.peer_id);
+                    trace!(target: "afa", "Peer {:?} attempting to authenticate as peer {:?}.", peer_id, auth_data.peer_id);
                 }
             }
             AuthenticationRequest(session_id) => {
                 if let Some(session_data) = self.sessions.lock().get(&session_id) {
                     self.authenticate_to(session_data, peer_id);
                 } else {
-                    debug!(target: "afa", "Received authentication request for unknown session: {:?}.", session_id);
+                    trace!(target: "afa", "Received authentication request for unknown session: {:?}.", session_id);
                 }
             }
         }
@@ -542,23 +550,23 @@ where
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
                 if session_data.messages.contains(&message) {
-                    debug!(target: "afa", "Received data with old index in session {:?}.", session_id);
+                    trace!(target: "afa", "Received data with old index in session {:?}.", session_id);
                     return;
                 } else {
                     session_data.messages.put(message, ());
                 }
-                if let Recipient::Target(node_id) = recipient {
-                    if node_id == session_data.auth_data.node_id {
-                        if let Err(e) = session_data.data_for_user.unbounded_send(data) {
-                            //TODO: need to write some logic on when an session should be terminated and make sure
-                            // that there are no issues with synchronization when terminating.
-                            session_data.status = SessionStatus::Terminated;
-                            debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
-                        }
-                        return;
+                match recipient {
+                    Recipient::Target(node_id) if node_id == session_data.auth_data.node_id => {
+                        self.send_to_user(session_id, data, session_data);
+                    }
+                    Recipient::All => {
+                        self.send_to_user(session_id, data.clone(), session_data);
+                        self.forward_to_peers(session_id, index, data, recipient);
+                    }
+                    _ => {
+                        self.forward_to_peers(session_id, index, data, recipient);
                     }
                 }
-                self.forward(session_id, index, data, recipient);
             }
         }
     }
@@ -597,7 +605,7 @@ where
                 if self.peers.lock().is_authenticated(&peer_id, &session_id) {
                     self.on_incoming_data(session_id, index, data, recipient);
                 } else {
-                    debug!(target: "afa", "Received unauthenticated message from {:?} for session {:?}, requesting authentication.", peer_id, session_id);
+                    trace!(target: "afa", "Received unauthenticated message from {:?} for session {:?}, requesting authentication.", peer_id, session_id);
                     self.commands_for_session
                         .unbounded_send(SessionCommand::Meta(
                             MetaMessage::AuthenticationRequest(session_id),
