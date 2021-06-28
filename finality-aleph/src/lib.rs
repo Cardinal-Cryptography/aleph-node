@@ -206,6 +206,7 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub auth_keystore: AuthorityKeystore,
     pub authority: AuthorityId,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub period: u32,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(
@@ -217,6 +218,7 @@ where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     SC: SelectChain<B> + 'static,
+    NumberFor<B>: Into<u32>,
 {
     run_consensus_party(AlephParams { config })
 }

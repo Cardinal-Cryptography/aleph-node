@@ -18,8 +18,8 @@ use std::{
 use log::{debug, trace, warn};
 
 use crate::{finalization::SignableHash, Error, Hasher, MultiKeychain, SessionId, Signature};
+use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
-
 #[cfg(test)]
 mod tests;
 
@@ -87,8 +87,11 @@ pub trait Network<B: BlockT>: Clone + Send + Sync + 'static {
     /// TODO: figure out what does this actually do...
     fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>);
 
-    // The PeerId of this node.
+    /// The PeerId of this node.
     fn peer_id(&self) -> PeerId;
+
+    /// Request the justification for the given block
+    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>);
 }
 
 impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
@@ -137,6 +140,10 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
 
     fn peer_id(&self) -> PeerId {
         (*self.local_peer_id()).into()
+    }
+
+    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
+        NetworkService::request_justification(self, hash, number)
     }
 }
 

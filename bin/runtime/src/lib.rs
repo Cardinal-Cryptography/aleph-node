@@ -528,5 +528,9 @@ impl_runtime_apis! {
         fn authorities() -> Vec<AlephId> {
             Aleph::authorities()
         }
+
+        fn session_period() -> u32 {
+            Period::get()
+        }
     }
 }

@@ -1,70 +1,119 @@
-use crate::{AuthorityId, AuthorityKeystore, AuthoritySignature, JustificationNotification};
+use crate::{network, AuthorityKeystore, JustificationNotification, KeyBox, Signature};
+use aleph_bft::{MultiKeychain, NodeIndex, SignatureSet};
+use aleph_primitives::{AuthorityId, Session};
 use codec::{Decode, Encode};
 use futures::channel::mpsc;
 use sp_api::{BlockT, NumberFor};
-use sp_application_crypto::RuntimeAppPublic;
 use sp_blockchain::Error;
+use std::collections::HashMap;
 use tokio::stream::StreamExt;
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
+#[derive(Clone, Encode, Decode, Debug)]
 pub struct AlephJustification {
-    pub(crate) signature: AuthoritySignature,
+    pub(crate) signature: SignatureSet<Signature>,
 }
 
 impl AlephJustification {
-    pub fn new<Block: BlockT>(auth_crypto_store: &AuthorityKeystore, hash: Block::Hash) -> Self {
-        Self {
-            signature: auth_crypto_store.sign(&hash.encode()[..]),
-        }
+    pub(crate) fn new<Block: BlockT>(signature: SignatureSet<Signature>) -> Self {
+        Self { signature }
     }
 
-    pub(crate) fn _decode_and_verify<Block: BlockT>(
+    pub(crate) fn decode_and_verify<
+        Block: BlockT,
+        MK: MultiKeychain<Signature = Signature, PartialMultisignature = SignatureSet<Signature>>,
+    >(
         justification: &[u8],
         block_hash: Block::Hash,
-        authorities: &[AuthorityId],
-        number: NumberFor<Block>,
+        multi_keychain: &MK,
     ) -> Result<AlephJustification, Error> {
         let aleph_justification = AlephJustification::decode(&mut &*justification)
             .map_err(|_| Error::JustificationDecode)?;
 
-        let encoded_hash = &block_hash.encode()[..];
-        for x in authorities.iter() {
-            if x.verify(&encoded_hash, &aleph_justification.signature) {
-                return Ok(aleph_justification);
-            };
+        let valid =
+            multi_keychain.is_complete(&block_hash.encode()[..], &aleph_justification.signature);
+
+        if !valid {
+            log::debug!(target: "afa", "Bad justification decoded for block hash #{:?}", block_hash);
+            return Err(Error::BadJustification("Invalid justification".into()));
         }
 
-        log::debug!(target: "afg", "Bad justification decoded for block number #{:?}", number);
-        Err(Error::BadJustification(String::from(
-            "No known AuthorityId was used to sign justification",
-        )))
+        Ok(aleph_justification)
     }
 }
 
-// For now it is glorified proxy channel not doing anything useful
-pub struct JustificationHandler<Block: BlockT> {
+pub struct JustificationHandler<Block: BlockT, N: network::Network<Block> + 'static> {
     finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+    sessions: HashMap<u32, Session<AuthorityId, NumberFor<Block>>>,
+    auth_keystore: AuthorityKeystore,
+    session_period: u32,
+    network: N,
 }
 
-impl<Block: BlockT> JustificationHandler<Block> {
+impl<Block: BlockT, N: network::Network<Block> + 'static> JustificationHandler<Block, N>
+where
+    NumberFor<Block>: Into<u32>,
+{
     pub(crate) fn new(
         finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
         justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+        sessions: HashMap<u32, Session<AuthorityId, NumberFor<Block>>>,
+        auth_keystore: AuthorityKeystore,
+        session_period: u32,
+        network: N,
     ) -> Self {
         Self {
             finalization_proposals_tx,
             justification_rx,
+            sessions,
+            auth_keystore,
+            session_period,
+            network,
         }
     }
 
     pub(crate) async fn run(mut self) {
         while let Some(notification) = self.justification_rx.next().await {
-            self.finalization_proposals_tx
-                .unbounded_send(notification)
-                .expect("Notification should succeed");
+            let keybox = match self.session_keybox(notification.number) {
+                Some(keybox) => keybox,
+                None => {
+                    self.network
+                        .request_justification(&notification.hash, notification.number);
+                    continue;
+                }
+            };
+
+            match AlephJustification::decode_and_verify::<Block, _>(
+                &notification.justification,
+                notification.hash,
+                &crate::MultiKeychain::new(keybox),
+            ) {
+                Ok(_) => self
+                    .finalization_proposals_tx
+                    .unbounded_send(notification)
+                    .expect("Notification should succeed"),
+                Err(err) => {
+                    log::error!(target: "afa", "{:?}", err);
+                    self.network
+                        .request_justification(&notification.hash, notification.number);
+                }
+            }
         }
 
         log::error!(target: "afa", "Notification channel closed unexpectedly");
+    }
+
+    fn session_keybox(&self, n: NumberFor<Block>) -> Option<KeyBox> {
+        let session = n.into() / self.session_period;
+        let authorities = match self.sessions.get(&session) {
+            Some(session) => session.authorities.to_vec(),
+            None => return None,
+        };
+
+        Some(KeyBox {
+            authorities,
+            auth_keystore: self.auth_keystore.clone(),
+            id: NodeIndex(0),
+        })
     }
 }

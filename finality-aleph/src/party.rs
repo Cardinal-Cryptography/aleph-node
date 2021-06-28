@@ -32,6 +32,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B, AuthorityId, NumberFor<B>>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
+    NumberFor<B>: Into<u32>,
 {
     let AlephParams {
         config:
@@ -43,11 +44,21 @@ where
                 auth_keystore,
                 authority,
                 justification_rx,
+                period,
                 ..
             },
     } = aleph_params;
 
-    let handler_rx = run_justification_handler(&spawn_handle.clone().into(), justification_rx);
+    let sessions = HashMap::new();
+
+    let handler_rx = run_justification_handler(
+        &spawn_handle.clone().into(),
+        justification_rx,
+        sessions.clone(),
+        auth_keystore.clone(),
+        network.clone(),
+        period,
+    );
     let party = ConsensusParty::new(
         network,
         client,
@@ -56,6 +67,7 @@ where
         auth_keystore,
         authority,
         handler_rx,
+        sessions.clone(),
     );
 
     debug!(target: "afa", "Consensus party has started.");
@@ -70,12 +82,26 @@ fn get_node_index(authorities: &[AuthorityId], my_id: &AuthorityId) -> Option<No
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B: Block>(
+fn run_justification_handler<B: Block, N: network::Network<B> + 'static>(
     spawn_handle: &SpawnHandle,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-) -> mpsc::UnboundedReceiver<JustificationNotification<B>> {
+    sessions: HashMap<u32, Session<AuthorityId, NumberFor<B>>>,
+    auth_keystore: AuthorityKeystore,
+    network: N,
+    period: u32,
+) -> mpsc::UnboundedReceiver<JustificationNotification<B>>
+where
+    NumberFor<B>: Into<u32>,
+{
     let (finalization_proposals_tx, finalization_proposals_rx) = mpsc::unbounded();
-    let handler = JustificationHandler::new(finalization_proposals_tx, justification_rx);
+    let handler = JustificationHandler::new(
+        finalization_proposals_tx,
+        justification_rx,
+        sessions,
+        auth_keystore,
+        period,
+        network,
+    );
 
     debug!(target: "afa", "JustificationHandler started");
     spawn_handle
@@ -189,9 +215,8 @@ where
                 }
             },
             multisigned_hash = aggregator.next_multisigned_hash(), if !aggregator.is_finished() => {
-                if let Some((hash, _multisignature)) = multisigned_hash {
-                    // TODO: justify with the multisignature.
-                    finalize_block_as_authority(client.clone(), hash, &auth_keystore);
+                if let Some((hash, multisignature)) = multisigned_hash {
+                    finalize_block_as_authority(client.clone(), hash, multisignature);
                 } else {
                     break;
                 }
@@ -224,6 +249,7 @@ where
         auth_keystore: AuthorityKeystore,
         authority: AuthorityId,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+        sessions: HashMap<u32, Session<AuthorityId, NumberFor<B>>>,
     ) -> Self {
         Self {
             network,
@@ -232,8 +258,8 @@ where
             select_chain,
             authority,
             finalization_proposals_rx,
+            sessions,
             spawn_handle: spawn_handle.into(),
-            sessions: HashMap::new(),
             phantom: PhantomData,
         }
     }
@@ -273,7 +299,6 @@ where
             async move {
                 while client.info().finalized_number < current_stop_h {
                     if let Some(proposal) = finalization_proposals_rx.next().await {
-                        // TODO: check if we should do this
                         finalize_block(
                             client.clone(),
                             proposal.hash,

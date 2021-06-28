@@ -27,6 +27,7 @@ struct TestNetwork<B: BlockT> {
     announce: Channel<(B::Hash, Option<Vec<u8>>)>,
     add_set_reserved: Channel<(PeerId, Cow<'static, str>)>,
     remove_set_reserved: Channel<(PeerId, Cow<'static, str>)>,
+    request_justification: Channel<(B::Hash, NumberFor<B>)>,
     peer_id: PeerId,
 }
 
@@ -41,6 +42,7 @@ impl<B: BlockT> TestNetwork<B> {
             announce: channel(),
             add_set_reserved: channel(),
             remove_set_reserved: channel(),
+            request_justification: channel(),
             peer_id,
         }
     }
@@ -106,6 +108,14 @@ impl<B: BlockT> Network<B> for TestNetwork<B> {
 
     fn peer_id(&self) -> PeerId {
         self.peer_id
+    }
+
+    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
+        self.request_justification
+            .0
+            .lock()
+            .unbounded_send((*hash, number))
+            .unwrap();
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
     justification::AlephJustification,
     network::{Recipient, RmcNetwork},
-    AuthorityKeystore, Signature,
+    Signature,
 };
 use aleph_bft::{
     rmc::{DoublingDelayScheduler, Message, ReliableMulticast},
@@ -27,7 +27,7 @@ use tokio::time::Duration;
 pub(crate) fn finalize_block_as_authority<BE, B, C>(
     client: Arc<C>,
     h: B::Hash,
-    auth_keystore: &AuthorityKeystore,
+    multisignature: SignatureSet<Signature>,
 ) where
     B: Block,
     BE: Backend<B>,
@@ -46,7 +46,7 @@ pub(crate) fn finalize_block_as_authority<BE, B, C>(
         block_number,
         Some((
             ALEPH_ENGINE_ID,
-            AlephJustification::new::<B>(auth_keystore, h).encode(),
+            AlephJustification::new::<B>(multisignature).encode(),
         )),
     );
 }

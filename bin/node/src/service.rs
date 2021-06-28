@@ -1,5 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use codec::Decode;
 use finality_aleph::{
@@ -13,6 +14,7 @@ use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
+use sp_api::ProvideRuntimeApi;
 use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
@@ -174,6 +176,11 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             block_announce_validator_builder: None,
         })?;
 
+    let period = client
+        .runtime_api()
+        .session_period(&BlockId::Number(Zero::zero()))
+        .unwrap();
+
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
@@ -262,6 +269,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             network,
             client,
             select_chain,
+            period,
             spawn_handle: task_manager.spawn_handle(),
             auth_keystore: AuthorityKeystore::new(
                 authority_id.clone(),
