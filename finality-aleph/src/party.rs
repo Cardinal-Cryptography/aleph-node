@@ -162,7 +162,7 @@ where
     );
     let data_io = DataIO {
         select_chain: select_chain.clone(),
-        metrics,
+        metrics: metrics.clone(),
         ordered_batch_tx,
     };
     let aleph_task = {
@@ -188,6 +188,10 @@ where
         tokio::select! {
             hash = finalizable_chain.next(), if !finalizable_chain.is_done() => {
                 if let Some(hash) = hash {
+                    if let Some(ref m) = metrics {
+                        m.write()
+                            .report_block(hash, std::time::Instant::now(), "aggregation-start");
+                    };
                     aggregator.start_aggregation(hash).await;
                 } else {
                     aggregator.finish().await;
@@ -197,11 +201,14 @@ where
             multisigned_hash = aggregator.next_multisigned_hash(), if !aggregator.is_finished() => {
                 if let Some((hash, _multisignature)) = multisigned_hash {
                     // TODO: justify with the multisignature.
+                    if let Some(ref m) = metrics {
+                        m.write()
+                            .report_block(hash.clone(), std::time::Instant::now(), "finalize");
+                    };
                     let finalization_result = finalize_block_as_authority(client.clone(), hash, &auth_keystore);
                     if let Err(err) = finalization_result {
                         error!(target: "afa", "failed to finalize a block: {:?}", err);
                     }
-
                 } else {
                     break;
                 }

@@ -4,7 +4,7 @@ use std::{collections::HashMap, time::Instant};
 
 #[derive(Clone)]
 pub struct Metrics<K: Header> {
-    keys: [&'static str; 4],
+    keys: [&'static str; 5],
     prev: HashMap<&'static str, &'static str>,
     pub gauges: HashMap<&'static str, Gauge<U64>>,
     starts: HashMap<&'static str, HashMap<<K as Header>::Hash, Instant>>,
@@ -12,11 +12,12 @@ pub struct Metrics<K: Header> {
 
 impl<K: Header> Metrics<K> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
-        let keys = ["importing", "imported", "get_data", "finalize"];
+        let keys = ["importing", "imported", "get_data", "finalize", "aggregation-start"];
         let prev: HashMap<&str, &str> = [
             ("imported", "importing"),
             ("get_data", "imported"),
-            ("finalize", "get_data"),
+            ("aggregation-start", "get_data"),
+            ("finalize", "aggregation-start"),
         ]
         .iter()
         .cloned()
