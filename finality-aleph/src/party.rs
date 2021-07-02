@@ -13,6 +13,7 @@ use crate::{
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, stream::FuturesUnordered, FutureExt, StreamExt};
 use log::{debug, error};
+use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
@@ -49,7 +50,7 @@ where
             },
     } = aleph_params;
 
-    let sessions = HashMap::new();
+    let sessions = Arc::new(Mutex::new(HashMap::new()));
 
     let handler_rx = run_justification_handler(
         &spawn_handle.clone().into(),
@@ -85,7 +86,7 @@ fn get_node_index(authorities: &[AuthorityId], my_id: &AuthorityId) -> Option<No
 fn run_justification_handler<B: Block, N: network::Network<B> + 'static>(
     spawn_handle: &SpawnHandle,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    sessions: HashMap<u32, Session<AuthorityId, NumberFor<B>>>,
+    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
     auth_keystore: AuthorityKeystore,
     network: N,
     period: u32,
@@ -124,7 +125,7 @@ where
     NumberFor<B>: From<u32>,
 {
     network: N,
-    sessions: HashMap<u32, Session<AuthorityId, NumberFor<B>>>,
+    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
     spawn_handle: SpawnHandle,
     client: Arc<C>,
     select_chain: SC,
@@ -249,7 +250,7 @@ where
         auth_keystore: AuthorityKeystore,
         authority: AuthorityId,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-        sessions: HashMap<u32, Session<AuthorityId, NumberFor<B>>>,
+        sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
     ) -> Self {
         Self {
             network,
@@ -272,6 +273,7 @@ where
             None => 0.into(),
             Some(prev_id) => {
                 self.sessions
+                    .lock()
                     .get(&prev_id)
                     .expect("The current session should be known already")
                     .stop_h
@@ -283,7 +285,7 @@ where
             .current_session(&BlockId::Number(prev_block_number))
         {
             Ok(session) => {
-                self.sessions.insert(session_id, session.clone());
+                self.sessions.lock().insert(session_id, session.clone());
                 session
             }
             _ => {

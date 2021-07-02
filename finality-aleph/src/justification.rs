@@ -3,9 +3,10 @@ use aleph_bft::{MultiKeychain, NodeIndex, SignatureSet};
 use aleph_primitives::{AuthorityId, Session};
 use codec::{Decode, Encode};
 use futures::channel::mpsc;
+use parking_lot::Mutex;
 use sp_api::{BlockT, NumberFor};
 use sp_blockchain::Error;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use tokio::stream::StreamExt;
 
 #[derive(Clone, Encode, Decode, Debug)]
@@ -44,7 +45,7 @@ impl AlephJustification {
 pub struct JustificationHandler<Block: BlockT, N: network::Network<Block> + 'static> {
     finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
-    sessions: HashMap<u32, Session<AuthorityId, NumberFor<Block>>>,
+    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<Block>>>>>,
     auth_keystore: AuthorityKeystore,
     session_period: u32,
     network: N,
@@ -57,7 +58,7 @@ where
     pub(crate) fn new(
         finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
         justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
-        sessions: HashMap<u32, Session<AuthorityId, NumberFor<Block>>>,
+        sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<Block>>>>>,
         auth_keystore: AuthorityKeystore,
         session_period: u32,
         network: N,
@@ -105,7 +106,7 @@ where
 
     fn session_keybox(&self, n: NumberFor<Block>) -> Option<KeyBox> {
         let session = n.into() / self.session_period;
-        let authorities = match self.sessions.get(&session) {
+        let authorities = match self.sessions.lock().get(&session) {
             Some(session) => session.authorities.to_vec(),
             None => return None,
         };
