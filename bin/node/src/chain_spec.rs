@@ -69,6 +69,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
         .unwrap()
         .iter()
         .take(n_members)
+        .skip(1)
         .copied()
         .map(|bytes| AlephId::from(ed25519::Public::from_raw(bytes)))
         .collect();

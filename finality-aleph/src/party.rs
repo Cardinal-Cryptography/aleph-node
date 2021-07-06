@@ -155,8 +155,12 @@ where
 {
     let node_id = match get_node_index(&session.authorities, &authority) {
         Some(node_id) => node_id,
-        None => return false,
+        None => {
+            debug!(target: "afa", "Not an authority, thus not running a session");
+            return false
+        },
     };
+    debug!(target: "afa", "Running session #{}", session.session_id);
     let current_stop_h = session.stop_h;
     let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
     let (exit_tx, exit_rx) = futures::channel::oneshot::channel();
@@ -219,6 +223,7 @@ where
                 if let Some((hash, multisignature)) = multisigned_hash {
                     finalize_block_as_authority(client.clone(), hash, multisignature);
                 } else {
+                    debug!(target: "afa", "the stream of multisigned hashes has ended");
                     break;
                 }
             },
@@ -312,6 +317,7 @@ where
                         break;
                     }
                 }
+                debug!(target: "afa", "finalized blocks up to #{}", current_stop_h);
             }
         };
 
@@ -338,6 +344,7 @@ where
         .collect();
 
         tasks.filter(|b| std::future::ready(*b)).next().await;
+        debug!(target: "afa", "session #{} of the party completed", session_id);
     }
 
     async fn run(mut self) {
