@@ -11,11 +11,7 @@ use crate::{
     SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
-use futures::{
-    channel::mpsc,
-    stream::FuturesUnordered,
-    FutureExt, StreamExt,
-};
+use futures::{channel::mpsc, FutureExt, StreamExt};
 use log::{debug, error, warn};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
@@ -149,6 +145,7 @@ async fn maybe_run_session_as_authority<B, C, BE, SC>(
     session: Session<AuthorityId, NumberFor<B>>,
     spawn_handle: SpawnHandle,
     select_chain: SC,
+    exit_rx: futures::channel::oneshot::Receiver<()>,
 ) -> bool
 where
     B: Block,
@@ -167,7 +164,6 @@ where
     debug!(target: "afa", "Running session #{}", session.session_id);
     let current_stop_h = session.stop_h;
     let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
-    let (exit_tx, exit_rx) = futures::channel::oneshot::channel();
 
     let keybox = KeyBox {
         auth_keystore: auth_keystore.clone(),
@@ -238,8 +234,7 @@ where
             }
         }
     }
-    debug!(target: "afa", "Terminating member for session {}", session_id.0);
-    exit_tx.send(()).expect("consensus task should not fail");
+    debug!(target: "afa", "Member for session {} ended", session_id.0);
     true
 }
 
@@ -269,7 +264,7 @@ where
             auth_keystore,
             select_chain,
             authority,
-            finalization_proposals_rx: finalization_proposals_rx,
+            finalization_proposals_rx,
             sessions,
             spawn_handle: spawn_handle.into(),
             phantom: PhantomData,
@@ -311,27 +306,29 @@ where
             let finalization_proposals_rx = &mut self.finalization_proposals_rx;
             async move {
                 loop {
-                   match finalization_proposals_rx.next().await {
-                       Some(proposal) => {
-                           finalize_block(
-                               client.clone(),
-                               proposal.hash,
-                               proposal.number,
-                               Some((ALEPH_ENGINE_ID, proposal.justification)),
-                           );
-                           if proposal.number == current_stop_h {
-                               debug!(target: "afa", "finalized blocks up to #{}", current_stop_h);
-                               return
-                           }
-                       },
-                       None => {
-                           warn!(target: "afa", "the channel of block hashes to finalize ended too early");
-                           return
-                       }
-                   }
+                    match finalization_proposals_rx.next().await {
+                        Some(proposal) => {
+                            finalize_block(
+                                client.clone(),
+                                proposal.hash,
+                                proposal.number,
+                                Some((ALEPH_ENGINE_ID, proposal.justification)),
+                            );
+                            if proposal.number == current_stop_h {
+                                debug!(target: "afa", "finalized blocks up to #{}", current_stop_h);
+                                return;
+                            }
+                        }
+                        None => {
+                            warn!(target: "afa", "the channel of block hashes to finalize ended too early");
+                            return;
+                        }
+                    }
                 }
             }
         };
+
+        let (exit_tx, exit_rx) = futures::channel::oneshot::channel();
 
         // returns true if we participated in the session
         let session_task = maybe_run_session_as_authority(
@@ -342,6 +339,7 @@ where
             session,
             self.spawn_handle.clone(),
             self.select_chain.clone(),
+            exit_rx,
         );
 
         // We run concurrently `proposal_task` and `session_task` until either
@@ -353,11 +351,11 @@ where
         futures::pin_mut!(session_task);
         match futures::future::select(proposals_task, session_task).await {
             // if session task terminates and we didn't participate as an auth
-            Right((false, proposals_task)) => {
-                proposals_task.await
-            },
-            _ => ()
-
+            Right((false, proposals_task)) => proposals_task.await,
+            _ => (),
+        }
+        if exit_tx.send(()).is_ok() {
+            debug!(target: "afa", "terminating the member manually")
         }
         debug!(target: "afa", "session #{} of the party completed", session_id);
     }

@@ -1,10 +1,10 @@
 use crate::Error;
 use aleph_bft::OrderedBatch;
 use futures::channel::mpsc;
+use log::debug;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
 use std::{future::Future, pin::Pin};
-use log::debug;
 
 #[derive(Clone)]
 pub(crate) struct DataIO<B: Block, SC: SelectChain<B>> {
@@ -16,7 +16,8 @@ impl<B: Block, SC: SelectChain<B>> aleph_bft::DataIO<B::Hash> for DataIO<B, SC> 
     type Error = Error;
 
     fn get_data(&self) -> B::Hash {
-        let hash = self.select_chain
+        let hash = self
+            .select_chain
             .best_chain()
             .expect("No best chain")
             .hash();
