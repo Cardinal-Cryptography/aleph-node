@@ -151,6 +151,7 @@ where
     let mut last_finalized = client.info().finalized_hash;
     hashes
         .flat_map(move |new_hash| {
+            debug!(target: "afa", "new hash from AlephBFT {}", new_hash);
             let extension = chain_extension_step(last_finalized, new_hash, client.as_ref());
             if let Some(header) = extension.back() {
                 last_finalized = header.hash();

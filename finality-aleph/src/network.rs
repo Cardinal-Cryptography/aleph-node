@@ -525,7 +525,7 @@ where
         if let Some(session_data) = sessions.get_mut(&session_id) {
             if session_data.status == SessionStatus::InProgress {
                 if session_data.messages.contains(&message) {
-                    trace!(target: "afa", "Received data with old index in session {:?}.", session_id);
+                    // trace!(target: "afa", "Received data with old index in session {:?}.", session_id);
                     return;
                 } else {
                     session_data.messages.put(message.clone(), ());

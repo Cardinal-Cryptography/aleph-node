@@ -11,8 +11,12 @@ use crate::{
     SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
-use futures::{channel::mpsc, stream::FuturesUnordered, FutureExt, StreamExt};
-use log::{debug, error};
+use futures::{
+    channel::mpsc,
+    stream::FuturesUnordered,
+    FutureExt, StreamExt,
+};
+use log::{debug, error, warn};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
@@ -157,8 +161,8 @@ where
         Some(node_id) => node_id,
         None => {
             debug!(target: "afa", "Not an authority, thus not running a session");
-            return false
-        },
+            return false;
+        }
     };
     debug!(target: "afa", "Running session #{}", session.session_id);
     let current_stop_h = session.stop_h;
@@ -197,6 +201,7 @@ where
             let member =
                 aleph_bft::Member::new(data_io, &multikeychain, consensus_config, spawn_handle);
             member.run_session(aleph_network, exit_rx).await;
+            debug!(target: "afa", "Member for session #{} ended running", session_id.0);
         }
     };
     spawn_handle.0.spawn("aleph/consensus_session", aleph_task);
@@ -233,6 +238,7 @@ where
             }
         }
     }
+    debug!(target: "afa", "Terminating member for session {}", session_id.0);
     exit_tx.send(()).expect("consensus task should not fail");
     true
 }
@@ -263,7 +269,7 @@ where
             auth_keystore,
             select_chain,
             authority,
-            finalization_proposals_rx,
+            finalization_proposals_rx: finalization_proposals_rx,
             sessions,
             spawn_handle: spawn_handle.into(),
             phantom: PhantomData,
@@ -304,20 +310,26 @@ where
             let current_stop_h = session.stop_h;
             let finalization_proposals_rx = &mut self.finalization_proposals_rx;
             async move {
-                while client.info().finalized_number < current_stop_h {
-                    if let Some(proposal) = finalization_proposals_rx.next().await {
-                        finalize_block(
-                            client.clone(),
-                            proposal.hash,
-                            proposal.number,
-                            Some((ALEPH_ENGINE_ID, proposal.justification)),
-                        );
-                    } else {
-                        debug!(target: "afa", "the channel of proposed blocks closed unexpectedly");
-                        break;
-                    }
+                loop {
+                   match finalization_proposals_rx.next().await {
+                       Some(proposal) => {
+                           finalize_block(
+                               client.clone(),
+                               proposal.hash,
+                               proposal.number,
+                               Some((ALEPH_ENGINE_ID, proposal.justification)),
+                           );
+                           if proposal.number == current_stop_h {
+                               debug!(target: "afa", "finalized blocks up to #{}", current_stop_h);
+                               return
+                           }
+                       },
+                       None => {
+                           warn!(target: "afa", "the channel of block hashes to finalize ended too early");
+                           return
+                       }
+                   }
                 }
-                debug!(target: "afa", "finalized blocks up to #{}", current_stop_h);
             }
         };
 
@@ -336,14 +348,17 @@ where
         // * `proposal_tasks` terminates, or
         // * `session_task` terminates AND returns true.
 
-        let tasks: FuturesUnordered<_> = vec![
-            proposals_task.map(|_| true).left_future(),
-            session_task.right_future(),
-        ]
-        .into_iter()
-        .collect();
+        use futures::future::Either::*;
+        futures::pin_mut!(proposals_task);
+        futures::pin_mut!(session_task);
+        match futures::future::select(proposals_task, session_task).await {
+            // if session task terminates and we didn't participate as an auth
+            Right((false, proposals_task)) => {
+                proposals_task.await
+            },
+            _ => ()
 
-        tasks.filter(|b| std::future::ready(*b)).next().await;
+        }
         debug!(target: "afa", "session #{} of the party completed", session_id);
     }
 
