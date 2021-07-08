@@ -133,15 +133,13 @@ where
 }
 
 /// Given the hash of the last finalized block, transforms a nonempty stream of (arbitrary) block
-/// hashes into a new chains by doing the following:
+/// headers into a new chains by doing the following:
 ///  (1) greedily filters elements to form a chain consisting of distinct proper descendants of the last finalized block
 ///  (2) inserts missing elements so that each element is followed by its child
-///  (3) stops at an element with number `max_h`
 pub(crate) fn chain_extension<BE, B, C, St>(
     hashes: St,
     client: Arc<C>,
-    max_h: NumberFor<B>,
-) -> impl Stream<Item = B::Hash>
+) -> impl Stream<Item = B::Header>
 where
     B: Block,
     BE: Backend<B>,
@@ -149,17 +147,14 @@ where
     St: Stream<Item = B::Hash> + Unpin,
 {
     let mut last_finalized = client.info().finalized_hash;
-    hashes
-        .flat_map(move |new_hash| {
-            debug!(target: "afa", "new hash from AlephBFT {}", new_hash);
-            let extension = chain_extension_step(last_finalized, new_hash, client.as_ref());
-            if let Some(header) = extension.back() {
-                last_finalized = header.hash();
-            }
-            futures::stream::iter(extension)
-        })
-        .take_while(move |header| std::future::ready(header.number() <= &max_h))
-        .map(|header| header.hash())
+    hashes.flat_map(move |new_hash| {
+        debug!(target: "afa", "new hash from AlephBFT {}", new_hash);
+        let extension = chain_extension_step(last_finalized, new_hash, client.as_ref());
+        if let Some(header) = extension.back() {
+            last_finalized = header.hash();
+        }
+        futures::stream::iter(extension)
+    })
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Encode, Decode)]
@@ -226,10 +221,6 @@ impl<
 
     pub(crate) async fn finish(&mut self) {
         self.finished = true;
-    }
-
-    pub(crate) fn is_finished(&self) -> bool {
-        self.finished
     }
 
     pub(crate) async fn next_multisigned_hash(
@@ -405,9 +396,10 @@ mod tests {
             blocks[5],
             extra_children[4], // ignored
         ];
-        let extension: Vec<_> = chain_extension(futures::stream::iter(hashes), client, 4)
+        let extension: Vec<_> = chain_extension(futures::stream::iter(hashes), client)
+            .map(|header| header.hash())
             .collect()
             .await;
-        assert!(extension.iter().eq(blocks[1..=4].iter()));
+        assert!(extension.iter().eq(blocks[1..=5].iter()));
     }
 }

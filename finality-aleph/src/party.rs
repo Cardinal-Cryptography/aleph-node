@@ -11,14 +11,14 @@ use crate::{
     SessionId, SpawnHandle,
 };
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
-use futures::{channel::mpsc, FutureExt, StreamExt};
+use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, warn};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
-use sp_runtime::traits::Block;
+use sp_runtime::traits::{Block, Header};
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub struct AlephParams<B: Block, N, C, SC> {
@@ -83,10 +83,12 @@ fn get_node_index(authorities: &[AuthorityId], my_id: &AuthorityId) -> Option<No
         .map(|id| id.into())
 }
 
+type SessionMap<Block> = HashMap<u32, Session<AuthorityId, NumberFor<Block>>>;
+
 fn run_justification_handler<B: Block, N: network::Network<B> + 'static>(
     spawn_handle: &SpawnHandle,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
+    sessions: Arc<Mutex<SessionMap<B>>>,
     auth_keystore: AuthorityKeystore,
     network: N,
     period: u32,
@@ -125,7 +127,7 @@ where
     NumberFor<B>: From<u32>,
 {
     network: N,
-    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
+    sessions: Arc<Mutex<SessionMap<B>>>,
     spawn_handle: SpawnHandle,
     client: Arc<C>,
     select_chain: SC,
@@ -137,6 +139,7 @@ where
 
 /// If we are on the authority list for the given session, runs an
 /// AlephBFT task and returns `true` upon completion. Otherwise, immediately returns `false`.
+#[allow(clippy::too_many_arguments)]
 async fn maybe_run_session_as_authority<B, C, BE, SC>(
     authority: AuthorityId,
     auth_keystore: AuthorityKeystore,
@@ -207,20 +210,23 @@ where
     let mut aggregator = BlockSignatureAggregator::new(rmc_network, &multikeychain);
 
     let ordered_hashes = ordered_batch_rx.map(futures::stream::iter).flatten();
-    let mut finalizable_chain =
-        chain_extension(ordered_hashes, client.clone(), current_stop_h).fuse();
+    let mut finalizable_chain = chain_extension(ordered_hashes, client.clone())
+        .take_while(|header| std::future::ready(header.number() <= &current_stop_h))
+        .fuse();
 
     loop {
         tokio::select! {
-            hash = finalizable_chain.next(), if !finalizable_chain.is_done() => {
-                if let Some(hash) = hash {
-                    aggregator.start_aggregation(hash).await;
+            header = finalizable_chain.next(), if !finalizable_chain.is_done() => {
+                if let Some(header) = header {
+                    aggregator.start_aggregation(header.hash()).await;
+                    if *header.number() == current_stop_h {
+                        aggregator.finish().await;
+                    }
                 } else {
-                    aggregator.finish().await;
                     debug!(target: "afa", "hashes to sign ended");
                 }
             },
-            multisigned_hash = aggregator.next_multisigned_hash(), if !aggregator.is_finished() => {
+            multisigned_hash = aggregator.next_multisigned_hash() => {
                 if let Some((hash, multisignature)) = multisigned_hash {
                     finalize_block_as_authority(client.clone(), hash, multisignature);
                 } else {
@@ -228,10 +234,6 @@ where
                     break;
                 }
             },
-            else => {
-                debug!(target: "afa", "finished party {:?} with finalized block at {:?}", session_id.0, client.info().finalized_number);
-                break;
-            }
         }
     }
     debug!(target: "afa", "Member for session {} ended", session_id.0);
@@ -248,6 +250,7 @@ where
     SC: SelectChain<B> + 'static,
     NumberFor<B>: From<u32>,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         network: N,
         client: Arc<C>,
@@ -256,7 +259,7 @@ where
         auth_keystore: AuthorityKeystore,
         authority: AuthorityId,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-        sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<B>>>>>,
+        sessions: Arc<Mutex<SessionMap<B>>>,
     ) -> Self {
         Self {
             network,
@@ -349,10 +352,11 @@ where
         use futures::future::Either::*;
         futures::pin_mut!(proposals_task);
         futures::pin_mut!(session_task);
-        match futures::future::select(proposals_task, session_task).await {
-            // if session task terminates and we didn't participate as an auth
-            Right((false, proposals_task)) => proposals_task.await,
-            _ => (),
+        // if session task terminates and we didn't participate as an authority, wait until we import blocks for the current session.
+        if let Right((false, proposals_task)) =
+            futures::future::select(proposals_task, session_task).await
+        {
+            proposals_task.await
         }
         if exit_tx.send(()).is_ok() {
             debug!(target: "afa", "terminating the member manually")

@@ -42,10 +42,12 @@ impl AlephJustification {
     }
 }
 
+type SessionMap<Block> = HashMap<u32, Session<AuthorityId, NumberFor<Block>>>;
+
 pub struct JustificationHandler<Block: BlockT, N: network::Network<Block> + 'static> {
     finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
     justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
-    sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<Block>>>>>,
+    sessions: Arc<Mutex<SessionMap<Block>>>,
     auth_keystore: AuthorityKeystore,
     session_period: u32,
     network: N,
@@ -58,7 +60,7 @@ where
     pub(crate) fn new(
         finalization_proposals_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
         justification_rx: mpsc::UnboundedReceiver<JustificationNotification<Block>>,
-        sessions: Arc<Mutex<HashMap<u32, Session<AuthorityId, NumberFor<Block>>>>>,
+        sessions: Arc<Mutex<SessionMap<Block>>>,
         auth_keystore: AuthorityKeystore,
         session_period: u32,
         network: N,
