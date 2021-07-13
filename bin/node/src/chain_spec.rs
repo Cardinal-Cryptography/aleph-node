@@ -125,7 +125,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
         Some(
             [(
                 "tokenSymbol".to_string(),
-                serde_json::Value::String("ANEG2".into()),
+                serde_json::Value::String("DZERO".into()),
             )]
             .iter()
             .cloned()
@@ -179,7 +179,7 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
         Some(
             [(
                 "tokenSymbol".to_string(),
-                serde_json::Value::String("ANEG1".into()),
+                serde_json::Value::String("TZERO".into()),
             )]
             .iter()
             .cloned()
