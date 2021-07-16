@@ -44,3 +44,8 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+      - name: Send Slack Notification
+            uses: rtCamp/action-slack-notify@v2
+            env:
+              SLACK_COLOR: ${{ job.status }}
+              SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
