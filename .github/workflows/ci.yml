@@ -15,7 +15,16 @@ jobs:
           access_token: ${{ github.token }}
       - name: Checkout Source code
         uses: actions/checkout@v2
-      - name: Restore cache
+      - name: Print Toolchain Version
+        run: echo running with "$RUST_TOOLCHAIN_VERSION"
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          override: true
+          components: rustfmt, clippy
+      - name: Restore Cargo Cache
         uses: actions/cache@v2
         with:
           path: |
@@ -25,13 +34,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-          override: true
-          components: rustfmt, clippy
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
       - name: Run Check
