@@ -3,7 +3,7 @@ name: deploy
 on:
   push:
     branches:
-      - fix/ci # TODO: temporary for testing
+      - main
 
 jobs:
   build:
