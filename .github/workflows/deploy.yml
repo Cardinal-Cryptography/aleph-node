@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: aleph-node
-          path: path/to/artifact/
+          path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 20
       - name: Check Artifacts ID
