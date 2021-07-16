@@ -12,11 +12,8 @@ jobs:
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
       RUST_BACKTRACE: full
-      # RUSTC_WRAPPER: sccache
-      # RUSTV: nightly-2021-07-05
       SCCACHE_VERSION: 0.2.13
       SCCACHE_CACHE_SIZE: 2G
-      # SCCACHE_DIR: /home/runner/.cache/sccache
       SCCACHE_PATH: /home/runner/.cache/sccache
       # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out
     steps:
