@@ -13,8 +13,10 @@ jobs:
         uses: styfle/cancel-workflow-action@0.9.0
         with:
           access_token: ${{ github.token }}
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+      - name: Restore cache
+        uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/bin/
@@ -23,25 +25,31 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
           components: rustfmt, clippy
-      - run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
-      - uses: actions-rs/cargo@v1
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
+      - name: Run Check
+        uses: actions-rs/cargo@v1
         with:
           command: check
-      - uses: actions-rs/cargo@v1
+      - name: Run Unit Test Suite
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --lib
-      - uses: actions-rs/cargo@v1
+      - name: Run Format Checks
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-      - uses: actions-rs/cargo@v1
+      - name: Run Linter
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: -- -D warnings
