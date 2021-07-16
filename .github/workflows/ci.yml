@@ -22,6 +22,7 @@ jobs:
           profile: minimal
           toolchain: nightly-2021-07-05
           override: true
+          components: rustfmt, clippy
       - run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-07-05
       - uses: actions-rs/cargo@v1
         with:
