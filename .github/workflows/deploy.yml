@@ -12,11 +12,11 @@ jobs:
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
       RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-      RUSTV: ${{ matrix.rust }}
+      # RUSTC_WRAPPER: sccache
+      # RUSTV: nightly-2021-07-05
       SCCACHE_VERSION: 0.2.13
       SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_DIR: ${{ matrix.sccache-path }}
+      # SCCACHE_DIR: /home/runner/.cache/sccache
       SCCACHE_PATH: /home/runner/.cache/sccache
       # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out
     steps:
@@ -62,7 +62,9 @@ jobs:
       - name: Start sccache server
         run: sccache --start-server
       - name: Build Binary
-        run: cargo build --release
+        run: |
+          export RUSTC_WRAPPER=$HOME/.local/bin/sccache
+          cargo build --release
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server
@@ -74,18 +76,11 @@ jobs:
           path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 20
-      - name: Check Artifacts ID
-        run: |
-          echo github repository: $GITHUB_REPOSITORY
-          echo branch name: $GITHUB_HEAD_REF
-          URL="https://api.github.com/repos/$GITHUB_REPOSITORY/$GITHUB_HEAD_REF/actions/artifacts"
-          curl -u admin:${{ secrets.GITHUB_TOKEN }} $URL |jq '.artifacts[].id'
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      # TODO : message with URL for artifact
 
 # TODO: deploy job
 # -> get the build artifact
