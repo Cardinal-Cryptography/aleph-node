@@ -6,7 +6,7 @@ on:
       - fix/ci # TODO: temporary for testing
 
 jobs:
-  compile:
+  build:
     name: Build Binary Artifact
     runs-on: ubuntu-latest
     env:
@@ -51,6 +51,8 @@ jobs:
           profile: minimal
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
       - name: Save sccache
         uses: actions/cache@v2
         continue-on-error: false
@@ -65,3 +67,28 @@ jobs:
         run: sccache --show-stats
       - name: Stop sccache server
         run: sccache --stop-server || true
+      - name: Upload Binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: aleph-node
+          path: path/to/artifact/
+          if-no-files-found: error
+          retention-days: 20
+      - name: Check Artifacts ID
+        run: |
+          echo github repository: $GITHUB_REPOSITORY
+          echo branch name: $GITHUB_HEAD_REF
+          URL="https://api.github.com/repos/$GITHUB_REPOSITORY/$GITHUB_HEAD_REF/actions/artifacts"
+          curl -u admin:${{ secrets.GITHUB_TOKEN }} $URL |jq '.artifacts[].id'
+      - name: Send Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      # TODO : message with URL for artifact
+
+# TODO: deploy job
+# -> get the build artifact
+# -> build docker image
+# -> push to ECR in every region
+# -> update ECS tasks in every region
