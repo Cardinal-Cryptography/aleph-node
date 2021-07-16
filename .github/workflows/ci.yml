@@ -6,6 +6,8 @@ jobs:
   check-test-and-lint:
     name: Run check, test and lints
     runs-on: ubuntu-latest
+    env:
+      RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.0
@@ -24,10 +26,10 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-07-05
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
           components: rustfmt, clippy
-      - run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-07-05
+      - run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
       - uses: actions-rs/cargo@v1
         with:
           command: check
