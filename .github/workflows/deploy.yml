@@ -85,3 +85,34 @@ jobs:
 # -> build docker image
 # -> push to ECR in every region
 # -> update ECS tasks in every region
+#   -> alternatively ECR propagates images: https://aws.amazon.com/blogs/containers/cross-region-replication-in-amazon-ecr-has-landed/
+  deploy:
+    name: Build and push docker image
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-2
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.0
+        with:
+          access_token: ${{ github.token }}
+      - name: Download artifact with aleph-node binary
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-node
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+    - name: Build docker image
+      shell: bash
+      run: |
+        ls
+        mkdir -p target/release/
+        cp aleph-node/aleph-node target/release/aleph-node
+        ls aleph-node/
+        ls target/release/aleph-node
+        ./docker/build.sh
