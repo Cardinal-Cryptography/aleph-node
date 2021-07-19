@@ -79,6 +79,8 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_USERNAME: GithubActions
+          MSG_MINIMAL: actions url
 
 # TODO: deploy job
 # -> get the build artifact
@@ -110,9 +112,6 @@ jobs:
       - name: Build docker image
         shell: bash
         run: |
-          ls
           mkdir -p target/release/
           cp aleph-node/aleph-node target/release/aleph-node
-          ls aleph-node/
-          ls target/release/aleph-node
           ./docker/build.sh
