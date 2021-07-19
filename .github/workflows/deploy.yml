@@ -135,6 +135,7 @@ jobs:
           IMAGE_TAG: latest #${{ github.sha }}
           ECR_REPOSITORY: aleph-node
         run: |
+          mkdir -p target/release/
           # copy artifact
           cp aleph-node target/release/aleph-node
           # Build and tag a docker container

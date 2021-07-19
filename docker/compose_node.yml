@@ -72,9 +72,9 @@ services:
       - /home/filip/CloudStation/aleph/aleph0/tmp/:/tmp/
     environment:
       - CHAIN_NAME=testnet1
-      - BASE_PATH=/tmp/Damian
-      - NODE_NAME=Damian
-      - NODE_KEY_PATH=/tmp/Damian/libp2p_secret
+      - BASE_PATH=/tmp/$AUTHORITY
+      - NODE_NAME=$AUTHORITY
+      - NODE_KEY_PATH=/tmp/$AUTHORITY/libp2p_secret
       - KEY_PATH=/tmp/authorities_keys
       - RESERVED_NODES=/ip4/54.93.81.166/tcp/30334/p2p/12D3KooWQg23osB6yU1BELu6VgMPA8u3efE5r2i9vjHWJZgSawWC /ip4/35.158.209.65/tcp/30334/p2p/12D3KooWJJq9KoG5F8NH9TPc3oje5wVFRnufja28A5NAhc2RTV6v /ip4/18.194.249.135/tcp/30334/p2p/12D3KooWCSnVn3828nxKEaPb5wNB93gE8fcqnZNb9R8Y52ZrRgvi /ip4/18.184.39.81/tcp/30334/p2p/12D3KooWPPdmRAjAAREK1DbRkfPjXJFvYJy15eqjWiG65R4aTnF9 /ip4/18.184.48.43/tcp/30334/p2p/12D3KooWDA5xtT4gky7BHJkLdun4HSKeQVq6xNKj7JkM5CSxmNZe /ip4/3.68.80.96/tcp/30334/p2p/12D3KooWAV1mp8DUdZFhU7NXViAw4ad7XY14W3mD9x3CnxFkHXJy
       # - VIRTUAL_HOST=TODO # TODO : need to configure DNS in AWS
