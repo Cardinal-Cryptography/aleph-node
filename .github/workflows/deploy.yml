@@ -113,5 +113,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p target/release/
+          ls
+          ls aleph-node
           cp aleph-node/aleph-node target/release/aleph-node
           ./docker/build.sh
