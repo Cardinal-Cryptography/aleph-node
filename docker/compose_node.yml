@@ -1,63 +1,62 @@
 version: "3.5"
 services:
 
-  nginx:
-    image: jwilder/nginx-proxy:latest
-    container_name: nginx
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-      - /home/$USER/nginx-docker/certs:/etc/nginx/certs
-      - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
-      - /home/$USER/nginx-docker/html:/usr/share/nginx/html
-      - /home/$USER/nginx-docker/htpasswd:/etc/nginx/htpasswd
-      - /home/$USER/nginx-docker/conf.d:/etc/nginx/conf.d
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    labels:
-      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
-    restart: always
+  # nginx:
+  #   image: jwilder/nginx-proxy:latest
+  #   container_name: nginx
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   volumes:
+  #     - /home/$USER/nginx-docker/certs:/etc/nginx/certs
+  #     - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
+  #     - /home/$USER/nginx-docker/html:/usr/share/nginx/html
+  #     - /home/$USER/nginx-docker/htpasswd:/etc/nginx/htpasswd
+  #     - /home/$USER/nginx-docker/conf.d:/etc/nginx/conf.d
+  #     - /var/run/docker.sock:/tmp/docker.sock:ro
+  #   labels:
+  #     - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+  #   restart: always
 
-  letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion
-    container_name: letsencrypt
-    depends_on:
-      - nginx
-    volumes:
-      - /home/$USER/nginx-docker/certs:/etc/nginx/certs
-      - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
-      - /home/$USER/nginx-docker/html:/usr/share/nginx/html
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: always
+  # letsencrypt:
+  #   image: jrcs/letsencrypt-nginx-proxy-companion
+  #   container_name: letsencrypt
+  #   depends_on:
+  #     - nginx
+  #   volumes:
+  #     - /home/$USER/nginx-docker/certs:/etc/nginx/certs
+  #     - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
+  #     - /home/$USER/nginx-docker/html:/usr/share/nginx/html
+  #     - /var/run/docker.sock:/tmp/docker.sock:ro
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   restart: always
 
-  watchtower:
-    image: containrrr/watchtower:latest
-    command: --label-enable --cleanup --interval 600
-    container_name: watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./docker/config.json:/config.json
-      - helper:/go/bin
-    environment:
-      - HOME=/
-      - PATH=$PATH:/go/bin
-      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+  # watchtower:
+  #   image: containrrr/watchtower:latest
+  #   command: --label-enable --cleanup --interval 600
+  #   container_name: watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./docker/config.json:/config.json
+  #     - helper:/go/bin
+  #   environment:
+  #     - HOME=/
+  #     - PATH=$PATH:/go/bin
+  #     - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+  #     - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
-  credentials-helper:
-    build: ./credentials-helper/
-    container_name: credentials-helper
-    volumes:
-      - helper:/go/bin
-    environment:
-      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+  # credentials-helper:
+  #   build: ./credentials-helper/
+  #   container_name: credentials-helper
+  #   volumes:
+  #     - helper:/go/bin
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+  #     - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
   aleph-node:
     image: aleph-node:latest #436875894086.dkr.ecr.us-east-2.amazonaws.com/aleph-node
-    # TODO : what goes onto the host?
-    command: --validator
+    # command: --validator
     container_name: aleph-node
     expose:
       - 9933
@@ -69,14 +68,21 @@ services:
       - 30334:30334
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - /home/filip/CloudStation/aleph/aleph0/tmp/:/tmp/
     environment:
-      - VIRTUAL_HOST=TODO # TODO : need to configure DNS in AWS
-      - LETSENCRYPT_HOST=TODO  # TODO : need to configure DNS in AWS
-      - LETSENCRYPT_SINGLE_DOMAIN_CERTS=true
-      - LETSENCRYPT_EMAIL=filip@clashapp.co
-      - SSL_POLICY=AWS-TLS-1-2-2017-01
+      - CHAIN_NAME=testnet1
+      - BASE_PATH=/tmp/Damian
+      - NODE_NAME=Damian
+      - NODE_KEY_PATH=/tmp/Damian/libp2p_secret
+      - KEY_PATH=/tmp/authorities_keys
+      - RESERVED_NODES=/ip4/54.93.81.166/tcp/30334/p2p/12D3KooWQg23osB6yU1BELu6VgMPA8u3efE5r2i9vjHWJZgSawWC /ip4/35.158.209.65/tcp/30334/p2p/12D3KooWJJq9KoG5F8NH9TPc3oje5wVFRnufja28A5NAhc2RTV6v /ip4/18.194.249.135/tcp/30334/p2p/12D3KooWCSnVn3828nxKEaPb5wNB93gE8fcqnZNb9R8Y52ZrRgvi /ip4/18.184.39.81/tcp/30334/p2p/12D3KooWPPdmRAjAAREK1DbRkfPjXJFvYJy15eqjWiG65R4aTnF9 /ip4/18.184.48.43/tcp/30334/p2p/12D3KooWDA5xtT4gky7BHJkLdun4HSKeQVq6xNKj7JkM5CSxmNZe /ip4/3.68.80.96/tcp/30334/p2p/12D3KooWAV1mp8DUdZFhU7NXViAw4ad7XY14W3mD9x3CnxFkHXJy
+      # - VIRTUAL_HOST=TODO # TODO : need to configure DNS in AWS
+      # - LETSENCRYPT_HOST=TODO  # TODO : need to configure DNS in AWS
+      # - LETSENCRYPT_SINGLE_DOMAIN_CERTS=true
+      # - SSL_POLICY=AWS-TLS-1-2-2017-01
 
 # docker volume create helper
-volumes:
-  helper:
-    external: true
+# volumes:
+#   helper:
+#     external: true
