@@ -3,7 +3,7 @@
 set -e
 
 NAME=aleph-node
-AWS_ACCOUNT_ID=
+AWS_ACCOUNT_ID=436875894086
 TAG=latest
 
 # BUILD

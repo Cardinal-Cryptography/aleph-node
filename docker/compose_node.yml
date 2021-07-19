@@ -1,0 +1,82 @@
+version: "3.5"
+services:
+
+  nginx:
+    image: jwilder/nginx-proxy:latest
+    container_name: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /home/$USER/nginx-docker/certs:/etc/nginx/certs
+      - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
+      - /home/$USER/nginx-docker/html:/usr/share/nginx/html
+      - /home/$USER/nginx-docker/htpasswd:/etc/nginx/htpasswd
+      - /home/$USER/nginx-docker/conf.d:/etc/nginx/conf.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+    restart: always
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    container_name: letsencrypt
+    depends_on:
+      - nginx
+    volumes:
+      - /home/$USER/nginx-docker/certs:/etc/nginx/certs
+      - /home/$USER/nginx-docker/vhost.d:/etc/nginx/vhost.d
+      - /home/$USER/nginx-docker/html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    command: --label-enable --cleanup --interval 600
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker/config.json:/config.json
+      - helper:/go/bin
+    environment:
+      - HOME=/
+      - PATH=$PATH:/go/bin
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+
+  credentials-helper:
+    build: ./credentials-helper/
+    container_name: credentials-helper
+    volumes:
+      - helper:/go/bin
+    environment:
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+
+  aleph-node:
+    image: aleph-node:latest #436875894086.dkr.ecr.us-east-2.amazonaws.com/aleph-node
+    # TODO : what goes onto the host?
+    command: --validator
+    container_name: aleph-node
+    expose:
+      - 9933
+      - 9944
+      - 30334
+    ports:
+      - 9933:9933
+      - 9944:9944
+      - 30334:30334
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      - VIRTUAL_HOST=TODO # TODO : need to configure DNS in AWS
+      - LETSENCRYPT_HOST=TODO  # TODO : need to configure DNS in AWS
+      - LETSENCRYPT_SINGLE_DOMAIN_CERTS=true
+      - LETSENCRYPT_EMAIL=filip@clashapp.co
+      - SSL_POLICY=AWS-TLS-1-2-2017-01
+
+# docker volume create helper
+volumes:
+  helper:
+    external: true
