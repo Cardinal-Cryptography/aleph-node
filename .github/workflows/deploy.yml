@@ -3,7 +3,7 @@ name: deploy
 on:
   push:
     branches:
-      - main
+      - feature/push-to-ecr #main # TODO : temporary for testing
 
 jobs:
   build:
