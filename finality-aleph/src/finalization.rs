@@ -24,10 +24,11 @@ use std::{
 };
 use tokio::time::Duration;
 
+#[deny(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum Error {
-    MissingBlock,
     Internal(sp_blockchain::Error),
+    MissingBlock,
 }
 
 pub(crate) fn finalize_block_as_authority<BE, B, C>(
