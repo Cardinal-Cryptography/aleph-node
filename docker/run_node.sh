@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ -z "$CHAIN_NAMEBATCHNUM" ]]; then
+if [[ -z "$CHAIN_NAME" ]]; then
   echo "You must provide CHAIN_NAME environment variable" 1>&2
   exit 1
 fi
