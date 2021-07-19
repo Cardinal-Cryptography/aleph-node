@@ -1,6 +1,6 @@
 name: CI
 
-# TODO : temporary for testing
+# TODO : temporary for testing [SKIP THIS STEP]
 # on: pull_request
 on:
   pull_request:
