@@ -213,7 +213,6 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub auth_keystore: AuthorityKeystore,
-    pub authority: AuthorityId,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     pub metrics: Option<Arc<RwLock<Metrics<<B as Block>::Header>>>>,
 }

@@ -278,11 +278,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             client,
             select_chain,
             spawn_handle: task_manager.spawn_handle(),
-            auth_keystore: AuthorityKeystore::new(
-                authority_id.clone(),
-                keystore_container.sync_keystore(),
-            ),
-            authority: authority_id,
+            auth_keystore: AuthorityKeystore::new(authority_id, keystore_container.sync_keystore()),
             justification_rx,
             metrics,
         };

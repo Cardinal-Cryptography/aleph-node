@@ -12,7 +12,13 @@ pub struct Metrics<K: Header> {
 
 impl<K: Header> Metrics<K> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
-        let keys = ["importing", "imported", "get_data", "finalize", "aggregation-start"];
+        let keys = [
+            "importing",
+            "imported",
+            "get_data",
+            "finalize",
+            "aggregation-start",
+        ];
         let prev: HashMap<&str, &str> = [
             ("imported", "importing"),
             ("get_data", "imported"),

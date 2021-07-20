@@ -42,7 +42,6 @@ where
                 select_chain,
                 spawn_handle,
                 auth_keystore,
-                authority,
                 justification_rx,
                 metrics,
                 ..
@@ -56,7 +55,6 @@ where
         select_chain,
         spawn_handle,
         auth_keystore,
-        authority,
         handler_rx,
         metrics,
     );
@@ -106,7 +104,6 @@ where
     client: Arc<C>,
     select_chain: SC,
     auth_keystore: AuthorityKeystore,
-    authority: AuthorityId,
     phantom: PhantomData<BE>,
     finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
@@ -115,7 +112,6 @@ where
 /// If we are on the authority list for the given session, runs an
 /// AlephBFT task and returns `true` upon completion. Otherwise, immediately returns `false`.
 async fn maybe_run_session_as_authority<B, C, BE, SC>(
-    authority: AuthorityId,
     auth_keystore: AuthorityKeystore,
     client: Arc<C>,
     session_manager: &SessionManager<NetworkData<B>>,
@@ -131,7 +127,8 @@ where
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
-    let node_id = match get_node_index(&session.authorities, &authority) {
+    let authority = auth_keystore.authority_id();
+    let node_id = match get_node_index(&session.authorities, authority) {
         Some(node_id) => node_id,
         None => return false,
     };
@@ -203,7 +200,7 @@ where
                     // TODO: justify with the multisignature.
                     if let Some(ref m) = metrics {
                         m.write()
-                            .report_block(hash.clone(), std::time::Instant::now(), "finalize");
+                            .report_block(hash, std::time::Instant::now(), "finalize");
                     };
                     let finalization_result = finalize_block_as_authority(client.clone(), hash, &auth_keystore);
                     if let Err(err) = finalization_result {
@@ -239,7 +236,6 @@ where
         select_chain: SC,
         spawn_handle: SpawnTaskHandle,
         auth_keystore: AuthorityKeystore,
-        authority: AuthorityId,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
         metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
     ) -> Self {
@@ -248,7 +244,6 @@ where
             client,
             auth_keystore,
             select_chain,
-            authority,
             finalization_proposals_rx,
             metrics,
             spawn_handle: spawn_handle.into(),
@@ -313,7 +308,6 @@ where
         debug!(target: "afa", "Starting session nr {:?} -- {:?}", session_id, session);
 
         let session_task = maybe_run_session_as_authority(
-            self.authority.clone(),
             self.auth_keystore.clone(),
             self.client.clone(),
             session_manger,
