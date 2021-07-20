@@ -12,7 +12,7 @@ use sp_runtime::{
     traits::{Block as BlockT, Header, NumberFor},
     Justification,
 };
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc, time::Instant};
 
 pub struct AlephBlockImport<Block, Be, I>
 where
@@ -22,7 +22,7 @@ where
 {
     inner: Arc<I>,
     justification_tx: UnboundedSender<JustificationNotification<Block>>,
-    metrics: Option<Arc<RwLock<Metrics<<Block as BlockT>::Header>>>>,
+    metrics: Option<Arc<RwLock<Metrics<Block::Header>>>>,
     _phantom: PhantomData<Be>,
 }
 
@@ -43,7 +43,7 @@ where
     pub fn new(
         inner: Arc<I>,
         justification_tx: UnboundedSender<JustificationNotification<Block>>,
-        metrics: Option<Arc<RwLock<Metrics<<Block as BlockT>::Header>>>>,
+        metrics: Option<Arc<RwLock<Metrics<Block::Header>>>>,
     ) -> AlephBlockImport<Block, Be, I> {
         AlephBlockImport {
             inner,
@@ -117,16 +117,11 @@ where
         cache: HashMap<[u8; 4], Vec<u8>>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
-        let hash = block.header.hash();
+        let hash = block.post_hash();
         let justifications = block.justifications.take();
 
-        let post_hash = block.post_hash;
-
         if let Some(m) = &self.metrics {
-            if let Some(phash) = post_hash {
-                m.write()
-                    .report_block(phash, std::time::Instant::now(), "importing");
-            }
+            m.write().report_block(hash, Instant::now(), "importing");
         };
 
         log::debug!(target: "afa", "Importing block #{:?}", number);
@@ -156,10 +151,7 @@ where
         }
 
         if let Some(m) = &self.metrics {
-            if let Some(phash) = post_hash {
-                m.write()
-                    .report_block(phash, std::time::Instant::now(), "imported");
-            }
+            m.write().report_block(hash, Instant::now(), "imported");
         };
 
         Ok(ImportResult::Imported(imported_aux))

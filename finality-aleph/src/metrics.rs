@@ -3,14 +3,14 @@ use sp_runtime::traits::Header;
 use std::{collections::HashMap, time::Instant};
 
 #[derive(Clone)]
-pub struct Metrics<K: Header> {
+pub struct Metrics<H: Header> {
     keys: [&'static str; 5],
     prev: HashMap<&'static str, &'static str>,
     pub gauges: HashMap<&'static str, Gauge<U64>>,
-    starts: HashMap<&'static str, HashMap<<K as Header>::Hash, Instant>>,
+    starts: HashMap<&'static str, HashMap<H::Hash, Instant>>,
 }
 
-impl<K: Header> Metrics<K> {
+impl<H: Header> Metrics<H> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
         let keys = [
             "importing",
@@ -47,7 +47,7 @@ impl<K: Header> Metrics<K> {
 
     pub fn report_block(
         &mut self,
-        hash: <K as Header>::Hash,
+        hash: H::Hash,
         checkpoint: Instant,
         checkpoint_name: &'static str,
     ) {
@@ -58,10 +58,15 @@ impl<K: Header> Metrics<K> {
         });
 
         if let Some(prev_checkpoint_name) = self.prev.get(checkpoint_name) {
-            if let Some(start) = self.starts.get(prev_checkpoint_name).unwrap().get(&hash) {
+            if let Some(start) = self
+                .starts
+                .get(prev_checkpoint_name)
+                .expect("prev was stored")
+                .get(&hash)
+            {
                 self.gauges
                     .get(checkpoint_name)
-                    .unwrap()
+                    .expect("checkpoint gauge was stored")
                     .set(checkpoint.duration_since(*start).as_millis() as u64);
             }
         }

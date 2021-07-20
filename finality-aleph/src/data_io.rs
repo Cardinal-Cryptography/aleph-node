@@ -10,7 +10,7 @@ use std::{future::Future, pin::Pin, sync::Arc};
 pub(crate) struct DataIO<B: Block, SC: SelectChain<B>> {
     pub(crate) select_chain: SC,
     pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<B::Hash>>,
-    pub(crate) metrics: Option<Arc<RwLock<Metrics<<B>::Header>>>>,
+    pub(crate) metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
 }
 
 impl<B: Block, SC: SelectChain<B>> aleph_bft::DataIO<B::Hash> for DataIO<B, SC> {
