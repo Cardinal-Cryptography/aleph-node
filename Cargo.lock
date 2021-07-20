@@ -137,7 +137,6 @@ dependencies = [
  "pallet-staking",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.11.1",
  "primitives",
  "sc-basic-authorship",
  "sc-block-builder",

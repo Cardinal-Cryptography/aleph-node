@@ -7,7 +7,6 @@ use finality_aleph::{
     JustificationNotification, Metrics,
 };
 use futures::channel::mpsc;
-use parking_lot::RwLock;
 use sc_client_api::{CallExecutor, ExecutionStrategy, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_executor::native_executor_instance;
@@ -48,7 +47,7 @@ pub fn new_partial(
             AlephBlockImport<Block, FullBackend, FullClient>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
             Option<Telemetry>,
-            Option<Arc<RwLock<Metrics<<Block as BlockT>::Header>>>>,
+            Option<Metrics<<Block as BlockT>::Header>>,
         ),
     >,
     ServiceError,
@@ -92,7 +91,6 @@ pub fn new_partial(
             .map_err(|_err| {
                 log::warn!("Failed to register Prometheus metrics");
             })
-            .map(|m| Arc::new(RwLock::new(m)))
             .ok()
     });
 

@@ -1,7 +1,6 @@
 use crate::metrics::Metrics;
 use aleph_primitives::ALEPH_ENGINE_ID;
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
-use parking_lot::RwLock;
 use sc_client_api::backend::Backend;
 use sp_api::TransactionFor;
 use sp_consensus::{
@@ -22,7 +21,7 @@ where
 {
     inner: Arc<I>,
     justification_tx: UnboundedSender<JustificationNotification<Block>>,
-    metrics: Option<Arc<RwLock<Metrics<Block::Header>>>>,
+    metrics: Option<Metrics<Block::Header>>,
     _phantom: PhantomData<Be>,
 }
 
@@ -43,7 +42,7 @@ where
     pub fn new(
         inner: Arc<I>,
         justification_tx: UnboundedSender<JustificationNotification<Block>>,
-        metrics: Option<Arc<RwLock<Metrics<Block::Header>>>>,
+        metrics: Option<Metrics<Block::Header>>,
     ) -> AlephBlockImport<Block, Be, I> {
         AlephBlockImport {
             inner,
@@ -121,7 +120,7 @@ where
         let justifications = block.justifications.take();
 
         if let Some(m) = &self.metrics {
-            m.write().report_block(hash, Instant::now(), "importing");
+            m.report_block(hash, Instant::now(), "importing");
         };
 
         log::debug!(target: "afa", "Importing block #{:?}", number);
@@ -151,7 +150,7 @@ where
         }
 
         if let Some(m) = &self.metrics {
-            m.write().report_block(hash, Instant::now(), "imported");
+            m.report_block(hash, Instant::now(), "imported");
         };
 
         Ok(ImportResult::Imported(imported_aux))

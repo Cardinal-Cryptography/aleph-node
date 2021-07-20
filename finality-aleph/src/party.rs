@@ -13,7 +13,6 @@ use crate::{
 use aleph_primitives::{AlephSessionApi, Session, ALEPH_ENGINE_ID};
 use futures::{channel::mpsc, stream::FuturesUnordered, FutureExt, StreamExt};
 use log::{debug, error, info};
-use parking_lot::RwLock;
 use sc_client_api::backend::Backend;
 use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
@@ -106,7 +105,7 @@ where
     auth_keystore: AuthorityKeystore,
     phantom: PhantomData<BE>,
     finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
+    metrics: Option<Metrics<B::Header>>,
 }
 
 /// If we are on the authority list for the given session, runs an
@@ -118,7 +117,7 @@ async fn maybe_run_session_as_authority<B, C, BE, SC>(
     session: Session<AuthorityId, NumberFor<B>>,
     spawn_handle: SpawnHandle,
     select_chain: SC,
-    metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
+    metrics: Option<Metrics<B::Header>>,
 ) -> bool
 where
     B: Block,
@@ -186,8 +185,7 @@ where
             hash = finalizable_chain.next(), if !finalizable_chain.is_done() => {
                 if let Some(hash) = hash {
                     if let Some(ref m) = metrics {
-                        m.write()
-                            .report_block(hash, std::time::Instant::now(), "aggregation-start");
+                        m.report_block(hash, std::time::Instant::now(), "aggregation-start");
                     };
                     aggregator.start_aggregation(hash).await;
                 } else {
@@ -199,8 +197,7 @@ where
                 if let Some((hash, _multisignature)) = multisigned_hash {
                     // TODO: justify with the multisignature.
                     if let Some(ref m) = metrics {
-                        m.write()
-                            .report_block(hash, std::time::Instant::now(), "finalize");
+                        m.report_block(hash, std::time::Instant::now(), "finalize");
                     };
                     let finalization_result = finalize_block_as_authority(client.clone(), hash, &auth_keystore);
                     if let Err(err) = finalization_result {
@@ -237,7 +234,7 @@ where
         spawn_handle: SpawnTaskHandle,
         auth_keystore: AuthorityKeystore,
         finalization_proposals_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-        metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
+        metrics: Option<Metrics<B::Header>>,
     ) -> Self {
         Self {
             network,

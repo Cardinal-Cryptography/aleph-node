@@ -393,9 +393,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "/^Height\\(best\\)$/",
           "values": false
         },
@@ -447,9 +445,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -505,9 +501,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -568,9 +562,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
+          "calcs": ["last"],
           "fields": "",
           "values": false
         },
@@ -795,14 +787,7 @@
   "refresh": "500ms",
   "schemaVersion": 27,
   "style": "dark",
-  "tags": [
-    "substrate",
-    "blockchain",
-    "node",
-    "template",
-    "polkadot",
-    "kusama"
-  ],
+  "tags": ["substrate", "blockchain", "node", "template", "polkadot", "kusama"],
   "templating": {
     "list": []
   },
@@ -825,7 +810,8 @@
     ]
   },
   "timezone": "",
-  "title": "Substrate Node Template Metrics",
+  "title": "AlephZero Metrics",
   "uid": "PUYzGbwWz",
   "version": 16
 }
+

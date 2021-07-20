@@ -1,16 +1,15 @@
 use crate::{Error, Metrics};
 use aleph_bft::OrderedBatch;
 use futures::channel::mpsc;
-use parking_lot::RwLock;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin};
 
 #[derive(Clone)]
 pub(crate) struct DataIO<B: Block, SC: SelectChain<B>> {
     pub(crate) select_chain: SC,
     pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<B::Hash>>,
-    pub(crate) metrics: Option<Arc<RwLock<Metrics<B::Header>>>>,
+    pub(crate) metrics: Option<Metrics<B::Header>>,
 }
 
 impl<B: Block, SC: SelectChain<B>> aleph_bft::DataIO<B::Hash> for DataIO<B, SC> {
@@ -20,8 +19,7 @@ impl<B: Block, SC: SelectChain<B>> aleph_bft::DataIO<B::Hash> for DataIO<B, SC> 
         let header = self.select_chain.best_chain().expect("No best chain");
 
         if let Some(m) = &self.metrics {
-            m.write()
-                .report_block(header.hash(), std::time::Instant::now(), "get_data");
+            m.report_block(header.hash(), std::time::Instant::now(), "get_data");
         }
 
         header.hash()
