@@ -195,7 +195,6 @@ where
                 continue;
             }
             let keybox = keybox.expect("We loop until this is some.");
-            //let mut ticker_fut = Delay::new(Duration::from_millis(1000));
 
             match timeout(Duration::from_millis(1000), notification_stream.next()).await {
                 Ok(Some(notification)) => {
