@@ -8,7 +8,7 @@ use std::{
     borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
 };
 
-use log::{debug, trace, warn};
+use log::{debug, error, trace, warn};
 
 use crate::{aggregator::SignableHash, Error, Hasher, MultiKeychain, SessionId, Signature};
 use sp_api::NumberFor;
@@ -109,7 +109,7 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
         let result =
             NetworkService::add_peers_to_reserved_set(self, protocol, iter::once(addr).collect());
         if let Err(e) = result {
-            log::error!(target: "afa", "add_set_reserved failed: {}", e);
+            error!(target: "afa", "add_set_reserved failed: {}", e);
         }
     }
 
@@ -122,7 +122,7 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
             iter::once(addr).collect(),
         );
         if let Err(e) = result {
-            log::error!(target: "afa", "remove_set_reserved failed: {}", e);
+            error!(target: "afa", "remove_set_reserved failed: {}", e);
         }
     }
 
@@ -297,7 +297,7 @@ impl<D: Clone + Codec> SessionManager<D> {
             peer_id: self.peer_id,
             node_id: keychain.index(),
         };
-        log::debug!(target: "afa", "Preparing DataNetwork for session {:?}", session_id);
+        debug!(target: "afa", "Preparing DataNetwork for session {:?}", session_id);
         let signature = keychain.sign(&auth_data.encode()).await;
         let (data_for_user, data_from_network) = mpsc::unbounded();
         let session_data = SessionData {
@@ -307,9 +307,9 @@ impl<D: Clone + Codec> SessionManager<D> {
             auth_data: auth_data.clone(),
             auth_signature: signature.clone(),
         };
-        log::trace!(target: "afa", "Preparing DataNetwork pre lock");
+        trace!(target: "afa", "Preparing DataNetwork pre lock");
         self.sessions.lock().insert(session_id, session_data);
-        log::trace!(target: "afa", "Preparing DataNetwork post lock");
+        trace!(target: "afa", "Preparing DataNetwork post lock");
         if let Err(e) = self
             .commands_for_session
             .unbounded_send(SessionCommand::Meta(
@@ -317,9 +317,9 @@ impl<D: Clone + Codec> SessionManager<D> {
                 Recipient::All,
             ))
         {
-            log::error!(target: "afa", "sending auth command failed in new session: {}", e);
+            error!(target: "afa", "sending auth command failed in new session: {}", e);
         }
-        log::debug!(target: "afa", "Prepared DataNetwork for session {:?}", session_id);
+        debug!(target: "afa", "Prepared DataNetwork for session {:?}", session_id);
         DataNetwork::new(
             session_id,
             data_from_network,

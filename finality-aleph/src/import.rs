@@ -5,6 +5,7 @@ use crate::{
 use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::Decode;
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
+use log::debug;
 use sc_client_api::backend::Backend;
 use sp_api::TransactionFor;
 use sp_consensus::{
@@ -63,7 +64,7 @@ where
         number: NumberFor<Block>,
         justification: Justification,
     ) -> Result<(), SendJustificationError<Block>> {
-        log::debug!(target: "afa", "Importing justification for block #{:?}", number);
+        debug!(target: "afa", "Importing justification for block #{:?}", number);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
                 ConsensusError::ClientImport("Aleph can import only Aleph justifications.".into()),
@@ -133,7 +134,7 @@ where
 
         let justifications = block.justifications.take();
 
-        log::debug!(target: "afa", "Importing block {:?} {:?} {:?}", number, block.header.hash(), block.post_hash());
+        debug!(target: "afa", "Importing block {:?} {:?} {:?}", number, block.header.hash(), block.post_hash());
         let import_result = self.inner.import_block(block, cache).await;
 
         let imported_aux = match import_result {
@@ -145,13 +146,13 @@ where
         if let Some(justification) =
             justifications.and_then(|just| just.into_justification(ALEPH_ENGINE_ID))
         {
-            log::debug!(target: "afa", "Got justification along imported block #{:?}", number);
+            debug!(target: "afa", "Got justification along imported block #{:?}", number);
 
             if self
                 .send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
                 .is_err()
             {
-                log::debug!(target: "afa", "Some issue with justification");
+                debug!(target: "afa", "Some issue with justification");
             }
         }
 
@@ -172,7 +173,7 @@ where
     type Error = ConsensusError;
 
     fn on_start(&mut self) -> Vec<(Block::Hash, NumberFor<Block>)> {
-        log::debug!(target: "afa", "On start called");
+        debug!(target: "afa", "On start called");
         Vec::new()
     }
 
@@ -182,7 +183,7 @@ where
         number: NumberFor<Block>,
         justification: Justification,
     ) -> Result<(), Self::Error> {
-        log::debug!(target: "afa", "import_justification called on {:?}", justification);
+        debug!(target: "afa", "import_justification called on {:?}", justification);
         self.send_justification(hash, number, justification)
             .map_err(|error| match error {
                 SendJustificationError::Send(_) => ConsensusError::ClientImport(String::from(

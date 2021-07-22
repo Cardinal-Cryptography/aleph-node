@@ -8,6 +8,7 @@ use finality_aleph::{
     JustificationNotification, Metrics, SessionPeriod,
 };
 use futures::channel::mpsc;
+use log::warn;
 use sc_client_api::{CallExecutor, ExecutionStrategy, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_executor::native_executor_instance;
@@ -91,7 +92,7 @@ pub fn new_partial(
     let metrics = config.prometheus_registry().cloned().and_then(|r| {
         Metrics::register(&r)
             .map_err(|_err| {
-                log::warn!("Failed to register Prometheus metrics");
+                warn!("Failed to register Prometheus metrics");
             })
             .ok()
     });

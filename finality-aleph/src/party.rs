@@ -216,7 +216,6 @@ async fn run_aggregator<B, C, BE>(
                     if let Err(e) = justification_tx.unbounded_send(notification)  {
                         error!(target: "afa", "Issue with sending justification from Aggregator to JustificationHandler {:?}.", e);
                     }
-                    //finalize_block_as_authority(client.clone(), hash, multisignature);
                 } else {
                     debug!(target: "afa", "The stream of multisigned hashes has ended. Terminating.");
                     return;
