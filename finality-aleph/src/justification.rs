@@ -117,8 +117,6 @@ where
         ) {
             if num > last_finalized && num <= stop_h {
                 debug!(target: "afa", "Finalizing block {:?} {:?}", num, block_hash);
-
-                debug!(target: "afa", "Finalizing block {:?}", num);
                 let finalization_res = finalize_block(
                     self.client.clone(),
                     block_hash,
