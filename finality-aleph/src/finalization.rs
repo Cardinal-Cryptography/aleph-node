@@ -1,3 +1,4 @@
+use core::result::Result;
 use log::{debug, error, warn};
 use sc_client_api::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -13,7 +14,8 @@ pub(crate) fn finalize_block<BE, B, C>(
     hash: B::Hash,
     block_number: NumberFor<B>,
     justification: Option<Justification>,
-) where
+) -> Result<(), sp_blockchain::Error>
+where
     B: Block,
     BE: Backend<B>,
     C: crate::ClientForAleph<B, BE>,
@@ -22,7 +24,6 @@ pub(crate) fn finalize_block<BE, B, C>(
     if status.finalized_number >= block_number {
         warn!(target: "afa", "trying to finalize a block with hash {} and number {}
                that is not greater than already finalized {}", hash, block_number, status.finalized_number);
-        return;
     }
 
     debug!(target: "afa", "Finalizing block with hash {:?} and number {:?}. Previous best: #{:?}.", hash, block_number, status.finalized_number);
@@ -31,11 +32,9 @@ pub(crate) fn finalize_block<BE, B, C>(
         // NOTE: all other finalization logic should come here, inside the lock
         client.apply_finality(import_op, BlockId::Hash(hash), justification, true)
     });
-    if let Err(e) = update_res {
-        error!(target: "afa", "Error in finalization {:?}.", e);
-    }
     let status = client.info();
     debug!(target: "afa", "Attempted to finalize block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
+    update_res
 }
 
 /// Given hashes `last_finalized` and `new_hash` of two block, returns

@@ -7,7 +7,7 @@ use aleph_primitives::{AuthorityId, Session, ALEPH_ENGINE_ID};
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
 use futures_timer::Delay;
-use log::{debug, error};
+use log::{debug, error, warn};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, BlockT, NumberFor};
@@ -101,16 +101,6 @@ where
         }
     }
 
-    fn finalize(&self, num: NumberFor<B>, h: B::Hash, justification: AlephJustification) {
-        debug!(target: "afa", "Finalizing block {:?}", num);
-        finalize_block(
-            self.client.clone(),
-            h,
-            num,
-            Some((ALEPH_ENGINE_ID, justification.encode())),
-        );
-    }
-
     pub(crate) fn handle_justification_notification(
         &mut self,
         notification: JustificationNotification<B>,
@@ -127,8 +117,23 @@ where
         ) {
             if num > last_finalized && num <= stop_h {
                 debug!(target: "afa", "Finalizing block {:?} {:?}", num, block_hash);
-                self.last_finalization_time = Instant::now();
-                self.finalize(num, block_hash, notification.justification);
+
+                debug!(target: "afa", "Finalizing block {:?}", num);
+                let finalization_res = finalize_block(
+                    self.client.clone(),
+                    block_hash,
+                    num,
+                    Some((ALEPH_ENGINE_ID, notification.justification.encode())),
+                );
+                match finalization_res {
+                    Ok(()) => {
+                        self.last_finalization_time = Instant::now();
+                        debug!(target: "afa", "Successfully finalized {:?}", num);
+                    }
+                    Err(e) => {
+                        warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", num, block_hash, e);
+                    }
+                }
             } else {
                 debug!(target: "afa", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", num, last_finalized, stop_h);
             }
