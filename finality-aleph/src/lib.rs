@@ -211,7 +211,7 @@ pub fn last_block_of_session<B: Block>(
     session_id: SessionId,
     period: SessionPeriod,
 ) -> NumberFor<B> {
-    ((session_id.0 + 1) * period.0).into()
+    ((session_id.0 + 1) * period.0 - 1).into()
 }
 
 pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId

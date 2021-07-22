@@ -4,7 +4,7 @@ use crate::{
     default_aleph_config,
     finalization::chain_extension_step,
     justification::{AlephJustification, JustificationHandler, JustificationNotification},
-    network,
+    last_block_of_session, network,
     network::{
         split_network, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork, SessionManager,
     },
@@ -87,6 +87,7 @@ where
         authority_justification_tx,
         metrics,
         sessions.clone(),
+        period,
     );
 
     debug!(target: "afa", "Consensus party has started.");
@@ -146,6 +147,7 @@ where
 {
     session_manager: SessionManager<NetworkData<B>>,
     sessions: Arc<Mutex<SessionMap<B>>>,
+    period: SessionPeriod,
     spawn_handle: SpawnHandle,
     client: Arc<C>,
     select_chain: SC,
@@ -349,6 +351,7 @@ where
         authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
         metrics: Option<Metrics<B::Header>>,
         sessions: Arc<Mutex<SessionMap<B>>>,
+        period: SessionPeriod,
     ) -> Self {
         let authority = auth_keystore.authority_id().clone();
         Self {
@@ -360,6 +363,7 @@ where
             authority,
             authority_justification_tx,
             sessions,
+            period,
             spawn_handle: spawn_handle.into(),
             phantom: PhantomData,
         }
@@ -389,6 +393,13 @@ where
                 return;
             }
         };
+        assert_eq!(
+            session.stop_h,
+            last_block_of_session::<B>(session_id, self.period),
+            "Inconsistent computation of session bounds in the pallet and the client {:?} {:?}.",
+            session.stop_h,
+            last_block_of_session::<B>(session_id, self.period)
+        );
 
         let maybe_node_id = get_node_index(&session.authorities, &self.authority);
 
