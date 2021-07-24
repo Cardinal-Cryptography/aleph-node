@@ -1,6 +1,6 @@
 use crate::{
     aggregator::BlockSignatureAggregator,
-    data_io::DataIO,
+    data_io::{refresh_best_chain, DataIO},
     default_aleph_config,
     finalization::chain_extension_step,
     justification::{AlephJustification, JustificationHandler, JustificationNotification},
@@ -16,7 +16,11 @@ use aleph_bft::{DelayConfig, OrderedBatch};
 use aleph_primitives::{AlephSessionApi, Session};
 use futures_timer::Delay;
 
-use futures::{channel::mpsc, future::select, pin_mut, StreamExt};
+use futures::{
+    channel::{mpsc, oneshot},
+    future::select,
+    pin_mut, StreamExt,
+};
 use log::{debug, error, info, trace};
 
 use parking_lot::Mutex;
@@ -264,15 +268,24 @@ async fn run_session_as_authority<B, C, BE, SC>(
 
     let consensus_config = create_aleph_config(session.authorities.len(), node_id, session_id);
 
-    let data_io = DataIO {
-        select_chain: select_chain.clone(),
-        metrics: metrics.clone(),
+    let best_chain = select_chain
+        .best_chain()
+        .await
+        .expect("No best chain.")
+        .hash();
+    let best_chain = Arc::new(Mutex::new(best_chain));
+    let (refresh_best_chain_tx, refresh_best_chain_rx) = mpsc::unbounded();
+    let data_io = DataIO::<B> {
         ordered_batch_tx,
+        best_chain: best_chain.clone(),
+        refresh_best_chain_tx,
+        metrics: metrics.clone(),
     };
 
-    let (exit_member_tx, exit_member_rx) = futures::channel::oneshot::channel();
-    let (exit_forwarder_tx, exit_forwarder_rx) = futures::channel::oneshot::channel();
-    let (exit_aggregator_tx, exit_aggregator_rx) = futures::channel::oneshot::channel();
+    let (exit_member_tx, exit_member_rx) = oneshot::channel();
+    let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
+    let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
+    let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
 
     let member_task = {
         let spawn_handle = spawn_handle.clone();
@@ -310,6 +323,13 @@ async fn run_session_as_authority<B, C, BE, SC>(
         }
     };
 
+    let refresher_task = refresh_best_chain(
+        refresh_best_chain_rx,
+        select_chain.clone(),
+        best_chain,
+        exit_refresher_rx,
+    );
+
     spawn_handle
         .0
         .spawn("aleph/consensus_session_member", member_task);
@@ -319,6 +339,9 @@ async fn run_session_as_authority<B, C, BE, SC>(
     spawn_handle
         .0
         .spawn("aleph/consensus_session_aggregator", aggregator_task);
+    spawn_handle
+        .0
+        .spawn("aleph/consensus_session_refresher", refresher_task);
 
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
@@ -328,6 +351,7 @@ async fn run_session_as_authority<B, C, BE, SC>(
     // This is a temporary solution -- need to fix this in AlephBFT.
     let _ = exit_aggregator_tx.send(());
     let _ = exit_forwarder_tx.send(());
+    let _ = exit_refresher_tx.send(());
     info!(target: "afa", "Authority session {} ended", session_id.0);
 }
 
