@@ -85,15 +85,6 @@ jobs:
           if-no-files-found: error
           retention-days: 20
 
-      - name: Send Slack Notification
-        uses: rtCamp/action-slack-notify@v2
-        continue-on-error: true
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_USERNAME: GithubActions
-          MSG_MINIMAL: actions url
-
   deploy:
     name: Build and push docker image
     needs: build
