@@ -39,9 +39,12 @@ where
 }
 
 fn read_keys(n_members: usize) -> (Vec<AuraId>, Vec<AlephId>) {
-    let auth_keys = std::fs::read_to_string(KEY_PATH).expect("keys were not generated");
     let auth_keys: HashMap<u32, Vec<[u8; 32]>> =
-        serde_json::from_str(&auth_keys).expect("should contain list of keys");
+        if let Ok(auth_keys) = std::fs::read_to_string(KEY_PATH) {
+            serde_json::from_str(&auth_keys).expect("should contain list of keys")
+        } else {
+            return Default::default()
+        };
 
     let aura_keys: Vec<_> = auth_keys
         .get(&key_types::AURA.into())
