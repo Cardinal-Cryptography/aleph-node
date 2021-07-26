@@ -3,7 +3,7 @@ name: deploy
 on:
   push:
     branches:
-      - docker/use-public-repo # TODO : change this to main
+      - main
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
       SCCACHE_VERSION: 0.2.13
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_PATH: /home/runner/.cache/sccache
-      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out
+      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.0
@@ -111,10 +111,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:  ${{ env.AWS_REGION }}
-
-      # - name: Login to Amazon ECR
-        # id: login-ecr
-        # uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
 
       - name: Build, tag, and push image to ECR
         id: build-image
