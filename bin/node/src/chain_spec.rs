@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use aleph_primitives::AuthorityId as AlephId;
+use aleph_primitives::{
+    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
+};
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
     Signature, SudoConfig, SystemConfig, WASM_BINARY,
@@ -11,6 +13,13 @@ use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{ed25519, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::{env::VarError, fmt::Display, str::FromStr};
+
+const SESSION_PERIOD_ENV_VAR: &str = "SESSION_PERIOD";
+const MILLISECS_PER_BLOCK_ENV_VAR: &str = "MILLISECS_PER_BLOCK";
+
+const FAUCET_HASH: [u8; 32] =
+    hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
 
 pub(crate) const LOCAL_AUTHORITIES: [&str; 8] = [
     "Damian", "Tomasz", "Zbyszko", "Hansu", "Adam", "Matt", "Antoni", "Michal",
@@ -38,33 +47,85 @@ where
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-fn read_keys(n_members: usize) -> (Vec<AuraId>, Vec<AlephId>) {
+#[derive(Clone)]
+struct AuthorityKeys {
+    account_id: AccountId,
+    aura_key: AuraId,
+    aleph_key: AlephId,
+}
+
+fn read_keys(n_members: usize) -> Vec<AuthorityKeys> {
     let auth_keys: HashMap<u32, Vec<[u8; 32]>> =
         if let Ok(auth_keys) = std::fs::read_to_string(KEY_PATH) {
             serde_json::from_str(&auth_keys).expect("should contain list of keys")
         } else {
-            return Default::default()
+            return Default::default();
         };
 
-    let aura_keys: Vec<_> = auth_keys
+    let aura_keys = auth_keys
         .get(&key_types::AURA.into())
         .unwrap()
         .iter()
-        .take(n_members)
         .copied()
-        .map(|bytes| AuraId::from(sr25519::Public::from_raw(bytes)))
-        .collect();
+        .map(|bytes| AuraId::from(sr25519::Public::from_raw(bytes)));
 
-    let aleph_keys: Vec<_> = auth_keys
+    let aleph_keys = auth_keys
         .get(&aleph_primitives::KEY_TYPE.into())
         .unwrap()
         .iter()
-        .take(n_members)
         .copied()
-        .map(|bytes| AlephId::from(ed25519::Public::from_raw(bytes)))
-        .collect();
+        .map(|bytes| AlephId::from(ed25519::Public::from_raw(bytes)));
 
-    (aura_keys, aleph_keys)
+    let account_ids = LOCAL_AUTHORITIES
+        .iter()
+        .map(get_account_id_from_seed::<sr25519::Public>);
+
+    aura_keys
+        .zip(aleph_keys)
+        .zip(account_ids)
+        .take(n_members)
+        .map(|((aura_key, aleph_key), account_id)| AuthorityKeys {
+            aura_key,
+            aleph_key,
+            account_id,
+        })
+        .collect()
+}
+
+// TODO: rename to AlephEnvVarParams
+#[derive(Clone, Copy)]
+struct EnvironmentVariables {
+    session_period: u32,
+    millisecs_per_block: u64,
+}
+
+impl EnvironmentVariables {
+    fn fetch() -> Result<Self, String> {
+        Ok(Self {
+            session_period: Self::fetch_var_or(SESSION_PERIOD_ENV_VAR, DEFAULT_SESSION_PERIOD)?,
+            millisecs_per_block: Self::fetch_var_or(
+                MILLISECS_PER_BLOCK_ENV_VAR,
+                DEFAULT_MILLISECS_PER_BLOCK,
+            )?,
+        })
+    }
+    fn fetch_var_or<T>(var: &str, default: T) -> Result<T, String>
+    where
+        T: FromStr + Display,
+        <T as FromStr>::Err: ToString,
+    {
+        match std::env::var(var) {
+            Ok(value) => match value.parse() {
+                Ok(value) => Ok(value),
+                Err(err) => Err(err.to_string()),
+            },
+            Err(VarError::NotPresent) => {
+                log::info!("env var {} missing, using default value {}", var, default);
+                Ok(default)
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
@@ -76,9 +137,9 @@ pub fn development_config() -> Result<ChainSpec, String> {
         .parse::<usize>()
         .expect("Wrong committee size");
 
-    let (aura_keys, aleph_keys) = read_keys(n_members);
+    let authorities = read_keys(n_members);
 
-    let mut rich_accounts: Vec<_> = [
+    let rich_accounts: Vec<_> = [
         "Alice",
         "Alice//stash",
         "Bob",
@@ -89,11 +150,13 @@ pub fn development_config() -> Result<ChainSpec, String> {
     ]
     .iter()
     .map(get_account_id_from_seed::<sr25519::Public>)
-    .collect();
     // Also give money to the faucet account.
-    rich_accounts
-        .push(hex!["eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74"].into());
+    .chain(std::iter::once(FAUCET_HASH.into()))
+    .collect();
+
     let sudo_account = rich_accounts[0].clone();
+    let env_vars = EnvironmentVariables::fetch()?;
+
     Ok(ChainSpec::from_genesis(
         // Name
         "AlephZero Development",
@@ -104,18 +167,11 @@ pub fn development_config() -> Result<ChainSpec, String> {
             testnet_genesis(
                 wasm_binary,
                 // Initial PoA authorities
-                aura_keys.clone(),
-                aleph_keys.clone(),
-                // Sudo account
-                sudo_account.clone(),
+                authorities.clone(),
                 // Pre-funded accounts
-                LOCAL_AUTHORITIES
-                    .iter()
-                    .take(n_members)
-                    .map(get_account_id_from_seed::<sr25519::Public>)
-                    .collect(),
+                sudo_account.clone(),
                 rich_accounts.clone(),
-                true,
+                env_vars,
             )
         },
         // Bootnodes
@@ -143,13 +199,16 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
     let n_members = 6;
-    let (aura_keys, aleph_keys) = read_keys(n_members);
+    let authorities = read_keys(n_members);
+
+    let sudo_public: sr25519::Public = authorities[0].aura_key.clone().into();
+    let sudo_account: AccountId = AccountPublic::from(sudo_public).into_account();
 
     // Give money to the faucet account.
-    let faucet =
-        vec![hex!["eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74"].into()];
-    let sudo_public: sr25519::Public = aura_keys[0].clone().into();
-    let sudo_account: AccountId = AccountPublic::from(sudo_public).into_account();
+    let faucet: AccountId = FAUCET_HASH.into();
+    let rich_accounts = vec![faucet];
+
+    let env_vars = EnvironmentVariables::fetch()?;
     Ok(ChainSpec::from_genesis(
         // Name
         "Aleph Zero",
@@ -159,17 +218,11 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
         move || {
             testnet_genesis(
                 wasm_binary,
-                aura_keys.clone(),
-                aleph_keys.clone(),
+                authorities.clone(),
                 sudo_account.clone(),
                 // Pre-funded accounts
-                LOCAL_AUTHORITIES
-                    .iter()
-                    .take(n_members)
-                    .map(get_account_id_from_seed::<sr25519::Public>)
-                    .collect(),
-                faucet.clone(),
-                true,
+                rich_accounts.clone(),
+                env_vars,
             )
         },
         // Bootnodes
@@ -196,12 +249,10 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
     wasm_binary: &[u8],
-    aura_authorities: Vec<AuraId>,
-    aleph_authorities: Vec<AlephId>,
+    authorities: Vec<AuthorityKeys>,
     root_key: AccountId,
-    endowed_accounts: Vec<AccountId>,
     rich_accounts: Vec<AccountId>,
-    _enable_println: bool,
+    env_vars: EnvironmentVariables,
 ) -> GenesisConfig {
     GenesisConfig {
         system: SystemConfig {
@@ -211,8 +262,9 @@ fn testnet_genesis(
         },
         balances: BalancesConfig {
             // Configure endowed accounts with initial balance of 1 << 60.
-            balances: endowed_accounts
+            balances: authorities
                 .iter()
+                .map(|auth| &auth.account_id)
                 .cloned()
                 .chain(rich_accounts.into_iter())
                 .map(|k| (k, 1 << 60))
@@ -226,20 +278,23 @@ fn testnet_genesis(
             key: root_key,
         },
         aleph: AlephConfig {
-            authorities: aleph_authorities.to_vec(),
+            authorities: authorities
+                .iter()
+                .map(|auth| auth.aleph_key.clone())
+                .collect(),
+            session_period: env_vars.session_period,
+            millisecs_per_block: env_vars.millisecs_per_block,
         },
         session: SessionConfig {
-            keys: endowed_accounts
-                .iter()
-                .zip(aura_authorities.iter())
-                .zip(aleph_authorities.iter())
-                .map(|((account_id, aura_id), aleph_id)| {
+            keys: authorities
+                .into_iter()
+                .map(|auth| {
                     (
-                        account_id.clone(),
-                        account_id.clone(),
+                        auth.account_id.clone(),
+                        auth.account_id.clone(),
                         SessionKeys {
-                            aura: aura_id.clone(),
-                            aleph: aleph_id.clone(),
+                            aura: auth.aura_key.clone(),
+                            aleph: auth.aleph_key,
                         },
                     )
                 })

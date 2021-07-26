@@ -20,7 +20,7 @@ n_members="$1"
 echo "$n_members" > /tmp/n_members
 shift
 
-# cargo build --release -p aleph-node
+cargo build --release -p aleph-node
 
 authorities=(Damian Tomasz Zbyszko Hansu Adam Matt Antoni Michal)
 authorities=("${authorities[@]::$n_members}")
