@@ -16,7 +16,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, Block},
     RuntimeAppPublic,
 };
-use std::{convert::TryInto, fmt::Debug, sync::Arc};
+use std::{convert::TryInto, fmt::Debug, pin::Pin, sync::Arc};
 mod aggregator;
 pub mod config;
 mod data_io;
@@ -189,21 +189,36 @@ impl From<SpawnTaskHandle> for SpawnHandle {
     }
 }
 
-impl aleph_bft::SpawnHandle for SpawnHandle {
+impl SpawnHandle {
     fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
         self.0.spawn(name, task)
     }
+
     fn spawn_essential(
         &self,
         name: &'static str,
         task: impl Future<Output = ()> + Send + 'static,
-    ) -> TaskHandle {
+    ) -> Pin<Box<impl Future<Output = Result<(), ()>> + Send>> {
         let (tx, rx) = oneshot::channel();
         self.0.spawn(name, async move {
             task.await;
             let _ = tx.send(());
         });
         Box::pin(rx.map_err(|_| ()))
+    }
+}
+
+impl aleph_bft::SpawnHandle for SpawnHandle {
+    fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
+        <SpawnHandle>::spawn(self, name, task)
+    }
+
+    fn spawn_essential(
+        &self,
+        name: &'static str,
+        task: impl Future<Output = ()> + Send + 'static,
+    ) -> TaskHandle {
+        <SpawnHandle>::spawn_essential(self, name, task)
     }
 }
 
@@ -245,3 +260,5 @@ where
 {
     run_consensus_party(AlephParams { config })
 }
+
+pub fn into_join_handle() {}

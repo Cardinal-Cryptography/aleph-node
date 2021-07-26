@@ -280,9 +280,9 @@ async fn run_session_as_authority<B, C, BE, SC>(
         metrics: metrics.clone(),
     };
 
-    let (exit_member_tx, exit_member_rx) = oneshot::channel();
-    let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
-    let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
+    let (exit_member_tx, exit_member_rx) = futures::channel::oneshot::channel();
+    let (exit_forwarder_tx, exit_forwarder_rx) = futures::channel::oneshot::channel();
+    let (exit_aggregator_tx, exit_aggregator_rx) = futures::channel::oneshot::channel();
     let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
 
     let member_task = {
@@ -323,36 +323,24 @@ async fn run_session_as_authority<B, C, BE, SC>(
 
     let refresher_task = refresh_best_chain(select_chain.clone(), best_chain, exit_refresher_rx);
 
-    spawn_handle
-        .0
-        .spawn("aleph/consensus_session_member", member_task);
-    spawn_handle
-        .0
-        .spawn("aleph/consensus_session_forwarder", forwarder_task);
-    spawn_handle
-        .0
-        .spawn("aleph/consensus_session_aggregator", aggregator_task);
-    spawn_handle
-        .0
-        .spawn("aleph/consensus_session_refresher", refresher_task);
+    let member_handle = spawn_handle.spawn_essential("aleph/consensus_session_member", member_task);
+    let forwarder_handle =
+        spawn_handle.spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
+    let aggregator_handle =
+        spawn_handle.spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
+    let refresher_handle =
+        spawn_handle.spawn_essential("aleph/consensus_session_refresher", refresher_task);
 
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
-    if let Err(e) = exit_member_tx.send(()) {
-        debug!(target: "afa", "member was closed before terminating it manually: {:?}", e)
-    }
-    debug!(target: "afa", "Waiting 5s for Member to shut down without panic");
-    Delay::new(Duration::from_secs(5)).await;
-    // This is a temporary solution -- need to fix this in AlephBFT.
-    if let Err(e) = exit_aggregator_tx.send(()) {
-        debug!(target: "afa", "aggregator was closed before terminating it manually: {:?}", e)
-    }
-    if let Err(e) = exit_forwarder_tx.send(()) {
-        debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
-    }
-    if let Err(e) = exit_refresher_tx.send(()) {
-        debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
-    }
+    let _ = exit_member_tx.send(());
+    let _ = member_handle.await;
+    let _ = exit_aggregator_tx.send(());
+    let _ = aggregator_handle.await;
+    let _ = exit_forwarder_tx.send(());
+    let _ = forwarder_handle.await;
+    let _ = exit_refresher_tx.send(());
+    let _ = refresher_handle.await;
     info!(target: "afa", "Authority session {} ended", session_id.0);
 }
 
