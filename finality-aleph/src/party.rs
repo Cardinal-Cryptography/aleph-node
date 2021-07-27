@@ -129,13 +129,11 @@ where
     let handler = JustificationHandler::new(sessions, auth_keystore, period, network, client);
 
     debug!(target: "afa", "JustificationHandler started");
-    spawn_handle
-        .0
-        .spawn("aleph/justification_handler", async move {
-            handler
-                .run(authority_justification_rx, import_justification_rx)
-                .await;
-        });
+    spawn_handle.spawn("aleph/justification_handler", async move {
+        handler
+            .run(authority_justification_rx, import_justification_rx)
+            .await;
+    });
 
     authority_justification_tx
 }
@@ -281,9 +279,9 @@ async fn run_session_as_authority<B, C, BE, SC>(
     };
 
     let (exit_member_tx, exit_member_rx) = futures::channel::oneshot::channel();
-    let (exit_forwarder_tx, exit_forwarder_rx) = futures::channel::oneshot::channel();
     let (exit_aggregator_tx, exit_aggregator_rx) = futures::channel::oneshot::channel();
     let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
+    let (exit_forwarder_tx, exit_forwarder_rx) = futures::channel::oneshot::channel();
 
     let member_task = {
         let spawn_handle = spawn_handle.clone();
@@ -295,13 +293,6 @@ async fn run_session_as_authority<B, C, BE, SC>(
             member.run_session(aleph_network, exit_member_rx).await;
             debug!(target: "afa", "Member task stopped for {:?}", session_id.0);
         }
-    };
-
-    let forwarder_task = async move {
-        debug!(target: "afa", "Running the forwarder task for {:?}", session_id.0);
-        pin_mut!(forwarder);
-        select(forwarder, exit_forwarder_rx).await;
-        debug!(target: "afa", "Forwarder task stopped for {:?}", session_id.0);
     };
 
     let aggregator_task = {
@@ -321,18 +312,28 @@ async fn run_session_as_authority<B, C, BE, SC>(
         }
     };
 
+    let forwarder_task = async move {
+        debug!(target: "afa", "Running the forwarder task for {:?}", session_id.0);
+        pin_mut!(forwarder);
+        select(forwarder, exit_forwarder_rx).await;
+        debug!(target: "afa", "Forwarder task stopped for {:?}", session_id.0);
+    };
+
     let refresher_task = refresh_best_chain(select_chain.clone(), best_chain, exit_refresher_rx);
 
-    let member_handle = spawn_handle.spawn_essential("aleph/consensus_session_member", member_task);
-    let forwarder_handle =
-        spawn_handle.spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
+    let member_handle =
+        spawn_handle.spawn_with_handle("aleph/consensus_session_member", member_task);
     let aggregator_handle =
-        spawn_handle.spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
+        spawn_handle.spawn_with_handle("aleph/consensus_session_aggregator", aggregator_task);
+    let forwarder_handle =
+        spawn_handle.spawn_with_handle("aleph/consensus_session_forwarder", forwarder_task);
     let refresher_handle =
-        spawn_handle.spawn_essential("aleph/consensus_session_refresher", refresher_task);
+        spawn_handle.spawn_with_handle("aleph/consensus_session_refresher", refresher_task);
 
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
+    // both member and aggregator are implicitly using forwarder,
+    // so we should force them to exit first to avoid any panics, i.e. `send on closed channel`
     let _ = exit_member_tx.send(());
     let _ = member_handle.await;
     let _ = exit_aggregator_tx.send(());
@@ -442,7 +443,6 @@ where
                 exit_authority_rx,
             );
             self.spawn_handle
-                .0
                 .spawn("aleph/session_authority", authority_task);
         } else {
             debug!(target: "afa", "Running session {:?} as non-authority", session_id);

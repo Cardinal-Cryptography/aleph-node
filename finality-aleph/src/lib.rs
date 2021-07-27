@@ -2,10 +2,8 @@ use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 
 use codec::{Decode, Encode};
 
-pub use aleph_bft::{
-    default_config as default_aleph_config, Config as ConsensusConfig, TaskHandle,
-};
-use aleph_bft::{DefaultMultiKeychain, NodeCount, NodeIndex};
+pub use aleph_bft::default_config as default_aleph_config;
+use aleph_bft::{DefaultMultiKeychain, NodeCount, NodeIndex, TaskHandle};
 use futures::{channel::oneshot, Future, TryFutureExt};
 use sc_client_api::{backend::Backend, Finalizer, LockImportRun, TransactionFor};
 use sc_service::SpawnTaskHandle;
@@ -16,7 +14,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, Block},
     RuntimeAppPublic,
 };
-use std::{convert::TryInto, fmt::Debug, pin::Pin, sync::Arc};
+use std::{convert::TryInto, fmt::Debug, sync::Arc};
 mod aggregator;
 pub mod config;
 mod data_io;
@@ -194,17 +192,23 @@ impl SpawnHandle {
         self.0.spawn(name, task)
     }
 
-    fn spawn_essential(
+    /// Spawns a task and returns a Future that will notify us when the task finished its execution.
+    /// In case a given task panics, the returned Future will return `Err(())`. Otherwise, it returns `Ok(())`.
+    fn spawn_with_handle(
         &self,
         name: &'static str,
         task: impl Future<Output = ()> + Send + 'static,
-    ) -> Pin<Box<impl Future<Output = Result<(), ()>> + Send>> {
+    ) -> impl Future<Output = Result<(), ()>> + Send {
         let (tx, rx) = oneshot::channel();
-        self.0.spawn(name, async move {
-            task.await;
+        self.spawn(name, async move {
+            {
+                // force task to be dropped before we send `()` on tx
+                let task = task;
+                task.await;
+            }
             let _ = tx.send(());
         });
-        Box::pin(rx.map_err(|_| ()))
+        rx.map_err(|_| ())
     }
 }
 
@@ -218,7 +222,7 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
         name: &'static str,
         task: impl Future<Output = ()> + Send + 'static,
     ) -> TaskHandle {
-        <SpawnHandle>::spawn_essential(self, name, task)
+        Box::pin(self.spawn_with_handle(name, task))
     }
 }
 
@@ -260,5 +264,3 @@ where
 {
     run_consensus_party(AlephParams { config })
 }
-
-pub fn into_join_handle() {}
