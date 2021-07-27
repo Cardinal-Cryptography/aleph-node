@@ -201,11 +201,7 @@ impl SpawnHandle {
     ) -> impl Future<Output = Result<(), ()>> + Send {
         let (tx, rx) = oneshot::channel();
         self.spawn(name, async move {
-            {
-                // force task to be dropped before we send `()` on tx
-                let task = task;
-                task.await;
-            }
+            task.await;
             let _ = tx.send(());
         });
         rx.map_err(|_| ())
