@@ -274,11 +274,9 @@ async fn run_session_as_authority<B, C, BE, SC>(
         .expect("No best chain.")
         .hash();
     let best_chain = Arc::new(Mutex::new(best_chain));
-    let (refresh_best_chain_tx, refresh_best_chain_rx) = mpsc::unbounded();
     let data_io = DataIO::<B> {
         ordered_batch_tx,
         best_chain: best_chain.clone(),
-        refresh_best_chain_tx,
         metrics: metrics.clone(),
     };
 
@@ -323,12 +321,7 @@ async fn run_session_as_authority<B, C, BE, SC>(
         }
     };
 
-    let refresher_task = refresh_best_chain(
-        refresh_best_chain_rx,
-        select_chain.clone(),
-        best_chain,
-        exit_refresher_rx,
-    );
+    let refresher_task = refresh_best_chain(select_chain.clone(), best_chain, exit_refresher_rx);
 
     spawn_handle
         .0
@@ -346,12 +339,18 @@ async fn run_session_as_authority<B, C, BE, SC>(
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
     let _ = exit_member_tx.send(());
-    debug!(target: "afa", "Waiting 5000ms for Member to shut down without panic");
-    Delay::new(Duration::from_millis(5000)).await;
+    debug!(target: "afa", "Waiting 5s for Member to shut down without panic");
+    Delay::new(Duration::from_secs(5)).await;
     // This is a temporary solution -- need to fix this in AlephBFT.
-    let _ = exit_aggregator_tx.send(());
-    let _ = exit_forwarder_tx.send(());
-    let _ = exit_refresher_tx.send(());
+    if let Err(e) = exit_aggregator_tx.send(()) {
+        debug!(target: "afa", "aggregator was closed before terminating it manually: {:?}", e)
+    }
+    if let Err(e) = exit_forwarder_tx.send(()) {
+        debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
+    }
+    if let Err(e) = exit_refresher_tx.send(()) {
+        debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
+    }
     info!(target: "afa", "Authority session {} ended", session_id.0);
 }
 
