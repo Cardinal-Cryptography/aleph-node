@@ -337,14 +337,26 @@ async fn run_session_as_authority<B, C, BE, SC>(
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
     // both member and aggregator are implicitly using forwarder,
     // so we should force them to exit first to avoid any panics, i.e. `send on closed channel`
-    let _ = exit_member_tx.send(());
+    if let Err(e) = exit_member_tx.send(()) {
+        debug!(target: "afa", "member was closed before terminating it manually: {:?}", e)
+    }
     let _ = member_handle.await;
-    let _ = exit_aggregator_tx.send(());
+
+    if let Err(e) = exit_aggregator_tx.send(()) {
+        debug!(target: "afa", "aggregator was closed before terminating it manually: {:?}", e)
+    }
     let _ = aggregator_handle.await;
-    let _ = exit_forwarder_tx.send(());
+
+    if let Err(e) = exit_forwarder_tx.send(()) {
+        debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
+    }
     let _ = forwarder_handle.await;
-    let _ = exit_refresher_tx.send(());
+
+    if let Err(e) = exit_refresher_tx.send(()) {
+        debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
+    }
     let _ = refresher_handle.await;
+
     info!(target: "afa", "Authority session {} ended", session_id.0);
 }
 
