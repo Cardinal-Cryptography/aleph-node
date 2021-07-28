@@ -60,38 +60,61 @@ pub struct ChainParams {
 impl ChainParams {
     pub fn from_cli(session_period: Option<u32>, millisecs_per_block: Option<u64>) -> Self {
         ChainParams {
-            session_period: Self::param("session period", session_period, "SESSION_PERIOD", DEFAULT_SESSION_PERIOD),
-            millisecs_per_block: Self::param("millisecs per block", millisecs_per_block, "MILLISECS_PER_BLOCK", DEFAULT_MILLISECS_PER_BLOCK),
+            session_period: Self::param(
+                "session period",
+                session_period,
+                "SESSION_PERIOD",
+                DEFAULT_SESSION_PERIOD,
+            ),
+            millisecs_per_block: Self::param(
+                "millisecs per block",
+                millisecs_per_block,
+                "MILLISECS_PER_BLOCK",
+                DEFAULT_MILLISECS_PER_BLOCK,
+            ),
         }
     }
 
-    fn param<T: FromStr + Display>(debug_name: &str, cli_value: Option<T>, var: &str, default: T) -> T where
-        <T as FromStr>::Err: ToString
+    fn param<T: FromStr + Display>(
+        debug_name: &str,
+        cli_value: Option<T>,
+        var: &str,
+        default: T,
+    ) -> T
+    where
+        <T as FromStr>::Err: ToString,
     {
-        cli_value.or_else(|| {Self::parse_env_var(var)}).unwrap_or_else(|| {
-            log::debug!("{} parameter not specified, using default value: {}", debug_name, default);
-            default
-        })
+        cli_value
+            .or_else(|| Self::parse_env_var(var))
+            .unwrap_or_else(|| {
+                log::debug!(
+                    "{} parameter not specified, using default value: {}",
+                    debug_name,
+                    default
+                );
+                default
+            })
     }
 
-    fn parse_env_var<T: FromStr>(var: &str) -> Option<T> where
-        <T as FromStr>::Err: ToString
+    fn parse_env_var<T: FromStr>(var: &str) -> Option<T>
+    where
+        <T as FromStr>::Err: ToString,
     {
         match std::env::var(var) {
-            Ok(value) => {
-                match value.parse() {
-                    Ok(value) => Some(value),
-                    Err(err) => {
-                        panic!("error parsing environment variable {}: {}", var, err.to_string());
-                    }
+            Ok(value) => match value.parse() {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    panic!(
+                        "error parsing environment variable {}: {}",
+                        var,
+                        err.to_string()
+                    );
                 }
             },
-            Err(VarError::NotPresent) => {
-                None
-            }
+            Err(VarError::NotPresent) => None,
             Err(err @ VarError::NotUnicode(_)) => {
                 panic!("environment variable {} is not unicode: {}", var, err);
-            },
+            }
         }
     }
 }
@@ -133,7 +156,6 @@ fn read_keys(n_members: usize) -> Vec<AuthorityKeys> {
         })
         .collect()
 }
-
 
 pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;

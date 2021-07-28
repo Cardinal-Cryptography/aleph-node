@@ -19,7 +19,7 @@ pub struct Cli {
     pub extra: ExtraParams,
 }
 
-#[derive(Clone, Copy, Debug, Default,   StructOpt)]
+#[derive(Clone, Copy, Debug, Default, StructOpt)]
 pub struct ExtraParams {
     #[structopt(long)]
     pub(crate) session_period: Option<u32>,
