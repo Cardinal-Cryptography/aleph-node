@@ -25,7 +25,6 @@ use log::{debug, error, info, trace};
 
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
-use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
@@ -82,17 +81,20 @@ where
 
     debug!(target: "afa", "Consensus network has started.");
 
-    let party = ConsensusParty::new(
+    let authority = auth_keystore.authority_id().clone();
+    let party = ConsensusParty {
         session_manager,
         client,
-        select_chain,
-        spawn_handle,
         auth_keystore,
-        authority_justification_tx,
+        select_chain,
         metrics,
-        sessions.clone(),
+        authority,
+        authority_justification_tx,
+        sessions,
         period,
-    );
+        spawn_handle: spawn_handle.into(),
+        phantom: PhantomData,
+    };
 
     debug!(target: "afa", "Consensus party has started.");
     party.run().await;
@@ -242,34 +244,6 @@ where
     SC: SelectChain<B> + 'static,
     NumberFor<B>: From<u32>,
 {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
-        session_manager: SessionManager<NetworkData<B>>,
-        client: Arc<C>,
-        select_chain: SC,
-        spawn_handle: SpawnTaskHandle,
-        auth_keystore: AuthorityKeystore,
-        authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
-        metrics: Option<Metrics<B::Header>>,
-        sessions: Arc<Mutex<SessionMap<B>>>,
-        period: SessionPeriod,
-    ) -> Self {
-        let authority = auth_keystore.authority_id().clone();
-        Self {
-            session_manager,
-            client,
-            auth_keystore,
-            select_chain,
-            metrics,
-            authority,
-            authority_justification_tx,
-            sessions,
-            period,
-            spawn_handle: spawn_handle.into(),
-            phantom: PhantomData,
-        }
-    }
-
     fn run_session_as_authority(
         &self,
         node_id: NodeIndex,
