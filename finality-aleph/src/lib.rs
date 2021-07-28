@@ -187,30 +187,9 @@ impl From<SpawnTaskHandle> for SpawnHandle {
     }
 }
 
-impl SpawnHandle {
-    fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
-        self.0.spawn(name, task)
-    }
-
-    /// Spawns a task and returns a Future that will notify us when the task finished its execution.
-    /// In case a given task panics, the returned Future will return `Err(())`. Otherwise, it returns `Ok(())`.
-    fn spawn_with_handle(
-        &self,
-        name: &'static str,
-        task: impl Future<Output = ()> + Send + 'static,
-    ) -> impl Future<Output = Result<(), ()>> + Send {
-        let (tx, rx) = oneshot::channel();
-        self.spawn(name, async move {
-            task.await;
-            let _ = tx.send(());
-        });
-        rx.map_err(|_| ())
-    }
-}
-
 impl aleph_bft::SpawnHandle for SpawnHandle {
     fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
-        <SpawnHandle>::spawn(self, name, task)
+        self.0.spawn(name, task)
     }
 
     fn spawn_essential(
@@ -218,7 +197,12 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
         name: &'static str,
         task: impl Future<Output = ()> + Send + 'static,
     ) -> TaskHandle {
-        Box::pin(self.spawn_with_handle(name, task))
+        let (tx, rx) = oneshot::channel();
+        self.spawn(name, async move {
+            task.await;
+            let _ = tx.send(());
+        });
+        Box::pin(rx.map_err(|_| ()))
     }
 }
 

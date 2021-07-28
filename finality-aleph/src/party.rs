@@ -9,10 +9,10 @@ use crate::{
         split_network, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork, SessionManager,
     },
     AuthorityId, AuthorityKeystore, KeyBox, Metrics, MultiKeychain, NodeIndex, SessionId,
-    SessionPeriod, SpawnHandle,
+    SessionPeriod,
 };
 
-use aleph_bft::{DelayConfig, OrderedBatch};
+use aleph_bft::{DelayConfig, OrderedBatch, SpawnHandle};
 use aleph_primitives::{AlephSessionApi, Session};
 use futures_timer::Delay;
 
@@ -109,7 +109,7 @@ fn get_node_index(authorities: &[AuthorityId], my_id: &AuthorityId) -> Option<No
 type SessionMap<Block> = HashMap<SessionId, Session<AuthorityId, NumberFor<Block>>>;
 
 fn run_justification_handler<B, N, C, BE>(
-    spawn_handle: &SpawnHandle,
+    spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     sessions: Arc<Mutex<SessionMap<B>>>,
     auth_keystore: AuthorityKeystore,
@@ -150,7 +150,7 @@ where
     session_manager: SessionManager<NetworkData<B>>,
     sessions: Arc<Mutex<SessionMap<B>>>,
     period: SessionPeriod,
-    spawn_handle: SpawnHandle,
+    spawn_handle: crate::SpawnHandle,
     client: Arc<C>,
     select_chain: SC,
     authority: AuthorityId,
@@ -242,7 +242,7 @@ async fn run_session_as_authority<B, C, BE, SC>(
     client: Arc<C>,
     data_network: DataNetwork<NetworkData<B>>,
     session: Session<AuthorityId, NumberFor<B>>,
-    spawn_handle: SpawnHandle,
+    spawn_handle: crate::SpawnHandle,
     select_chain: SC,
     metrics: Option<Metrics<B::Header>>,
     justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
@@ -325,14 +325,13 @@ async fn run_session_as_authority<B, C, BE, SC>(
 
     let refresher_task = refresh_best_chain(select_chain.clone(), best_chain, exit_refresher_rx);
 
-    let member_handle =
-        spawn_handle.spawn_with_handle("aleph/consensus_session_member", member_task);
+    let member_handle = spawn_handle.spawn_essential("aleph/consensus_session_member", member_task);
     let aggregator_handle =
-        spawn_handle.spawn_with_handle("aleph/consensus_session_aggregator", aggregator_task);
+        spawn_handle.spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
     let forwarder_handle =
-        spawn_handle.spawn_with_handle("aleph/consensus_session_forwarder", forwarder_task);
+        spawn_handle.spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
     let refresher_handle =
-        spawn_handle.spawn_with_handle("aleph/consensus_session_refresher", refresher_task);
+        spawn_handle.spawn_essential("aleph/consensus_session_refresher", refresher_task);
 
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
