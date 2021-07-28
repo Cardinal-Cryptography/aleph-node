@@ -203,7 +203,7 @@ async fn run_aggregator<B, C, BE>(
                     }
                 } else {
                     debug!(target: "afa", "Batches ended in aggregator. Terminating.");
-                    return;
+                    break;
                 }
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
@@ -220,7 +220,7 @@ async fn run_aggregator<B, C, BE>(
                     }
                 } else {
                     debug!(target: "afa", "The stream of multisigned hashes has ended. Terminating.");
-                    return;
+                    break;
                 }
             }
             _ = &mut exit_rx => {
@@ -229,6 +229,10 @@ async fn run_aggregator<B, C, BE>(
             }
         }
     }
+    debug!(target: "afa", "Aggregator awaiting an exit signal.");
+    // this allows aggregator to exit after member,
+    // otherwise it can exit too early and member complains about a channel to aggregator being closed
+    let _ = exit_rx.await;
 }
 
 #[allow(clippy::too_many_arguments)]
