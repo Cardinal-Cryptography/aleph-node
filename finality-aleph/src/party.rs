@@ -338,7 +338,9 @@ async fn run_session_as_authority<B, C, BE, SC>(
 
     let _ = exit_rx.await;
     info!(target: "afa", "Shutting down authority session {}", session_id.0);
-    let _ = exit_member_tx.send(());
+    if let Err(e) = exit_member_tx.send(()) {
+        debug!(target: "afa", "member was closed before terminating it manually: {:?}", e)
+    }
     debug!(target: "afa", "Waiting 5s for Member to shut down without panic");
     Delay::new(Duration::from_secs(5)).await;
     // This is a temporary solution -- need to fix this in AlephBFT.
