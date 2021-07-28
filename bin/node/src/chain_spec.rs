@@ -15,9 +15,6 @@ use sp_core::{ed25519, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::{env::VarError, fmt::Display, str::FromStr};
 
-const SESSION_PERIOD_ENV_VAR: &str = "SESSION_PERIOD";
-const MILLISECS_PER_BLOCK_ENV_VAR: &str = "MILLISECS_PER_BLOCK";
-
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
 
@@ -48,10 +45,55 @@ where
 }
 
 #[derive(Clone)]
-struct AuthorityKeys {
+pub struct AuthorityKeys {
     account_id: AccountId,
     aura_key: AuraId,
     aleph_key: AlephId,
+}
+
+#[derive(Clone, Copy)]
+pub struct ChainParams {
+    session_period: u32,
+    millisecs_per_block: u64,
+}
+
+impl ChainParams {
+    pub fn from_cli(session_period: Option<u32>, millisecs_per_block: Option<u64>) -> Self {
+        ChainParams {
+            session_period: Self::param("session period", session_period, "SESSION_PERIOD", DEFAULT_SESSION_PERIOD),
+            millisecs_per_block: Self::param("millisecs per block", millisecs_per_block, "MILLISECS_PER_BLOCK", DEFAULT_MILLISECS_PER_BLOCK),
+        }
+    }
+
+    fn param<T: FromStr + Display>(debug_name: &str, cli_value: Option<T>, var: &str, default: T) -> T where
+        <T as FromStr>::Err: ToString
+    {
+        cli_value.or_else(|| {Self::parse_env_var(var)}).unwrap_or_else(|| {
+            log::debug!("{} parameter not specified, using default value: {}", debug_name, default);
+            default
+        })
+    }
+
+    fn parse_env_var<T: FromStr>(var: &str) -> Option<T> where
+        <T as FromStr>::Err: ToString
+    {
+        match std::env::var(var) {
+            Ok(value) => {
+                match value.parse() {
+                    Ok(value) => Some(value),
+                    Err(err) => {
+                        panic!("error parsing environment variable {}: {}", var, err.to_string());
+                    }
+                }
+            },
+            Err(VarError::NotPresent) => {
+                None
+            }
+            Err(err @ VarError::NotUnicode(_)) => {
+                panic!("environment variable {} is not unicode: {}", var, err);
+            },
+        }
+    }
 }
 
 fn read_keys(n_members: usize) -> Vec<AuthorityKeys> {
@@ -92,43 +134,8 @@ fn read_keys(n_members: usize) -> Vec<AuthorityKeys> {
         .collect()
 }
 
-// TODO: rename to AlephEnvVarParams
-#[derive(Clone, Copy)]
-struct EnvironmentVariables {
-    session_period: u32,
-    millisecs_per_block: u64,
-}
 
-impl EnvironmentVariables {
-    fn fetch() -> Result<Self, String> {
-        Ok(Self {
-            session_period: Self::fetch_var_or(SESSION_PERIOD_ENV_VAR, DEFAULT_SESSION_PERIOD)?,
-            millisecs_per_block: Self::fetch_var_or(
-                MILLISECS_PER_BLOCK_ENV_VAR,
-                DEFAULT_MILLISECS_PER_BLOCK,
-            )?,
-        })
-    }
-    fn fetch_var_or<T>(var: &str, default: T) -> Result<T, String>
-    where
-        T: FromStr + Display,
-        <T as FromStr>::Err: ToString,
-    {
-        match std::env::var(var) {
-            Ok(value) => match value.parse() {
-                Ok(value) => Ok(value),
-                Err(err) => Err(err.to_string()),
-            },
-            Err(VarError::NotPresent) => {
-                log::info!("env var {} missing, using default value {}", var, default);
-                Ok(default)
-            }
-            Err(err) => Err(err.to_string()),
-        }
-    }
-}
-
-pub fn development_config() -> Result<ChainSpec, String> {
+pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
     let n_members = std::fs::read_to_string("/tmp/n_members")
@@ -155,7 +162,6 @@ pub fn development_config() -> Result<ChainSpec, String> {
     .collect();
 
     let sudo_account = rich_accounts[0].clone();
-    let env_vars = EnvironmentVariables::fetch()?;
 
     Ok(ChainSpec::from_genesis(
         // Name
@@ -171,7 +177,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
                 // Pre-funded accounts
                 sudo_account.clone(),
                 rich_accounts.clone(),
-                env_vars,
+                chain_params,
             )
         },
         // Bootnodes
@@ -195,7 +201,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
     ))
 }
 
-pub fn testnet1_config() -> Result<ChainSpec, String> {
+pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
     let n_members = 6;
@@ -207,8 +213,6 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
     // Give money to the faucet account.
     let faucet: AccountId = FAUCET_HASH.into();
     let rich_accounts = vec![faucet];
-
-    let env_vars = EnvironmentVariables::fetch()?;
     Ok(ChainSpec::from_genesis(
         // Name
         "Aleph Zero",
@@ -222,7 +226,7 @@ pub fn testnet1_config() -> Result<ChainSpec, String> {
                 sudo_account.clone(),
                 // Pre-funded accounts
                 rich_accounts.clone(),
-                env_vars,
+                chain_params,
             )
         },
         // Bootnodes
@@ -252,8 +256,11 @@ fn testnet_genesis(
     authorities: Vec<AuthorityKeys>,
     root_key: AccountId,
     rich_accounts: Vec<AccountId>,
-    env_vars: EnvironmentVariables,
+    chain_params: ChainParams,
 ) -> GenesisConfig {
+    let session_period = chain_params.session_period;
+    let millisecs_per_block = chain_params.millisecs_per_block;
+    log::debug!("{} {}", session_period, millisecs_per_block);
     GenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -282,8 +289,8 @@ fn testnet_genesis(
                 .iter()
                 .map(|auth| auth.aleph_key.clone())
                 .collect(),
-            session_period: env_vars.session_period,
-            millisecs_per_block: env_vars.millisecs_per_block,
+            session_period,
+            millisecs_per_block,
         },
         session: SessionConfig {
             keys: authorities
