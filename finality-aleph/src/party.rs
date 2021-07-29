@@ -8,8 +8,8 @@ use crate::{
     network::{
         split_network, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork, SessionManager,
     },
-    AuthorityId, AuthorityKeystore, AuthoritySession, KeyBox, Metrics, MultiKeychain, NodeIndex,
-    SessionId, SessionMap, SessionPeriod,
+    AuthorityId, AuthorityKeystore, AuthoritySession, Future, KeyBox, Metrics, MultiKeychain,
+    NodeIndex, SessionId, SessionMap, SessionPeriod,
 };
 
 use aleph_bft::{DelayConfig, OrderedBatch, SpawnHandle};
@@ -81,14 +81,12 @@ where
 
     debug!(target: "afa", "Consensus network has started.");
 
-    let authority = auth_keystore.authority_id().clone();
     let party = ConsensusParty {
         session_manager,
         client,
         auth_keystore,
         select_chain,
         metrics,
-        authority,
         authority_justification_tx,
         sessions,
         period,
@@ -153,7 +151,6 @@ where
     spawn_handle: crate::SpawnHandle,
     client: Arc<C>,
     select_chain: SC,
-    authority: AuthorityId,
     auth_keystore: AuthorityKeystore,
     phantom: PhantomData<BE>,
     metrics: Option<Metrics<B::Header>>,
@@ -250,7 +247,7 @@ where
         data_network: DataNetwork<NetworkData<B>>,
         session: AuthoritySession<B>,
         exit_rx: futures::channel::oneshot::Receiver<()>,
-    ) -> impl crate::Future<Output = ()> {
+    ) -> impl Future<Output = ()> {
         debug!(target: "afa", "Authority task {:?}", session.session_id);
 
         let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
@@ -399,7 +396,10 @@ where
 
         self.sessions.lock().insert(session_id, session.clone());
 
-        let maybe_node_id = get_node_index(&session.authorities, &self.authority);
+        let maybe_node_id = get_node_index(
+            &session.authorities,
+            &self.auth_keystore.authority_id().clone(),
+        );
 
         let (exit_authority_tx, exit_authority_rx) = futures::channel::oneshot::channel();
         if let Some(node_id) = maybe_node_id {
