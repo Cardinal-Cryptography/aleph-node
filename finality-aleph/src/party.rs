@@ -244,7 +244,7 @@ where
     SC: SelectChain<B> + 'static,
     NumberFor<B>: From<u32>,
 {
-    fn run_session_as_authority(
+    async fn run_session_as_authority(
         &self,
         node_id: NodeIndex,
         data_network: DataNetwork<NetworkData<B>>,
@@ -267,7 +267,8 @@ where
 
         let consensus_config = create_aleph_config(session.authorities.len(), node_id, session_id);
 
-        let best_chain = select_chain
+        let best_chain = self
+            .select_chain
             .best_chain()
             .await
             .expect("No best chain.")
@@ -276,7 +277,7 @@ where
         let data_io = DataIO::<B> {
             ordered_batch_tx,
             best_chain: best_chain.clone(),
-            metrics: metrics.clone(),
+            metrics: self.metrics.clone(),
         };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
@@ -322,15 +323,21 @@ where
             debug!(target: "afa", "Forwarder task stopped for {:?}", session_id.0);
         };
 
-        let refresher_task = refresh_best_chain(select_chain.clone(), best_chain, exit_refresher_rx);
+        let refresher_task =
+            refresh_best_chain(self.select_chain.clone(), best_chain, exit_refresher_rx);
 
-        let member_handle = spawn_handle.spawn_essential("aleph/consensus_session_member", member_task);
-        let aggregator_handle =
-            spawn_handle.spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
-        let forwarder_handle =
-            spawn_handle.spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
-        let refresher_handle =
-            spawn_handle.spawn_essential("aleph/consensus_session_refresher", refresher_task);
+        let member_handle = self
+            .spawn_handle
+            .spawn_essential("aleph/consensus_session_member", member_task);
+        let aggregator_handle = self
+            .spawn_handle
+            .spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
+        let forwarder_handle = self
+            .spawn_handle
+            .spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
+        let refresher_handle = self
+            .spawn_handle
+            .spawn_essential("aleph/consensus_session_refresher", refresher_task);
 
         async move {
             let _ = exit_rx.await;
@@ -408,12 +415,9 @@ where
                 .start_session(session_id, multikeychain)
                 .await;
 
-            let authority_task = self.run_session_as_authority(
-                node_id,
-                data_network,
-                session.clone(),
-                exit_authority_rx,
-            );
+            let authority_task = self
+                .run_session_as_authority(node_id, data_network, session.clone(), exit_authority_rx)
+                .await;
             self.spawn_handle
                 .spawn("aleph/session_authority", authority_task);
         } else {
