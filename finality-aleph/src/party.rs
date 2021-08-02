@@ -361,12 +361,12 @@ where
                 debug!(target: "afa", "member was closed before terminating it manually: {:?}", e)
             }
             let _ = member_handle.await;
-            
+
             if let Err(e) = exit_aggregator_tx.send(()) {
                 debug!(target: "afa", "aggregator was closed before terminating it manually: {:?}", e)
             }
             let _ = aggregator_handle.await;
-            
+
             if let Err(e) = exit_forwarder_tx.send(()) {
                 debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
             }

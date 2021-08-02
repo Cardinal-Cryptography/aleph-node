@@ -1,41 +1,40 @@
 use crate::{network::AlephNetworkData, Error, Metrics};
 use aleph_bft::OrderedBatch;
 use futures::channel::{mpsc, oneshot};
+use lru::LruCache;
 use parking_lot::Mutex;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
-use std::{sync::Arc, time::Duration};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    marker::PhantomData,
+    sync::Arc,
+    time::Duration,
+};
 
 const REFRESH_INTERVAL: u64 = 100;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_timer::Delay;
-use log::{debug};
+use log::{debug, trace};
 use sc_client_api::{backend::Backend, BlockchainEvents};
 use sp_runtime::generic::BlockId;
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-};
 use tokio::stream::StreamExt;
 
 type MessageId = u64;
+const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
+const PENDING_MESSAGE_LIFETIME: MessageId = 100_000;
 
 pub(crate) struct DataStore<B, C, BE>
 where
     B: Block,
     C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
 {
-    // TODO: keep at most certain amount of blocks
     next_message_id: MessageId,
-    messages_for_member: UnboundedSender<AlephNetworkData<B>>,
-    // TODO: Change name. This name is stupid
-    messages_for_store: UnboundedReceiver<AlephNetworkData<B>>,
-    // TODO: Change to HashSet when HashSet is empty remove block
-    dependent_messages: HashMap<B::Hash, Vec<MessageId>>,
-    // TODO: Change to LRU cache
-    available_blocks: HashSet<B::Hash>,
+    ready_messages_tx: UnboundedSender<AlephNetworkData<B>>,
+    messages_rx: UnboundedReceiver<AlephNetworkData<B>>,
+    dependent_messages: HashMap<B::Hash, HashSet<MessageId>>,
+    available_blocks: LruCache<B::Hash, ()>,
     message_requirements: HashMap<MessageId, usize>,
     pending_messages: HashMap<MessageId, AlephNetworkData<B>>,
     client: Arc<C>,
@@ -46,13 +45,12 @@ impl<B, C, BE> DataStore<B, C, BE>
 where
     B: Block,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static + BlockchainEvents<B>,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
 {
     pub(crate) fn new(
         client: Arc<C>,
-        messages_for_member: UnboundedSender<AlephNetworkData<B>>,
-        messages_for_store: UnboundedReceiver<AlephNetworkData<B>>,
+        ready_messages_tx: UnboundedSender<AlephNetworkData<B>>,
+        messages_rx: UnboundedReceiver<AlephNetworkData<B>>,
     ) -> Self {
         DataStore {
             next_message_id: 0,
@@ -60,9 +58,9 @@ where
             message_requirements: HashMap::new(),
             dependent_messages: HashMap::new(),
             pending_messages: HashMap::new(),
-            available_blocks: HashSet::new(),
-            messages_for_member,
-            messages_for_store,
+            available_blocks: LruCache::new(AVAILABLE_BLOCKS_CACHE_SIZE),
+            ready_messages_tx,
+            messages_rx,
             _phantom: PhantomData,
         }
     }
@@ -72,16 +70,16 @@ where
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
-                Some(message) = &mut self.messages_for_store.next() => {
-                    debug!(target: "afa", "Got a message at DataStore {:?}", message);
+                Some(message) = &mut self.messages_rx.next() => {
+                    trace!(target: "afa", "Received message at Data Store {:?}", message);
                     self.add_message(message);
                 }
                 Some(block) = &mut import_stream.next() => {
-                    debug!(target: "afa", "Block import notification {:?}", block);
+                    trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
                     self.add_block(block.hash);
                 }
                 _ = &mut timeout => {
-                    debug!(target: "afa", "Timout Timeout Timeout");
+                    trace!(target: "afa", "Data Store timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
                     for block_hash in keys {
                         if self.client.header(BlockId::Hash(block_hash)).is_ok() {
@@ -97,22 +95,39 @@ where
         }
     }
 
+    fn forget_message(&mut self, message_id: MessageId) {
+        self.message_requirements.remove(&message_id);
+        if let Some(message) = self.pending_messages.remove(&message_id) {
+            for block_hash in message.included_data() {
+                if let Entry::Occupied(mut entry) = self.dependent_messages.entry(block_hash) {
+                    entry.get_mut().remove(&message_id);
+                    if entry.get().is_empty() {
+                        entry.remove_entry();
+                    }
+                }
+            }
+        }
+    }
+
     fn add_pending_message(&mut self, message: AlephNetworkData<B>, requirements: Vec<B::Hash>) {
         let message_id = self.next_message_id;
-        // Whatever test you are running should end before this becomes a problem.
         self.next_message_id += 1;
-        for block_num in requirements.iter() {
+        for block_hash in requirements.iter() {
             self.dependent_messages
-                .entry(*block_num)
-                .or_insert_with(Vec::new)
-                .push(message_id);
+                .entry(*block_hash)
+                .or_insert_with(HashSet::new)
+                .insert(message_id);
         }
         self.message_requirements
             .insert(message_id, requirements.len());
         self.pending_messages.insert(message_id, message);
+
+        if message_id >= PENDING_MESSAGE_LIFETIME {
+            self.forget_message(message_id - PENDING_MESSAGE_LIFETIME)
+        }
     }
 
-    pub(crate) fn add_message(&mut self, message: AlephNetworkData<B>) {
+    fn add_message(&mut self, message: AlephNetworkData<B>) {
         let requirements: Vec<_> = message
             .included_data()
             .into_iter()
@@ -121,17 +136,18 @@ where
                     return false;
                 }
                 if self.client.header(BlockId::Hash(*b)).is_ok() {
-                    self.available_blocks.insert(*b);
+                    self.available_blocks.put(*b, ());
                     return false;
                 }
                 true
             })
             .collect();
+
         if requirements.is_empty() {
-            debug!(target: "afa", "Sent message from DataStore {:?}", message);
-            self.messages_for_member
+            trace!(target: "afa", "Sending message from DataStore {:?}", message);
+            self.ready_messages_tx
                 .unbounded_send(message)
-                .expect("member accept messages");
+                .expect("Member channel should be open");
         } else {
             self.add_pending_message(message, requirements);
         }
@@ -141,7 +157,7 @@ where
         for message_id in self
             .dependent_messages
             .entry(block_hash)
-            .or_insert_with(Vec::new)
+            .or_insert_with(HashSet::new)
             .iter()
         {
             *self
@@ -153,18 +169,18 @@ where
                     .pending_messages
                     .remove(message_id)
                     .expect("there is a pending message");
-                self.messages_for_member
+                self.ready_messages_tx
                     .unbounded_send(message)
-                    .expect("member accept messages");
+                    .expect("Member channel should be open");
                 self.message_requirements.remove(message_id);
             }
         }
         self.dependent_messages.remove(&block_hash);
     }
 
-    pub(crate) fn add_block(&mut self, block_hash: B::Hash) {
-        debug!(target: "data-store", "Added block {:?}.", block_hash);
-        self.available_blocks.insert(block_hash);
+    fn add_block(&mut self, block_hash: B::Hash) {
+        trace!(target: "afa", "Adding block {:?} to Data Store", block_hash);
+        self.available_blocks.put(block_hash, ());
         self.push_messages(block_hash);
     }
 }
@@ -220,3 +236,6 @@ impl<B: Block> aleph_bft::DataIO<B::Hash> for DataIO<B> {
             .map_err(|_| Error::SendData)
     }
 }
+
+#[cfg(test)]
+mod tests {}
