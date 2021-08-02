@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Binary Artifact
+    name: Build binary artifact
     runs-on: ubuntu-latest
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
@@ -85,9 +85,62 @@ jobs:
           if-no-files-found: error
           retention-days: 20
 
-  deploy:
-    name: Build and push docker image
+  integration-tests:
     needs: build
+    name: Run integration tests suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with aleph-node binary
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-node
+
+      - name: Build docker image
+        id: build-image
+        run: |
+          mkdir -p target/release/
+          # copy artifact
+          cp aleph-node target/release/aleph-node
+          # Build and tag a docker container
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+
+      - name: Run consensus party
+        run: |
+          docker-compose -f docker/docker-compose.yml up &
+
+      - name: Verify nodes respond
+        run: |
+          validators=( damian tomasz zbyszko hansu )
+
+          for validator in "${validators[@]}"; do
+            docker run --network container:$validator appropriate/curl:latest --retry 3 --retry-delay 10 -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "rpc_methods"}' http://127.0.0.1:9933
+          done
+
+      # NOTE: more complex test scenarios can be run from here on
+
+      - name: Save docker image
+        run: |
+          docker save -o aleph-node.tar aleph-node:latest
+
+      - name: Upload docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: aleph-node-image
+          path: aleph-node.tar
+          if-no-files-found: error
+          retention-days: 20
+
+  deploy:
+    name: Push docker image
+    needs: integration-tests
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1 # this region is used by all public ECR repos
@@ -103,7 +156,7 @@ jobs:
       - name: Download artifact with aleph-node binary
         uses: actions/download-artifact@v2
         with:
-          name: aleph-node
+          name: aleph-node-image
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
@@ -112,23 +165,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:  ${{ env.AWS_REGION }}
 
-      - name: Build, tag, and push image to ECR
+      - name: Load, tag, and push image to ECR
         id: build-image
         env:
           ECR_REGISTRY: public.ecr.aws/x2t8a1o3
           ECR_REPOSITORY: aleph-node
-          IMAGE_TAG: latest
         run: |
-          mkdir -p target/release/
-          # copy artifact
-          cp aleph-node target/release/aleph-node
-          # Build and tag a docker container, we use two tags: `latest` and the sha of the commit that triggered the build
-          docker build --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG --tag $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA -f ./docker/Dockerfile .
+          # load docker image
+          docker load -i aleph-node.tar
+          # tag docker image, use two tags: `latest` and the sha of the commit that triggered the build
+          docker tag aleph-node:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker tag aleph-node:latest $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
           # Login to Amazon ECR
           aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          # push it to ECR
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          # push all tagged images to ECR
+          docker push --all-tags $ECR_REGISTRY/$ECR_REPOSITORY
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
