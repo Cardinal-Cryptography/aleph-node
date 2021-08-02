@@ -1,6 +1,6 @@
 use crate::{
     aggregator::BlockSignatureAggregator,
-    data_io::{refresh_best_chain, DataIO},
+    data_io::{refresh_best_chain, DataIO, DataStore},
     default_aleph_config,
     finalization::chain_extension_step,
     justification::{AlephJustification, JustificationHandler, JustificationNotification},
@@ -24,7 +24,7 @@ use futures::{
 use log::{debug, error, info, trace};
 
 use parking_lot::Mutex;
-use sc_client_api::backend::Backend;
+use sc_client_api::{backend::Backend, BlockchainEvents};
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
@@ -38,7 +38,7 @@ pub async fn run_consensus_party<B, N, C, BE, SC>(aleph_params: AlephParams<B, N
 where
     B: Block,
     N: network::Network<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
@@ -235,7 +235,7 @@ async fn run_aggregator<B, C, BE>(
 impl<B, C, BE, SC> ConsensusParty<B, C, BE, SC>
 where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
@@ -260,7 +260,12 @@ where
         let multikeychain = MultiKeychain::new(keybox);
         let session_id = session.session_id;
 
-        let (aleph_network, rmc_network, forwarder) = split_network(data_network);
+        let (aleph_network_tx, data_store_rx) = mpsc::unbounded();
+        let (data_store_tx, aleph_network_rx) = mpsc::unbounded();
+        let mut data_store =
+            DataStore::<B, C, BE>::new(self.client.clone(), data_store_tx, data_store_rx);
+        let (aleph_network, rmc_network, forwarder) =
+            split_network(data_network, aleph_network_tx, aleph_network_rx);
 
         let consensus_config = create_aleph_config(session.authorities.len(), node_id, session_id);
 
@@ -278,6 +283,7 @@ where
         };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
+        let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
         let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
         let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
         let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
@@ -291,6 +297,14 @@ where
                     aleph_bft::Member::new(data_io, &multikeychain, consensus_config, spawn_handle);
                 member.run_session(aleph_network, exit_member_rx).await;
                 debug!(target: "afa", "Member task stopped for {:?}", session_id.0);
+            }
+        };
+
+        let data_store_task = {
+            async move {
+                debug!(target: "afa", "Running the data store task for {:?}", session_id.0);
+                data_store.run(exit_data_store_rx).await;
+                debug!(target: "afa", "Data store task stopped for {:?}", session_id.0);
             }
         };
 
@@ -326,6 +340,9 @@ where
         let member_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_member", member_task);
+        let data_store_handle = self
+            .spawn_handle
+            .spawn_essential("aleph/consensus_session_data_store", data_store_task);
         let aggregator_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
@@ -344,12 +361,12 @@ where
                 debug!(target: "afa", "member was closed before terminating it manually: {:?}", e)
             }
             let _ = member_handle.await;
-
+            
             if let Err(e) = exit_aggregator_tx.send(()) {
                 debug!(target: "afa", "aggregator was closed before terminating it manually: {:?}", e)
             }
             let _ = aggregator_handle.await;
-
+            
             if let Err(e) = exit_forwarder_tx.send(()) {
                 debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
             }
@@ -359,6 +376,11 @@ where
                 debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
             }
             let _ = refresher_handle.await;
+
+            if let Err(e) = exit_data_store_tx.send(()) {
+                debug!(target: "afa", "data store was closed before terminating it manually: {:?}", e)
+            }
+            let _ = data_store_handle.await;
         }
     }
 

@@ -5,7 +5,7 @@ use codec::{Decode, Encode};
 pub use aleph_bft::default_config as default_aleph_config;
 use aleph_bft::{DefaultMultiKeychain, NodeCount, NodeIndex, TaskHandle};
 use futures::{channel::oneshot, Future, TryFutureExt};
-use sc_client_api::{backend::Backend, Finalizer, LockImportRun, TransactionFor};
+use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
@@ -246,7 +246,7 @@ pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(
 where
     BE: Backend<B> + 'static,
     N: network::Network<B> + 'static,
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     SC: SelectChain<B> + 'static,
     NumberFor<B>: Into<u32>,
