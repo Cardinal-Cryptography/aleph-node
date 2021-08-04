@@ -23,6 +23,7 @@ use tokio::stream::StreamExt;
 type MessageId = u64;
 const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
 const PENDING_MESSAGE_LIFETIME: MessageId = 100_000;
+const TIMEOUT_DURATION: Duration = Duration::from_millis(60000);
 
 pub(crate) struct DataStore<B, C, BE>
 where
@@ -66,7 +67,7 @@ where
     }
 
     pub(crate) async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
-        let mut timeout = Delay::new(Duration::from_millis(5000));
+        let mut timeout = Delay::new(TIMEOUT_DURATION);
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
@@ -82,11 +83,11 @@ where
                     trace!(target: "afa", "Data Store timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
                     for block_hash in keys {
-                        if self.client.header(BlockId::Hash(block_hash)).is_ok() {
+                        if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_hash)) {
                             self.add_block(block_hash);
                         }
                     }
-                    timeout = Delay::new(Duration::from_millis(5000));
+                    timeout = Delay::new(TIMEOUT_DURATION);
                 }
                 _ = &mut exit => {
                     break;
@@ -131,12 +132,12 @@ where
         let requirements: Vec<_> = message
             .included_data()
             .into_iter()
-            .filter(|b| {
-                if self.available_blocks.contains(b) {
+            .filter(|block_hash| {
+                if self.available_blocks.contains(block_hash) {
                     return false;
                 }
-                if self.client.header(BlockId::Hash(*b)).is_ok() {
-                    self.available_blocks.put(*b, ());
+                if let Ok(Some(_)) = self.client.header(BlockId::Hash(*block_hash)) {
+                    self.add_block(*block_hash);
                     return false;
                 }
                 true
