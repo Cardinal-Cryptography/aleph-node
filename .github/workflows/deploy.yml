@@ -116,15 +116,22 @@ jobs:
         run: |
           docker-compose -f docker/docker-compose.yml up &
 
+      # NOTE: this step contacts every node in the comittee by their container id and sends a simple RPC request
+      # that lists all the RPC methods that they expose.
+      # Once they respond we know all nodes are online
       - name: Verify nodes respond
         run: |
           validators=( damian tomasz zbyszko hansu )
 
           for validator in "${validators[@]}"; do
-            docker run --network container:$validator appropriate/curl:latest --retry 3 --retry-delay 10 -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "rpc_methods"}' http://127.0.0.1:9933
+            docker run --network container:$validator appropriate/curl:latest \
+                       --retry 3 \
+                       --retry-delay 10 \
+                       -H "Content-Type: application/json" \
+                       -d '{"id":1, "jsonrpc":"2.0", "method": "rpc_methods"}' http://127.0.0.1:9933
           done
 
-      # NOTE: more complex test scenarios can be run from here on
+      # NOTE: more complex test scenarios can be run from here on out
 
       - name: Save docker image
         run: |
