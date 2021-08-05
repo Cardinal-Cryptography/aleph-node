@@ -22,8 +22,8 @@ use tokio::stream::StreamExt;
 
 type MessageId = u64;
 const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
-const PENDING_MESSAGE_LIFETIME: MessageId = 100_000;
-const TIMEOUT_DURATION: Duration = Duration::from_millis(60000);
+const MESSAGE_ID_BOUNDARY: MessageId = 100_000;
+const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
 pub(crate) struct DataStore<B, C, BE>
 where
@@ -67,7 +67,7 @@ where
     }
 
     pub(crate) async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
-        let mut timeout = Delay::new(TIMEOUT_DURATION);
+        let mut maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
@@ -79,15 +79,15 @@ where
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
                     self.add_block(block.hash);
                 }
-                _ = &mut timeout => {
-                    trace!(target: "afa", "Data Store timeout");
+                _ = &mut maintenance_timeout => {
+                    trace!(target: "afa", "Data Store maintenance timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
                     for block_hash in keys {
                         if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_hash)) {
                             self.add_block(block_hash);
                         }
                     }
-                    timeout = Delay::new(TIMEOUT_DURATION);
+                    maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
                 }
                 _ = &mut exit => {
                     break;
@@ -123,8 +123,8 @@ where
             .insert(message_id, requirements.len());
         self.pending_messages.insert(message_id, message);
 
-        if message_id >= PENDING_MESSAGE_LIFETIME {
-            self.forget_message(message_id - PENDING_MESSAGE_LIFETIME)
+        if message_id >= MESSAGE_ID_BOUNDARY {
+            self.forget_message(message_id - MESSAGE_ID_BOUNDARY)
         }
     }
 
