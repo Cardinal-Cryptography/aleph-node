@@ -186,12 +186,9 @@ where
 
         loop {
             let last_finalized_number = self.client.info().finalized_number;
-            let current_session = session_id_from_block_num::<B>(
-                last_finalized_number + 1u32.into(),
-                session_period,
-            );
-            let stop_h: NumberFor<B> =
-                last_block_of_session::<B>(current_session, session_period);
+            let current_session =
+                session_id_from_block_num::<B>(last_finalized_number + 1u32.into(), session_period);
+            let stop_h: NumberFor<B> = last_block_of_session::<B>(current_session, session_period);
             let keybox = self.session_keybox(current_session);
             if keybox.is_none() {
                 debug!(target: "afa", "Keybox for session {:?} not yet available. Waiting 500ms and will try again ...", current_session);
