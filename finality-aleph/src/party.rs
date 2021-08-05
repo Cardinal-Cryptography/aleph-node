@@ -5,7 +5,6 @@ use crate::{
     finalization::chain_extension_step,
     justification::{
         AlephJustification, ChainCadence, JustificationHandler, JustificationNotification,
-        JustificationsCadence,
     },
     last_block_of_session, network,
     network::{
@@ -67,16 +66,15 @@ where
     let sessions = Arc::new(Mutex::new(HashMap::new()));
 
     // NOTE: justifications are requested every so often
-    let justifications_cadence = min(
-        (session_period.0 as u64 * 1000u64) * millisecs_per_block.0,
-        millisecs_per_block.0,
-    ) / 1000;
-
-    let chain_cadence = (
-        session_period,
-        millisecs_per_block,
-        JustificationsCadence::from_secs(justifications_cadence),
+    let cadence = min(
+        millisecs_per_block.0 * 10,
+        millisecs_per_block.0 * session_period.0 as u64 / 10,
     );
+
+    let chain_cadence = ChainCadence {
+        session_period,
+        justifications_cadence: Duration::from_millis(cadence),
+    };
 
     let authority_justification_tx = run_justification_handler(
         &spawn_handle.clone().into(),

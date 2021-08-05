@@ -204,6 +204,11 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             .unwrap(),
     );
 
+    assert!(
+        session_period.0 as u64 * 1000 > millisecs_per_block.0,
+        "SessionPeriod length needs to be strictly longer than MillisecsPerBlock"
+    );
+
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
