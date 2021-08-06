@@ -13,11 +13,9 @@ use log::{debug, error, trace, warn};
 use crate::{aggregator::SignableHash, Error, Hasher, MultiKeychain, SessionId, Signature};
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
-#[cfg(test)]
-mod tests;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
-pub struct PeerId(ScPeerId);
+pub struct PeerId(pub(crate) ScPeerId);
 
 impl From<PeerId> for ScPeerId {
     fn from(wrapper: PeerId) -> Self {
@@ -238,20 +236,20 @@ pub(crate) enum Recipient<T: Clone + Encode + Decode + Eq + PartialEq> {
 }
 
 #[derive(Clone, Encode, Decode, Debug)]
-struct AuthData {
-    session_id: SessionId,
-    peer_id: PeerId,
-    node_id: NodeIndex,
+pub(crate) struct AuthData {
+    pub(crate) session_id: SessionId,
+    pub(crate) peer_id: PeerId,
+    pub(crate) node_id: NodeIndex,
 }
 
 #[derive(Clone, Encode, Decode, Debug)]
-enum MetaMessage {
+pub(crate) enum MetaMessage {
     Authentication(AuthData, Signature),
     AuthenticationRequest(SessionId),
 }
 
 #[derive(Clone, Encode, Decode, Debug)]
-enum InternalMessage<D: Clone + Encode + Decode> {
+pub(crate) enum InternalMessage<D: Clone + Encode + Decode> {
     Meta(MetaMessage),
     Data(SessionId, D),
 }

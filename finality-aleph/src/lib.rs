@@ -25,6 +25,8 @@ mod justification;
 pub mod metrics;
 mod network;
 mod party;
+#[cfg(test)]
+pub mod testing;
 
 pub use import::AlephBlockImport;
 pub use justification::JustificationNotification;
