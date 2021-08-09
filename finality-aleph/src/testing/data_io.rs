@@ -6,10 +6,9 @@ use futures::{
     },
     StreamExt,
 };
-use futures_timer::Delay;
 use sc_block_builder::BlockBuilderProvider;
 use sp_consensus::BlockOrigin;
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{future::Future, sync::Arc};
 use substrate_test_runtime_client::{
     runtime::{Block, Hash},
     Backend, ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient, TestClientBuilder,
@@ -23,7 +22,7 @@ struct TestNetworkData {
 
 impl AlephNetworkMessage<Block> for TestNetworkData {
     fn included_blocks(&self) -> Vec<Hash> {
-        self.data.to_vec()
+        self.data.clone()
     }
 }
 
@@ -79,7 +78,7 @@ async fn sends_messages_with_imported_blocks() {
     let (task_handle, mut client, store_tx, mut store_rx, exit_data_store_tx) =
         prepare_data_store();
 
-    let consensus_network_handle = tokio::spawn(task_handle);
+    let data_store_handle = tokio::spawn(task_handle);
 
     let blocks = import_blocks(&mut client, 4).await;
 
@@ -89,21 +88,19 @@ async fn sends_messages_with_imported_blocks() {
         })
         .unwrap();
 
-    Delay::new(Duration::from_millis(10)).await;
-    exit_data_store_tx.send(()).unwrap();
-    consensus_network_handle.await.unwrap();
     let message = store_rx.next().await.expect("We own the tx");
-
     assert_eq!(message.included_blocks(), blocks);
+
+    exit_data_store_tx.send(()).unwrap();
+    data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn sends_messages_after_import() {
-    println!("ehhhhh");
     let (task_handle, mut client, store_tx, mut store_rx, exit_data_store_tx) =
         prepare_data_store();
 
-    let consensus_network_handle = tokio::spawn(task_handle);
+    let data_store_handle = tokio::spawn(task_handle);
 
     let block = client
         .new_block(Default::default())
@@ -121,36 +118,60 @@ async fn sends_messages_after_import() {
         .await
         .unwrap();
 
-    Delay::new(Duration::from_millis(10)).await;
-    exit_data_store_tx.send(()).unwrap();
-    consensus_network_handle.await.unwrap();
     let message = store_rx.next().await.expect("We own the tx");
-
     assert_eq!(message.included_blocks(), vec![block.header.hash()]);
+
+    exit_data_store_tx.send(()).unwrap();
+    data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn does_not_send_messages_without_import() {
-    let (task_handle, client, store_tx, mut store_rx, exit_data_store_tx) = prepare_data_store();
+    let (task_handle, mut client, store_tx, mut store_rx, exit_data_store_tx) =
+        prepare_data_store();
 
-    let consensus_network_handle = tokio::spawn(task_handle);
+    let data_store_handle = tokio::spawn(task_handle);
 
-    let block = client
+    let imported_block = client
         .new_block(Default::default())
         .unwrap()
         .build()
         .unwrap()
         .block;
+
+    client
+        .import(BlockOrigin::Own, imported_block.clone())
+        .await
+        .unwrap();
+
+    let not_imported_block = client
+        .new_block(Default::default())
+        .unwrap()
+        .build()
+        .unwrap()
+        .block;
+
     store_tx
         .unbounded_send(TestNetworkData {
-            data: vec![block.header.hash()],
+            data: vec![not_imported_block.header.hash()],
         })
         .unwrap();
 
-    Delay::new(Duration::from_millis(10)).await;
-    exit_data_store_tx.send(()).unwrap();
-    consensus_network_handle.await.unwrap();
-    let message = store_rx.next().await;
+    store_tx
+        .unbounded_send(TestNetworkData {
+            data: vec![imported_block.header.hash()],
+        })
+        .unwrap();
 
-    assert!(message.is_none());
+    let message = store_rx.next().await.expect("We own the tx");
+    assert_eq!(
+        message.included_blocks(),
+        vec![imported_block.header.hash()]
+    );
+
+    let message = store_rx.try_next();
+    assert!(message.is_err());
+
+    exit_data_store_tx.send(()).unwrap();
+    data_store_handle.await.unwrap();
 }

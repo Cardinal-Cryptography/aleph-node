@@ -30,7 +30,8 @@ pub(crate) trait AlephNetworkMessage<B: BlockT> {
 }
 
 /// This component is used for filtering available data for Aleph Network.
-/// It receives new messages for network by `messages_rx` and sends available messages (messages with all blocks already imported by client) by `ready_messages_tx`
+/// It receives new messages for network by `messages_rx` and sends available messages
+/// (messages with all blocks already imported by client) by `ready_messages_tx`
 pub(crate) struct DataStore<B, C, BE, Message>
 where
     B: BlockT,
@@ -79,8 +80,11 @@ where
     /// 2. Receives newly imported blocks and sends all messages that are available because of this block further
     /// 3. Periodically checks for saved massages that are available and sends them further
     /// 4. Waits for exit signal
-    /// This component on each new imported block stores it in cache. There is no guarantee, that all blocks will be received from notification stream, so there is a periodic check for all needed blocks.
-    /// It keeps `AVAILABLE_BLOCKS_CACHE_SIZE` blocks in cache, remembers messages with `message_id > highest_message_id - MESSAGE_ID_BOUNDARY` and does periodic check once in `PERIODIC_MAINTENANCE_INTERVAL`
+    /// This component on each new imported block stores it in cache. There is no guarantee, that all blocks will
+    /// be received from notification stream, so there is a periodic check for all needed blocks.
+    /// It keeps `AVAILABLE_BLOCKS_CACHE_SIZE` blocks in cache, remembers messages with
+    /// `message_id > highest_message_id - MESSAGE_ID_BOUNDARY` and does periodic check once in
+    /// `PERIODIC_MAINTENANCE_INTERVAL`
     pub(crate) async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
         let mut maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
         let mut import_stream = self.client.import_notification_stream();
@@ -170,28 +174,24 @@ where
     }
 
     fn push_messages(&mut self, block_hash: B::Hash) {
-        for message_id in self
-            .dependent_messages
-            .entry(block_hash)
-            .or_insert_with(HashSet::new)
-            .iter()
-        {
-            *self
-                .message_requirements
-                .get_mut(message_id)
-                .expect("there are some requirements") -= 1;
-            if self.message_requirements[message_id] == 0 {
-                let message = self
-                    .pending_messages
-                    .remove(message_id)
-                    .expect("there is a pending message");
-                self.ready_messages_tx
-                    .unbounded_send(message)
-                    .expect("Member channel should be open");
-                self.message_requirements.remove(message_id);
+        if let Some(ids) = self.dependent_messages.remove(&block_hash) {
+            for message_id in ids.iter() {
+                *self
+                    .message_requirements
+                    .get_mut(message_id)
+                    .expect("there are some requirements") -= 1;
+                if self.message_requirements[message_id] == 0 {
+                    let message = self
+                        .pending_messages
+                        .remove(message_id)
+                        .expect("there is a pending message");
+                    self.ready_messages_tx
+                        .unbounded_send(message)
+                        .expect("Member channel should be open");
+                    self.message_requirements.remove(message_id);
+                }
             }
         }
-        self.dependent_messages.remove(&block_hash);
     }
 
     fn add_block(&mut self, block_hash: B::Hash) {
