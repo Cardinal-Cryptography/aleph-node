@@ -25,7 +25,7 @@ use futures::{
 use log::{debug, error, info, trace};
 
 use parking_lot::Mutex;
-use sc_client_api::{backend::Backend, BlockchainEvents};
+use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
@@ -39,7 +39,7 @@ pub async fn run_consensus_party<B, N, C, BE, SC>(aleph_params: AlephParams<B, N
 where
     B: Block,
     N: network::Network<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
@@ -236,7 +236,7 @@ async fn run_aggregator<B, C, BE>(
 impl<B, C, BE, SC> ConsensusParty<B, C, BE, SC>
 where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,

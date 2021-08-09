@@ -119,6 +119,7 @@ pub trait ClientForAleph<B, BE>:
     + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
+    + BlockchainEvents<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -134,6 +135,7 @@ where
         + ProvideRuntimeApi<B>
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
+        + BlockchainEvents<B>
         + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
 {
 }
@@ -248,7 +250,7 @@ pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(
 where
     BE: Backend<B> + 'static,
     N: network::Network<B> + 'static,
-    C: ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
+    C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     SC: SelectChain<B> + 'static,
     NumberFor<B>: Into<u32>,

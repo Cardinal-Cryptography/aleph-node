@@ -16,7 +16,7 @@ const REFRESH_INTERVAL: u64 = 100;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_timer::Delay;
 use log::{debug, trace};
-use sc_client_api::{backend::Backend, BlockchainEvents};
+use sc_client_api::{backend::Backend};
 use sp_runtime::generic::BlockId;
 use tokio::stream::StreamExt;
 
@@ -35,7 +35,7 @@ pub(crate) trait AlephNetworkMessage<B: BlockT> {
 pub(crate) struct DataStore<B, C, BE, Message>
 where
     B: BlockT,
-    C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     Message: AlephNetworkMessage<B> + std::fmt::Debug,
 {
@@ -53,7 +53,7 @@ where
 impl<B, C, BE, Message> DataStore<B, C, BE, Message>
 where
     B: BlockT,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static + BlockchainEvents<B>,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     Message: AlephNetworkMessage<B> + std::fmt::Debug,
 {
