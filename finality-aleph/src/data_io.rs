@@ -79,6 +79,8 @@ where
     /// 2. Receives newly imported blocks and sends all messages that are available because of this block further
     /// 3. Periodically checks for saved massages that are available and sends them further
     /// 4. Waits for exit signal
+    /// This component on each new imported block stores it in cache. There is no guarantee, that all blocks will be received from notification stream, so there is a periodic check for all needed blocks.
+    /// It keeps `AVAILABLE_BLOCKS_CACHE_SIZE` blocks in cache, remembers messages with `message_id > highest_message_id - MESSAGE_ID_BOUNDARY` and does periodic check once in `PERIODIC_MAINTENANCE_INTERVAL`
     pub(crate) async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
         let mut maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
         let mut import_stream = self.client.import_notification_stream();
