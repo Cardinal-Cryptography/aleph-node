@@ -1,10 +1,10 @@
-use crate::{network::AlephNetworkData, Error, Metrics};
+use crate::{Error, Metrics};
 use aleph_bft::OrderedBatch;
 use futures::channel::{mpsc, oneshot};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block, Header};
+use sp_runtime::traits::{Block as BlockT, Header};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     marker::PhantomData,
@@ -25,33 +25,41 @@ const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
 const MESSAGE_ID_BOUNDARY: MessageId = 100_000;
 const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
-pub(crate) struct DataStore<B, C, BE>
+pub(crate) trait AlephNetworkMessage<B: BlockT> {
+    fn included_blocks(&self) -> Vec<B::Hash>;
+}
+
+/// This component is used for filtering available data for Aleph Network.
+/// It receives new messages for network by `messages_rx` and sends available messages (messages with all blocks already imported by client) by `ready_messages_tx`
+pub(crate) struct DataStore<B, C, BE, Message>
 where
-    B: Block,
+    B: BlockT,
     C: crate::ClientForAleph<B, BE> + BlockchainEvents<B> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
+    Message: AlephNetworkMessage<B> + std::fmt::Debug,
 {
     next_message_id: MessageId,
-    ready_messages_tx: UnboundedSender<AlephNetworkData<B>>,
-    messages_rx: UnboundedReceiver<AlephNetworkData<B>>,
+    ready_messages_tx: UnboundedSender<Message>,
+    messages_rx: UnboundedReceiver<Message>,
     dependent_messages: HashMap<B::Hash, HashSet<MessageId>>,
     available_blocks: LruCache<B::Hash, ()>,
     message_requirements: HashMap<MessageId, usize>,
-    pending_messages: HashMap<MessageId, AlephNetworkData<B>>,
+    pending_messages: HashMap<MessageId, Message>,
     client: Arc<C>,
     _phantom: PhantomData<BE>,
 }
 
-impl<B, C, BE> DataStore<B, C, BE>
+impl<B, C, BE, Message> DataStore<B, C, BE, Message>
 where
-    B: Block,
+    B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static + BlockchainEvents<B>,
     BE: Backend<B> + 'static,
+    Message: AlephNetworkMessage<B> + std::fmt::Debug,
 {
     pub(crate) fn new(
         client: Arc<C>,
-        ready_messages_tx: UnboundedSender<AlephNetworkData<B>>,
-        messages_rx: UnboundedReceiver<AlephNetworkData<B>>,
+        ready_messages_tx: UnboundedSender<Message>,
+        messages_rx: UnboundedReceiver<Message>,
     ) -> Self {
         DataStore {
             next_message_id: 0,
@@ -66,6 +74,11 @@ where
         }
     }
 
+    /// This method is used for running DataStore. It polls on 4 things:
+    /// 1. Receives AlephNetworkMessage and either sends it further if message is available or saves it for later
+    /// 2. Receives newly imported blocks and sends all messages that are available because of this block further
+    /// 3. Periodically checks for saved massages that are available and sends them further
+    /// 4. Waits for exit signal
     pub(crate) async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
         let mut maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
         let mut import_stream = self.client.import_notification_stream();
@@ -99,7 +112,7 @@ where
     fn forget_message(&mut self, message_id: MessageId) {
         self.message_requirements.remove(&message_id);
         if let Some(message) = self.pending_messages.remove(&message_id) {
-            for block_hash in message.included_data() {
+            for block_hash in message.included_blocks() {
                 if let Entry::Occupied(mut entry) = self.dependent_messages.entry(block_hash) {
                     entry.get_mut().remove(&message_id);
                     if entry.get().is_empty() {
@@ -110,7 +123,7 @@ where
         }
     }
 
-    fn add_pending_message(&mut self, message: AlephNetworkData<B>, requirements: Vec<B::Hash>) {
+    fn add_pending_message(&mut self, message: Message, requirements: Vec<B::Hash>) {
         let message_id = self.next_message_id;
         self.next_message_id += 1;
         for block_hash in requirements.iter() {
@@ -128,9 +141,9 @@ where
         }
     }
 
-    fn add_message(&mut self, message: AlephNetworkData<B>) {
+    fn add_message(&mut self, message: Message) {
         let requirements: Vec<_> = message
-            .included_data()
+            .included_blocks()
             .into_iter()
             .filter(|block_hash| {
                 if self.available_blocks.contains(block_hash) {
@@ -187,13 +200,13 @@ where
 }
 
 #[derive(Clone)]
-pub(crate) struct DataIO<B: Block> {
+pub(crate) struct DataIO<B: BlockT> {
     pub(crate) best_chain: Arc<Mutex<B::Hash>>,
     pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<B::Hash>>,
     pub(crate) metrics: Option<Metrics<B::Header>>,
 }
 
-pub(crate) async fn refresh_best_chain<B: Block, SC: SelectChain<B>>(
+pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
     select_chain: SC,
     best_chain: Arc<Mutex<B::Hash>>,
     mut exit: oneshot::Receiver<()>,
@@ -217,7 +230,7 @@ pub(crate) async fn refresh_best_chain<B: Block, SC: SelectChain<B>>(
     }
 }
 
-impl<B: Block> aleph_bft::DataIO<B::Hash> for DataIO<B> {
+impl<B: BlockT> aleph_bft::DataIO<B::Hash> for DataIO<B> {
     type Error = Error;
 
     fn get_data(&self) -> B::Hash {
@@ -237,6 +250,3 @@ impl<B: Block> aleph_bft::DataIO<B::Hash> for DataIO<B> {
             .map_err(|_| Error::SendData)
     }
 }
-
-#[cfg(test)]
-mod tests {}

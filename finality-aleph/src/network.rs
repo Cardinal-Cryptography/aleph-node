@@ -10,7 +10,10 @@ use std::{
 
 use log::{debug, error, trace, warn};
 
-use crate::{aggregator::SignableHash, Error, Hasher, MultiKeychain, SessionId, Signature};
+use crate::{
+    aggregator::SignableHash, data_io::AlephNetworkMessage, Error, Hasher, MultiKeychain,
+    SessionId, Signature,
+};
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
 
@@ -597,6 +600,12 @@ where
 
 pub(crate) type AlephNetworkData<B> =
     aleph_bft::NetworkData<Hasher, <B as BlockT>::Hash, Signature, SignatureSet<Signature>>;
+
+impl<B: BlockT> AlephNetworkMessage<B> for AlephNetworkData<B> {
+    fn included_blocks(&self) -> Vec<B::Hash> {
+        self.included_data()
+    }
+}
 
 pub(crate) type RmcNetworkData<B> =
     aleph_bft::rmc::Message<SignableHash<<B as BlockT>::Hash>, Signature, SignatureSet<Signature>>;

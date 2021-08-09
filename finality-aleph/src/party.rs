@@ -6,7 +6,8 @@ use crate::{
     justification::{AlephJustification, JustificationHandler, JustificationNotification},
     last_block_of_session, network,
     network::{
-        split_network, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork, SessionManager,
+        split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork,
+        SessionManager,
     },
     AuthorityId, AuthorityKeystore, AuthoritySession, Future, KeyBox, Metrics, MultiKeychain,
     NodeIndex, SessionId, SessionMap, SessionPeriod,
@@ -262,8 +263,11 @@ where
 
         let (aleph_network_tx, data_store_rx) = mpsc::unbounded();
         let (data_store_tx, aleph_network_rx) = mpsc::unbounded();
-        let mut data_store =
-            DataStore::<B, C, BE>::new(self.client.clone(), data_store_tx, data_store_rx);
+        let mut data_store = DataStore::<B, C, BE, AlephNetworkData<B>>::new(
+            self.client.clone(),
+            data_store_tx,
+            data_store_rx,
+        );
         let (aleph_network, rmc_network, forwarder) =
             split_network(data_network, aleph_network_tx, aleph_network_rx);
 
