@@ -71,6 +71,7 @@ where
     chain_cadence: ChainCadence,
     network: N,
     client: Arc<C>,
+    last_request_time: Instant,
     last_finalization_time: Instant,
     phantom: PhantomData<BE>,
 }
@@ -96,6 +97,7 @@ where
             chain_cadence,
             network,
             client,
+            last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
             phantom: PhantomData,
         }
@@ -148,11 +150,14 @@ where
             ..
         } = self.chain_cadence;
 
-        if current_time - self.last_finalization_time > justifications_cadence {
+        if current_time - self.last_finalization_time > justifications_cadence
+            && current_time - self.last_request_time > 2 * justifications_cadence
+        {
             debug!(target: "afa", "Trying to request block {:?}", num);
 
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
                 debug!(target: "afa", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
+                self.last_request_time = current_time;
                 self.network
                     .request_justification(&header.hash(), *header.number());
             } else {

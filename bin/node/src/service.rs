@@ -196,6 +196,10 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             .session_period(&BlockId::Number(Zero::zero()))
             .unwrap(),
     );
+    assert!(
+        session_period.0 > 0,
+        "SessionPeriod needs to be strictly bigger than 0"
+    );
 
     let millisecs_per_block = MillisecsPerBlock(
         client
@@ -203,10 +207,9 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             .millisecs_per_block(&BlockId::Number(Zero::zero()))
             .unwrap(),
     );
-
     assert!(
-        session_period.0 as u64 * 1000 > millisecs_per_block.0,
-        "SessionPeriod length needs to be strictly longer than MillisecsPerBlock"
+        millisecs_per_block.0 > 0,
+        "MillisecsPerBlock needs to be strictly bigger than 0"
     );
 
     let role = config.role.clone();

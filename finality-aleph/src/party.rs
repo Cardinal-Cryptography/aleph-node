@@ -67,7 +67,7 @@ where
 
     // NOTE: justifications are requested every so often
     let cadence = min(
-        millisecs_per_block.0 * 10,
+        millisecs_per_block.0 * 2,
         millisecs_per_block.0 * session_period.0 as u64 / 10,
     );
 
