@@ -4,7 +4,7 @@ use futures::channel::{mpsc, oneshot};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block as BlockT, Header};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     marker::PhantomData,
@@ -25,8 +25,13 @@ const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
 const MESSAGE_ID_BOUNDARY: MessageId = 100_000;
 const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
+pub(crate) type AlephData<B> = (
+    <B as BlockT>::Hash,
+    <<B as BlockT>::Header as HeaderT>::Number,
+);
+
 pub(crate) trait AlephNetworkMessage<B: BlockT> {
-    fn included_blocks(&self) -> Vec<B::Hash>;
+    fn included_blocks(&self) -> Vec<AlephData<B>>;
 }
 
 /// This component is used for filtering available data for Aleph Network.
@@ -42,8 +47,8 @@ where
     next_message_id: MessageId,
     ready_messages_tx: UnboundedSender<Message>,
     messages_rx: UnboundedReceiver<Message>,
-    dependent_messages: HashMap<B::Hash, HashSet<MessageId>>,
-    available_blocks: LruCache<B::Hash, ()>,
+    dependent_messages: HashMap<AlephData<B>, HashSet<MessageId>>,
+    available_blocks: LruCache<AlephData<B>, ()>,
     message_requirements: HashMap<MessageId, usize>,
     pending_messages: HashMap<MessageId, Message>,
     client: Arc<C>,
@@ -96,14 +101,16 @@ where
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
-                    self.add_block(block.hash);
+                    self.add_block((block.hash, *block.header.number()));
                 }
                 _ = &mut maintenance_timeout => {
                     trace!(target: "afa", "Data Store maintenance timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
-                    for block_hash in keys {
-                        if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_hash)) {
-                            self.add_block(block_hash);
+                    for block_data in keys {
+                        if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.0)) {
+                            self.add_block(block_data);
+                        } else if self.client.info().finalized_number > block_data.1 {
+                            self.add_block(block_data);
                         }
                     }
                     maintenance_timeout = Delay::new(PERIODIC_MAINTENANCE_INTERVAL);
@@ -118,8 +125,8 @@ where
     fn forget_message(&mut self, message_id: MessageId) {
         self.message_requirements.remove(&message_id);
         if let Some(message) = self.pending_messages.remove(&message_id) {
-            for block_hash in message.included_blocks() {
-                if let Entry::Occupied(mut entry) = self.dependent_messages.entry(block_hash) {
+            for block_data in message.included_blocks() {
+                if let Entry::Occupied(mut entry) = self.dependent_messages.entry(block_data) {
                     entry.get_mut().remove(&message_id);
                     if entry.get().is_empty() {
                         entry.remove_entry();
@@ -129,12 +136,12 @@ where
         }
     }
 
-    fn add_pending_message(&mut self, message: Message, requirements: Vec<B::Hash>) {
+    fn add_pending_message(&mut self, message: Message, requirements: Vec<AlephData<B>>) {
         let message_id = self.next_message_id;
         self.next_message_id += 1;
-        for block_hash in requirements.iter() {
+        for block_data in requirements.iter() {
             self.dependent_messages
-                .entry(*block_hash)
+                .entry(*block_data)
                 .or_insert_with(HashSet::new)
                 .insert(message_id);
         }
@@ -151,12 +158,16 @@ where
         let requirements: Vec<_> = message
             .included_blocks()
             .into_iter()
-            .filter(|block_hash| {
-                if self.available_blocks.contains(block_hash) {
+            .filter(|block_data| {
+                if self.available_blocks.contains(block_data) {
                     return false;
                 }
-                if let Ok(Some(_)) = self.client.header(BlockId::Hash(*block_hash)) {
-                    self.add_block(*block_hash);
+                if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.0)) {
+                    self.add_block(*block_data);
+                    return false;
+                }
+                if self.client.info().finalized_number > block_data.1 {
+                    self.add_block(*block_data);
                     return false;
                 }
                 true
@@ -173,8 +184,8 @@ where
         }
     }
 
-    fn push_messages(&mut self, block_hash: B::Hash) {
-        if let Some(ids) = self.dependent_messages.remove(&block_hash) {
+    fn push_messages(&mut self, block_data: AlephData<B>) {
+        if let Some(ids) = self.dependent_messages.remove(&block_data) {
             for message_id in ids.iter() {
                 *self
                     .message_requirements
@@ -194,35 +205,34 @@ where
         }
     }
 
-    fn add_block(&mut self, block_hash: B::Hash) {
-        trace!(target: "afa", "Adding block {:?} to Data Store", block_hash);
-        self.available_blocks.put(block_hash, ());
-        self.push_messages(block_hash);
+    fn add_block(&mut self, block_data: AlephData<B>) {
+        trace!(target: "afa", "Adding block {:?} to Data Store", block_data);
+        self.available_blocks.put(block_data, ());
+        self.push_messages(block_data);
     }
 }
 
 #[derive(Clone)]
 pub(crate) struct DataIO<B: BlockT> {
-    pub(crate) best_chain: Arc<Mutex<B::Hash>>,
-    pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<B::Hash>>,
+    pub(crate) best_chain: Arc<Mutex<AlephData<B>>>,
+    pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<AlephData<B>>>,
     pub(crate) metrics: Option<Metrics<B::Header>>,
 }
 
 pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
     select_chain: SC,
-    best_chain: Arc<Mutex<B::Hash>>,
+    best_chain: Arc<Mutex<AlephData<B>>>,
     mut exit: oneshot::Receiver<()>,
 ) {
     loop {
         let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
         tokio::select! {
             _ = delay => {
-                let new_best_chain = select_chain
+                let new_best_header = select_chain
                     .best_chain()
                     .await
-                    .expect("No best chain")
-                    .hash();
-                *best_chain.lock() = new_best_chain;
+                    .expect("No best chain");
+                *best_chain.lock() = (new_best_header.hash(), *new_best_header.number());
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");
@@ -232,20 +242,20 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
     }
 }
 
-impl<B: BlockT> aleph_bft::DataIO<B::Hash> for DataIO<B> {
+impl<B: BlockT> aleph_bft::DataIO<AlephData<B>> for DataIO<B> {
     type Error = Error;
 
-    fn get_data(&self) -> B::Hash {
-        let hash = *self.best_chain.lock();
+    fn get_data(&self) -> AlephData<B> {
+        let best = *self.best_chain.lock();
 
         if let Some(m) = &self.metrics {
-            m.report_block(hash, std::time::Instant::now(), "get_data");
+            m.report_block(best.0, std::time::Instant::now(), "get_data");
         }
-        debug!(target: "afa", "Outputting {:?} in get_data", hash);
-        hash
+        debug!(target: "afa", "Outputting {:?} in get_data", best);
+        best
     }
 
-    fn send_ordered_batch(&mut self, batch: OrderedBatch<B::Hash>) -> Result<(), Self::Error> {
+    fn send_ordered_batch(&mut self, batch: OrderedBatch<AlephData<B>>) -> Result<(), Self::Error> {
         // TODO: add better conversion
         self.ordered_batch_tx
             .unbounded_send(batch)
