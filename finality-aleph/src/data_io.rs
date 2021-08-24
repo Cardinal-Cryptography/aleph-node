@@ -1,5 +1,6 @@
 use crate::{Error, Metrics};
 use aleph_bft::OrderedBatch;
+use codec::{Decode, Encode};
 use futures::channel::{mpsc, oneshot};
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -7,6 +8,7 @@ use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
+    hash::{Hash, Hasher},
     marker::PhantomData,
     sync::Arc,
     time::Duration,
@@ -25,10 +27,28 @@ const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
 const MESSAGE_ID_BOUNDARY: MessageId = 100_000;
 const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
-pub(crate) type AlephData<B> = (
-    <B as BlockT>::Hash,
-    <<B as BlockT>::Header as HeaderT>::Number,
-);
+#[derive(Clone, Debug, Encode, Decode)]
+pub(crate) struct AlephData<B: BlockT> {
+    pub hash: <B as BlockT>::Hash,
+    pub number: <<B as BlockT>::Header as HeaderT>::Number,
+}
+
+impl<B: BlockT> Hash for AlephData<B> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+        self.number.hash(state);
+    }
+}
+
+impl<B: BlockT> Copy for AlephData<B> {}
+
+impl<B: BlockT> PartialEq for AlephData<B> {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash && self.number == other.number
+    }
+}
+
+impl<B: BlockT> Eq for AlephData<B> {}
 
 pub(crate) trait AlephNetworkMessage<B: BlockT> {
     fn included_blocks(&self) -> Vec<AlephData<B>>;
@@ -101,16 +121,16 @@ where
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
-                    self.add_block((block.hash, *block.header.number()));
+                    self.add_block(AlephData {hash: block.hash, number: *block.header.number()});
                 }
                 _ = &mut maintenance_timeout => {
                     trace!(target: "afa", "Data Store maintenance timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
                     let finalized_number = self.client.info().finalized_number;
                     for block_data in keys {
-                        if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.0)) {
+                        if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.hash)) {
                             self.add_block(block_data);
-                        } else if finalized_number >= block_data.1 {
+                        } else if finalized_number >= block_data.number {
                             self.add_block(block_data);
                         }
                     }
@@ -164,11 +184,11 @@ where
                 if self.available_blocks.contains(block_data) {
                     return false;
                 }
-                if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.0)) {
+                if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.hash)) {
                     self.add_block(*block_data);
                     return false;
                 }
-                if finalized_number >= block_data.1 {
+                if finalized_number >= block_data.number {
                     self.add_block(*block_data);
                     return false;
                 }
@@ -234,7 +254,7 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
                     .best_chain()
                     .await
                     .expect("No best chain");
-                *best_chain.lock() = (new_best_header.hash(), *new_best_header.number());
+                *best_chain.lock() = AlephData { hash: new_best_header.hash(), number: *new_best_header.number()};
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");
@@ -251,7 +271,7 @@ impl<B: BlockT> aleph_bft::DataIO<AlephData<B>> for DataIO<B> {
         let best = *self.best_chain.lock();
 
         if let Some(m) = &self.metrics {
-            m.report_block(best.0, std::time::Instant::now(), "get_data");
+            m.report_block(best.hash, std::time::Instant::now(), "get_data");
         }
         debug!(target: "afa", "Outputting {:?} in get_data", best);
         best

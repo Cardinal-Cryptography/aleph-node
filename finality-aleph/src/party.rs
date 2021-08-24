@@ -293,10 +293,10 @@ where
             .best_chain()
             .await
             .expect("No best chain.");
-        let best_chain = Arc::new(Mutex::new((
-            best_chain_header.hash(),
-            *best_chain_header.number(),
-        )));
+        let best_chain = Arc::new(Mutex::new(AlephData {
+            hash: best_chain_header.hash(),
+            number: *best_chain_header.number(),
+        }));
         let data_io = DataIO::<B> {
             ordered_batch_tx,
             best_chain: best_chain.clone(),

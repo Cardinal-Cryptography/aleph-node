@@ -52,7 +52,7 @@ where
     C: crate::ClientForAleph<B, BE>,
 {
     // this early return is for optimization reasons only.
-    if new_data.0 == last_finalized {
+    if new_data.hash == last_finalized {
         return VecDeque::new();
     }
 
@@ -64,20 +64,20 @@ where
         }
     };
 
-    if let Ok(Some(header)) = client.header(BlockId::Hash(new_data.0)) {
-        if *header.number() != new_data.1 {
-            warn!(target: "afa", "Incorrect number for hash {}. Got {}, should be {}", new_data.0, new_data.1, header.number());
+    if let Ok(Some(header)) = client.header(BlockId::Hash(new_data.hash)) {
+        if *header.number() != new_data.number {
+            warn!(target: "afa", "Incorrect number for hash {}. Got {}, should be {}", new_data.hash, new_data.number, header.number());
             return VecDeque::new();
         }
     } else {
-        warn!(target: "afa", "No header for hash {}", new_data.0);
+        warn!(target: "afa", "No header for hash {}", new_data.hash);
         return VecDeque::new();
     }
 
     let mut extension = VecDeque::new();
     // iterate ancestors of `new_hash` and push their headers to the front of `extension`
     // until reaching a block with number <= last_finalized_number.
-    let mut hash = new_data.0;
+    let mut hash = new_data.hash;
     loop {
         let header = match client.header(BlockId::Hash(hash)) {
             Ok(Some(header)) => header,
@@ -137,8 +137,14 @@ mod tests {
         let blocks = create_chain(&mut client, n as u64);
         for i in 0..n {
             for j in i..n {
-                let extension =
-                    chain_extension_step(blocks[i], (blocks[j], j as u64), client.as_ref());
+                let extension = chain_extension_step(
+                    blocks[i],
+                    AlephData {
+                        hash: blocks[j],
+                        number: j as u64,
+                    },
+                    client.as_ref(),
+                );
                 assert!(extension
                     .iter()
                     .map(|header| header.hash())
@@ -156,8 +162,14 @@ mod tests {
 
         for i in 0..=n {
             for j in 0..i {
-                let extension =
-                    chain_extension_step(blocks[i], (blocks[j], j as u64), client.as_ref());
+                let extension = chain_extension_step(
+                    blocks[i],
+                    AlephData {
+                        hash: blocks[j],
+                        number: j as u64,
+                    },
+                    client.as_ref(),
+                );
                 assert!(extension.is_empty());
             }
         }
@@ -184,7 +196,10 @@ mod tests {
                 if i != j {
                     let extension = chain_extension_step(
                         extra_children[i],
-                        (extra_children[j], j as u64),
+                        AlephData {
+                            hash: extra_children[j],
+                            number: j as u64,
+                        },
                         client.as_ref(),
                     );
                     assert!(extension.is_empty());
@@ -202,8 +217,14 @@ mod tests {
 
         for i in 0..n {
             for j in i..n {
-                let extension =
-                    chain_extension_step(blocks[i], (blocks[j], (j + 1) as u64), client.as_ref());
+                let extension = chain_extension_step(
+                    blocks[i],
+                    AlephData {
+                        hash: blocks[j],
+                        number: (j + 1) as u64,
+                    },
+                    client.as_ref(),
+                );
                 assert!(extension.is_empty());
             }
         }
