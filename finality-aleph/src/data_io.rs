@@ -106,10 +106,11 @@ where
                 _ = &mut maintenance_timeout => {
                     trace!(target: "afa", "Data Store maintenance timeout");
                     let keys : Vec<_> = self.dependent_messages.keys().cloned().collect();
+                    let finalized_number = self.client.info().finalized_number;
                     for block_data in keys {
                         if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.0)) {
                             self.add_block(block_data);
-                        } else if self.client.info().finalized_number > block_data.1 {
+                        } else if finalized_number >= block_data.1 {
                             self.add_block(block_data);
                         }
                     }
@@ -155,6 +156,7 @@ where
     }
 
     fn add_message(&mut self, message: Message) {
+        let finalized_number = self.client.info().finalized_number;
         let requirements: Vec<_> = message
             .included_blocks()
             .into_iter()
@@ -166,7 +168,7 @@ where
                     self.add_block(*block_data);
                     return false;
                 }
-                if self.client.info().finalized_number > block_data.1 {
+                if finalized_number >= block_data.1 {
                     self.add_block(*block_data);
                     return false;
                 }

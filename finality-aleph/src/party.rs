@@ -201,7 +201,7 @@ async fn run_aggregator<B, C, BE>(
                         continue;
                     }
                     for new_block_data in batch {
-                        let to_finalize_headers = chain_extension_step(last_finalized, new_block_data.0, client.as_ref());
+                        let to_finalize_headers = chain_extension_step(last_finalized, new_block_data, client.as_ref());
                         for header in to_finalize_headers.iter() {
                             if *header.number() <= current_stop_h {
                                 aggregator.start_aggregation(header.hash()).await;
