@@ -20,10 +20,21 @@ pub mod pallet {
         sp_std,
     };
     use frame_system::pallet_prelude::*;
-    use pallet_session::Pallet as Session;
+    use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
     };
+    use sp_staking::SessionIndex;
+
+    #[pallet::type_value]
+    pub fn DefaultValidatorsList<T: Config>() -> Option<Vec<T::AccountId>> {
+        None
+    }
+
+    #[pallet::storage]
+    #[pallet::getter(fn validators_list)]
+    pub type ValidatorsList<T: Config> =
+        StorageValue<_, Option<Vec<T::AccountId>>, ValueQuery, DefaultValidatorsList<T>>;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_session::Config {
@@ -32,7 +43,17 @@ pub mod pallet {
             + RuntimeAppPublic
             + Default
             + MaybeSerializeDeserialize;
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
+
+    #[pallet::event]
+    #[pallet::metadata(T::AccountId = "AccountId")]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        ChangeValidators(Option<Vec<T::AccountId>>),
+    }
+
+    pub struct AlephSessionManager<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::pallet]
     pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
@@ -40,8 +61,19 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+    //ensure_root
     #[pallet::call]
-    impl<T: Config> Pallet<T> {}
+    impl<T: Config> Pallet<T> {
+        #[pallet::weight(10_000)]
+        pub fn change_validators(
+            _origin: OriginFor<T>,
+            value: Option<Vec<T::AccountId>>,
+        ) -> DispatchResult {
+            ValidatorsList::<T>::put(value.clone());
+            Self::deposit_event(Event::ChangeValidators(value));
+            Ok(())
+        }
+    }
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
@@ -114,6 +146,16 @@ pub mod pallet {
                 .map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<T::AuthorityId>, AlephApiError>>()
         }
+    }
+
+    impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
+        fn new_session(_: SessionIndex) -> Option<Vec<T::AccountId>> {
+            Pallet::<T>::validators_list()
+        }
+
+        fn start_session(_: SessionIndex) {}
+
+        fn end_session(_: SessionIndex) {}
     }
 
     impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
