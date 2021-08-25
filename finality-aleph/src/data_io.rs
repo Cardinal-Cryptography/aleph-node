@@ -5,7 +5,7 @@ use futures::channel::{mpsc, oneshot};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     hash::{Hash, Hasher},
@@ -29,8 +29,8 @@ const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
 #[derive(Clone, Debug, Encode, Decode)]
 pub(crate) struct AlephData<B: BlockT> {
-    pub hash: <B as BlockT>::Hash,
-    pub number: <<B as BlockT>::Header as HeaderT>::Number,
+    pub hash: B::Hash,
+    pub number: NumberFor<B>,
 }
 
 impl<B: BlockT> Hash for AlephData<B> {
