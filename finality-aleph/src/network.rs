@@ -12,7 +12,7 @@ use log::{debug, error, trace, warn};
 
 use crate::{
     aggregator::SignableHash,
-    data_io::{AlephData, AlephNetworkMessage},
+    data_io::{AlephDataFor, AlephNetworkMessage},
     Error, Hasher, MultiKeychain, SessionId, Signature,
 };
 use sp_api::NumberFor;
@@ -600,10 +600,10 @@ where
 }
 
 pub(crate) type AlephNetworkData<B> =
-    aleph_bft::NetworkData<Hasher, AlephData<B>, Signature, SignatureSet<Signature>>;
+    aleph_bft::NetworkData<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>;
 
 impl<B: BlockT> AlephNetworkMessage<B> for AlephNetworkData<B> {
-    fn included_blocks(&self) -> Vec<AlephData<B>> {
+    fn included_blocks(&self) -> Vec<AlephDataFor<B>> {
         self.included_data()
     }
 }
@@ -659,7 +659,7 @@ impl<B: BlockT> AlephNetwork<B> {
 }
 
 #[async_trait::async_trait]
-impl<B: BlockT> aleph_bft::Network<Hasher, AlephData<B>, Signature, SignatureSet<Signature>>
+impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>
     for AlephNetwork<B>
 {
     type Error = Error;

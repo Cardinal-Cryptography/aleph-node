@@ -1,4 +1,4 @@
-use crate::data_io::AlephData;
+use crate::data_io::AlephDataFor;
 use core::result::Result;
 use log::{debug, error, warn};
 use sc_client_api::Backend;
@@ -37,13 +37,13 @@ where
     update_res
 }
 
-/// Given hash `last_finalized` and `AlephData` `new_data` of two blocks, returns
+/// Given hash `last_finalized` and `AlephDataFor` `new_data` of two blocks, returns
 /// the sequence of headers of the blocks on the path from `last_finalized` to `new_data`
 /// excluding the header corresponding to `last_finalized`, or an empty sequence if
 /// `new_data` is not a descendant of `last_finalized`.
 pub(crate) fn chain_extension_step<BE, B, C>(
     last_finalized: B::Hash,
-    new_data: AlephData<B>,
+    new_data: AlephDataFor<B>,
     client: &C,
 ) -> VecDeque<B::Header>
 where
@@ -107,7 +107,7 @@ mod tests {
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime::Extrinsic;
     use substrate_test_runtime_client::{
-        ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
+        runtime::Block, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
         TestClientBuilder, TestClientBuilderExt,
     };
 
@@ -139,7 +139,7 @@ mod tests {
             for j in i..n {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephData {
+                    AlephDataFor::<Block> {
                         hash: blocks[j],
                         number: j as u64,
                     },
@@ -164,7 +164,7 @@ mod tests {
             for j in 0..i {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephData {
+                    AlephDataFor::<Block> {
                         hash: blocks[j],
                         number: j as u64,
                     },
@@ -196,7 +196,7 @@ mod tests {
                 if i != j {
                     let extension = chain_extension_step(
                         extra_children[i],
-                        AlephData {
+                        AlephDataFor::<Block> {
                             hash: extra_children[j],
                             number: j as u64,
                         },
@@ -219,7 +219,7 @@ mod tests {
             for j in i..n {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephData {
+                    AlephDataFor::<Block> {
                         hash: blocks[j],
                         number: (j + 1) as u64,
                     },

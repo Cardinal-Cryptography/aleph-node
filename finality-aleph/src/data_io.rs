@@ -8,7 +8,7 @@ use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    hash::{Hash, Hasher},
+    hash::Hash,
     marker::PhantomData,
     sync::Arc,
     time::Duration,
@@ -27,31 +27,16 @@ const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
 const MESSAGE_ID_BOUNDARY: MessageId = 100_000;
 const PERIODIC_MAINTENANCE_INTERVAL: Duration = Duration::from_millis(60000);
 
-#[derive(Clone, Debug, Encode, Decode)]
-pub(crate) struct AlephData<B: BlockT> {
-    pub hash: B::Hash,
-    pub number: NumberFor<B>,
+#[derive(Copy, PartialEq, Eq, Clone, Debug, Encode, Decode, Hash)]
+pub(crate) struct AlephData<H, N> {
+    pub hash: H,
+    pub number: N,
 }
 
-impl<B: BlockT> Hash for AlephData<B> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
-        self.number.hash(state);
-    }
-}
-
-impl<B: BlockT> Copy for AlephData<B> {}
-
-impl<B: BlockT> PartialEq for AlephData<B> {
-    fn eq(&self, other: &Self) -> bool {
-        self.hash == other.hash && self.number == other.number
-    }
-}
-
-impl<B: BlockT> Eq for AlephData<B> {}
+pub(crate) type AlephDataFor<B> = AlephData<<B as BlockT>::Hash, NumberFor<B>>;
 
 pub(crate) trait AlephNetworkMessage<B: BlockT> {
-    fn included_blocks(&self) -> Vec<AlephData<B>>;
+    fn included_blocks(&self) -> Vec<AlephDataFor<B>>;
 }
 
 /// This component is used for filtering available data for Aleph Network.
@@ -67,8 +52,8 @@ where
     next_message_id: MessageId,
     ready_messages_tx: UnboundedSender<Message>,
     messages_rx: UnboundedReceiver<Message>,
-    dependent_messages: HashMap<AlephData<B>, HashSet<MessageId>>,
-    available_blocks: LruCache<AlephData<B>, ()>,
+    dependent_messages: HashMap<AlephDataFor<B>, HashSet<MessageId>>,
+    available_blocks: LruCache<AlephDataFor<B>, ()>,
     message_requirements: HashMap<MessageId, usize>,
     pending_messages: HashMap<MessageId, Message>,
     client: Arc<C>,
@@ -121,7 +106,7 @@ where
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
-                    self.add_block(AlephData {hash: block.hash, number: *block.header.number()});
+                    self.add_block(AlephDataFor::<B> {hash: block.hash, number: *block.header.number()});
                 }
                 _ = &mut maintenance_timeout => {
                     trace!(target: "afa", "Data Store maintenance timeout");
@@ -157,7 +142,7 @@ where
         }
     }
 
-    fn add_pending_message(&mut self, message: Message, requirements: Vec<AlephData<B>>) {
+    fn add_pending_message(&mut self, message: Message, requirements: Vec<AlephDataFor<B>>) {
         let message_id = self.next_message_id;
         self.next_message_id += 1;
         for block_data in requirements.iter() {
@@ -206,7 +191,7 @@ where
         }
     }
 
-    fn push_messages(&mut self, block_data: AlephData<B>) {
+    fn push_messages(&mut self, block_data: AlephDataFor<B>) {
         if let Some(ids) = self.dependent_messages.remove(&block_data) {
             for message_id in ids.iter() {
                 *self
@@ -227,7 +212,7 @@ where
         }
     }
 
-    fn add_block(&mut self, block_data: AlephData<B>) {
+    fn add_block(&mut self, block_data: AlephDataFor<B>) {
         trace!(target: "afa", "Adding block {:?} to Data Store", block_data);
         self.available_blocks.put(block_data, ());
         self.push_messages(block_data);
@@ -236,14 +221,14 @@ where
 
 #[derive(Clone)]
 pub(crate) struct DataIO<B: BlockT> {
-    pub(crate) best_chain: Arc<Mutex<AlephData<B>>>,
-    pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<AlephData<B>>>,
+    pub(crate) best_chain: Arc<Mutex<AlephDataFor<B>>>,
+    pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<AlephDataFor<B>>>,
     pub(crate) metrics: Option<Metrics<B::Header>>,
 }
 
 pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
     select_chain: SC,
-    best_chain: Arc<Mutex<AlephData<B>>>,
+    best_chain: Arc<Mutex<AlephDataFor<B>>>,
     mut exit: oneshot::Receiver<()>,
 ) {
     loop {
@@ -254,7 +239,7 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
                     .best_chain()
                     .await
                     .expect("No best chain");
-                *best_chain.lock() = AlephData { hash: new_best_header.hash(), number: *new_best_header.number()};
+                *best_chain.lock() = AlephDataFor::<B> { hash: new_best_header.hash(), number: *new_best_header.number()};
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");
@@ -264,10 +249,10 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
     }
 }
 
-impl<B: BlockT> aleph_bft::DataIO<AlephData<B>> for DataIO<B> {
+impl<B: BlockT> aleph_bft::DataIO<AlephDataFor<B>> for DataIO<B> {
     type Error = Error;
 
-    fn get_data(&self) -> AlephData<B> {
+    fn get_data(&self) -> AlephDataFor<B> {
         let best = *self.best_chain.lock();
 
         if let Some(m) = &self.metrics {
@@ -277,7 +262,10 @@ impl<B: BlockT> aleph_bft::DataIO<AlephData<B>> for DataIO<B> {
         best
     }
 
-    fn send_ordered_batch(&mut self, batch: OrderedBatch<AlephData<B>>) -> Result<(), Self::Error> {
+    fn send_ordered_batch(
+        &mut self,
+        batch: OrderedBatch<AlephDataFor<B>>,
+    ) -> Result<(), Self::Error> {
         // TODO: add better conversion
         self.ordered_batch_tx
             .unbounded_send(batch)

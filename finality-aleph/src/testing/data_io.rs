@@ -1,4 +1,4 @@
-use crate::data_io::{AlephData, AlephNetworkMessage, DataStore};
+use crate::data_io::{AlephDataFor, AlephNetworkMessage, DataStore};
 use futures::{
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -19,11 +19,11 @@ use substrate_test_runtime_client::{
 
 #[derive(Debug)]
 struct TestNetworkData {
-    data: Vec<AlephData<Block>>,
+    data: Vec<AlephDataFor<Block>>,
 }
 
 impl AlephNetworkMessage<Block> for TestNetworkData {
-    fn included_blocks(&self) -> Vec<AlephData<Block>> {
+    fn included_blocks(&self) -> Vec<AlephDataFor<Block>> {
         self.data.clone()
     }
 }
@@ -61,7 +61,7 @@ async fn import_blocks(
     client: &mut Arc<TestClient>,
     n: u32,
     finalize: bool,
-) -> Vec<AlephData<Block>> {
+) -> Vec<AlephDataFor<Block>> {
     let mut blocks = vec![];
     for _ in 0..n {
         let block = client
@@ -81,7 +81,7 @@ async fn import_blocks(
                 .await
                 .unwrap();
         }
-        blocks.push(AlephData {
+        blocks.push(AlephDataFor::<Block> {
             hash: block.header.hash(),
             number: block.header.number,
         });
@@ -125,7 +125,7 @@ async fn sends_messages_after_import() {
         .unwrap()
         .block;
 
-    let data = AlephData {
+    let data = AlephDataFor::<Block> {
         hash: block.header.hash(),
         number: block.header.number,
     };
@@ -166,7 +166,7 @@ async fn sends_messages_with_number_lower_than_finalized() {
         .unwrap()
         .block;
 
-    let data = AlephData {
+    let data = AlephDataFor::<Block> {
         hash: block.header.hash(),
         number: block.header.number,
     };
@@ -210,14 +210,14 @@ async fn does_not_send_messages_without_import() {
 
     store_tx
         .unbounded_send(TestNetworkData {
-            data: vec![AlephData {
+            data: vec![AlephDataFor::<Block> {
                 hash: not_imported_block.header.hash(),
                 number: not_imported_block.header.number,
             }],
         })
         .unwrap();
 
-    let data = AlephData {
+    let data = AlephDataFor::<Block> {
         hash: imported_block.header.hash(),
         number: imported_block.header.number,
     };
