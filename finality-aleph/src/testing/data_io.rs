@@ -1,4 +1,4 @@
-use crate::data_io::{AlephDataFor, AlephNetworkMessage, DataStore};
+use crate::data_io::{AlephData, AlephDataFor, AlephNetworkMessage, DataStore};
 use futures::{
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -81,10 +81,7 @@ async fn import_blocks(
                 .await
                 .unwrap();
         }
-        blocks.push(AlephDataFor::<Block> {
-            hash: block.header.hash(),
-            number: block.header.number,
-        });
+        blocks.push(AlephData::new(block.header.hash(), block.header.number));
     }
     blocks
 }
@@ -125,10 +122,7 @@ async fn sends_messages_after_import() {
         .unwrap()
         .block;
 
-    let data = AlephDataFor::<Block> {
-        hash: block.header.hash(),
-        number: block.header.number,
-    };
+    let data = AlephData::new(block.header.hash(), block.header.number);
 
     store_tx
         .unbounded_send(TestNetworkData { data: vec![data] })
@@ -166,10 +160,7 @@ async fn sends_messages_with_number_lower_than_finalized() {
         .unwrap()
         .block;
 
-    let data = AlephDataFor::<Block> {
-        hash: block.header.hash(),
-        number: block.header.number,
-    };
+    let data = AlephData::new(block.header.hash(), block.header.number);
 
     store_tx
         .unbounded_send(TestNetworkData { data: vec![data] })
@@ -210,17 +201,14 @@ async fn does_not_send_messages_without_import() {
 
     store_tx
         .unbounded_send(TestNetworkData {
-            data: vec![AlephDataFor::<Block> {
-                hash: not_imported_block.header.hash(),
-                number: not_imported_block.header.number,
-            }],
+            data: vec![AlephData::new(
+                not_imported_block.header.hash(),
+                not_imported_block.header.number,
+            )],
         })
         .unwrap();
 
-    let data = AlephDataFor::<Block> {
-        hash: imported_block.header.hash(),
-        number: imported_block.header.number,
-    };
+    let data = AlephData::new(imported_block.header.hash(), imported_block.header.number);
     store_tx
         .unbounded_send(TestNetworkData { data: vec![data] })
         .unwrap();

@@ -1,6 +1,6 @@
 use crate::{
     aggregator::BlockSignatureAggregator,
-    data_io::{refresh_best_chain, AlephDataFor, DataIO, DataStore},
+    data_io::{refresh_best_chain, AlephData, AlephDataFor, DataIO, DataStore},
     default_aleph_config,
     finalization::chain_extension_step,
     justification::{
@@ -293,10 +293,10 @@ where
             .best_chain()
             .await
             .expect("No best chain.");
-        let best_chain = Arc::new(Mutex::new(AlephDataFor::<B> {
-            hash: best_chain_header.hash(),
-            number: *best_chain_header.number(),
-        }));
+        let best_chain = Arc::new(Mutex::new(AlephData::new(
+            best_chain_header.hash(),
+            *best_chain_header.number(),
+        )));
         let data_io = DataIO::<B> {
             ordered_batch_tx,
             best_chain: best_chain.clone(),

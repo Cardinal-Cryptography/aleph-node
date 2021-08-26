@@ -103,11 +103,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data_io::AlephData;
     use sc_block_builder::BlockBuilderProvider;
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime::Extrinsic;
     use substrate_test_runtime_client::{
-        runtime::Block, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
+        ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
         TestClientBuilder, TestClientBuilderExt,
     };
 
@@ -139,10 +140,7 @@ mod tests {
             for j in i..n {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephDataFor::<Block> {
-                        hash: blocks[j],
-                        number: j as u64,
-                    },
+                    AlephData::new(blocks[j], j as u64),
                     client.as_ref(),
                 );
                 assert!(extension
@@ -164,10 +162,7 @@ mod tests {
             for j in 0..i {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephDataFor::<Block> {
-                        hash: blocks[j],
-                        number: j as u64,
-                    },
+                    AlephData::new(blocks[j], j as u64),
                     client.as_ref(),
                 );
                 assert!(extension.is_empty());
@@ -196,10 +191,7 @@ mod tests {
                 if i != j {
                     let extension = chain_extension_step(
                         extra_children[i],
-                        AlephDataFor::<Block> {
-                            hash: extra_children[j],
-                            number: j as u64,
-                        },
+                        AlephData::new(extra_children[j], j as u64),
                         client.as_ref(),
                     );
                     assert!(extension.is_empty());
@@ -219,10 +211,7 @@ mod tests {
             for j in i..n {
                 let extension = chain_extension_step(
                     blocks[i],
-                    AlephDataFor::<Block> {
-                        hash: blocks[j],
-                        number: (j + 1) as u64,
-                    },
+                    AlephData::new(blocks[j], (j + 1) as u64),
                     client.as_ref(),
                 );
                 assert!(extension.is_empty());

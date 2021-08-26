@@ -33,6 +33,15 @@ pub(crate) struct AlephData<H, N> {
     pub number: N,
 }
 
+impl<H, N> AlephData<H, N> {
+    pub(crate) fn new(block_hash: H, block_number: N) -> Self {
+        AlephData {
+            hash: block_hash,
+            number: block_number,
+        }
+    }
+}
+
 pub(crate) type AlephDataFor<B> = AlephData<<B as BlockT>::Hash, NumberFor<B>>;
 
 pub(crate) trait AlephNetworkMessage<B: BlockT> {
@@ -106,7 +115,11 @@ where
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
-                    self.add_block(AlephDataFor::<B> {hash: block.hash, number: *block.header.number()});
+                    // Here we don't handle messages with incorrect number (number different
+                    // than `*block.header.number()`). This will be delt with by maintenance
+                    // as data containing `(hash, incorrect_number)` will be sent
+                    // forward if client has imported `hash`
+                    self.add_block(AlephData::new(block.hash, *block.header.number()));
                 }
                 _ = &mut maintenance_timeout => {
                     trace!(target: "afa", "Data Store maintenance timeout");
@@ -239,7 +252,7 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
                     .best_chain()
                     .await
                     .expect("No best chain");
-                *best_chain.lock() = AlephDataFor::<B> { hash: new_best_header.hash(), number: *new_best_header.number()};
+                *best_chain.lock() = AlephData::new(new_best_header.hash(), *new_best_header.number());
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");
