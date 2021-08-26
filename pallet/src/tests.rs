@@ -33,7 +33,7 @@ fn test_validators_list_should_be_none() {
 fn test_change_validators_list() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         assert_ok!(Aleph::change_validators(
-            Origin::signed(4),
+            Origin::root(),
             Some(vec![AccountId::default()])
         ));
 

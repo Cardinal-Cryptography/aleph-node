@@ -61,14 +61,14 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    //ensure_root
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000)]
+        #[pallet::weight(0)]
         pub fn change_validators(
-            _origin: OriginFor<T>,
+            origin: OriginFor<T>,
             value: Option<Vec<T::AccountId>>,
         ) -> DispatchResult {
+            ensure_root(origin)?;
             ValidatorsList::<T>::put(value.clone());
             Self::deposit_event(Event::ChangeValidators(value));
             Ok(())
@@ -104,6 +104,7 @@ pub mod pallet {
         pub authorities: Vec<T::AuthorityId>,
         pub session_period: u32,
         pub millisecs_per_block: u64,
+        pub validators_list: Option<Vec<T::AccountId>>,
     }
 
     #[cfg(feature = "std")]
@@ -113,6 +114,7 @@ pub mod pallet {
                 authorities: Vec::new(),
                 session_period: DEFAULT_SESSION_PERIOD,
                 millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK,
+                validators_list: None,
             }
         }
     }
@@ -122,6 +124,7 @@ pub mod pallet {
         fn build(&self) {
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
+            <ValidatorsList<T>>::put(&self.validators_list);
         }
     }
 
@@ -150,7 +153,9 @@ pub mod pallet {
 
     impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
         fn new_session(_: SessionIndex) -> Option<Vec<T::AccountId>> {
-            Pallet::<T>::validators_list()
+            let result = Pallet::<T>::validators_list();
+            ValidatorsList::<T>::put(None::<Vec<T::AccountId>>);
+            result
         }
 
         fn start_session(_: SessionIndex) {}
