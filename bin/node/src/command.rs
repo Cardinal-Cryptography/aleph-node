@@ -49,8 +49,11 @@ impl SubstrateCli for Cli {
         let ExtraParams {
             session_period,
             millisecs_per_block,
-        } = self.extra;
-        let chain_params = chain_spec::ChainParams::from_cli(session_period, millisecs_per_block);
+            keys_path,
+        } = self.extra.clone();
+        let keys_path = keys_path.unwrap_or_else(|| "authority-keys.json".into());
+        let chain_params =
+            chain_spec::ChainParams::from_cli(session_period, millisecs_per_block, keys_path);
         Ok(match id {
             chain_spec::TESTNET_ID => Box::new(chain_spec::testnet1_config(chain_params)?),
             chain_spec::DEVNET_ID => Box::new(chain_spec::development_config(chain_params)?),

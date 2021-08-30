@@ -25,7 +25,7 @@ shift
 authorities=(Damian Tomasz Zbyszko Hansu Adam Matt Antoni Michal)
 authorities=("${authorities[@]::$n_members}")
 
-./target/release/aleph-node dev-keys  --base-path /tmp --chain dev --key-types aura alp0
+./target/release/aleph-node dev-keys --base-path /tmp --chain dev --keys-path authority-keys.json
 
 for i in ${!authorities[@]}; do
   auth=${authorities[$i]}
@@ -39,6 +39,7 @@ for i in ${!authorities[@]}; do
     --ws-port $(expr 9944 + $i) \
     --port $(expr 30334 + $i) \
     --execution Native \
+    --keys-path authority-keys.json \
     -lafa=debug \
     "$@" \
     2> $auth-$i.log  > aleph-node.log & \

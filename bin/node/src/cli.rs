@@ -1,9 +1,9 @@
 use sc_cli::{Error, KeystoreParams, RunCmd, SharedParams};
 use sc_service::config::{BasePath, KeystoreConfig};
-use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use std::sync::Arc;
 
+use aleph_node::chain_spec::{get_account_id_from_seed, AuthorityKeys};
 use sc_keystore::LocalKeystore;
-use sp_core::crypto::KeyTypeId;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use structopt::StructOpt;
 
@@ -19,13 +19,16 @@ pub struct Cli {
     pub extra: ExtraParams,
 }
 
-#[derive(Clone, Copy, Debug, Default, StructOpt)]
+#[derive(Clone, Debug, Default, StructOpt)]
 pub struct ExtraParams {
     #[structopt(long)]
     pub(crate) session_period: Option<u32>,
 
     #[structopt(long)]
     pub(crate) millisecs_per_block: Option<u64>,
+
+    #[structopt(long)]
+    pub keys_path: Option<String>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -34,9 +37,9 @@ pub struct GenerateKeysCmd {
     #[structopt(long)]
     pub authorities: Vec<String>,
 
-    /// Key types, examples: "aura", or "alp0"
+    /// Path to write json with aleph and aura keys
     #[structopt(long)]
-    pub key_types: Vec<String>,
+    pub keys_path: Option<String>,
 
     #[structopt(flatten)]
     pub keystore_params: KeystoreParams,
@@ -47,60 +50,56 @@ pub struct GenerateKeysCmd {
 
 impl GenerateKeysCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let key_types: Vec<_> = self
-            .key_types
+        let authority_keys: Vec<AuthorityKeys> = crate::chain_spec::LOCAL_AUTHORITIES
             .iter()
-            .map(|kt| KeyTypeId::try_from(kt.as_str()).expect("wrong key type"))
-            .collect();
-        // A hashmap from a key type to a 32-byte representation of a sr25519 or ed25519 key.
-        let mut auth_keys: HashMap<_, _> = key_types
-            .iter()
-            .zip(vec![vec![]].into_iter().cycle())
-            .collect();
-        for authority in &crate::chain_spec::LOCAL_AUTHORITIES {
-            let keystore = self.open_keystore(authority)?;
-            for &key_type in &key_types {
-                use sp_core::crypto::key_types;
-                match key_type {
-                    key_types::AURA => {
-                        let keys = SyncCryptoStore::sr25519_public_keys(&*keystore, key_type);
-                        let key = keys.into_iter().next().map_or_else(
-                            || {
-                                SyncCryptoStore::sr25519_generate_new(&*keystore, key_type, None)
-                                    .map_err(|_| Error::KeyStoreOperation)
-                            },
-                            Ok,
-                        )?;
-                        auth_keys
-                            .get_mut(&key_type)
-                            .unwrap()
-                            .push(*key.as_array_ref());
-                    }
-                    aleph_primitives::KEY_TYPE => {
-                        let keys = SyncCryptoStore::ed25519_public_keys(&*keystore, key_type);
-                        let key = keys.into_iter().next().map_or_else(
-                            || {
-                                SyncCryptoStore::ed25519_generate_new(&*keystore, key_type, None)
-                                    .map_err(|_| Error::KeyStoreOperation)
-                            },
-                            Ok,
-                        )?;
-                        auth_keys
-                            .get_mut(&key_type)
-                            .unwrap()
-                            .push(*key.as_array_ref());
-                    }
-                    _ => return Err(Error::Input("Unsupported key type".into())),
-                }
-            }
-        }
+            .map(|authority| self.authority_keys(*authority))
+            .collect::<Result<Vec<_>, Error>>()?;
 
-        let keys_path = crate::chain_spec::KEY_PATH;
-        let auth_keys: HashMap<_, _> = auth_keys.iter().map(|(k, v)| (u32::from(**k), v)).collect();
-        let auth_keys = serde_json::to_string(&auth_keys).map_err(|e| Error::Io(e.into()))?;
-        std::fs::write(keys_path, &auth_keys).map_err(Error::Io)?;
+        let auth_keys = serde_json::to_string(&authority_keys).map_err(|e| Error::Io(e.into()))?;
+        std::fs::write(self.keys_path.as_ref().unwrap().as_str(), &auth_keys).map_err(Error::Io)?;
 
         Ok(())
+    }
+
+    fn authority_keys(&self, authority: &str) -> Result<AuthorityKeys, Error> {
+        let account_id = get_account_id_from_seed::<sp_core::sr25519::Public>(authority);
+
+        let keystore = self.open_keystore(authority)?;
+        let aura_key = match SyncCryptoStore::sr25519_public_keys(
+            &*keystore,
+            sp_core::crypto::key_types::AURA,
+        )
+        .pop()
+        {
+            Some(key) => key,
+            None => SyncCryptoStore::sr25519_generate_new(
+                &*keystore,
+                sp_core::crypto::key_types::AURA,
+                None,
+            )
+            .map_err(|_| Error::KeyStoreOperation)?,
+        }
+        .into();
+
+        let aleph_key = match SyncCryptoStore::ed25519_public_keys(
+            &*keystore,
+            aleph_primitives::KEY_TYPE,
+        )
+        .pop()
+        {
+            Some(key) => key,
+            None => {
+                SyncCryptoStore::ed25519_generate_new(&*keystore, aleph_primitives::KEY_TYPE, None)
+                    .map_err(|_| Error::KeyStoreOperation)?
+            }
+        }
+        .into();
+
+        Ok(AuthorityKeys {
+            account_id,
+            aura_key,
+            aleph_key,
+        })
     }
 
     fn open_keystore(&self, authority: &str) -> Result<SyncCryptoStorePtr, Error> {

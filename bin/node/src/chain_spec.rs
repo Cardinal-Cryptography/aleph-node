@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use aleph_primitives::{
     AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
 };
@@ -9,20 +7,18 @@ use aleph_runtime::{
 };
 use hex_literal::hex;
 use sc_service::ChainType;
-use sp_application_crypto::key_types;
+use serde::{Deserialize, Serialize};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{ed25519, sr25519, Pair, Public};
+use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::{env::VarError, fmt::Display, str::FromStr};
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
 
-pub(crate) const LOCAL_AUTHORITIES: [&str; 8] = [
+pub const LOCAL_AUTHORITIES: [&str; 8] = [
     "Damian", "Tomasz", "Zbyszko", "Hansu", "Adam", "Matt", "Antoni", "Michal",
 ];
-
-pub(crate) const KEY_PATH: &str = "/tmp/authorities_keys";
 
 pub(crate) const TESTNET_ID: &str = "a0tnet1";
 pub(crate) const DEVNET_ID: &str = "dev";
@@ -40,28 +36,33 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 type AccountPublic = <Signature as Verify>::Signer;
 
 /// Generate an account ID from seed.
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &&str) -> AccountId
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
 where
     AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AuthorityKeys {
-    account_id: AccountId,
-    aura_key: AuraId,
-    aleph_key: AlephId,
+    pub account_id: AccountId,
+    pub aura_key: AuraId,
+    pub aleph_key: AlephId,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ChainParams {
     session_period: u32,
     millisecs_per_block: u64,
+    keys_path: String,
 }
 
 impl ChainParams {
-    pub fn from_cli(session_period: Option<u32>, millisecs_per_block: Option<u64>) -> Self {
+    pub fn from_cli(
+        session_period: Option<u32>,
+        millisecs_per_block: Option<u64>,
+        keys_path: String,
+    ) -> Self {
         ChainParams {
             session_period: Self::param(
                 "session period",
@@ -75,6 +76,7 @@ impl ChainParams {
                 "MILLISECS_PER_BLOCK",
                 DEFAULT_MILLISECS_PER_BLOCK,
             ),
+            keys_path,
         }
     }
 
@@ -122,54 +124,18 @@ impl ChainParams {
     }
 }
 
-fn read_keys(n_members: usize) -> Vec<AuthorityKeys> {
-    let auth_keys: HashMap<u32, Vec<[u8; 32]>> =
-        if let Ok(auth_keys) = std::fs::read_to_string(KEY_PATH) {
-            serde_json::from_str(&auth_keys).expect("should contain list of keys")
-        } else {
-            return Default::default();
-        };
-
-    let aura_keys = auth_keys
-        .get(&key_types::AURA.into())
-        .unwrap()
-        .iter()
-        .copied()
-        .map(|bytes| AuraId::from(sr25519::Public::from_raw(bytes)));
-
-    let aleph_keys = auth_keys
-        .get(&aleph_primitives::KEY_TYPE.into())
-        .unwrap()
-        .iter()
-        .copied()
-        .map(|bytes| AlephId::from(ed25519::Public::from_raw(bytes)));
-
-    let account_ids = LOCAL_AUTHORITIES
-        .iter()
-        .map(get_account_id_from_seed::<sr25519::Public>);
-
-    aura_keys
-        .zip(aleph_keys)
-        .zip(account_ids)
-        .take(n_members)
-        .map(|((aura_key, aleph_key), account_id)| AuthorityKeys {
-            account_id,
-            aura_key,
-            aleph_key,
-        })
-        .collect()
+fn read_keys(keys_path: String) -> Vec<AuthorityKeys> {
+    if let Ok(auth_keys) = std::fs::read_to_string(keys_path) {
+        serde_json::from_str(&auth_keys).expect("should contain list of keys")
+    } else {
+        Vec::new()
+    }
 }
 
-pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
+pub fn development_config(mut chain_params: ChainParams) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
-    let n_members = std::fs::read_to_string("/tmp/n_members")
-        .expect("Committee size is not specified")
-        .trim()
-        .parse::<usize>()
-        .expect("Wrong committee size");
-
-    let authorities = read_keys(n_members);
+    let authorities = read_keys(std::mem::take(&mut chain_params.keys_path));
 
     let rich_accounts: Vec<_> = [
         "Alice",
@@ -181,7 +147,7 @@ pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String
         "Eve",
     ]
     .iter()
-    .map(get_account_id_from_seed::<sr25519::Public>)
+    .map(|account| get_account_id_from_seed::<sr25519::Public>(*account))
     // Also give money to the faucet account.
     .chain(std::iter::once(FAUCET_HASH.into()))
     .collect();
@@ -202,7 +168,7 @@ pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String
                 // Pre-funded accounts
                 sudo_account.clone(),
                 rich_accounts.clone(),
-                chain_params,
+                chain_params.clone(),
             )
         },
         // Bootnodes
@@ -226,16 +192,10 @@ pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String
     ))
 }
 
-pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
+pub fn testnet1_config(mut chain_params: ChainParams) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
-    let n_members = std::fs::read_to_string("/tmp/n_members")
-        .expect("Committee size is not specified")
-        .trim()
-        .parse::<usize>()
-        .expect("Wrong committee size");
-
-    let authorities = read_keys(n_members);
+    let authorities = read_keys(std::mem::take(&mut chain_params.keys_path));
 
     let sudo_public: sr25519::Public = authorities[0].aura_key.clone().into();
     let sudo_account: AccountId = AccountPublic::from(sudo_public).into_account();
@@ -256,7 +216,7 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
                 sudo_account.clone(),
                 // Pre-funded accounts
                 rich_accounts.clone(),
-                chain_params,
+                chain_params.clone(),
             )
         },
         // Bootnodes
