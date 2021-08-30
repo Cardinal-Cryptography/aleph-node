@@ -122,7 +122,7 @@ jobs:
       - name: Consensus party logs
         run: |
           docker logs damian --follow &
-          
+
       # NOTE: this step contacts every node in the comittee by their container id and sends a simple RPC request
       # that lists all the RPC methods that they expose.
       # Once they respond we know all nodes are online
@@ -141,24 +141,6 @@ jobs:
           done
 
       # note: more complex test scenarios can be run from here on out
-
-      # NOTE : makes RPC calls to the bootnode to obtain a last finalized block
-      # which by now should be non-zero if blocks are getting finalized
-      - name: Verify consensus is running
-        shell: bash
-        run: |
-         RPC_PORT=9933
-         LAST_FINALIZED="0x0"
-         while [[ "$LAST_FINALIZED" =~ "0x0" ]]; do
-           BLOCK_HASH=$(docker run --network container:damian appropriate/curl:latest \
-                               -H "Content-Type: application/json" \
-                               -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getFinalizedHead"}' http://127.0.0.1:$RPC_PORT | jq '.result')
-
-           LAST_FINALIZED=$(docker run --network container:damian appropriate/curl:latest \
-                                   -H "Content-Type: application/json" \
-                                   -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getBlock", "params": ['$BLOCK_HASH']}' http://127.0.0.1:$RPC_PORT | jq '.result.block.header.number')
-           echo "Last finalized block number: " $LAST_FINALIZED
-         done
 
       - name: Save docker image
         run: |
