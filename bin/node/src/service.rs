@@ -2,14 +2,13 @@
 
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
-use codec::Decode;
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, AuthorityId, AuthorityKeystore,
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::{CallExecutor, ExecutionStrategy, ExecutorProvider};
+use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
