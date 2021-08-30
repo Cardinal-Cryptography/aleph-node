@@ -20,10 +20,9 @@ services:
                       --execution Native \
                       --no-mdns \
                       --chain /tmp/chainspec.json \
-                      --bootnodes '/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm' \
-                      -lafa=trace -lAlephBFT=trace
+                      --bootnodes '/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
     environment:
-      - RUST_LOG=DEBUG
+      - RUST_LOG=info
     volumes:
       - ./data/:/tmp/
 

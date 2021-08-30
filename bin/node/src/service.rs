@@ -190,8 +190,6 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
     let prometheus_registry = config.prometheus_registry().cloned();
-    // let (authority_id, _) = get_authorities(client.clone(), keystore_container.sync_keystore());
-
     let authority_id = get_authorities(keystore_container.sync_keystore());
 
     let rpc_extensions_builder = {
