@@ -19,7 +19,6 @@ use sp_runtime::{
     traits::{IdentityLookup, OpaqueKeys},
     Perbill,
 };
-use sp_staking::SessionIndex;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -160,7 +159,7 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-    pub const SessionsPerEra: SessionIndex = 3;
+    pub const SessionsPerEra: u32 = 3;
     pub const BondingDuration: EraIndex = 3;
     pub const SlashDeferDuration: EraIndex = 0;
     pub const AttestationPeriod: u64 = 100;

@@ -62,7 +62,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(0)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn change_validators(
             origin: OriginFor<T>,
             value: Option<Vec<T::AccountId>>,

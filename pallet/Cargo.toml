@@ -14,7 +14,6 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 serde = "1.0"
 primitives = { path = "../primitives", default-features = false}
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5" }
-sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5" }
 
 [dev-dependencies]
 
