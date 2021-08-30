@@ -24,7 +24,6 @@ pub mod pallet {
     use primitives::{
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
     };
-    use sp_staking::SessionIndex;
 
     #[pallet::type_value]
     pub fn DefaultValidatorsList<T: Config>() -> Option<Vec<T::AccountId>> {
@@ -152,15 +151,15 @@ pub mod pallet {
     }
 
     impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
-        fn new_session(_: SessionIndex) -> Option<Vec<T::AccountId>> {
+        fn new_session(_: u32) -> Option<Vec<T::AccountId>> {
             let result = Pallet::<T>::validators_list();
             ValidatorsList::<T>::put(None::<Vec<T::AccountId>>);
             result
         }
 
-        fn start_session(_: SessionIndex) {}
+        fn start_session(_: u32) {}
 
-        fn end_session(_: SessionIndex) {}
+        fn end_session(_: u32) {}
     }
 
     impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
