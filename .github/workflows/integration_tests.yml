@@ -115,6 +115,14 @@ jobs:
           # Build and tag a docker container
           docker build --tag aleph-node:latest -f ./docker/Dockerfile .
 
+      - name: Generate chainspec
+        run: |
+          cp docker/data/n_members /tmp/n_members
+          cp docker/data/authorities_keys /tmp/authorities_keys
+          # NOTE : remove this step after keys are moved to a separate JSON file
+          ./target/release/aleph-node dev-keys --base-path docker/data --chain testnet1 --key-types aura alp0
+          ./target/release/aleph-node build-spec --disable-default-bootnode  --chain testnet1 > docker/data/chainspec.json
+
       - name: Run consensus party
         run: |
           docker-compose -f docker/docker-compose.yml up &
