@@ -35,6 +35,16 @@ pub mod pallet {
     pub type ValidatorsList<T: Config> =
         StorageValue<_, Option<Vec<T::AccountId>>, ValueQuery, DefaultValidatorsList<T>>;
 
+    #[pallet::type_value]
+    pub fn DefaultValidatorsListSession<T: Config>() -> Option<u32> {
+        None
+    }
+
+    #[pallet::storage]
+    #[pallet::getter(fn validators_list_session)]
+    pub type ValidatorsListSession<T: Config> =
+        StorageValue<_, Option<u32>, ValueQuery, DefaultValidatorsListSession<T>>;
+
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_session::Config {
         type AuthorityId: Member
@@ -49,7 +59,7 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        ChangeValidators(Option<Vec<T::AccountId>>),
+        ChangeValidators(Option<Vec<T::AccountId>>, u32),
     }
 
     pub struct AlephSessionManager<T>(sp_std::marker::PhantomData<T>);
@@ -65,11 +75,16 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn change_validators(
             origin: OriginFor<T>,
-            value: Option<Vec<T::AccountId>>,
+            validators_list: Option<Vec<T::AccountId>>,
+            validators_list_session: u32,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            ValidatorsList::<T>::put(value.clone());
-            Self::deposit_event(Event::ChangeValidators(value));
+            ValidatorsList::<T>::put(validators_list.clone());
+            ValidatorsListSession::<T>::put(Some(validators_list_session));
+            Self::deposit_event(Event::ChangeValidators(
+                validators_list,
+                validators_list_session,
+            ));
             Ok(())
         }
     }
@@ -151,10 +166,16 @@ pub mod pallet {
     }
 
     impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
-        fn new_session(_: u32) -> Option<Vec<T::AccountId>> {
-            let result = Pallet::<T>::validators_list();
-            ValidatorsList::<T>::put(None::<Vec<T::AccountId>>);
-            result
+        fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
+            if let Some(validators_list_session) = Pallet::<T>::validators_list_session() {
+                if validators_list_session <= session {
+                    let result = Pallet::<T>::validators_list();
+                    ValidatorsList::<T>::put(None::<Vec<T::AccountId>>);
+                    ValidatorsListSession::<T>::put(None::<u32>);
+                    return result;
+                }
+            }
+            None
         }
 
         fn start_session(_: u32) {}
