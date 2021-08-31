@@ -234,11 +234,11 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
 
     let authorities = read_keys(n_members);
 
-	let root_key: AccountId = hex![
-		// 5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD
-		"848274306fea52dc528eabc8e14e6ae78ea275bc4247a5d6e2882ac8e948fe68"
-	]
-	.into();
+    let root_key: AccountId = hex![
+        // 5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD
+        "848274306fea52dc528eabc8e14e6ae78ea275bc4247a5d6e2882ac8e948fe68"
+    ]
+    .into();
 
     // Give money to the faucet account.
     let faucet: AccountId = FAUCET_HASH.into();
