@@ -13,3 +13,5 @@
 
 # docker
 db/
+keystore/
+chainspec.json

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # USAGE :
-# 
+#
 # ./run_node_compose -b true
 # ARGUMENTS :
 # -b false (default) | true : whether to build the binary and docker image
@@ -42,5 +42,5 @@ cp docker/data/authorities_keys /tmp/authorities_keys
 # build chainspec
 ./target/release/aleph-node build-spec --disable-default-bootnode  --chain testnet1 > docker/data/chainspec.json
 
-# launch consensus (you may need to change bootnode peer id!)
-# docker-compose -f docker/docker-compose.yml up 
+# launch consensus
+# docker-compose -f docker/docker-compose.yml up
