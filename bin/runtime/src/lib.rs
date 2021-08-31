@@ -454,9 +454,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            let auth =  Aura::authorities();
-            frame_support::runtime_print!("@@@ aura/runtime-authorities {:?}", auth);
-            auth
+            Aura::authorities()
         }
     }
 
