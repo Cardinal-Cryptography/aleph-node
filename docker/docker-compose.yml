@@ -20,7 +20,6 @@ services:
                       --execution Native \
                       --no-mdns --no-prometheus --no-telemetry \
                       --chain /tmp/chainspec.json \
-                      -lruntime=debug \
                       --bootnodes '/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
     environment:
       - RUST_LOG=info
@@ -98,3 +97,4 @@ services:
       - RUST_LOG=info
     volumes:
       - ./data/:/tmp/
+      
