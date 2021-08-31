@@ -122,7 +122,6 @@ jobs:
           cp docker/data/n_members /tmp/n_members
           cp docker/data/authorities_keys /tmp/authorities_keys
           # generate keys and chainspec
-          chmod +x target/release/aleph-node
           ./target/release/aleph-node dev-keys --base-path docker/data --chain testnet1 --key-types aura alp0
           ./target/release/aleph-node build-spec --disable-default-bootnode  --chain testnet1 > docker/data/chainspec.json
 
