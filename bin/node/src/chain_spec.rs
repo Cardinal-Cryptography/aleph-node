@@ -318,12 +318,10 @@ fn testnet_genesis(
                 .collect(),
             session_period,
             millisecs_per_block,
-            validators_list: Some(
-                authorities
-                    .iter()
-                    .map(|auth| auth.account_id.clone())
-                    .collect(),
-            ),
+            validators_list: authorities
+                .iter()
+                .map(|auth| auth.account_id.clone())
+                .collect(),
         },
         session: SessionConfig {
             keys: authorities
