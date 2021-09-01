@@ -662,14 +662,14 @@ impl<B: BlockT> AlephNetwork<B> {
 impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>
     for AlephNetwork<B>
 {
-    type Error = Error;
-
-    fn send(&self, data: AlephNetworkData<B>, node: NodeIndex) -> Result<(), Self::Error> {
-        self.inner.send(data, Recipient::Target(node))
-    }
-
-    fn broadcast(&self, data: AlephNetworkData<B>) -> Result<(), Self::Error> {
-        self.inner.send(data, Recipient::All)
+    fn send(&self, data: AlephNetworkData<B>, recipient: aleph_bft::Recipient) {
+        let result = match recipient {
+            aleph_bft::Recipient::Everyone => self.inner.send(data, Recipient::All),
+            aleph_bft::Recipient::Node(node) => self.inner.send(data, Recipient::Target(node)),
+        };
+        if result.is_err() {
+            error!(target: "afa", "error sending a message");
+        }
     }
 
     async fn next_event(&mut self) -> Option<AlephNetworkData<B>> {
