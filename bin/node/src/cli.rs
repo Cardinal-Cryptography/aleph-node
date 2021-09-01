@@ -29,7 +29,7 @@ pub struct ExtraParams {
 }
 
 #[derive(Debug, StructOpt)]
-pub struct CliDevKeys {
+pub struct GenerateKeysCmd {
     /// List of genesis authorities
     #[structopt(long)]
     pub authorities: Vec<String>,
@@ -45,7 +45,7 @@ pub struct CliDevKeys {
     pub shared_params: SharedParams,
 }
 
-impl CliDevKeys {
+impl GenerateKeysCmd {
     pub fn run(&self) -> Result<(), Error> {
         let key_types: Vec<_> = self
             .key_types
@@ -149,5 +149,5 @@ pub enum Subcommand {
     Revert(sc_cli::RevertCmd),
 
     /// Generate keys for local tests
-    DevKeys(CliDevKeys),
+    DevKeys(GenerateKeysCmd),
 }

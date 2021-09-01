@@ -139,7 +139,7 @@ pub fn new_partial(
     })
 }
 
-fn get_authorities(keystore: SyncCryptoStorePtr) -> AuthorityId {
+fn get_authority_id(keystore: SyncCryptoStorePtr) -> AuthorityId {
     SyncCryptoStore::ed25519_public_keys(&*keystore, finality_aleph::KEY_TYPE)[0].into()
 }
 
@@ -190,7 +190,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
     let prometheus_registry = config.prometheus_registry().cloned();
-    let authority_id = get_authorities(keystore_container.sync_keystore());
+    let authority_id = get_authority_id(keystore_container.sync_keystore());
 
     let rpc_extensions_builder = {
         let client = client.clone();
