@@ -234,7 +234,7 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
 
     let authorities = read_keys(n_members);
 
-    let root_key: AccountId = hex![
+    let sudo_account: AccountId = hex![
         // 5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD
         "848274306fea52dc528eabc8e14e6ae78ea275bc4247a5d6e2882ac8e948fe68"
     ]
@@ -242,7 +242,7 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
 
     // Give money to the faucet account.
     let faucet: AccountId = FAUCET_HASH.into();
-    let rich_accounts = vec![faucet, root_key.clone()];
+    let rich_accounts = vec![faucet, sudo_account.clone()];
     Ok(ChainSpec::from_genesis(
         // Name
         "Aleph Zero",
@@ -253,7 +253,7 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
             testnet_genesis(
                 wasm_binary,
                 authorities.clone(),
-                root_key.clone(),
+                sudo_account.clone(),
                 // Pre-funded accounts
                 rich_accounts.clone(),
                 chain_params,
