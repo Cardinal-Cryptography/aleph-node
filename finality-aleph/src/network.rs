@@ -668,7 +668,7 @@ impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, Signature
             aleph_bft::Recipient::Node(node) => self.inner.send(data, Recipient::Target(node)),
         };
         if result.is_err() {
-            error!(target: "afa", "error sending a message");
+            error!(target: "afa", "error sending a message to {:?}", recipient);
         }
     }
 
