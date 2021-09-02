@@ -172,11 +172,12 @@ pub mod pallet {
                 Pallet::<T>::session_for_validators_change()
             {
                 if session_for_validators_change <= session {
-                    if let Some(validators) = Pallet::<T>::validators() {
-                        Validators::<T>::put(None::<Vec<T::AccountId>>);
-                        SessionForValidatorsChange::<T>::put(None::<u32>);
-                        return Some(validators);
-                    }
+                    let validators = Pallet::<T>::validators().expect(
+                        "Validators also should be Some(), when session_for_validators_change is",
+                    );
+                    Validators::<T>::put(None::<Vec<T::AccountId>>);
+                    SessionForValidatorsChange::<T>::put(None::<u32>);
+                    return Some(validators);
                 }
             }
             None
