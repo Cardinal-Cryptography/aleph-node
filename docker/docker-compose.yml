@@ -97,4 +97,3 @@ services:
       - RUST_LOG=info
     volumes:
       - ./data/:/tmp/
-      
