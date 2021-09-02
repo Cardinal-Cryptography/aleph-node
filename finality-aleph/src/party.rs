@@ -437,11 +437,17 @@ where
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
-        let last_finalized_number = self.client.info().finalized_number;
-        if last_finalized_number >= last_block {
-            debug!(target: "afa", "Skipping session {:?} early because block {:?} already finalized", session_id, last_finalized_number);
-            return;
+        if self.client.info().best_number >= last_block {
+            // We need to give the JustificationHandler some time to pick up the keybox for the new session,
+            // validate justifications and finalize blocks.
+            Delay::new(Duration::from_millis(2000)).await;
+            let last_finalized_number = self.client.info().finalized_number;
+            if last_finalized_number >= last_block {
+                debug!(target: "afa", "Skipping session {:?} early because block {:?} already finalized", session_id, last_finalized_number);
+                return;
+            }
         }
+
 
         let maybe_node_id =
             get_node_index(&authorities, &self.auth_keystore.authority_id().clone());
