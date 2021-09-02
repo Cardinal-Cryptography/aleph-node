@@ -213,14 +213,7 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
     }
 }
 
-#[derive(Decode, Encode, PartialEq, Eq, Clone)]
-pub struct AuthoritySession<B: Block> {
-    pub session_id: SessionId,
-    pub stop_h: NumberFor<B>,
-    pub authorities: Vec<AuthorityId>,
-}
-
-pub type SessionMap<Block> = HashMap<SessionId, AuthoritySession<Block>>;
+pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
 
 pub fn last_block_of_session<B: Block>(
     session_id: SessionId,
