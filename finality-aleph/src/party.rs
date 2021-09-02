@@ -448,7 +448,6 @@ where
             }
         }
 
-
         let maybe_node_id =
             get_node_index(&authorities, &self.auth_keystore.authority_id().clone());
 
