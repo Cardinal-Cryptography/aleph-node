@@ -12,7 +12,7 @@ use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::{BlockImport, SelectChain};
 use sp_runtime::{
     traits::{BlakeTwo256, Block},
-    RuntimeAppPublic,
+    RuntimeAppPublic, SaturatedConversion,
 };
 use std::{collections::HashMap, convert::TryInto, fmt::Debug, sync::Arc};
 mod aggregator;
@@ -222,11 +222,8 @@ pub fn last_block_of_session<B: Block>(
     ((session_id.0 + 1) * period.0 - 1).into()
 }
 
-pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId
-where
-    NumberFor<B>: Into<u32>,
-{
-    SessionId(num.into() / period.0)
+pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId {
+    SessionId(num.saturated_into::<u32>() / period.0)
 }
 
 pub struct AlephConfig<B: Block, N, C, SC> {
@@ -250,7 +247,6 @@ where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     SC: SelectChain<B> + 'static,
-    NumberFor<B>: Into<u32>,
 {
     run_consensus_party(AlephParams { config })
 }

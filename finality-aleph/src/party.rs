@@ -11,8 +11,8 @@ use crate::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, RmcNetwork,
         SessionManager,
     },
-    AuthorityId, AuthorityKeystore, Future, KeyBox, Metrics, MultiKeychain, NodeIndex, SessionId,
-    SessionMap, SessionPeriod,
+    session_id_from_block_num, AuthorityId, AuthorityKeystore, Future, KeyBox, Metrics,
+    MultiKeychain, NodeIndex, SessionId, SessionMap, SessionPeriod,
 };
 
 use aleph_bft::{DelayConfig, OrderedBatch, SpawnHandle};
@@ -45,7 +45,6 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    NumberFor<B>: Into<u32>,
 {
     let AlephParams {
         config:
@@ -135,7 +134,6 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     B: Block,
-    NumberFor<B>: Into<u32>,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
@@ -439,12 +437,18 @@ where
         // Early skip attempt -- this will trigger during catching up (initial sync).
         if self.client.info().best_number >= last_block {
             // We need to give the JustificationHandler some time to pick up the keybox for the new session,
-            // validate justifications and finalize blocks.
-            Delay::new(Duration::from_millis(2000)).await;
-            let last_finalized_number = self.client.info().finalized_number;
-            if last_finalized_number >= last_block {
-                debug!(target: "afa", "Skipping session {:?} early because block {:?} already finalized", session_id, last_finalized_number);
-                return;
+            // validate justifications and finalize blocks. We wait 2000ms in total, checking every 200ms
+            // if the last block has been finalized.
+            for attempt in 0..10 {
+                // We don't wait before the first attempt.
+                if attempt != 0 {
+                    Delay::new(Duration::from_millis(200)).await;
+                }
+                let last_finalized_number = self.client.info().finalized_number;
+                if last_finalized_number >= last_block {
+                    debug!(target: "afa", "Skipping session {:?} early because block {:?} is already finalized", session_id, last_finalized_number);
+                    return;
+                }
             }
         }
 
@@ -504,7 +508,10 @@ where
     }
 
     async fn run(mut self) {
-        for curr_id in 0.. {
+        let last_finalized_number = self.client.info().finalized_number;
+        let starting_session =
+            session_id_from_block_num::<B>(last_finalized_number, self.session_period).0;
+        for curr_id in starting_session.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
             if curr_id >= 10 && curr_id % 10 == 0 {

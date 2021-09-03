@@ -82,7 +82,6 @@ where
     N: network::Network<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
-    NumberFor<B>: Into<u32>,
 {
     pub(crate) fn new(
         session_authorities: Arc<Mutex<SessionMap>>,
