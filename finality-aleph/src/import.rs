@@ -131,8 +131,6 @@ where
             Err(e) => return Err(e),
         };
 
-        debug!(target: "afa", "Got justification along imported block #{:?}", number);
-
         if let Some(justification) = justification {
             if self
                 .send_justification(post_hash, number, justification)
