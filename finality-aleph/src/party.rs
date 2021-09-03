@@ -1,6 +1,6 @@
 use crate::{
     aggregator::BlockSignatureAggregator,
-    data_io::{refresh_best_chain, AlephData, AlephDataFor, DataIO, DataStore},
+    data_io::{AlephDataFor, DataIO, DataStore},
     default_aleph_config,
     finalization::chain_extension_step,
     justification::{
@@ -288,25 +288,15 @@ where
 
         let consensus_config = create_aleph_config(session.authorities.len(), node_id, session_id);
 
-        let best_chain_header = self
-            .select_chain
-            .best_chain()
-            .await
-            .expect("No best chain.");
-        let best_chain = Arc::new(Mutex::new(AlephData::new(
-            best_chain_header.hash(),
-            *best_chain_header.number(),
-        )));
-        let data_io = DataIO::<B> {
+        let data_io = DataIO {
+            select_chain: self.select_chain.clone(),
             ordered_batch_tx,
-            best_chain: best_chain.clone(),
             metrics: self.metrics.clone(),
         };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
         let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
         let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
-        let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
         let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
 
         let member_task = {
@@ -355,9 +345,6 @@ where
             debug!(target: "afa", "Forwarder task stopped for {:?}", session_id.0);
         };
 
-        let refresher_task =
-            refresh_best_chain(self.select_chain.clone(), best_chain, exit_refresher_rx);
-
         let member_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_member", member_task);
@@ -370,9 +357,6 @@ where
         let forwarder_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
-        let refresher_handle = self
-            .spawn_handle
-            .spawn_essential("aleph/consensus_session_refresher", refresher_task);
 
         async move {
             let _ = exit_rx.await;
@@ -392,11 +376,6 @@ where
                 debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
             }
             let _ = forwarder_handle.await;
-
-            if let Err(e) = exit_refresher_tx.send(()) {
-                debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
-            }
-            let _ = refresher_handle.await;
 
             if let Err(e) = exit_data_store_tx.send(()) {
                 debug!(target: "afa", "data store was closed before terminating it manually: {:?}", e)

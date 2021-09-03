@@ -52,7 +52,6 @@ pub fn peers_set_config() -> sc_network::config::NonDefaultSetConfig {
             reserved_nodes: vec![],
             non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
         },
-        fallback_names: Vec::new(),
     }
 }
 
@@ -108,7 +107,6 @@ impl AuthorityKeystore {
             &self.authority_id.clone().into(),
             msg,
         )
-        .unwrap()
         .unwrap()
         .try_into()
         .unwrap()

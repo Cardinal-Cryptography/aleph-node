@@ -553,7 +553,6 @@ where
                                     remote,
                                     protocol,
                                     role: _,
-                                    negotiated_fallback: _,
                                 } => {
                                     if protocol != self.protocol {
                                         continue;

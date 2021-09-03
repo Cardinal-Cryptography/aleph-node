@@ -3,7 +3,6 @@ use crate::{
     AuthorityKeystore, KeyBox, SessionId, SessionMap, SessionPeriod, Signature,
 };
 use aleph_bft::{MultiKeychain, NodeIndex, SignatureSet};
-use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
 use futures_timer::Delay;
@@ -123,7 +122,7 @@ where
                     self.client.clone(),
                     block_hash,
                     num,
-                    Some((ALEPH_ENGINE_ID, notification.justification.encode())),
+                    Some(notification.justification.encode()),
                 );
                 match finalization_res {
                     Ok(()) => {
