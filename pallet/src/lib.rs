@@ -20,7 +20,7 @@ pub mod pallet {
         sp_std,
     };
     use frame_system::pallet_prelude::*;
-    use pallet_session::Pallet as Session;
+    use pallet_session::Module as Session;
     use primitives::{
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
     };

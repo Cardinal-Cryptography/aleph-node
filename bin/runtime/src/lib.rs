@@ -43,7 +43,6 @@ use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
-use sp_consensus_aura::SlotDuration;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
@@ -194,7 +193,6 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
-    type OnSetCode = ();
 }
 
 // impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -230,8 +228,6 @@ parameter_types! {
 
 impl pallet_balances::Config for Runtime {
     type MaxLocks = MaxLocks;
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
     /// The type for recording an account's balance.
     type Balance = Balance;
     /// The ubiquitous event type.
@@ -362,17 +358,17 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Storage},
+        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        Aura: pallet_aura::{Module, Config<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        Aleph: pallet_aleph::{Module, Call, Config<T>, Storage},
+        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+        Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
+        Vesting: pallet_vesting::{Module, Call, Storage, Event<T>, Config<T>},
     }
 );
 
@@ -406,7 +402,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+    AllModules,
 >;
 
 impl_runtime_apis! {
@@ -449,6 +445,10 @@ impl_runtime_apis! {
         ) -> sp_inherents::CheckInherentsResult {
             data.check_extrinsics(&block)
         }
+
+        fn random_seed() -> <Block as BlockT>::Hash {
+            RandomnessCollectiveFlip::random_seed()
+        }
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
@@ -461,8 +461,8 @@ impl_runtime_apis! {
     }
 
     impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> SlotDuration {
-            SlotDuration::from_millis(Aura::slot_duration())
+        fn slot_duration() -> u64 {
+            Aura::slot_duration()
         }
 
         fn authorities() -> Vec<AuraId> {
