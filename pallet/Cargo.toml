@@ -18,13 +18,9 @@ pallet-session = { default-features = false, version = "3.0.0" }
 [dev-dependencies]
 
 pallet-balances = { default-features = false, version = "3.0.0" }
-# pallet-staking = { default-features = false, version = "3.0.0" }
-# pallet-staking-reward-curve = { default-featuversion = "3.0.0" }
 pallet-timestamp = { default-features = false, version = "3.0.0" }
 sp-runtime = { default-features = false, version = "3.0.0" }
 sp-core = { default-features = false, version = "3.0.0" }
-# sp-staking = { default-features = false, version = "3.0.0" }
-# frame-election-provider-support = { default-featuversion = "3.0.0" }
 
 [features]
 default = ["std"]
