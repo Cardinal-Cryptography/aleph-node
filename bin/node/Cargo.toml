@@ -24,26 +24,22 @@ futures = "0.3"
 hex-literal = "0.3.1"
 
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-block-builder = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-cli = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-core = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-executor = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-service = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-telemetry = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-keystore = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-keystore = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-inherents = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-consensus-aura = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-consensus-aura = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-consensus = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-consensus = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-client-api = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-timestamp = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7" }
+sp-application-crypto = { version = "3.0.0" }
+sc-block-builder = { version = "0.9.0" }
+sc-cli = { version = "0.9.0" }
+sp-core = { version = "3.0.0" }
+sc-executor = { version = "0.9.0" }
+sc-service = { version = "0.9.0" }
+sc-telemetry = { version = "3.0.0" }
+sc-keystore = { version = "3.0.0" }
+sp-inherents = { version = "3.0.0" }
+sc-basic-authorship = { version = "0.9.0" }
+sc-transaction-pool = { version = "3.0.0" }
+sc-consensus-aura = { version = "0.9.0" }
+sp-consensus = { version = "0.9.0" }
+sc-client-api = { version = "3.0.0" }
+sp-runtime = { version = "3.0.0" }
+sp-timestamp = { version = "3.0.0"  }
 
 aleph-runtime = {path = "../runtime"}
 finality-aleph = {path = "../../finality-aleph"}
@@ -51,17 +47,17 @@ aleph-primitives = { package = "primitives", path = "../../primitives"}
 
 # These dependencies are used for the node template's RPCs
 jsonrpc-core = "15.1.0"
-sc-rpc = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-api = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sc-rpc-api = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-blockchain = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-sp-block-builder = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
-pallet-staking = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
+sc-rpc = { version = "3.0.0" }
+sp-api = { version = "3.0.0" }
+sc-rpc-api = { version = "0.9.0" }
+sp-blockchain = { version = "3.0.0" }
+sp-block-builder = { version = "3.0.0" }
+substrate-frame-rpc-system = { version = "3.0.0" }
+pallet-transaction-payment-rpc = { version = "3.0.0" }
+pallet-staking = { version = "3.0.0" }
 
 [build-dependencies]
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate.git", rev = "1fa8cf7"}
+substrate-build-script-utils = { version = "3.0.0" }
 
 [features]
 default = []
