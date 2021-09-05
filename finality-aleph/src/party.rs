@@ -285,11 +285,7 @@ where
 
         let consensus_config = create_aleph_config(authorities.len(), node_id, session_id);
 
-        let best_chain_header = self
-            .select_chain
-            .best_chain()
-            .await
-            .expect("No best chain.");
+        let best_chain_header = self.select_chain.best_chain().expect("No best chain.");
         let best_chain = Arc::new(Mutex::new(AlephData::new(
             best_chain_header.hash(),
             *best_chain_header.number(),

@@ -24,22 +24,26 @@ futures = "0.3"
 hex-literal = "0.3.1"
 
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
-sp-application-crypto = { version = "3.0.0" }
-sc-block-builder = { version = "0.9.0" }
-sc-cli = { version = "0.9.0" }
-sp-core = { version = "3.0.0" }
-sc-executor = { version = "0.9.0" }
-sc-service = { version = "0.9.0" }
-sc-telemetry = { version = "3.0.0" }
-sc-keystore = { version = "3.0.0" }
-sp-inherents = { version = "3.0.0" }
-sc-basic-authorship = { version = "0.9.0" }
-sc-transaction-pool = { version = "3.0.0" }
-sc-consensus-aura = { version = "0.9.0" }
-sp-consensus = { version = "0.9.0" }
-sc-client-api = { version = "3.0.0" }
-sp-runtime = { version = "3.0.0" }
-sp-timestamp = { version = "3.0.0"  }
+sp-application-crypto = "3.0.0"
+sc-block-builder = "0.9.0"
+sc-cli = "0.9.0"
+sp-core = "3.0.0"
+sc-executor = "0.9.0"
+sc-service = "0.9.0"
+sc-telemetry = "3.0.0"
+sc-keystore = "3.0.0"
+sp-keystore = "0.9.0"
+sp-inherents = "3.0.0"
+sc-basic-authorship = "0.9.0"
+sc-transaction-pool = "3.0.0"
+sp-transaction-pool = "3.0.0"
+sc-consensus-aura = "0.9.0"
+sp-consensus-aura = "0.9.0"
+sc-consensus = "0.9.0"
+sp-consensus = "0.9.0"
+sc-client-api = "3.0.0"
+sp-runtime = "3.0.0"
+sp-timestamp = "3.0.0"
 
 aleph-runtime = {path = "../runtime"}
 finality-aleph = {path = "../../finality-aleph"}
@@ -47,17 +51,17 @@ aleph-primitives = { package = "primitives", path = "../../primitives"}
 
 # These dependencies are used for the node template's RPCs
 jsonrpc-core = "15.1.0"
-sc-rpc = { version = "3.0.0" }
-sp-api = { version = "3.0.0" }
-sc-rpc-api = { version = "0.9.0" }
-sp-blockchain = { version = "3.0.0" }
-sp-block-builder = { version = "3.0.0" }
-substrate-frame-rpc-system = { version = "3.0.0" }
-pallet-transaction-payment-rpc = { version = "3.0.0" }
-pallet-staking = { version = "3.0.0" }
+sc-rpc = "3.0.0"
+sp-api = "3.0.0"
+sc-rpc-api = "0.9.0"
+sp-blockchain = "3.0.0"
+sp-block-builder = "3.0.0"
+substrate-frame-rpc-system = "3.0.0"
+pallet-transaction-payment-rpc = "3.0.0"
+pallet-staking = "3.0.0"
 
 [build-dependencies]
-substrate-build-script-utils = { version = "3.0.0" }
+substrate-build-script-utils = "3.0.0"
 
 [features]
 default = []

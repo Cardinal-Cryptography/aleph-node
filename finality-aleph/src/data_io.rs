@@ -250,7 +250,6 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
             _ = delay => {
                 let new_best_header = select_chain
                     .best_chain()
-                    .await
                     .expect("No best chain");
                 *best_chain.lock() = AlephData::new(new_best_header.hash(), *new_best_header.number());
             }

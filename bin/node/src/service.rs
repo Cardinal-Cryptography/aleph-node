@@ -9,11 +9,10 @@ use finality_aleph::{
 use futures::channel::mpsc;
 use log::warn;
 use sc_client_api::ExecutorProvider;
-use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
-use sc_telemetry::{Telemetry, TelemetryWorker};
+use sc_telemetry::TelemetryWorker;
 use sp_api::ProvideRuntimeApi;
 use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
@@ -66,10 +65,7 @@ pub fn new_partial(
         .transpose()?;
 
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
-            config,
-            telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-        )?;
+        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(config)?;
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
         task_manager.spawn_handle().spawn("telemetry", worker.run());
@@ -154,6 +150,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         select_chain,
         transaction_pool,
         other: (block_import, justification_rx, mut telemetry, metrics),
+        ..
     } = new_partial(&config)?;
 
     config
@@ -238,33 +235,17 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         let raw_slot_duration = slot_duration.slot_duration();
 
         let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
-            StartAuraParams {
-                slot_duration,
-                client: client.clone(),
-                select_chain: select_chain.clone(),
-                block_import,
-                proposer_factory,
-                create_inherent_data_providers: move |_, ()| async move {
-                    let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-
-                    let slot =
-                        sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
-                            *timestamp,
-                            raw_slot_duration,
-                        );
-
-                    Ok((timestamp, slot))
-                },
-                force_authoring,
-                backoff_authoring_blocks,
-                keystore: keystore_container.sync_keystore(),
-                can_author_with,
-                sync_oracle: network.clone(),
-                justification_sync_link: network.clone(),
-                block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
-                max_block_proposal_slot_portion: None,
-                telemetry: telemetry.as_ref().map(|x| x.handle()),
-            },
+            sc_consensus_aura::slot_duration(&*client)?,
+            client.clone(),
+            select_chain.clone(),
+            block_import,
+            proposer_factory,
+            network.clone(),
+            inherent_data_providers,
+            force_authoring,
+            backoff_authoring_blocks,
+            keystore_container.sync_keystore(),
+            can_author_with,
         )?;
 
         task_manager
