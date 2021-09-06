@@ -142,7 +142,7 @@ pub fn config(
 
     Ok(ChainSpec::from_genesis(
         // Name
-        "AlephZero",
+        "Aleph Zero",
         // ID
         chain_id,
         ChainType::Live,
@@ -167,7 +167,7 @@ pub fn config(
         Some(
             [(
                 "tokenSymbol".to_string(),
-                serde_json::Value::String("DZERO".into()),
+                serde_json::Value::String("AZERO".into()),
             )]
             .iter()
             .cloned()

@@ -2,7 +2,7 @@ use crate::chain_spec::{self, get_account_id_from_seed, AuthorityKeys, LOCAL_AUT
 use crate::cli::{Cli, ExtraParams};
 use aleph_primitives::AuthorityId as AlephId;
 use log::info;
-use sc_cli::{CliConfiguration, Error, KeystoreParams, NodeKeyParams, SharedParams};
+use sc_cli::{CliConfiguration, Error, KeystoreParams, SharedParams};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::key_types;
@@ -23,26 +23,16 @@ pub struct BootstrapChainCmd {
     #[structopt(long = "raw")]
     pub raw: bool,
 
-    #[allow(missing_docs)]
     #[structopt(flatten)]
     pub keystore_params: KeystoreParams,
 
-    #[allow(missing_docs)]
     #[structopt(flatten)]
     pub shared_params: SharedParams,
-
-    #[allow(missing_docs)]
-    #[structopt(flatten)]
-    pub node_key_params: NodeKeyParams,
 }
 
 impl CliConfiguration for BootstrapChainCmd {
     fn shared_params(&self) -> &SharedParams {
         &self.shared_params
-    }
-
-    fn node_key_params(&self) -> Option<&NodeKeyParams> {
-        Some(&self.node_key_params)
     }
 }
 

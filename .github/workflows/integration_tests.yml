@@ -118,8 +118,7 @@ jobs:
 
       - name: Generate chainspec
         run: |
-          # NOTE : remove this step after keys are moved to a separate JSON file
-          # populate vlaidators keystore and generate chainspec
+          # populate validators keystore and generate chainspec
           chmod +x target/release/aleph-node
           ./target/release/aleph-node bootstrap-chain --base-path docker/data --chain a0tnet1 > docker/data/chainspec.json
 

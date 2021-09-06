@@ -70,9 +70,6 @@ pub enum Subcommand {
     /// Populate authorities keystore and generate JSON chainspec (printed to stdout)    
     BootstrapChain(BootstrapChainCmd),
 
-    /// Same as BootstrapChain
-    BuildSpec(BootstrapChainCmd),
-
     /// Validate blocks.
     CheckBlock(sc_cli::CheckBlockCmd),
 
