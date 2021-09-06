@@ -1,6 +1,6 @@
 [package]
 name = "pallet-aleph"
-version = "0.1.0"
+version = "0.4.0"
 authors = ["Cardinal Cryptography"]
 edition = "2018"
 
@@ -12,7 +12,7 @@ frame-support = { default-features = false, version = "3.0.0" }
 frame-system = { default-features = false, version = "3.0.0" }
 sp-std = { default-features = false, version = "3.0.0" }
 serde = "1.0"
-primitives = { package = "primitives", path = "../primitives", version = "0.1.0", default-features = false}
+primitives = { package = "primitives", path = "../primitives", default-features = false}
 pallet-session = { default-features = false, version = "3.0.0" }
 
 [dev-dependencies]
