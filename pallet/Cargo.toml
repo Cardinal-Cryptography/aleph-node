@@ -4,6 +4,8 @@ version = "0.4.0"
 authors = ["Cardinal Cryptography"]
 edition = "2018"
 
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -14,10 +16,9 @@ sp-std = { default-features = false, version = "3.0.0" }
 serde = "1.0"
 primitives = { package = "primitives", path = "../primitives", default-features = false}
 pallet-session = { default-features = false, version = "3.0.0" }
+pallet-balances = { default-features = false, version = "3.0.0" }
 
 [dev-dependencies]
-
-pallet-balances = { default-features = false, version = "3.0.0" }
 pallet-timestamp = { default-features = false, version = "3.0.0" }
 sp-runtime = { default-features = false, version = "3.0.0" }
 sp-core = { default-features = false, version = "3.0.0" }
@@ -30,5 +31,6 @@ std = [
     "frame-system/std",
     "sp-std/std",
     "primitives/std",
-    "pallet-session/std"
+    "pallet-session/std",
+    "pallet-balances/std"
 ]
