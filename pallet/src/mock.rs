@@ -28,11 +28,11 @@ construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+        Aleph: pallet_aleph::{Module, Call, Config<T>, Storage},
+        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
     }
 );
 
@@ -49,7 +49,7 @@ parameter_types! {
 }
 
 impl frame_system::Config for Test {
-    type BaseCallFilter = frame_support::traits::AllowAll;
+    type BaseCallFilter = ();
     type BlockWeights = ();
     type BlockLength = ();
     type Origin = Origin;
@@ -71,7 +71,6 @@ impl frame_system::Config for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = ();
-    type OnSetCode = ();
 }
 
 parameter_types! {
@@ -86,8 +85,6 @@ parameter_types! {
 
 impl pallet_balances::Config for Test {
     type Balance = u128;
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
