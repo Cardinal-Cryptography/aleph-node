@@ -299,12 +299,12 @@ fn testnet_genesis(
         millisecs_per_block
     );
     GenesisConfig {
-        system: SystemConfig {
+        frame_system: Some(SystemConfig {
             // Add Wasm runtime to storage.
             code: wasm_binary.to_vec(),
             changes_trie_config: Default::default(),
-        },
-        balances: BalancesConfig {
+        }),
+        pallet_balances: Some(BalancesConfig {
             // Configure endowed accounts with initial balance of 1 << 60.
             balances: authorities
                 .iter()
@@ -313,20 +313,20 @@ fn testnet_genesis(
                 .chain(rich_accounts.into_iter())
                 .map(|k| (k, 1 << 60))
                 .collect(),
-        },
-        aura: AuraConfig {
+        }),
+        pallet_aura: Some(AuraConfig {
             authorities: vec![],
-        },
-        sudo: SudoConfig {
+        }),
+        pallet_sudo: Some(SudoConfig {
             // Assign network admin rights.
             key: root_key,
-        },
-        aleph: AlephConfig {
+        }),
+        pallet_aleph: Some(AlephConfig {
             authorities: vec![],
             session_period,
             millisecs_per_block,
-        },
-        session: SessionConfig {
+        }),
+        pallet_session: Some(SessionConfig {
             keys: authorities
                 .into_iter()
                 .map(|auth| {
@@ -340,7 +340,7 @@ fn testnet_genesis(
                     )
                 })
                 .collect(),
-        },
-        vesting: VestingConfig { vesting: vec![] },
+        }),
+        pallet_vesting: Some(VestingConfig { vesting: vec![] }),
     }
 }

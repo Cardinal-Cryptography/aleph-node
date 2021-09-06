@@ -12,9 +12,7 @@ use sc_client_api::ExecutorProvider;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
-use sc_telemetry::TelemetryWorker;
 use sp_api::ProvideRuntimeApi;
-use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::{
@@ -47,30 +45,13 @@ pub fn new_partial(
         (
             AlephBlockImport<Block, FullBackend, FullClient>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
-            Option<Telemetry>,
             Option<Metrics<<Block as BlockT>::Header>>,
         ),
     >,
     ServiceError,
 > {
-    let telemetry = config
-        .telemetry_endpoints
-        .clone()
-        .filter(|x| !x.is_empty())
-        .map(|endpoints| -> Result<_, sc_telemetry::Error> {
-            let worker = TelemetryWorker::new(16)?;
-            let telemetry = worker.handle().new_telemetry(endpoints);
-            Ok((worker, telemetry))
-        })
-        .transpose()?;
-
     let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, Executor>(config)?;
-
-    let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", worker.run());
-        telemetry
-    });
 
     let client: Arc<TFullClient<_, _, _>> = Arc::new(client);
 
@@ -80,7 +61,7 @@ pub fn new_partial(
         config.transaction_pool.clone(),
         config.role.is_authority().into(),
         config.prometheus_registry(),
-        task_manager.spawn_essential_handle(),
+        task_manager.spawn_handle(),
         client.clone(),
     );
 
@@ -96,32 +77,23 @@ pub fn new_partial(
     let aleph_block_import =
         AlephBlockImport::new(client.clone() as Arc<_>, justification_tx, metrics.clone());
 
-    let slot_duration = sc_consensus_aura::slot_duration(&*client)?.slot_duration();
+    let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let import_queue =
-        sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(ImportQueueParams {
-            block_import: aleph_block_import.clone(),
-            justification_import: Some(Box::new(aleph_block_import.clone())),
-            client: client.clone(),
-            create_inherent_data_providers: move |_, ()| async move {
-                let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+    let aura_block_import = sc_consensus_aura::AuraBlockImport::<_, _, _, AuraPair>::new(
+        aleph_block_import.clone(),
+        client.clone(),
+    );
 
-                let slot =
-                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
-                        *timestamp,
-                        slot_duration,
-                    );
-
-                Ok((timestamp, slot))
-            },
-            spawner: &task_manager.spawn_essential_handle(),
-            registry: config.prometheus_registry(),
-            can_author_with: sp_consensus::CanAuthorWithNativeVersion::new(
-                client.executor().clone(),
-            ),
-            check_for_equivocation: Default::default(),
-            telemetry: telemetry.as_ref().map(|x| x.handle()),
-        })?;
+    let import_queue = sc_consensus_aura::import_queue::<_, _, _, AuraPair, _, _>(
+        sc_consensus_aura::slot_duration(&*client)?,
+        aura_block_import.clone(),
+        Some(Box::new(aleph_block_import.clone())),
+        client.clone(),
+        inherent_data_providers.clone(),
+        &task_manager.spawn_handle(),
+        config.prometheus_registry(),
+        sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
+    )?;
 
     Ok(sc_service::PartialComponents {
         client,
@@ -131,7 +103,8 @@ pub fn new_partial(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (aleph_block_import, justification_rx, telemetry, metrics),
+        inherent_data_providers,
+        other: (aleph_block_import, justification_rx, metrics),
     })
 }
 
@@ -149,7 +122,8 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, justification_rx, mut telemetry, metrics),
+        inherent_data_providers,
+        other: (block_import, justification_rx, metrics),
         ..
     } = new_partial(&config)?;
 
@@ -158,7 +132,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         .extra_sets
         .push(finality_aleph::peers_set_config());
 
-    let (network, system_rpc_tx, network_starter) =
+    let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -204,44 +178,40 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         })
     };
 
-    let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-        network: network.clone(),
-        client: client.clone(),
-        keystore: keystore_container.sync_keystore(),
-        task_manager: &mut task_manager,
-        transaction_pool: transaction_pool.clone(),
-        rpc_extensions_builder,
-        on_demand: None,
-        remote_blockchain: None,
-        backend,
-        system_rpc_tx,
-        config,
-        telemetry: telemetry.as_mut(),
-    })?;
-
+    let (_rpc_handlers, _telemetry_connection_notifier) =
+        sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+            network: network.clone(),
+            client: client.clone(),
+            keystore: keystore_container.sync_keystore(),
+            task_manager: &mut task_manager,
+            transaction_pool: transaction_pool.clone(),
+            rpc_extensions_builder,
+            on_demand: None,
+            remote_blockchain: None,
+            backend,
+            network_status_sinks,
+            system_rpc_tx,
+            config,
+        })?;
     if role.is_authority() {
-        let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        let proposer = sc_basic_authorship::ProposerFactory::new(
             task_manager.spawn_handle(),
             client.clone(),
             transaction_pool,
             prometheus_registry.as_ref(),
-            None,
         );
 
         let can_author_with =
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
-        let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
-        let raw_slot_duration = slot_duration.slot_duration();
-
-        let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
+        let aura = sc_consensus_aura::start_aura::<_, _, _, _, _, AuraPair, _, _, _, _>(
             sc_consensus_aura::slot_duration(&*client)?,
             client.clone(),
             select_chain.clone(),
             block_import,
-            proposer_factory,
+            proposer,
             network.clone(),
-            inherent_data_providers,
+            inherent_data_providers.clone(),
             force_authoring,
             backoff_authoring_blocks,
             keystore_container.sync_keystore(),
