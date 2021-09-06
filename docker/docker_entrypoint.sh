@@ -4,7 +4,7 @@ set -euo pipefail
 PURGE_BEFORE_START=${PURGE_BEFORE_START:-}
 
 # aleph_node cli options to env variables
-CHAIN_NAME=${CHAIN_NAME:?'Chain name should be specified'}
+CHAIN=${CHAIN:?'Chain should be specified'}
 NAME=${NAME:?'Name should be specified'}
 BASE_PATH=${BASE_PATH:?'Base path should be specified'}
 RPC_PORT=${RPC_PORT:-9933}
@@ -12,8 +12,8 @@ WS_PORT=${WS_PORT:-9943}
 PORT=${PORT:-30333}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
-  echo "Purging chain (${CHAIN_NAME}) at path ${BASE_PATH}"
-  ./aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN_NAME}" -y
+  echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
+  ./aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
 fi
 
 ARGS=(
@@ -21,7 +21,7 @@ ARGS=(
   --execution Native
   --name "${NAME}"
   --base-path "${BASE_PATH}"
-  --chain "${CHAIN_NAME}"
+  --chain "${CHAIN}"
   --node-key-file "${NODE_KEY_PATH}"
   --rpc-port "${RPC_PORT}" --ws-port "${WS_PORT}" --port "${PORT}"
   --rpc-cors all --rpc-methods Safe # TODO: should we allow to specify them?
