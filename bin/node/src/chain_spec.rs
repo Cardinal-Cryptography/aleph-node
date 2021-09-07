@@ -6,10 +6,14 @@ use aleph_runtime::{
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use hex_literal::hex;
+use sc_service::config::BasePath;
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::path::PathBuf;
+use structopt::StructOpt;
+// use crate::com
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
@@ -47,17 +51,64 @@ pub struct AuthorityKeys {
     pub aleph_key: AlephId,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, StructOpt, Clone)]
 pub struct ChainParams {
-    session_period: u32,
-    millisecs_per_block: u64,
+    /// Specify the chain specification.
+    ///
+    /// It can be one of the predefined ones (dev, local, or staging) or it can be a path to a file with
+    /// the chainspec (such as one exported by the `build-spec` subcommand).
+    #[structopt(long, value_name = "CHAIN_SPEC")]
+    pub chain_id: Option<String>,
+
+    /// Specify custom base path.
+    #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
+    pub base_path: Option<PathBuf>,
+
+    #[structopt(long)]
+    pub session_period: Option<u32>,
+
+    #[structopt(long)]
+    pub millisecs_per_block: Option<u64>,
+
+    #[structopt(long)]
+    pub chain_name: Option<String>,
+
+    #[structopt(long)]
+    pub token_symbol: Option<String>,
 }
 
 impl ChainParams {
-    pub fn from_cli(session_period: Option<u32>, millisecs_per_block: Option<u64>) -> Self {
-        ChainParams {
-            session_period: session_period.unwrap_or(DEFAULT_SESSION_PERIOD),
-            millisecs_per_block: millisecs_per_block.unwrap_or(DEFAULT_MILLISECS_PER_BLOCK),
+    pub fn chain_id(&self) -> String {
+        match &self.chain_id {
+            Some(id) => String::from(id),
+            None => String::from("a0tnet1"),
+        }
+    }
+
+    pub fn base_path(&self) -> Option<BasePath> {
+        self.base_path.clone().map(Into::into)
+    }
+
+    pub fn millisecs_per_block(&self) -> u64 {
+        self.millisecs_per_block
+            .unwrap_or(DEFAULT_MILLISECS_PER_BLOCK)
+    }
+
+    pub fn session_period(&self) -> u32 {
+        self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD)
+    }
+
+    pub fn token_symbol(&self) -> String {
+        match &self.token_symbol {
+            Some(symbol) => String::from(symbol),
+            None => String::from("DZERO"),
+        }
+    }
+
+    pub fn chain_name(&self) -> String {
+        match &self.chain_name {
+            Some(name) => String::from(name),
+            None => String::from("Aleph Zero Development"),
         }
     }
 }
@@ -84,10 +135,12 @@ pub fn development_config(
     .collect();
 
     let sudo_account = rich_accounts[0].clone();
+    let token_symbol = chain_params.token_symbol();
+    let chain_name = chain_params.chain_name();
 
     Ok(ChainSpec::from_genesis(
         // Name
-        "AlephZero Development",
+        &chain_name,
         // ID
         DEVNET_ID,
         ChainType::Development,
@@ -99,7 +152,7 @@ pub fn development_config(
                 // Pre-funded accounts
                 sudo_account.clone(),
                 rich_accounts.clone(),
-                chain_params,
+                chain_params.clone(),
             )
         },
         // Bootnodes
@@ -112,7 +165,7 @@ pub fn development_config(
         Some(
             [(
                 "tokenSymbol".to_string(),
-                serde_json::Value::String("DZERO".into()),
+                serde_json::Value::String(token_symbol),
             )]
             .iter()
             .cloned()
@@ -136,13 +189,16 @@ pub fn config(
     ]
     .into();
 
+    let token_symbol = chain_params.token_symbol();
+    let chain_name = chain_params.chain_name();
+
     // Give money to the faucet account
     let faucet: AccountId = FAUCET_HASH.into();
     let rich_accounts = vec![faucet, sudo_account.clone()];
 
     Ok(ChainSpec::from_genesis(
         // Name
-        "Aleph Zero",
+        &chain_name,
         // ID
         chain_id,
         ChainType::Live,
@@ -154,7 +210,7 @@ pub fn config(
                 // Pre-funded accounts
                 sudo_account.clone(),
                 rich_accounts.clone(),
-                chain_params,
+                chain_params.clone(),
             )
         },
         // Bootnodes
@@ -167,7 +223,7 @@ pub fn config(
         Some(
             [(
                 "tokenSymbol".to_string(),
-                serde_json::Value::String("AZERO".into()),
+                serde_json::Value::String(token_symbol),
             )]
             .iter()
             .cloned()
@@ -186,10 +242,8 @@ fn genesis(
     rich_accounts: Vec<AccountId>,
     chain_params: ChainParams,
 ) -> GenesisConfig {
-    let ChainParams {
-        session_period,
-        millisecs_per_block,
-    } = chain_params;
+    let session_period = chain_params.session_period();
+    let millisecs_per_block = chain_params.millisecs_per_block();
 
     log::debug!("chain parameters {:?}", &chain_params);
 

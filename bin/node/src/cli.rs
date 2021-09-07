@@ -2,15 +2,6 @@ use crate::{chain_spec, commands::BootstrapChainCmd};
 use sc_cli::{ChainSpec, RunCmd, RuntimeVersion, SubstrateCli};
 use structopt::StructOpt;
 
-#[derive(Clone, Debug, Default, StructOpt)]
-pub struct ExtraParams {
-    #[structopt(long)]
-    pub(crate) session_period: Option<u32>,
-
-    #[structopt(long)]
-    pub(crate) millisecs_per_block: Option<u64>,
-}
-
 #[derive(Debug, StructOpt)]
 pub struct Cli {
     #[structopt(subcommand)]
@@ -18,9 +9,6 @@ pub struct Cli {
 
     #[structopt(flatten)]
     pub run: RunCmd,
-
-    #[structopt(flatten)]
-    pub extra: ExtraParams,
 }
 
 impl SubstrateCli for Cli {
