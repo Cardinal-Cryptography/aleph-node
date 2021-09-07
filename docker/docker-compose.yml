@@ -7,12 +7,11 @@ services:
     container_name: damian
     privileged: true
     network_mode: host
-    ports:
-      - 9933:9933
-      - 9943:9943
-      - 30333:30333
     environment:
       - RUST_LOG=info
+      - RPC_PORT=9933
+      - WS_PORT=9943
+      - PORT=30333
       - PURGE_BEFORE_START=true
       - NAME=Damian
       - BASE_PATH=/tmp/Damian
@@ -29,6 +28,9 @@ services:
     network_mode: host
     environment:
       - RUST_LOG=info
+      - RPC_PORT=9934
+      - WS_PORT=9944
+      - PORT=30334
       - PURGE_BEFORE_START=true
       - NAME=Tomasz
       - BASE_PATH=/tmp/Tomasz
@@ -45,6 +47,9 @@ services:
     network_mode: host
     environment:
       - RUST_LOG=info
+      - RPC_PORT=9935
+      - WS_PORT=9945
+      - PORT=30335
       - PURGE_BEFORE_START=true
       - NAME=Zbyszko
       - BASE_PATH=/tmp/Zbyszko
@@ -61,6 +66,9 @@ services:
     network_mode: host
     environment:
       - RUST_LOG=info
+      - RPC_PORT=9936
+      - WS_PORT=9946
+      - PORT=30336
       - PURGE_BEFORE_START=true
       - NAME=Hansu
       - BASE_PATH=/tmp/Hansu
