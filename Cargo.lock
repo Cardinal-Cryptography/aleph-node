@@ -103,8 +103,8 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.5.6"
-source = "git+https://github.com/Cardinal-Cryptography/AlephBFT/?rev=9e600d4fd#9e600d4fdfd4ae22d4e20aefd897b06571e291eb"
+version = "0.6.1"
+source = "git+https://github.com/Cardinal-Cryptography/AlephBFT/?rev=1c1bf73c8#1c1bf73c813da3a58e145a0ab7dd78bc7715c478"
 dependencies = [
  "async-trait",
  "bit-vec",
