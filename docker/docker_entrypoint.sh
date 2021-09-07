@@ -29,12 +29,6 @@ ARGS=(
   --no-mdns
 )
 
-## No additional params are passed. Lets use default env variables
-#if [ "$#" -ne 1 ]; then
-#  ARGS=(
-#  )
-#fi
-
 if [[ -n "${BOOT_NODES:-}" ]]; then
   ARGS+=(--reserved-nodes "${BOOT_NODES}")
 fi
