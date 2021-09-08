@@ -13,7 +13,6 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::path::PathBuf;
 use structopt::StructOpt;
-// use crate::com
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
@@ -53,10 +52,9 @@ pub struct AuthorityKeys {
 
 #[derive(Debug, StructOpt, Clone)]
 pub struct ChainParams {
-    /// Specify the chain specification.
+    /// Pass the chain id.
     ///
-    /// It can be one of the predefined ones (dev, local, or staging) or it can be a path to a file with
-    /// the chainspec (such as one exported by the `build-spec` subcommand).
+    /// It can be a predefined one (dev) or an arbitrary chain id passed to the genesis block
     #[structopt(long, value_name = "CHAIN_SPEC")]
     pub chain_id: Option<String>,
 
@@ -78,15 +76,15 @@ pub struct ChainParams {
 }
 
 impl ChainParams {
-    pub fn chain_id(&self) -> String {
-        match &self.chain_id {
-            Some(id) => String::from(id),
-            None => String::from("a0tnet1"),
+    pub fn chain_id(&self) -> &str {
+        match &self.chain_name {
+            Some(id) => &id,
+            None => "a0tnet1",
         }
     }
 
-    pub fn base_path(&self) -> Option<BasePath> {
-        self.base_path.clone().map(Into::into)
+    pub fn base_path(&self) -> BasePath {
+        self.base_path.clone().unwrap().into()
     }
 
     pub fn millisecs_per_block(&self) -> u64 {
@@ -98,17 +96,17 @@ impl ChainParams {
         self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD)
     }
 
-    pub fn token_symbol(&self) -> String {
+    pub fn token_symbol(&self) -> &str {
         match &self.token_symbol {
-            Some(symbol) => String::from(symbol),
-            None => String::from("DZERO"),
+            Some(symbol) => &symbol,
+            None => "DZERO",
         }
     }
 
-    pub fn chain_name(&self) -> String {
+    pub fn chain_name(&self) -> &str {
         match &self.chain_name {
-            Some(name) => String::from(name),
-            None => String::from("Aleph Zero Development"),
+            Some(name) => &name,
+            None => "Aleph Zero Development",
         }
     }
 }
@@ -135,8 +133,8 @@ pub fn development_config(
     .collect();
 
     let sudo_account = rich_accounts[0].clone();
-    let token_symbol = chain_params.token_symbol();
-    let chain_name = chain_params.chain_name();
+    let token_symbol = String::from(chain_params.token_symbol());
+    let chain_name = String::from(chain_params.chain_name());
 
     Ok(ChainSpec::from_genesis(
         // Name
@@ -189,8 +187,8 @@ pub fn config(
     ]
     .into();
 
-    let token_symbol = chain_params.token_symbol();
-    let chain_name = chain_params.chain_name();
+    let token_symbol = String::from(chain_params.token_symbol());
+    let chain_name = String::from(chain_params.chain_name());
 
     // Give money to the faucet account
     let faucet: AccountId = FAUCET_HASH.into();
@@ -207,8 +205,8 @@ pub fn config(
                 wasm_binary,
                 // Initial PoA authorities
                 authorities.clone(),
-                // Pre-funded accounts
                 sudo_account.clone(),
+                // Pre-funded accounts
                 rich_accounts.clone(),
                 chain_params.clone(),
             )
