@@ -17,7 +17,6 @@ serde = { version = "1.0.101", optional = true, features = ["derive"] }
 primitives = { path = "../../primitives", default-features = false }
 pallet-aleph = { path = "../../pallet", default-features = false}
 
-frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
@@ -27,9 +26,11 @@ pallet-aura = { default-features = false, git = "https://github.com/paritytech/s
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
+pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
+pallet-vesting = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 
 sp-api = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
 sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "8bbad73f5"}
@@ -52,31 +53,32 @@ substrate-wasm-builder = { version = "4.0.0"}
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"frame-executive/std",
-	"frame-support/std",
-	"pallet-aleph/std",
-	"pallet-aura/std",
-	"pallet-balances/std",
-	"pallet-randomness-collective-flip/std",
-	"pallet-session/std",
-	"pallet-sudo/std",
-	"pallet-timestamp/std",
-	"pallet-transaction-payment/std",
-	"serde",
-	"sp-api/std",
-	"sp-block-builder/std",
-	"sp-consensus-aura/std",
-	"sp-core/std",
-	"sp-inherents/std",
-	"sp-runtime/std",
-	"sp-session/std",
-	"sp-std/std",
-	"sp-transaction-pool/std",
-	"sp-version/std",
-	"frame-system/std",
-    "sp-offchain/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
-    "frame-system-rpc-runtime-api/std",
-	"primitives/std",
+        "codec/std",
+        "frame-executive/std",
+        "frame-support/std",
+        "pallet-aleph/std",
+        "pallet-aura/std",
+        "pallet-balances/std",
+        "pallet-randomness-collective-flip/std",
+        "pallet-session/std",
+        "pallet-sudo/std",
+        "pallet-timestamp/std",
+        "pallet-transaction-payment/std",
+        "pallet-vesting/std",
+        "serde",
+        "sp-api/std",
+        "sp-block-builder/std",
+        "sp-consensus-aura/std",
+        "sp-core/std",
+        "sp-inherents/std",
+        "sp-runtime/std",
+        "sp-session/std",
+        "sp-std/std",
+        "sp-transaction-pool/std",
+        "sp-version/std",
+        "frame-system/std",
+        "sp-offchain/std",
+        "pallet-transaction-payment-rpc-runtime-api/std",
+        "frame-system-rpc-runtime-api/std",
+        "primitives/std",
 ]

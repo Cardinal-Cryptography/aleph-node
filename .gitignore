@@ -1,6 +1,7 @@
 # IDEs
 /.idea
 /.vscode
+.projectile
 
 # Rust
 .cargo/config
@@ -10,3 +11,8 @@
 # Substrate
 *.log
 *.out
+
+# docker
+db/
+keystore/
+chainspec.json

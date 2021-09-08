@@ -5,18 +5,15 @@ use crate as pallet_aleph;
 
 use sp_core::H256;
 
-use frame_election_provider_support::onchain;
 use frame_support::{
     construct_runtime, parameter_types, sp_io,
-    traits::{GenesisBuild, OnFinalize, OnInitialize},
+    traits::{OnFinalize, OnInitialize},
 };
-use pallet_staking::EraIndex;
 use primitives::AuthorityId;
 use sp_runtime::{
-    curve::PiecewiseLinear,
     impl_opaque_keys,
     testing::{Header, TestXt, UintAuthorityId},
-    traits::{IdentityLookup, OpaqueKeys},
+    traits::{ConvertInto, IdentityLookup, OpaqueKeys},
     Perbill,
 };
 
@@ -34,7 +31,6 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
@@ -102,18 +98,10 @@ impl pallet_balances::Config for Test {
     type MaxLocks = ();
 }
 
-impl onchain::Config for Test {
-    type AccountId = <Self as frame_system::Config>::AccountId;
-    type BlockNumber = <Self as frame_system::Config>::BlockNumber;
-    type BlockWeights = ();
-    type Accuracy = Perbill;
-    type DataProvider = Staking;
-}
-
 impl pallet_session::Config for Test {
     type Event = Event;
     type ValidatorId = u64;
-    type ValidatorIdOf = pallet_staking::StashOf<Self>;
+    type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
@@ -121,11 +109,6 @@ impl pallet_session::Config for Test {
     type Keys = TestSessionKeys;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
-}
-
-impl pallet_session::historical::Config for Test {
-    type FullIdentification = pallet_staking::Exposure<u64, u128>;
-    type FullIdentificationOf = pallet_staking::ExposureOf<Self>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
@@ -144,50 +127,6 @@ impl pallet_timestamp::Config for Test {
     type Moment = u64;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
-}
-
-pallet_staking_reward_curve::build! {
-    const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-        min_inflation: 0_025_000u64,
-        max_inflation: 0_100_000,
-        ideal_stake: 0_500_000,
-        falloff: 0_050_000,
-        max_piece_count: 40,
-        test_precision: 0_005_000,
-    );
-}
-
-parameter_types! {
-    pub const SessionsPerEra: u32 = 3;
-    pub const BondingDuration: EraIndex = 3;
-    pub const SlashDeferDuration: EraIndex = 0;
-    pub const AttestationPeriod: u64 = 100;
-    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-    pub const MaxNominatorRewardedPerValidator: u32 = 64;
-    pub const ElectionLookahead: u64 = 0;
-    pub const StakingUnsignedPriority: u64 = u64::max_value() / 2;
-}
-
-impl pallet_staking::Config for Test {
-    const MAX_NOMINATIONS: u32 = 16;
-    type RewardRemainder = ();
-    type CurrencyToVote = frame_support::traits::SaturatingCurrencyToVote;
-    type Event = Event;
-    type Currency = Balances;
-    type Slash = ();
-    type Reward = ();
-    type SessionsPerEra = SessionsPerEra;
-    type BondingDuration = BondingDuration;
-    type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = frame_system::EnsureRoot<Self::AccountId>;
-    type SessionInterface = Self;
-    type UnixTime = pallet_timestamp::Pallet<Test>;
-    type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
-    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
-    type NextNewSession = Session;
-    type ElectionProvider = onchain::OnChainSequentialPhragmen<Self>;
-    type GenesisElectionProvider = Self::ElectionProvider;
     type WeightInfo = ();
 }
 
@@ -229,34 +168,11 @@ pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let stakers: Vec<_> = (0..authorities.len())
-        .map(|i| {
-            (
-                i as u64,
-                i as u64 + 1000,
-                10_000,
-                pallet_staking::StakerStatus::<u64>::Validator,
-            )
-        })
-        .collect();
-
-    let staking_config = pallet_staking::GenesisConfig::<Test> {
-        stakers,
-        validator_count: 8,
-        force_era: pallet_staking::Forcing::ForceNew,
-        minimum_validator_count: 0,
-        invulnerables: vec![],
-        ..Default::default()
-    };
-
-    staking_config.assimilate_storage(&mut t).unwrap();
-
     t.into()
 }
 
 pub(crate) fn run_session(n: u64) {
     while System::block_number() < n {
-        Staking::on_finalize(System::block_number());
         Session::on_finalize(System::block_number());
         Aleph::on_finalize(System::block_number());
         System::on_finalize(System::block_number());
@@ -270,7 +186,6 @@ pub(crate) fn run_session(n: u64) {
 
         System::on_initialize(System::block_number());
         Session::on_initialize(System::block_number());
-        Staking::on_initialize(System::block_number());
         Aleph::on_initialize(System::block_number());
     }
 }
@@ -285,6 +200,5 @@ pub(crate) fn initialize_session() {
 
     System::on_initialize(System::block_number());
     Session::on_initialize(System::block_number());
-    Staking::on_initialize(System::block_number());
     Aleph::on_initialize(System::block_number());
 }

@@ -11,8 +11,9 @@ use std::{
 use log::{debug, error, trace, warn};
 
 use crate::{
-    aggregator::SignableHash, data_io::AlephNetworkMessage, Error, Hasher, MultiKeychain,
-    SessionId, Signature,
+    aggregator::SignableHash,
+    data_io::{AlephDataFor, AlephNetworkMessage},
+    Error, Hasher, MultiKeychain, SessionId, Signature,
 };
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
@@ -48,7 +49,7 @@ impl Decode for PeerId {
 }
 
 /// Name of the network protocol used by Aleph Zero. This is how messages
-/// are subscribed to to ensure that we are gossiping and communicating with our
+/// are subscribed to ensure that we are gossiping and communicating with our
 /// own network.
 pub(crate) const ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/1";
 
@@ -238,6 +239,15 @@ pub(crate) enum Recipient<T: Clone + Encode + Decode + Eq + PartialEq> {
     Target(T),
 }
 
+impl From<aleph_bft::Recipient> for Recipient<NodeIndex> {
+    fn from(recipient: aleph_bft::Recipient) -> Self {
+        match recipient {
+            aleph_bft::Recipient::Everyone => Recipient::All,
+            aleph_bft::Recipient::Node(node) => Recipient::Target(node),
+        }
+    }
+}
+
 #[derive(Clone, Encode, Decode, Debug)]
 pub(crate) struct AuthData {
     pub(crate) session_id: SessionId,
@@ -385,7 +395,7 @@ where
     fn send_to_user(&self, session_id: SessionId, data: D, session_data: &mut SessionData<D>) {
         trace!(target: "afa", "Passing message {:?} to {:?}.", data, session_id);
         if let Err(e) = session_data.data_for_user.unbounded_send(data) {
-            //TODO: need to write some logic on when an session should be terminated and make sure
+            // TODO: need to write some logic on when an session should be terminated and make sure
             // that there are no issues with synchronization when terminating.
             session_data.status = SessionStatus::Terminated;
             debug!(target: "afa", "Error {:?} when passing a message event to session {:?}.", e, session_id);
@@ -599,10 +609,10 @@ where
 }
 
 pub(crate) type AlephNetworkData<B> =
-    aleph_bft::NetworkData<Hasher, <B as BlockT>::Hash, Signature, SignatureSet<Signature>>;
+    aleph_bft::NetworkData<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>;
 
 impl<B: BlockT> AlephNetworkMessage<B> for AlephNetworkData<B> {
-    fn included_blocks(&self) -> Vec<B::Hash> {
+    fn included_blocks(&self) -> Vec<AlephDataFor<B>> {
         self.included_data()
     }
 }
@@ -658,17 +668,14 @@ impl<B: BlockT> AlephNetwork<B> {
 }
 
 #[async_trait::async_trait]
-impl<B: BlockT> aleph_bft::Network<Hasher, B::Hash, Signature, SignatureSet<Signature>>
+impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>
     for AlephNetwork<B>
 {
-    type Error = Error;
-
-    fn send(&self, data: AlephNetworkData<B>, node: NodeIndex) -> Result<(), Self::Error> {
-        self.inner.send(data, Recipient::Target(node))
-    }
-
-    fn broadcast(&self, data: AlephNetworkData<B>) -> Result<(), Self::Error> {
-        self.inner.send(data, Recipient::All)
+    fn send(&self, data: AlephNetworkData<B>, recipient: aleph_bft::Recipient) {
+        let recipient = recipient.into();
+        if self.inner.send(data, recipient).is_err() {
+            error!(target: "afa", "error sending a message to {:?}", recipient);
+        }
     }
 
     async fn next_event(&mut self) -> Option<AlephNetworkData<B>> {

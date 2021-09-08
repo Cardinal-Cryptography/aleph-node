@@ -5,7 +5,7 @@ use aleph_primitives::{
 };
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
-    Signature, SudoConfig, SystemConfig, WASM_BINARY,
+    Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use hex_literal::hex;
 use sc_service::ChainType;
@@ -23,6 +23,9 @@ pub(crate) const LOCAL_AUTHORITIES: [&str; 8] = [
 ];
 
 pub(crate) const KEY_PATH: &str = "/tmp/authorities_keys";
+
+pub(crate) const TESTNET_ID: &str = "a0tnet1";
+pub(crate) const DEVNET_ID: &str = "dev";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -189,7 +192,7 @@ pub fn development_config(chain_params: ChainParams) -> Result<ChainSpec, String
         // Name
         "AlephZero Development",
         // ID
-        "dev",
+        DEVNET_ID,
         ChainType::Development,
         move || {
             testnet_genesis(
@@ -234,17 +237,20 @@ pub fn testnet1_config(chain_params: ChainParams) -> Result<ChainSpec, String> {
 
     let authorities = read_keys(n_members);
 
-    let sudo_public: sr25519::Public = authorities[0].aura_key.clone().into();
-    let sudo_account: AccountId = AccountPublic::from(sudo_public).into_account();
+    let sudo_account: AccountId = hex![
+        // 5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD
+        "848274306fea52dc528eabc8e14e6ae78ea275bc4247a5d6e2882ac8e948fe68"
+    ]
+    .into();
 
     // Give money to the faucet account.
     let faucet: AccountId = FAUCET_HASH.into();
-    let rich_accounts = vec![faucet];
+    let rich_accounts = vec![faucet, sudo_account.clone()];
     Ok(ChainSpec::from_genesis(
         // Name
         "Aleph Zero",
         // ID
-        "a0tnet1",
+        TESTNET_ID,
         ChainType::Live,
         move || {
             testnet_genesis(
@@ -287,7 +293,11 @@ fn testnet_genesis(
 ) -> GenesisConfig {
     let session_period = chain_params.session_period;
     let millisecs_per_block = chain_params.millisecs_per_block;
-    log::debug!("{} {}", session_period, millisecs_per_block);
+    log::debug!(
+        "session-period: {}, millisecs-per-block: {}",
+        session_period,
+        millisecs_per_block
+    );
     GenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -312,10 +322,7 @@ fn testnet_genesis(
             key: root_key,
         },
         aleph: AlephConfig {
-            authorities: authorities
-                .iter()
-                .map(|auth| auth.aleph_key.clone())
-                .collect(),
+            authorities: vec![],
             session_period,
             millisecs_per_block,
             validators: authorities
@@ -338,5 +345,6 @@ fn testnet_genesis(
                 })
                 .collect(),
         },
+        vesting: VestingConfig { vesting: vec![] },
     }
 }
