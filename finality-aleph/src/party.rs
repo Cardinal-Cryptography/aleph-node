@@ -268,6 +268,7 @@ where
     async fn run_session_as_authority(
         &self,
         node_id: NodeIndex,
+        multikeychain: MultiKeychain,
         data_network: DataNetwork<NetworkData<B>>,
         session_id: SessionId,
         authorities: Vec<AuthorityId>,
@@ -276,10 +277,6 @@ where
         debug!(target: "afa", "Authority task {:?}", session_id);
 
         let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
-
-        let keybox = KeyBox::new(node_id, authorities.clone(), self.keystore.clone());
-
-        let multikeychain = MultiKeychain::new(keybox);
 
         let (aleph_network_tx, data_store_rx) = mpsc::unbounded();
         let (data_store_tx, aleph_network_rx) = mpsc::unbounded();
@@ -469,12 +466,13 @@ where
             let multikeychain = MultiKeychain::new(keybox);
             let data_network = self
                 .session_manager
-                .start_session(session_id, multikeychain)
+                .start_session(session_id, multikeychain.clone())
                 .await;
 
             let authority_task = self
                 .run_session_as_authority(
                     node_id,
+                    multikeychain,
                     data_network,
                     session_id,
                     authorities,

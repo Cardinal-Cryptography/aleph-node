@@ -68,7 +68,7 @@ where
     BE: Backend<B> + 'static,
 {
     session_authorities: Arc<Mutex<SessionMap>>,
-    auth_keystore: SyncCryptoStorePtr,
+    keystore: SyncCryptoStorePtr,
     chain_cadence: ChainCadence,
     network: N,
     client: Arc<C>,
@@ -86,14 +86,14 @@ where
 {
     pub(crate) fn new(
         session_authorities: Arc<Mutex<SessionMap>>,
-        auth_keystore: SyncCryptoStorePtr,
+        keystore: SyncCryptoStorePtr,
         chain_cadence: ChainCadence,
         network: N,
         client: Arc<C>,
     ) -> Self {
         Self {
             session_authorities,
-            auth_keystore,
+            keystore,
             chain_cadence,
             network,
             client,
@@ -233,12 +233,12 @@ where
             Some(authorities) => authorities.to_vec(),
             None => return None,
         };
-        // Below we use a fake index 0 of a node -- we never use this keybox for signing so that's OK, but should consider
-        // refactoring this in the future so that verification and signing a separate (not combined within a KeyBox).
+        // Below we use a fake index 0 of a node -- we never use this keybox for signing so that's OK.
+        // TODO: consider refactoring this in the future so that verification and signing are separate (not combined within a KeyBox).
         Some(KeyBox::new(
             NodeIndex(0),
             authorities,
-            self.auth_keystore.clone(),
+            self.keystore.clone(),
         ))
     }
 }
