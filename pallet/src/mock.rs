@@ -1,3 +1,5 @@
+// The `construct_runtime` macro complains about this.
+#![allow(clippy::from_over_into)]
 #![cfg(test)]
 
 use super::*;
