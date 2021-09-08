@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 # script env variables
@@ -13,7 +14,7 @@ PORT=${PORT:-30333}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
-  ./aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
+  aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
 fi
 
 ARGS=(
@@ -49,4 +50,4 @@ if [[ -n "${FLAG_L_ALEPH_BFT:-}" ]]; then
   ARGS+=(-lAlephBFT=debug)
 fi
 
-./aleph-node "${ARGS[@]}"
+aleph-node "${ARGS[@]}"
