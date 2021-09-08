@@ -79,7 +79,7 @@ impl ChainParams {
     pub fn chain_id(&self) -> &str {
         match &self.chain_name {
             Some(id) => id,
-            None => "a0tnet1",
+            None => "a0dnet1",
         }
     }
 
