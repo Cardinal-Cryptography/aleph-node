@@ -124,7 +124,7 @@ mod tests {
                 .block;
 
             blocks.push(block.header.hash());
-            futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
+            client.import(BlockOrigin::Own, block).unwrap();
         }
 
         blocks
@@ -181,7 +181,7 @@ mod tests {
                     .unwrap();
                 let block = builder.build().unwrap().block;
                 let hash = block.header.hash();
-                futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
+                client.import(BlockOrigin::Own, block).unwrap();
                 hash
             })
             .collect();

@@ -73,13 +73,9 @@ async fn import_blocks(
         if finalize {
             client
                 .import_as_final(BlockOrigin::Own, block.clone())
-                .await
                 .unwrap();
         } else {
-            client
-                .import(BlockOrigin::Own, block.clone())
-                .await
-                .unwrap();
+            client.import(BlockOrigin::Own, block.clone()).unwrap();
         }
         blocks.push(AlephData::new(block.header.hash(), block.header.number));
     }
@@ -127,10 +123,7 @@ async fn sends_messages_after_import() {
     store_tx
         .unbounded_send(TestNetworkData { data: vec![data] })
         .unwrap();
-    client
-        .import(BlockOrigin::Own, block.clone())
-        .await
-        .unwrap();
+    client.import(BlockOrigin::Own, block.clone()).unwrap();
 
     let message = store_rx.next().await.expect("We own the tx");
     assert_eq!(message.included_blocks(), vec![data]);
@@ -189,7 +182,6 @@ async fn does_not_send_messages_without_import() {
 
     client
         .import(BlockOrigin::Own, imported_block.clone())
-        .await
         .unwrap();
 
     let not_imported_block = client

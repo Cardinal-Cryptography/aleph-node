@@ -18,27 +18,29 @@ futures = "0.3"
 futures-timer = "3.0"
 parking_lot = "0.11"
 parity-util-mem = "0.9"
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", version = "0.9.0"}
-sp-keystore = "0.9.0"
-sc-network = "0.9.0"
-sc-telemetry = "3.0.0"
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-keystore = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sc-network = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sc-telemetry = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
 aleph-bft = { git = "https://github.com/Cardinal-Cryptography/AlephBFT/", rev = "ffff285"}
 serde = "1.0"
-sc-service = "0.9.0"
-sp-application-crypto = "3.0.0"
-sp-core = "3.0.0"
-sp-runtime = "3.0.0"
-sp-state-machine = "0.9.0"
-sp-trie = "3.0.0"
-sp-utils = "3.0.0"
-sp-api = "3.0.0"
-sp-blockchain = "3.0.0"
-sp-consensus= "0.9.0"
-sc-client-api = "3.0.0"
-sp-io= "3.0.0"
+sc-service = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-core = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-state-machine = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-trie = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-utils = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-api = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-blockchain = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-consensus= { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sc-client-api = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+sp-io= { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
 derive_more = "0.99.7"
 env_logger = "0.8.3"
 async-trait = "0.1.42"
 
 [dev-dependencies]
-sc-block-builder = "0.9.0"
+sc-block-builder = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+substrate-test-runtime = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}
+substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate.git", rev = "49a4103"}

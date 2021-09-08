@@ -292,7 +292,6 @@ async fn authenticates_to_connected() {
         remote: bob_peer_id.into(),
         protocol: Cow::Borrowed(PROTOCOL_NAME),
         role: ObservedRole::Authority,
-        negotiated_fallback: None,
     });
     let (peer_id, protocol, message) = data
         .network
@@ -440,7 +439,6 @@ async fn test_send() {
         remote: bob_peer_id.into(),
         protocol: Cow::Borrowed(PROTOCOL_NAME),
         role: ObservedRole::Authority,
-        negotiated_fallback: None,
     });
     // Wait for acknowledgement that Alice noted Bob's presence.
     data.network
@@ -497,7 +495,6 @@ async fn test_broadcast() {
             remote: peer_id.0,
             protocol: Cow::Borrowed(PROTOCOL_NAME),
             role: ObservedRole::Authority,
-            negotiated_fallback: None,
         });
         // Wait for acknowledgement that Alice noted the nodes presence.
         data.network

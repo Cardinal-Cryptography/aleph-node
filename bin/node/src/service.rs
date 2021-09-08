@@ -86,7 +86,7 @@ pub fn new_partial(
 
     let import_queue = sc_consensus_aura::import_queue::<_, _, _, AuraPair, _, _>(
         sc_consensus_aura::slot_duration(&*client)?,
-        aura_block_import.clone(),
+        aura_block_import,
         Some(Box::new(aleph_block_import.clone())),
         client.clone(),
         inherent_data_providers.clone(),
@@ -211,7 +211,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             block_import,
             proposer,
             network.clone(),
-            inherent_data_providers.clone(),
+            inherent_data_providers,
             force_authoring,
             backoff_authoring_blocks,
             keystore_container.sync_keystore(),
