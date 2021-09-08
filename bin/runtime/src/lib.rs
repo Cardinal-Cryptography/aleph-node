@@ -328,7 +328,6 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    // The () SessionManager makes always a new session with the same set of validators as before.
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
