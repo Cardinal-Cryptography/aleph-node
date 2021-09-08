@@ -78,7 +78,7 @@ pub struct ChainParams {
 impl ChainParams {
     pub fn chain_id(&self) -> &str {
         match &self.chain_name {
-            Some(id) => &id,
+            Some(id) => id,
             None => "a0tnet1",
         }
     }
@@ -98,14 +98,14 @@ impl ChainParams {
 
     pub fn token_symbol(&self) -> &str {
         match &self.token_symbol {
-            Some(symbol) => &symbol,
+            Some(symbol) => symbol,
             None => "DZERO",
         }
     }
 
     pub fn chain_name(&self) -> &str {
         match &self.chain_name {
-            Some(name) => &name,
+            Some(name) => name,
             None => "Aleph Zero Development",
         }
     }

@@ -61,7 +61,7 @@ impl BootstrapChainCmd {
             .iter()
             .map(|authority| {
                 let authority_keystore = self
-                    .open_keystore(authority, &chain_id)
+                    .open_keystore(authority, chain_id)
                     .unwrap_or_else(|_| panic!("Cannot open keystore for {}", authority));
 
                 let aura_key = aura_key(Deref::deref(&authority_keystore));
@@ -83,7 +83,7 @@ impl BootstrapChainCmd {
             chain_spec::DEVNET_ID => {
                 chain_spec::development_config(self.chain_params.clone(), genesis_authorities)
             }
-            _ => chain_spec::config(self.chain_params.clone(), genesis_authorities, &chain_id),
+            _ => chain_spec::config(self.chain_params.clone(), genesis_authorities, chain_id),
         };
 
         let spec = chain_spec?;
