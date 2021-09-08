@@ -17,7 +17,7 @@ services:
       - BASE_PATH=/tmp/Damian
       - NODE_KEY_PATH=/tmp/Damian/libp2p_secret
       - CHAIN=/tmp/chainspec.json
-      - BOOT_NODES='/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
       - ./data/:/tmp/
 
@@ -36,7 +36,7 @@ services:
       - BASE_PATH=/tmp/Tomasz
       - NODE_KEY_PATH=/tmp/Tomasz/libp2p_secret
       - CHAIN=/tmp/chainspec.json
-      - BOOT_NODES='/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
       - ./data/:/tmp/
 
@@ -55,7 +55,7 @@ services:
       - BASE_PATH=/tmp/Zbyszko
       - NODE_KEY_PATH=/tmp/Zbyszko/libp2p_secret
       - CHAIN=/tmp/chainspec.json
-      - BOOT_NODES='/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
       - ./data/:/tmp/
 
@@ -74,6 +74,6 @@ services:
       - BASE_PATH=/tmp/Hansu
       - NODE_KEY_PATH=/tmp/Hansu/libp2p_secret
       - CHAIN=/tmp/chainspec.json
-      - BOOT_NODES='/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm'
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
       - ./data/:/tmp/
