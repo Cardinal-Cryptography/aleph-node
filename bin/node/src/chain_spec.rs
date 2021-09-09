@@ -118,9 +118,8 @@ impl ChainParams {
             Some(ids) => ids
                 .iter()
                 .map(|id| {
-                    AccountId::from_string(id.as_str()).expect(
-                        "Passed string does not conform to SS58 (aka AccountId) encoding scheme",
-                    )
+                    AccountId::from_string(id.as_str())
+                        .expect("Passed string is not a hex encoding of a public key")
                 })
                 .collect(),
             None => {
