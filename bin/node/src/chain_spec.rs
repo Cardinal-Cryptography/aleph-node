@@ -116,7 +116,7 @@ impl ChainParams {
     pub fn account_ids(&self) -> Vec<AccountId> {
         match &self.account_ids {
             Some(ids) => ids
-                .into_iter()
+                .iter()
                 .map(|id| {
                     let id = id.as_str();
                     let key: sr25519::Public =
