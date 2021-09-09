@@ -73,7 +73,7 @@ pub struct ChainParams {
 
     /// Pass the AccountIds of authorities forming the committe at the genesis
     ///
-    /// Expects a delimited collection of accountIds in Substrate's SS58 scheme passes as strings
+    /// Expects a delimited collection of accountIds
     #[structopt(long, require_delimiter = true)]
     account_ids: Option<Vec<String>>,
 
@@ -125,7 +125,7 @@ impl ChainParams {
             None => {
                 let n_members = self
                     .n_members
-                    .expect("Pass account-ids or n_members argument");
+                    .expect("Pass account-ids or n-members argument");
 
                 (0..n_members)
                     .into_iter()
