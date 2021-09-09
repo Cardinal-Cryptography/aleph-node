@@ -71,11 +71,11 @@ pub struct ChainParams {
     #[structopt(long)]
     pub token_symbol: Option<String>,
 
-    /// Pass the sr25519 public keys of authorities forming the committe at the genesis
+    /// Pass the AccountIds of authorities forming the committe at the genesis
     ///
-    /// Expects a delimited collection of public keys (strings)
+    /// Expects a delimited collection of accountIds in Substrate's SS58 scheme passes as strings
     #[structopt(long, require_delimiter = true)]
-    authorities_pkeys: Option<Vec<String>>,
+    account_ids: Option<Vec<String>>,
 
     #[structopt(long)]
     n_members: Option<u32>,
@@ -114,7 +114,7 @@ impl ChainParams {
     }
 
     pub fn account_ids(&self) -> Vec<AccountId> {
-        match &self.authorities_pkeys {
+        match &self.account_ids {
             Some(ids) => ids
                 .iter()
                 .map(|id| sr25519::Public::from_ss58check(id).unwrap().into())
