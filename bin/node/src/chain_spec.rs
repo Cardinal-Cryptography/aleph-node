@@ -52,8 +52,8 @@ pub struct ChainParams {
     /// Pass the chain id.
     ///
     /// It can be a predefined one (dev) or an arbitrary chain id passed to the genesis block
-    #[structopt(long, value_name = "CHAIN_SPEC")]
-    pub chain_id: Option<String>,
+    #[structopt(long, value_name = "CHAIN_SPEC", default_value = "a0dnet1")]
+    pub chain_id: String,
 
     /// Specify custom base path.
     #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
@@ -83,10 +83,7 @@ pub struct ChainParams {
 
 impl ChainParams {
     pub fn chain_id(&self) -> &str {
-        match &self.chain_id {
-            Some(id) => id,
-            None => "a0dnet1",
-        }
+        &self.chain_id
     }
 
     pub fn base_path(&self) -> BasePath {
