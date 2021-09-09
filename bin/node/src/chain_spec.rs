@@ -117,7 +117,11 @@ impl ChainParams {
         match &self.account_ids {
             Some(ids) => ids
                 .iter()
-                .map(|id| sr25519::Public::from_ss58check(id).unwrap().into())
+                .map(|id| {
+                    AccountId::from_string(id.as_str()).expect(
+                        "Passed string does not conform to SS58 (aka AccountId) encoding scheme",
+                    )
+                })
                 .collect(),
             None => {
                 let n_members = self
