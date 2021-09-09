@@ -1,4 +1,4 @@
-use crate::chain_spec::{self, get_account_id_from_seed, AuthorityKeys, ChainParams};
+use crate::chain_spec::{self, AuthorityKeys, ChainParams};
 use aleph_primitives::AuthorityId as AlephId;
 use log::info;
 use sc_cli::{Error, KeystoreParams};
@@ -6,7 +6,6 @@ use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
 use std::io::Write;
 use std::ops::Deref;
@@ -68,8 +67,8 @@ impl BootstrapChainCmd {
 
                 let aura_key = aura_key(Deref::deref(&authority_keystore));
                 let aleph_key = aleph_key(Deref::deref(&authority_keystore));
-
                 let account_id = account_id.to_owned();
+
                 AuthorityKeys {
                     account_id,
                     aura_key,

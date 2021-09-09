@@ -73,6 +73,9 @@ pub struct ChainParams {
 
     #[structopt(long, require_delimiter = true)]
     account_ids: Option<Vec<String>>,
+
+    #[structopt(long, require_delimiter = true)]
+    n_members: Option<u32>,
 }
 
 impl ChainParams {
@@ -121,22 +124,21 @@ impl ChainParams {
                     key.into()
                 })
                 .collect(),
-            None => todo!(),
+            None => {
+                let n_members = self
+                    .n_members
+                    .expect("Pass account-ids or n_members argument");
+
+                (0..n_members)
+                    .into_iter()
+                    .map(|id| {
+                        let seed = id.to_string();
+                        get_account_id_from_seed::<sr25519::Public>(&seed.as_str())
+                    })
+                    .collect()
+            }
         }
     }
-
-    // pub fn account_ids(&self) -> Vec<sr25519::Public> {
-    //     match &self.account_ids {
-    //         Some(ids) => ids
-    //             .into_iter()
-    //             .map(|id| {
-    //                 let id = id.as_str();
-    //                 hex::decode(id).unwrap().as_slice().try_into().unwrap()
-    //             })
-    //             .collect(),
-    //         None => todo!(),
-    //     }
-    // }
 }
 
 pub fn development_config(
