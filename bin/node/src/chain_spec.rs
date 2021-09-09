@@ -71,6 +71,9 @@ pub struct ChainParams {
     #[structopt(long)]
     pub token_symbol: Option<String>,
 
+    /// Pass the sr25519 public keys of authorities forming the committe at the genesis
+    ///
+    /// Expects a delimited collection of public keys (strings)
     #[structopt(long, require_delimiter = true)]
     authorities_pkeys: Option<Vec<String>>,
 
