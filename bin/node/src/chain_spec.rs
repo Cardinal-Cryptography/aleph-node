@@ -11,15 +11,12 @@ use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::convert::TryInto;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
-
-pub const LOCAL_AUTHORITIES: [&str; 8] = [
-    "Damian", "Tomasz", "Zbyszko", "Hansu", "Adam", "Matt", "Antoni", "Michal",
-];
 
 pub const DEVNET_ID: &str = "dev";
 
@@ -73,6 +70,9 @@ pub struct ChainParams {
 
     #[structopt(long)]
     pub token_symbol: Option<String>,
+
+    #[structopt(long, require_delimiter = true)]
+    account_ids: Option<Vec<String>>,
 }
 
 impl ChainParams {
@@ -109,6 +109,34 @@ impl ChainParams {
             None => "Aleph Zero Development",
         }
     }
+
+    pub fn account_ids(&self) -> Vec<AccountId> {
+        match &self.account_ids {
+            Some(ids) => ids
+                .into_iter()
+                .map(|id| {
+                    let id = id.as_str();
+                    let key: sr25519::Public =
+                        hex::decode(id).unwrap().as_slice().try_into().unwrap();
+                    key.into()
+                })
+                .collect(),
+            None => todo!(),
+        }
+    }
+
+    // pub fn account_ids(&self) -> Vec<sr25519::Public> {
+    //     match &self.account_ids {
+    //         Some(ids) => ids
+    //             .into_iter()
+    //             .map(|id| {
+    //                 let id = id.as_str();
+    //                 hex::decode(id).unwrap().as_slice().try_into().unwrap()
+    //             })
+    //             .collect(),
+    //         None => todo!(),
+    //     }
+    // }
 }
 
 pub fn development_config(

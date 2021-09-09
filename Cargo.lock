@@ -125,6 +125,7 @@ dependencies = [
  "aleph-runtime",
  "finality-aleph",
  "futures 0.3.16",
+ "hex",
  "hex-literal",
  "jsonrpc-core",
  "log",
