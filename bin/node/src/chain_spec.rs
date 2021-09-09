@@ -74,7 +74,7 @@ pub struct ChainParams {
     #[structopt(long, require_delimiter = true)]
     account_ids: Option<Vec<String>>,
 
-    #[structopt(long, require_delimiter = true)]
+    #[structopt(long)]
     n_members: Option<u32>,
 }
 
