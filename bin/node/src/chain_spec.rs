@@ -8,6 +8,7 @@ use aleph_runtime::{
 use hex_literal::hex;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
@@ -43,7 +44,7 @@ where
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct AuthorityKeys {
     pub account_id: AccountId,
     pub aura_key: AuraId,
