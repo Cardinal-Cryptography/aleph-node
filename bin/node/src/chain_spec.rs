@@ -8,10 +8,10 @@ use aleph_runtime::{
 use hex_literal::hex;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
+use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use std::convert::TryInto;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -72,7 +72,7 @@ pub struct ChainParams {
     pub token_symbol: Option<String>,
 
     #[structopt(long, require_delimiter = true)]
-    account_ids: Option<Vec<String>>,
+    authorities_pkeys: Option<Vec<String>>,
 
     #[structopt(long)]
     n_members: Option<u32>,
@@ -80,7 +80,7 @@ pub struct ChainParams {
 
 impl ChainParams {
     pub fn chain_id(&self) -> &str {
-        match &self.chain_name {
+        match &self.chain_id {
             Some(id) => id,
             None => "a0dnet1",
         }
@@ -114,15 +114,10 @@ impl ChainParams {
     }
 
     pub fn account_ids(&self) -> Vec<AccountId> {
-        match &self.account_ids {
+        match &self.authorities_pkeys {
             Some(ids) => ids
                 .iter()
-                .map(|id| {
-                    let id = id.as_str();
-                    let key: sr25519::Public =
-                        hex::decode(id).unwrap().as_slice().try_into().unwrap();
-                    key.into()
-                })
+                .map(|id| sr25519::Public::from_ss58check(id).unwrap().into())
                 .collect(),
             None => {
                 let n_members = self
