@@ -82,17 +82,6 @@ pub struct ChainParams {
 
     #[structopt(long)]
     n_members: Option<u32>,
-
-    /// Pass the AccountId of a new node
-    ///
-    /// Expects a string with an AccountId
-    /// If this argument is not passed a random Id will be generated using node_name argument as seed
-    #[structopt(long, require_delimiter = true)]
-    account_id: Option<String>,
-
-    /// human-readable node name used as a seed to generate AccountId
-    #[structopt(long)]
-    pub node_name: Option<String>,
 }
 
 impl ChainParams {
@@ -124,23 +113,6 @@ impl ChainParams {
         match &self.chain_name {
             Some(name) => name,
             None => "Aleph Zero Development",
-        }
-    }
-
-    // TODO : genrate random name if None arm
-    pub fn node_name(&self) -> &str {
-        match &self.node_name {
-            Some(name) => name,
-            None => todo!(),
-        }
-    }
-
-    // TODO
-    pub fn account_id(&self) -> AccountId {
-        match &self.account_id {
-            Some(id) => AccountId::from_string(id.as_str())
-                .expect("Passed string is not a hex encoding of a public key"),
-            None => get_account_id_from_seed::<sr25519::Public>(&self.node_name()),
         }
     }
 

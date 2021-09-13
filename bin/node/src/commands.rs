@@ -1,4 +1,4 @@
-use crate::chain_spec::{self, AuthorityKeys, ChainParams};
+use crate::chain_spec::{self, get_account_id_from_seed, AuthorityKeys, ChainParams};
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
 use log::info;
@@ -6,7 +6,9 @@ use sc_cli::{Error, KeystoreParams};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::key_types;
+use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
 use std::io::Write;
 use structopt::StructOpt;
@@ -124,8 +126,16 @@ impl BootstrapChainCmd {
 /// private keys are stored in a specified keystore, and the public keys are written to stdout.
 #[derive(Debug, StructOpt)]
 pub struct BootstrapNodeCmd {
+    /// Pass the AccountId of a new node
+    ///
+    /// Expects a string with an AccountId
+    /// If this argument is not passed a random Id will be generated using node_name argument as seed
     #[structopt(long)]
-    pub authority: String,
+    account_id: Option<String>,
+
+    /// human-readable authority name used as a seed to generate the AccountId
+    #[structopt(long)]
+    pub authority: Option<String>,
 
     #[structopt(flatten)]
     pub keystore_params: KeystoreParams,
@@ -136,16 +146,28 @@ pub struct BootstrapNodeCmd {
 
 impl BootstrapNodeCmd {
     pub fn run(&self) -> Result<(), Error> {
-        // TODO : use AccountID
-
-        let account_id = &self.chain_params.account_id();
+        let account_id = &self.account_id();
         let authority = account_id.to_string();
         let keystore = open_keystore(&self.keystore_params, &self.chain_params, &authority);
 
         let authority_keys = authority_keys(&keystore, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
-            .expect("serialization of authority keys should succeeed");
+            .expect("serialization of authority keys should have succeeed");
         println!("{}", keys_json);
         Ok(())
+    }
+
+    pub fn account_id(&self) -> AccountId {
+        match &self.account_id {
+            Some(id) => AccountId::from_string(id.as_str())
+                .expect("Passed string is not a hex encoding of a public key"),
+            None => get_account_id_from_seed::<sr25519::Public>(
+                &self
+                    .authority
+                    .clone()
+                    .expect("Pass account-id or node-name argument")
+                    .as_str(),
+            ),
+        }
     }
 }
