@@ -1,14 +1,12 @@
-use crate::chain_spec::{
-    self, get_account_id_from_seed, AuthorityKeys, ChainParams, LOCAL_AUTHORITIES,
-};
+use crate::chain_spec::{self, AuthorityKeys, ChainParams};
 use aleph_primitives::AuthorityId as AlephId;
+use aleph_runtime::AccountId;
 use log::info;
 use sc_cli::{Error, KeystoreParams};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::key_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
 use std::io::Write;
 use structopt::StructOpt;
@@ -60,11 +58,10 @@ fn open_keystore(
     }
 }
 
-fn authority_keys(keystore: &impl SyncCryptoStore, authority: &str) -> AuthorityKeys {
+fn authority_keys(keystore: &impl SyncCryptoStore, account_id: &AccountId) -> AuthorityKeys {
     let aura_key = aura_key(keystore);
     let aleph_key = aleph_key(keystore);
-    // NOTE : the account_id's should definitely not be generated from seed in case of testnet and mainnet
-    let account_id = get_account_id_from_seed::<sr25519::Public>(&authority);
+    let account_id = account_id.to_owned();
 
     AuthorityKeys {
         account_id,
@@ -91,11 +88,14 @@ pub struct BootstrapChainCmd {
 
 impl BootstrapChainCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let genesis_authorities = LOCAL_AUTHORITIES
+        let genesis_authorities = self
+            .chain_params
+            .account_ids()
             .iter()
-            .map(|authority| {
-                let keystore = open_keystore(&self.keystore_params, &self.chain_params, authority);
-                authority_keys(&keystore, authority)
+            .map(|account_id| {
+                let authority = account_id.to_string();
+                let keystore = open_keystore(&self.keystore_params, &self.chain_params, &authority);
+                authority_keys(&keystore, account_id)
             })
             .collect();
 
@@ -136,14 +136,13 @@ pub struct BootstrapNodeCmd {
 
 impl BootstrapNodeCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let authority = &self.authority;
-        let keystore = open_keystore(
-            &self.keystore_params,
-            &self.chain_params,
-            authority.as_str(),
-        );
+        // TODO : use AccountID
 
-        let authority_keys = authority_keys(&keystore, authority.as_str());
+        let account_id = &self.chain_params.account_id();
+        let authority = account_id.to_string();
+        let keystore = open_keystore(&self.keystore_params, &self.chain_params, &authority);
+
+        let authority_keys = authority_keys(&keystore, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should succeeed");
         println!("{}", keys_json);
