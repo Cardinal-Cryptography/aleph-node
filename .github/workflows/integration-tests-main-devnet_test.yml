@@ -1,4 +1,4 @@
-name: integration-tests
+name: integration-tests-main-devnet_test
 
 on:
   pull_request:
