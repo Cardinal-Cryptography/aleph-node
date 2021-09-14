@@ -63,7 +63,7 @@ fn open_keystore(
 fn authority_keys(keystore: &impl SyncCryptoStore, account_id: &AccountId) -> AuthorityKeys {
     let aura_key = aura_key(keystore);
     let aleph_key = aleph_key(keystore);
-    let account_id = account_id.to_owned();
+    let account_id = account_id.clone();
 
     AuthorityKeys {
         account_id,
@@ -129,13 +129,13 @@ pub struct BootstrapNodeCmd {
     /// Pass the AccountId of a new node
     ///
     /// Expects a string with an AccountId
-    /// If this argument is not passed a random Id will be generated using node_name argument as seed
+    /// If this argument is not passed a random Id will be generated using account-seed argument as seed
     #[structopt(long)]
     account_id: Option<String>,
 
     /// human-readable authority name used as a seed to generate the AccountId
     #[structopt(long)]
-    pub authority: Option<String>,
+    pub acount_seed: Option<String>,
 
     #[structopt(flatten)]
     pub keystore_params: KeystoreParams,
@@ -152,7 +152,7 @@ impl BootstrapNodeCmd {
 
         let authority_keys = authority_keys(&keystore, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
-            .expect("serialization of authority keys should have succeeed");
+            .expect("serialization of authority keys should have succeed");
         println!("{}", keys_json);
         Ok(())
     }
@@ -163,7 +163,7 @@ impl BootstrapNodeCmd {
                 .expect("Passed string is not a hex encoding of a public key"),
             None => get_account_id_from_seed::<sr25519::Public>(
                 &self
-                    .authority
+                    .acount_seed
                     .clone()
                     .expect("Pass account-id or node-name argument")
                     .as_str(),
