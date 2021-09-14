@@ -58,7 +58,7 @@ pub struct ChainParams {
 
     /// Specify custom base path.
     #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
-    pub base_path: Option<PathBuf>,
+    pub base_path: PathBuf,
 
     #[structopt(long)]
     pub session_period: Option<u32>,
@@ -90,7 +90,7 @@ impl ChainParams {
     }
 
     pub fn base_path(&self) -> BasePath {
-        self.base_path.clone().unwrap().into()
+        self.base_path.clone().into()
     }
 
     pub fn millisecs_per_block(&self) -> u64 {

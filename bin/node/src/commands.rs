@@ -135,7 +135,7 @@ pub struct BootstrapNodeCmd {
 
     /// human-readable authority name used as a seed to generate the AccountId
     #[structopt(long)]
-    pub acount_seed: Option<String>,
+    pub account_seed: Option<String>,
 
     #[structopt(flatten)]
     pub keystore_params: KeystoreParams,
@@ -163,7 +163,7 @@ impl BootstrapNodeCmd {
                 .expect("Passed string is not a hex encoding of a public key"),
             None => get_account_id_from_seed::<sr25519::Public>(
                 &self
-                    .acount_seed
+                    .account_seed
                     .clone()
                     .expect("Pass account-id or node-name argument")
                     .as_str(),
