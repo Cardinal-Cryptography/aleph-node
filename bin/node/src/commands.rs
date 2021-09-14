@@ -122,56 +122,7 @@ impl BootstrapChainCmd {
     }
 }
 
-#[derive(Debug, StructOpt)]
-pub enum Account {
-    /// Pass the AccountId of a new node
-    ///
-    /// Expects a string with an AccountId
-    /// If this argument is not passed a random Id will be generated using account-seed argument as seed
-    AccountID { account_id: String },
-
-    /// human-readable authority name used as a seed to generate the AccountId
-    AccountSeed { account_seed: String },
-}
-
 /// The `bootstrap-node` command is used to generate key pairs for a single authority
-/// private keys are stored in a specified keystore, and the public keys are written to stdout.
-#[derive(Debug, StructOpt)]
-pub struct BootstrapNodeCmd {
-    #[structopt(flatten)]
-    pub account: Account,
-
-    #[structopt(flatten)]
-    pub keystore_params: KeystoreParams,
-
-    #[structopt(flatten)]
-    pub chain_params: ChainParams,
-}
-
-impl BootstrapNodeCmd {
-    pub fn run(&self) -> Result<(), Error> {
-        let account_id = &self.account_id();
-        let authority = account_id.to_string();
-        let keystore = open_keystore(&self.keystore_params, &self.chain_params, &authority);
-
-        let authority_keys = authority_keys(&keystore, account_id);
-        let keys_json = serde_json::to_string_pretty(&authority_keys)
-            .expect("serialization of authority keys should have succeed");
-        println!("{}", keys_json);
-        Ok(())
-    }
-
-    pub fn account_id(&self) -> AccountId {
-        match &self.account {
-            Account::AccountID { account_id } => AccountId::from_string(account_id.as_str())
-                .expect("Passed string is not a hex encoding of a public key"),
-            Account::AccountSeed { account_seed } => {
-                get_account_id_from_seed::<sr25519::Public>(&account_seed.clone().as_str())
-            }
-        }
-    }
-}
-
 /// private keys are stored in a specified keystore, and the public keys are written to stdout.
 #[derive(Debug, StructOpt)]
 pub struct BootstrapNodeCmd {
