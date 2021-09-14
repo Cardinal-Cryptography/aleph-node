@@ -134,7 +134,7 @@ pub struct BootstrapNodeCmd {
     account_id: Option<String>,
 
     /// human-readable authority name used as a seed to generate the AccountId
-    #[structopt(long)]
+    #[structopt(long, required_unless = "account-id")]
     pub account_seed: Option<String>,
 
     #[structopt(flatten)]
