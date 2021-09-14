@@ -162,18 +162,21 @@ jobs:
 
       # note: more complex test scenarios can be run from here on out
 
-      - name: Configure AWS credentials                          
+      - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v1           
         with:                                                    
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}      
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      - name: Login to Amazon ECR            
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: login-ecr                        
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Push aleph-node Current Image to ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:                                                       
           CURRENT_IMAGE: aleph-node:latest
           ECR_PUSH_IMAGE: ${{ steps.login-ecr.outputs.registry }}/aleph-node:${{ steps.vars.outputs.sha_short }}
