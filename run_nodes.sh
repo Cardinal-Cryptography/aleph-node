@@ -39,6 +39,7 @@ validator_ids_string="${validator_ids[*]}"
 validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
 
+echo "Bootstrapping chain for nodes 0..$((n_validators - 1))"
 ./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id dev --account-ids "$validator_ids_string" > docker/data/chainspec.json
 
 
