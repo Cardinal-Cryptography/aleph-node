@@ -1,10 +1,10 @@
 #!/bin/bash
 
-if [ -z "$1" ] || (("$1" < 2 || "$1" > 8))
+if [ -z "$2" ] || (("$1" < 2 || "$2" < 0 || $(expr "$1" + "$2") > 10))
 then
-    echo "The committee size is missing, usage:
-    ./run_nodes.sh SIZE [Additional Arguments to ./target/debug/aleph-node]
-where 2 <= SIZE <= 8"
+    echo "Usage:
+    ./run_nodes.sh n_validators n_non_validators [Additional Arguments to ./target/debug/aleph-node]
+where 2 <= n_validators <= n_validators + n_non_validators <= 10"
     exit
 fi
 
@@ -14,8 +14,9 @@ set -e
 
 clear
 
-n_members="$1"
-# echo "$n_members" > /tmp/n_members
+n_validators="$1"
+n_non_validators="$2"
+shift
 shift
 
 # cargo build --release -p aleph-node
@@ -31,31 +32,37 @@ account_ids=(
     "5GHJzqvG6tXnngCpG7B12qjUvbo5e4e9z8Xjidk3CQZHxTPZ" \
     "5CUnSsgAyLND3bxxnfNhgWXSe9Wn676JzLpGLgyJv858qhoX" \
     "5CVKn7HAZW1Ky4r7Vkgsr7VEW88C2sHgUNDiwHY9Ct2hjU8q")
-account_ids=("${account_ids[@]::$n_members}")
+validator_ids=("${account_ids[@]::$n_validators}")
 # space separated ids
-account_ids_string="${account_ids[*]}"
+validator_ids_string="${validator_ids[*]}"
 # comma separated ids
-account_ids_string="${account_ids_string//${IFS:0:1}/,}"
+validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
-authorities=(Damian Tomasz Zbyszko Hansu Adam Matt Antoni Michal)
-authorities=("${authorities[@]::$n_members}")
 
-./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id dev --account-ids "$account_ids_string" > docker/data/chainspec.json
+./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id dev --account-ids "$validator_ids_string" > docker/data/chainspec.json
 
-for i in ${!account_ids[@]}; do
-  auth=${authorities[$i]}
+
+
+for i in $(seq "$n_validators" "$(( n_validators + n_non_validators - 1 ))"); do
+  echo "Bootstrapping node $i"
+  account_id=${account_ids[$i]}
+  ./target/release/aleph-node bootstrap-node --base-path docker/data --chain-id dev --account-id "$account_id"
+done
+
+for i in $(seq 0 "$(( n_validators + n_non_validators - 1 ))"); do
+  auth="node-$i"
   account_id=${account_ids[$i]}
   ./target/release/aleph-node purge-chain --base-path "docker/data/$account_id" --chain docker/data/chainspec.json -y
   ./target/release/aleph-node \
     --validator \
     --chain docker/data/chainspec.json \
     --base-path "docker/data/$account_id" \
-    --name $auth \
-    --rpc-port $(expr 9933 + $i) \
-    --ws-port $(expr 9944 + $i) \
-    --port $(expr 30334 + $i) \
+    --name "$auth" \
+    --rpc-port "$((9933 + i))" \
+    --ws-port "$((9944 + i))" \
+    --port "$((30334 + i))" \
     --execution Native \
     -lafa=debug \
     "$@" \
-    2> $auth-$i.log  > aleph-node.log & \
+    2> "$auth.log" > /dev/null & \
 done
