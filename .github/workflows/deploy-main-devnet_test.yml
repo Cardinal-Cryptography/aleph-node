@@ -10,7 +10,7 @@ on:
 
 jobs:
   deploy-devnet:
-    if: github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success'
+    if: github.ref == 'refs/heads/task/A0-306' && github.event.workflow_run.conclusion == 'success'
     name: Push latest docker image
     environment:
       name: devnet
