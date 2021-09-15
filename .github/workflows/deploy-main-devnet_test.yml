@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["integration-tests-main-devnet_test"]
     branches:
-      - main
+      - task/A0-306
     types:
       - completed
 
