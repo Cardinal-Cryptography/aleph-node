@@ -6,13 +6,13 @@ on:
         - ".github/**"
         - "*.md"
     branches:
-      - main
+      - task/A0-306
   push:
     paths-ignore:
         - ".github/**"
         - "*.md"
     branches:
-      - main
+      - task/A0-306
 
 jobs:
   build:
