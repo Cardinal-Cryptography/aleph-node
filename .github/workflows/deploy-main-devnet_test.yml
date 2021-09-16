@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: Cardinal-Cryptography/aleph-apps
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
 
       - name: Init kustomize
