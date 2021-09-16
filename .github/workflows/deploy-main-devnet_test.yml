@@ -52,7 +52,7 @@ jobs:
 
       - name: Create GitHub deployment
         uses: chrnorm/deployment-action@releases/v1
-        id: deployment
+        id: devnet
         with:
           token: "${{ secrets.GH_TOKEN }}"
           environment: devnet
