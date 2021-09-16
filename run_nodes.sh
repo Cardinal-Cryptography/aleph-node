@@ -2,20 +2,22 @@
 
 function usage(){
   echo "Usage:
-      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [ALEPH_NODE_ARG]...
+      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-s] [ALEPH_NODE_ARG]...
   where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS <= 10
   (by default, N_VALIDATORS=4 and N_NON_VALIDATORS=0)"
 }
 
 N_VALIDATORS=4
 N_NON_VALIDATORS=0
+BUILD_ALEPH_NODE='true'
 
-while getopts "v:n:" flag
+while getopts "v:n:s" flag
 do
   case "${flag}" in
     v) N_VALIDATORS=${OPTARG};;
     n) N_NON_VALIDATORS=${OPTARG};;
-    \?)
+    s) BUILD_ALEPH_NODE='false';;
+    *)
       usage
       exit
       ;;
@@ -30,7 +32,9 @@ set -e
 
 clear
 
-cargo build --release -p aleph-node
+if $BUILD_ALEPH_NODE ; then
+  cargo build --release -p aleph-node
+fi
 
 account_ids=(
     "5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH"
