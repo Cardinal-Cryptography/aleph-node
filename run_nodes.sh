@@ -2,21 +2,23 @@
 
 function usage(){
   echo "Usage:
-      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-s] [ALEPH_NODE_ARG]...
+      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-b false] [-p BASE_PATH] [ALEPH_NODE_ARG]...
   where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS <= 10
-  (by default, N_VALIDATORS=4 and N_NON_VALIDATORS=0)"
+  (by default, N_VALIDATORS=4, N_NON_VALIDATORS=0 and BASE_PATH=/tmp)"
 }
 
 N_VALIDATORS=4
 N_NON_VALIDATORS=0
 BUILD_ALEPH_NODE='true'
+BASE_PATH='/tmp'
 
-while getopts "v:n:s" flag
+while getopts "v:n:b:p" flag
 do
   case "${flag}" in
     v) N_VALIDATORS=${OPTARG};;
     n) N_NON_VALIDATORS=${OPTARG};;
-    s) BUILD_ALEPH_NODE='false';;
+    b) BUILD_ALEPH_NODE=${OPTARG};;
+    p) BASE_PATH=${OPTARG};;
     *)
       usage
       exit
@@ -55,22 +57,22 @@ validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
 
 echo "Bootstrapping chain for nodes 0..$((N_VALIDATORS - 1))"
-./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id dev --account-ids "$validator_ids_string" > docker/data/chainspec.json
+./target/release/aleph-node bootstrap-chain --base-path "$BASE_PATH" --chain-id dev --account-ids "$validator_ids_string" > "$BASE_PATH/chainspec.json"
 
 for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   echo "Bootstrapping node $i"
   account_id=${account_ids[$i]}
-  ./target/release/aleph-node bootstrap-node --base-path docker/data --chain-id dev --account-id "$account_id"
+  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --chain-id dev --account-id "$account_id"
 done
 
 for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   auth="node-$i"
   account_id=${account_ids[$i]}
-  ./target/release/aleph-node purge-chain --base-path "docker/data/$account_id" --chain docker/data/chainspec.json -y
+  ./target/release/aleph-node purge-chain --base-path "$BASE_PATH/$account_id" --chain "$BASE_PATH/chainspec.json" -y
   ./target/release/aleph-node \
     --validator \
-    --chain docker/data/chainspec.json \
-    --base-path "docker/data/$account_id" \
+    --chain "$BASE_PATH/chainspec.json" \
+    --base-path "$BASE_PATH/$account_id" \
     --name "$auth" \
     --rpc-port "$((9933 + i))" \
     --ws-port "$((9944 + i))" \
