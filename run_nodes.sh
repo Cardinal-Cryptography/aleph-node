@@ -1,12 +1,28 @@
 #!/bin/bash
 
-if [ -z "$2" ] || (("$1" < 2 || "$2" < 0 || $(expr "$1" + "$2") > 10))
-then
-    echo "Usage:
-    ./run_nodes.sh n_validators n_non_validators [Additional Arguments to ./target/debug/aleph-node]
-where 2 <= n_validators <= n_validators + n_non_validators <= 10"
-    exit
-fi
+function usage(){
+  echo "Usage:
+      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [ALEPH_NODE_ARG]...
+  where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS <= 10
+  (by default, N_VALIDATORS=4 and N_NON_VALIDATORS=0)"
+}
+
+N_VALIDATORS=4
+N_NON_VALIDATORS=0
+
+while getopts "v:n:" flag
+do
+  case "${flag}" in
+    v) N_VALIDATORS=${OPTARG};;
+    n) N_NON_VALIDATORS=${OPTARG};;
+    \?)
+      usage
+      exit
+      ;;
+  esac
+done
+
+shift $((OPTIND-1))
 
 killall -9 aleph-node
 
@@ -14,12 +30,7 @@ set -e
 
 clear
 
-n_validators="$1"
-n_non_validators="$2"
-shift
-shift
-
-# cargo build --release -p aleph-node
+cargo build --release -p aleph-node
 
 account_ids=(
     "5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH"
@@ -32,25 +43,23 @@ account_ids=(
     "5GHJzqvG6tXnngCpG7B12qjUvbo5e4e9z8Xjidk3CQZHxTPZ" \
     "5CUnSsgAyLND3bxxnfNhgWXSe9Wn676JzLpGLgyJv858qhoX" \
     "5CVKn7HAZW1Ky4r7Vkgsr7VEW88C2sHgUNDiwHY9Ct2hjU8q")
-validator_ids=("${account_ids[@]::$n_validators}")
+validator_ids=("${account_ids[@]::N_VALIDATORS}")
 # space separated ids
 validator_ids_string="${validator_ids[*]}"
 # comma separated ids
 validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
 
-echo "Bootstrapping chain for nodes 0..$((n_validators - 1))"
+echo "Bootstrapping chain for nodes 0..$((N_VALIDATORS - 1))"
 ./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id dev --account-ids "$validator_ids_string" > docker/data/chainspec.json
 
-
-
-for i in $(seq "$n_validators" "$(( n_validators + n_non_validators - 1 ))"); do
+for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   echo "Bootstrapping node $i"
   account_id=${account_ids[$i]}
   ./target/release/aleph-node bootstrap-node --base-path docker/data --chain-id dev --account-id "$account_id"
 done
 
-for i in $(seq 0 "$(( n_validators + n_non_validators - 1 ))"); do
+for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   auth="node-$i"
   account_id=${account_ids[$i]}
   ./target/release/aleph-node purge-chain --base-path "docker/data/$account_id" --chain docker/data/chainspec.json -y
