@@ -11,6 +11,7 @@ BASE_PATH=${BASE_PATH:?'Base path should be specified'}
 RPC_PORT=${RPC_PORT:-9933}
 WS_PORT=${WS_PORT:-9943}
 PORT=${PORT:-30333}
+PUBLIC_ADDR=${PUBLIC_ADDR:-/ip4/127.0.0.1/tcp/$PORT}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -28,6 +29,7 @@ ARGS=(
   --rpc-cors all --rpc-methods Safe # TODO: should we allow to specify them?
   --no-prometheus --no-telemetry # Currently not using. plan to start as soon as capacity is available
   --no-mdns
+  --public-addr "${PUBLIC_ADDR}"
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
@@ -49,5 +51,7 @@ fi
 if [[ -n "${FLAG_L_ALEPH_BFT:-}" ]]; then
   ARGS+=(-lAlephBFT=debug)
 fi
+
+echo "My public address to advertize is: $PUBLIC_ADDR"
 
 aleph-node "${ARGS[@]}"
