@@ -48,7 +48,7 @@ jobs:
           username: ${{ secrets.AWS_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         env:
-          AWS_REGION: eu-central-1
+          AWS_REGION: us-east-1
 
       - name: Create GitHub deployment
         uses: chrnorm/deployment-action@releases/v1
