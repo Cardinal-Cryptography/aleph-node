@@ -11,7 +11,7 @@ on:
 jobs:
   deploy-devnet:
     if: github.ref == 'refs/heads/task/A0-306' && github.event.workflow_run.conclusion == 'success'
-    name: Push latest docker image
+    name: Deploy new aleph-node image to EKS
     environment:
       name: devnet
     runs-on: ubuntu-latest
@@ -40,9 +40,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR            
-        id: login-ecr                        
-        uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr                        
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: eu-central-1
 
       - name: Create GitHub deployment
         uses: chrnorm/deployment-action@releases/v1
@@ -62,41 +68,46 @@ jobs:
         uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.6"
-
-      - name: Update aleph-node docker image and trigger ArgoCD deploy                                                                        
-        env:                                                                                                          
-          RELEASE_IMAGE: ${{ steps.login-ecr.outputs.registry }}/aleph-node:${{ steps.vars.outputs.sha_short }}
+          
+      - name: Check directories
         run: |
-          cd aleph-apps/aleph-node/overlays/maindevnet
-          kustomize edit set image ${{ env.RELEASE_IMAGE }}
+          cd aleph-apps
+          ls -alF
 
-      - name: GIT | Commit changes to aleph-apps repository.
-        uses: EndBug/add-and-commit@v5.1.0
-        with:
-          author_name: AlephZero Automation
-          author_email: alephzero@10clouds.com
-          message: "Updating Devnet docker image tag to: ${{ steps.vars.outputs.sha_short }}"
-          add: "*.yaml"
-          cwd: "aleph-apps"
-          branch: main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+#       - name: Update aleph-node docker image and trigger ArgoCD deploy                                                                        
+#         env:                                                                                                          
+#           RELEASE_IMAGE: ${{ steps.login-ecr.outputs.registry }}/aleph-node:${{ steps.vars.outputs.sha_short }}
+#         run: |
+#           cd aleph-apps/aleph-node/overlays/maindevnet
+#           kustomize edit set image ${{ env.RELEASE_IMAGE }}
 
-      - name: Update deployment status (success)
-        if: success()
-        uses: chrnorm/deployment-status@releases/v1
-        with:
-          token: "${{ secrets.GH_TOKEN }}"
-          state: "success"
-          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+#       - name: GIT | Commit changes to aleph-apps repository.
+#         uses: EndBug/add-and-commit@v5.1.0
+#         with:
+#           author_name: AlephZero Automation
+#           author_email: alephzero@10clouds.com
+#           message: "Updating Devnet docker image tag to: ${{ steps.vars.outputs.sha_short }}"
+#           add: "*.yaml"
+#           cwd: "aleph-apps"
+#           branch: main
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Update deployment status (failure)
-        if: failure()
-        uses: chrnorm/deployment-status@releases/v1
-        with:
-          token: "${{ secrets.GH_TOKEN }}"
-          state: "failure"
-          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+#       - name: Update deployment status (success)
+#         if: success()
+#         uses: chrnorm/deployment-status@releases/v1
+#         with:
+#           token: "${{ secrets.GH_TOKEN }}"
+#           state: "success"
+#           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+
+#       - name: Update deployment status (failure)
+#         if: failure()
+#         uses: chrnorm/deployment-status@releases/v1
+#         with:
+#           token: "${{ secrets.GH_TOKEN }}"
+#           state: "failure"
+#           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
