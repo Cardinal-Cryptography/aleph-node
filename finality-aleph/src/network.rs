@@ -531,6 +531,7 @@ where
     }
 
     fn on_peer_connected(&mut self, peer_id: PeerId) {
+        trace!(target: "afa", "Peer {:?} connected.", peer_id);
         self.peers.insert(peer_id);
         for (_, session_data) in self.sessions.lock().iter() {
             self.authenticate_to(session_data, peer_id);
@@ -538,6 +539,7 @@ where
     }
 
     fn on_peer_disconnected(&mut self, peer_id: &PeerId) {
+        trace!(target: "afa", "Peer {:?} disconnected.", peer_id);
         self.peers.remove(peer_id);
     }
 
@@ -551,10 +553,12 @@ where
                             match event {
                                 Event::SyncConnected { remote } => {
                                     // TODO: understand what does this do
+                                    trace!(target: "afa", "SyncConnected {:?}", remote);
                                     self.network.add_set_reserved(remote.into(), self.protocol.clone());
                                 }
                                 Event::SyncDisconnected { remote } => {
                                     // TODO: understand what does this do
+                                    trace!(target: "afa", "SyncDisconnected {:?}", remote);
                                     self.network
                                         .remove_set_reserved(remote.into(), self.protocol.clone());
                                 }
