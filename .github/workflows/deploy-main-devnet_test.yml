@@ -10,7 +10,7 @@ on:
 
 jobs:
   deploy-devnet:
-    if: github.ref == 'refs/heads/task/A0-306' && github.event.workflow_run.conclusion == 'success'
+    if: github.event.workflow_run.conclusion == 'success'
     name: Deploy new aleph-node image to EKS
     environment:
       name: devnet
@@ -50,13 +50,6 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Create GitHub deployment
-        uses: chrnorm/deployment-action@releases/v1
-        id: devnet
-        with:
-          token: "${{ secrets.GH_TOKEN }}"
-          environment: devnet
-
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
         with:
@@ -92,22 +85,6 @@ jobs:
 #           branch: main
 #         env:
 #           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
-#       - name: Update deployment status (success)
-#         if: success()
-#         uses: chrnorm/deployment-status@releases/v1
-#         with:
-#           token: "${{ secrets.GH_TOKEN }}"
-#           state: "success"
-#           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
-
-#       - name: Update deployment status (failure)
-#         if: failure()
-#         uses: chrnorm/deployment-status@releases/v1
-#         with:
-#           token: "${{ secrets.GH_TOKEN }}"
-#           state: "failure"
-#           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
