@@ -37,7 +37,7 @@ services:
       - NODE_KEY_PATH=/data/5F4H97f7nQovyrbiq4ZetaaviNwThSVcFobcA5aGab6167dK/libp2p_secret
       - CHAIN=/data/chainspec.json
       # - PUBLIC_ADDR=/ip4/172.28.1.2/tcp/30333
-      # - BOOT_DATAS=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
+      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
       - PUBLIC_ADDR=/dns4/tomasz/tcp/30333
       - BOOT_NODES=/dns4/damian/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
@@ -62,7 +62,7 @@ services:
       - NODE_KEY_PATH=/data/5Dfis6XL8J2P6JHUnUtArnFWndn62SydeP8ee8sG2ky9nfm9/libp2p_secret
       - CHAIN=/data/chainspec.json
       # - PUBLIC_ADDR=/ip4/172.28.1.3/tcp/30333
-      # - BOOT_DATAS=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
+      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
       - PUBLIC_ADDR=/dns4/zbyszko/tcp/30333
       - BOOT_NODES=/dns4/damian/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
@@ -87,7 +87,7 @@ services:
       - NODE_KEY_PATH=/data/5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o/libp2p_secret
       - CHAIN=/data/chainspec.json
       # - PUBLIC_ADDR=/ip4/172.28.1.4/tcp/30333
-      # - BOOT_DATAS=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
+      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
       - PUBLIC_ADDR=/dns4/hansu/tcp/30333
       - BOOT_NODES=/dns4/damian/tcp/30333/p2p/12D3KooWAbWDCsZiA6EXrXh33E7hBYUFK53b5CSajoPsYL5n2Zdm
     volumes:
