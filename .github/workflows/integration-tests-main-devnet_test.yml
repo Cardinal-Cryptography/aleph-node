@@ -1,4 +1,4 @@
-name: integration-tests-main-devnet_test
+name: integration-tests-main-devnet
 
 on:
   pull_request:
@@ -6,13 +6,13 @@ on:
         - ".github/**"
         - "*.md"
     branches:
-      - task/A0-306
+      - main
   push:
     paths-ignore:
         - ".github/**"
         - "*.md"
     branches:
-      - task/A0-306
+      - main
 
 jobs:
   build:
