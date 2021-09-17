@@ -131,9 +131,8 @@ jobs:
       - name: Generate chainspec and populate comittee keystores
         shell: bash
         run: |
-          cd ./.github/scripts/
-          ls -alF
-          sudo ./.github/scripts/generate_chainspec.sh
+          chmod +x ./.github/scripts/generate_chainspec.sh ./.github/scripts/check_finalization.sh
+          ./.github/scripts/generate_chainspec.sh
 
       - name: Run consensus party
         run: docker-compose -f docker/docker-compose.yml up -d
