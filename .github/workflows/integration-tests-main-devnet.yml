@@ -2,6 +2,7 @@ name: integration-tests-main-devnet
 
 on:
 <<<<<<< HEAD
+<<<<<<< HEAD
   pull_request:
     paths-ignore:
         - ".github/**"
@@ -14,6 +15,9 @@ on:
         - "*.md"
     branches:
       - main
+=======
+  workflow_dispatch:
+>>>>>>> origin/main
 =======
   workflow_dispatch:
 >>>>>>> origin/main
@@ -128,6 +132,7 @@ jobs:
         id: build-image
         run: |
 <<<<<<< HEAD
+<<<<<<< HEAD
           # copy downloaded artifact to the path that the scripts expect
           mkdir -p target/release/
           cp aleph-node target/release/aleph-node
@@ -154,6 +159,8 @@ jobs:
         timeout-minutes: 5
         run: ./.github/scripts/check_finalization.sh
 =======
+=======
+>>>>>>> origin/main
           mkdir -p target/release/
           # copy artifact
           cp aleph-node target/release/aleph-node
@@ -190,6 +197,9 @@ jobs:
                        -d '{"id":1, "jsonrpc":"2.0", "method": "rpc_methods"}' http://127.0.0.1:$rpc_port
             let rpc_port=$rpc_port+1
           done
+<<<<<<< HEAD
+>>>>>>> origin/main
+=======
 >>>>>>> origin/main
 
       # note: more complex test scenarios can be run from here on out
@@ -202,6 +212,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
+<<<<<<< HEAD
 <<<<<<< HEAD
       - name: Login to Public Amazon ECR
         if: github.event_name == 'push'
@@ -220,6 +231,8 @@ jobs:
           CURRENT_IMAGE: aleph-node:latest
           ECR_PUSH_IMAGE: public.ecr.aws/x2t8a1o3/aleph-node:${{ steps.vars.outputs.sha_short }}
 =======
+=======
+>>>>>>> origin/main
       - name: Login to Amazon ECR
         if: github.event_name == 'push'
         id: login-ecr                        
@@ -230,6 +243,9 @@ jobs:
         env:                                                       
           CURRENT_IMAGE: aleph-node:latest
           ECR_PUSH_IMAGE: ${{ steps.login-ecr.outputs.registry }}/aleph-node:${{ steps.vars.outputs.sha_short }}
+<<<<<<< HEAD
+>>>>>>> origin/main
+=======
 >>>>>>> origin/main
         run: |
           docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
@@ -244,7 +260,11 @@ jobs:
           SLACK_USERNAME: GithubActions
           SLACK_TITLE: integration tests job has finished
 <<<<<<< HEAD
+<<<<<<< HEAD
           MSG_MINIMAL: actions url
+=======
+          MSG_MINIMAL: actions url
+>>>>>>> origin/main
 =======
           MSG_MINIMAL: actions url
 >>>>>>> origin/main
