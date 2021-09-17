@@ -12,7 +12,7 @@ N_NON_VALIDATORS=0
 BUILD_ALEPH_NODE='true'
 BASE_PATH='/tmp'
 
-while getopts "v:n:b:p" flag
+while getopts "v:n:b:p:" flag
 do
   case "${flag}" in
     v) N_VALIDATORS=${OPTARG};;
