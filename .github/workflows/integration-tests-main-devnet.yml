@@ -1,18 +1,22 @@
-name: integration-tests
+name: integration-tests-main-devnet
 
 on:
+<<<<<<< HEAD
   pull_request:
     paths-ignore:
-      - ".github/**"
-      - "*.md"
+        - ".github/**"
+        - "*.md"
     branches:
       - main
   push:
     paths-ignore:
-      - ".github/**"
-      - "*.md"
+        - ".github/**"
+        - "*.md"
     branches:
       - main
+=======
+  workflow_dispatch:
+>>>>>>> origin/main
 
 jobs:
   build:
@@ -43,6 +47,7 @@ jobs:
           curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Restore Cargo Cache
         uses: actions/cache@v2
         with:
@@ -79,6 +84,7 @@ jobs:
           export RUSTC_WRAPPER=$HOME/.local/bin/sccache
           cargo build --release
           chmod +x target/release/aleph-node
+
       - name: Print sccache stats
         run: sccache --show-stats
 
@@ -98,13 +104,20 @@ jobs:
     name: Run integration tests suite
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs
+      - name: GIT | Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.0
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout Source code
+      - name: GIT | Checkout Source code
         uses: actions/checkout@v2
+
+      - name: GIT | Get branch info & current commit sha.
+        id: vars
+        shell: bash
+        run: |
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Download artifact with aleph-node binary
         uses: actions/download-artifact@v2
@@ -114,6 +127,7 @@ jobs:
       - name: Build docker image
         id: build-image
         run: |
+<<<<<<< HEAD
           # copy downloaded artifact to the path that the scripts expect
           mkdir -p target/release/
           cp aleph-node target/release/aleph-node
@@ -121,7 +135,9 @@ jobs:
 
       - name: Generate chainspec and populate comittee keystores
         shell: bash
-        run: ./.github/scripts/generate_chainspec.sh
+        run: |
+          chmod +x ./.github/scripts/generate_chainspec.sh ./.github/scripts/check_finalization.sh
+          ./.github/scripts/generate_chainspec.sh
 
       - name: Run consensus party
         run: docker-compose -f docker/docker-compose.yml up -d
@@ -137,20 +153,87 @@ jobs:
         shell: bash
         timeout-minutes: 5
         run: ./.github/scripts/check_finalization.sh
+=======
+          mkdir -p target/release/
+          # copy artifact
+          cp aleph-node target/release/aleph-node
+          # Build and tag a docker container
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+
+      - name: Generate chainspec
+        run: |
+          # populate validators keystore and generate chainspec
+          chmod +x target/release/aleph-node
+          ./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id a0dnet1 --n-members 4 > docker/data/chainspec.json
+
+      - name: Run consensus party
+        run: |
+          docker-compose --env-file docker/.env -f docker/docker-compose.yml up -d
+
+      - name: Consensus party logs
+        run: |
+          docker logs damian --follow &
+
+      # NOTE: this step contacts every node in the comittee by their container id and sends a simple RPC request
+      # that lists all the RPC methods that they expose.
+      # Once they respond we know all nodes are online
+      - name: Verify nodes respond
+        run: |
+          validators=( damian tomasz zbyszko hansu )
+          rpc_port=9933
+
+          for validator in "${validators[@]}"; do
+            docker run --network container:$validator appropriate/curl:latest \
+                       --retry 3 \
+                       --retry-delay 10 \
+                       -H "Content-Type: application/json" \
+                       -d '{"id":1, "jsonrpc":"2.0", "method": "rpc_methods"}' http://127.0.0.1:$rpc_port
+            let rpc_port=$rpc_port+1
+          done
+>>>>>>> origin/main
 
       # note: more complex test scenarios can be run from here on out
 
-      - name: Save docker image
-        run: docker save -o aleph-node.tar aleph-node:latest
+      - name: Configure AWS credentials
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v1           
+        with:                                                    
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}      
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
 
-      # NOTE: stores the final artifacts if tests completed successfully
-      - name: Upload docker image
-        uses: actions/upload-artifact@v2
+<<<<<<< HEAD
+      - name: Login to Public Amazon ECR
+        if: github.event_name == 'push'
+        id: login-public-ecr                        
+        uses: docker/login-action@v1
         with:
-          name: aleph-node-image
-          path: aleph-node.tar
-          if-no-files-found: error
-          retention-days: 20
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Push aleph-node Current Image to Public ECR
+        if: github.event_name == 'push'
+        env:                                                       
+          CURRENT_IMAGE: aleph-node:latest
+          ECR_PUSH_IMAGE: public.ecr.aws/x2t8a1o3/aleph-node:${{ steps.vars.outputs.sha_short }}
+=======
+      - name: Login to Amazon ECR
+        if: github.event_name == 'push'
+        id: login-ecr                        
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Push aleph-node Current Image to ECR
+        if: github.event_name == 'push'
+        env:                                                       
+          CURRENT_IMAGE: aleph-node:latest
+          ECR_PUSH_IMAGE: ${{ steps.login-ecr.outputs.registry }}/aleph-node:${{ steps.vars.outputs.sha_short }}
+>>>>>>> origin/main
+        run: |
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
@@ -160,4 +243,8 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_USERNAME: GithubActions
           SLACK_TITLE: integration tests job has finished
+<<<<<<< HEAD
           MSG_MINIMAL: actions url
+=======
+          MSG_MINIMAL: actions url
+>>>>>>> origin/main
