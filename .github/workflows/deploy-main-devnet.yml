@@ -2,9 +2,9 @@ name: Deploy to main Devnet
 
 on:
   workflow_run:
-    workflows: ["integration-tests-main-devnet_test"]
+    workflows: ["integration-tests-main-devnet"]
     branches:
-      - task/A0-306
+      - main
     types:
       - completed
 
@@ -61,11 +61,6 @@ jobs:
         uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.6"
-          
-      - name: Check directories
-        run: |
-          cd aleph-apps
-          ls -alF
 
 #       - name: Update aleph-node docker image and trigger ArgoCD deploy                                                                        
 #         env:                                                                                                          
