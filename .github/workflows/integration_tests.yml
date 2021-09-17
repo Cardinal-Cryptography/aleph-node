@@ -118,6 +118,7 @@ jobs:
           mkdir -p target/release/
           cp aleph-node target/release/aleph-node
           docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+
       - name: Generate chainspec and populate comittee keystores
         shell: bash
         run: ./.github/scripts/generate_chainspec.sh
