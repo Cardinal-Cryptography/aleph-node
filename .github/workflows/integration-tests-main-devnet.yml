@@ -140,7 +140,6 @@ jobs:
       - name: Display bootnode logs
         run: docker logs damian --follow &
 
-
       # - name: Setup upterm session
       #   uses: lhotari/action-upterm@v1
 
