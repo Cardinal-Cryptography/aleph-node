@@ -1,6 +1,9 @@
-use crate::chain_spec::{self, get_account_id_from_seed, AuthorityKeys, ChainParams};
+use crate::chain_spec::{
+    self, get_account_id_from_seed, AuthorityKeys, ChainParams, SerializablePeerId,
+};
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
+use libp2p::identity::{ed25519 as libp2p_ed25519, PeerId, PublicKey};
 use log::info;
 use sc_cli::{Error, KeystoreParams};
 use sc_keystore::LocalKeystore;
@@ -11,6 +14,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
 use std::io::Write;
+use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 
 /// returns Aura key, if absent a new key is generated
@@ -35,12 +39,33 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
         .into()
 }
 
+/// Returns peer id, if not p2p key found under base_path/account-id/node-key-file a new provate key gets generated
+fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePeerId {
+    let authority = account_id.to_string();
+    let file: PathBuf = chain_params
+        .base_path()
+        .path()
+        .join(authority)
+        .join(chain_params.node_key_file())
+        .into();
+
+    if !file.exists() {
+        let keypair = libp2p_ed25519::Keypair::generate();
+        let secret = keypair.secret();
+        let secret_hex = hex::encode(secret.as_ref());
+        fs::write(file, secret_hex).expect("Could not write p2p secret");
+
+        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
+    }
+}
+
 fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_params: &ChainParams,
-    authority: &str,
+    account_id: &AccountId, // authority: &str,
 ) -> impl SyncCryptoStore {
     let chain_id = chain_params.chain_id();
+    let authority = account_id.to_string();
     let base_path: BasePath = chain_params.base_path().path().join(authority).into();
 
     info!(
@@ -60,15 +85,21 @@ fn open_keystore(
     }
 }
 
-fn authority_keys(keystore: &impl SyncCryptoStore, account_id: &AccountId) -> AuthorityKeys {
+fn authority_keys(
+    keystore: &impl SyncCryptoStore,
+    chain_params: &ChainParams,
+    account_id: &AccountId,
+) -> AuthorityKeys {
     let aura_key = aura_key(keystore);
     let aleph_key = aleph_key(keystore);
     let account_id = account_id.clone();
+    let peer_id = p2p_key(chain_params, account_id);
 
     AuthorityKeys {
         account_id,
         aura_key,
         aleph_key,
+        peer_id,
     }
 }
 
@@ -95,9 +126,8 @@ impl BootstrapChainCmd {
             .account_ids()
             .iter()
             .map(|account_id| {
-                let authority = account_id.to_string();
-                let keystore = open_keystore(&self.keystore_params, &self.chain_params, &authority);
-                authority_keys(&keystore, account_id)
+                let keystore = open_keystore(&self.keystore_params, &self.chain_params, account_id);
+                authority_keys(&keystore, &self.chain_params, account_id)
             })
             .collect();
 
@@ -111,6 +141,8 @@ impl BootstrapChainCmd {
                 chain_spec::config(self.chain_params.clone(), genesis_authorities, chain_id)
             }
         };
+
+        info!("Generating node keys");
 
         let spec = chain_spec?;
         let json = sc_service::chain_ops::build_spec(&spec, self.raw)?;

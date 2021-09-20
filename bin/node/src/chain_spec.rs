@@ -6,9 +6,11 @@ use aleph_runtime::{
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use hex_literal::hex;
+use libp2p::identity::ed25519;
+use libp2p::PeerId;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
-use serde::{Deserialize, Serialize};
+use serde::{ser::Serializer, Deserialize, Serialize};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
@@ -33,6 +35,31 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 
 type AccountPublic = <Signature as Verify>::Signer;
 
+// type PeerId = ed25519::PublicKey;
+
+#[derive(Clone)]
+pub struct SerializablePeerId {
+    inner: ed25519::PublicKey,
+}
+
+impl SerializablePeerId {
+    fn new(inner: PeerId) -> SerializablePeerId {
+        SerializablePeerId { inner }
+    }
+}
+
+impl Serialize for SerializablePeerId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // let s: String = self.inner.into();
+        // serializer.serialize_str(&s)
+
+        // self
+    }
+}
+
 /// Generate an account ID from seed.
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &&str) -> AccountId
 where
@@ -46,6 +73,7 @@ pub struct AuthorityKeys {
     pub account_id: AccountId,
     pub aura_key: AuraId,
     pub aleph_key: AlephId,
+    pub peer_id: SerializablePeerId,
 }
 
 #[derive(Debug, StructOpt, Clone)]
@@ -59,6 +87,11 @@ pub struct ChainParams {
     /// Specify custom base path.
     #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
     pub base_path: PathBuf,
+
+    /// Specify filename to write node private p2p keys to
+    /// Resulting keys will be stored at: base_path/account_id/node_key_file for each node
+    #[structopt(long)]
+    pub node_key_file: Option<String>,
 
     #[structopt(long)]
     pub session_period: Option<u32>,
@@ -91,6 +124,13 @@ impl ChainParams {
 
     pub fn base_path(&self) -> BasePath {
         self.base_path.clone().into()
+    }
+
+    pub fn node_key_file(&self) -> &str {
+        match &self.node_key_file {
+            Some(filename) => filename,
+            None => "p2p_secret",
+        }
     }
 
     pub fn millisecs_per_block(&self) -> u64 {
