@@ -605,7 +605,7 @@ where
                     }
                 }
                 _ = status_ticker.next() => {
-                    debug!(target: "afa", "Total peers ever seen in aleph network {:?}", self.peers.all_peers.len());
+                    debug!(target: "afa", "Total peers in aleph network {:?}", self.peers.all_peers.len());
                     for (session_id, session_data) in self.sessions.lock().iter() {
                         let authenticated: Vec<usize> = self.peers.to_peer.get(session_id).into_iter().map(|hm| hm.keys()).flatten().map(|x| x.0).collect();
                         let n_members:usize = session_data.keychain.node_count().into();
