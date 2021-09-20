@@ -15,8 +15,8 @@ services:
       - BASE_PATH=/data/5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
       - NODE_KEY_PATH=/data/5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH/p2p_secret
       - CHAIN=/data/chainspec.json
-      # - PUBLIC_ADDR=/ip4/172.28.1.1/tcp/30333
-      - PUBLIC_ADDR=/dns4/damian/tcp/30333
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
     volumes:
       - ./data/:/data/
     networks:
@@ -36,10 +36,10 @@ services:
       - BASE_PATH=/data/5F4H97f7nQovyrbiq4ZetaaviNwThSVcFobcA5aGab6167dK
       - NODE_KEY_PATH=/data/5F4H97f7nQovyrbiq4ZetaaviNwThSVcFobcA5aGab6167dK/p2p_secret
       - CHAIN=/data/chainspec.json
-      # - PUBLIC_ADDR=/ip4/172.28.1.2/tcp/30333
-      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-      - PUBLIC_ADDR=/dns4/tomasz/tcp/30333
-      - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      # - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
     volumes:
       - ./data/:/data/
     links:
@@ -61,10 +61,10 @@ services:
       - BASE_PATH=/data/5Dfis6XL8J2P6JHUnUtArnFWndn62SydeP8ee8sG2ky9nfm9
       - NODE_KEY_PATH=/data/5Dfis6XL8J2P6JHUnUtArnFWndn62SydeP8ee8sG2ky9nfm9/p2p_secret
       - CHAIN=/data/chainspec.json
-      # - PUBLIC_ADDR=/ip4/172.28.1.3/tcp/30333
-      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-      - PUBLIC_ADDR=/dns4/zbyszko/tcp/30333
-      - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      # - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
     volumes:
       - ./data/:/data/
     links:
@@ -86,10 +86,10 @@ services:
       - BASE_PATH=/data/5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
       - NODE_KEY_PATH=/data/5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o/p2p_secret
       - CHAIN=/data/chainspec.json
-      # - PUBLIC_ADDR=/ip4/172.28.1.4/tcp/30333
-      # - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-      - PUBLIC_ADDR=/dns4/hansu/tcp/30333
-      - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/172.28.1.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      # - BOOT_NODES=/dns4/damian/tcp/30333/p2p/$BOOTNODE_PEER_ID
     volumes:
       - ./data/:/data/
     links:
