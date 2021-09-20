@@ -42,12 +42,11 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
 /// Returns peer id, if not p2p key found under base_path/account-id/node-key-file a new provate key gets generated
 fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePeerId {
     let authority = account_id.to_string();
-    let file: PathBuf = chain_params
+    let file = chain_params
         .base_path()
         .path()
         .join(authority)
-        .join(chain_params.node_key_file())
-        .into();
+        .join(chain_params.node_key_file());
 
     match file.exists() {
         true => {
