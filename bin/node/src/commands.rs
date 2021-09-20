@@ -51,9 +51,13 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
 
     match file.exists() {
         true => {
-            // TODO : read peer_id
+            let mut file_content =
+                hex::decode(fs::read(&file).unwrap()).expect("failed to decode secret as hex");
+            let secret = libp2p_ed25519::SecretKey::from_bytes(&mut file_content)
+                .expect("Bad node key file");
+            let keypair = libp2p_ed25519::Keypair::from(secret);
 
-            todo!()
+            SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
         }
         false => {
             let keypair = libp2p_ed25519::Keypair::generate();
@@ -190,7 +194,6 @@ pub struct BootstrapNodeCmd {
 impl BootstrapNodeCmd {
     pub fn run(&self) -> Result<(), Error> {
         let account_id = &self.account_id();
-        // let authority = account_id.to_string();
         let keystore = open_keystore(&self.keystore_params, &self.chain_params, account_id);
 
         let authority_keys = authority_keys(&keystore, &self.chain_params, account_id);

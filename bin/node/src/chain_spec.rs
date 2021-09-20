@@ -6,7 +6,6 @@ use aleph_runtime::{
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use hex_literal::hex;
-use libp2p::identity::ed25519;
 use libp2p::PeerId;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
@@ -37,7 +36,6 @@ type AccountPublic = <Signature as Verify>::Signer;
 
 #[derive(Clone)]
 pub struct SerializablePeerId {
-    // inner: ed25519::PublicKey,
     inner: PeerId,
 }
 
@@ -62,8 +60,6 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
     where
         D: Deserializer<'de>,
     {
-        // use serde::de::Error;
-
         let s = String::deserialize(deserializer)?;
         let inner = PeerId::from_str(&s).expect("Could not deserialize as a PeerId");
         Ok(SerializablePeerId { inner })
@@ -84,7 +80,6 @@ pub struct AuthorityKeys {
     pub aura_key: AuraId,
     pub aleph_key: AlephId,
     pub peer_id: SerializablePeerId,
-    // pub peer_id: PeerId,
 }
 
 #[derive(Debug, StructOpt, Clone)]
