@@ -65,6 +65,21 @@ for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --chain-id dev --account-id "$account_id"
 done
 
+echo "Generating node p2p keys"
+rm -f $BASE_PATH/libp2p_public_keys
+touch $BASE_PATH/libp2p_public_keys
+for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
+  ./target/release/aleph-node key generate-node-key \
+      > $BASE_PATH/${account_ids[$i]}/libp2p_secret \
+      2>> $BASE_PATH/libp2p_public_keys
+done
+
+public_keys=(`cat $BASE_PATH/libp2p_public_keys`)
+bootnodes=""
+for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
+    bootnodes+="/dns4/localhost/tcp/$((30334+i))/p2p/${public_keys[$i]} "
+done
+
 for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   auth="node-$i"
   account_id=${account_ids[$i]}
@@ -77,7 +92,10 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     --rpc-port "$((9933 + i))" \
     --ws-port "$((9944 + i))" \
     --port "$((30334 + i))" \
+    --bootnodes $bootnodes \
+    --node-key-file "$BASE_PATH/$account_id"/libp2p_secret \
     --execution Native \
+    --no-mdns \
     -lafa=debug \
     "$@" \
     2> "$auth.log" > /dev/null & \
