@@ -42,7 +42,7 @@ pub struct SerializablePeerId {
 }
 
 impl SerializablePeerId {
-    fn new(inner: PeerId) -> SerializablePeerId {
+    pub fn new(inner: PeerId) -> SerializablePeerId {
         SerializablePeerId { inner }
     }
 }
@@ -62,13 +62,10 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
+        // use serde::de::Error;
 
-        // Deserialize the string and get individual components
         let s = String::deserialize(deserializer)?;
-
-        let inner = PeerId::from_str(&s).expect("Could not deserialize PeerId");
-
+        let inner = PeerId::from_str(&s).expect("Could not deserialize as a PeerId");
         Ok(SerializablePeerId { inner })
     }
 }
