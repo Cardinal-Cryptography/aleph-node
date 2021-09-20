@@ -1,5 +1,8 @@
 use crate::chain_spec::{
-    self, get_account_id_from_seed, AuthorityKeys, ChainParams, SerializablePeerId,
+    self,
+    get_account_id_from_seed,
+    AuthorityKeys,
+    ChainParams, // , SerializablePeerId,
 };
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
@@ -56,6 +59,7 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
         fs::write(file, secret_hex).expect("Could not write p2p secret");
 
         SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
+        // PublicKey::Ed25519(keypair.public()).into_peer_id()
     }
 }
 
