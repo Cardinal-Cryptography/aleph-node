@@ -56,7 +56,6 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
             let secret = libp2p_ed25519::SecretKey::from_bytes(&mut file_content)
                 .expect("Bad node key file");
             let keypair = libp2p_ed25519::Keypair::from(secret);
-
             SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
         }
         false => {
@@ -64,7 +63,6 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
             let secret = keypair.secret();
             let secret_hex = hex::encode(secret.as_ref());
             fs::write(file, secret_hex).expect("Could not write p2p secret");
-
             SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
         }
     }
@@ -73,10 +71,9 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
 fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_params: &ChainParams,
-    account_id: &AccountId, // authority: &str,
+    account_id: &AccountId,
 ) -> impl SyncCryptoStore {
     let chain_id = chain_params.chain_id();
-    // let authority = account_id.to_string();
     let base_path: BasePath = chain_params
         .base_path()
         .path()
