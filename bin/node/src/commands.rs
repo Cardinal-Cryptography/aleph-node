@@ -13,8 +13,8 @@ use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
+use std::fs;
 use std::io::Write;
-use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 
 /// returns Aura key, if absent a new key is generated
