@@ -4,7 +4,6 @@ use crate::chain_spec::{
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
-use log::info;
 use sc_cli::{Error, KeystoreParams};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
@@ -46,24 +45,21 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
         .base_path()
         .path()
         .join(authority)
-        .join(chain_params.node_key_file());
+        .join(&chain_params.node_key_file);
 
-    match file.exists() {
-        true => {
-            let mut file_content =
-                hex::decode(fs::read(&file).unwrap()).expect("failed to decode secret as hex");
-            let secret = libp2p_ed25519::SecretKey::from_bytes(&mut file_content)
-                .expect("Bad node key file");
-            let keypair = libp2p_ed25519::Keypair::from(secret);
-            SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
-        }
-        false => {
-            let keypair = libp2p_ed25519::Keypair::generate();
-            let secret = keypair.secret();
-            let secret_hex = hex::encode(secret.as_ref());
-            fs::write(file, secret_hex).expect("Could not write p2p secret");
-            SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
-        }
+    if file.exists() {
+        let mut file_content =
+            hex::decode(fs::read(&file).unwrap()).expect("failed to decode secret as hex");
+        let secret =
+            libp2p_ed25519::SecretKey::from_bytes(&mut file_content).expect("Bad node key file");
+        let keypair = libp2p_ed25519::Keypair::from(secret);
+        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
+    } else {
+        let keypair = libp2p_ed25519::Keypair::generate();
+        let secret = keypair.secret();
+        let secret_hex = hex::encode(secret.as_ref());
+        fs::write(file, secret_hex).expect("Could not write p2p secret");
+        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
     }
 }
 
@@ -78,11 +74,6 @@ fn open_keystore(
         .path()
         .join(account_id.to_string())
         .into();
-
-    info!(
-        "Writing to keystore for authority {} and chain id {} under path {:?}",
-        account_id, chain_id, base_path
-    );
 
     let config_dir = base_path.config_dir(chain_id);
     match keystore_params
@@ -142,8 +133,6 @@ impl BootstrapChainCmd {
             })
             .collect();
 
-        info!("Building chain spec");
-
         let chain_spec = match self.chain_params.chain_id() {
             chain_spec::DEVNET_ID => {
                 chain_spec::development_config(self.chain_params.clone(), genesis_authorities)
@@ -152,8 +141,6 @@ impl BootstrapChainCmd {
                 chain_spec::config(self.chain_params.clone(), genesis_authorities, chain_id)
             }
         };
-
-        info!("Generating node keys");
 
         let spec = chain_spec?;
         let json = sc_service::chain_ops::build_spec(&spec, self.raw)?;

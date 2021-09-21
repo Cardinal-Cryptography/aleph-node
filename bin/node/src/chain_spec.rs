@@ -9,7 +9,8 @@ use hex_literal::hex;
 use libp2p::PeerId;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
-use serde::{ser::Serializer, Deserialize, Deserializer, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
@@ -61,7 +62,8 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let inner = PeerId::from_str(&s).expect("Could not deserialize as a PeerId");
+        let inner = PeerId::from_str(&s)
+            .map_err(|_| D::Error::custom(format!("Could not deserialize as PeerId: {}", s)))?;
         Ok(SerializablePeerId { inner })
     }
 }
@@ -96,8 +98,8 @@ pub struct ChainParams {
 
     /// Specify filename to write node private p2p keys to
     /// Resulting keys will be stored at: base_path/account_id/node_key_file for each node
-    #[structopt(long)]
-    pub node_key_file: Option<String>,
+    #[structopt(long, default_value = "p2p_secret")]
+    pub node_key_file: String,
 
     #[structopt(long)]
     pub session_period: Option<u32>,
@@ -130,13 +132,6 @@ impl ChainParams {
 
     pub fn base_path(&self) -> BasePath {
         self.base_path.clone().into()
-    }
-
-    pub fn node_key_file(&self) -> &str {
-        match &self.node_key_file {
-            Some(filename) => filename,
-            None => "p2p_secret",
-        }
     }
 
     pub fn millisecs_per_block(&self) -> u64 {
