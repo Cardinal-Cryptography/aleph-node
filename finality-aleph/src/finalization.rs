@@ -134,28 +134,31 @@ mod tests {
     }
 
     #[test]
-    fn chain_extenstion_step_for_descendant() {
+    fn should_finalize_for_descendant() {
         let mut client = Arc::new(TestClientBuilder::new().build());
 
         let n = 5;
         let blocks = create_chain(&mut client, n as u64);
         for i in 0..n {
             for j in i..n {
-                let extension = chain_extension_step(
+                let maybe_data = should_finalize(
                     blocks[i],
                     AlephData::new(blocks[j], j as u64),
                     client.as_ref(),
+                    100u64,
                 );
-                assert!(extension
-                    .iter()
-                    .map(|header| header.hash())
-                    .eq(blocks[i + 1..j + 1].iter().cloned()));
+                let correct_result = if i == j {
+                    None
+                } else {
+                    Some(AlephData::new(blocks[j], j as u64))
+                };
+                assert!(maybe_data == correct_result);
             }
         }
     }
 
     #[test]
-    fn chain_extenstion_step_for_non_descendant() {
+    fn should_finalize_for_non_descendant() {
         let mut client = Arc::new(TestClientBuilder::new().build());
 
         let n = 5;
@@ -163,12 +166,13 @@ mod tests {
 
         for i in 0..=n {
             for j in 0..i {
-                let extension = chain_extension_step(
+                let maybe_data = should_finalize(
                     blocks[i],
                     AlephData::new(blocks[j], j as u64),
                     client.as_ref(),
+                    100u64,
                 );
-                assert!(extension.is_empty());
+                assert!(maybe_data.is_none());
             }
         }
 
@@ -192,19 +196,20 @@ mod tests {
         for i in 0..=n {
             for j in 0..=n {
                 if i != j {
-                    let extension = chain_extension_step(
+                    let maybe_data = should_finalize(
                         extra_children[i],
                         AlephData::new(extra_children[j], j as u64),
                         client.as_ref(),
+                        100u64,
                     );
-                    assert!(extension.is_empty());
+                    assert!(maybe_data.is_none());
                 }
             }
         }
     }
 
     #[test]
-    fn chain_extenstion_step_for_incorrect_aleph_data() {
+    fn should_finalize_for_incorrect_aleph_data() {
         let mut client = Arc::new(TestClientBuilder::new().build());
 
         let n = 5;
@@ -212,12 +217,13 @@ mod tests {
 
         for i in 0..n {
             for j in i..n {
-                let extension = chain_extension_step(
+                let maybe_data = should_finalize(
                     blocks[i],
                     AlephData::new(blocks[j], (j + 1) as u64),
                     client.as_ref(),
+                    100u64,
                 );
-                assert!(extension.is_empty());
+                assert!(maybe_data.is_none());
             }
         }
     }
