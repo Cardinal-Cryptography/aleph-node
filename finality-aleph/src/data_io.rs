@@ -239,11 +239,31 @@ pub(crate) struct DataIO<B: BlockT> {
     pub(crate) metrics: Option<Metrics<B::Header>>,
 }
 
-pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
+pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
     select_chain: SC,
-    best_chain: Arc<Mutex<AlephDataFor<B>>>,
+    client: Arc<C>,
+    data: Arc<Mutex<AlephDataFor<B>>>,
+    max_block_num: NumberFor<B>,
     mut exit: oneshot::Receiver<()>,
-) {
+) where
+    B: BlockT,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    BE: Backend<B> + 'static,
+    SC: SelectChain<B> + 'static,
+{
+    // A function to reduce block to the level given by num, by traversing down via parents.
+    let reduce_to_num = |header: B::Header, num: NumberFor<B>| {
+        let client = client.clone();
+        let mut curr_header = header;
+        while *curr_header.number() > num {
+            curr_header = client
+                .header(BlockId::Hash(*curr_header.parent_hash()))
+                .expect("client must respond")
+                .expect("parent hash is known by the client");
+        }
+        curr_header
+    };
+    let mut prev_best_header: Option<B::Header> = None;
     loop {
         let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
         tokio::select! {
@@ -252,7 +272,28 @@ pub(crate) async fn refresh_best_chain<B: BlockT, SC: SelectChain<B>>(
                     .best_chain()
                     .await
                     .expect("No best chain");
-                *best_chain.lock() = AlephData::new(new_best_header.hash(), *new_best_header.number());
+                if *new_best_header.number() <= max_block_num {
+                    *data.lock() = AlephData::new(new_best_header.hash(), *new_best_header.number());
+                } else {
+                    // we check if prev_best_header is an ancestor of new_best_header:
+                    if data.lock().number < max_block_num {
+                        let reduced_header = reduce_to_num(new_best_header.clone(), max_block_num);
+                        *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                    } else {
+                        let is_ancestor = if let Some(prev_header) = prev_best_header {
+                            let reduced_header = reduce_to_num(new_best_header.clone(), *prev_header.number());
+                            reduced_header.hash() == prev_header.hash()
+                        } else {
+                            false
+                        };
+                        if !is_ancestor {
+                            let reduced_header = reduce_to_num(new_best_header.clone(), max_block_num);
+                            *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                        }
+                    }
+                }
+                prev_best_header = Some(new_best_header);
+
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");

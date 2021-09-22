@@ -7,7 +7,7 @@ use sp_runtime::{
     traits::{Block, Header},
     Justification,
 };
-use std::{collections::VecDeque, sync::Arc};
+use std::sync::Arc;
 
 pub(crate) fn finalize_block<BE, B, C>(
     client: Arc<C>,
@@ -41,11 +41,12 @@ where
 /// the sequence of headers of the blocks on the path from `last_finalized` to `new_data`
 /// excluding the header corresponding to `last_finalized`, or an empty sequence if
 /// `new_data` is not a descendant of `last_finalized`.
-pub(crate) fn chain_extension_step<BE, B, C>(
+pub(crate) fn should_finalize<BE, B, C>(
     last_finalized: B::Hash,
     new_data: AlephDataFor<B>,
     client: &C,
-) -> VecDeque<B::Header>
+    last_block_in_session: NumberFor<B>,
+) -> Option<AlephDataFor<B>>
 where
     B: Block,
     BE: Backend<B>,
@@ -53,28 +54,31 @@ where
 {
     // this early return is for optimization reasons only.
     if new_data.hash == last_finalized {
-        return VecDeque::new();
+        return None;
+    }
+
+    if new_data.number > last_block_in_session {
+        return None;
     }
 
     let last_finalized_number = match client.number(last_finalized) {
         Ok(Some(number)) => number,
         _ => {
             error!(target: "afa", "No block number for {}", last_finalized);
-            return VecDeque::new();
+            return None;
         }
     };
 
     if let Ok(Some(header)) = client.header(BlockId::Hash(new_data.hash)) {
         if *header.number() != new_data.number {
             warn!(target: "afa", "Incorrect number for hash {}. Got {}, should be {}", new_data.hash, new_data.number, header.number());
-            return VecDeque::new();
+            return None;
         }
     } else {
         warn!(target: "afa", "No header for hash {}", new_data.hash);
-        return VecDeque::new();
+        return None;
     }
 
-    let mut extension = VecDeque::new();
     // iterate ancestors of `new_hash` and push their headers to the front of `extension`
     // until reaching a block with number <= last_finalized_number.
     let mut hash = new_data.hash;
@@ -83,21 +87,20 @@ where
             Ok(Some(header)) => header,
             _ => {
                 error!(target: "afa", "No header for hash {}", hash);
-                return VecDeque::new();
+                return None;
             }
         };
 
         if header.number() <= &last_finalized_number {
             if hash != last_finalized {
                 // `new_hash` is not an ancestor of `last_finalized`
-                return VecDeque::new();
+                return None;
             }
             break;
         }
         hash = *header.parent_hash();
-        extension.push_front(header);
     }
-    extension
+    Some(new_data)
 }
 
 #[cfg(test)]
