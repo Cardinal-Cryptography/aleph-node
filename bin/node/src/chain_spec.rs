@@ -1,5 +1,6 @@
 use aleph_primitives::{
-    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
@@ -187,8 +188,14 @@ impl ChainParams {
 fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value> {
     [
         ("tokenSymbol".to_string(), Value::String(token_symbol)),
-        ("tokenDecimals".to_string(), Value::Number(Number::from(12))),
-        ("ss58Format".to_string(), Value::Number(Number::from(42))),
+        (
+            "tokenDecimals".to_string(),
+            Value::Number(Number::from(TOKEN_DECIMALS)),
+        ),
+        (
+            "ss58Format".to_string(),
+            Value::Number(Number::from(ADDRESSES_ENCODING)),
+        ),
     ]
     .iter()
     .cloned()
