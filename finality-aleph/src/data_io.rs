@@ -288,17 +288,17 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
                 } else {
                     // we check if prev_best_header is an ancestor of new_best_header:
                     if data.lock().number < max_block_num {
-                        let reduced_header = reduce_header_to_num::<B, BE, C>(client.clone(), new_best_header.clone(), max_block_num);
+                        let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
                         *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
                     } else {
                         let is_ancestor = if let Some(prev_header) = prev_best_header {
-                            let reduced_header = reduce_header_to_num::<B, BE, C>(client.clone(), new_best_header.clone(), *prev_header.number());
+                            let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), *prev_header.number());
                             reduced_header.hash() == prev_header.hash()
                         } else {
                             false
                         };
                         if !is_ancestor {
-                            let reduced_header = reduce_header_to_num::<B, BE, C>(client.clone(), new_best_header.clone(), max_block_num);
+                            let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
                             *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
                         }
                     }
