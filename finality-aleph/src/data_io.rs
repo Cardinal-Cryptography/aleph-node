@@ -274,7 +274,8 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
     // uses is that once the block in `data` reaches the height of `max_block_num`, and the just queried
     // `best_block` is a `descendant` of the previous query, then we don't need to update data, as it is
     // already correct.
-    let mut prev_best_header: Option<B::Header> = None;
+    let mut prev_best_hash: B::Hash = data.lock().hash;
+    let mut prev_best_number: NumberFor<B> = data.lock().number;
     loop {
         let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
         tokio::select! {
@@ -291,20 +292,16 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
                         let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
                         *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
                     } else {
-                        let is_ancestor = if let Some(prev_header) = prev_best_header {
-                            let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), *prev_header.number());
-                            reduced_header.hash() == prev_header.hash()
-                        } else {
-                            false
-                        };
-                        if !is_ancestor {
+                        let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), prev_best_number);
+                        if reduced_header.hash() != prev_best_hash {
+                            // the new best block is not a descendant of previous best
                             let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
                             *data.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
                         }
                     }
                 }
-                prev_best_header = Some(new_best_header);
-
+                prev_best_hash = new_best_header.hash();
+                prev_best_number = *new_best_header.number();
             }
             _ = &mut exit => {
                 debug!(target: "afa", "Task for refreshing best chain received exit signal. Terminating.");
