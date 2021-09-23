@@ -210,11 +210,9 @@ async fn run_aggregator<B, C, BE>(
                     }
                     for new_block_data in batch {
                         if let Some(data) = should_finalize(last_finalized, new_block_data, client.as_ref(), last_block_in_session) {
-                            if data.number <= last_block_in_session {
-                                aggregator.start_aggregation(data.hash).await;
-                                last_finalized = data.hash;
-                            }
-                            if data.number >= last_block_in_session {
+                            aggregator.start_aggregation(data.hash).await;
+                            last_finalized = data.hash;
+                            if data.number == last_block_in_session {
                                 aggregator.notify_last_hash();
                                 last_block_seen = true;
                                 break;
