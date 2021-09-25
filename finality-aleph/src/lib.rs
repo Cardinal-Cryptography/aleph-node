@@ -48,8 +48,8 @@ pub fn peers_set_config() -> sc_network::config::NonDefaultSetConfig {
         set_config: sc_network::config::SetConfig {
             // This seems to be a way to configure the AlephBFT network to have a prespecified set of nodes or at least
             // set suitable limits on the number of nodes we should connect to.
-            in_peers: 0,
-            out_peers: 0,
+            in_peers: 50,
+            out_peers: 50,
             reserved_nodes: vec![],
             non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
         },

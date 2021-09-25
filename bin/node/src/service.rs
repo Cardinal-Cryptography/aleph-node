@@ -151,10 +151,10 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         other: (block_import, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config());
+    let mut peers_set_config = finality_aleph::peers_set_config();
+    peers_set_config.set_config.reserved_nodes =
+        config.network.default_peers_set.reserved_nodes.clone();
+    config.network.extra_sets.push(peers_set_config);
 
     let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
