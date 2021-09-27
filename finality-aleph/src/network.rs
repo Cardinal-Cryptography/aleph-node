@@ -161,6 +161,10 @@ impl PeerInfo {
     fn iter(&self) -> impl Iterator<Item = (&SessionId, &NodeIndex)> {
         self.authentications.iter()
     }
+
+    fn remove_session(&mut self, session_id: &SessionId) {
+        self.authentications.remove(session_id);
+    }
 }
 
 struct Peers {
@@ -201,7 +205,7 @@ impl Peers {
             .insert(node_id, *peer);
     }
 
-    fn remove(&mut self, peer: &PeerId) {
+    fn remove_peer(&mut self, peer: &PeerId) {
         if let Some(peer_info) = self.all_peers.remove(peer) {
             for (session_id, node_id) in peer_info.iter() {
                 self.to_peer.entry(*session_id).and_modify(|hm| {
@@ -210,6 +214,13 @@ impl Peers {
             }
         }
         self.to_peer.retain(|_, hm| !hm.is_empty());
+    }
+
+    fn remove_session(&mut self, session_id: &SessionId) {
+        self.to_peer.remove(session_id);
+        for (_, peer_info) in self.all_peers.iter_mut() {
+            peer_info.remove_session(session_id);
+        }
     }
 
     fn peers_authenticated_for(
@@ -540,7 +551,33 @@ where
 
     fn on_peer_disconnected(&mut self, peer_id: &PeerId) {
         trace!(target: "afa", "Peer {:?} disconnected.", peer_id);
-        self.peers.remove(peer_id);
+        self.peers.remove_peer(peer_id);
+    }
+
+    fn clean_up(&mut self) {
+        let maybe_max_session_id = self.sessions.lock().iter().map(|(id, _)| id).max().cloned();
+        if let Some(max_session_id) = maybe_max_session_id {
+            // We remove session_ids that are either < max_session_id - 1 or with status Terminated.
+            let sessions_to_remove: Vec<_> = self
+                .sessions
+                .lock()
+                .iter()
+                .filter_map(|(id, data)| {
+                    if *id + SessionId(1) < max_session_id
+                        || data.status == SessionStatus::Terminated
+                    {
+                        Some(*id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            for session_id in sessions_to_remove {
+                self.sessions.lock().remove(&session_id);
+                self.peers.remove_session(&session_id);
+            }
+        }
     }
 
     pub async fn run(mut self) {
@@ -614,10 +651,7 @@ where
                     }
                 }
             }
-
-            self.sessions
-                .lock()
-                .retain(|_, data| data.status == SessionStatus::InProgress);
+            self.clean_up();
         }
     }
 }
