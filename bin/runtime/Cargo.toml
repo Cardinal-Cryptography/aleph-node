@@ -66,7 +66,7 @@ std = [
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
     "pallet-vesting/std",
-	"pallet-multisig/std",
+    "pallet-multisig/std",
     "serde",
     "sp-api/std",
     "sp-block-builder/std",
