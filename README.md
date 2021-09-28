@@ -1,3 +1,5 @@
+Silly thingy.
+
 # [aleph-node](https://alephzero.org/)
 
 [![unit-tests](https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml)
