@@ -10,4 +10,5 @@ members = [
 
 exclude = [
   "flooder"
+  "tests/e2e"
 ]

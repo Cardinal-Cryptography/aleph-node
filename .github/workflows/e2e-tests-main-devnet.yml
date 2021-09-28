@@ -15,7 +15,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-binary:
     name: Build binary artifact
     runs-on: ubuntu-latest
     env:
@@ -93,9 +93,46 @@ jobs:
           if-no-files-found: error
           retention-days: 20
 
+  build-test-client:
+    name: Build e2e test client suite
+    runs-on: ubuntu-latest
+    env:
+      RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
+      RUST_BACKTRACE: full
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          override: true
+
+      - name: Build Binary and docker image
+        run: |
+          cd tests/e2e/
+          cargo build --release
+          docker build --tag aleph-e2e-client:latest -f Dockerfile .
+          docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: aleph-e2e-client
+          path: tests/e2e/aleph-e2e-client.tar
+          if-no-files-found: error
+          retention-days: 20
+
   e2e-tests:
-    needs: build
-    name: Run e2e tests suite
+    needs: [build-binary, build-test-client]
+    name: Run E2E tests suite
     runs-on: ubuntu-latest
     steps:
       - name: GIT | Cancel Previous Runs
@@ -132,32 +169,21 @@ jobs:
       - name: Display bootnode logs
         run: docker logs damian --follow &
 
-      # NOTE: this step waits until chain starts finalizing blocks
-      - name: Wait for consensus
+      - name: Download artifact with the test suite image
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-e2e-client
+
+      - name: Load test suite image
         shell: bash
         timeout-minutes: 5
-        run: ./.github/scripts/check_finalization.sh
+        run: docker load -i aleph-e2e-client.tar
 
-      # note: more complex test scenarios can be run from here on out
-
-      - name: Configure AWS credentials
-        if: github.event_name == 'push'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Login to Public Amazon ECR
-        if: github.event_name == 'push'
-        id: login-public-ecr
-        uses: docker/login-action@v1
-        with:
-          registry: public.ecr.aws
-          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        env:
-          AWS_REGION: us-east-1
+      - name: Run e2e test suite
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./.github/scripts/run_e2e_tests.sh
 
       - name: Push aleph-node Current Image to Public ECR
         if: github.event_name == 'push'
