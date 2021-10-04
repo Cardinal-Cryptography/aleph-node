@@ -35,7 +35,7 @@ ARGS=(
   --chain "${CHAIN}"
   --node-key-file "${NODE_KEY_PATH}"
   --rpc-port "${RPC_PORT}" --ws-port "${WS_PORT}" --port "${PORT}"
-  --rpc-cors all --rpc-methods Safe # TODO: should we allow to specify them?
+  --rpc-cors all
   --no-prometheus --no-telemetry # Currently not using. plan to start as soon as capacity is available
   --no-mdns
 )
@@ -73,7 +73,11 @@ if [[ "true" == "$DISCOVER_LOCAL" ]]; then
 fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
-    ARGS+=(--validator)
+    ARGS+=(--validator --unsafe-ws-external --unsafe-rpc-external --rpc-methods unsafe)
+fi
+
+if [[ "false" == "${VALIDATOR}" ]]; then
+    ARGS+=(--ws-external --rpc-external --rpc-methods safe)
 fi
 
 aleph-node "${ARGS[@]}"
