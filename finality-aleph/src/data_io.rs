@@ -322,7 +322,7 @@ impl<B: BlockT> aleph_bft::DataIO<AlephDataFor<B>> for DataIO<B> {
         let best = *self.proposed_block.lock();
 
         if let Some(m) = &self.metrics {
-            m.report_block(best.hash, std::time::Instant::now(), Checkpoint::GetData);
+            m.report_block(best.hash, std::time::Instant::now(), Checkpoint::Ordering);
         }
         debug!(target: "afa", "Outputting {:?} in get_data", best);
         best

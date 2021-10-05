@@ -7,7 +7,7 @@ use std::{collections::HashMap, time::Instant};
 
 #[derive(Clone)]
 struct Inner<H: Header> {
-    keys: [Checkpoint; 5],
+    keys: [Checkpoint; 6],
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
     starts: HashMap<Checkpoint, HashMap<H::Hash, Instant>>,
@@ -30,12 +30,12 @@ impl<H: Header> Inner<H> {
             if let Some(start) = self
                 .starts
                 .get(prev_checkpoint_type)
-                .expect("prev was stored")
+                .expect("All checkpoint types were initialized")
                 .get(&hash)
             {
                 self.gauges
                     .get(&checkpoint_type)
-                    .expect("checkpoint_time gauge was stored")
+                    .expect("All checkpoint types were initialized")
                     .set(checkpoint_time.duration_since(*start).as_millis() as u64);
             }
         }
@@ -46,9 +46,10 @@ impl<H: Header> Inner<H> {
 pub(crate) enum Checkpoint {
     Importing,
     Imported,
-    GetData,
-    Finalize,
-    AggregationStart,
+    Ordering,
+    Ordered,
+    Aggregating,
+    Finalized,
 }
 
 #[derive(Clone)]
@@ -59,7 +60,14 @@ pub struct Metrics<H: Header> {
 impl<H: Header> Metrics<H> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
-        let keys = [Imported, Importing, GetData, Finalize, AggregationStart];
+        let keys = [
+            Importing,
+            Imported,
+            Ordering,
+            Ordered,
+            Aggregating,
+            Finalized,
+        ];
         let prev: HashMap<_, _> = keys[1..]
             .iter()
             .cloned()

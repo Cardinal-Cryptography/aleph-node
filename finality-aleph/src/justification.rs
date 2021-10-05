@@ -1,6 +1,6 @@
 use crate::{
-    finalization::finalize_block, last_block_of_session, network, session_id_from_block_num,
-    KeyBox, SessionId, SessionMap, SessionPeriod, Signature,
+    finalization::finalize_block, last_block_of_session, metrics::Checkpoint, network,
+    session_id_from_block_num, KeyBox, Metrics, SessionId, SessionMap, SessionPeriod, Signature,
 };
 use aleph_bft::{MultiKeychain, NodeIndex, SignatureSet};
 use aleph_primitives::ALEPH_ENGINE_ID;
@@ -74,7 +74,8 @@ where
     client: Arc<C>,
     last_request_time: Instant,
     last_finalization_time: Instant,
-    phantom: PhantomData<(B, BE)>,
+    metrics: Option<Metrics<B::Header>>,
+    phantom: PhantomData<BE>,
 }
 
 impl<B, N, C, BE> JustificationHandler<B, N, C, BE>
@@ -90,6 +91,7 @@ where
         chain_cadence: ChainCadence,
         network: N,
         client: Arc<C>,
+        metrics: Option<Metrics<B::Header>>,
     ) -> Self {
         Self {
             session_authorities,
@@ -99,6 +101,7 @@ where
             client,
             last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
+            metrics,
             phantom: PhantomData,
         }
     }
@@ -129,6 +132,13 @@ where
                     Ok(()) => {
                         self.last_finalization_time = Instant::now();
                         debug!(target: "afa", "Successfully finalized {:?}", num);
+                        if let Some(metrics) = &self.metrics {
+                            metrics.report_block(
+                                block_hash,
+                                self.last_finalization_time,
+                                Checkpoint::Finalized,
+                            );
+                        }
                     }
                     Err(e) => {
                         warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", num, block_hash, e);
