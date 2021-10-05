@@ -46,7 +46,7 @@ impl AlephJustification {
     }
 }
 
-pub struct ChainCadence {
+pub(crate) struct ChainCadence {
     pub session_period: SessionPeriod,
     pub justifications_cadence: Duration,
 }
@@ -60,7 +60,7 @@ where
     pub number: NumberFor<Block>,
 }
 
-pub struct JustificationHandler<B, N, C, BE>
+pub(crate) struct JustificationHandler<B, N, C, BE>
 where
     B: BlockT,
     N: network::Network<B> + 'static,
@@ -152,7 +152,7 @@ where
         }
     }
 
-    pub(crate) fn request_justification(&mut self, num: NumberFor<B>) {
+    fn request_justification(&mut self, num: NumberFor<B>) {
         let current_time = Instant::now();
 
         let ChainCadence {

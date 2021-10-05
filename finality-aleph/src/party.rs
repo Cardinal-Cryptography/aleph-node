@@ -85,16 +85,17 @@ where
         justifications_cadence: Duration::from_millis(cadence),
     };
 
-    let authority_justification_tx = run_justification_handler(
-        &spawn_handle.clone().into(),
-        justification_rx,
+    let handler = JustificationHandler::new(
         session_authorities.clone(),
         keystore.clone(),
+        chain_cadence,
         network.clone(),
         client.clone(),
-        chain_cadence,
         metrics.clone(),
     );
+
+    let authority_justification_tx =
+        run_justification_handler(handler, &spawn_handle.clone().into(), justification_rx);
 
     // Prepare and start the network
     let network =
@@ -137,14 +138,9 @@ fn get_node_index(authorities: &[AuthorityId], keystore: &SyncCryptoStorePtr) ->
 }
 
 fn run_justification_handler<B, N, C, BE>(
+    handler: JustificationHandler<B, N, C, BE>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    sessions: Arc<Mutex<SessionMap>>,
-    keystore: SyncCryptoStorePtr,
-    network: N,
-    client: Arc<C>,
-    chain_cadence: ChainCadence,
-    metrics: Option<Metrics<B::Header>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
 where
     N: network::Network<B> + 'static,
@@ -153,9 +149,6 @@ where
     B: Block,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
-
-    let handler =
-        JustificationHandler::new(sessions, keystore, chain_cadence, network, client, metrics);
 
     debug!(target: "afa", "JustificationHandler started");
     spawn_handle.spawn("aleph/justification_handler", async move {
