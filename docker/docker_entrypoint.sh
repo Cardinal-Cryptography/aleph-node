@@ -22,6 +22,7 @@ WS_PORT=${WS_PORT:-9943}
 PORT=${PORT:-30333}
 EXTERNAL_PORT=${EXTERNAL_PORT:-${PORT}}
 VALIDATOR=${VALIDATOR:-true}
+WS_MAX_CONNECTIONS=${WS_MAX_CONNECTIONS:-100}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -38,6 +39,7 @@ ARGS=(
   --rpc-cors all
   --no-prometheus --no-telemetry # Currently not using. plan to start as soon as capacity is available
   --no-mdns
+  --ws-max-connections "${WS_MAX_CONNECTIONS}"
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
