@@ -73,11 +73,11 @@ if [[ "true" == "$DISCOVER_LOCAL" ]]; then
 fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
-    ARGS+=(--validator --unsafe-ws-external --unsafe-rpc-external --rpc-methods unsafe)
+    ARGS+=(--validator --unsafe-ws-external --unsafe-rpc-external --rpc-methods Unsafe)
 fi
 
 if [[ "false" == "${VALIDATOR}" ]]; then
-    ARGS+=(--ws-external --rpc-external --rpc-methods safe)
+    ARGS+=(--ws-external --rpc-external --rpc-methods Safe)
 fi
 
 aleph-node "${ARGS[@]}"
