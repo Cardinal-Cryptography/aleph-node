@@ -59,6 +59,9 @@ pub struct SessionPeriod(pub u32);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
 
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
+pub struct BaseUnitCreationDelay(pub u64);
+
 use sp_core::crypto::KeyTypeId;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub use crate::metrics::Metrics;
@@ -241,6 +244,7 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub metrics: Option<Metrics<B::Header>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
+    pub base_unit_creation_delay: BaseUnitCreationDelay,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(

@@ -315,6 +315,20 @@ impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
     }
 }
 
+pub struct BaseUnitCreationDelay;
+
+impl BaseUnitCreationDelay {
+    pub fn get() -> u64 {
+        Aleph::base_unit_creation_delay()
+    }
+}
+
+impl<I: From<u64>> ::frame_support::traits::Get<I> for BaseUnitCreationDelay {
+    fn get() -> I {
+        I::from(Self::get())
+    }
+}
+
 parameter_types! {
     pub const Offset: u32 = 0;
 }
@@ -550,6 +564,10 @@ impl_runtime_apis! {
 
         fn millisecs_per_block() -> u64 {
             MillisecsPerBlock::get()
+        }
+
+        fn base_unit_creation_delay() -> u64 {
+            BaseUnitCreationDelay::get()
         }
     }
 }

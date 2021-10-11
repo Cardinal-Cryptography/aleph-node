@@ -1,6 +1,6 @@
 use aleph_primitives::{
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MILLISECS_PER_BLOCK,
-    DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_BASE_UNIT_CREATION_DELAY,
+    DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
@@ -110,6 +110,9 @@ pub struct ChainParams {
     pub millisecs_per_block: Option<u64>,
 
     #[structopt(long)]
+    pub base_unit_creation_delay: Option<u64>,
+
+    #[structopt(long)]
     pub chain_name: Option<String>,
 
     #[structopt(long)]
@@ -139,6 +142,11 @@ impl ChainParams {
     pub fn millisecs_per_block(&self) -> u64 {
         self.millisecs_per_block
             .unwrap_or(DEFAULT_MILLISECS_PER_BLOCK)
+    }
+
+    pub fn base_unit_creation_delay(&self) -> u64 {
+        self.base_unit_creation_delay
+            .unwrap_or(DEFAULT_BASE_UNIT_CREATION_DELAY)
     }
 
     pub fn session_period(&self) -> u32 {
@@ -317,6 +325,7 @@ fn genesis(
 ) -> GenesisConfig {
     let session_period = chain_params.session_period();
     let millisecs_per_block = chain_params.millisecs_per_block();
+    let base_unit_creation_delay = chain_params.base_unit_creation_delay();
 
     log::debug!("chain parameters {:?}", &chain_params);
 
@@ -351,6 +360,7 @@ fn genesis(
                 .iter()
                 .map(|auth| auth.account_id.clone())
                 .collect(),
+            base_unit_creation_delay,
         },
         session: SessionConfig {
             keys: authorities

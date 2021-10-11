@@ -3,8 +3,8 @@
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, SessionPeriod,
+    run_aleph_consensus, AlephBlockImport, AlephConfig, BaseUnitCreationDelay,
+    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -182,6 +182,13 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             .unwrap(),
     );
 
+    let base_unit_creation_delay = BaseUnitCreationDelay(
+        client
+            .runtime_api()
+            .base_unit_creation_delay(&BlockId::Number(Zero::zero()))
+            .unwrap(),
+    );
+
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
@@ -276,6 +283,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             keystore: keystore_container.sync_keystore(),
             justification_rx,
             metrics,
+            base_unit_creation_delay,
         };
         task_manager
             .spawn_essential_handle()
