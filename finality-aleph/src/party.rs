@@ -14,7 +14,7 @@ use crate::{
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
     },
-    session_id_from_block_num, AuthorityId, BaseUnitCreationDelay, Future, KeyBox, Metrics,
+    session_id_from_block_num, AuthorityId, UnitCreationDelay, Future, KeyBox, Metrics,
     MultiKeychain, NodeIndex, SessionId, SessionMap, SessionPeriod, KEY_TYPE,
 };
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
@@ -68,7 +68,7 @@ where
                 metrics,
                 session_period,
                 millisecs_per_block,
-                base_unit_creation_delay,
+                unit_creation_delay,
                 ..
             },
     } = aleph_params;
@@ -119,7 +119,7 @@ where
         session_period,
         spawn_handle: spawn_handle.into(),
         phantom: PhantomData,
-        base_unit_creation_delay,
+        unit_creation_delay,
     };
 
     debug!(target: "afa", "Consensus party has started.");
@@ -181,7 +181,7 @@ where
     phantom: PhantomData<BE>,
     metrics: Option<Metrics<B::Header>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
-    base_unit_creation_delay: BaseUnitCreationDelay,
+    unit_creation_delay: UnitCreationDelay,
 }
 
 async fn run_aggregator<B, C, BE>(
@@ -292,7 +292,7 @@ where
             authorities.len(),
             node_id,
             session_id,
-            self.base_unit_creation_delay.0,
+            self.unit_creation_delay.0,
         );
 
         let best_header = self
@@ -551,7 +551,7 @@ pub(crate) fn create_aleph_config(
     n_members: usize,
     node_id: NodeIndex,
     session_id: SessionId,
-    base_unit_creation_delay: u64,
+    unit_creation_delay: u64,
 ) -> aleph_bft::Config {
     let mut consensus_config = default_aleph_config(n_members.into(), node_id, session_id.0 as u64);
     consensus_config.max_round = 7000;
@@ -559,7 +559,7 @@ pub(crate) fn create_aleph_config(
         if t == 0 {
             Duration::from_millis(2000)
         } else {
-            exponential_slowdown(t, base_unit_creation_delay as f64, 5000, 1.005)
+            exponential_slowdown(t, unit_creation_delay as f64, 5000, 1.005)
         }
     });
     let unit_broadcast_delay = Arc::new(|t| exponential_slowdown(t, 4000., 0, 2.));

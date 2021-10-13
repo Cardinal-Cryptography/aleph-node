@@ -22,7 +22,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
-        ApiError as AlephApiError, DEFAULT_BASE_UNIT_CREATION_DELAY, DEFAULT_MILLISECS_PER_BLOCK,
+        ApiError as AlephApiError, DEFAULT_UNIT_CREATION_DELAY, DEFAULT_MILLISECS_PER_BLOCK,
         DEFAULT_SESSION_PERIOD,
     };
 
@@ -115,21 +115,21 @@ pub mod pallet {
         StorageValue<_, u64, ValueQuery, DefaultForMillisecsPerBlock>;
 
     #[pallet::type_value]
-    pub(super) fn DefaultForBaseUnitCreationDelay() -> u64 {
-        DEFAULT_BASE_UNIT_CREATION_DELAY
+    pub(super) fn DefaultForUnitCreationDelay() -> u64 {
+        DEFAULT_UNIT_CREATION_DELAY
     }
 
     #[pallet::storage]
-    #[pallet::getter(fn base_unit_creation_delay)]
-    pub(super) type BaseUnitCreationDelay<T: Config> =
-        StorageValue<_, u64, ValueQuery, DefaultForBaseUnitCreationDelay>;
+    #[pallet::getter(fn unit_creation_delay)]
+    pub(super) type UnitCreationDelay<T: Config> =
+        StorageValue<_, u64, ValueQuery, DefaultForUnitCreationDelay>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub authorities: Vec<T::AuthorityId>,
         pub session_period: u32,
         pub millisecs_per_block: u64,
-        pub base_unit_creation_delay: u64,
+        pub unit_creation_delay: u64,
         pub validators: Vec<T::AccountId>,
     }
 
@@ -140,7 +140,7 @@ pub mod pallet {
                 authorities: Vec::new(),
                 session_period: DEFAULT_SESSION_PERIOD,
                 millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK,
-                base_unit_creation_delay: DEFAULT_BASE_UNIT_CREATION_DELAY,
+                unit_creation_delay: DEFAULT_UNIT_CREATION_DELAY,
                 validators: Vec::new(),
             }
         }
@@ -151,7 +151,7 @@ pub mod pallet {
         fn build(&self) {
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
-            <BaseUnitCreationDelay<T>>::put(&self.base_unit_creation_delay);
+            <UnitCreationDelay<T>>::put(&self.unit_creation_delay);
             <Validators<T>>::put(Some(&self.validators));
             <SessionForValidatorsChange<T>>::put(Some(0));
         }

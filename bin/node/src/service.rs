@@ -3,7 +3,7 @@
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_aleph_consensus, AlephBlockImport, AlephConfig, BaseUnitCreationDelay,
+    run_aleph_consensus, AlephBlockImport, AlephConfig, UnitCreationDelay,
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;
@@ -182,10 +182,10 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             .unwrap(),
     );
 
-    let base_unit_creation_delay = BaseUnitCreationDelay(
+    let unit_creation_delay = UnitCreationDelay(
         client
             .runtime_api()
-            .base_unit_creation_delay(&BlockId::Number(Zero::zero()))
+            .unit_creation_delay(&BlockId::Number(Zero::zero()))
             .unwrap(),
     );
 
@@ -283,7 +283,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             keystore: keystore_container.sync_keystore(),
             justification_rx,
             metrics,
-            base_unit_creation_delay,
+            unit_creation_delay,
         };
         task_manager
             .spawn_essential_handle()

@@ -27,7 +27,7 @@ pub const DEFAULT_SESSION_PERIOD: u32 = 5;
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 4000;
 pub const TOKEN_DECIMALS: u32 = 12;
 pub const ADDRESSES_ENCODING: u32 = 42;
-pub const DEFAULT_BASE_UNIT_CREATION_DELAY: u64 = 300;
+pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
 #[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum ApiError {
@@ -41,6 +41,6 @@ sp_api::decl_runtime_apis! {
         fn authorities() -> Vec<AuthorityId>;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
-        fn base_unit_creation_delay() -> u64;
+        fn unit_creation_delay() -> u64;
     }
 }
