@@ -292,7 +292,7 @@ where
             authorities.len(),
             node_id,
             session_id,
-            self.unit_creation_delay.0,
+            self.unit_creation_delay,
         );
 
         let best_header = self
@@ -551,7 +551,7 @@ pub(crate) fn create_aleph_config(
     n_members: usize,
     node_id: NodeIndex,
     session_id: SessionId,
-    unit_creation_delay: u64,
+    unit_creation_delay: UnitCreationDelay,
 ) -> aleph_bft::Config {
     let mut consensus_config = default_aleph_config(n_members.into(), node_id, session_id.0 as u64);
     consensus_config.max_round = 7000;
@@ -559,7 +559,7 @@ pub(crate) fn create_aleph_config(
         if t == 0 {
             Duration::from_millis(2000)
         } else {
-            exponential_slowdown(t, unit_creation_delay as f64, 5000, 1.005)
+            exponential_slowdown(t, unit_creation_delay.0 as f64, 5000, 1.005)
         }
     });
     let unit_broadcast_delay = Arc::new(|t| exponential_slowdown(t, 4000., 0, 2.));
