@@ -109,6 +109,7 @@ pub struct ChainParams {
     #[structopt(long)]
     pub millisecs_per_block: Option<u64>,
 
+    /// Specify delay for unit creation in milliseconds.
     #[structopt(long)]
     pub unit_creation_delay: Option<u64>,
 
