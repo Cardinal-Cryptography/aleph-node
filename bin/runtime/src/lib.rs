@@ -6,6 +6,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use primitives::{
+    MillisecsPerBlock as MillisecsPerBlockPrimitive, SessionPeriod as SessionPeriodPrimitive,
+    UnitCreationDelay as UnitCreationDelayPrimitive,
+};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -18,8 +22,6 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature,
 };
-use primitives::{SessionPeriod as SessionPeriodPrimitive, MillisecsPerBlock as MillisecsPerBlockPrimitive, UnitCreationDelay as UnitCreationDelayPrimitive};
-
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]

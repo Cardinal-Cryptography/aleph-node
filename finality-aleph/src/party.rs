@@ -14,8 +14,8 @@ use crate::{
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
     },
-    session_id_from_block_num, AuthorityId, Future, KeyBox, Metrics,
-    MultiKeychain, NodeIndex, SessionId, SessionMap, KEY_TYPE,
+    session_id_from_block_num, AuthorityId, Future, KeyBox, Metrics, MultiKeychain, NodeIndex,
+    SessionId, SessionMap, KEY_TYPE,
 };
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 

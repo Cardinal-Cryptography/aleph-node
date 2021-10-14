@@ -58,8 +58,8 @@ pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub use crate::metrics::Metrics;
 use crate::party::{run_consensus_party, AlephParams};
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
-use futures::channel::mpsc;
 use aleph_primitives::{MillisecsPerBlock, SessionPeriod, UnitCreationDelay};
+use futures::channel::mpsc;
 
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.

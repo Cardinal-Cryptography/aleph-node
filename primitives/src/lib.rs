@@ -1,11 +1,11 @@
 #![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed)]
 #![cfg_attr(not(feature = "std"), no_std)]
+use codec::{Decode, Encode};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
 use sp_std::vec::Vec;
-use codec::{Encode, Decode};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 

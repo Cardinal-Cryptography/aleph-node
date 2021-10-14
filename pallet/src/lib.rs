@@ -6,8 +6,11 @@ mod mock;
 mod tests;
 
 use frame_support::Parameter;
+use primitives::{
+    MillisecsPerBlock as MillisecsPerBlockPrimitive, SessionPeriod as SessionPeriodPrimitive,
+    UnitCreationDelay as UnitCreationDelayPrimitive,
+};
 use sp_std::prelude::*;
-use primitives::{SessionPeriod as SessionPeriodPrimitive, MillisecsPerBlock as MillisecsPerBlockPrimitive, UnitCreationDelay as UnitCreationDelayPrimitive};
 
 use frame_support::{sp_runtime::BoundToRuntimeAppPublic, traits::OneSessionHandler};
 pub use pallet::*;
@@ -23,8 +26,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
-        ApiError as AlephApiError, DEFAULT_UNIT_CREATION_DELAY, DEFAULT_MILLISECS_PER_BLOCK,
-        DEFAULT_SESSION_PERIOD,
+        ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
+        DEFAULT_UNIT_CREATION_DELAY,
     };
 
     #[pallet::type_value]
@@ -95,9 +98,12 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
-    const DEFAULT_SESSION_PERIOD_PRIMITIVE : SessionPeriodPrimitive = SessionPeriodPrimitive(DEFAULT_SESSION_PERIOD);
-    const DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE : MillisecsPerBlockPrimitive = MillisecsPerBlockPrimitive(DEFAULT_MILLISECS_PER_BLOCK);
-    const DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE : UnitCreationDelayPrimitive = UnitCreationDelayPrimitive(DEFAULT_UNIT_CREATION_DELAY);
+    const DEFAULT_SESSION_PERIOD_PRIMITIVE: SessionPeriodPrimitive =
+        SessionPeriodPrimitive(DEFAULT_SESSION_PERIOD);
+    const DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE: MillisecsPerBlockPrimitive =
+        MillisecsPerBlockPrimitive(DEFAULT_MILLISECS_PER_BLOCK);
+    const DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE: UnitCreationDelayPrimitive =
+        UnitCreationDelayPrimitive(DEFAULT_UNIT_CREATION_DELAY);
 
     #[pallet::type_value]
     pub(super) fn DefaultForSessionPeriod() -> SessionPeriodPrimitive {

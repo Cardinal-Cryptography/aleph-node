@@ -1,7 +1,8 @@
 use aleph_primitives::{
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_UNIT_CREATION_DELAY,
-    DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSION_PERIOD, DEFAULT_UNIT_CREATION_DELAY, TOKEN_DECIMALS,
 };
+use aleph_primitives::{MillisecsPerBlock, SessionPeriod, UnitCreationDelay};
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
@@ -19,7 +20,6 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::{path::PathBuf, str::FromStr};
 use structopt::StructOpt;
-use aleph_primitives::{MillisecsPerBlock, SessionPeriod, UnitCreationDelay};
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
@@ -142,11 +142,17 @@ impl ChainParams {
     }
 
     pub fn millisecs_per_block(&self) -> MillisecsPerBlock {
-        MillisecsPerBlock(self.millisecs_per_block.unwrap_or(DEFAULT_MILLISECS_PER_BLOCK))
+        MillisecsPerBlock(
+            self.millisecs_per_block
+                .unwrap_or(DEFAULT_MILLISECS_PER_BLOCK),
+        )
     }
 
     pub fn unit_creation_delay(&self) -> UnitCreationDelay {
-        UnitCreationDelay(self.unit_creation_delay.unwrap_or(DEFAULT_UNIT_CREATION_DELAY))
+        UnitCreationDelay(
+            self.unit_creation_delay
+                .unwrap_or(DEFAULT_UNIT_CREATION_DELAY),
+        )
     }
 
     pub fn session_period(&self) -> SessionPeriod {
