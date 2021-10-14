@@ -7,6 +7,7 @@ mod tests;
 
 use frame_support::Parameter;
 use sp_std::prelude::*;
+use primitives::{SessionPeriod as SessionPeriodPrimitive, MillisecsPerBlock as MillisecsPerBlockPrimitive, UnitCreationDelay as UnitCreationDelayPrimitive};
 
 use frame_support::{sp_runtime::BoundToRuntimeAppPublic, traits::OneSessionHandler};
 pub use pallet::*;
@@ -94,42 +95,46 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
+    const DEFAULT_SESSION_PERIOD_PRIMITIVE : SessionPeriodPrimitive = SessionPeriodPrimitive(DEFAULT_SESSION_PERIOD);
+    const DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE : MillisecsPerBlockPrimitive = MillisecsPerBlockPrimitive(DEFAULT_MILLISECS_PER_BLOCK);
+    const DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE : UnitCreationDelayPrimitive = UnitCreationDelayPrimitive(DEFAULT_UNIT_CREATION_DELAY);
+
     #[pallet::type_value]
-    pub(super) fn DefaultForSessionPeriod() -> u32 {
-        DEFAULT_SESSION_PERIOD
+    pub(super) fn DefaultForSessionPeriod() -> SessionPeriodPrimitive {
+        DEFAULT_SESSION_PERIOD_PRIMITIVE
     }
 
     #[pallet::storage]
     #[pallet::getter(fn session_period)]
     pub(super) type SessionPeriod<T: Config> =
-        StorageValue<_, u32, ValueQuery, DefaultForSessionPeriod>;
+        StorageValue<_, SessionPeriodPrimitive, ValueQuery, DefaultForSessionPeriod>;
 
     #[pallet::type_value]
-    pub(super) fn DefaultForMillisecsPerBlock() -> u64 {
-        DEFAULT_MILLISECS_PER_BLOCK
+    pub(super) fn DefaultForMillisecsPerBlock() -> MillisecsPerBlockPrimitive {
+        DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE
     }
 
     #[pallet::storage]
     #[pallet::getter(fn millisecs_per_block)]
     pub(super) type MillisecsPerBlock<T: Config> =
-        StorageValue<_, u64, ValueQuery, DefaultForMillisecsPerBlock>;
+        StorageValue<_, MillisecsPerBlockPrimitive, ValueQuery, DefaultForMillisecsPerBlock>;
 
     #[pallet::type_value]
-    pub(super) fn DefaultForUnitCreationDelay() -> u64 {
-        DEFAULT_UNIT_CREATION_DELAY
+    pub(super) fn DefaultForUnitCreationDelay() -> UnitCreationDelayPrimitive {
+        DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE
     }
 
     #[pallet::storage]
     #[pallet::getter(fn unit_creation_delay)]
     pub(super) type UnitCreationDelay<T: Config> =
-        StorageValue<_, u64, ValueQuery, DefaultForUnitCreationDelay>;
+        StorageValue<_, UnitCreationDelayPrimitive, ValueQuery, DefaultForUnitCreationDelay>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub authorities: Vec<T::AuthorityId>,
-        pub session_period: u32,
-        pub millisecs_per_block: u64,
-        pub unit_creation_delay: u64,
+        pub session_period: SessionPeriodPrimitive,
+        pub millisecs_per_block: MillisecsPerBlockPrimitive,
+        pub unit_creation_delay: UnitCreationDelayPrimitive,
         pub validators: Vec<T::AccountId>,
     }
 
@@ -138,9 +143,9 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 authorities: Vec::new(),
-                session_period: DEFAULT_SESSION_PERIOD,
-                millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK,
-                unit_creation_delay: DEFAULT_UNIT_CREATION_DELAY,
+                session_period: DEFAULT_SESSION_PERIOD_PRIMITIVE,
+                millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE,
+                unit_creation_delay: DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE,
                 validators: Vec::new(),
             }
         }

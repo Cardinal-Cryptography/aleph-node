@@ -53,21 +53,13 @@ pub fn peers_set_config() -> sc_network::config::NonDefaultSetConfig {
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct SessionId(pub u32);
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct SessionPeriod(pub u32);
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct MillisecsPerBlock(pub u64);
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct UnitCreationDelay(pub u64);
-
 use sp_core::crypto::KeyTypeId;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 pub use crate::metrics::Metrics;
 use crate::party::{run_consensus_party, AlephParams};
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 use futures::channel::mpsc;
+use aleph_primitives::{MillisecsPerBlock, SessionPeriod, UnitCreationDelay};
 
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.

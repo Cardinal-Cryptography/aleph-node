@@ -14,13 +14,13 @@ use crate::{
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
     },
-    session_id_from_block_num, AuthorityId, UnitCreationDelay, Future, KeyBox, Metrics,
-    MultiKeychain, NodeIndex, SessionId, SessionMap, SessionPeriod, KEY_TYPE,
+    session_id_from_block_num, AuthorityId, Future, KeyBox, Metrics,
+    MultiKeychain, NodeIndex, SessionId, SessionMap, KEY_TYPE,
 };
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 
 use aleph_bft::{DelayConfig, OrderedBatch, SpawnHandle};
-use aleph_primitives::AlephSessionApi;
+use aleph_primitives::{AlephSessionApi, SessionPeriod, UnitCreationDelay};
 use futures_timer::Delay;
 
 use futures::{

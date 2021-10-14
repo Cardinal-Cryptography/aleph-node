@@ -19,6 +19,7 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::{path::PathBuf, str::FromStr};
 use structopt::StructOpt;
+use aleph_primitives::{MillisecsPerBlock, SessionPeriod, UnitCreationDelay};
 
 const FAUCET_HASH: [u8; 32] =
     hex!("eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74");
@@ -140,18 +141,16 @@ impl ChainParams {
         self.base_path.clone().into()
     }
 
-    pub fn millisecs_per_block(&self) -> u64 {
-        self.millisecs_per_block
-            .unwrap_or(DEFAULT_MILLISECS_PER_BLOCK)
+    pub fn millisecs_per_block(&self) -> MillisecsPerBlock {
+        MillisecsPerBlock(self.millisecs_per_block.unwrap_or(DEFAULT_MILLISECS_PER_BLOCK))
     }
 
-    pub fn unit_creation_delay(&self) -> u64 {
-        self.unit_creation_delay
-            .unwrap_or(DEFAULT_UNIT_CREATION_DELAY)
+    pub fn unit_creation_delay(&self) -> UnitCreationDelay {
+        UnitCreationDelay(self.unit_creation_delay.unwrap_or(DEFAULT_UNIT_CREATION_DELAY))
     }
 
-    pub fn session_period(&self) -> u32 {
-        self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD)
+    pub fn session_period(&self) -> SessionPeriod {
+        SessionPeriod(self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD))
     }
 
     pub fn token_symbol(&self) -> &str {
