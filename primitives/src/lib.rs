@@ -34,6 +34,7 @@ pub struct SessionPeriod(pub u32);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
 
+/// A delay for unit creation in milliseconds.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
