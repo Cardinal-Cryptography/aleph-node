@@ -1,13 +1,25 @@
-use clap::{AppSettings, Parser};
+use clap::Parser;
 
-#[derive(Parser)]
-struct Config {
-    /// Sets a custom config file. Could have been an Option<T> with no default too
-    #[clap(short, long, default_value = "default.conf")]
-    config: String,
-    /// Some input. Because this isn't an Option<T> it's required to be used
-    input: String,
-    /// A level of verbosity, and can be used multiple times
-    #[clap(short, long, parse(from_occurrences))]
-    verbose: i32,
+#[derive(Debug, Parser)]
+#[clap(version = "1.0")]
+pub struct Config {
+    // #[clap(short, long, default_value = "http")]
+    // protocol: String,
+    #[clap(short, long, default_value = "127.0.0.1")]
+    pub host: String,
+
+    #[clap(short, long, default_value = "9943")]
+    pub port: u32,
+
+    /// how many concurrent tasks to spawn. Requests are spread over these connections    
+    #[clap(short, long, default_value = "2")]
+    pub concurrency: usize,
+
+    /// how many transactions to send
+    #[clap(short, long, default_value = "1000")]
+    pub n_transactions: u32,
+
+    /// how long to run the benchmark for (in seconds)
+    #[clap(short, long, default_value = "10")]
+    pub time: u32,
 }

@@ -3,13 +3,24 @@ name = "benchmarks"
 version = "0.1.0"
 edition = "2018"
 
+# client
+[dependencies.substrate-api-client]
+git = "https://github.com/scs/substrate-api-client"
+rev = "f9d3a773bb5c76a0c0689b012fc08599beb90ab7"
+
+
 [dependencies]
-tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
-# futures = { version = "0.3", default-features = false, features = ["alloc"] }
-hdrhistogram = "7.1.0"
+# Substrate dependencies
+# sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", features = ["full_crypto"] }
+# sp-keyring = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master" }
+# sp-runtime = { version = "4.0.0-dev",  git = "https://github.com/paritytech/substrate.git", branch = "master" }
+
+# other dependencies
+tokio = { version = "1.12", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
+futures = { version = "0.3", features = ["alloc"] }
+# hdrhistogram = "7.1.0"
 log = "0.4"
 env_logger = "0.8"
 url = "2.0"
-clap = "2.33.3"
 anyhow = "^1.0"
-clap = "3.0.0-beta.5"
+clap = {version = "3.0.0-beta.5", features = ["derive"]}
