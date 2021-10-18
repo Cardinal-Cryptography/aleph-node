@@ -162,6 +162,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "sp-core",
  "substrate-api-client",
  "tokio",
  "url",

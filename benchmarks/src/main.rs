@@ -5,6 +5,7 @@ use config::Config;
 use futures::future::join_all;
 use futures::{Future, Stream};
 use log::{debug, info};
+use sp_core::{sr25519, Pair};
 use std::cmp;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -24,7 +25,6 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut tasks = Vec::with_capacity(config.concurrency);
     let counter = Arc::new(Mutex::new(0));
-    // let timer = Arc::new(Mutex::new(0u64));
     let tick = Instant::now();
 
     for id in 0..config.concurrency {
@@ -35,10 +35,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
         let threshold = n_transactions / concurrency;
 
-        // let until = config.length;
+        let url = format!("ws://{}:{}", config.host, config.port);
 
         tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, counter, threshold, tick, n_transactions);
+            let client = Client::new(id, counter, threshold, n_transactions, url);
             client.await;
         }));
     }
@@ -67,20 +67,30 @@ struct Client {
     counter: Arc<Mutex<u64>>,
     /// keep sending tx until counter reaches treshold value
     threshold: u64,
-    /// timer initiated at this clock value
-    tick: Instant,
+    // /// timer initiated at this clock value
+    // tick: Instant,
     /// total number of txs to send
     total: u64,
+    /// URL for ws connection
+    url: String,
 }
 
 impl Client {
-    fn new(id: usize, counter: Arc<Mutex<u64>>, threshold: u64, tick: Instant, total: u64) -> Self {
+    fn new(
+        id: usize,
+        counter: Arc<Mutex<u64>>,
+        threshold: u64,
+        // tick: Instant,
+        total: u64,
+        url: String,
+    ) -> Self {
         Self {
             id,
             counter,
             threshold,
-            tick,
+            // tick,
             total,
+            url,
         }
     }
 }
@@ -89,15 +99,27 @@ impl Future for Client {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Self::Output> {
+        let this = &mut *self;
+
+        let client = WsRpcClient::new(&this.url);
+        let connection =
+            Api::<sr25519::Pair, _>::new(client).expect("Client can not establish connection");
+
         loop {
-            let this = &mut *self;
+            // let this = &mut *self;
+
+            // let from: sr25519::Pair = config
+            //     .accounts
+            //     .get(0)
+            //     .expect("No accounts passed")
+            //     .to_owned();
+
             let mut counter = this.counter.lock().unwrap();
-            // NOTE: each client has it's own clock, do we care?
-            let tock = this.tick.elapsed().as_secs();
 
             debug!(
-                "id {}, counter: {}, elapsed time {}",
-                this.id, *counter, tock
+                "id {}, counter: {}",
+                this.id,
+                *counter // , tock
             );
 
             if
