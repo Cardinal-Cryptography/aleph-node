@@ -1,10 +1,13 @@
 mod config;
 
+use crate::config::accounts;
 use clap::Parser;
 use config::Config;
 use futures::future::join_all;
 use futures::{Future, Stream};
 use log::{debug, info};
+use rand::Rng;
+use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
 use std::cmp;
 use std::pin::Pin;
@@ -25,23 +28,26 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut tasks = Vec::with_capacity(config.concurrency);
     let counter = Arc::new(Mutex::new(0));
-    let tick = Instant::now();
+
+    let concurrency: u64 = config.concurrency as u64;
+    let n_transactions = config.throughput * config.duration;
+    let threshold = n_transactions / concurrency;
+
+    let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
 
     for id in 0..config.concurrency {
         let counter = Arc::clone(&counter);
-        let concurrency: u64 = config.concurrency as u64;
-        // number of tx we need to send to reach theoretical throughput
-        let n_transactions = config.throughput * config.duration;
-
-        let threshold = n_transactions / concurrency;
-
+        let accounts = accounts.clone();
         let url = format!("ws://{}:{}", config.host, config.port);
 
         tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, counter, threshold, n_transactions, url);
+            let client = Client::new(id, counter, threshold, n_transactions, url, accounts);
             client.await;
         }));
     }
+
+    // NOTE: we measure time after all the configuration
+    let tick = Instant::now();
 
     join_all(tasks).await;
 
@@ -73,6 +79,8 @@ struct Client {
     total: u64,
     /// URL for ws connection
     url: String,
+    /// accounts for signing tx and sendig them to
+    accounts: Vec<sr25519::Pair>,
 }
 
 impl Client {
@@ -80,17 +88,17 @@ impl Client {
         id: usize,
         counter: Arc<Mutex<u64>>,
         threshold: u64,
-        // tick: Instant,
         total: u64,
         url: String,
+        accounts: Vec<sr25519::Pair>,
     ) -> Self {
         Self {
             id,
             counter,
             threshold,
-            // tick,
             total,
             url,
+            accounts,
         }
     }
 }
@@ -102,25 +110,49 @@ impl Future for Client {
         let this = &mut *self;
 
         let client = WsRpcClient::new(&this.url);
-        let connection =
-            Api::<sr25519::Pair, _>::new(client).expect("Client can not establish connection");
+
+        let index = rand::thread_rng().gen_range(0..this.accounts.len());
+        let from = this
+            .accounts
+            .get(index)
+            .expect("no account with this index found")
+            .to_owned();
+
+        let connection = Api::<sr25519::Pair, _>::new(client)
+            .expect("Connection could not be established")
+            .set_signer(from);
+
+        let index = rand::thread_rng().gen_range(0..this.accounts.len());
+        let to = AccountId::from(
+            this.accounts
+                .get(index)
+                .expect("no account with this index found")
+                .to_owned()
+                .public(),
+        );
 
         loop {
-            // let this = &mut *self;
+            let transfer_value = 1u128;
+            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+                connection,
+                "Balances",
+                "transfer",
+                GenericAddress::Id(to.clone()),
+                Compact(transfer_value)
+            );
 
-            // let from: sr25519::Pair = config
-            //     .accounts
-            //     .get(0)
-            //     .expect("No accounts passed")
-            //     .to_owned();
+            // XtStatus::
+
+            let tx_hash = connection
+                .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+                .unwrap()
+                .expect("Could not get tx hash");
+
+            debug!("[+] Transaction hash: {}", tx_hash);
 
             let mut counter = this.counter.lock().unwrap();
 
-            debug!(
-                "id {}, counter: {}",
-                this.id,
-                *counter // , tock
-            );
+            debug!("id {}, counter: {}", this.id, *counter);
 
             if
             // *counter >= this.threshold

@@ -47,8 +47,8 @@ fn read_keypair(file: String) -> sr25519::Pair {
 }
 
 pub fn accounts(
-    account_ids: Vec<String>,
     base_path: String,
+    account_ids: Vec<String>,
     key_filename: String,
 ) -> Vec<sr25519::Pair> {
     account_ids
