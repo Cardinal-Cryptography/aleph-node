@@ -13,9 +13,10 @@ from shell import setup_benchmark, instances_ip_in_region, run_task
 from utils import default_region
 
 
-def run_experiment(nparties: int, tag: str, session_period: Optional[int]) -> List[str]:
+def run_experiment(nparties: int, tag: str, unit_creation_delay: Optional[int]) -> List[str]:
     logging.info('Setting up nodes...')
-    setup_benchmark(nparties, 'test', [default_region()], tag=tag, **{'--session-period': session_period or '903'})
+    flags = {'--unit-creation-delay': unit_creation_delay} if unit_creation_delay else dict()
+    setup_benchmark(nparties, 'test', [default_region()], tag=tag, **flags)
     logging.info('Obtaining machine IPs...')
     ips = instances_ip_in_region(tag=tag)
     logging.info(f'Machine IPs: {ips}.')
@@ -68,7 +69,7 @@ def view_dashboard():
 
 def run(args: Namespace):
     copy_binary(args.aleph_node_binary)
-    ips = run_experiment(args.nparties, args.tag, args.session_period)
+    ips = run_experiment(args.nparties, args.tag, args.unit_creation_delay)
     targets = convert_to_targets(ips)
     create_prometheus_configuration(targets)
     run_monitoring_in_docker()
