@@ -2,8 +2,9 @@ version: '3'
 
 services:
   prometheus:
-    network_mode: "host" # only needed if run locally
     image: prom/prometheus:v2.30.3
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - "9090:9090"
     volumes:
