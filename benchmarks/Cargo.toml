@@ -1,0 +1,15 @@
+[package]
+name = "benchmarks"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
+# futures = { version = "0.3", default-features = false, features = ["alloc"] }
+hdrhistogram = "7.1.0"
+log = "0.4"
+env_logger = "0.8"
+url = "2.0"
+clap = "2.33.3"
+anyhow = "^1.0"
+clap = "3.0.0-beta.5"
