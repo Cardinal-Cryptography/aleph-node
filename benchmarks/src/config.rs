@@ -15,11 +15,11 @@ pub struct Config {
     #[clap(short, long, default_value = "2")]
     pub concurrency: usize,
 
-    /// how many transactions to send
+    /// how many transactions / s to send
     #[clap(short, long, default_value = "1000")]
-    pub n_transactions: u64,
+    pub throughput: u64,
 
     /// how long to run the benchmark for (in seconds)
     #[clap(short, long, default_value = "10")]
-    pub time: u64,
+    pub duration: u64,
 }
