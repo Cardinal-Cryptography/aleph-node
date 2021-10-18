@@ -15,26 +15,27 @@ def stop_protocol(tag: str):
     logging.info('Instances stopped.')
 
 
+def remove_file(filename: str):
+    Path(filename).unlink(missing_ok=True)
+
+
 def remove_files():
-    Path('addresses').unlink(missing_ok=True)
-    Path('aleph-node.zip').unlink(missing_ok=True)
-    Path('chainspec.json').unlink(missing_ok=True)
-    Path('libp2p_public_keys').unlink(missing_ok=True)
-    Path('validator_accounts').unlink(missing_ok=True)
-    Path('validator_phrases').unlink(missing_ok=True)
-    Path('x').unlink(missing_ok=True)
+    for filename in ['addresses', 'aleph-node.zip', 'chainspec.json', 'libp2p_public_keys',
+                     'validator_accounts', 'validator_phrases', 'x']:
+        remove_file(filename)
+
     shutil.rmtree('accounts', ignore_errors=True)
     shutil.rmtree('bin', ignore_errors=True)
     shutil.rmtree('data', ignore_errors=True)
 
     for item in os.listdir(os.curdir):
         if re.match(r'data\d+\.zip', item):
-            os.remove(item)
+            remove_file(item)
 
 
 def stop_monitoring():
     os.system('docker-compose down')
-    Path('prometheus.yml').unlink(missing_ok=True)
+    remove_file('prometheus.yml')
 
 
 def clean(args: Namespace):
