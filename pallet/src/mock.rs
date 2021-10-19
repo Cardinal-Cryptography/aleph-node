@@ -144,7 +144,7 @@ pub fn to_authorities(authorities: &[u64]) -> Vec<AuthorityId> {
         .collect()
 }
 
-pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
+pub fn new_test_ext(authorities: &[u64]) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
@@ -159,9 +159,9 @@ pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
 
     let session_keys: Vec<_> = authorities
         .iter()
-        .map(|(id, weight)| (UintAuthorityId(*id).to_public_key::<AuthorityId>(), weight))
+        .map(|id| (UintAuthorityId(*id).to_public_key::<AuthorityId>()))
         .enumerate()
-        .map(|(i, (k, _))| (i as u64, i as u64, TestSessionKeys { aleph: k }))
+        .map(|(i, k)| (i as u64, i as u64, TestSessionKeys { aleph: k }))
         .collect();
 
     pallet_session::GenesisConfig::<Test> { keys: session_keys }
@@ -171,7 +171,7 @@ pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
     t.into()
 }
 
-pub(crate) fn run_session(n: u64) {
+pub(crate) fn run_until_block(n: u64) {
     while System::block_number() < n {
         Session::on_finalize(System::block_number());
         Aleph::on_finalize(System::block_number());

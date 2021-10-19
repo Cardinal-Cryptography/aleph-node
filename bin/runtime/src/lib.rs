@@ -15,10 +15,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
-        Verify,
-    },
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature,
 };
@@ -42,7 +39,10 @@ pub use frame_support::{
     },
     StorageValue,
 };
-use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
+use primitives::{
+    AccountId as AlephAccountId, ApiError as AlephApiError, AuthDiscoveryError,
+    AuthorityId as AlephId,
+};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -58,9 +58,7 @@ pub type BlockNumber = u32;
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
 
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = AlephAccountId;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
@@ -106,10 +104,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+    transaction_version: 2,
 };
 
 /// This determines the average expected block time that we are targetting.
@@ -526,7 +524,8 @@ impl_runtime_apis! {
     }
 
     impl primitives::AlephSessionApi<Block> for Runtime {
-        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
+
+        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError>{
             Aleph::next_session_authorities()
         }
 
@@ -546,4 +545,16 @@ impl_runtime_apis! {
             Aleph::unit_creation_delay()
         }
     }
+
+    impl primitives::AuthorityDiscoveryApi<Block> for Runtime {
+
+        /// Outputs the validator ids list of a future session. It is guaranteed that the output is
+        /// accurate for the current and the next session, but any sessions after that  might change
+        /// due to `change_validators` calls. Do not cache values for them.
+        /// In case `session_id` is lower than the current session this outputs Err.
+        fn future_session_validator_ids(session_id: u32) -> Result<Vec<AccountId>, AuthDiscoveryError> {
+            Aleph::future_session_validator_ids(session_id)
+        }
+    }
+
 }

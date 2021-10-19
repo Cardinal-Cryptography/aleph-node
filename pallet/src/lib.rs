@@ -20,14 +20,17 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
+        sp_runtime::{
+            traits::{Convert, OpaqueKeys},
+            RuntimeAppPublic,
+        },
         sp_std,
     };
     use frame_system::pallet_prelude::*;
     use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
-        DEFAULT_UNIT_CREATION_DELAY,
+        DEFAULT_UNIT_CREATION_DELAY,AuthDiscoveryError,
     };
 
     #[pallet::type_value]
@@ -78,18 +81,41 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        /// The semantics of this call is the following:
+        /// 1) if `session_for_validators_change >= current_session + 2` then the new validators will start
+        ///    in session `session_for_validators_change`,
+        /// 2) if `session_for_validators_change < current_session + 2` then, if `force_change == false` then
+        ///    the dispatch will return an error, if `force_change == true` then the dispatch will succeed and the
+        ///    new validators will start in the earliest possible session, i.e., `current_session + 2`.
+        /// In case the dispatch succeeds, the `Validators` and `SessionForValidatorsChange` storage items are updated
+        /// to `Some(validators)` and `Some(max(session_for_validators_change, current_session + 2))` accordingly.
+        /// The latter marks the session in which the new validators will kick in.
         pub fn change_validators(
             origin: OriginFor<T>,
             validators: Vec<T::AccountId>,
             session_for_validators_change: u32,
+            force_change: bool,
         ) -> DispatchResult {
             ensure_root(origin)?;
+            let current_session = Session::<T>::current_index();
+
+            let trigger_at_session = if current_session + 2 > session_for_validators_change {
+                if force_change {
+                    // Because of how pallet `Session` works, it is not possible to make the change happen at
+                    // `session_for_validators_change` if it is < `current_session` + 2. In order to store
+                    // accurate information in our storage and give the user accurate feedback (in the form
+                    // of an Event) we mark the change as happening at session `current_session` + 2 in case
+                    // the provided `session_for_validators_change` is too low.
+                    current_session + 2
+                } else {
+                    return Err(DispatchError::Other("session_for_validators_change is too low, choose a later session or set force_change to true"));
+                }
+            } else {
+                session_for_validators_change
+            };
             Validators::<T>::put(Some(validators.clone()));
-            SessionForValidatorsChange::<T>::put(Some(session_for_validators_change));
-            Self::deposit_event(Event::ChangeValidators(
-                validators,
-                session_for_validators_change,
-            ));
+            SessionForValidatorsChange::<T>::put(Some(trigger_at_session));
+            Self::deposit_event(Event::ChangeValidators(validators, trigger_at_session));
             Ok(())
         }
     }
@@ -141,7 +167,6 @@ pub mod pallet {
         pub session_period: SessionPeriodPrimitive,
         pub millisecs_per_block: MillisecsPerBlockPrimitive,
         pub unit_creation_delay: UnitCreationDelayPrimitive,
-        pub validators: Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
@@ -152,7 +177,6 @@ pub mod pallet {
                 session_period: DEFAULT_SESSION_PERIOD_PRIMITIVE,
                 millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE,
                 unit_creation_delay: DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE,
-                validators: Vec::new(),
             }
         }
     }
@@ -163,8 +187,6 @@ pub mod pallet {
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
             <UnitCreationDelay<T>>::put(&self.unit_creation_delay);
-            <Validators<T>>::put(Some(&self.validators));
-            <SessionForValidatorsChange<T>>::put(Some(0));
         }
     }
 
@@ -183,11 +205,40 @@ pub mod pallet {
             <Authorities<T>>::put(authorities);
         }
 
-        pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, AlephApiError> {
+        pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, ApiError> {
             Session::<T>::queued_keys()
                 .iter()
-                .map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<T::AuthorityId>, AlephApiError>>()
+                .map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(ApiError::DecodeKey))
+                .collect::<Result<Vec<T::AuthorityId>, ApiError>>()
+        }
+
+        pub fn future_session_validator_ids(
+            session_id: u32,
+        ) -> Result<Vec<T::ValidatorId>, AuthDiscoveryError> {
+            let current_session = Session::<T>::current_index();
+            if session_id < current_session {
+                return Err(AuthDiscoveryError::TooLowSessionId);
+            }
+            // If the session_id is higher than the one for which the validator rotation is scheduled, we output
+            // the new validator set, otherwise we output the current set (we read it off the session pallet).
+            match Pallet::<T>::session_for_validators_change() {
+                Some(session_change)
+                    if current_session < session_change && session_change <= session_id =>
+                {
+                    let account_ids = Pallet::<T>::validators().expect(
+                        "Validators also should be Some(), when session_for_validators_change is",
+                    );
+                    let validator_ids: Vec<T::ValidatorId> = account_ids
+                        .into_iter()
+                        .map(|account| {
+                            T::ValidatorIdOf::convert(account)
+                                .expect("Conversion is identity so it must succeed.")
+                        })
+                        .collect();
+                    Ok(validator_ids)
+                }
+                _ => Ok(Session::<T>::validators()),
+            }
         }
     }
 
@@ -196,12 +247,10 @@ pub mod pallet {
             if let Some(session_for_validators_change) =
                 Pallet::<T>::session_for_validators_change()
             {
-                if session_for_validators_change <= session {
+                if session_for_validators_change == session {
                     let validators = Pallet::<T>::validators().expect(
                         "Validators also should be Some(), when session_for_validators_change is",
                     );
-                    Validators::<T>::put(None::<Vec<T::AccountId>>);
-                    SessionForValidatorsChange::<T>::put(None::<u32>);
                     return Some(validators);
                 }
             }

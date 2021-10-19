@@ -7,6 +7,15 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
 use sp_std::vec::Vec;
 
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    MultiSignature,
+};
+
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
+pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
+
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 
 // Same as GRANDPA_ENGINE_ID because as of right now substrate sends only
@@ -50,6 +59,11 @@ pub enum ApiError {
     DecodeKey,
 }
 
+#[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
+pub enum AuthDiscoveryError {
+    TooLowSessionId,
+}
+
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi
     {
@@ -58,5 +72,10 @@ sp_api::decl_runtime_apis! {
         fn session_period() -> SessionPeriod;
         fn millisecs_per_block() -> MillisecsPerBlock;
         fn unit_creation_delay() -> UnitCreationDelay;
+    }
+
+    pub trait AuthorityDiscoveryApi
+    {
+        fn future_session_validator_ids(session_id: u32) -> Result<Vec<AccountId>, AuthDiscoveryError>;
     }
 }

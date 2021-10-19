@@ -448,9 +448,9 @@ where
                     .client
                     .runtime_api()
                     .next_session_authorities(&BlockId::Number(last_prev))
+                    .expect("Decoding session keys must succeed")
                 {
-                    Ok(authorities) => authorities
-                        .expect("authorities must be available at last block of previous session"),
+                    Ok(authorities) => authorities,
                     Err(e) => {
                         error!(target: "afa", "Error when getting authorities for session {:?} {:?}", session_id, e);
                         return;
