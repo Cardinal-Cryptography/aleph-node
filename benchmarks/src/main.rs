@@ -5,6 +5,7 @@ use clap::Parser;
 use config::Config;
 use futures::future::join_all;
 use futures::{Future, Stream};
+use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info};
 use rand::Rng;
 use sp_core::crypto::Ss58Codec;
@@ -27,40 +28,41 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Starting benchmark with config {:#?}", &config);
 
     let mut tasks = Vec::with_capacity(config.concurrency);
-    let counter = Arc::new(Mutex::new(0));
 
     let concurrency: u64 = config.concurrency as u64;
     let n_transactions = config.throughput * config.duration;
-    let threshold = n_transactions / concurrency;
+    let batch = n_transactions / concurrency;
 
     let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
 
+    let histogram = Arc::new(Mutex::new(
+        HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
+    ));
+
     for id in 0..config.concurrency {
-        let counter = Arc::clone(&counter);
+        let histogram = Arc::clone(&histogram);
         let accounts = accounts.clone();
         let url = format!("ws://{}:{}", config.host, config.port);
 
         tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, counter, threshold, n_transactions, url, accounts);
+            let client = Client::new(id, batch, url, accounts, histogram);
             client.await;
         }));
     }
 
-    // NOTE: we measure time after all the configuration
+    // NOTE: we start measuring time after all the configuration is done
     let tick = Instant::now();
-
     join_all(tasks).await;
+    let tock = tick.elapsed().as_millis();
 
-    let tock = tick.elapsed().as_secs();
-    let txs = *counter.lock().unwrap();
-    let time = cmp::max(1, tock);
-
-    info!(
-        "Summary:\n Total transactions sent: {}\n Elapsed time: {} s\n Theoretical throughput {:.1} tx/s\n Real throughput: {:.1} tx/s",
-        txs,
-        time,
-        config.throughput,
-        txs / time
+    let histogram = histogram.lock().unwrap();
+    info!("Summary:\n Transactions sent:   {}\n Total time:      {} ms\n Slowest tx:    {} ms\n Fastest tx:    {} ms\n Average:    {:.1} ms\n Throughput: {:.1} tx/s",
+             histogram.len (),
+             tock,
+             histogram.max (),
+             histogram.min (),
+             histogram.mean (),
+             1000.0 * histogram.len () as f64 / tock as f64
     );
 
     Ok(())
@@ -69,36 +71,30 @@ async fn main() -> Result<(), anyhow::Error> {
 struct Client {
     /// client id
     id: usize,
-    /// counter shared between all spawned clients
-    counter: Arc<Mutex<u64>>,
-    /// keep sending tx until counter reaches treshold value
-    threshold: u64,
-    // /// timer initiated at this clock value
-    // tick: Instant,
-    /// total number of txs to send
-    total: u64,
+    /// how many tx to make
+    batch: u64,
     /// URL for ws connection
     url: String,
     /// accounts for signing tx and sendig them to
     accounts: Vec<sr25519::Pair>,
+    /// thread shared, thread safe histogram
+    histogram: Arc<Mutex<HdrHistogram<u64>>>,
 }
 
 impl Client {
     fn new(
         id: usize,
-        counter: Arc<Mutex<u64>>,
-        threshold: u64,
-        total: u64,
+        batch: u64,
         url: String,
         accounts: Vec<sr25519::Pair>,
+        histogram: Arc<Mutex<HdrHistogram<u64>>>,
     ) -> Self {
         Self {
             id,
-            counter,
-            threshold,
-            total,
+            batch,
             url,
             accounts,
+            histogram,
         }
     }
 }
@@ -131,6 +127,8 @@ impl Future for Client {
                 .public(),
         );
 
+        let mut counter = 0;
+
         loop {
             let transfer_value = 1u128;
             let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
@@ -142,26 +140,31 @@ impl Future for Client {
             );
 
             // XtStatus::
+            let start_time = Instant::now();
 
             let tx_hash = connection
-                .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+                .send_extrinsic(tx.hex_encode(), XtStatus::Broadcast)
                 .unwrap()
-                .expect("Could not get tx hash");
+                // .expect("Could not get tx hash")
+                ;
 
-            debug!("[+] Transaction hash: {}", tx_hash);
+            let elapsed_time = start_time.elapsed().as_millis();
 
-            let mut counter = this.counter.lock().unwrap();
+            let mut hist = this.histogram.lock().unwrap();
+            *hist += elapsed_time as u64;
 
-            debug!("id {}, counter: {}", this.id, *counter);
+            info!(
+                "Client id {}, sent {} txs, last transaction hash {:?}, last tx elapsed time {}",
+                this.id, counter, tx_hash, elapsed_time
+            );
 
-            if
-            // *counter >= this.threshold
-            *counter >= cmp::max(this.threshold, this.total)
+            if counter >= this.batch
+            // *counter >= cmp::max(this.threshold, this.total)
             // && tock >= this.until
             {
                 break;
             } else {
-                *counter += 1;
+                counter += 1;
             }
         }
 

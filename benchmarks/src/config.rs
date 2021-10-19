@@ -5,15 +5,13 @@ use std::fs;
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
-    // #[clap(short, long, default_value = "http")]
-    // protocol: String,
     #[clap(short, long, default_value = "127.0.0.1")]
     pub host: String,
 
     #[clap(short, long, default_value = "9943")]
     pub port: u32,
 
-    /// how many concurrent tasks to spawn. Requests are spread over these connections    
+    /// how many concurrent tasks to spawn. Requests are spread over these connections
     #[clap(short, long, default_value = "2")]
     pub concurrency: usize,
 
@@ -25,7 +23,7 @@ pub struct Config {
     #[clap(short, long, default_value = "10")]
     pub duration: u64,
 
-    /// root of the location where the keys are    
+    /// root of the location where the directories with the account private keys are
     #[clap(short, long)]
     pub base_path: String,
 

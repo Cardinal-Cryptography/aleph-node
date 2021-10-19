@@ -18,7 +18,7 @@ sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrat
 # other dependencies
 tokio = { version = "1.12", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 futures = { version = "0.3", features = ["alloc"] }
-# hdrhistogram = "7.1.0"
+hdrhistogram = "7.3.0"
 log = "0.4"
 env_logger = "0.8"
 url = "2.0"
