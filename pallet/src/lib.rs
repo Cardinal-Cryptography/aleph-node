@@ -29,8 +29,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
-        ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
-        DEFAULT_UNIT_CREATION_DELAY,AuthDiscoveryError,
+        ApiError as AlephApiError, AuthDiscoveryError, DEFAULT_MILLISECS_PER_BLOCK,
+        DEFAULT_SESSION_PERIOD, DEFAULT_UNIT_CREATION_DELAY,
     };
 
     #[pallet::type_value]
@@ -205,11 +205,11 @@ pub mod pallet {
             <Authorities<T>>::put(authorities);
         }
 
-        pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, ApiError> {
+        pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, AlephApiError> {
             Session::<T>::queued_keys()
                 .iter()
-                .map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(ApiError::DecodeKey))
-                .collect::<Result<Vec<T::AuthorityId>, ApiError>>()
+                .map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(AlephApiError::DecodeKey))
+                .collect::<Result<Vec<T::AuthorityId>, AlephApiError>>()
         }
 
         pub fn future_session_validator_ids(

@@ -361,14 +361,7 @@ fn genesis(
             authorities: vec![],
             session_period,
             millisecs_per_block,
-<<<<<<< HEAD
-            validators: authorities
-                .iter()
-                .map(|auth| auth.account_id.clone())
-                .collect(),
             unit_creation_delay,
-=======
->>>>>>> Clean-up of the Aleph pallet, preparation for authority discovery.
         },
         session: SessionConfig {
             keys: authorities
