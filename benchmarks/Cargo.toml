@@ -11,12 +11,8 @@ rev = "f9d3a773bb5c76a0c0689b012fc08599beb90ab7"
 
 [dependencies]
 # Substrate dependencies
-sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", features = ["full_crypto"] }
 balances = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", package = "pallet-balances" }
-
-
-# sp-keyring = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master" }
-# sp-runtime = { version = "4.0.0-dev",  git = "https://github.com/paritytech/substrate.git", branch = "master" }
+sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", features = ["full_crypto"] }
 
 # other dependencies
 anyhow = "^1.0"
