@@ -12,16 +12,20 @@ rev = "f9d3a773bb5c76a0c0689b012fc08599beb90ab7"
 [dependencies]
 # Substrate dependencies
 sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", features = ["full_crypto"] }
+balances = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", package = "pallet-balances" }
+
+
 # sp-keyring = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master" }
 # sp-runtime = { version = "4.0.0-dev",  git = "https://github.com/paritytech/substrate.git", branch = "master" }
 
 # other dependencies
-tokio = { version = "1.12", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
+anyhow = "^1.0"
+clap = {version = "3.0.0-beta.5", features = ["derive"]}
+codec = { package = 'parity-scale-codec', version = "2.0.0", features = ['derive']}
+env_logger = "0.8"
 futures = { version = "0.3", features = ["alloc"] }
 hdrhistogram = "7.3.0"
 log = "0.4"
-env_logger = "0.8"
-url = "2.0"
-anyhow = "^1.0"
-clap = {version = "3.0.0-beta.5", features = ["derive"]}
 rand = "0.8.4"
+tokio = { version = "1.12", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
+url = "2.0"

@@ -2,6 +2,7 @@ mod config;
 
 use crate::config::accounts;
 use clap::Parser;
+use codec::Compact;
 use config::Config;
 use futures::future::join_all;
 use futures::{Future, Stream};
@@ -11,13 +12,15 @@ use rand::Rng;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
 use std::cmp;
+use std::convert::TryFrom;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Instant;
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, Api, UncheckedExtrinsicV4, XtStatus,
+    compose_call, compose_extrinsic, compose_extrinsic_offline, AccountId, Api, GenericAddress,
+    Metadata, UncheckedExtrinsicV4, XtStatus,
 };
 
 // TODO : tokio runtime that spawns task / core ?
@@ -73,6 +76,8 @@ struct Client {
     id: usize,
     /// how many tx to make
     batch: u64,
+    // /// how long to run for
+    // duration: u64,
     /// URL for ws connection
     url: String,
     /// accounts for signing tx and sendig them to
@@ -128,15 +133,41 @@ impl Future for Client {
         );
 
         let mut counter = 0;
+        let mut nonce = connection.get_nonce().unwrap();
+
+        // let tick = Instant::now();
 
         loop {
             let transfer_value = 1u128;
-            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-                connection,
+            // let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+            //     connection,
+            //     "Balances",
+            //     "transfer",
+            //     GenericAddress::Id(to.clone()),
+            //     Compact(transfer_value)
+            // );
+
+            let call = compose_call!(
+                connection.metadata,
                 "Balances",
                 "transfer",
                 GenericAddress::Id(to.clone()),
                 Compact(transfer_value)
+            );
+
+            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
+                connection.clone().signer.unwrap(),
+                // Call::Balances(BalancesCall::transfer(
+                //     GenericAddress::Id(to.clone()),
+                //     1_000_000
+                // )),
+                call,
+                nonce,
+                Era::Immortal,
+                connection.genesis_hash,
+                connection.genesis_hash,
+                connection.runtime_version.spec_version,
+                connection.runtime_version.transaction_version
             );
 
             // XtStatus::
@@ -144,7 +175,7 @@ impl Future for Client {
 
             let tx_hash = connection
                 .send_extrinsic(tx.hex_encode(), XtStatus::Broadcast)
-                .unwrap()
+                .expect("Could not send transaction")
                 // .expect("Could not get tx hash")
                 ;
 
@@ -154,17 +185,18 @@ impl Future for Client {
             *hist += elapsed_time as u64;
 
             info!(
-                "Client id {}, sent {} txs, last transaction hash {:?}, last tx elapsed time {}",
-                this.id, counter, tx_hash, elapsed_time
+                "Client id {}, sent {} txs, sending account nonce: {}, last transaction hash {:?}, last tx elapsed time {}",
+                this.id, counter, nonce, tx_hash, elapsed_time
             );
 
             if counter >= this.batch
             // *counter >= cmp::max(this.threshold, this.total)
-            // && tock >= this.until
+            // && tick.elapsed().as_secs() >= 10
             {
                 break;
             } else {
                 counter += 1;
+                nonce += 1;
             }
         }
 
