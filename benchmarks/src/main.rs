@@ -54,7 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let tock = tick.elapsed().as_millis();
 
     let histogram = histogram.lock().unwrap();
-    info!("Summary:\n Transactions sent:   {}\n Total time:      {} ms\n Slowest tx:    {} ms\n Fastest tx:    {} ms\n Average:    {:.1} ms\n Throughput: {:.1} tx/s",
+    println!("Summary:\n Transactions sent:   {}\n Total time:      {} ms\n Slowest tx:    {} ms\n Fastest tx:    {} ms\n Average:    {:.1} ms\n Throughput: {:.1} tx/s",
              histogram.len (),
              tock,
              histogram.max (),

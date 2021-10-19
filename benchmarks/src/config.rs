@@ -2,6 +2,11 @@ use clap::Parser;
 use sp_core::{sr25519, Pair};
 use std::fs;
 
+/// Benchmarking tool expects to find key phrase files for the accounts
+/// to send txs from under <BASE_PATH>/<ACCOUNT_ID>/<KEY_FILENAME>
+/// Example, sends 10_000 tx split over 4 concurrent tasks, to achive a theoretical throghputof of 1_000 tx/s:
+///
+/// ./benchmarks --base-path ./data --account-ids 5Dhym... 5HjB.. 5GTUA.. 5HpPR.. --throughput 1000 --duration 10 --concurrency 4
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
@@ -28,7 +33,7 @@ pub struct Config {
     pub base_path: String,
 
     /// delimited collection of account ids
-    #[clap(short, long)]
+    #[clap(short, long, required = true)]
     pub account_ids: Vec<String>,
 
     /// filename where the secret phrase of the accounts is stored
