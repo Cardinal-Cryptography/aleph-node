@@ -1,26 +1,22 @@
 mod config;
 
-use crate::config::accounts;
 use clap::Parser;
 use codec::Compact;
 use config::Config;
 use futures::future::join_all;
-use futures::{Future, Stream};
+use futures::Future;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info};
 use rand::Rng;
-use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
-use std::cmp;
-use std::convert::TryFrom;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Instant;
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, compose_extrinsic_offline, AccountId, Api, GenericAddress,
-    Metadata, UncheckedExtrinsicV4, XtStatus,
+    compose_call, compose_extrinsic_offline, AccountId, Api, GenericAddress, UncheckedExtrinsicV4,
+    XtStatus,
 };
 
 // TODO : tokio runtime that spawns task / core ?
@@ -34,6 +30,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let concurrency: u64 = config.concurrency as u64;
     let n_transactions = config.throughput * config.duration;
+    // let duration = config.duration;
     let batch = n_transactions / concurrency;
 
     let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
@@ -48,7 +45,7 @@ async fn main() -> Result<(), anyhow::Error> {
         let url = format!("ws://{}:{}", config.host, config.port);
 
         tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, batch, url, accounts, histogram);
+            let client = Client::new(id, batch, /*duration*/ url, accounts, histogram);
             client.await;
         }));
     }
@@ -76,7 +73,7 @@ struct Client {
     id: usize,
     /// how many tx to make
     batch: u64,
-    // /// how long to run for
+    // /// upper limit on how long to keep sending txs for
     // duration: u64,
     /// URL for ws connection
     url: String,
@@ -90,6 +87,7 @@ impl Client {
     fn new(
         id: usize,
         batch: u64,
+        // duration: u64,
         url: String,
         accounts: Vec<sr25519::Pair>,
         histogram: Arc<Mutex<HdrHistogram<u64>>>,
@@ -97,6 +95,7 @@ impl Client {
         Self {
             id,
             batch,
+            // duration,
             url,
             accounts,
             histogram,
@@ -139,13 +138,6 @@ impl Future for Client {
 
         loop {
             let transfer_value = 1u128;
-            // let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-            //     connection,
-            //     "Balances",
-            //     "transfer",
-            //     GenericAddress::Id(to.clone()),
-            //     Compact(transfer_value)
-            // );
 
             let call = compose_call!(
                 connection.metadata,
@@ -157,10 +149,6 @@ impl Future for Client {
 
             let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
                 connection.clone().signer.unwrap(),
-                // Call::Balances(BalancesCall::transfer(
-                //     GenericAddress::Id(to.clone()),
-                //     1_000_000
-                // )),
                 call,
                 nonce,
                 Era::Immortal,
@@ -170,28 +158,24 @@ impl Future for Client {
                 connection.runtime_version.transaction_version
             );
 
-            // XtStatus::
             let start_time = Instant::now();
 
-            let tx_hash = connection
-                .send_extrinsic(tx.hex_encode(), XtStatus::Broadcast)
-                .expect("Could not send transaction")
-                // .expect("Could not get tx hash")
-                ;
+            let block_hash = connection
+                .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
+                .expect("Could not send transaction");
 
             let elapsed_time = start_time.elapsed().as_millis();
 
             let mut hist = this.histogram.lock().unwrap();
             *hist += elapsed_time as u64;
 
-            info!(
-                "Client id {}, sent {} txs, sending account nonce: {}, last transaction hash {:?}, last tx elapsed time {}",
-                this.id, counter, nonce, tx_hash, elapsed_time
+            debug!(
+                "Client id {}, sent {} txs, sending account nonce: {}, last block hash {:?}, last tx elapsed time {}",
+                this.id, counter, nonce, block_hash, elapsed_time
             );
 
             if counter >= this.batch
-            // *counter >= cmp::max(this.threshold, this.total)
-            // && tick.elapsed().as_secs() >= 10
+            // && tick.elapsed().as_secs() >= this.duration
             {
                 break;
             } else {
