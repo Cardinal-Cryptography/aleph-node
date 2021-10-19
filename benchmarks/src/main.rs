@@ -6,7 +6,7 @@ use config::Config;
 use futures::future::join_all;
 use futures::Future;
 use hdrhistogram::Histogram as HdrHistogram;
-use log::{debug, info};
+use log::info;
 use rand::Rng;
 use sp_core::{sr25519, Pair};
 use std::pin::Pin;
@@ -54,13 +54,14 @@ async fn main() -> Result<(), anyhow::Error> {
     let tock = tick.elapsed().as_millis();
 
     let histogram = histogram.lock().unwrap();
-    println!("Summary:\n Transactions sent:   {}\n Total time:      {} ms\n Slowest tx:    {} ms\n Fastest tx:    {} ms\n Average:    {:.1} ms\n Throughput: {:.1} tx/s",
-             histogram.len (),
-             tock,
-             histogram.max (),
-             histogram.min (),
-             histogram.mean (),
-             1000.0 * histogram.len () as f64 / tock as f64
+    println!(
+        "Summary:\n Transactions sent:   {}\n Total time:          {} ms\n Slowest tx:          {} ms\n Fastest tx:          {} ms\n Average:             {:.1} ms\n Throughput:          {:.1} tx/s",
+        histogram.len(),
+        tock,
+        histogram.max(),
+        histogram.min(),
+        histogram.mean(),
+        1000.0 * histogram.len() as f64 / tock as f64
     );
 
     Ok(())
@@ -152,7 +153,7 @@ impl Future for Client {
 
             let start_time = Instant::now();
 
-            let block_hash = connection
+            let _block_hash = connection
                 .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
                 .expect("Could not send transaction");
 
@@ -161,9 +162,9 @@ impl Future for Client {
             let mut hist = this.histogram.lock().unwrap();
             *hist += elapsed_time as u64;
 
-            debug!(
-                "Client id {}, sent {} txs, sending account nonce: {}, last block hash {:?}, last tx elapsed time {}",
-                this.id, counter, nonce, block_hash, elapsed_time
+            info!(
+                "Client id {}, sent {} txs, sending account nonce: {}, last tx elapsed time {}",
+                this.id, counter, nonce, elapsed_time
             );
 
             if counter >= this.batch {
