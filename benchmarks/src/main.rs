@@ -19,7 +19,6 @@ use substrate_api_client::{
     XtStatus,
 };
 
-// TODO : tokio runtime that spawns task / core ?
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
@@ -30,7 +29,6 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let concurrency: u64 = config.concurrency as u64;
     let n_transactions = config.throughput * config.duration;
-    // let duration = config.duration;
     let batch = n_transactions / concurrency;
 
     let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
@@ -73,8 +71,6 @@ struct Client {
     id: usize,
     /// how many tx to make
     batch: u64,
-    // /// upper limit on how long to keep sending txs for
-    // duration: u64,
     /// URL for ws connection
     url: String,
     /// accounts for signing tx and sendig them to
@@ -87,7 +83,6 @@ impl Client {
     fn new(
         id: usize,
         batch: u64,
-        // duration: u64,
         url: String,
         accounts: Vec<sr25519::Pair>,
         histogram: Arc<Mutex<HdrHistogram<u64>>>,
@@ -95,7 +90,6 @@ impl Client {
         Self {
             id,
             batch,
-            // duration,
             url,
             accounts,
             histogram,
@@ -133,8 +127,6 @@ impl Future for Client {
 
         let mut counter = 0;
         let mut nonce = connection.get_nonce().unwrap();
-
-        // let tick = Instant::now();
 
         loop {
             let transfer_value = 1u128;
@@ -174,9 +166,7 @@ impl Future for Client {
                 this.id, counter, nonce, block_hash, elapsed_time
             );
 
-            if counter >= this.batch
-            // && tick.elapsed().as_secs() >= this.duration
-            {
+            if counter >= this.batch {
                 break;
             } else {
                 counter += 1;
