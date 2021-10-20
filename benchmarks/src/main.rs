@@ -24,12 +24,11 @@ async fn main() -> Result<(), anyhow::Error> {
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
 
-    let mut tasks = Vec::with_capacity(config.concurrency);
-
-    let concurrency: u64 = config.concurrency as u64;
-    let batch = config.transactions / concurrency;
-
     let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
+    let concurrency = if config.parallel { accounts.len() } else { 1 };
+
+    let mut tasks = Vec::with_capacity(concurrency);
+    let batch = config.transactions / concurrency as u64;
 
     let nodes = config
         .nodes
@@ -41,7 +40,7 @@ async fn main() -> Result<(), anyhow::Error> {
         HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
     ));
 
-    for id in 0..config.concurrency {
+    for id in 0..concurrency {
         let histogram = Arc::clone(&histogram);
         let accounts = accounts.clone();
 

@@ -4,9 +4,6 @@ use std::fs;
 
 /// Benchmarking tool expects to find key phrase files for the accounts
 /// to send txs from under <BASE_PATH>/<ACCOUNT_ID>/<KEY_FILENAME>
-/// Example, sends 10_000 tx split over 4 concurrent tasks:
-///
-/// ./benchmarks --nodes  --base-path ./data --account-ids 5Dhym... 5HjB.. 5GTUA.. 5HpPR.. --t 10000 --concurrency 4
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
@@ -14,10 +11,14 @@ pub struct Config {
     #[clap(short, long, required = true)]
     pub nodes: Vec<String>,
 
-    /// how many concurrent tasks to spawn. Requests are spread over these connections
-    #[clap(short, long, default_value = "2")]
-    pub concurrency: usize,
+    /// whether to use concurrency. If `true` one task is created per AccountId
+    /// and the trasactions are spread uniformly over these tasks achieving higher throughpout
+    #[clap(short, long)]
+    pub parallel: bool,
 
+    // /// how many concurrent tasks to spawn. Requests are spread over these connections
+    // #[clap(short, long, default_value = true)]
+    // pub concurrency: usize,
     /// how many transactions send
     #[clap(short, long, default_value = "1000")]
     pub transactions: u64,
