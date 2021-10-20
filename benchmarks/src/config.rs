@@ -4,29 +4,23 @@ use std::fs;
 
 /// Benchmarking tool expects to find key phrase files for the accounts
 /// to send txs from under <BASE_PATH>/<ACCOUNT_ID>/<KEY_FILENAME>
-/// Example, sends 10_000 tx split over 4 concurrent tasks, to achive a theoretical throghputof of 1_000 tx/s:
+/// Example, sends 10_000 tx split over 4 concurrent tasks:
 ///
-/// ./benchmarks --base-path ./data --account-ids 5Dhym... 5HjB.. 5GTUA.. 5HpPR.. --throughput 1000 --duration 10 --concurrency 4
+/// ./benchmarks --nodes  --base-path ./data --account-ids 5Dhym... 5HjB.. 5GTUA.. 5HpPR.. --t 10000 --concurrency 4
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
-    #[clap(short, long, default_value = "127.0.0.1")]
-    pub host: String,
-
-    #[clap(short, long, default_value = "9943")]
-    pub port: u32,
+    /// URL address(es) of the nodes to send transactions to
+    #[clap(short, long, required = true)]
+    pub nodes: Vec<String>,
 
     /// how many concurrent tasks to spawn. Requests are spread over these connections
     #[clap(short, long, default_value = "2")]
     pub concurrency: usize,
 
-    /// how many transactions / s to send
+    /// how many transactions send
     #[clap(short, long, default_value = "1000")]
-    pub throughput: u64,
-
-    /// how long to run the benchmark for (in seconds)
-    #[clap(short, long, default_value = "10")]
-    pub duration: u64,
+    pub transactions: u64,
 
     /// root of the location where the directories with the account private keys are
     #[clap(short, long)]

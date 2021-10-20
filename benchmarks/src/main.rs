@@ -27,10 +27,15 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut tasks = Vec::with_capacity(config.concurrency);
 
     let concurrency: u64 = config.concurrency as u64;
-    let n_transactions = config.throughput * config.duration;
-    let batch = n_transactions / concurrency;
+    let batch = config.transactions / concurrency;
 
     let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
+
+    let nodes = config
+        .nodes
+        .iter()
+        .map(|url| format!("ws://{}", url))
+        .collect::<Vec<String>>();
 
     let histogram = Arc::new(Mutex::new(
         HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
@@ -39,7 +44,8 @@ async fn main() -> Result<(), anyhow::Error> {
     for id in 0..config.concurrency {
         let histogram = Arc::clone(&histogram);
         let accounts = accounts.clone();
-        let url = format!("ws://{}:{}", config.host, config.port);
+
+        let url = nodes.get(id % nodes.len()).expect("no node url").to_owned();
 
         let from = accounts
             .get(id % accounts.len())

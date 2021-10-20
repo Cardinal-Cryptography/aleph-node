@@ -174,7 +174,6 @@ dependencies = [
  "sp-core",
  "substrate-api-client",
  "tokio",
- "url",
 ]
 
 [[package]]
