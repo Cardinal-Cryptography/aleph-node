@@ -7,7 +7,6 @@ use futures::future::join_all;
 use futures::Future;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::info;
-use rand::Rng;
 use sp_core::{sr25519, Pair};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -42,8 +41,21 @@ async fn main() -> Result<(), anyhow::Error> {
         let accounts = accounts.clone();
         let url = format!("ws://{}:{}", config.host, config.port);
 
+        let from = accounts
+            .get(id % accounts.len())
+            .expect("no account with this index found")
+            .to_owned();
+
+        let to = AccountId::from(
+            accounts
+                .get((id + 1) % accounts.len())
+                .expect("no account with this index found")
+                .to_owned()
+                .public(),
+        );
+
         tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, batch, /*duration*/ url, accounts, histogram);
+            let client = Client::new(id, batch, /*duration*/ url, from, to, histogram);
             client.await;
         }));
     }
@@ -74,8 +86,10 @@ struct Client {
     batch: u64,
     /// URL for ws connection
     url: String,
-    /// accounts for signing tx and sendig them to
-    accounts: Vec<sr25519::Pair>,
+    /// account for signing tx
+    from: sr25519::Pair,
+    /// account to send txs to
+    to: AccountId,
     /// thread shared, thread safe histogram
     histogram: Arc<Mutex<HdrHistogram<u64>>>,
 }
@@ -85,14 +99,16 @@ impl Client {
         id: usize,
         batch: u64,
         url: String,
-        accounts: Vec<sr25519::Pair>,
+        from: sr25519::Pair,
+        to: AccountId,
         histogram: Arc<Mutex<HdrHistogram<u64>>>,
     ) -> Self {
         Self {
             id,
             batch,
             url,
-            accounts,
+            from,
+            to,
             histogram,
         }
     }
@@ -106,25 +122,9 @@ impl Future for Client {
 
         let client = WsRpcClient::new(&this.url);
 
-        let index = rand::thread_rng().gen_range(0..this.accounts.len());
-        let from = this
-            .accounts
-            .get(index)
-            .expect("no account with this index found")
-            .to_owned();
-
         let connection = Api::<sr25519::Pair, _>::new(client)
             .expect("Connection could not be established")
-            .set_signer(from);
-
-        let index = rand::thread_rng().gen_range(0..this.accounts.len());
-        let to = AccountId::from(
-            this.accounts
-                .get(index)
-                .expect("no account with this index found")
-                .to_owned()
-                .public(),
-        );
+            .set_signer(this.from.clone());
 
         let mut counter = 0;
         let mut nonce = connection.get_nonce().unwrap();
@@ -136,7 +136,7 @@ impl Future for Client {
                 connection.metadata,
                 "Balances",
                 "transfer",
-                GenericAddress::Id(to.clone()),
+                GenericAddress::Id(this.to.clone()),
                 Compact(transfer_value)
             );
 
