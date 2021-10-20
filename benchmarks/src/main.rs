@@ -42,7 +42,6 @@ async fn main() -> Result<(), anyhow::Error> {
 
     for id in 0..concurrency {
         let histogram = Arc::clone(&histogram);
-        let accounts = accounts.clone();
 
         let url = nodes.get(id % nodes.len()).expect("no node url").to_owned();
 
@@ -146,7 +145,7 @@ impl Future for Client {
             );
 
             let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
-                connection.clone().signer.unwrap(),
+                this.from,
                 call,
                 nonce,
                 Era::Immortal,

@@ -16,9 +16,6 @@ pub struct Config {
     #[clap(short, long)]
     pub parallel: bool,
 
-    // /// how many concurrent tasks to spawn. Requests are spread over these connections
-    // #[clap(short, long, default_value = true)]
-    // pub concurrency: usize,
     /// how many transactions send
     #[clap(short, long, default_value = "1000")]
     pub transactions: u64,
