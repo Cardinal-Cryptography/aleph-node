@@ -168,3 +168,73 @@ impl MultiKeychain for KeyBox {
         self.authority_verifier.is_complete(msg, partial)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sp_keystore::{testing::KeyStore, CryptoStore};
+
+    async fn generate_keys(names: &[String]) -> (Vec<AuthorityPen>, AuthorityVerifier) {
+        let key_store = Arc::new(KeyStore::new());
+        let mut authority_ids = Vec::with_capacity(names.len());
+        for name in names {
+            let pk = key_store
+                .ed25519_generate_new(KEY_TYPE, Some(name))
+                .await
+                .unwrap();
+            authority_ids.push(AuthorityId::from(pk));
+        }
+        let mut pens = Vec::with_capacity(names.len());
+        for authority_id in authority_ids.clone() {
+            pens.push(
+                AuthorityPen::new(authority_id, key_store.clone())
+                    .await
+                    .expect("The keys should sign successfully"),
+            );
+        }
+        assert_eq!(
+            key_store.keys(KEY_TYPE).await.unwrap().len(),
+            3 * names.len()
+        );
+        (pens, AuthorityVerifier::new(authority_ids))
+    }
+
+    async fn prepare_test() -> (Vec<AuthorityPen>, AuthorityVerifier) {
+        let authority_names: Vec<_> = ["//Alice", "//Bob", "//Charlie"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        generate_keys(&authority_names).await
+    }
+
+    #[tokio::test]
+    async fn produces_and_verifies_correct_signatures() {
+        let (pens, verifier) = prepare_test().await;
+        let msg = b"test";
+        for (i, pen) in pens.into_iter().enumerate() {
+            let signature = pen.sign(msg).await;
+            assert!(verifier.verify(msg, &signature, NodeIndex(i)));
+        }
+    }
+
+    #[tokio::test]
+    async fn does_not_accept_signatures_from_wrong_sources() {
+        let (pens, verifier) = prepare_test().await;
+        let msg = b"test";
+        for pen in &pens[1..] {
+            let signature = pen.sign(msg).await;
+            assert!(!verifier.verify(msg, &signature, NodeIndex(0)));
+        }
+    }
+
+    #[tokio::test]
+    async fn does_not_accept_signatures_for_different_messages() {
+        let (pens, verifier) = prepare_test().await;
+        let msg = b"test";
+        let not_msg = b"not test";
+        for (i, pen) in pens.into_iter().enumerate() {
+            let signature = pen.sign(msg).await;
+            assert!(!verifier.verify(not_msg, &signature, NodeIndex(i)));
+        }
+    }
+}
