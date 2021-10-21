@@ -43,6 +43,7 @@ ARGS=(
   --no-prometheus --no-telemetry # Currently not using. plan to start as soon as capacity is available
   --no-mdns
   --ws-max-connections "${WS_MAX_CONNECTIONS}"
+  --unsafe-ws-external --unsafe-rpc-external --rpc-methods Unsafe
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
@@ -75,14 +76,6 @@ fi
 
 if [[ "true" == "$DISCOVER_LOCAL" ]]; then
   ARGS+=(--discover-local)
-fi
-
-if [[ "true" == "${VALIDATOR}" ]]; then
-    ARGS+=(--unsafe-ws-external --unsafe-rpc-external --rpc-methods Unsafe)
-fi
-
-if [[ "false" == "${VALIDATOR}" ]]; then
-    ARGS+=(--ws-external --rpc-external --rpc-methods Safe)
 fi
 
 aleph-node "${ARGS[@]}"
