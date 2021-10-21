@@ -40,7 +40,6 @@ ARGS=(
   --node-key-file "${NODE_KEY_PATH}"
   --rpc-port "${RPC_PORT}" --ws-port "${WS_PORT}" --port "${PORT}"
   --rpc-cors all
-  --no-prometheus --no-telemetry # Currently not using. plan to start as soon as capacity is available
   --no-mdns
   --ws-max-connections "${WS_MAX_CONNECTIONS}"
 )
@@ -75,6 +74,14 @@ fi
 
 if [[ "true" == "$DISCOVER_LOCAL" ]]; then
   ARGS+=(--discover-local)
+fi
+
+if [[ "true" == "${NO_PROMETHEUS:-}" ]]; then
+  ARGS+=(--no-prometheus)
+fi
+
+if [[ "true" == "${NO_TELEMETRY:-}" ]]; then
+  ARGS+=(--no-telemetry)
 fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
