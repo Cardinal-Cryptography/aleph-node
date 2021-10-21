@@ -28,7 +28,10 @@ pub struct AuthorityPen {
 }
 
 impl AuthorityPen {
-    /// Constructs a new authority cryptography keystore.
+    /// Constructs a new authority cryptography keystore for the given ID.
+    /// Will attempt to sign a test message to verify that signing works.
+    /// Returns errors if anything goes wrong during this attempt, otherwise we assume the
+    /// AuthorityPen will work for any future attempts at signing.
     pub async fn new(
         authority_id: AuthorityId,
         keystore: Arc<dyn CryptoStore>,
@@ -48,6 +51,7 @@ impl AuthorityPen {
         })
     }
 
+    /// Cryptographically signs the message.
     pub async fn sign(&self, msg: &[u8]) -> Signature {
         Signature(
             self.keystore
@@ -69,10 +73,13 @@ pub struct AuthorityVerifier {
 }
 
 impl AuthorityVerifier {
+    /// Constructs a new authority verifier from a set of public keys.
     pub fn new(authorities: Vec<AuthorityId>) -> Self {
         AuthorityVerifier { authorities }
     }
 
+    /// Verifies whether the message is correctly signed with the signature assumed to be made by a
+    /// node of the given index.
     pub fn verify(&self, msg: &[u8], sgn: &Signature, index: NodeIndex) -> bool {
         self.authorities[index.0].verify(&msg.to_vec(), &sgn.0)
     }
@@ -85,6 +92,8 @@ impl AuthorityVerifier {
         2 * self.node_count().0 / 3 + 1
     }
 
+    /// Verifies whether the given signature set is a correct and complete multisignature of the
+    /// message. Completeness requires more than 2/3 of all authorities.
     pub fn is_complete(&self, msg: &[u8], partial: &SignatureSet<Signature>) -> bool {
         let signature_count = partial.iter().count();
         if signature_count < self.quorum() {
@@ -94,6 +103,8 @@ impl AuthorityVerifier {
     }
 }
 
+/// KeyBox combines an AuthorityPen and AuthorityVerifier into one object implementing the AlephBFT
+/// MultiKeychain trait.
 #[derive(Clone)]
 pub struct KeyBox {
     id: NodeIndex,
@@ -102,6 +113,8 @@ pub struct KeyBox {
 }
 
 impl KeyBox {
+    /// Constructs a new keybox from a signing contraption and verifier, with the specified node
+    /// index.
     pub fn new(
         id: NodeIndex,
         authority_verifier: AuthorityVerifier,

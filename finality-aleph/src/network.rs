@@ -286,9 +286,9 @@ pub(crate) enum ControlCommand {
 }
 
 struct SessionData<D> {
-    pub(crate) data_for_user: mpsc::UnboundedSender<D>,
-    pub(crate) status: SessionStatus,
-    pub(crate) keychain: KeyBox,
+    data_for_user: mpsc::UnboundedSender<D>,
+    status: SessionStatus,
+    keychain: KeyBox,
     auth_data: AuthData,
     auth_signature: Signature,
 }

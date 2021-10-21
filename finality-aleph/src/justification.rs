@@ -22,6 +22,7 @@ use std::{
 };
 use tokio::time::timeout;
 
+/// A proof of block finality, currently in the form of a sufficiently long list of signatures.
 #[derive(Clone, Encode, Decode, Debug)]
 pub struct AlephJustification {
     pub(crate) signature: SignatureSet<Signature>,
@@ -50,12 +51,16 @@ pub(crate) struct ChainCadence {
     pub justifications_cadence: Duration,
 }
 
+/// A notification for sending justifications over the network.
 pub struct JustificationNotification<Block>
 where
     Block: BlockT,
 {
+    /// The justification itself.
     pub justification: AlephJustification,
+    /// The hash of the finalized block.
     pub hash: Block::Hash,
+    /// The ID of the finalized block.
     pub number: NumberFor<Block>,
 }
 
