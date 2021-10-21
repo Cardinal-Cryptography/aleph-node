@@ -81,7 +81,10 @@ impl AuthorityVerifier {
     /// Verifies whether the message is correctly signed with the signature assumed to be made by a
     /// node of the given index.
     pub fn verify(&self, msg: &[u8], sgn: &Signature, index: NodeIndex) -> bool {
-        self.authorities[index.0].verify(&msg.to_vec(), &sgn.0)
+        match self.authorities.get(index.0) {
+            Some(authority) => authority.verify(&msg.to_vec(), &sgn.0),
+            None => false,
+        }
     }
 
     fn node_count(&self) -> NodeCount {
@@ -224,6 +227,16 @@ mod tests {
         for pen in &pens[1..] {
             let signature = pen.sign(msg).await;
             assert!(!verifier.verify(msg, &signature, NodeIndex(0)));
+        }
+    }
+
+    #[tokio::test]
+    async fn does_not_accept_signatures_from_unknown_sources() {
+        let (pens, verifier) = prepare_test().await;
+        let msg = b"test";
+        for pen in &pens {
+            let signature = pen.sign(msg).await;
+            assert!(!verifier.verify(msg, &signature, NodeIndex(pens.len())));
         }
     }
 
