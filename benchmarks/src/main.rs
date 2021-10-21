@@ -1,21 +1,25 @@
 mod config;
 
 use clap::Parser;
-use codec::Compact;
+use codec::{Compact, Encode};
 use config::Config;
 use futures::future::join_all;
 use futures::Future;
 use hdrhistogram::Histogram as HdrHistogram;
-use log::info;
-use sp_core::{sr25519, Pair};
+use log::{debug, info};
+use ndarray::Array3;
+use sp_core::{sr25519, DeriveJunction, Pair, H256};
+// use std::fmt::Result;
+use std::os::unix::thread;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use std::time::Instant;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
-    compose_call, compose_extrinsic_offline, AccountId, Api, GenericAddress, UncheckedExtrinsicV4,
-    XtStatus,
+    compose_call, compose_extrinsic, compose_extrinsic_offline, AccountId, Api, GenericAddress,
+    UncheckedExtrinsicV4, XtStatus,
 };
 
 #[tokio::main]
@@ -24,161 +28,187 @@ async fn main() -> Result<(), anyhow::Error> {
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
 
-    let accounts = config::accounts(config.base_path, config.account_ids, config.key_filename);
-    let concurrency = if config.parallel { accounts.len() } else { 1 };
+    let (account, _seed) =
+        sr25519::Pair::from_phrase(&config::read_phrase(config.phrase), None).unwrap();
 
-    let mut tasks = Vec::with_capacity(concurrency);
-    let batch = config.transactions / concurrency as u64;
+    let connection = create_connection(format!("ws://{}", &config.node_url));
+    let transfer_value = connection.get_existential_deposit().unwrap();
+    let total_users = config.througput;
 
-    let nodes = config
-        .nodes
-        .iter()
-        .map(|url| format!("ws://{}", url))
-        .collect::<Vec<String>>();
+    debug!(
+        "Using account {} to derive and fund accounts",
+        &account.public()
+    );
 
-    let histogram = Arc::new(Mutex::new(
-        HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
-    ));
+    assert!(
+        get_funds(connection.clone(), &AccountId::from(account.public()))
+            .ge(&(transfer_value * total_users as u128)),
+        "Too poor"
+    );
 
-    for id in 0..concurrency {
-        let histogram = Arc::clone(&histogram);
+    let mut users = Vec::with_capacity(total_users as usize);
+    let mut nonces = Vec::with_capacity(total_users as usize);
 
-        let url = nodes.get(id % nodes.len()).expect("no node url").to_owned();
+    for index in 0..total_users {
+        let path = Some(DeriveJunction::soft(index));
+        let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
-        let from = accounts
-            .get(id % accounts.len())
-            .expect("no account with this index found")
-            .to_owned();
+        // let call = compose_call!(
+        //     connection.metadata,
+        //     "Balances",
+        //     "transfer",
+        //     GenericAddress::Id(AccountId::from(derived.public())),
+        //     Compact(transfer_value)
+        // );
 
-        let to = AccountId::from(
-            accounts
-                .get((id + 1) % accounts.len())
-                .expect("no account with this index found")
-                .to_owned()
-                .public(),
+        // let nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
+
+        // let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
+        //     account,
+        //     call,
+        //     nonce,
+        //     Era::Immortal,
+        //     connection.genesis_hash,
+        //     connection.genesis_hash,
+        //     connection.runtime_version.spec_version,
+        //     connection.runtime_version.transaction_version
+        // );
+
+        let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+            connection.clone().set_signer(account.clone()),
+            "Balances",
+            "transfer",
+            GenericAddress::Id(AccountId::from(derived.public())),
+            Compact(transfer_value)
         );
 
-        tasks.push(tokio::spawn(async move {
-            let client = Client::new(id, batch, /*duration*/ url, from, to, histogram);
-            client.await;
-        }));
+        // send and watch transfer tx until finalized
+        let tx_hash = connection
+            .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+            .unwrap()
+            .unwrap();
+
+        let funds = get_funds(connection.clone(), &AccountId::from(derived.public()));
+        let nonce = get_nonce(connection.clone(), &AccountId::from(derived.public()));
+
+        println!(
+            "account {} with nonce {} received funds in tx {}. Account free funds {}",
+            &derived.public(),
+            nonce,
+            tx_hash,
+            funds
+        );
+
+        nonces.push(nonce);
+        users.push(derived);
     }
 
-    // NOTE: we start measuring time after all the configuration is done
-    let tick = Instant::now();
-    join_all(tasks).await;
-    let tock = tick.elapsed().as_millis();
+    debug!("all accounts have received funds");
 
-    let histogram = histogram.lock().unwrap();
-    println!(
-        "Summary:\n Transactions sent:   {}\n Total time:          {} ms\n Slowest tx:          {} ms\n Fastest tx:          {} ms\n Average:             {:.1} ms\n Throughput:          {:.1} tx/s",
-        histogram.len(),
-        tock,
-        histogram.max(),
-        histogram.min(),
-        histogram.mean(),
-        1000.0 * histogram.len() as f64 / tock as f64
-    );
+    // let mut nonces = Vec::with_capacity(total_users as usize);
+
+    let total_threads = config.threads;
+    let total_batches = config.transactions / config.througput;
+    let users_per_thread = total_users / total_threads;
+    let transaction_per_batch = config.througput / config.threads;
+
+    // TODO : prepare txs
+    // let mut txs = Array3::<UncheckedExtrinsicV4<_>>::default((
+    //     total_threads as usize,
+    //     total_batches as usize,
+    //     total_users as usize,
+    // ));
+
+    // let to = AccountId::from(account.public());
+
+    for thread in 0..total_threads {
+        for batch in 0..total_batches {
+            for user in (thread * users_per_thread)..(thread + 1) * users_per_thread {
+                let connection = connection.clone();
+
+                let from = users.get(user as usize).unwrap().to_owned();
+
+                let call = compose_call!(
+                    connection.metadata,
+                    "Balances",
+                    "transfer",
+                    GenericAddress::Id(AccountId::from(account.public())),
+                    Compact(transfer_value)
+                );
+
+                // let u = users.get(user as usize).unwrap().to_owned();
+
+                let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
+                    from,
+                    call,
+                    nonces[user as usize],
+                    Era::Immortal,
+                    connection.genesis_hash,
+                    connection.genesis_hash,
+                    connection.runtime_version.spec_version,
+                    connection.runtime_version.transaction_version
+                );
+
+                nonces[user as usize] += 1;
+
+                println!("tx {:?}", tx.hex_encode());
+
+                println!("thread: {} batch: {} user: {}", thread, batch, user);
+            }
+        }
+    }
+
+    // for batch in 0..total_batches {
+    //     let mut futures_batch = Vec::new();
+
+    //     println!("Prepared batch {}", batch);
+
+    //     for thread in 0..total_batches {
+    //         for tx in 0..transaction_per_batch {
+    // let tx = txs[thread][batch][tx];
+    //             futures_batch.push(send_tx(connection.clone(), tx));
+    //         }
+    //     }
+    //     join_all(futures_batch).await;
+    // }
 
     Ok(())
 }
 
-struct Client {
-    /// client id
-    id: usize,
-    /// how many tx to make
-    batch: u64,
-    /// URL for ws connection
-    url: String,
-    /// account for signing tx
-    from: sr25519::Pair,
-    /// account to send txs to
-    to: AccountId,
-    /// thread shared, thread safe histogram
-    histogram: Arc<Mutex<HdrHistogram<u64>>>,
+async fn send_tx<Call>(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    tx: UncheckedExtrinsicV4<Call>,
+) -> Option<H256>
+where
+    Call: Encode,
+{
+    connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
+        .expect("Could not send transaction")
 }
 
-impl Client {
-    fn new(
-        id: usize,
-        batch: u64,
-        url: String,
-        from: sr25519::Pair,
-        to: AccountId,
-        histogram: Arc<Mutex<HdrHistogram<u64>>>,
-    ) -> Self {
-        Self {
-            id,
-            batch,
-            url,
-            from,
-            to,
-            histogram,
+fn create_connection(url: String) -> Api<sr25519::Pair, WsRpcClient> {
+    let client = WsRpcClient::new(&url);
+    match Api::<sr25519::Pair, _>::new(client) {
+        Ok(api) => api,
+        Err(_) => {
+            println!("[+] Can't create_connection atm, will try again in 1s");
+            sleep(Duration::from_millis(1000));
+            create_connection(url)
         }
     }
 }
 
-impl Future for Client {
-    type Output = ();
+fn get_nonce(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
+    connection
+        .get_account_info(account)
+        .map(|acc_opt| acc_opt.map_or_else(|| 0, |acc| acc.nonce))
+        .unwrap()
+}
 
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Self::Output> {
-        let this = &mut *self;
-
-        let client = WsRpcClient::new(&this.url);
-
-        let connection = Api::<sr25519::Pair, _>::new(client)
-            .expect("Connection could not be established")
-            .set_signer(this.from.clone());
-
-        let mut counter = 0;
-        let mut nonce = connection.get_nonce().unwrap();
-
-        loop {
-            let transfer_value = 1u128;
-
-            let call = compose_call!(
-                connection.metadata,
-                "Balances",
-                "transfer",
-                GenericAddress::Id(this.to.clone()),
-                Compact(transfer_value)
-            );
-
-            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
-                this.from,
-                call,
-                nonce,
-                Era::Immortal,
-                connection.genesis_hash,
-                connection.genesis_hash,
-                connection.runtime_version.spec_version,
-                connection.runtime_version.transaction_version
-            );
-
-            let start_time = Instant::now();
-
-            let _block_hash = connection
-                .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
-                .expect("Could not send transaction");
-
-            let elapsed_time = start_time.elapsed().as_millis();
-
-            let mut hist = this.histogram.lock().unwrap();
-            *hist += elapsed_time as u64;
-
-            info!(
-                "Client id {}, sent {} txs, sending account nonce: {}, last tx elapsed time {}",
-                this.id, counter, nonce, elapsed_time
-            );
-
-            if counter >= this.batch {
-                break;
-            } else {
-                counter += 1;
-                nonce += 1;
-            }
-        }
-
-        Poll::Ready(())
+fn get_funds(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u128 {
+    match connection.get_account_data(&account).unwrap() {
+        Some(data) => data.free,
+        None => 0,
     }
 }
