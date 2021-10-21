@@ -107,6 +107,9 @@ pub struct ChainParams {
     #[structopt(long)]
     pub session_period: Option<u32>,
 
+    // SBP M1 review: not sure this should be configurable in the genesis config,
+    // this should probably be compiled in the runtime as it's probably not gonna
+    // change when the chain is running.
     #[structopt(long)]
     pub millisecs_per_block: Option<u64>,
 

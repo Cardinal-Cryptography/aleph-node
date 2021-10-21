@@ -26,6 +26,7 @@ sp_application_crypto::with_pair! {
 pub type AuthoritySignature = app::Signature;
 pub type AuthorityId = app::Public;
 
+// SBP M1 review: probably not needed, see comments in pallet-aleph
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct SessionPeriod(pub u32);
@@ -38,6 +39,7 @@ pub struct MillisecsPerBlock(pub u64);
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
+//--
 
 pub const DEFAULT_SESSION_PERIOD: u32 = 5;
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 4000;
@@ -55,8 +57,11 @@ sp_api::decl_runtime_apis! {
     {
         fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
         fn authorities() -> Vec<AuthorityId>;
+        // SBP M1 review: probably not needed, see comments in pallet-aleph
         fn session_period() -> SessionPeriod;
         fn millisecs_per_block() -> MillisecsPerBlock;
         fn unit_creation_delay() -> UnitCreationDelay;
+        //--
+
     }
 }

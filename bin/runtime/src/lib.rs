@@ -118,6 +118,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
+// SBP M1 review: are you sure ? this is a really short block time.
+//  This might be OK on a local network, but might be problematic for
+//  geographically distributed nodes with higher network latencies.
+// Also, it's not consistent with the value mentionned for DEFAULT_MILLISECS_PER_BLOCK.
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
@@ -142,6 +146,11 @@ parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     /// TODO set proper limits; currently we use blocktime 1s and 1s equivalent of block weight
+
+    // SBP M1 review: 1s of expected_block_weight basically does not leave any time for block
+    // propagation, and accounting for variable network latencies etc ..
+    // As a reference, Polkadot & Kusama have 6s target block time, and 2s of max block weight
+    // (of which 75% is for normal transactions / extrinsics).
     pub BlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
         ::with_sensible_defaults(WEIGHT_PER_SECOND, NORMAL_DISPATCH_RATIO);
     pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
@@ -347,6 +356,8 @@ impl pallet_vesting::Config for Runtime {
 }
 
 pub const MILLICENTS: Balance = 1_000_000_000;
+// SBP M1 review: this means the native token has 14 decimals,
+//  but the TOKEN_DECIMALS constant is set to 12 decimals in the primitives. 
 pub const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
                                                // This value is copied from polkadot, we should do our own calculations
 pub const fn deposit(items: u32, bytes: u32) -> Balance {

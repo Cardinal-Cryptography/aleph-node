@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// SBP M1 review: no crate doc comment,
+// what is the purpose of this pallet ?
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -26,6 +29,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use pallet_session::{Pallet as Session, SessionManager};
     use primitives::{
+        // SBP M1 review: you could probably pass those values through the pallet's
+        // Config trait, see comment down below.
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
         DEFAULT_UNIT_CREATION_DELAY,
     };
@@ -98,6 +103,22 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
+    // SBP M1 review: IMHO you could probably simplify some of the code related
+    // to the SessionPeriod, MillisecsPerBlock & UnitCreationDelay values
+    // (as they don't seem to be likely to change after the initial value was set).
+    //
+    // That is, by defining 3 types in the pallet's configuration trait, and apply
+    // the #[pallet:constant] attribute e.g. with SessionPeriod
+    //
+    // #[pallet::config]
+    // pub trait Config: frame_system::Config + pallet_session::Config {
+    //     // ...
+    //     #[pallet::constant]
+	//     type SessionPeriod: Get<u32>;
+    // }
+
+    // SBP M1 review: based on the comment above, you could probably remove the following code
+    // vvvvvvv
     const DEFAULT_SESSION_PERIOD_PRIMITIVE: SessionPeriodPrimitive =
         SessionPeriodPrimitive(DEFAULT_SESSION_PERIOD);
     const DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE: MillisecsPerBlockPrimitive =
@@ -134,13 +155,16 @@ pub mod pallet {
     #[pallet::getter(fn unit_creation_delay)]
     pub(super) type UnitCreationDelay<T: Config> =
         StorageValue<_, UnitCreationDelayPrimitive, ValueQuery, DefaultForUnitCreationDelay>;
+    //-- SBP M1 review: based on the comment above, you could probably remove the following code
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub authorities: Vec<T::AuthorityId>,
+        // SBP M1 review: based on the comment above, not sure you need these in the genesis config.
         pub session_period: SessionPeriodPrimitive,
         pub millisecs_per_block: MillisecsPerBlockPrimitive,
         pub unit_creation_delay: UnitCreationDelayPrimitive,
+        //--
         pub validators: Vec<T::AccountId>,
     }
 
@@ -149,9 +173,11 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 authorities: Vec::new(),
+                // SBP M1 review: same comment as above
                 session_period: DEFAULT_SESSION_PERIOD_PRIMITIVE,
                 millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK_PRIMITIVE,
                 unit_creation_delay: DEFAULT_UNIT_CREATION_DELAY_PRIMITIVE,
+                //--
                 validators: Vec::new(),
             }
         }
@@ -160,9 +186,11 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
+            // SBP M1 review: same comment as above
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
             <UnitCreationDelay<T>>::put(&self.unit_creation_delay);
+            //--
             <Validators<T>>::put(Some(&self.validators));
             <SessionForValidatorsChange<T>>::put(Some(0));
         }
