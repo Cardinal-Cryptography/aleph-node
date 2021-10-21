@@ -13,8 +13,9 @@ use std::time::Duration;
 
 use crate::{
     aggregator::SignableHash,
+    crypto::{KeyBox, Signature},
     data_io::{AlephDataFor, AlephNetworkMessage},
-    Error, Hasher, MultiKeychain, SessionId, Signature,
+    Error, Hasher, SessionId,
 };
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
@@ -287,7 +288,7 @@ pub(crate) enum ControlCommand {
 struct SessionData<D> {
     pub(crate) data_for_user: mpsc::UnboundedSender<D>,
     pub(crate) status: SessionStatus,
-    pub(crate) keychain: MultiKeychain,
+    pub(crate) keychain: KeyBox,
     auth_data: AuthData,
     auth_signature: Signature,
 }
@@ -331,7 +332,7 @@ impl<D: Clone + Codec> SessionManager<D> {
     pub(crate) async fn start_session(
         &self,
         session_id: SessionId,
-        keychain: MultiKeychain,
+        keychain: KeyBox,
     ) -> DataNetwork<D> {
         let auth_data = AuthData {
             session_id,
