@@ -91,7 +91,7 @@ impl AuthorityVerifier {
         self.authorities.len().into()
     }
 
-    fn quorum(&self) -> usize {
+    fn threshold(&self) -> usize {
         2 * self.node_count().0 / 3 + 1
     }
 
@@ -99,7 +99,7 @@ impl AuthorityVerifier {
     /// message. Completeness requires more than 2/3 of all authorities.
     pub fn is_complete(&self, msg: &[u8], partial: &SignatureSet<Signature>) -> bool {
         let signature_count = partial.iter().count();
-        if signature_count < self.quorum() {
+        if signature_count < self.threshold() {
             return false;
         }
         partial.iter().all(|(i, sgn)| self.verify(msg, sgn, i))
