@@ -21,7 +21,7 @@ def run_experiment(nparties: int, tag: str, unit_creation_delay: Optional[int]) 
     ips = instances_ip_in_region(tag=tag)
     logging.info(f'Machine IPs: {ips}.')
     logging.info('Dispatching the task...')
-    run_task('dispatch', tag=tag)
+    run_task('dispatch', regions=[default_region()], tag=tag)
 
     logging.info('Running experiment succeeded.')
     return ips
