@@ -2,6 +2,8 @@
 
 ## Installation and usage
 
+_Remark: The instructions are valid when working in the `benchmark` directory._
+
 1. You will need `docker` (version `20.10+`) and `docker-compose` installed.
 2. Specify where Prometheus should be fetching metrics from, i.e. add IPs of the machines running the protocol 
 (together with the port, usually `9615`) to the `targets` entry in `prometheus.yml`, e.g.:
@@ -31,6 +33,8 @@ Then use standard `localhost` target instead of `host.docker.internal`.
 # Benchmarking aleph-node
 
 ## Installation and usage
+
+_Remark: The instructions are valid when working in the `benchmark` directory._
 
 Apart from the prerequisites needed for monitoring, you need also Python 3 interpreter with package installer (`pip`). Then:
 
