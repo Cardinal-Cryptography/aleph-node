@@ -352,7 +352,7 @@ pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for 
 // at a fixed cost $0.01 per byte, the constants are selected so that
 // the base cost of starting a multisig action is $5
 pub const ALLOCATION_COST: Balance = 412 * CENTS;
-pub const BYTE_COST: Balance = 1 * CENTS;
+pub const BYTE_COST: Balance = CENTS;
 
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
     (items as Balance) * ALLOCATION_COST + (bytes as Balance) * BYTE_COST
