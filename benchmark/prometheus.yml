@@ -1,7 +1,8 @@
 scrape_configs:
-  - job_name: "substrate_node"
-
-    scrape_interval: 5s
-
-    static_configs:
-      - targets: ["host.docker.internal:9615"]
+- job_name: aleph-nodes
+  scrape_interval: 5s
+  static_configs:
+  - targets:
+    - 34.247.48.46:9615
+    - 34.244.4.5:9615
+    - 34.252.225.173:9615

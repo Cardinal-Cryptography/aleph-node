@@ -62,7 +62,11 @@ optional arguments:
 
 For example the command below:
 ```shell
-$ python benchmark.py run 8 ../target/release/aleph-node --tag bench
+# probably you will have to run `chmod +x benchmark.py` before;
+# if either this is not an option or you only have python linked in another way
+# (like `python3`), just run it like a standard script, e.g. `python3 benchmark.py ...`
+
+$ ./benchmark.py run 8 ../target/release/aleph-node --tag bench
 ```
 
 will run the protocol on 8 instances with the binary located in `../target/release/` and their corresponding tag 
@@ -87,7 +91,7 @@ optional arguments:
 
 For example the command below:
 ```shell
-$ python benchmark.py clean bench
+$ ./benchmark.py clean bench
 ```
 
 will terminate all instances with a tag `bench` (possibly some not related to the experiment). 
@@ -95,7 +99,7 @@ It will also remove all the auxiliary files and directories created while prepar
 
 To additionally stop the docker containers with Prometheus and Grafana add the corresponding flag:
 ```shell
-$ python benchmark.py clean bench --kill-monitoring
+$ ./benchmark.py clean bench --kill-monitoring
 # or briefly
-$ python benchmark.py clean bench -k
+$ ./benchmark.py clean bench -k
 ```
