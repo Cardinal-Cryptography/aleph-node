@@ -44,6 +44,7 @@ ARGS=(
   --rpc-cors all
   --no-mdns
   --ws-max-connections "${WS_MAX_CONNECTIONS}"
+  --unsafe-ws-external --unsafe-rpc-external
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
@@ -87,11 +88,11 @@ if [[ "false" == "${TELEMETRY_ENABLED}" ]]; then
 fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
-  ARGS+=(--unsafe-ws-external --unsafe-rpc-external --rpc-methods Unsafe)
+  ARGS+=(--rpc-methods Unsafe)
 fi
 
 if [[ "false" == "${VALIDATOR}" ]]; then
-  ARGS+=(--ws-external --rpc-external --rpc-methods Safe)
+  ARGS+=(--rpc-methods Safe)
 fi
 
 aleph-node "${ARGS[@]}"
