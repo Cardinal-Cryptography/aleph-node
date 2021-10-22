@@ -346,7 +346,7 @@ impl pallet_vesting::Config for Runtime {
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 }
 
-pub const MILLICENTS: Balance = 1_00_000_000;
+pub const MILLICENTS: Balance = 100_000_000;
 pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
 
 // at a fixed cost $0.01 per byte, the constants are selected so that
