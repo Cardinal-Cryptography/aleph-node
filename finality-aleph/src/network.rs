@@ -1,12 +1,13 @@
 use aleph_bft::{Index, KeyBox as _, NodeIndex, SignatureSet};
 use codec::{Codec, Decode, Encode};
-use futures::{channel::mpsc, stream::Stream, FutureExt, StreamExt};
+use futures::{channel::mpsc, FutureExt, StreamExt};
 use parking_lot::Mutex;
 use sc_network::{multiaddr, Event, ExHashT, NetworkService, PeerId as ScPeerId, ReputationChange};
 use sp_runtime::traits::Block as BlockT;
 use std::{
     borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
 };
+use tokio::stream::Stream;
 
 use log::{debug, error, info, trace, warn};
 use std::time::Duration;
@@ -118,16 +119,11 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
     }
 
     fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
-        let addr =
-            iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
-        let result = NetworkService::remove_peers_from_reserved_set(
+        NetworkService::remove_peers_from_reserved_set(
             self,
             protocol,
-            iter::once(addr).collect(),
+            iter::once(who.0).collect(),
         );
-        if let Err(e) = result {
-            error!(target: "afa", "remove_set_reserved failed: {}", e);
-        }
     }
 
     fn peer_id(&self) -> PeerId {

@@ -20,7 +20,7 @@ use futures_timer::Delay;
 use log::{debug, trace};
 use sc_client_api::backend::Backend;
 use sp_runtime::generic::BlockId;
-use tokio::stream::StreamExt;
+use futures::StreamExt;
 
 type MessageId = u64;
 const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;
