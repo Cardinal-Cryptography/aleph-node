@@ -7,7 +7,6 @@ use futures::{
     },
     StreamExt,
 };
-use futures_timer::Delay;
 use sc_block_builder::BlockBuilderProvider;
 use sp_api::BlockId;
 use sp_api::NumberFor;
@@ -347,8 +346,6 @@ async fn sends_block_request_on_missing_block() {
     store_tx
         .unbounded_send(TestNetworkData { data: vec![data] })
         .unwrap();
-
-    Delay::new(Duration::from_millis(80)).await;
 
     let requested_block = block_requests_rx
         .next()
