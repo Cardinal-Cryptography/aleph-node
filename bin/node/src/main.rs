@@ -5,6 +5,7 @@ mod cli;
 mod command;
 mod commands;
 mod rpc;
+mod executor;
 
 fn main() -> sc_cli::Result<()> {
     command::run()
