@@ -16,11 +16,11 @@ use std::{
 
 const REFRESH_INTERVAL: u64 = 100;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use futures::StreamExt;
 use futures_timer::Delay;
 use log::{debug, trace};
 use sc_client_api::backend::Backend;
 use sp_runtime::generic::BlockId;
-use futures::StreamExt;
 
 type MessageId = u64;
 const AVAILABLE_BLOCKS_CACHE_SIZE: usize = 1000;

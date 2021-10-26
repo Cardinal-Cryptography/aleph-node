@@ -480,7 +480,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-			OpaqueMetadata::new(Runtime::metadata().into())
+            OpaqueMetadata::new(Runtime::metadata().into())
         }
     }
 
@@ -521,7 +521,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-			Aura::authorities().into_inner()
+            Aura::authorities().into_inner()
         }
     }
 
