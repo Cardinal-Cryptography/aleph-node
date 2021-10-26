@@ -7,6 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12" }
@@ -25,6 +26,7 @@ sp-core = { default-features = false, git = "https://github.com/paritytech/subst
 [features]
 default = ["std"]
 std = [
+    "scale-info/std",
     "codec/std",
     "frame-support/std",
     "frame-system/std",

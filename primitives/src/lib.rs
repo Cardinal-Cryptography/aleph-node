@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
 use sp_std::vec::Vec;
+use scale_info::TypeInfo;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 
@@ -27,16 +28,16 @@ pub type AuthoritySignature = app::Signature;
 pub type AuthorityId = app::Public;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode, TypeInfo)]
 pub struct SessionPeriod(pub u32);
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode, TypeInfo)]
 pub struct MillisecsPerBlock(pub u64);
 
 /// A delay for unit creation in milliseconds.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode, TypeInfo)]
 pub struct UnitCreationDelay(pub u64);
 
 pub const DEFAULT_SESSION_PERIOD: u32 = 5;
