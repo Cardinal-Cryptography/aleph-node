@@ -112,7 +112,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_version: 2,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+    transaction_version: 2,
 };
 
 /// This determines the average expected block time that we are targetting.
@@ -375,6 +375,7 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    // Maximum number of vesting schedules an account may have (receive) at a given moment.
     const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
