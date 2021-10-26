@@ -203,7 +203,12 @@ impl frame_system::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
+parameter_types! {
+    pub const MaxAuthorities: u32 = 100;
+}
+
 impl pallet_aura::Config for Runtime {
+    type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
 }
@@ -249,6 +254,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
+    pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -256,6 +262,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = ();
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
@@ -322,7 +329,6 @@ impl pallet_session::Config for Runtime {
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
-    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
 }
 
@@ -344,6 +350,7 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 pub const MILLICENTS: Balance = 1_000_000_000;
@@ -442,7 +449,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-            Runtime::metadata().into()
+			OpaqueMetadata::new(Runtime::metadata().into())
         }
     }
 
@@ -483,7 +490,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities()
+			Aura::authorities().into_inner()
         }
     }
 
