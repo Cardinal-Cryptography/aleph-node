@@ -8,13 +8,13 @@ pub use sc_executor::NativeElseWasmExecutor;
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = ();
+    type ExtendHostFunctions = ();
 
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		aleph_runtime::api::dispatch(method, data)
-	}
+    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+        aleph_runtime::api::dispatch(method, data)
+    }
 
-	fn native_version() -> sc_executor::NativeVersion {
-		aleph_runtime::native_version()
-	}
+    fn native_version() -> sc_executor::NativeVersion {
+        aleph_runtime::native_version()
+    }
 }
