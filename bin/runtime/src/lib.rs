@@ -207,6 +207,7 @@ impl frame_system::Config for Runtime {
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
+    // This value is just copied from Substrate
     pub const MaxAuthorities: u32 = 100;
 }
 
@@ -257,6 +258,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
+    // This value is just copied from Substrate
     pub const OperationalFeeMultiplier: u8 = 5;
 }
 
