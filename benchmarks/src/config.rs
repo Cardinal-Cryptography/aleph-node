@@ -15,7 +15,7 @@ pub struct Config {
     pub transactions: u64,
 
     /// what throughput to use (transactions/s)
-    #[clap(long, default_value = "2000")]
+    #[clap(long, default_value = "1000")]
     pub throughput: u64,
 
     /// how many threads to create

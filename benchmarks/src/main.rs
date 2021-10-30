@@ -17,6 +17,9 @@ use substrate_api_client::{
     XtStatus,
 };
 
+type TransferTransaction =
+    UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)>;
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
@@ -30,13 +33,17 @@ async fn main() -> Result<(), anyhow::Error> {
     let connection = pool.get(0).unwrap();
 
     let total_users = config.throughput;
+    let total_threads = config.threads;
+    let total_batches = config.transactions / config.throughput;
+    let users_per_thread = total_users / total_threads;
+    let transactions_per_batch = config.throughput / config.threads;
 
     let existential_deposit = connection.get_existential_deposit().unwrap();
     let transfer_amount = 1u128;
-    let tx_fee = 1000_000_000; /*73_268_000u128;*/
-    let total_amount = existential_deposit + tx_fee + transfer_amount;
+    let tx_fee = 100_000_000u128; /*73_268_000u128*/
+    let total_amount = existential_deposit + (tx_fee * total_batches as u128) + transfer_amount;
 
-    debug!(
+    info!(
         "Using account {} to derive and fund accounts",
         &account.public()
     );
@@ -47,6 +54,190 @@ async fn main() -> Result<(), anyhow::Error> {
         "Account is too poor"
     );
 
+    let (users, nonces) = derive_user_accounts(
+        connection.clone(),
+        account.clone(),
+        total_users,
+        total_amount,
+    )
+    .await;
+
+    // sleep some to wait for the last tx hash to be finalized
+    // async { sleep(Duration::from_millis(2000)) }.await;
+
+    debug!("all accounts have received funds");
+
+    let txs = sign_transactions(
+        connection.clone(),
+        total_threads,
+        total_batches,
+        users_per_thread,
+        transfer_amount,
+        account,
+        users,
+        nonces,
+    )
+    .await;
+
+    println!(
+        "Prepared {} signed txs",
+        &txs.len() * &txs[0].len() * &txs[0][0].len()
+    );
+
+    let histogram = Arc::new(Mutex::new(
+        HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
+    ));
+
+    println!(
+        "threads: {}, batches: {}, txs per batch: {}",
+        &txs.len(),
+        &txs[0].len(),
+        &txs[0][0].len()
+    );
+
+    let tick = Instant::now();
+
+    flood(
+        pool,
+        txs,
+        total_threads,
+        total_batches,
+        transactions_per_batch,
+        &histogram,
+    )
+    .await;
+
+    let tock = tick.elapsed().as_millis();
+    let histogram = histogram.lock().unwrap();
+
+    println!("Summary:\n TransferTransactions sent: {}\n Total time:        {} ms\n Slowest tx:        {} ms\n Fastest tx:        {} ms\n Average:           {:.1} ms\n Throughput:        {:.1} tx/s",
+             histogram.len (),
+             tock,
+             histogram.max (),
+             histogram.min (),
+             histogram.mean (),
+             1000.0 * histogram.len () as f64 / tock as f64
+    );
+
+    Ok(())
+}
+
+async fn flood(
+    pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
+    txs: Vec<Vec<Vec<TransferTransaction>>>,
+    total_threads: u64,
+    total_batches: u64,
+    transactions_per_batch: u64,
+    histogram: &Arc<Mutex<HdrHistogram<u64>>>,
+) {
+    // send txs
+    for batch in 0..total_batches {
+        let mut futures_batch = Vec::new();
+
+        println!("Preparing batch {}", batch);
+
+        for thread in 0..total_threads {
+            println!("sending batch {} from thread {}", batch, thread);
+
+            for tx in 0..transactions_per_batch {
+                // retrieve signed txs
+                let signed_tx = &txs[thread as usize][batch as usize][tx as usize];
+
+                // send txs using a connection pool
+                futures_batch.push(send_tx(
+                    pool.get(tx as usize % pool.len()).unwrap().to_owned(),
+                    signed_tx.to_owned(),
+                    Arc::clone(histogram),
+                ));
+            }
+        }
+        // block on batches of futures
+        join_all(futures_batch).await;
+    }
+}
+
+async fn sign_tx(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    signer: sr25519::Pair,
+    nonce: u32,
+    to: AccountId,
+    amount: u128,
+) -> TransferTransaction {
+    let call = compose_call!(
+        connection.metadata,
+        "Balances",
+        "transfer",
+        GenericAddress::Id(to),
+        Compact(amount)
+    );
+
+    compose_extrinsic_offline!(
+        signer,
+        call,
+        nonce,
+        Era::Immortal,
+        connection.genesis_hash,
+        connection.genesis_hash,
+        connection.runtime_version.spec_version,
+        connection.runtime_version.transaction_version
+    )
+}
+
+/// prepares payload for floading
+async fn sign_transactions(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    total_threads: u64,
+    total_batches: u64,
+    users_per_thread: u64,
+    transfer_amount: u128,
+    account: sr25519::Pair,
+    users: Vec<sr25519::Pair>,
+    initial_nonces: Vec<u32>,
+) -> Vec<Vec<Vec<TransferTransaction>>> {
+    let mut txs = Vec::new();
+    let mut nonces = initial_nonces.clone();
+
+    for thread in 0..total_threads {
+        let mut txs_batches = Vec::new();
+        for batch in 0..total_batches {
+            let mut txs_batch = Vec::new();
+            for user in (thread * users_per_thread)..(thread + 1) * users_per_thread {
+                let connection = connection.clone();
+                let from = users.get(user as usize).unwrap().to_owned();
+
+                let tx = sign_tx(
+                    connection,
+                    from.clone(),
+                    nonces[user as usize],
+                    AccountId::from(account.public()),
+                    transfer_amount,
+                )
+                .await;
+
+                nonces[user as usize] += 1;
+                txs_batch.push(tx);
+
+                debug!(
+                    "thread: {} batch: {} user: {}",
+                    thread,
+                    batch,
+                    &from.public()
+                );
+            }
+            txs_batches.push(txs_batch);
+        }
+        txs.push(txs_batches);
+    }
+    txs
+}
+
+/// returns a tuple of derived accounts and their nonces
+async fn derive_user_accounts(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    account: sr25519::Pair,
+    total_users: u64,
+    total_amount: u128,
+) -> (Vec<sr25519::Pair>, Vec<u32>) {
     let mut users = Vec::with_capacity(total_users as usize);
     let mut nonces = Vec::with_capacity(total_users as usize);
     let mut account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
@@ -66,6 +257,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .await;
 
         let hash = if index.eq(&(total_users - 1)) {
+            // ensure all txs are finalized by waiting for the last one sent
             connection
                 .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
                 .expect("Could not send transaction")
@@ -79,7 +271,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
         let nonce = get_nonce(connection.clone(), &AccountId::from(derived.public()));
 
-        println!(
+        debug!(
             "account {} with nonce {} will receive funds, tx hash {:?}",
             &derived.public(),
             nonce,
@@ -90,142 +282,7 @@ async fn main() -> Result<(), anyhow::Error> {
         users.push(derived);
     }
 
-    // sleep some to wait for the last tx hash to be finalized
-    // async { sleep(Duration::from_millis(2000)) }.await;
-
-    debug!("all accounts have received funds");
-
-    let total_threads = config.threads;
-    let total_batches = config.transactions / config.throughput;
-    let users_per_thread = total_users / total_threads;
-    let transactions_per_batch = config.throughput / config.threads;
-
-    // prepare txs
-    let mut txs = Vec::new();
-    let mut tx_counter = 0;
-
-    for thread in 0..total_threads {
-        let mut txs_batches = Vec::new();
-        for batch in 0..total_batches {
-            let mut txs_batch = Vec::new();
-            for user in (thread * users_per_thread)..(thread + 1) * users_per_thread {
-                let connection = connection.clone();
-                let from = users.get(user as usize).unwrap().to_owned();
-
-                let call = compose_call!(
-                    connection.metadata,
-                    "Balances",
-                    "transfer",
-                    GenericAddress::Id(AccountId::from(account.public())),
-                    Compact(transfer_amount)
-                );
-
-                let tx: UncheckedExtrinsicV4<_> = compose_extrinsic_offline!(
-                    from,
-                    call,
-                    nonces[user as usize],
-                    Era::Immortal,
-                    connection.genesis_hash,
-                    connection.genesis_hash,
-                    connection.runtime_version.spec_version,
-                    connection.runtime_version.transaction_version
-                );
-
-                nonces[user as usize] += 1;
-                tx_counter += 1;
-                txs_batch.push(tx);
-
-                println!(
-                    "thread: {} batch: {} user: {}",
-                    thread,
-                    batch,
-                    &from.public()
-                );
-            }
-            txs_batches.push(txs_batch);
-        }
-        txs.push(txs_batches);
-    }
-
-    println!("Prepared {} signed txs", tx_counter);
-
-    let histogram = Arc::new(Mutex::new(
-        HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
-    ));
-
-    println!(
-        "threads: {}, batches: {}, txs per batch: {}",
-        &txs.len(),
-        &txs[0].len(),
-        &txs[0][0].len()
-    );
-
-    let tick = Instant::now();
-    // send txs
-    for batch in 0..total_batches {
-        let mut futures_batch = Vec::new();
-
-        println!("Prepared batch {}", batch);
-
-        for thread in 0..total_threads {
-            println!("sending from thread {}", thread);
-
-            for tx in 0..transactions_per_batch {
-                // retrieve signed txs
-                let signed_tx = &txs[thread as usize][batch as usize][tx as usize];
-
-                // send txs using a connection pool
-                futures_batch.push(send_tx(
-                    pool.get(tx as usize % pool.len()).unwrap().to_owned(),
-                    signed_tx.to_owned(),
-                    Arc::clone(&histogram),
-                ));
-            }
-        }
-        // block on batches of futures
-        join_all(futures_batch).await;
-    }
-
-    let tock = tick.elapsed().as_millis();
-    let histogram = histogram.lock().unwrap();
-
-    println!("Summary:\n Transactions sent: {}\n Total time:        {} ms\n Slowest tx:        {} ms\n Fastest tx:        {} ms\n Average:           {:.1} ms\n Throughput:        {:.1} tx/s",
-             histogram.len (),
-             tock,
-             histogram.max (),
-             histogram.min (),
-             histogram.mean (),
-             1000.0 * histogram.len () as f64 / tock as f64
-    );
-
-    Ok(())
-}
-
-async fn sign_tx(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    signer: sr25519::Pair,
-    nonce: u32,
-    to: AccountId,
-    amount: u128,
-) -> UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)> {
-    let call = compose_call!(
-        connection.metadata,
-        "Balances",
-        "transfer",
-        GenericAddress::Id(to),
-        Compact(amount)
-    );
-
-    compose_extrinsic_offline!(
-        signer,
-        call,
-        nonce,
-        Era::Immortal,
-        connection.genesis_hash,
-        connection.genesis_hash,
-        connection.runtime_version.spec_version,
-        connection.runtime_version.transaction_version
-    )
+    (users, nonces)
 }
 
 async fn send_tx<Call>(
