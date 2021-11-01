@@ -23,7 +23,7 @@ type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
 type Block = generic::Block<Header, OpaqueExtrinsic>;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
     let config: Config = Config::parse();

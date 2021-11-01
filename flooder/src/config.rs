@@ -1,8 +1,6 @@
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
-/// Benchmarking tool expects to find key phrase files for the accounts
-/// to send txs from under <BASE_PATH>/<ACCOUNT_ID>/<KEY_FILENAME>
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {

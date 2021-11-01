@@ -580,7 +580,6 @@ dependencies = [
  "log",
  "pallet-balances",
  "parity-scale-codec",
- "rand 0.8.4",
  "sp-core",
  "sp-runtime",
  "substrate-api-client",
