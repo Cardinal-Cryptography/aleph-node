@@ -19,7 +19,6 @@ use substrate_api_client::{
 
 type TransferTransaction =
     UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)>;
-
 type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
 type Block = generic::Block<Header, OpaqueExtrinsic>;
@@ -48,7 +47,7 @@ async fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let (users, nonces) = derive_user_accounts(
+    let users_and_nonces /*(users, nonces) */= derive_user_accounts(
         connection.clone(),
         account.clone(),
         total_users,
@@ -61,13 +60,12 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let txs = sign_transactions(
         connection.clone(),
+        account,
+        users_and_nonces,
+        transfer_amount,
         total_threads,
         total_batches,
         users_per_thread,
-        transfer_amount,
-        account,
-        users,
-        nonces,
     )
     .await;
 
@@ -194,15 +192,15 @@ async fn sign_tx(
 /// prepares payload for floading
 async fn sign_transactions(
     connection: Api<sr25519::Pair, WsRpcClient>,
+    account: sr25519::Pair,
+    users_and_nonces: (Vec<sr25519::Pair>, Vec<u32>),
+    transfer_amount: u128,
     total_threads: u64,
     total_batches: u64,
     users_per_thread: u64,
-    transfer_amount: u128,
-    account: sr25519::Pair,
-    users: Vec<sr25519::Pair>,
-    initial_nonces: Vec<u32>,
 ) -> Vec<Vec<Vec<TransferTransaction>>> {
     let mut txs = Vec::new();
+    let (users, initial_nonces) = users_and_nonces;
     let mut nonces = initial_nonces.clone();
 
     for thread in 0..total_threads {
