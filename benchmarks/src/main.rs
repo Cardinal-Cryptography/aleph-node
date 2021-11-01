@@ -7,7 +7,7 @@ use futures::future::join_all;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info, warn};
 use sp_core::{sr25519, DeriveJunction, Pair};
-use sp_runtime::MultiAddress;
+use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -19,6 +19,10 @@ use substrate_api_client::{
 
 type TransferTransaction =
     UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)>;
+
+type BlockNumber = u32;
+type Header = generic::Header<BlockNumber, BlakeTwo256>;
+type Block = generic::Block<Header, OpaqueExtrinsic>;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -37,33 +41,21 @@ async fn main() -> Result<(), anyhow::Error> {
     let total_batches = config.transactions / config.throughput;
     let users_per_thread = total_users / total_threads;
     let transactions_per_batch = config.throughput / config.threads;
-
-    let existential_deposit = connection.get_existential_deposit().unwrap();
     let transfer_amount = 1u128;
-    let tx_fee = 100_000_000u128; /*73_268_000u128*/
-    let total_amount = existential_deposit + (tx_fee * total_batches as u128) + transfer_amount;
 
     info!(
         "Using account {} to derive and fund accounts",
         &account.public()
     );
 
-    assert!(
-        get_funds(connection.clone(), &AccountId::from(account.public()))
-            .ge(&(total_amount * total_users as u128)),
-        "Account is too poor"
-    );
-
     let (users, nonces) = derive_user_accounts(
         connection.clone(),
         account.clone(),
         total_users,
-        total_amount,
+        transfer_amount,
+        total_batches,
     )
     .await;
-
-    // sleep some to wait for the last tx hash to be finalized
-    // async { sleep(Duration::from_millis(2000)) }.await;
 
     debug!("all accounts have received funds");
 
@@ -81,7 +73,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     println!(
         "Prepared {} signed txs",
-        &txs.len() * &txs[0].len() * &txs[0][0].len()
+        txs.len() * txs[0].len() * txs[0][0].len()
     );
 
     let histogram = Arc::new(Mutex::new(
@@ -154,6 +146,22 @@ async fn flood(
         // block on batches of futures
         join_all(futures_batch).await;
     }
+}
+
+async fn estimate_tx_fee(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    tx: &TransferTransaction,
+) -> u128 {
+    let block = connection.get_block::<Block>(None).unwrap().unwrap();
+    let block_hash = block.header.hash();
+    let fee = connection
+        .get_fee_details(&tx.hex_encode(), Some(block_hash))
+        .unwrap()
+        .unwrap();
+
+    let inclusion_fee = fee.inclusion_fee.unwrap();
+
+    fee.tip + inclusion_fee.base_fee + inclusion_fee.len_fee + inclusion_fee.adjusted_weight_fee
 }
 
 async fn sign_tx(
@@ -236,17 +244,22 @@ async fn derive_user_accounts(
     connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
     total_users: u64,
-    total_amount: u128,
+    transfer_amount: u128,
+    txs_per_account: u64,
 ) -> (Vec<sr25519::Pair>, Vec<u32>) {
     let mut users = Vec::with_capacity(total_users as usize);
     let mut nonces = Vec::with_capacity(total_users as usize);
     let mut account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
+    let existential_deposit = connection.get_existential_deposit().unwrap();
+
+    // start with a heuristic tx fee
+    let mut total_amount =
+        existential_deposit + txs_per_account as u128 * (transfer_amount + 375_000_000);
 
     for index in 0..total_users {
         let path = Some(DeriveJunction::soft(index));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
-        // transfer existential deposit + tx fees (upper bound) + transfer_amount
         let tx = sign_tx(
             connection.clone(),
             account.clone(),
@@ -255,6 +268,22 @@ async fn derive_user_accounts(
             total_amount,
         )
         .await;
+
+        // estimate fees
+        if index.eq(&0) {
+            let tx_fee = estimate_tx_fee(connection.clone(), &tx).await;
+            info!("Estimated transfer tx fee {}", tx_fee);
+
+            // adjust with estimated tx fee
+            total_amount =
+                existential_deposit + txs_per_account as u128 * (transfer_amount + tx_fee);
+
+            assert!(
+                get_funds(connection.clone(), &AccountId::from(account.public()))
+                    .ge(&(total_amount * total_users as u128)),
+                "Account is too poor"
+            );
+        }
 
         let hash = if index.eq(&(total_users - 1)) {
             // ensure all txs are finalized by waiting for the last one sent
@@ -271,7 +300,7 @@ async fn derive_user_accounts(
 
         let nonce = get_nonce(connection.clone(), &AccountId::from(derived.public()));
 
-        debug!(
+        info!(
             "account {} with nonce {} will receive funds, tx hash {:?}",
             &derived.public(),
             nonce,
@@ -331,7 +360,7 @@ fn get_nonce(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -
 }
 
 fn get_funds(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u128 {
-    match connection.get_account_data(&account).unwrap() {
+    match connection.get_account_data(account).unwrap() {
         Some(data) => data.free,
         None => 0,
     }

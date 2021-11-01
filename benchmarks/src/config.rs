@@ -32,6 +32,6 @@ pub fn read_phrase(phrase: String) -> String {
     if file.is_file() {
         fs::read_to_string(phrase).unwrap().trim_end().to_owned()
     } else {
-        phrase.into()
+        phrase
     }
 }
