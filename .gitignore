@@ -7,7 +7,7 @@
 .cargo/config
 /target
 **/*.rs.bk
-benchmarks/target/
+flooder/target/
 
 # Substrate
 *.log
