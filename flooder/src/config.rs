@@ -5,7 +5,7 @@ use std::{fs, path::PathBuf};
 #[clap(version = "1.0")]
 pub struct Config {
     /// URL address(es) of the nodes to send transactions to
-    #[clap(long, default_value = "127.0.0.1:9943")]
+    #[clap(long, default_value = "127.0.0.1:9945g")]
     pub nodes: Vec<String>,
 
     /// how many transactions to send

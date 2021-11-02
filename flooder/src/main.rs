@@ -155,10 +155,7 @@ async fn flood(
     }
 }
 
-async fn estimate_tx_fee(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    tx: &TransferTransaction,
-) -> u128 {
+fn estimate_tx_fee(connection: Api<sr25519::Pair, WsRpcClient>, tx: &TransferTransaction) -> u128 {
     let block = connection.get_block::<Block>(None).unwrap().unwrap();
     let block_hash = block.header.hash();
     let fee = connection
@@ -278,7 +275,7 @@ async fn derive_user_accounts(
 
         // estimate fees
         if index.eq(&0) {
-            let tx_fee = estimate_tx_fee(connection.clone(), &tx).await;
+            let tx_fee = estimate_tx_fee(connection.clone(), &tx);
             info!("Estimated transfer tx fee {}", tx_fee);
 
             // adjust with estimated tx fee
