@@ -24,6 +24,7 @@ futures = "0.3"
 hex-literal = "0.3.1"
 libp2p = "0.39.1"
 hex = "0.4.2"
+tiny-bip39 = "0.8"
 
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
 sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12"}
