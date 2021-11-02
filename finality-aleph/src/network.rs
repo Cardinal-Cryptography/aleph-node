@@ -1,20 +1,22 @@
 use aleph_bft::{Index, KeyBox as _, NodeIndex, SignatureSet};
 use codec::{Codec, Decode, Encode};
-use futures::{channel::mpsc, stream::Stream, FutureExt, StreamExt};
+use futures::{channel::mpsc, FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use sc_network::{multiaddr, Event, ExHashT, NetworkService, PeerId as ScPeerId, ReputationChange};
 use sp_runtime::traits::Block as BlockT;
 use std::{
     borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
 };
+use tokio_stream::wrappers::IntervalStream;
 
 use log::{debug, error, info, trace, warn};
 use std::time::Duration;
 
 use crate::{
     aggregator::SignableHash,
+    crypto::{KeyBox, Signature},
     data_io::{AlephDataFor, AlephNetworkMessage},
-    Error, Hasher, MultiKeychain, SessionId, Signature,
+    Error, Hasher, SessionId,
 };
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
@@ -80,9 +82,28 @@ pub trait Network<B: BlockT>: Clone + Send + Sync + 'static {
 
     /// The PeerId of this node.
     fn peer_id(&self) -> PeerId;
+}
 
+pub trait RequestBlocks<B: BlockT>: Clone + Send + Sync + 'static {
     /// Request the justification for the given block
     fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>);
+
+    /// Request the given block -- this is supposed to be used only for "old forks".
+    fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
+}
+
+impl<B: BlockT, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
+    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
+        NetworkService::request_justification(self, hash, number)
+    }
+
+    fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>) {
+        // The below comment is adapted from substrate:
+        // Notifies the sync service to try and sync the given block from the given peers. If the given vector
+        // of peers is empty (as in our case) then the underlying implementation should make a best effort to fetch
+        // the block from any peers it is connected to.
+        NetworkService::set_sync_fork_request(self, Vec::new(), hash, number)
+    }
 }
 
 impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
@@ -117,24 +138,11 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
     }
 
     fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
-        let addr =
-            iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
-        let result = NetworkService::remove_peers_from_reserved_set(
-            self,
-            protocol,
-            iter::once(addr).collect(),
-        );
-        if let Err(e) = result {
-            error!(target: "afa", "remove_set_reserved failed: {}", e);
-        }
+        NetworkService::remove_peers_from_reserved_set(self, protocol, iter::once(who.0).collect());
     }
 
     fn peer_id(&self) -> PeerId {
         (*self.local_peer_id()).into()
-    }
-
-    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
-        NetworkService::request_justification(self, hash, number)
     }
 }
 
@@ -285,9 +293,9 @@ pub(crate) enum ControlCommand {
 }
 
 struct SessionData<D> {
-    pub(crate) data_for_user: mpsc::UnboundedSender<D>,
-    pub(crate) status: SessionStatus,
-    pub(crate) keychain: MultiKeychain,
+    data_for_user: mpsc::UnboundedSender<D>,
+    status: SessionStatus,
+    keychain: KeyBox,
     auth_data: AuthData,
     auth_signature: Signature,
 }
@@ -331,7 +339,7 @@ impl<D: Clone + Codec> SessionManager<D> {
     pub(crate) async fn start_session(
         &self,
         session_id: SessionId,
-        keychain: MultiKeychain,
+        keychain: KeyBox,
     ) -> DataNetwork<D> {
         let auth_data = AuthData {
             session_id,
@@ -585,7 +593,7 @@ where
 
     pub async fn run(mut self) {
         let mut network_event_stream = self.network.event_stream();
-        let mut status_ticker = tokio::time::interval(Duration::from_secs(10));
+        let mut status_ticker = IntervalStream::new(tokio::time::interval(Duration::from_secs(10)));
 
         loop {
             tokio::select! {

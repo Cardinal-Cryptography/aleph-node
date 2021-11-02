@@ -29,6 +29,8 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+use frame_support::sp_runtime::traits::Convert;
+use frame_support::sp_runtime::Perquintill;
 pub use frame_support::{
     construct_runtime, parameter_types,
     sp_runtime::curve::PiecewiseLinear,
@@ -46,8 +48,9 @@ use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-use pallet_transaction_payment::CurrencyAdapter;
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, MultiplierUpdate};
 use sp_consensus_aura::SlotDuration;
+use sp_runtime::traits::{One, Zero};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
@@ -106,10 +109,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 3,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+    transaction_version: 2,
 };
 
 /// This determines the average expected block time that we are targetting.
@@ -203,7 +206,13 @@ impl frame_system::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
+parameter_types! {
+    // This value is just copied from Substrate
+    pub const MaxAuthorities: u32 = 100;
+}
+
 impl pallet_aura::Config for Runtime {
+    type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
 }
@@ -249,13 +258,38 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
+    // This value is just copied from Substrate
+    pub const OperationalFeeMultiplier: u8 = 5;
+}
+
+pub struct ConstantFeeMultiplierUpdate;
+
+impl Convert<Multiplier, Multiplier> for ConstantFeeMultiplierUpdate {
+    fn convert(m: Multiplier) -> Multiplier {
+        m
+    }
+}
+
+impl MultiplierUpdate for ConstantFeeMultiplierUpdate {
+    fn min() -> Multiplier {
+        Multiplier::one()
+    }
+
+    fn target() -> Perquintill {
+        Default::default()
+    }
+
+    fn variability() -> Multiplier {
+        Multiplier::zero()
+    }
 }
 
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ();
+    type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
@@ -322,7 +356,6 @@ impl pallet_session::Config for Runtime {
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
-    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
 }
 
@@ -344,14 +377,22 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    // Maximum number of vesting schedules an account may have (receive) at a given moment.
+    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
-pub const MILLICENTS: Balance = 1_000_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
-                                               // This value is copied from polkadot, we should do our own calculations
+pub const MILLICENTS: Balance = 100_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
+
+// at a fixed cost $0.01 per byte, the constants are selected so that
+// the base cost of starting a multisig action is $5
+pub const ALLOCATION_COST: Balance = 412 * CENTS;
+pub const BYTE_COST: Balance = CENTS;
+
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
-    items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+    (items as Balance) * ALLOCATION_COST + (bytes as Balance) * BYTE_COST
 }
+
 parameter_types! {
     // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
     pub const DepositBase: Balance = deposit(1, 88);
@@ -442,7 +483,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-            Runtime::metadata().into()
+            OpaqueMetadata::new(Runtime::metadata().into())
         }
     }
 
@@ -483,7 +524,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities()
+            Aura::authorities().into_inner()
         }
     }
 

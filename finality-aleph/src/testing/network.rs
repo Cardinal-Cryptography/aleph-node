@@ -1,11 +1,13 @@
 use crate::{
+    crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
     network::{
         AuthData, ConsensusNetwork, DataNetwork, InternalMessage, MetaMessage, Network, PeerId,
         Recipient,
     },
-    AuthorityId, AuthorityKeystore, KeyBox, MultiKeychain, SessionId, KEY_TYPE,
+    AuthorityId, SessionId,
 };
 use aleph_bft::{Index, KeyBox as _, NodeIndex};
+use aleph_primitives::KEY_TYPE;
 use codec::DecodeAll;
 use futures::{
     channel::{mpsc, oneshot},
@@ -123,14 +125,6 @@ impl<B: BlockT> Network<B> for TestNetwork<B> {
     fn peer_id(&self) -> PeerId {
         self.peer_id
     }
-
-    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
-        self.request_justification
-            .0
-            .lock()
-            .unbounded_send((*hash, number))
-            .unwrap();
-    }
 }
 
 impl<B: BlockT> TestNetwork<B> {
@@ -166,7 +160,7 @@ impl<B: BlockT> TestNetwork<B> {
 
 struct Authority {
     peer_id: PeerId,
-    keychain: MultiKeychain,
+    keychain: KeyBox,
 }
 
 async fn generate_authorities(ss: &[String]) -> Vec<Authority> {
@@ -181,12 +175,13 @@ async fn generate_authorities(ss: &[String]) -> Vec<Authority> {
     }
     let mut result = Vec::with_capacity(ss.len());
     for i in 0..ss.len() {
-        let keybox = KeyBox {
-            id: NodeIndex(i),
-            auth_keystore: AuthorityKeystore::new(auth_ids[i].clone(), key_store.clone()),
-            authorities: auth_ids.clone(),
-        };
-        let keychain = MultiKeychain::new(keybox);
+        let keychain = KeyBox::new(
+            NodeIndex(i),
+            AuthorityVerifier::new(auth_ids.clone()),
+            AuthorityPen::new(auth_ids[i].clone(), key_store.clone())
+                .await
+                .expect("The keys should sign successfully"),
+        );
         result.push(Authority {
             peer_id: ScPeerId::random().into(),
             keychain,

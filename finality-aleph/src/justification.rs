@@ -1,8 +1,11 @@
 use crate::{
-    finalization::finalize_block, last_block_of_session, metrics::Checkpoint, network,
-    session_id_from_block_num, KeyBox, Metrics, SessionId, SessionMap, Signature,
+    crypto::{AuthorityVerifier, Signature},
+    finalization::finalize_block,
+    last_block_of_session,
+    metrics::Checkpoint,
+    network, session_id_from_block_num, Metrics, SessionId, SessionMap,
 };
-use aleph_bft::{MultiKeychain, NodeIndex, SignatureSet};
+use aleph_bft::SignatureSet;
 use aleph_primitives::{SessionPeriod, ALEPH_ENGINE_ID};
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
@@ -11,7 +14,6 @@ use log::{debug, error, warn};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, BlockT, NumberFor};
-use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::Header;
 use std::{
     marker::PhantomData,
@@ -20,6 +22,7 @@ use std::{
 };
 use tokio::time::timeout;
 
+/// A proof of block finality, currently in the form of a sufficiently long list of signatures.
 #[derive(Clone, Encode, Decode, Debug)]
 pub struct AlephJustification {
     pub(crate) signature: SignatureSet<Signature>,
@@ -30,15 +33,12 @@ impl AlephJustification {
         Self { signature }
     }
 
-    pub(crate) fn verify<
-        Block: BlockT,
-        MK: MultiKeychain<Signature = Signature, PartialMultisignature = SignatureSet<Signature>>,
-    >(
+    pub(crate) fn verify<Block: BlockT>(
         aleph_justification: &AlephJustification,
         block_hash: Block::Hash,
-        multi_keychain: &MK,
+        multi_verifier: &AuthorityVerifier,
     ) -> bool {
-        if !multi_keychain.is_complete(&block_hash.encode()[..], &aleph_justification.signature) {
+        if !multi_verifier.is_complete(&block_hash.encode()[..], &aleph_justification.signature) {
             debug!(target: "afa", "Bad justification for block hash #{:?} {:?}", block_hash, aleph_justification);
             return false;
         }
@@ -51,26 +51,29 @@ pub(crate) struct ChainCadence {
     pub justifications_cadence: Duration,
 }
 
+/// A notification for sending justifications over the network.
 pub struct JustificationNotification<Block>
 where
     Block: BlockT,
 {
+    /// The justification itself.
     pub justification: AlephJustification,
+    /// The hash of the finalized block.
     pub hash: Block::Hash,
+    /// The ID of the finalized block.
     pub number: NumberFor<Block>,
 }
 
-pub(crate) struct JustificationHandler<B, N, C, BE>
+pub(crate) struct JustificationHandler<B, RB, C, BE>
 where
     B: BlockT,
-    N: network::Network<B> + 'static,
+    RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
 {
     session_authorities: Arc<Mutex<SessionMap>>,
-    keystore: SyncCryptoStorePtr,
     chain_cadence: ChainCadence,
-    network: N,
+    block_requester: RB,
     client: Arc<C>,
     last_request_time: Instant,
     last_finalization_time: Instant,
@@ -78,26 +81,24 @@ where
     phantom: PhantomData<BE>,
 }
 
-impl<B, N, C, BE> JustificationHandler<B, N, C, BE>
+impl<B, RB, C, BE> JustificationHandler<B, RB, C, BE>
 where
     B: BlockT,
-    N: network::Network<B> + 'static,
+    RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
 {
     pub(crate) fn new(
         session_authorities: Arc<Mutex<SessionMap>>,
-        keystore: SyncCryptoStorePtr,
         chain_cadence: ChainCadence,
-        network: N,
+        block_requester: RB,
         client: Arc<C>,
         metrics: Option<Metrics<B::Header>>,
     ) -> Self {
         Self {
             session_authorities,
-            keystore,
             chain_cadence,
-            network,
+            block_requester,
             client,
             last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
@@ -109,16 +110,16 @@ where
     pub(crate) fn handle_justification_notification(
         &mut self,
         notification: JustificationNotification<B>,
-        keybox: KeyBox,
+        verifier: AuthorityVerifier,
         last_finalized: NumberFor<B>,
         stop_h: NumberFor<B>,
     ) {
         let num = notification.number;
         let block_hash = notification.hash;
-        if AlephJustification::verify::<B, _>(
+        if AlephJustification::verify::<B>(
             &notification.justification,
             notification.hash,
-            &crate::MultiKeychain::new(keybox),
+            &verifier,
         ) {
             if num > last_finalized && num <= stop_h {
                 debug!(target: "afa", "Finalizing block {:?} {:?}", num, block_hash);
@@ -168,7 +169,7 @@ where
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
                 debug!(target: "afa", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
                 self.last_request_time = current_time;
-                self.network
+                self.block_requester
                     .request_justification(&header.hash(), *header.number());
             } else {
                 debug!(target: "afa", "Cancelling request, because we don't have block {:?}.", num);
@@ -208,19 +209,19 @@ where
             let current_session =
                 session_id_from_block_num::<B>(last_finalized_number + 1u32.into(), session_period);
             let stop_h: NumberFor<B> = last_block_of_session::<B>(current_session, session_period);
-            let keybox = self.session_keybox(current_session);
-            if keybox.is_none() {
-                debug!(target: "afa", "Keybox for session {:?} not yet available. Waiting 500ms and will try again ...", current_session);
+            let verifier = self.session_verifier(current_session);
+            if verifier.is_none() {
+                debug!(target: "afa", "Verifier for session {:?} not yet available. Waiting 500ms and will try again ...", current_session);
                 Delay::new(Duration::from_millis(500)).await;
                 continue;
             }
-            let keybox = keybox.expect("We loop until this is some.");
+            let verifier = verifier.expect("We loop until this is some.");
 
             match timeout(Duration::from_millis(1000), notification_stream.next()).await {
                 Ok(Some(notification)) => {
                     self.handle_justification_notification(
                         notification,
-                        keybox,
+                        verifier,
                         last_finalized_number,
                         stop_h,
                     );
@@ -238,17 +239,9 @@ where
         }
     }
 
-    fn session_keybox(&self, session_id: SessionId) -> Option<KeyBox> {
-        let authorities = match self.session_authorities.lock().get(&session_id) {
-            Some(authorities) => authorities.to_vec(),
-            None => return None,
-        };
-        // Below we use a fake index 0 of a node -- we never use this keybox for signing so that's OK.
-        // TODO: consider refactoring this in the future so that verification and signing are separate (not combined within a KeyBox).
-        Some(KeyBox::new(
-            NodeIndex(0),
-            authorities,
-            self.keystore.clone(),
+    fn session_verifier(&self, session_id: SessionId) -> Option<AuthorityVerifier> {
+        Some(AuthorityVerifier::new(
+            self.session_authorities.lock().get(&session_id)?.to_vec(),
         ))
     }
 }
