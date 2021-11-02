@@ -138,7 +138,7 @@ pub struct ChainParams {
     /// Pass the AccountIds of authorities forming the committe at the genesis
     ///
     /// Expects a delimited collection of AccountIds
-    #[structopt(long, require_delimiter = true, conflicts_with_all = &["n_members"])]
+    #[structopt(long, require_delimiter = true)]
     account_ids: Option<Vec<String>>,
 
     /// Pass the AccountId of the sudo account
@@ -200,10 +200,6 @@ impl ChainParams {
                 })
                 .collect(),
             None => {
-                // let n_members = self
-                //     .n_members
-                //     .expect("Pass account-ids or n-members argument");
-
                 // NOTE : chain id "dev" means that a set of known accounts is generated from KNOWN_ACCOUNTS seed values
                 // this follows the default Substrate behaviour
                 match self.chain_id() {
@@ -211,7 +207,7 @@ impl ChainParams {
                         .iter()
                         .map(get_account_id_from_seed::<sr25519::Public>)
                         .collect(),
-                    _ => panic!("Pass account-ids or n-members argument"),
+                    _ => panic!("Pass account-ids or use chain-id dev"),
                 }
             }
         }
