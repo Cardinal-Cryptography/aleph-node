@@ -3,9 +3,9 @@ mod config;
 use clap::Parser;
 use codec::{Compact, Encode};
 use config::Config;
-use futures::future::join_all;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info, warn};
+use rayon::prelude::*;
 use sp_core::{sr25519, DeriveJunction, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::sync::{Arc, Mutex};
@@ -23,8 +23,7 @@ type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
 type Block = generic::Block<Header, OpaqueExtrinsic>;
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<(), anyhow::Error> {
+fn main() -> Result<(), anyhow::Error> {
     env_logger::init();
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
@@ -44,10 +43,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
 
-    let total_users = config.throughput;
-    let total_threads = config.threads;
-    let total_batches = config.transactions / config.throughput;
-    let users_per_thread = total_users / total_threads;
+    let total_users = config.transactions;
     let transactions_per_batch = config.throughput / config.threads;
     let transfer_amount = 1u128;
 
@@ -56,55 +52,30 @@ async fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let users_and_nonces /*(users, nonces) */= derive_user_accounts(
+    let accounts_and_nonces = derive_user_accounts(
         connection.clone(),
         account.clone(),
-        total_users,
+        total_users as usize,
         transfer_amount,
-        total_batches,
-    )
-    .await;
+    );
 
     debug!("all accounts have received funds");
 
     let txs = sign_transactions(
         connection.clone(),
         account,
-        users_and_nonces,
+        accounts_and_nonces,
+        config.transactions,
         transfer_amount,
-        total_threads,
-        total_batches,
-        users_per_thread,
-    )
-    .await;
-
-    println!(
-        "Prepared {} signed txs",
-        txs.len() * txs[0].len() * txs[0][0].len()
     );
 
     let histogram = Arc::new(Mutex::new(
         HdrHistogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap(),
     ));
 
-    println!(
-        "threads: {}, batches: {}, txs per batch: {}",
-        &txs.len(),
-        &txs[0].len(),
-        &txs[0][0].len()
-    );
-
     let tick = Instant::now();
 
-    flood(
-        pool,
-        txs,
-        total_threads,
-        total_batches,
-        transactions_per_batch,
-        &histogram,
-    )
-    .await;
+    flood(pool, txs, transactions_per_batch as usize, &histogram);
 
     let tock = tick.elapsed().as_millis();
     let histogram = histogram.lock().unwrap();
@@ -121,38 +92,23 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-async fn flood(
+fn flood(
     pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
-    txs: Vec<Vec<Vec<TransferTransaction>>>,
-    total_threads: u64,
-    total_batches: u64,
-    transactions_per_batch: u64,
+    txs: Vec<TransferTransaction>,
+    // total_threads: u64,
+    // total_batches: u64,
+    transactions_per_batch: usize,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
-    // send txs
-    for batch in 0..total_batches {
-        let mut futures_batch = Vec::new();
-
-        println!("Preparing batch {}", batch);
-
-        for thread in 0..total_threads {
-            println!("sending batch {} from thread {}", batch, thread);
-
-            for tx in 0..transactions_per_batch {
-                // retrieve signed txs
-                let signed_tx = &txs[thread as usize][batch as usize][tx as usize];
-
-                // send txs using a connection pool
-                futures_batch.push(send_tx(
-                    pool.get(tx as usize % pool.len()).unwrap().to_owned(),
-                    signed_tx.to_owned(),
-                    Arc::clone(histogram),
-                ));
-            }
-        }
-        // block on batches of futures
-        join_all(futures_batch).await;
-    }
+    txs.par_chunks(transactions_per_batch).for_each(|batch| {
+        batch.iter().enumerate().for_each(|(index, tx)| {
+            send_tx(
+                pool.get(index % pool.len()).unwrap().to_owned(),
+                tx.to_owned(),
+                Arc::clone(histogram),
+            )
+        })
+    });
 }
 
 fn estimate_tx_fee(connection: Api<sr25519::Pair, WsRpcClient>, tx: &TransferTransaction) -> u128 {
@@ -168,7 +124,7 @@ fn estimate_tx_fee(connection: Api<sr25519::Pair, WsRpcClient>, tx: &TransferTra
     fee.tip + inclusion_fee.base_fee + inclusion_fee.len_fee + inclusion_fee.adjusted_weight_fee
 }
 
-async fn sign_tx(
+fn sign_tx(
     connection: Api<sr25519::Pair, WsRpcClient>,
     signer: sr25519::Pair,
     nonce: u32,
@@ -195,73 +151,56 @@ async fn sign_tx(
     )
 }
 
-/// prepares payload for floading
-async fn sign_transactions(
+/// prepares payload for flooding
+fn sign_transactions(
     connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
     users_and_nonces: (Vec<sr25519::Pair>, Vec<u32>),
+    total_transactions: u64,
     transfer_amount: u128,
-    total_threads: u64,
-    total_batches: u64,
-    users_per_thread: u64,
-) -> Vec<Vec<Vec<TransferTransaction>>> {
-    let mut txs = Vec::new();
+) -> Vec<TransferTransaction> {
     let (users, initial_nonces) = users_and_nonces;
-    let mut nonces = initial_nonces.clone();
+    let mut nonces = initial_nonces;
 
-    for thread in 0..total_threads {
-        let mut txs_batches = Vec::new();
-        for batch in 0..total_batches {
-            let mut txs_batch = Vec::new();
-            for user in (thread * users_per_thread)..(thread + 1) * users_per_thread {
-                let connection = connection.clone();
-                let from = users.get(user as usize).unwrap().to_owned();
+    (0..total_transactions as usize)
+        .into_iter()
+        .map(|index| {
+            let connection = connection.clone();
+            // NOTE : assumes one tx per derived user account
+            // but we could create less accounts and send them round robin
+            let from = users.get(index).unwrap().to_owned();
 
-                let tx = sign_tx(
-                    connection,
-                    from.clone(),
-                    nonces[user as usize],
-                    AccountId::from(account.public()),
-                    transfer_amount,
-                )
-                .await;
+            let tx = sign_tx(
+                connection,
+                from,
+                nonces[index],
+                AccountId::from(account.public()),
+                transfer_amount,
+            );
 
-                nonces[user as usize] += 1;
-                txs_batch.push(tx);
-
-                debug!(
-                    "thread: {} batch: {} user: {}",
-                    thread,
-                    batch,
-                    &from.public()
-                );
-            }
-            txs_batches.push(txs_batch);
-        }
-        txs.push(txs_batches);
-    }
-    txs
+            nonces[index] += 1;
+            tx
+        })
+        .collect()
 }
 
 /// returns a tuple of derived accounts and their nonces
-async fn derive_user_accounts(
+fn derive_user_accounts(
     connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
-    total_users: u64,
+    total_accounts: usize,
     transfer_amount: u128,
-    txs_per_account: u64,
 ) -> (Vec<sr25519::Pair>, Vec<u32>) {
-    let mut users = Vec::with_capacity(total_users as usize);
-    let mut nonces = Vec::with_capacity(total_users as usize);
+    let mut accounts = Vec::with_capacity(total_accounts);
+    let mut nonces = Vec::with_capacity(total_accounts);
     let mut account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
     let existential_deposit = connection.get_existential_deposit().unwrap();
 
     // start with a heuristic tx fee
-    let mut total_amount =
-        existential_deposit + txs_per_account as u128 * (transfer_amount + 375_000_000);
+    let mut total_amount = existential_deposit + (transfer_amount + 375_000_000);
 
-    for index in 0..total_users {
-        let path = Some(DeriveJunction::soft(index));
+    for index in 0..total_accounts {
+        let path = Some(DeriveJunction::soft(index as u64));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
         let tx = sign_tx(
@@ -270,8 +209,7 @@ async fn derive_user_accounts(
             account_nonce,
             AccountId::from(derived.public()),
             total_amount,
-        )
-        .await;
+        );
 
         // estimate fees
         if index.eq(&0) {
@@ -279,17 +217,16 @@ async fn derive_user_accounts(
             info!("Estimated transfer tx fee {}", tx_fee);
 
             // adjust with estimated tx fee
-            total_amount =
-                existential_deposit + txs_per_account as u128 * (transfer_amount + tx_fee);
+            total_amount = existential_deposit + (transfer_amount + tx_fee);
 
             assert!(
                 get_funds(connection.clone(), &AccountId::from(account.public()))
-                    .ge(&(total_amount * total_users as u128)),
+                    .ge(&(total_amount * total_accounts as u128)),
                 "Account is too poor"
             );
         }
 
-        let hash = if index.eq(&(total_users - 1)) {
+        let hash = if index.eq(&(total_accounts - 1)) {
             // ensure all txs are finalized by waiting for the last one sent
             connection
                 .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
@@ -312,13 +249,13 @@ async fn derive_user_accounts(
         );
 
         nonces.push(nonce);
-        users.push(derived);
+        accounts.push(derived);
     }
 
-    (users, nonces)
+    (accounts, nonces)
 }
 
-async fn send_tx<Call>(
+fn send_tx<Call>(
     connection: Api<sr25519::Pair, WsRpcClient>,
     tx: UncheckedExtrinsicV4<Call>,
     histogram: Arc<Mutex<HdrHistogram<u64>>>,
