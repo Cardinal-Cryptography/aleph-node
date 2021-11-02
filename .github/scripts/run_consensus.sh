@@ -11,7 +11,7 @@ source docker/env
 chmod +x target/release/aleph-node
 
 # Generate chainspec and populate comittee keystores
-./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id a0dnet1 --n-members 4 --sudo-account-id $DAMIAN --session-period 5 --millisecs-per-block 1000 > docker/data/chainspec.json
+./target/release/aleph-node bootstrap-chain --base-path docker/data --chain-id a0dnet1 --account-ids $DAMIAN,$TOMASZ,$ZBYSZKO,$HANSU --sudo-account-id $DAMIAN --session-period 5 --millisecs-per-block 1000 > docker/data/chainspec.json
 
 # get bootnote peer id
 export BOOTNODE_PEER_ID=$(./target/release/aleph-node key inspect-node-key --file docker/data/$DAMIAN/p2p_secret)

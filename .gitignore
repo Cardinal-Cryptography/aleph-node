@@ -5,9 +5,9 @@
 
 # Rust
 .cargo/config
-/target/
+target/
 **/*.rs.bk
-tests/*
+tests/
 
 # Substrate
 *.log

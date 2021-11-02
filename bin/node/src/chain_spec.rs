@@ -7,7 +7,7 @@ use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
-use bip39::{Language, Mnemonic};
+use core::panic;
 use hex_literal::hex;
 use libp2p::PeerId;
 use sc_service::config::BasePath;
@@ -20,7 +20,6 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::collections::HashSet;
-use std::fs;
 use std::{path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
@@ -89,30 +88,6 @@ where
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Given a "seed" integer generates a keypair for signing transactions
-/// mnemonic used to generate the pair is written to base_path/authority_key_file  
-/// returns a hex encoding of a public key (an AccountId)
-pub fn account_key(id: u8, base_path: BasePath, authority_key_file: String) -> AccountId {
-    let entropy = &[
-        id, 0xE4, 0x6B, 0xB1, 0x3A, 0x74, 0x6E, 0xA4, 0x1C, 0xDD, 0xE4, 0x5C, 0x90, 0x84, 0x6A,
-        0x79,
-    ];
-    let mnemonic = Mnemonic::from_entropy(entropy, Language::English)
-        .expect("Could not generate a mnemonic from entropy");
-    let (pair, _seed) = sr25519::Pair::from_entropy(entropy, None);
-    let account_id = pair.public();
-    let authority = account_id.to_string();
-
-    let dir = base_path.path().join(authority);
-    let file = dir.join(&authority_key_file);
-
-    // NOTE: we do not care if file is overwritten since the phrase is deterministic
-    fs::create_dir_all(dir).expect("Could not create directory");
-    fs::write(file, mnemonic.phrase()).expect("Could not write authority mnemonic");
-
-    account_id.into()
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AuthorityKeys {
     pub account_id: AccountId,
@@ -172,13 +147,6 @@ pub struct ChainParams {
     /// and use a default pre-defined id in any other case
     #[structopt(long)]
     sudo_account_id: Option<String>,
-
-    /// Pass a number of nodes that will form the committe : 1 - 255
-    ///
-    /// IMPORTANT : this method generates comittee keys from a known entropy
-    /// and should be used ONLY in development environments
-    #[structopt(long, conflicts_with_all = &["account_ids"])]
-    n_members: Option<u8>,
 }
 
 impl ChainParams {
@@ -232,22 +200,18 @@ impl ChainParams {
                 })
                 .collect(),
             None => {
-                let n_members = self
-                    .n_members
-                    .expect("Pass account-ids or n-members argument");
+                // let n_members = self
+                //     .n_members
+                //     .expect("Pass account-ids or n-members argument");
 
-                // NOTE : chain id "dev" means that
-                // a known set of accounts is generated from KNOWN_ACCOUNTS seed values
+                // NOTE : chain id "dev" means that a set of known accounts is generated from KNOWN_ACCOUNTS seed values
                 // this follows the default Substrate behaviour
                 match self.chain_id() {
                     DEVNET_ID => KNOWNS_ACCOUNTS
                         .iter()
                         .map(get_account_id_from_seed::<sr25519::Public>)
                         .collect(),
-                    _ => (0..n_members)
-                        .into_iter()
-                        .map(|id| account_key(id, self.base_path(), self.account_key_file.clone()))
-                        .collect(),
+                    _ => panic!("Pass account-ids or n-members argument"),
                 }
             }
         }
