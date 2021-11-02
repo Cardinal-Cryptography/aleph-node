@@ -39,8 +39,11 @@ fn create_connection(config: &Config) -> Api<sr25519::Pair, WsRpcClient> {
     let client = WsRpcClient::new(&config.url);
     match Api::<sr25519::Pair, _>::new(client) {
         Ok(api) => api,
-        Err(_) => {
-            println!("[+] Can't create_connection atm, will try again in 1s");
+        Err(why) => {
+            println!(
+                "[+] Can't create_connection atm: {:?}, will try again in 1s",
+                why
+            );
             sleep(Duration::from_millis(1000));
             create_connection(config)
         }
