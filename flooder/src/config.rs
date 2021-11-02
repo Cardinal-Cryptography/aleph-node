@@ -21,8 +21,12 @@ pub struct Config {
     pub threads: u64,
 
     /// secret phrase : a path to a file or passed on stdin
-    #[clap(long, required = true)]
-    pub phrase: String,
+    #[clap(long)]
+    pub phrase: Option<String>,
+
+    /// secret phrase : a path to a file or passed on stdin
+    #[clap(long, conflicts_with_all = &["phrase"])]
+    pub seed: Option<String>,
 }
 
 pub fn read_phrase(phrase: String) -> String {

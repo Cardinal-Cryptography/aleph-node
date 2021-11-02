@@ -29,8 +29,17 @@ async fn main() -> Result<(), anyhow::Error> {
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
 
-    let (account, _seed) =
-        sr25519::Pair::from_phrase(&config::read_phrase(config.phrase), None).unwrap();
+    let account = match config.phrase {
+        Some(phrase) => {
+            sr25519::Pair::from_phrase(&config::read_phrase(phrase), None)
+                .unwrap()
+                .0
+        }
+        None => match config.seed {
+            Some(seed) => sr25519::Pair::from_string(&seed, None).unwrap(),
+            None => panic!("Needs --phrase or --seed"),
+        },
+    };
 
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
