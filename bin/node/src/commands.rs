@@ -177,7 +177,7 @@ impl BootstrapNodeCmd {
 
         let authority_keys = authority_keys(&keystore, &self.chain_params, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
-            .expect("serialization of authority keys should have succeed");
+            .expect("serialization of authority keys should have succeeded");
         println!("{}", keys_json);
         Ok(())
     }
