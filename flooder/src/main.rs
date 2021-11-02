@@ -84,7 +84,7 @@ async fn main() -> Result<(), anyhow::Error> {
     );
 
     let histogram = Arc::new(Mutex::new(
-        HdrHistogram::<u64>::new_with_bounds(1, u64::max_value(), 3).unwrap(),
+        HdrHistogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap(),
     ));
 
     println!(
