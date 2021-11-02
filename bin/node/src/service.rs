@@ -2,7 +2,7 @@
 
 use crate::executor::AlephExecutor;
 use aleph_primitives::AlephSessionApi;
-use aleph_runtime::{self, opaque::Block, RuntimeApi};
+use aleph_runtime::{self, opaque::Block, BlockLength, RuntimeApi};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
 };
@@ -217,13 +217,15 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
     })?;
 
     if role.is_authority() {
-        let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
             task_manager.spawn_handle(),
             client.clone(),
             transaction_pool,
             prometheus_registry.as_ref(),
             None,
         );
+        proposer_factory
+            .set_default_block_size_limit(*BlockLength::get().max.get(Default::default()) as usize);
 
         let can_author_with =
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
