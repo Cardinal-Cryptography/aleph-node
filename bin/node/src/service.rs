@@ -224,6 +224,11 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             prometheus_registry.as_ref(),
             None,
         );
+        // In order to unwrap the underlying number, we have to an pass appropriate variant of
+        // `DispatchClass` (in our case it would be `DispatchClass::Normal`). Unfortunately,
+        // this would require adding new, quite awkward dependency to frame::support. Luckily,
+        // `DispatchClass::Normal` is a default variant and it seems reasonable to assume, that
+        // it is everlasting and thus safe to use.
         proposer_factory
             .set_default_block_size_limit(*BlockLength::get().max.get(Default::default()) as usize);
 
