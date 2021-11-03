@@ -95,12 +95,11 @@ fn main() -> Result<(), anyhow::Error> {
 fn flood(
     pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: Vec<TransferTransaction>,
-    // total_threads: u64,
-    // total_batches: u64,
     transactions_per_batch: usize,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
     txs.par_chunks(transactions_per_batch).for_each(|batch| {
+        println!("Sending a batch of {} transactions", &batch.len());
         batch.iter().enumerate().for_each(|(index, tx)| {
             send_tx(
                 pool.get(index % pool.len()).unwrap().to_owned(),
@@ -167,7 +166,8 @@ fn sign_transactions(
         .map(|index| {
             let connection = connection.clone();
             // NOTE : assumes one tx per derived user account
-            // but we could create less accounts and send them round robin
+            // but we could create less accounts and send them round robin fashion
+            // (will need to seed them with more funds as well, tx_per_account times more to be exact)
             let from = users.get(index).unwrap().to_owned();
 
             let tx = sign_tx(
