@@ -44,7 +44,7 @@ fn main() -> Result<(), anyhow::Error> {
     let connection = pool.get(0).unwrap();
 
     let total_users = config.transactions;
-    let transactions_per_batch = config.throughput / config.threads;
+    let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
 
     info!(

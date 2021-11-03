@@ -5,7 +5,7 @@ use std::{fs, path::PathBuf};
 #[clap(version = "1.0")]
 pub struct Config {
     /// URL address(es) of the nodes to send transactions to
-    #[clap(long, default_value = "127.0.0.1:9945g")]
+    #[clap(long, default_value = "127.0.0.1:9945")]
     pub nodes: Vec<String>,
 
     /// how many transactions to send
@@ -16,15 +16,11 @@ pub struct Config {
     #[clap(long, default_value = "1000")]
     pub throughput: u64,
 
-    /// how many threads to create
-    #[clap(long, default_value = "10")]
-    pub threads: u64,
-
     /// secret phrase : a path to a file or passed on stdin
     #[clap(long)]
     pub phrase: Option<String>,
 
-    /// secret phrase : a path to a file or passed on stdin
+    /// secret seed of the account keypair passed on stdin
     #[clap(long, conflicts_with_all = &["phrase"])]
     pub seed: Option<String>,
 }
