@@ -26,6 +26,7 @@ WS_MAX_CONNECTIONS=${WS_MAX_CONNECTIONS:-100}
 POOL_LIMIT=${POOL_LIMIT:-1024}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-true}
 TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
+SYNC=${SYNC:-Full}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -37,6 +38,7 @@ ARGS=(
   --execution Native
   --name "${NAME}"
   --base-path "${BASE_PATH}"
+  --sync "${SYNC}"
   --pool-limit "${POOL_LIMIT}"
   --chain "${CHAIN}"
   --node-key-file "${NODE_KEY_PATH}"
