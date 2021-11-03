@@ -7,7 +7,6 @@ use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
     Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
-use core::panic;
 use hex_literal::hex;
 use libp2p::PeerId;
 use sc_service::config::BasePath;
@@ -25,7 +24,7 @@ use structopt::StructOpt;
 
 pub const DEVNET_ID: &str = "dev";
 
-pub const KNOWNS_ACCOUNTS: [&str; 7] = [
+pub const WELL_KNOWNS_ACCOUNTS: [&str; 7] = [
     "Alice",
     "Alice//stash",
     "Bob",
@@ -101,7 +100,7 @@ pub struct ChainParams {
     /// Pass the chain id.
     ///
     /// It can be a predefined one (dev) or an arbitrary chain id passed to the genesis block
-    /// `dev` chain id means that a set of known accounts will be used to form a comittee   
+    /// `dev` chain id means that a set of known accounts will be used to form a comittee
     #[structopt(long, value_name = "CHAIN_SPEC", default_value = "a0dnet1")]
     pub chain_id: String,
 
@@ -203,7 +202,7 @@ impl ChainParams {
                 // NOTE : chain id "dev" means that a set of known accounts is generated from KNOWN_ACCOUNTS seed values
                 // this follows the default Substrate behaviour
                 match self.chain_id() {
-                    DEVNET_ID => KNOWNS_ACCOUNTS
+                    DEVNET_ID => WELL_KNOWNS_ACCOUNTS
                         .iter()
                         .map(get_account_id_from_seed::<sr25519::Public>)
                         .collect(),
@@ -221,7 +220,7 @@ impl ChainParams {
             // provide some sensible defaults
             None => match self.chain_id() {
                 // defaults to the first account if chain is "dev", this is the same as substarte default behaviour
-                DEVNET_ID => get_account_id_from_seed::<sr25519::Public>(&KNOWNS_ACCOUNTS[0]),
+                DEVNET_ID => get_account_id_from_seed::<sr25519::Public>(&WELL_KNOWNS_ACCOUNTS[0]),
                 // hardcoded account for any other chain
                 _ => hex![
                     // 5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD
@@ -298,10 +297,9 @@ pub fn config(
 }
 
 /// Given a Vec<AccountIds> returns a unique collection
-fn de_duplicate(mut accounts: Vec<AccountId>) -> Vec<AccountId> {
-    let set: HashSet<_> = accounts.drain(..).collect();
-    accounts.extend(set.into_iter());
-    accounts
+fn deduplicate(accounts: Vec<AccountId>) -> Vec<AccountId> {
+    let set: HashSet<_> = accounts.into_iter().collect();
+    set.into_iter().collect()
 }
 
 /// Configure initial storage state for FRAME modules
@@ -319,7 +317,7 @@ fn genesis(
     // NOTE: some combinations of bootstrap chain arguments can potentially
     // lead to duplicated rich accounts, e.g. if a root account is also an authority
     // which is why we remove the duplicates if any here
-    let unique_accounts: Vec<AccountId> = de_duplicate(
+    let unique_accounts: Vec<AccountId> = deduplicate(
         authorities
             .iter()
             .map(|auth| &auth.account_id)

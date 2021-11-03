@@ -159,7 +159,7 @@ pub struct BootstrapNodeCmd {
     #[structopt(long)]
     account_id: Option<String>,
 
-    /// Pass seed used to generate the account pivate key (sr2559) and the corresponding AccountId        
+    /// Pass seed used to generate the account pivate key (sr2559) and the corresponding AccountId
     #[structopt(long, required_unless = "account-id")]
     pub account_seed: Option<String>,
 
