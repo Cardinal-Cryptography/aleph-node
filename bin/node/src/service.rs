@@ -2,7 +2,7 @@
 
 use crate::executor::AlephExecutor;
 use aleph_primitives::AlephSessionApi;
-use aleph_runtime::{self, opaque::Block, BlockLength, RuntimeApi};
+use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
 };
@@ -224,13 +224,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             prometheus_registry.as_ref(),
             None,
         );
-        // In order to unwrap the underlying number, we have to an pass appropriate variant of
-        // `DispatchClass` (in our case it would be `DispatchClass::Normal`). Unfortunately,
-        // this would require adding new, quite awkward dependency to frame::support. Luckily,
-        // `DispatchClass::Normal` is a default variant and it seems reasonable to assume, that
-        // it is everlasting and thus safe to use.
-        proposer_factory
-            .set_default_block_size_limit(*BlockLength::get().max.get(Default::default()) as usize);
+        proposer_factory.set_default_block_size_limit(MAX_BLOCK_SIZE as usize);
 
         let can_author_with =
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
