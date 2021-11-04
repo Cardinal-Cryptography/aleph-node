@@ -1,5 +1,7 @@
 mod config;
 
+use clap::{values_t, Parser};
+use common::{create_connection, get_env_var};
 use config::Config;
 use log::info;
 use sp_core::crypto::Ss58Codec;
@@ -9,7 +11,6 @@ use std::collections::HashSet;
 use std::env;
 use std::hash::Hash;
 use std::sync::mpsc::channel;
-use std::{thread::sleep, time::Duration};
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, Api, UncheckedExtrinsicV4, XtStatus,
@@ -21,58 +22,55 @@ type Header = generic::Header<BlockNumber, BlakeTwo256>;
 fn main() -> anyhow::Result<()> {
     env::set_var(
         "RUST_LOG",
-        &config::get_env_var("RUST_LOG", Some(String::from("warn"))),
+        &get_env_var("RUST_LOG", Some(String::from("warn"))),
     );
     env_logger::init();
 
-    let matches = config::build_app().get_matches();
-    let config = config::build_config(&matches);
+    let config: Config = Config::parse();
 
     test_finalization(config.clone())?;
     test_token_transfer(config.clone())?;
-    test_change_validators(config.clone())?;
+    // test_change_validators(config.clone())?;
 
     Ok(())
 }
 
-fn create_connection(config: &Config) -> Api<sr25519::Pair, WsRpcClient> {
-    let client = WsRpcClient::new(&config.url);
-    match Api::<sr25519::Pair, _>::new(client) {
-        Ok(api) => api,
-        Err(why) => {
-            println!(
-                "[+] Can't create_connection atm: {:?}, will try again in 1s",
-                why
-            );
-            sleep(Duration::from_millis(1000));
-            create_connection(config)
-        }
-    }
-}
-
 /// wait untill blocks are getting finalized
 fn test_finalization(config: Config) -> anyhow::Result<u32> {
-    let connection = create_connection(&config);
+    let connection = create_connection(format!("ws://{}", &config.node));
     // NOTE : we wait here for a whole genesis session to pass
     // session period is set to 5 blocks (see `run_consensus.sh`), plus one to be on the safe site
-    wait_for_block(connection, 6)
+    wait_for_finalized_block(connection, 6)
 }
 
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
-    let from: sr25519::Pair = config
-        .accounts
-        .get(0)
-        .expect("No accounts passed")
-        .to_owned();
+    let Config { node, seeds, sudo } = config;
+
+    let accounts: Vec<sr25519::Pair> = match seeds {
+        Some(seeds) => seeds
+            .into_iter()
+            .map(|seed| {
+                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+            })
+            .collect(),
+        None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
+            .iter()
+            .map(|seed| {
+                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+            })
+            .collect(),
+    };
+
+    let from: sr25519::Pair = accounts.get(0).expect("No accounts passed").to_owned();
+
     let to = AccountId::from(
-        config
-            .accounts
+        accounts
             .get(1)
             .expect("Pass at least two accounts")
             .public(),
     );
 
-    let connection = create_connection(&config).set_signer(from);
+    let connection = create_connection(format!("ws://{}", node)).set_signer(from);
 
     let balance_before = connection
         .get_account_data(&to.clone())?
@@ -116,82 +114,82 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn test_change_validators(config: Config) -> anyhow::Result<()> {
-    let sudo: sr25519::Pair = config.clone().sudo;
-    let connection = create_connection(&config).set_signer(sudo);
+// fn test_change_validators(config: Config) -> anyhow::Result<()> {
+//     let sudo: sr25519::Pair = config.clone().sudo;
+//     let connection = create_connection(&config).set_signer(sudo);
 
-    let validators_before: Vec<AccountId> = connection
-        .get_storage_value("Session", "Validators", None)?
-        .unwrap();
+//     let validators_before: Vec<AccountId> = connection
+//         .get_storage_value("Session", "Validators", None)?
+//         .unwrap();
 
-    info!("[+] Validators before tx: {:#?}", validators_before);
+//     info!("[+] Validators before tx: {:#?}", validators_before);
 
-    let mut new_validators: Vec<AccountId> = config
-        .accounts
-        .into_iter()
-        .map(|pair| pair.public().into())
-        .collect();
+//     let mut new_validators: Vec<AccountId> = config
+//         .accounts
+//         .into_iter()
+//         .map(|pair| pair.public().into())
+//         .collect();
 
-    new_validators.push(
-        AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
-    );
+//     new_validators.push(
+//         AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
+//     );
 
-    info!("[+] New validators {:#?}", new_validators);
+//     info!("[+] New validators {:#?}", new_validators);
 
-    // what session is this?
+//     // what session is this?
 
-    let session_number: u32 = connection
-        .get_storage_value("Session", "CurrentIndex", None)
-        .unwrap()
-        .unwrap();
+//     let session_number: u32 = connection
+//         .get_storage_value("Session", "CurrentIndex", None)
+//         .unwrap()
+//         .unwrap();
 
-    info!("[+] Session number {:?}", session_number);
+//     info!("[+] Session number {:?}", session_number);
 
-    let call = compose_call!(
-        connection.metadata,
-        "Aleph",
-        "change_validators",
-        new_validators.clone(),
-        session_number + 1
-    );
+//     let call = compose_call!(
+//         connection.metadata,
+//         "Aleph",
+//         "change_validators",
+//         new_validators.clone(),
+//         session_number + 1
+//     );
 
-    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
+//     let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
 
-    // send and watch extrinsic until finalized
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
-        .expect("Could not send extrinsc")
-        .expect("Could not get tx hash");
+//     // send and watch extrinsic until finalized
+//     let tx_hash = connection
+//         .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+//         .expect("Could not send extrinsc")
+//         .expect("Could not get tx hash");
 
-    info!("[+] Transaction hash: {}", tx_hash);
+//     info!("[+] Transaction hash: {}", tx_hash);
 
-    // wait for the event
+//     // wait for the event
 
-    let block_hash = connection.get_finalized_head()?.unwrap();
-    let header: Header = connection.get_header(Some(block_hash))?.unwrap();
-    let block_number = header.number;
+//     let block_hash = connection.get_finalized_head()?.unwrap();
+//     let header: Header = connection.get_header(Some(block_hash))?.unwrap();
+//     let block_number = header.number;
 
-    info!("[+] Current block number: {}", block_number);
+//     info!("[+] Current block number: {}", block_number);
 
-    // NOTE: this is hackish, we are assuming that two blocks is enough
-    // ideally we should wait until the event arrives
-    // see `api::subscribe_events`
-    // but I could not readily get it to work with this event
-    let _current_block_number = wait_for_block(connection.clone(), header.number + 2)?;
+//     // NOTE: this is hackish, we are assuming that two blocks is enough
+//     // ideally we should wait until the event arrives
+//     // see `api::subscribe_events`
+//     // but I could not readily get it to work with this event
+//     let _current_block_number = wait_for_block(connection.clone(), header.number + 2)?;
 
-    let validators_after: Vec<AccountId> = connection
-        .get_storage_value("Session", "Validators", None)?
-        .unwrap();
+//     let validators_after: Vec<AccountId> = connection
+//         .get_storage_value("Session", "Validators", None)?
+//         .unwrap();
 
-    info!("[+] Validators after tx: {:#?}", validators_after);
+//     info!("[+] Validators after tx: {:#?}", validators_after);
 
-    assert!(are_equal(new_validators.clone(), validators_after));
+//     assert!(are_equal(new_validators.clone(), validators_after));
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 /// blocks the main thread waiting for a block with a number at least `block_number`
-fn wait_for_block(
+fn wait_for_finalized_block(
     connection: Api<sr25519::Pair, WsRpcClient>,
     block_number: u32,
 ) -> anyhow::Result<u32> {

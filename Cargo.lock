@@ -201,7 +201,6 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
- "tiny-bip39",
 ]
 
 [[package]]
