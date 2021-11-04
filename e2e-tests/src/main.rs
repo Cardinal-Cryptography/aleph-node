@@ -157,7 +157,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
         "Aleph",
         "change_validators",
         new_validators.clone(),
-        session_number + 1
+        session_number + 2
     );
 
     let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
