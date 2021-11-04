@@ -43,6 +43,7 @@ jobs:
           curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Restore Cargo Cache
         uses: actions/cache@v2
         with:
@@ -199,17 +200,17 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: GIT | Checkout Source code
-        if: github.event_name == 'push'        
+        if: github.event_name == 'push'
         uses: actions/checkout@v2
 
       - name: Download artifact with docker image
-        if: github.event_name == 'push'        
+        if: github.event_name == 'push'
         uses: actions/download-artifact@v2
         with:
           name: aleph-node
 
       - name: Load node docker image
-        if: github.event_name == 'push'        
+        if: github.event_name == 'push'
         shell: bash
         run: docker load -i aleph-node.tar
 
@@ -249,7 +250,7 @@ jobs:
           docker push ${{ env.ECR_PUSH_IMAGE }}
 
       - name: Send Slack Notification
-        if: github.event_name == 'push'        
+        if: github.event_name == 'push'
         uses: rtCamp/action-slack-notify@v2
         continue-on-error: true
         env:
