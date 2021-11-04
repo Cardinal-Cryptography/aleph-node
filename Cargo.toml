@@ -9,6 +9,7 @@ members = [
 ]
 
 exclude = [
-  "flooder"
-  "tests/e2e"
+  "flooder",
+  "e2e-tests",
+  "common"
 ]
