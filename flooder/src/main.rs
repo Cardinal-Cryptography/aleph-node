@@ -281,18 +281,6 @@ fn create_connection_pool(nodes: Vec<String>) -> Vec<Api<sr25519::Pair, WsRpcCli
         .collect()
 }
 
-// fn create_connection(url: String) -> Api<sr25519::Pair, WsRpcClient> {
-//     let client = WsRpcClient::new(&url);
-//     match Api::<sr25519::Pair, _>::new(client) {
-//         Ok(api) => api,
-//         Err(_) => {
-//             warn!("[+] Can't create_connection atm, will try again in 1s");
-//             sleep(Duration::from_millis(1000));
-//             create_connection(url)
-//         }
-//     }
-// }
-
 fn get_nonce(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
     connection
         .get_account_info(account)

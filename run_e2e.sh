@@ -2,10 +2,8 @@
 
 set -e
 
-source docker/env
+cd e2e-tests/
 
-cd tests/e2e
-
-cargo run -- --base-path docker/data --account-ids $DAMIAN $TOMASZ $ZBYSZKO $HANSU --sudo-account-id $DAMIAN
+RUST_LOG=info cargo run -- --node 127.0.0.1:9943
 
 exit $?
