@@ -110,10 +110,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 3,
+    spec_version: 2,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 2,
+    transaction_version: 1,
 };
 
 /// This determines the average expected block time that we are targetting.
@@ -144,6 +144,8 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
 const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
+// We agreed to 5MB as the block size limit.
+pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -151,7 +153,7 @@ parameter_types! {
     pub BlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
         ::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
     pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
-        ::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+        ::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
     pub const SS58Prefix: u8 = 42;
 }
 
@@ -209,13 +211,7 @@ impl frame_system::Config for Runtime {
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
-parameter_types! {
-    // This value is just copied from Substrate
-    pub const MaxAuthorities: u32 = 100;
-}
-
 impl pallet_aura::Config for Runtime {
-    type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
 }
@@ -261,8 +257,6 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
-    // This value is just copied from Substrate
-    pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 pub struct ConstantFeeMultiplierUpdate;
@@ -292,7 +286,6 @@ impl pallet_transaction_payment::Config for Runtime {
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
-    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
@@ -359,6 +352,7 @@ impl pallet_session::Config for Runtime {
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
+    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
 }
 
@@ -380,8 +374,6 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
-    // Maximum number of vesting schedules an account may have (receive) at a given moment.
-    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 pub const MILLICENTS: Balance = 100_000_000;
@@ -486,7 +478,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-            OpaqueMetadata::new(Runtime::metadata().into())
+            Runtime::metadata().into()
         }
     }
 
@@ -527,7 +519,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities().into_inner()
+            Aura::authorities()
         }
     }
 

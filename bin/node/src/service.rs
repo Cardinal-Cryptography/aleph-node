@@ -1,8 +1,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use crate::executor::AlephExecutor;
 use aleph_primitives::AlephSessionApi;
-use aleph_runtime::{self, opaque::Block, RuntimeApi};
+use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
 };
@@ -10,6 +9,8 @@ use futures::channel::mpsc;
 use log::warn;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use sc_executor::native_executor_instance;
+pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
@@ -21,7 +22,14 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
+// Our native executor instance.
+native_executor_instance!(
+    pub Executor,
+    aleph_runtime::api::dispatch,
+    aleph_runtime::native_version,
+);
+
+type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
@@ -55,17 +63,10 @@ pub fn new_partial(
         })
         .transpose()?;
 
-    let executor = AlephExecutor::new(
-        config.wasm_method,
-        config.default_heap_pages,
-        config.max_runtime_instances,
-    );
-
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, AlephExecutor>(
+        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
             config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-            executor,
         )?;
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -217,13 +218,14 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
     })?;
 
     if role.is_authority() {
-        let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
             task_manager.spawn_handle(),
             client.clone(),
             transaction_pool,
             prometheus_registry.as_ref(),
             None,
         );
+        proposer_factory.set_default_block_size_limit(MAX_BLOCK_SIZE as usize);
 
         let can_author_with =
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
