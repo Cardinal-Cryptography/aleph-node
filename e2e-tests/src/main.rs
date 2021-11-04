@@ -1,15 +1,13 @@
 mod config;
 
-use clap::{values_t, Parser};
+use clap::Parser;
 use common::{create_connection, get_env_var};
 use config::Config;
 use log::info;
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256};
-use std::collections::HashSet;
 use std::env;
-use std::hash::Hash;
 use std::sync::mpsc::channel;
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
@@ -30,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
     test_finalization(config.clone())?;
     test_token_transfer(config.clone())?;
-    // test_change_validators(config.clone())?;
+    test_change_validators(config)?;
 
     Ok(())
 }
@@ -44,7 +42,7 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
 }
 
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, sudo } = config;
+    let Config { node, seeds, .. } = config;
 
     let accounts: Vec<sr25519::Pair> = match seeds {
         Some(seeds) => seeds
@@ -56,7 +54,7 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
         None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
             .iter()
             .map(|seed| {
-                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+                sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
             })
             .collect(),
     };
@@ -73,11 +71,11 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let connection = create_connection(format!("ws://{}", node)).set_signer(from);
 
     let balance_before = connection
-        .get_account_data(&to.clone())?
+        .get_account_data(&to)?
         .expect("Could not get account data")
         .free;
 
-    println!("[+] Account {} balance before tx: {}", to, balance_before);
+    info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
 
@@ -94,14 +92,14 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
         .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)?
         .expect("Could not get tx hash");
 
-    println!("[+] Transaction hash: {}", tx_hash);
+    info!("[+] Transaction hash: {}", tx_hash);
 
     let balance_after = connection
-        .get_account_data(&to.clone())?
+        .get_account_data(&to)?
         .expect("Could not get account data")
         .free;
 
-    println!("[+] Account {} balance after tx: {}", to, balance_after);
+    info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     assert!(
         balance_before + transfer_value == balance_after,
@@ -114,79 +112,88 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-// fn test_change_validators(config: Config) -> anyhow::Result<()> {
-//     let sudo: sr25519::Pair = config.clone().sudo;
-//     let connection = create_connection(&config).set_signer(sudo);
+fn test_change_validators(config: Config) -> anyhow::Result<()> {
+    let Config { node, seeds, sudo } = config;
 
-//     let validators_before: Vec<AccountId> = connection
-//         .get_storage_value("Session", "Validators", None)?
-//         .unwrap();
+    let accounts = accounts(seeds);
 
-//     info!("[+] Validators before tx: {:#?}", validators_before);
+    let sudo = match sudo {
+        Some(seed) => {
+            sr25519::Pair::from_string(&seed, None).expect("Cant create Pair from seed value")
+        }
+        None => accounts.get(0).expect("whoops").to_owned(),
+    };
 
-//     let mut new_validators: Vec<AccountId> = config
-//         .accounts
-//         .into_iter()
-//         .map(|pair| pair.public().into())
-//         .collect();
+    let connection = create_connection(format!("ws://{}", node)).set_signer(sudo);
 
-//     new_validators.push(
-//         AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
-//     );
+    let validators_before: Vec<AccountId> = connection
+        .get_storage_value("Session", "Validators", None)?
+        .unwrap();
 
-//     info!("[+] New validators {:#?}", new_validators);
+    info!("[+] Validators before tx: {:#?}", validators_before);
 
-//     // what session is this?
+    let mut new_validators: Vec<AccountId> = accounts
+        .into_iter()
+        .map(|pair| pair.public().into())
+        .collect();
 
-//     let session_number: u32 = connection
-//         .get_storage_value("Session", "CurrentIndex", None)
-//         .unwrap()
-//         .unwrap();
+    new_validators.push(
+        AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
+    );
 
-//     info!("[+] Session number {:?}", session_number);
+    info!("[+] New validators {:#?}", new_validators);
 
-//     let call = compose_call!(
-//         connection.metadata,
-//         "Aleph",
-//         "change_validators",
-//         new_validators.clone(),
-//         session_number + 1
-//     );
+    // what session is this?
 
-//     let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
+    let session_number: u32 = connection
+        .get_storage_value("Session", "CurrentIndex", None)
+        .unwrap()
+        .unwrap();
 
-//     // send and watch extrinsic until finalized
-//     let tx_hash = connection
-//         .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
-//         .expect("Could not send extrinsc")
-//         .expect("Could not get tx hash");
+    info!("[+] Session number {:?}", session_number);
 
-//     info!("[+] Transaction hash: {}", tx_hash);
+    let call = compose_call!(
+        connection.metadata,
+        "Aleph",
+        "change_validators",
+        new_validators.clone(),
+        session_number + 1
+    );
 
-//     // wait for the event
+    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
 
-//     let block_hash = connection.get_finalized_head()?.unwrap();
-//     let header: Header = connection.get_header(Some(block_hash))?.unwrap();
-//     let block_number = header.number;
+    // send and watch extrinsic until finalized
+    let tx_hash = connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+        .expect("Could not send extrinsc")
+        .expect("Could not get tx hash");
 
-//     info!("[+] Current block number: {}", block_number);
+    info!("[+] Transaction hash: {}", tx_hash);
 
-//     // NOTE: this is hackish, we are assuming that two blocks is enough
-//     // ideally we should wait until the event arrives
-//     // see `api::subscribe_events`
-//     // but I could not readily get it to work with this event
-//     let _current_block_number = wait_for_block(connection.clone(), header.number + 2)?;
+    // wait for the event
 
-//     let validators_after: Vec<AccountId> = connection
-//         .get_storage_value("Session", "Validators", None)?
-//         .unwrap();
+    let block_hash = connection.get_finalized_head()?.unwrap();
+    let header: Header = connection.get_header(Some(block_hash))?.unwrap();
+    let block_number = header.number;
 
-//     info!("[+] Validators after tx: {:#?}", validators_after);
+    info!("[+] Current block number: {}", block_number);
 
-//     assert!(are_equal(new_validators.clone(), validators_after));
+    // NOTE: this is hackish, we are assuming that two blocks is enough
+    // ideally we should wait until the event arrives
+    // see `api::subscribe_events`
+    // but I could not readily get it to work with this event
+    let _current_block_number = wait_for_finalized_block(connection.clone(), header.number + 2)?;
 
-//     Ok(())
-// }
+    let validators_after: Vec<AccountId> = connection
+        .get_storage_value("Session", "Validators", None)?
+        .unwrap();
+
+    info!("[+] Validators after tx: {:#?}", validators_after);
+
+    assert!(new_validators.eq(&validators_after));
+
+    Ok(())
+}
 
 /// blocks the main thread waiting for a block with a number at least `block_number`
 fn wait_for_finalized_block(
@@ -210,11 +217,19 @@ fn wait_for_finalized_block(
     Err(anyhow::anyhow!("Giving up"))
 }
 
-fn are_equal<T>(a: Vec<T>, b: Vec<T>) -> bool
-where
-    T: Eq + Hash,
-{
-    let a: HashSet<_> = a.iter().collect();
-    let b: HashSet<_> = b.iter().collect();
-    a.eq(&b)
+fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
+    match seeds {
+        Some(seeds) => seeds
+            .into_iter()
+            .map(|seed| {
+                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+            })
+            .collect(),
+        None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
+            .iter()
+            .map(|seed| {
+                sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
+            })
+            .collect(),
+    }
 }
