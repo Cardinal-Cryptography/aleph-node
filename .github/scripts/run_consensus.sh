@@ -7,9 +7,6 @@ mkdir -p docker/data/
 # source account ids
 source docker/env
 
-# populate validators keystore and generate chainspec
-chmod +x target/release/aleph-node
-
 # Generate chainspec and populate comittee keystores
 docker run -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e DAMIAN -e TOMASZ -e ZBYSZKO -e HANSU -e RUST_LOG=info aleph-node:latest -c "aleph-node bootstrap-chain --base-path /data --chain-id a0dnet1 --account-ids $DAMIAN,$TOMASZ,$ZBYSZKO,$HANSU > /data/chainspec.json"
 
