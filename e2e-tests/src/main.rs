@@ -46,18 +46,14 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
-    let pair_from_string = |seed: String| {
-        sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
-    };
-
     let accounts: Vec<sr25519::Pair> = match seeds {
         Some(seeds) => seeds
             .into_iter()
-            .map(|seed| pair_from_string(seed))
+            .map(|seed| keypair_from_string(seed))
             .collect(),
         None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
             .iter()
-            .map(|seed| pair_from_string(seed.to_string()))
+            .map(|seed| keypair_from_string(seed.to_string()))
             .collect(),
     };
 
@@ -125,9 +121,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     let accounts = accounts(seeds);
 
     let sudo = match sudo {
-        Some(seed) => {
-            sr25519::Pair::from_string(&seed, None).expect("Cannot create Pair from seed value")
-        }
+        Some(seed) => keypair_from_string(seed),
         None => accounts.get(0).expect("whoops").to_owned(),
     };
 
@@ -256,19 +250,19 @@ fn wait_for_finalized_block(
     Err(anyhow::anyhow!("Giving up"))
 }
 
+fn keypair_from_string(seed: String) -> sr25519::Pair {
+    sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+}
+
 fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
     match seeds {
         Some(seeds) => seeds
             .into_iter()
-            .map(|seed| {
-                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
-            })
+            .map(|seed| keypair_from_string(seed))
             .collect(),
         None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
             .iter()
-            .map(|seed| {
-                sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
-            })
+            .map(|seed| keypair_from_string(seed.to_string()))
             .collect(),
     }
 }
