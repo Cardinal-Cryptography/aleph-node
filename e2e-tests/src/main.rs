@@ -1,15 +1,19 @@
 mod config;
 
 use clap::Parser;
+use codec::Decode;
 use common::{create_connection, get_env_var};
 use config::Config;
-use log::info;
+use log::{debug, error, info};
 use sp_core::crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256};
+use std::convert::TryFrom;
 use std::env;
 use std::sync::mpsc::channel;
+use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
 use substrate_api_client::rpc::WsRpcClient;
+use substrate_api_client::utils::FromHexString;
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, Api, UncheckedExtrinsicV4, XtStatus,
 };
@@ -112,6 +116,11 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Decode)]
+struct NewSessionEvent {
+    session_index: u32,
+}
+
 fn test_change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, sudo } = config;
 
@@ -143,46 +152,37 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
 
     info!("[+] New validators {:#?}", new_validators);
 
-    // what session is this?
-
-    let session_number: u32 = connection
-        .get_storage_value("Session", "CurrentIndex", None)
-        .unwrap()
-        .unwrap();
-
-    info!("[+] Session number {:?}", session_number);
+    // wait beyond session 1
+    let current_session_index = wait_for_session(connection.clone(), 1)?;
+    let session_for_change = current_session_index + 2;
+    info!("[+] Current session index {:?}", current_session_index);
 
     let call = compose_call!(
         connection.metadata,
         "Aleph",
         "change_validators",
         new_validators.clone(),
-        session_number + 2
+        session_for_change
     );
 
-    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
+    let tx = compose_extrinsic!(
+        connection.clone(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
+        0_u64
+    );
 
     // send and watch extrinsic until finalized
     let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
         .expect("Could not send extrinsc")
         .expect("Could not get tx hash");
 
-    info!("[+] Transaction hash: {}", tx_hash);
+    info!("[+] change_validators transaction hash: {}", tx_hash);
 
-    // wait for the event
-
-    let block_hash = connection.get_finalized_head()?.unwrap();
-    let header: Header = connection.get_header(Some(block_hash))?.unwrap();
-    let block_number = header.number;
-
-    info!("[+] Current block number: {}", block_number);
-
-    // NOTE: this is hackish, we are assuming that two blocks is enough
-    // ideally we should wait until the event arrives
-    // see `api::subscribe_events`
-    // but I could not readily get it to work with this event
-    let _current_block_number = wait_for_finalized_block(connection.clone(), header.number + 2)?;
+    // wait for the change to be aplied
+    wait_for_session(connection.clone(), session_for_change)?;
 
     let validators_after: Vec<AccountId> = connection
         .get_storage_value("Session", "Validators", None)?
@@ -193,6 +193,47 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     assert!(new_validators.eq(&validators_after));
 
     Ok(())
+}
+
+/// blocking wait, if ongoing session index is >= new_session_index returns the current
+fn wait_for_session(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    new_session_index: u32,
+) -> anyhow::Result<u32> {
+    let module = "Session";
+    let variant = "NewSession";
+    info!("[+] Creating event subscription {}/{}", module, variant);
+    let (events_in, events_out) = channel();
+    connection.subscribe_events(events_in)?;
+
+    let event_decoder = EventsDecoder::try_from(connection.metadata.clone())?;
+
+    loop {
+        let event_str = events_out.recv().unwrap();
+        let _events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
+
+        match _events {
+            Ok(raw_events) => {
+                for (phase, event) in raw_events.into_iter() {
+                    info!("[+] Decoded Event: {:?}, {:?}", phase, event);
+                    match event {
+                        RuntimeEvent::Raw(raw)
+                            if raw.module == module && raw.variant == variant =>
+                        {
+                            let new_session_event @ NewSessionEvent { session_index } =
+                                NewSessionEvent::decode(&mut &raw.data[..])?;
+                            info!("[+] Received event {:?}", &new_session_event);
+                            if session_index.ge(&new_session_index) {
+                                return Ok(session_index);
+                            }
+                        }
+                        _ => debug!("ignoring some other event: {:?}", event),
+                    }
+                }
+            }
+            Err(why) => error!("Error {:?}", why),
+        }
+    }
 }
 
 /// blocks the main thread waiting for a block with a number at least `block_number`
