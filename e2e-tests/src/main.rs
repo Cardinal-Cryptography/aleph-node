@@ -10,6 +10,8 @@ use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256};
 use std::convert::TryFrom;
 use std::env;
+use std::iter;
+use std::iter::Chain;
 use std::sync::mpsc::channel;
 use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
 use substrate_api_client::rpc::WsRpcClient;
@@ -133,14 +135,13 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
 
     info!("[+] Validators before tx: {:#?}", validators_before);
 
-    let mut new_validators: Vec<AccountId> = accounts
+    let new_validators: Vec<AccountId> = accounts
         .into_iter()
         .map(|pair| pair.public().into())
+        .chain(iter::once(
+            AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
+        ))
         .collect();
-
-    new_validators.push(
-        AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
-    );
 
     info!("[+] New validators {:#?}", new_validators);
 
