@@ -277,7 +277,7 @@ fn send_tx<Call>(
 fn create_connection_pool(nodes: Vec<String>) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
     nodes
         .into_iter()
-        .map(|url| create_connection(format!("ws://{}", &url)))
+        .map(|url| create_connection(url))
         .collect()
 }
 

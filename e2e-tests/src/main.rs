@@ -2,7 +2,7 @@ mod config;
 
 use clap::Parser;
 use codec::Decode;
-use common::{create_connection, get_env_var};
+use common::create_connection;
 use config::Config;
 use log::{debug, error, info};
 use sp_core::crypto::Ss58Codec;
@@ -22,10 +22,9 @@ type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 fn main() -> anyhow::Result<()> {
-    env::set_var(
-        "RUST_LOG",
-        &get_env_var("RUST_LOG", Some(String::from("warn"))),
-    );
+    if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
+        env::set_var(env_logger::DEFAULT_FILTER_ENV, "warn");
+    }
     env_logger::init();
 
     let config: Config = Config::parse();
@@ -37,29 +36,28 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// wait untill blocks are getting finalized
+/// wait until blocks are getting finalized
 fn test_finalization(config: Config) -> anyhow::Result<u32> {
-    let connection = create_connection(format!("ws://{}", &config.node));
-    // NOTE : we wait here for a whole genesis session to pass
-    // session period is set to 5 blocks (see `run_consensus.sh`), plus one to be on the safe site
-    wait_for_finalized_block(connection, 6)
+    let connection = create_connection(config.node);
+    // wait till at least one block is finalized
+    wait_for_finalized_block(connection, 1)
 }
 
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
+    let pair_from_string = |seed: String| {
+        sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
+    };
+
     let accounts: Vec<sr25519::Pair> = match seeds {
         Some(seeds) => seeds
             .into_iter()
-            .map(|seed| {
-                sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
-            })
+            .map(|seed| pair_from_string(seed))
             .collect(),
         None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
             .iter()
-            .map(|seed| {
-                sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
-            })
+            .map(|seed| pair_from_string(seed.to_string()))
             .collect(),
     };
 
@@ -72,7 +70,7 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
             .public(),
     );
 
-    let connection = create_connection(format!("ws://{}", node)).set_signer(from);
+    let connection = create_connection(node).set_signer(from);
 
     let balance_before = connection
         .get_account_data(&to)?
@@ -128,12 +126,12 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
 
     let sudo = match sudo {
         Some(seed) => {
-            sr25519::Pair::from_string(&seed, None).expect("Cant create Pair from seed value")
+            sr25519::Pair::from_string(&seed, None).expect("Cannot create Pair from seed value")
         }
         None => accounts.get(0).expect("whoops").to_owned(),
     };
 
-    let connection = create_connection(format!("ws://{}", node)).set_signer(sudo);
+    let connection = create_connection(node).set_signer(sudo);
 
     let validators_before: Vec<AccountId> = connection
         .get_storage_value("Session", "Validators", None)?
@@ -215,19 +213,19 @@ fn wait_for_session(
         match _events {
             Ok(raw_events) => {
                 for (phase, event) in raw_events.into_iter() {
-                    info!("[+] Decoded Event: {:?}, {:?}", phase, event);
+                    info!("[+] Received event: {:?}, {:?}", phase, event);
                     match event {
                         RuntimeEvent::Raw(raw)
                             if raw.module == module && raw.variant == variant =>
                         {
-                            let new_session_event @ NewSessionEvent { session_index } =
+                            let NewSessionEvent { session_index } =
                                 NewSessionEvent::decode(&mut &raw.data[..])?;
-                            info!("[+] Received event {:?}", &new_session_event);
+                            info!("[+] Decoded NewSession event {:?}", &session_index);
                             if session_index.ge(&new_session_index) {
                                 return Ok(session_index);
                             }
                         }
-                        _ => debug!("ignoring some other event: {:?}", event),
+                        _ => debug!("Ignoring some other event: {:?}", event),
                     }
                 }
             }
