@@ -25,6 +25,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+use frame_support::PalletId;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::Perquintill;
 use frame_support::weights::constants::WEIGHT_PER_MILLIS;
@@ -41,6 +42,8 @@ pub use frame_support::{
     },
     StorageValue,
 };
+use frame_support::traits::SortedMembers;
+use frame_system::EnsureSignedBy;
 use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 
 pub use pallet_balances::Call as BalancesCall;
@@ -416,6 +419,54 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
+//TODO: slashed accounts
+
+// We do not burn any money within treasury.
+pub const TREASURY_BURN: u32 = 0;
+// The percentage of the amount of the proposal that the proposer should deposit.
+// 0% is the default in Substrate.
+pub const TREASURY_PROPOSAL_BOND: u32 = 0;
+// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
+pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+// Every 4h we implement accepted proposals.
+pub const TREASURY_SPEND_PERIOD: BlockNumber = 4 * HOURS;
+// We allow at most 10 approvals in the queue at once.
+pub const TREASURY_MAX_APPROVALS: u32 = 10;
+
+parameter_types! {
+    pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
+    pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
+	pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
+    pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
+    pub const SpendPeriod: BlockNumber = TREASURY_SPEND_PERIOD;
+    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+}
+
+pub struct TreasuryGovernance;
+impl SortedMembers<AccountId> for TreasuryGovernance {
+    fn sorted_members() -> Vec<AccountId> {
+        // vec![pallet_sudo::GenesisConfig::default().key]
+        vec![]
+    }
+}
+
+impl pallet_treasury::Config for Runtime {
+    type ApproveOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
+    type Burn = Burn;
+    type BurnDestination = ();
+    type Currency = Balances;
+    type Event = Event;
+    type MaxApprovals = MaxApprovals;
+    type OnSlash = ();
+    type PalletId = TreasuryPalletId;
+    type ProposalBond = ProposalBond;
+    type ProposalBondMinimum = ProposalBondMinimum;
+    type RejectOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
+    type SpendFunds = ();
+    type SpendPeriod = SpendPeriod;
+    type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -433,6 +484,7 @@ construct_runtime!(
         Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
     }
