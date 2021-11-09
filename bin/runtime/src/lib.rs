@@ -419,8 +419,6 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
-//TODO: slashed accounts
-
 // We do not burn any money within treasury.
 pub const TREASURY_BURN: u32 = 0;
 // The percentage of the amount of the proposal that the proposer should deposit.
