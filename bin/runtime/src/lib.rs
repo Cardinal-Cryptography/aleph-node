@@ -428,8 +428,8 @@ pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
 // Every 4h we implement accepted proposals.
 pub const TREASURY_SPEND_PERIOD: BlockNumber = 4 * HOURS;
-// We allow at most 10 approvals in the queue at once.
-pub const TREASURY_MAX_APPROVALS: u32 = 10;
+// We allow at most 20 approvals in the queue at once.
+pub const TREASURY_MAX_APPROVALS: u32 = 20;
 
 parameter_types! {
     pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
