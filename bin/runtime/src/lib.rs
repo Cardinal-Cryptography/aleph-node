@@ -443,8 +443,7 @@ parameter_types! {
 pub struct TreasuryGovernance;
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        // vec![pallet_sudo::GenesisConfig::default().key]
-        vec![]
+        vec![pallet_sudo::Pallet::<Runtime>::key()]
     }
 }
 
