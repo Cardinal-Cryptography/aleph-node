@@ -109,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 4,
+    spec_version: 5,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -422,7 +422,7 @@ impl pallet_multisig::Config for Runtime {
 // We do not burn any money within treasury.
 pub const TREASURY_BURN: u32 = 0;
 // The percentage of the amount of the proposal that the proposer should deposit.
-// 0% is the default in Substrate.
+// We agreed on non-progressive deposit.
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
