@@ -83,19 +83,6 @@ pub mod pallet {
             validators: Vec<T::AccountId>,
             session_for_validators_change: u32,
         ) -> DispatchResult {
-            // TODO
-            frame_support::runtime_print!(
-                "@@@ change_validators {:?} {:?}",
-                validators,
-                session_for_validators_change
-            );
-            //
-            frame_support::log::info!(
-                "@@@ change_validators {:?} {:?}",
-                validators,
-                session_for_validators_change
-            );
-            //
             ensure_root(origin)?;
             Validators::<T>::put(Some(validators.clone()));
             SessionForValidatorsChange::<T>::put(Some(session_for_validators_change));
@@ -176,13 +163,8 @@ pub mod pallet {
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
             <UnitCreationDelay<T>>::put(&self.unit_creation_delay);
-
-            // TODO
             <Validators<T>>::put(Some(&self.validators));
             <SessionForValidatorsChange<T>>::put(Some(0));
-
-            // <Validators<T>>::put(None::<Vec<T::AccountId>>);
-            // <SessionForValidatorsChange<T>>::put(None::<u32>);
         }
     }
 
@@ -216,7 +198,7 @@ pub mod pallet {
             {
                 if session_for_validators_change <= session {
                     let validators = Pallet::<T>::validators().expect(
-                        "When session_for_validators_change is Some() validators should also be Some()",
+                        "Validators also should be Some(), when session_for_validators_change is",
                     );
                     Validators::<T>::put(None::<Vec<T::AccountId>>);
                     SessionForValidatorsChange::<T>::put(None::<u32>);
