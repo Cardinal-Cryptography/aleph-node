@@ -11,7 +11,6 @@ use sp_runtime::{generic, traits::BlakeTwo256};
 use std::convert::TryFrom;
 use std::env;
 use std::iter;
-use std::iter::Chain;
 use std::sync::mpsc::channel;
 use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
 use substrate_api_client::rpc::WsRpcClient;
@@ -48,19 +47,8 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
-    let accounts: Vec<sr25519::Pair> = match seeds {
-        Some(seeds) => seeds
-            .into_iter()
-            .map(|seed| keypair_from_string(seed))
-            .collect(),
-        None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
-            .iter()
-            .map(|seed| keypair_from_string(seed.to_string()))
-            .collect(),
-    };
-
+    let accounts: Vec<sr25519::Pair> = accounts(seeds);
     let from: sr25519::Pair = accounts.get(0).expect("No accounts passed").to_owned();
-
     let to = AccountId::from(
         accounts
             .get(1)
@@ -158,13 +146,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
         session_for_change
     );
 
-    let tx = compose_extrinsic!(
-        connection.clone(),
-        "Sudo",
-        "sudo_unchecked_weight",
-        call,
-        0_u64
-    );
+    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
 
     // send and watch extrinsic until finalized
     let tx_hash = connection
@@ -199,7 +181,7 @@ fn wait_for_session(
     let (events_in, events_out) = channel();
     connection.subscribe_events(events_in)?;
 
-    let event_decoder = EventsDecoder::try_from(connection.metadata.clone())?;
+    let event_decoder = EventsDecoder::try_from(connection.metadata)?;
 
     loop {
         let event_str = events_out.recv().unwrap();
@@ -256,14 +238,13 @@ fn keypair_from_string(seed: String) -> sr25519::Pair {
 }
 
 fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
-    match seeds {
-        Some(seeds) => seeds
-            .into_iter()
-            .map(|seed| keypair_from_string(seed))
-            .collect(),
-        None => vec!["//Damian", "//Tomasz", "//Zbyszko", "//Hansu"]
-            .iter()
-            .map(|seed| keypair_from_string(seed.to_string()))
-            .collect(),
-    }
+    let seeds = seeds.unwrap_or_else(|| {
+        vec![
+            "//Damian".into(),
+            "//Tomasz".into(),
+            "//Zbyszko".into(),
+            "//Hansu".into(),
+        ]
+    });
+    seeds.into_iter().map(keypair_from_string).collect()
 }
