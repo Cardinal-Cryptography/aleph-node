@@ -1,2 +1,2 @@
-../../Aleph-Testnet
+git+https://github.com/Cardinal-Cryptography/Aleph-Testnet
 pyyaml
