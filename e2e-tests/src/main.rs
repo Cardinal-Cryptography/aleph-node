@@ -185,9 +185,9 @@ fn wait_for_session(
 
     loop {
         let event_str = events_out.recv().unwrap();
-        let _events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
+        let events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
 
-        match _events {
+        match events {
             Ok(raw_events) => {
                 for (phase, event) in raw_events.into_iter() {
                     info!("[+] Received event: {:?}, {:?}", phase, event);
