@@ -13,7 +13,7 @@ jobs:
     name: Build binary artifact and docker image of the node
     runs-on: ubuntu-latest
     env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
       SCCACHE_VERSION: 0.2.13
       SCCACHE_CACHE_SIZE: 2G
@@ -106,7 +106,7 @@ jobs:
     name: Build e2e test client suite
     runs-on: ubuntu-latest
     env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-07-05
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
       - name: Cancel Previous Runs
