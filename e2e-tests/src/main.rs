@@ -23,7 +23,7 @@ type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
 type Block = generic::Block<Header, OpaqueExtrinsic>;
 type TransferTransaction =
-    UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)>;
+    UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>)>;
 type Connection = Api<sr25519::Pair, WsRpcClient>;
 
 fn main() -> anyhow::Result<()> {
@@ -52,25 +52,18 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
 fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
-    let accounts: Vec<sr25519::Pair> = accounts(seeds);
-    let from: sr25519::Pair = accounts.get(0).expect("No accounts passed").to_owned();
-    let to = AccountId::from(
-        accounts
-            .get(1)
-            .expect("Pass at least two accounts")
-            .public(),
-    );
-    let from_account = AccountId::from(from.clone().public());
+    let (from, to) = get_first_two_accounts(&accounts(seeds));
+    let connection = create_connection(node).set_signer(from.clone());
+    let from = AccountId::from(from.public());
+    let to = AccountId::from(to.public());
 
-    let connection = create_connection(node).set_signer(from);
-
-    let balance_before = balance_of(&from_account, &connection);
+    let balance_before = balance_of(&from, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
     let tx = transfer(&to, transfer_value, &connection);
 
-    let balance_after = balance_of(&from_account, &connection);
+    let balance_after = balance_of(&from, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     let FeeInfo {
@@ -103,16 +96,9 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
-    let accounts: Vec<sr25519::Pair> = accounts(seeds);
-    let from: sr25519::Pair = accounts.get(0).expect("No accounts passed").to_owned();
-    let to = AccountId::from(
-        accounts
-            .get(1)
-            .expect("Pass at least two accounts")
-            .public(),
-    );
-
+    let (from, to) = get_first_two_accounts(&accounts(seeds));
     let connection = create_connection(node).set_signer(from);
+    let to = AccountId::from(to.public());
 
     let balance_before = balance_of(&to, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
@@ -291,6 +277,15 @@ fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
     seeds.into_iter().map(keypair_from_string).collect()
 }
 
+fn get_first_two_accounts(accounts: &[sr25519::Pair]) -> (sr25519::Pair, sr25519::Pair) {
+    let first = accounts.get(0).expect("No accounts passed").to_owned();
+    let second = accounts
+        .get(1)
+        .expect("Pass at least two accounts")
+        .to_owned();
+    (first, second)
+}
+
 #[derive(Debug)]
 struct FeeInfo {
     base_fee: Balance,
@@ -326,14 +321,10 @@ fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo
 }
 
 fn balance_of(account: &AccountId32, connection: &Connection) -> Balance {
-    connection.get_account_data(&account).unwrap().unwrap().free
+    connection.get_account_data(account).unwrap().unwrap().free
 }
 
-fn transfer(
-    target: &AccountId32,
-    value: u128,
-    connection: &Connection,
-) -> UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId32, ()>, Compact<u128>)> {
+fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
     let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
         connection,
         "Balances",
