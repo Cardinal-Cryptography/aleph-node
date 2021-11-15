@@ -49,66 +49,6 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
     wait_for_finalized_block(connection, 1)
 }
 
-#[derive(Debug)]
-struct FeeInfo {
-    base_fee: Balance,
-    len_fee: Balance,
-    unadjusted_weight: Balance,
-    adjusted_weight: Balance,
-    tip: Balance,
-}
-
-fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo {
-    let block = connection.get_block::<Block>(None).unwrap().unwrap();
-    let block_hash = block.header.hash();
-
-    let unadjusted_weight = connection
-        .get_payment_info(&tx.hex_encode(), Some(block_hash))
-        .unwrap()
-        .unwrap()
-        .weight as Balance;
-
-    let fee = connection
-        .get_fee_details(&tx.hex_encode(), Some(block_hash))
-        .unwrap()
-        .unwrap();
-    let inclusion_fee = fee.inclusion_fee.unwrap();
-
-    FeeInfo {
-        base_fee: inclusion_fee.base_fee,
-        len_fee: inclusion_fee.len_fee,
-        unadjusted_weight,
-        adjusted_weight: inclusion_fee.adjusted_weight_fee,
-        tip: fee.tip,
-    }
-}
-
-fn balance_of(account: &AccountId32, connection: &Connection) -> Balance {
-    connection.get_account_data(&account).unwrap().unwrap().free
-}
-
-fn transfer(
-    target: &AccountId32,
-    value: u128,
-    connection: &Connection,
-) -> UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId32, ()>, Compact<u128>)> {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-        connection,
-        "Balances",
-        "transfer",
-        GenericAddress::Id(target.clone()),
-        Compact(value)
-    );
-
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Transaction hash: {}", tx_hash);
-
-    tx
-}
-
 fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
@@ -349,4 +289,64 @@ fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
         ]
     });
     seeds.into_iter().map(keypair_from_string).collect()
+}
+
+#[derive(Debug)]
+struct FeeInfo {
+    base_fee: Balance,
+    len_fee: Balance,
+    unadjusted_weight: Balance,
+    adjusted_weight: Balance,
+    tip: Balance,
+}
+
+fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo {
+    let block = connection.get_block::<Block>(None).unwrap().unwrap();
+    let block_hash = block.header.hash();
+
+    let unadjusted_weight = connection
+        .get_payment_info(&tx.hex_encode(), Some(block_hash))
+        .unwrap()
+        .unwrap()
+        .weight as Balance;
+
+    let fee = connection
+        .get_fee_details(&tx.hex_encode(), Some(block_hash))
+        .unwrap()
+        .unwrap();
+    let inclusion_fee = fee.inclusion_fee.unwrap();
+
+    FeeInfo {
+        base_fee: inclusion_fee.base_fee,
+        len_fee: inclusion_fee.len_fee,
+        unadjusted_weight,
+        adjusted_weight: inclusion_fee.adjusted_weight_fee,
+        tip: fee.tip,
+    }
+}
+
+fn balance_of(account: &AccountId32, connection: &Connection) -> Balance {
+    connection.get_account_data(&account).unwrap().unwrap().free
+}
+
+fn transfer(
+    target: &AccountId32,
+    value: u128,
+    connection: &Connection,
+) -> UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId32, ()>, Compact<u128>)> {
+    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+        connection,
+        "Balances",
+        "transfer",
+        GenericAddress::Id(target.clone()),
+        Compact(value)
+    );
+
+    let tx_hash = connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+        .unwrap()
+        .expect("Could not get tx hash");
+    info!("[+] Transaction hash: {}", tx_hash);
+
+    tx
 }
