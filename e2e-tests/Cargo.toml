@@ -1,3 +1,5 @@
+cargo-features = ["edition2021"]
+
 [package]
 name = "aleph-e2e-client"
 version = "0.1.0"
