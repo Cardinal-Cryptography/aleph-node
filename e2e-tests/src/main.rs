@@ -67,11 +67,9 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     let FeeInfo {
-        base_fee,
-        len_fee,
+        fee_without_weight,
         unadjusted_weight,
         adjusted_weight,
-        tip,
     } = get_tx_fee_info(&connection, &tx);
     assert_eq!(
         unadjusted_weight, adjusted_weight,
@@ -79,7 +77,7 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
         unadjusted_weight, adjusted_weight
     );
 
-    let expected_fee = base_fee + len_fee + unadjusted_weight + tip;
+    let expected_fee = fee_without_weight + unadjusted_weight;
     assert_eq!(
         balance_before - transfer_value - expected_fee,
         balance_after,
@@ -104,21 +102,7 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
-
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-        connection,
-        "Balances",
-        "transfer",
-        GenericAddress::Id(to.clone()),
-        Compact(transfer_value)
-    );
-
-    // send and watch extrinsic until InBlock
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)?
-        .expect("Could not get tx hash");
-
-    info!("[+] Transaction hash: {}", tx_hash);
+    transfer(&to, transfer_value, &connection);
 
     let balance_after = balance_of(&to, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
@@ -288,11 +272,9 @@ fn get_first_two_accounts(accounts: &[sr25519::Pair]) -> (sr25519::Pair, sr25519
 
 #[derive(Debug)]
 struct FeeInfo {
-    base_fee: Balance,
-    len_fee: Balance,
+    fee_without_weight: Balance,
     unadjusted_weight: Balance,
     adjusted_weight: Balance,
-    tip: Balance,
 }
 
 fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo {
@@ -312,11 +294,9 @@ fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo
     let inclusion_fee = fee.inclusion_fee.unwrap();
 
     FeeInfo {
-        base_fee: inclusion_fee.base_fee,
-        len_fee: inclusion_fee.len_fee,
+        fee_without_weight: inclusion_fee.base_fee + inclusion_fee.len_fee + fee.tip,
         unadjusted_weight,
         adjusted_weight: inclusion_fee.adjusted_weight_fee,
-        tip: fee.tip,
     }
 }
 
