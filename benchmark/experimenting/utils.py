@@ -7,7 +7,7 @@ from shutil import copyfile
 
 
 def copy_binary(binary: Path, target: str):
-    logging.info(f'Copying binary from {binary}...')
+    logging.info(f'Copying binary from {binary} to {target}...')
 
     os.makedirs('bin', exist_ok=True)
     target = Path(f'bin/{target}')
