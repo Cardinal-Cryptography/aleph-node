@@ -39,8 +39,8 @@ def flood(args: Namespace):
         throughput=args.throughput
     )
 
-    setup_flooding()
+    setup_flooding(tag=args.tag)
 
-    terminate_instances_in_region(tag='flooder2')
+    terminate_instances_in_region(tag=args.tag)
 
 

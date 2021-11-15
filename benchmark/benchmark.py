@@ -39,6 +39,7 @@ def get_args() -> argparse.Namespace:
     parser_flooder.add_argument('--nodes', type=str, nargs='+', help='URL address(es) of the nodes to send transactions to')
     parser_flooder.add_argument('--transactions', type=int, help='how many transactions to send')
     parser_flooder.add_argument('--throughput', type=int, help='what throughput to use (transactions/s)', default=1000)
+    parser_flooder.add_argument('--tag', type=str, help='tag for the machines', default='flooders')
     parser_flooder.set_defaults(func=flood)
 
     return parser.parse_args()
