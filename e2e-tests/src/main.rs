@@ -71,13 +71,16 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
         unadjusted_weight,
         adjusted_weight,
     } = get_tx_fee_info(&connection, &tx);
+    let multiplier = 1; // corresponds to `ConstantFeeMultiplierUpdate`
     assert_eq!(
-        unadjusted_weight, adjusted_weight,
+        multiplier * unadjusted_weight,
+        adjusted_weight,
         "Weight fee was adjusted incorrectly: raw fee = {}, adjusted fee = {}",
-        unadjusted_weight, adjusted_weight
+        unadjusted_weight,
+        adjusted_weight
     );
 
-    let expected_fee = fee_without_weight + unadjusted_weight;
+    let expected_fee = fee_without_weight + adjusted_weight;
     assert_eq!(
         balance_before - transfer_value - expected_fee,
         balance_after,
