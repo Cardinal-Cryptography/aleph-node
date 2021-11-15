@@ -1,4 +1,7 @@
+import shutil
+
 from argparse import Namespace
+from pathlib import Path
 from typing import List, Optional
 from shell import setup_flooding, terminate_instances_in_region
 
@@ -27,12 +30,29 @@ def generate_script(
         f.writelines([shebang, cmd])
 
 
+def parse_addresses(addresses: Path):
+    with open(addresses, 'r') as f:
+        return [ip.strip() for ip in f.readlines()]
+
+    return []
+
+
+def clean_files():
+    shutil.rmtree('bin/flooder_script.sh', ignore_errors=True)
+    shutil.rmtree('bin/flooder', ignore_errors=True)
+
+
+def clean(args: Namespace):
+    clean_files()
+    terminate_instances_in_region(tag=args.tag)
+
+
 def flood(args: Namespace):
     copy_binary(args.flooder_binary, 'flooder')
 
     generate_script(
         target='bin/flooder_script.sh',
-        nodes=args.nodes,
+        nodes=parse_addresses(args.addresses),
         seed=args.seed,
         phrase=args.phrase,
         transactions=args.transactions,
@@ -40,7 +60,3 @@ def flood(args: Namespace):
     )
 
     setup_flooding(tag=args.tag)
-
-    terminate_instances_in_region(tag=args.tag)
-
-
