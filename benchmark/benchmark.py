@@ -31,7 +31,7 @@ def get_args() -> argparse.Namespace:
     parser_clean.add_argument('tag', type=str, help='tag for the machines', default='b2')
     parser_clean.set_defaults(func=clean)
 
-    parser_flooder = subparsers.add_parser('flooder')
+    parser_flooder = subparsers.add_parser('flood')
     parser_flooder.add_argument('--flooder-binary', type=Path, help='flooder executable')
     group = parser_flooder.add_mutually_exclusive_group()
     group.add_argument('--phrase', type=str, help='secret phrase of the account')

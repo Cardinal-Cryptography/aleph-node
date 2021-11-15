@@ -79,8 +79,8 @@ At the end, the dashboard will be automatically displayed in the default browser
 
 ### Running flooder
 ```
-usage: benchmark.py flooder [-h] [--flooder-binary FLOODER_BINARY] [--phrase PHRASE | --seed SEED] [--addresses ADDRESSES] [--transactions TRANSACTIONS]
-                            [--throughput THROUGHPUT] [--tag TAG]
+usage: benchmark.py flood [-h] [--flooder-binary FLOODER_BINARY] [--phrase PHRASE | --seed SEED] [--addresses ADDRESSES] [--transactions TRANSACTIONS]
+                          [--throughput THROUGHPUT] [--tag TAG]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -99,7 +99,7 @@ optional arguments:
 
 For example:
 ```bash
-./benchmark.py flooder --flooder-binary ../flooder/target/release/flooder --addresses ./addresses --transactions=100 --phrase="..."
+./benchmark.py flood --flooder-binary ../flooder/target/release/flooder --addresses ./addresses --transactions=100 --phrase="..."
 ```
 
 
