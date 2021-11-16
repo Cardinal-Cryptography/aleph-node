@@ -159,7 +159,6 @@ jobs:
 
       - name: Load node docker image
         shell: bash
-        timeout-minutes: 5
         run: docker load -i aleph-node.tar
 
       - name: Run consensus party
@@ -179,7 +178,7 @@ jobs:
 
       - name: Run e2e test suite
         shell: bash
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           ./.github/scripts/run_e2e_tests.sh
 
