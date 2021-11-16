@@ -176,7 +176,7 @@ pub mod pallet {
 
     impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
         fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
-            match Pallet::<T>::validators_change() {
+            match ValidatorsChange::<T>::take() {
                 None => None,
                 Some(ValidatorsChangeStorageItem {
                     session_for_validators_change,
