@@ -53,9 +53,6 @@ pub mod pallet {
     pub type ValidatorsChange<T: Config> =
         StorageValue<_, ValidatorsChangeStorageItem<T>, OptionQuery>;
 
-    // pub type ValidatorsChange<T: Config> =
-    //     StorageValue<_, Option<(u32, Vec<T::AccountId>)>, OptionQuery>;
-
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_session::Config {
         type AuthorityId: Member
@@ -151,7 +148,6 @@ pub mod pallet {
         fn build(&self) {
             <SessionPeriod<T>>::put(&self.session_period);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
-            // <ValidatorsChange<T>>::put(None::<ValidatorsChangeStorageItem<T>>);
         }
     }
 
