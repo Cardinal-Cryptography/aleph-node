@@ -99,6 +99,10 @@ if [[ "false" == "${VALIDATOR}" ]]; then
   ARGS+=(--rpc-methods Safe)
 fi
 
+if [[ -n "${UNIT_CREATION_DELAY:-}" ]]; then
+  ARGS+=(--unit-creation-delay="${UNIT_CREATION_DELAY}")
+fi
+
 if [[ -n "${CUSTOM_ARGS:-}" ]]; then
   ARGS+=("${CUSTOM_ARGS}")
 fi

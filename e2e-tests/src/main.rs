@@ -317,7 +317,7 @@ fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> Trans
     );
 
     let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
+        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
         .unwrap()
         .expect("Could not get tx hash");
     info!("[+] Transaction hash: {}", tx_hash);
