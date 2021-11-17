@@ -1,30 +1,24 @@
-mod config;
-
-use clap::Parser;
-use codec::{Compact, Decode};
-use common::create_connection;
-use config::Config;
-use log::{debug, error, info};
-use sp_core::crypto::Ss58Codec;
-use sp_core::{sr25519, Pair};
-use sp_runtime::{generic, traits::BlakeTwo256, AccountId32, MultiAddress, OpaqueExtrinsic};
 use std::convert::TryFrom;
 use std::env;
 use std::iter;
 use std::sync::mpsc::channel;
-use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
-use substrate_api_client::rpc::WsRpcClient;
-use substrate_api_client::utils::FromHexString;
-use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, Api, Balance, UncheckedExtrinsicV4, XtStatus,
-};
 
-type BlockNumber = u32;
-type Header = generic::Header<BlockNumber, BlakeTwo256>;
-type Block = generic::Block<Header, OpaqueExtrinsic>;
-type TransferTransaction =
-    UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>)>;
-type Connection = Api<sr25519::Pair, WsRpcClient>;
+use clap::Parser;
+use codec::Decode;
+use common::create_connection;
+use log::{debug, error, info};
+use sp_core::crypto::Ss58Codec;
+use sp_core::Pair;
+use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
+use substrate_api_client::utils::FromHexString;
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
+
+use config::Config;
+
+use crate::utils::*;
+
+mod config;
+mod utils;
 
 fn main() -> anyhow::Result<()> {
     if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
@@ -57,13 +51,13 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
     let from = AccountId::from(from.public());
     let to = AccountId::from(to.public());
 
-    let balance_before = balance_of(&from, &connection);
+    let balance_before = get_free_balance(&from, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
     let tx = transfer(&to, transfer_value, &connection);
 
-    let balance_after = balance_of(&from, &connection);
+    let balance_after = get_free_balance(&from, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     let FeeInfo {
@@ -101,13 +95,13 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let connection = create_connection(node).set_signer(from);
     let to = AccountId::from(to.public());
 
-    let balance_before = balance_of(&to, &connection);
+    let balance_before = get_free_balance(&to, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
     transfer(&to, transfer_value, &connection);
 
-    let balance_after = balance_of(&to, &connection);
+    let balance_after = get_free_balance(&to, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     assert!(
@@ -246,81 +240,4 @@ fn wait_for_finalized_block(connection: Connection, block_number: u32) -> anyhow
     }
 
     Err(anyhow::anyhow!("Giving up"))
-}
-
-fn keypair_from_string(seed: String) -> sr25519::Pair {
-    sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
-}
-
-fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
-    let seeds = seeds.unwrap_or_else(|| {
-        vec![
-            "//Damian".into(),
-            "//Tomasz".into(),
-            "//Zbyszko".into(),
-            "//Hansu".into(),
-        ]
-    });
-    seeds.into_iter().map(keypair_from_string).collect()
-}
-
-fn get_first_two_accounts(accounts: &[sr25519::Pair]) -> (sr25519::Pair, sr25519::Pair) {
-    let first = accounts.get(0).expect("No accounts passed").to_owned();
-    let second = accounts
-        .get(1)
-        .expect("Pass at least two accounts")
-        .to_owned();
-    (first, second)
-}
-
-#[derive(Debug)]
-struct FeeInfo {
-    fee_without_weight: Balance,
-    unadjusted_weight: Balance,
-    adjusted_weight: Balance,
-}
-
-fn get_tx_fee_info(connection: &Connection, tx: &TransferTransaction) -> FeeInfo {
-    let block = connection.get_block::<Block>(None).unwrap().unwrap();
-    let block_hash = block.header.hash();
-
-    let unadjusted_weight = connection
-        .get_payment_info(&tx.hex_encode(), Some(block_hash))
-        .unwrap()
-        .unwrap()
-        .weight as Balance;
-
-    let fee = connection
-        .get_fee_details(&tx.hex_encode(), Some(block_hash))
-        .unwrap()
-        .unwrap();
-    let inclusion_fee = fee.inclusion_fee.unwrap();
-
-    FeeInfo {
-        fee_without_weight: inclusion_fee.base_fee + inclusion_fee.len_fee + fee.tip,
-        unadjusted_weight,
-        adjusted_weight: inclusion_fee.adjusted_weight_fee,
-    }
-}
-
-fn balance_of(account: &AccountId32, connection: &Connection) -> Balance {
-    connection.get_account_data(account).unwrap().unwrap().free
-}
-
-fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-        connection,
-        "Balances",
-        "transfer",
-        GenericAddress::Id(target.clone()),
-        Compact(value)
-    );
-
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Transaction hash: {}", tx_hash);
-
-    tx
 }
