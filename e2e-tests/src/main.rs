@@ -1,25 +1,22 @@
-use std::convert::TryFrom;
 use std::env;
 use std::iter;
-use std::sync::mpsc::channel;
 use std::time::Instant;
 
 use clap::Parser;
-use codec::Decode;
 use common::create_connection;
-use log::{debug, error, info};
+use log::info;
 use sp_core::crypto::Ss58Codec;
 use sp_core::Pair;
-use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
-use substrate_api_client::utils::FromHexString;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
 use config::Config;
 
 use crate::utils::*;
+use crate::waiting::{wait_for_finalized_block, wait_for_session};
 
 mod config;
 mod utils;
+mod waiting;
 
 fn main() -> anyhow::Result<()> {
     if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
@@ -128,11 +125,6 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Decode)]
-struct NewSessionEvent {
-    session_index: u32,
-}
-
 fn test_change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, sudo } = config;
 
@@ -196,61 +188,4 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     assert!(new_validators.eq(&validators_after));
 
     Ok(())
-}
-
-/// blocking wait, if ongoing session index is >= new_session_index returns the current
-fn wait_for_session(connection: Connection, new_session_index: u32) -> anyhow::Result<u32> {
-    let module = "Session";
-    let variant = "NewSession";
-    info!("[+] Creating event subscription {}/{}", module, variant);
-    let (events_in, events_out) = channel();
-    connection.subscribe_events(events_in)?;
-
-    let event_decoder = EventsDecoder::try_from(connection.metadata)?;
-
-    loop {
-        let event_str = events_out.recv().unwrap();
-        let events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
-
-        match events {
-            Ok(raw_events) => {
-                for (phase, event) in raw_events.into_iter() {
-                    info!("[+] Received event: {:?}, {:?}", phase, event);
-                    match event {
-                        RuntimeEvent::Raw(raw)
-                            if raw.module == module && raw.variant == variant =>
-                        {
-                            let NewSessionEvent { session_index } =
-                                NewSessionEvent::decode(&mut &raw.data[..])?;
-                            info!("[+] Decoded NewSession event {:?}", &session_index);
-                            if session_index.ge(&new_session_index) {
-                                return Ok(session_index);
-                            }
-                        }
-                        _ => debug!("Ignoring some other event: {:?}", event),
-                    }
-                }
-            }
-            Err(why) => error!("Error {:?}", why),
-        }
-    }
-}
-
-/// blocks the main thread waiting for a block with a number at least `block_number`
-fn wait_for_finalized_block(connection: Connection, block_number: u32) -> anyhow::Result<u32> {
-    let (sender, receiver) = channel();
-    connection.subscribe_finalized_heads(sender)?;
-
-    while let Ok(header) = receiver
-        .recv()
-        .map(|h| serde_json::from_str::<Header>(&h).unwrap())
-    {
-        info!("[+] Received header for a block number {:?}", header.number);
-
-        if header.number.ge(&block_number) {
-            return Ok(block_number);
-        }
-    }
-
-    Err(anyhow::anyhow!("Giving up"))
 }
