@@ -43,7 +43,7 @@ fn run<T>(
     let start = Instant::now();
     testcase(config).map(|_| {
         let elapsed = Instant::now().duration_since(start);
-        println!("OK! ({:?})", elapsed)
+        println!("Ok! Elapsed time {}ms", elapsed.as_millis());
     })
 }
 
