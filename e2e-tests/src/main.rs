@@ -116,8 +116,9 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let balance_after = get_free_balance(&to, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
-    assert!(
-        balance_before + transfer_value == balance_after,
+    assert_eq!(
+        balance_before + transfer_value,
+        balance_after,
         "before = {}, after = {}, tx = {}",
         balance_before,
         balance_after,
