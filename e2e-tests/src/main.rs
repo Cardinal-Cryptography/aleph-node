@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::iter;
 use std::sync::mpsc::channel;
+use std::time::Instant;
 
 use clap::Parser;
 use codec::Decode;
@@ -28,18 +29,29 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
-    test_finalization(config.clone())?;
-    test_fee_calculation(config.clone())?;
-    test_token_transfer(config.clone())?;
-    test_change_validators(config)?;
+    run(test_finalization, "finalization", config.clone())?;
+    run(test_fee_calculation, "fee calculation", config.clone())?;
+    run(test_token_transfer, "token transfer", config.clone())?;
+    run(test_change_validators, "validators change", config)?;
 
     Ok(())
 }
 
-/// wait until blocks are getting finalized
+fn run<T>(
+    testcase: fn(Config) -> anyhow::Result<T>,
+    name: &str,
+    config: Config,
+) -> anyhow::Result<()> {
+    println!("Running test: {}", name);
+    let start = Instant::now();
+    testcase(config).map(|_| {
+        let elapsed = Instant::now().duration_since(start);
+        println!("OK! ({:?})", elapsed)
+    })
+}
+
 fn test_finalization(config: Config) -> anyhow::Result<u32> {
     let connection = create_connection(config.node);
-    // wait till at least one block is finalized
     wait_for_finalized_block(connection, 1)
 }
 
