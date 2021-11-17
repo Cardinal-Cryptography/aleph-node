@@ -30,6 +30,7 @@ fn main() -> anyhow::Result<()> {
     run(test_fee_calculation, "fee calculation", config.clone())?;
     run(test_token_transfer, "token transfer", config.clone())?;
     run(test_channeling_fee, "channeling fee", config.clone())?;
+    run(test_treasury_access, "treasury access", config.clone())?;
     run(test_change_validators, "validators change", config)?;
 
     Ok(())
@@ -159,6 +160,21 @@ fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
         treasury_balance_after,
         fee
     );
+
+    Ok(())
+}
+
+fn test_treasury_access(config: Config) -> anyhow::Result<()> {
+    let Config { node, seeds, .. } = config;
+
+    let proposer = get_first_account(&accounts(seeds));
+    let beneficiary = AccountId::from(proposer.public());
+    let connection = create_connection(node).set_signer(proposer);
+
+    propose_treasury_spend(0u128, &beneficiary, &connection);
+    propose_treasury_spend(0u128, &beneficiary, &connection);
+
+    let proposals_counter = get_proposals_counter(&connection);
 
     Ok(())
 }

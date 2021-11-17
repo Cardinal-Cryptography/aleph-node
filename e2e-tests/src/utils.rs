@@ -35,8 +35,12 @@ pub fn accounts(seeds: Option<Vec<String>>) -> Vec<KeyPair> {
     seeds.into_iter().map(keypair_from_string).collect()
 }
 
+pub fn get_first_account(accounts: &[KeyPair]) -> KeyPair {
+    accounts.get(0).expect("No accounts passed").to_owned()
+}
+
 pub fn get_first_two_accounts(accounts: &[KeyPair]) -> (KeyPair, KeyPair) {
-    let first = accounts.get(0).expect("No accounts passed").to_owned();
+    let first = get_first_account(accounts);
     let second = accounts
         .get(1)
         .expect("Pass at least two accounts")
@@ -103,6 +107,17 @@ pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> T
     tx
 }
 
+pub fn get_total_issuance(connection: &Connection) -> u128 {
+    connection
+        .get_storage_value("Balances", "TotalIssuance", None)
+        .unwrap()
+        .unwrap()
+}
+
+//////////////////////
+// Treasury related //
+//////////////////////
+
 pub fn get_treasury_account(connection: &Connection) -> AccountId32 {
     let pallet_id = connection
         .metadata
@@ -114,9 +129,33 @@ pub fn get_treasury_account(connection: &Connection) -> AccountId32 {
     PalletId(pallet_id.try_into().unwrap()).into_account()
 }
 
-pub fn get_total_issuance(connection: &Connection) -> u128 {
+type PropositionTransaction =
+    UncheckedExtrinsicV4<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
+pub fn propose_treasury_spend(
+    value: u128,
+    beneficiary: &AccountId32,
+    connection: &Connection,
+) -> PropositionTransaction {
+    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+        connection,
+        "Treasury",
+        "proposeSpend",
+        Compact(value),
+        GenericAddress::Id(beneficiary.clone())
+    );
+
+    let tx_hash = connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+        .unwrap()
+        .expect("Could not get tx hash");
+    info!("[+] Treasury spend transaction hash: {}", tx_hash);
+
+    tx
+}
+
+pub fn get_proposals_counter(connection: &Connection) -> u32 {
     connection
-        .get_storage_value("Balances", "TotalIssuance", None)
+        .get_storage_value("Treasury", "proposals", None)
         .unwrap()
         .unwrap()
 }
