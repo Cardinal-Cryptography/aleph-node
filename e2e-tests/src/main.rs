@@ -29,6 +29,7 @@ fn main() -> anyhow::Result<()> {
     run(test_finalization, "finalization", config.clone())?;
     run(test_fee_calculation, "fee calculation", config.clone())?;
     run(test_token_transfer, "token transfer", config.clone())?;
+    run(test_channeling_fee, "channeling fee", config.clone())?;
     run(test_change_validators, "validators change", config)?;
 
     Ok(())
@@ -53,12 +54,7 @@ fn test_finalization(config: Config) -> anyhow::Result<u32> {
 }
 
 fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config;
-
-    let (from, to) = get_first_two_accounts(&accounts(seeds));
-    let connection = create_connection(node).set_signer(from.clone());
-    let from = AccountId::from(from.public());
-    let to = AccountId::from(to.public());
+    let (connection, from, to) = setup_for_transfer(config);
 
     let balance_before = get_free_balance(&from, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
@@ -98,11 +94,7 @@ fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
 }
 
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config;
-
-    let (from, to) = get_first_two_accounts(&accounts(seeds));
-    let connection = create_connection(node).set_signer(from);
-    let to = AccountId::from(to.public());
+    let (connection, _, to) = setup_for_transfer(config);
 
     let balance_before = get_free_balance(&to, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
@@ -120,6 +112,52 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
         balance_before,
         balance_after,
         transfer_value
+    );
+
+    Ok(())
+}
+
+fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
+    let (connection, _, to) = setup_for_transfer(config);
+    let treasury = get_treasury_account(&connection);
+
+    let treasury_balance_before = get_free_balance(&treasury, &connection);
+    let issuance_before = get_total_issuance(&connection);
+    info!(
+        "[+] Treasury balance before tx: {}. Total issuance: {}.",
+        treasury_balance_before, issuance_before
+    );
+
+    let tx = transfer(&to, 1000u128, &connection);
+
+    let treasury_balance_after = get_free_balance(&treasury, &connection);
+    let issuance_after = get_total_issuance(&connection);
+    info!(
+        "[+] Treasury balance after tx: {}. Total issuance: {}.",
+        treasury_balance_after, issuance_after
+    );
+
+    assert!(
+        issuance_after <= issuance_before,
+        "Unexpectedly {} was minted",
+        issuance_after - issuance_before
+    );
+    assert!(
+        issuance_before <= issuance_after,
+        "Unexpectedly {} was burned",
+        issuance_before - issuance_after
+    );
+
+    let fee_info = get_tx_fee_info(&connection, &tx);
+    let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
+
+    assert_eq!(
+        treasury_balance_before + fee,
+        treasury_balance_after,
+        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}",
+        treasury_balance_before,
+        treasury_balance_after,
+        fee
     );
 
     Ok(())

@@ -1,11 +1,16 @@
 use codec::Compact;
+use common::create_connection;
+use frame_support::PalletId;
 use log::info;
 use sp_core::{sr25519, Pair};
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{generic, traits::BlakeTwo256, AccountId32, MultiAddress};
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{
     compose_extrinsic, AccountId, Api, Balance, UncheckedExtrinsicV4, XtStatus,
 };
+
+use crate::config::Config;
 
 pub type BlockNumber = u32;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -70,6 +75,16 @@ pub fn get_free_balance(account: &AccountId32, connection: &Connection) -> Balan
     connection.get_account_data(account).unwrap().unwrap().free
 }
 
+pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
+    let Config { node, seeds, .. } = config;
+
+    let (from, to) = get_first_two_accounts(&accounts(seeds));
+    let connection = create_connection(node).set_signer(from.clone());
+    let from = AccountId::from(from.public());
+    let to = AccountId::from(to.public());
+    (connection, from, to)
+}
+
 pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
     let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
         connection,
@@ -86,4 +101,22 @@ pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> T
     info!("[+] Transfer transaction hash: {}", tx_hash);
 
     tx
+}
+
+pub fn get_treasury_account(connection: &Connection) -> AccountId32 {
+    let pallet_id = connection
+        .metadata
+        .module_with_constants_by_name("Treasury")
+        .unwrap()
+        .constant_by_name("PalletId")
+        .unwrap()
+        .get_value();
+    PalletId(pallet_id.try_into().unwrap()).into_account()
+}
+
+pub fn get_total_issuance(connection: &Connection) -> u128 {
+    connection
+        .get_storage_value("Balances", "TotalIssuance", None)
+        .unwrap()
+        .unwrap()
 }
