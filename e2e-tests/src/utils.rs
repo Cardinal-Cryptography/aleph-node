@@ -83,7 +83,7 @@ pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> T
         .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
         .unwrap()
         .expect("Could not get tx hash");
-    info!("[+] Transaction hash: {}", tx_hash);
+    info!("[+] Transfer transaction hash: {}", tx_hash);
 
     tx
 }
