@@ -32,7 +32,7 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
         protocol: Cow<'static, str>,
     ) -> Option<NotificationSender> {
         self.notification_sender(peer_id.into(), protocol)
-            .map_err(|_| debug!(target: "aleph-network", "attempted send to peer we are not connected to"))
+            .map_err(|_| debug!(target: "aleph-network", "Attempted send to peer we are not connected to."))
             .ok()
     }
 

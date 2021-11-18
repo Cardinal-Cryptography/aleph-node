@@ -144,25 +144,25 @@ impl<N: Network, D: Clone + Codec> Service<N, D> {
             tokio::select! {
                 maybe_event = events_from_network.next() => match maybe_event {
                     Some(event) => if let Err(e) = self.handle_network_event(event) {
-                        error!(target: "aleph-network", "Cannot forward messages to user: {:?}. Terminating.", e);
+                        error!(target: "aleph-network", "Cannot forward messages to user: {:?}", e);
                         return;
                     },
                     None => {
-                        error!(target: "aleph-network", "Network event stream ended, terminating.");
+                        error!(target: "aleph-network", "Network event stream ended.");
                         return;
                     }
                 },
                 maybe_command = self.commands_from_manager.next() => match maybe_command {
                     Some(command) => self.on_manager_command(command),
                     None => {
-                        error!(target: "aleph-network", "Manager command stream ended, terminating.");
+                        error!(target: "aleph-network", "Manager command stream ended.");
                         return;
                     }
                 },
                 maybe_message = self.messages_from_user.next() => match maybe_message {
                     Some((data, command)) => self.on_user_command(data, command),
                     None => {
-                        error!(target: "aleph-network", "User message stream ended, terminating.");
+                        error!(target: "aleph-network", "User message stream ended.");
                         return;
                     }
                 },
@@ -175,7 +175,7 @@ impl<N: Network, D: Clone + Codec> Service<N, D> {
                     match self.to_send.pop_front() {
                         Some((data, peer, _)) => {
                             if maybe_ready.ok().map(|ready| ready.send(data.encode()).ok()).flatten().is_none() {
-                                debug!(target: "aleph-network", "Failed sending data to peer {:?}.", peer);
+                                debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
                             }
                         },
                         None => warn!(target: "aleph-network", "Attempted to send data despite empty queue."),
