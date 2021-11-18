@@ -3,9 +3,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use codec::Decode;
-use log::{debug, error, info};
-use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
-use substrate_api_client::utils::FromHexString;
+use log::{error, info};
 use substrate_api_client::ApiResult;
 
 use crate::utils::{Connection, Header};
@@ -17,35 +15,19 @@ struct NewSessionEvent {
 
 /// blocking wait, if ongoing session index is >= new_session_index returns the current
 pub fn wait_for_session(connection: Connection, new_session_index: u32) -> anyhow::Result<u32> {
-    let module = "Session";
-    let variant = "NewSession";
+    let (module, variant) = ("Session", "NewSession");
     info!("[+] Creating event subscription {}/{}", module, variant);
     let (events_in, events_out) = channel();
     connection.subscribe_events(events_in)?;
 
-    let event_decoder = EventsDecoder::try_from(connection.metadata)?;
-
     loop {
-        let event_str = events_out.recv().unwrap();
-        let events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
-
-        match events {
-            Ok(raw_events) => {
-                for (phase, event) in raw_events.into_iter() {
-                    info!("[+] Received event: {:?}, {:?}", phase, event);
-                    match event {
-                        RuntimeEvent::Raw(raw)
-                            if raw.module == module && raw.variant == variant =>
-                        {
-                            let NewSessionEvent { session_index } =
-                                NewSessionEvent::decode(&mut &raw.data[..])?;
-                            info!("[+] Decoded NewSession event {:?}", &session_index);
-                            if session_index.ge(&new_session_index) {
-                                return Ok(session_index);
-                            }
-                        }
-                        _ => debug!("Ignoring some other event: {:?}", event),
-                    }
+        let args: ApiResult<NewSessionEvent> =
+            connection.wait_for_event(module, variant, None, &events_out);
+        match args {
+            Ok(NewSessionEvent { session_index }) => {
+                info!("[+] Decoded NewSession event {:?}", &session_index);
+                if session_index.ge(&new_session_index) {
+                    return Ok(session_index);
                 }
             }
             Err(why) => error!("Error {:?}", why),
@@ -100,11 +82,13 @@ struct ProposalRejectedEvent {
 
 /// blocks the main thread waiting for a rejection for proposal with id `proposal_id`
 pub fn wait_for_rejection(connection: &Connection, proposal_id: u32) -> anyhow::Result<()> {
+    let (module, variant) = ("Treasury", "Rejected");
+    info!("[+] Creating event subscription {}/{}", module, variant);
     let (events_in, events_out) = channel();
     connection.subscribe_events(events_in).unwrap();
     loop {
         let args: ApiResult<ProposalRejectedEvent> =
-            connection.wait_for_event("Treasury", "Rejected", None, &events_out);
+            connection.wait_for_event(module, variant, None, &events_out);
         if let Ok(event) = args {
             if proposal_id == event.proposal_id {
                 info!("[+] Proposal {:?} rejected successfully", proposal_id);
