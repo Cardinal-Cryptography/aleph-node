@@ -12,7 +12,7 @@ use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus}
 use config::Config;
 
 use crate::utils::*;
-use crate::waiting::{wait_for_finalized_block, wait_for_session};
+use crate::waiting::{wait_for_approval, wait_for_finalized_block, wait_for_session};
 
 mod config;
 mod utils;
@@ -26,12 +26,12 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
-    // run(test_finalization, "finalization", config.clone())?;
-    // run(test_fee_calculation, "fee calculation", config.clone())?;
-    // run(test_token_transfer, "token transfer", config.clone())?;
+    run(test_finalization, "finalization", config.clone())?;
+    run(test_fee_calculation, "fee calculation", config.clone())?;
+    run(test_token_transfer, "token transfer", config.clone())?;
     run(test_channeling_fee, "channeling fee", config.clone())?;
     run(test_treasury_access, "treasury access", config.clone())?;
-    // run(test_change_validators, "validators change", config)?;
+    run(test_change_validators, "validators change", config)?;
 
     Ok(())
 }
@@ -175,11 +175,15 @@ fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     propose_treasury_spend(0u128, &beneficiary, &connection);
     propose_treasury_spend(0u128, &beneficiary, &connection);
     let proposals_counter = get_proposals_counter(&connection);
-    assert!(proposals_counter >= 1, "Proposal was not created");
+    assert!(proposals_counter >= 2, "Proposal was not created");
 
     let sudo = get_sudo(config);
     let connection = connection.set_signer(sudo);
-    accept_treasury_spend(proposals_counter - 1, &connection);
+
+    send_treasury_approval(proposals_counter - 2, &connection);
+    wait_for_approval(&connection, proposals_counter - 2)?;
+
+    send_treasury_rejection(proposals_counter - 1, &connection);
 
     Ok(())
 }

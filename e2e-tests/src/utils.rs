@@ -51,7 +51,7 @@ pub fn get_first_two_accounts(accounts: &[KeyPair]) -> (KeyPair, KeyPair) {
 pub fn get_sudo(config: Config) -> KeyPair {
     match config.sudo {
         Some(seed) => keypair_from_string(seed),
-        None => get_first_two_accounts(&accounts(config.seeds)).1
+        None => get_first_account(&accounts(config.seeds))
     }
 }
 
@@ -168,7 +168,7 @@ pub fn get_proposals_counter(connection: &Connection) -> u32 {
 }
 
 type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
-pub fn accept_treasury_spend(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
+pub fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
     let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
         connection,
         "Treasury",
@@ -181,6 +181,23 @@ pub fn accept_treasury_spend(proposal_id: u32, connection: &Connection) -> Gover
         .unwrap()
         .expect("Could not get tx hash");
     info!("[+] Treasury approval transaction hash: {}", tx_hash);
+
+    tx
+}
+
+pub fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
+    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+        connection,
+        "Treasury",
+        "reject_proposal",
+        Compact(proposal_id)
+    );
+
+    let tx_hash = connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+        .unwrap()
+        .expect("Could not get tx hash");
+    info!("[+] Treasury rejection transaction hash: {}", tx_hash);
 
     tx
 }

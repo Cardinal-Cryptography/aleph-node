@@ -1,4 +1,6 @@
 use std::sync::mpsc::channel;
+use std::thread::sleep;
+use std::time::Duration;
 
 use codec::Decode;
 use log::{debug, error, info};
@@ -67,4 +69,21 @@ pub fn wait_for_finalized_block(connection: Connection, block_number: u32) -> an
     }
 
     Err(anyhow::anyhow!("Giving up"))
+}
+
+/// blocks the main thread waiting for an approval for proposal with id `proposal_id`
+pub fn wait_for_approval(connection: &Connection, proposal_id: u32) -> anyhow::Result<()> {
+    loop {
+        let approvals: Vec<u32> = connection
+            .get_storage_value("Treasury", "Approvals", None)
+            .unwrap()
+            .unwrap();
+        if approvals.contains(&proposal_id) {
+            info!("[+] Proposal {:?} approved successfully", proposal_id);
+            return Ok(());
+        } else {
+            info!("[+] Still waiting for approval for proposal {:?}", proposal_id);
+            sleep(Duration::from_millis(500))
+        }
+    }
 }
