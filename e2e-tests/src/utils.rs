@@ -97,21 +97,14 @@ pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId
 }
 
 pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+    crate::send_extrinsic!(
         connection,
         "Balances",
         "transfer",
+        |tx_hash| info!("[+] Transfer transaction hash: {}", tx_hash),
         GenericAddress::Id(target.clone()),
         Compact(value)
-    );
-
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Transfer transaction hash: {}", tx_hash);
-
-    tx
+    )
 }
 
 pub fn get_total_issuance(connection: &Connection) -> u128 {
@@ -143,21 +136,14 @@ pub fn propose_treasury_spend(
     beneficiary: &AccountId32,
     connection: &Connection,
 ) -> ProposalTransaction {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+    crate::send_extrinsic!(
         connection,
         "Treasury",
         "propose_spend",
+        |tx_hash| info!("[+] Treasury spend transaction hash: {}", tx_hash),
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
-    );
-
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Treasury spend transaction hash: {}", tx_hash);
-
-    tx
+    )
 }
 
 pub fn get_proposals_counter(connection: &Connection) -> u32 {
@@ -169,35 +155,47 @@ pub fn get_proposals_counter(connection: &Connection) -> u32 {
 
 type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
 pub fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+    crate::send_extrinsic!(
         connection,
         "Treasury",
         "approve_proposal",
+        |tx_hash| info!("[+] Treasury approval transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    );
-
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Treasury approval transaction hash: {}", tx_hash);
-
-    tx
+    )
 }
 
 pub fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+    crate::send_extrinsic!(
         connection,
         "Treasury",
         "reject_proposal",
+        |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    );
+    )
+}
 
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .unwrap()
-        .expect("Could not get tx hash");
-    info!("[+] Treasury rejection transaction hash: {}", tx_hash);
+#[macro_export]
+macro_rules! send_extrinsic {
+	($connection: expr,
+	$module: expr,
+	$call: expr,
+    $hash_log: expr
+	$(, $args: expr) *) => {
+		{
+            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+                $connection,
+                $module,
+                $call
+                $(, ($args)) *
+            );
 
-    tx
+            let tx_hash = $connection
+                .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+                .unwrap()
+                .expect("Could not get tx hash");
+            $hash_log(tx_hash);
+
+            tx
+		}
+    };
 }
