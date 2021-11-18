@@ -166,6 +166,7 @@ fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+// todo: check channeling tips
 fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
