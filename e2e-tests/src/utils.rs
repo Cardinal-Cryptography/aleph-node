@@ -48,6 +48,13 @@ pub fn get_first_two_accounts(accounts: &[KeyPair]) -> (KeyPair, KeyPair) {
     (first, second)
 }
 
+pub fn get_sudo(config: Config) -> KeyPair {
+    match config.sudo {
+        Some(seed) => keypair_from_string(seed),
+        None => get_first_two_accounts(&accounts(config.seeds)).1
+    }
+}
+
 #[derive(Debug)]
 pub struct FeeInfo {
     pub fee_without_weight: Balance,
@@ -129,17 +136,17 @@ pub fn get_treasury_account(connection: &Connection) -> AccountId32 {
     PalletId(pallet_id.try_into().unwrap()).into_account()
 }
 
-type PropositionTransaction =
+type ProposalTransaction =
     UncheckedExtrinsicV4<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
 pub fn propose_treasury_spend(
     value: u128,
     beneficiary: &AccountId32,
     connection: &Connection,
-) -> PropositionTransaction {
+) -> ProposalTransaction {
     let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
         connection,
         "Treasury",
-        "proposeSpend",
+        "propose_spend",
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
     );
@@ -155,7 +162,25 @@ pub fn propose_treasury_spend(
 
 pub fn get_proposals_counter(connection: &Connection) -> u32 {
     connection
-        .get_storage_value("Treasury", "proposals", None)
+        .get_storage_value("Treasury", "ProposalCount", None)
         .unwrap()
         .unwrap()
+}
+
+type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
+pub fn accept_treasury_spend(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
+    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
+        connection,
+        "Treasury",
+        "approve_proposal",
+        Compact(proposal_id)
+    );
+
+    let tx_hash = connection
+        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+        .unwrap()
+        .expect("Could not get tx hash");
+    info!("[+] Treasury approval transaction hash: {}", tx_hash);
+
+    tx
 }
