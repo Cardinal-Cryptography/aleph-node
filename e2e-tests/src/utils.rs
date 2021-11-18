@@ -51,7 +51,7 @@ pub fn get_first_two_accounts(accounts: &[KeyPair]) -> (KeyPair, KeyPair) {
 pub fn get_sudo(config: Config) -> KeyPair {
     match config.sudo {
         Some(seed) => keypair_from_string(seed),
-        None => get_first_account(&accounts(config.seeds))
+        None => get_first_account(&accounts(config.seeds)),
     }
 }
 

@@ -12,7 +12,9 @@ use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus}
 use config::Config;
 
 use crate::utils::*;
-use crate::waiting::{wait_for_approval, wait_for_finalized_block, wait_for_session};
+use crate::waiting::{
+    wait_for_approval, wait_for_finalized_block, wait_for_rejection, wait_for_session,
+};
 
 mod config;
 mod utils;
@@ -164,9 +166,8 @@ fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-
 fn test_treasury_access(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, ..} = config.clone();
+    let Config { node, seeds, .. } = config.clone();
 
     let proposer = get_first_account(&accounts(seeds));
     let beneficiary = AccountId::from(proposer.public());
@@ -184,6 +185,7 @@ fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     wait_for_approval(&connection, proposals_counter - 2)?;
 
     send_treasury_rejection(proposals_counter - 1, &connection);
+    wait_for_rejection(&connection, proposals_counter - 1)?;
 
     Ok(())
 }
@@ -192,7 +194,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
     let accounts = accounts(seeds);
-    let sudo = get_sudo(config.clone());
+    let sudo = get_sudo(config);
 
     let connection = create_connection(node).set_signer(sudo);
 

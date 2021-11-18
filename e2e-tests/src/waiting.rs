@@ -6,6 +6,7 @@ use codec::Decode;
 use log::{debug, error, info};
 use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
 use substrate_api_client::utils::FromHexString;
+use substrate_api_client::ApiResult;
 
 use crate::utils::{Connection, Header};
 
@@ -82,8 +83,33 @@ pub fn wait_for_approval(connection: &Connection, proposal_id: u32) -> anyhow::R
             info!("[+] Proposal {:?} approved successfully", proposal_id);
             return Ok(());
         } else {
-            info!("[+] Still waiting for approval for proposal {:?}", proposal_id);
+            info!(
+                "[+] Still waiting for approval for proposal {:?}",
+                proposal_id
+            );
             sleep(Duration::from_millis(500))
+        }
+    }
+}
+
+#[derive(Decode)]
+struct ProposalRejectedEvent {
+    proposal_id: u32,
+    _slashed: u128,
+}
+
+/// blocks the main thread waiting for a rejection for proposal with id `proposal_id`
+pub fn wait_for_rejection(connection: &Connection, proposal_id: u32) -> anyhow::Result<()> {
+    let (events_in, events_out) = channel();
+    connection.subscribe_events(events_in).unwrap();
+    loop {
+        let args: ApiResult<ProposalRejectedEvent> =
+            connection.wait_for_event("Treasury", "Rejected", None, &events_out);
+        if let Ok(event) = args {
+            if proposal_id == event.proposal_id {
+                info!("[+] Proposal {:?} rejected successfully", proposal_id);
+                return Ok(());
+            }
         }
     }
 }
