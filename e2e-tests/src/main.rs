@@ -53,7 +53,7 @@ fn run<T>(
 
 fn test_finalization(config: Config) -> anyhow::Result<u32> {
     let connection = create_connection(config.node);
-    wait_for_finalized_block(connection, 1)
+    wait_for_finalized_block(&connection, 1)
 }
 
 fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
@@ -215,7 +215,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     info!("[+] New validators {:#?}", new_validators);
 
     // wait beyond session 1
-    let current_session_index = wait_for_session(connection.clone(), 1)?;
+    let current_session_index = wait_for_session(&connection, 1)?;
     let session_for_change = current_session_index + 2;
     info!("[+] Current session index {:?}", current_session_index);
 
@@ -238,7 +238,7 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     info!("[+] change_validators transaction hash: {}", tx_hash);
 
     // wait for the change to be applied
-    wait_for_session(connection.clone(), session_for_change)?;
+    wait_for_session(&connection, session_for_change)?;
 
     let validators_after: Vec<AccountId> = connection
         .get_storage_value("Session", "Validators", None)?
