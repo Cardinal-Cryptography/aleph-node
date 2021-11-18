@@ -106,7 +106,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 6,
+    spec_version: 5,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -469,7 +469,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPallets,
-    MigratePalletVersionToStorageVersion,
+    // MigratePalletVersionToStorageVersion,
 >;
 
 /// Migrate from `PalletVersion` to the new `StorageVersion`

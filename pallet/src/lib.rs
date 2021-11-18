@@ -13,7 +13,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub mod migrations;
+mod migrations;
 
 use frame_support::Parameter;
 use sp_std::prelude::*;
@@ -89,7 +89,7 @@ pub mod pallet {
     // impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I>
     {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::v1::migrate::<T, Self>()
+            migrations::migrate::<T, Self>()
         }
     }
 
