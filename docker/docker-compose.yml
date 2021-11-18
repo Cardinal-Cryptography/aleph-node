@@ -3,7 +3,7 @@ services:
 
   # bootnode
   damian:
-    image: aleph-node:latest
+    image: aleph-node:spec_version_4
     container_name: damian
     network_mode: host
     environment:
@@ -24,7 +24,7 @@ services:
       - ./data/:/data/
 
   tomasz:
-    image: aleph-node:latest
+    image: aleph-node:spec_version_4
     container_name: tomasz
     network_mode: host
     environment:
@@ -45,7 +45,7 @@ services:
       - ./data/:/data/
 
   zbyszko:
-    image: aleph-node:latest
+    image: aleph-node:spec_version_4
     container_name: zbyszko
     network_mode: host
     environment:
@@ -66,7 +66,7 @@ services:
       - ./data/:/data/
 
   hansu:
-    image: aleph-node:latest
+    image: aleph-node:spec_version_4
     container_name: hansu
     network_mode: host
     environment:

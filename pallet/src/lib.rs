@@ -13,11 +13,19 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod migrations;
+
 use frame_support::Parameter;
 use sp_std::prelude::*;
 
-use frame_support::{sp_runtime::BoundToRuntimeAppPublic, traits::OneSessionHandler};
+use frame_support::{
+    sp_runtime::BoundToRuntimeAppPublic,
+    traits::{OneSessionHandler, StorageVersion},
+};
 pub use pallet::*;
+
+/// The current storage version.
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -40,10 +48,10 @@ pub mod pallet {
     }
 
     impl<T: Config> ValidatorsChangeStorageItem<T> {
-        fn new(session_for_validators_change: u32, validators: Vec<T::AccountId>) -> Self {
+        fn new(validators: Vec<T::AccountId>, session_for_validators_change: u32) -> Self {
             Self {
-                session_for_validators_change,
                 validators,
+                session_for_validators_change,
             }
         }
     }
@@ -73,10 +81,17 @@ pub mod pallet {
     pub struct AlephSessionManager<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+    // impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I>
+    {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            migrations::v1::migrate::<T, Self>()
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -88,8 +103,8 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
             ValidatorsChange::<T>::put(ValidatorsChangeStorageItem::<T>::new(
-                session_for_validators_change,
                 validators.clone(),
+                session_for_validators_change,
             ));
             Self::deposit_event(Event::ChangeValidators(
                 validators,

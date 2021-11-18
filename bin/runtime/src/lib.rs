@@ -33,7 +33,7 @@ pub use frame_support::{
     sp_runtime::curve::PiecewiseLinear,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
+        OnRuntimeUpgrade, OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -106,7 +106,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 4,
+    spec_version: 6,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -469,7 +469,21 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPallets,
+    MigratePalletVersionToStorageVersion,
 >;
+
+/// Migrate from `PalletVersion` to the new `StorageVersion`
+/// We need this migration if we want to follow future Substrate pallet migrations, as all pallet storage migrations in Substrate now rely on the StorageVersion to check whether to execute
+/// IMPORTANT: This custom runtime migration runs *before* the pallet's runtime upgrade(s) (defined inside hooks)
+pub struct MigratePalletVersionToStorageVersion;
+
+impl OnRuntimeUpgrade for MigratePalletVersionToStorageVersion {
+    fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        frame_support::migrations::migrate_from_pallet_version_to_storage_version::<
+            AllPalletsWithSystem,
+        >(&RocksDbWeight::get())
+    }
+}
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
