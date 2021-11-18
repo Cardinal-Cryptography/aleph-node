@@ -12,9 +12,7 @@ use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus}
 use config::Config;
 
 use crate::utils::*;
-use crate::waiting::{
-    wait_for_approval, wait_for_finalized_block, wait_for_rejection, wait_for_session,
-};
+use crate::waiting::{wait_for_approval, wait_for_finalized_block, wait_for_session};
 
 mod config;
 mod utils;
@@ -120,6 +118,7 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+// todo: check channeling tips
 fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
@@ -166,7 +165,6 @@ fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-// todo: check channeling tips
 fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
@@ -185,8 +183,7 @@ fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     send_treasury_approval(proposals_counter - 2, &connection);
     wait_for_approval(&connection, proposals_counter - 2)?;
 
-    send_treasury_rejection(proposals_counter - 1, &connection);
-    wait_for_rejection(&connection, proposals_counter - 1)?;
+    treasury_reject(proposals_counter - 1, &connection)?;
 
     Ok(())
 }

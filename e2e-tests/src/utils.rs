@@ -1,3 +1,5 @@
+use std::thread;
+
 use codec::Compact;
 use common::create_connection;
 use frame_support::PalletId;
@@ -11,6 +13,7 @@ use substrate_api_client::{
 };
 
 use crate::config::Config;
+use crate::waiting::wait_for_rejection;
 
 pub type BlockNumber = u32;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -173,6 +176,17 @@ pub fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> Gov
         Compact(proposal_id)
     )
 }
+
+pub fn treasury_reject(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
+    let (c, p) = (connection.clone(), proposal_id);
+    let listener = thread::spawn(move || wait_for_rejection(&c, p));
+    send_treasury_rejection(proposal_id, connection);
+    listener.join().unwrap()
+}
+
+///////////////////////
+// Sending extrinsic //
+///////////////////////
 
 #[macro_export]
 macro_rules! send_extrinsic {
