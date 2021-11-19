@@ -13,7 +13,7 @@ use config::Config;
 
 use crate::transfer::{test_fee_calculation, test_token_transfer};
 use crate::treasury::{test_channeling_fee, test_treasury_access};
-use crate::utils::*;
+use crate::utils::accounts::{accounts, get_sudo};
 use crate::waiting::{wait_for_finalized_block, wait_for_session};
 
 mod config;

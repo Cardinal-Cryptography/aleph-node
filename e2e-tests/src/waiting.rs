@@ -4,7 +4,7 @@ use codec::Decode;
 use log::{error, info};
 use substrate_api_client::ApiResult;
 
-use crate::utils::{Connection, Header};
+use crate::utils::types::{Connection, Header};
 
 pub fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
     connection: &Connection,

@@ -7,15 +7,16 @@ use common::create_connection;
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::MultiAddress;
-use substrate_api_client::sp_runtime::AccountId32;
+use sp_runtime::traits::AccountIdConversion;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
+use substrate_api_client::sp_runtime::AccountId32;
 
 use crate::config::Config;
-use crate::utils::{
-    accounts, get_free_balance, get_sudo, get_tx_fee_info, setup_for_transfer, transfer, Connection,
-};
+use crate::utils::{setup_for_transfer, transfer, };
+use crate::utils::accounts::{accounts, get_free_balance, get_sudo};
+use crate::utils::fee::get_tx_fee_info;
+use crate::utils::types::Connection;
 use crate::waiting::wait_for_event;
 
 pub fn test_channeling_fee(config: Config) -> anyhow::Result<()> {

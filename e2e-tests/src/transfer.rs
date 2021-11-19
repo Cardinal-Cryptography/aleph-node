@@ -1,7 +1,9 @@
 use log::info;
 
 use crate::config::Config;
-use crate::utils::{get_free_balance, get_tx_fee_info, setup_for_transfer, transfer, FeeInfo};
+use crate::utils::{setup_for_transfer, transfer};
+use crate::utils::accounts::get_free_balance;
+use crate::utils::fee::{FeeInfo, get_tx_fee_info};
 
 pub fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
     let (connection, from, to) = setup_for_transfer(config);
