@@ -1,6 +1,4 @@
 use std::sync::mpsc::channel;
-use std::thread::sleep;
-use std::time::Duration;
 
 use codec::Decode;
 use log::{error, info};
@@ -8,7 +6,7 @@ use substrate_api_client::ApiResult;
 
 use crate::utils::{Connection, Header};
 
-fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
+pub fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
     connection: &Connection,
     event: (&str, &str),
     predicate: P,
@@ -65,43 +63,4 @@ pub fn wait_for_finalized_block(connection: &Connection, block_number: u32) -> a
     }
 
     Err(anyhow::anyhow!("Giving up"))
-}
-
-/// blocks the main thread waiting for an approval for proposal with id `proposal_id`
-pub fn wait_for_approval(connection: &Connection, proposal_id: u32) -> anyhow::Result<()> {
-    loop {
-        let approvals: Vec<u32> = connection
-            .get_storage_value("Treasury", "Approvals", None)
-            .unwrap()
-            .unwrap();
-        if approvals.contains(&proposal_id) {
-            info!("[+] Proposal {:?} approved successfully", proposal_id);
-            return Ok(());
-        } else {
-            info!(
-                "[+] Still waiting for approval for proposal {:?}",
-                proposal_id
-            );
-            sleep(Duration::from_millis(500))
-        }
-    }
-}
-
-#[derive(Debug, Decode, Copy, Clone)]
-struct ProposalRejectedEvent {
-    proposal_id: u32,
-    _slashed: u128,
-}
-
-/// blocks the main thread waiting for a rejection for proposal with id `proposal_id`
-pub fn wait_for_rejection(connection: &Connection, proposal_id: u32) -> anyhow::Result<()> {
-    wait_for_event(
-        connection,
-        ("Treasury", "Rejected"),
-        |e: ProposalRejectedEvent| {
-            info!("[+] Rejected proposal {:?}", e.proposal_id);
-            proposal_id.eq(&e.proposal_id)
-        },
-    )
-    .map(|_| ())
 }

@@ -1,19 +1,12 @@
-use std::thread;
-
 use codec::Compact;
 use common::create_connection;
-use frame_support::PalletId;
 use log::info;
 use sp_core::{sr25519, Pair};
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{generic, traits::BlakeTwo256, AccountId32, MultiAddress};
 use substrate_api_client::rpc::WsRpcClient;
-use substrate_api_client::{
-    compose_extrinsic, AccountId, Api, Balance, UncheckedExtrinsicV4, XtStatus,
-};
+use substrate_api_client::{AccountId, Api, Balance, UncheckedExtrinsicV4};
 
 use crate::config::Config;
-use crate::waiting::{wait_for_approval, wait_for_rejection};
 
 pub type BlockNumber = u32;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -99,89 +92,6 @@ pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> T
     )
 }
 
-pub fn get_total_issuance(connection: &Connection) -> u128 {
-    connection
-        .get_storage_value("Balances", "TotalIssuance", None)
-        .unwrap()
-        .unwrap()
-}
-
-//////////////////////
-// Treasury related //
-//////////////////////
-
-pub fn get_treasury_account(connection: &Connection) -> AccountId32 {
-    let pallet_id = connection
-        .metadata
-        .module_with_constants_by_name("Treasury")
-        .unwrap()
-        .constant_by_name("PalletId")
-        .unwrap()
-        .get_value();
-    PalletId(pallet_id.try_into().unwrap()).into_account()
-}
-
-type ProposalTransaction =
-    UncheckedExtrinsicV4<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
-pub fn propose_treasury_spend(
-    value: u128,
-    beneficiary: &AccountId32,
-    connection: &Connection,
-) -> ProposalTransaction {
-    crate::send_extrinsic!(
-        connection,
-        "Treasury",
-        "propose_spend",
-        |tx_hash| info!("[+] Treasury spend transaction hash: {}", tx_hash),
-        Compact(value),
-        GenericAddress::Id(beneficiary.clone())
-    )
-}
-
-pub fn get_proposals_counter(connection: &Connection) -> u32 {
-    connection
-        .get_storage_value("Treasury", "ProposalCount", None)
-        .unwrap()
-        .unwrap()
-}
-
-type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
-pub fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
-        connection,
-        "Treasury",
-        "approve_proposal",
-        |tx_hash| info!("[+] Treasury approval transaction hash: {}", tx_hash),
-        Compact(proposal_id)
-    )
-}
-
-pub fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
-        connection,
-        "Treasury",
-        "reject_proposal",
-        |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
-        Compact(proposal_id)
-    )
-}
-
-pub fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
-    send_treasury_approval(proposal_id, connection);
-    wait_for_approval(connection, proposal_id)
-}
-
-pub fn treasury_reject(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
-    let (c, p) = (connection.clone(), proposal_id);
-    let listener = thread::spawn(move || wait_for_rejection(&c, p));
-    send_treasury_rejection(proposal_id, connection);
-    listener.join().unwrap()
-}
-
-///////////////////////
-// Sending extrinsic //
-///////////////////////
-
 #[macro_export]
 macro_rules! send_extrinsic {
 	($connection: expr,
@@ -190,6 +100,8 @@ macro_rules! send_extrinsic {
     $hash_log: expr
 	$(, $args: expr) *) => {
 		{
+            use substrate_api_client::{compose_extrinsic, XtStatus};
+
             let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
                 $connection,
                 $module,
