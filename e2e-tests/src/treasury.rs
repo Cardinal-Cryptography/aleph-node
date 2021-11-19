@@ -18,7 +18,6 @@ use crate::utils::{
 };
 use crate::waiting::wait_for_event;
 
-// todo: check channeling tips
 pub fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
