@@ -13,7 +13,7 @@ use substrate_api_client::{
 };
 
 use crate::config::Config;
-use crate::waiting::wait_for_rejection;
+use crate::waiting::{wait_for_approval, wait_for_rejection};
 
 pub type BlockNumber = u32;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -175,6 +175,11 @@ pub fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> Gov
         |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
         Compact(proposal_id)
     )
+}
+
+pub fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
+    send_treasury_approval(proposal_id, connection);
+    wait_for_approval(connection, proposal_id)
 }
 
 pub fn treasury_reject(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {

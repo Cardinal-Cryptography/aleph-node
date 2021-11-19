@@ -12,7 +12,7 @@ use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus}
 use config::Config;
 
 use crate::utils::*;
-use crate::waiting::{wait_for_approval, wait_for_finalized_block, wait_for_session};
+use crate::waiting::{wait_for_finalized_block, wait_for_session};
 
 mod config;
 mod utils;
@@ -180,9 +180,7 @@ fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     let sudo = get_sudo(config);
     let connection = connection.set_signer(sudo);
 
-    send_treasury_approval(proposals_counter - 2, &connection);
-    wait_for_approval(&connection, proposals_counter - 2)?;
-
+    treasury_approve(proposals_counter - 2, &connection)?;
     treasury_reject(proposals_counter - 1, &connection)?;
 
     Ok(())
