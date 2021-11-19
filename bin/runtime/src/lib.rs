@@ -451,7 +451,7 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
     pub const SpendPeriod: BlockNumber = TREASURY_SPEND_PERIOD;
-    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+    pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
 }
 
 pub struct TreasuryGovernance;
