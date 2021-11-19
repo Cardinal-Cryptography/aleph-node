@@ -282,14 +282,12 @@ impl MultiplierUpdate for ConstantFeeMultiplierUpdate {
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+pub struct EverythingToTheTreasury;
+impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
-            // for fees, 100% to treasury, 0% to author
             Treasury::on_unbalanced(fees);
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, 100% to treasury, 0% to author
                 Treasury::on_unbalanced(tips);
             }
         }
@@ -297,7 +295,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+    type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
