@@ -1,6 +1,6 @@
 use sp_core::Pair;
-use substrate_api_client::Balance;
 use substrate_api_client::sp_runtime::AccountId32;
+use substrate_api_client::Balance;
 
 use crate::config::Config;
 use crate::utils::types::{Connection, KeyPair};

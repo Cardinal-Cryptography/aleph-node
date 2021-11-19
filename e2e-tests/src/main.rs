@@ -1,32 +1,24 @@
 use std::env;
-use std::iter;
 use std::time::Instant;
 
 use clap::Parser;
-use common::create_connection;
-use log::info;
-use sp_core::crypto::Ss58Codec;
-use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
 use config::Config;
 
+use crate::finalization::test_finalization;
 use crate::transfer::{test_fee_calculation, test_token_transfer};
 use crate::treasury::{test_channeling_fee, test_treasury_access};
-use crate::utils::accounts::{accounts, get_sudo};
-use crate::waiting::{wait_for_finalized_block, wait_for_session};
+use crate::validators_change::test_change_validators;
 
 mod config;
+mod finalization;
 mod transfer;
 mod treasury;
 mod utils;
-mod waiting;
+mod validators_change;
 
 fn main() -> anyhow::Result<()> {
-    if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
-        env::set_var(env_logger::DEFAULT_FILTER_ENV, "warn");
-    }
-    env_logger::init();
+    init_env();
 
     let config: Config = Config::parse();
 
@@ -40,6 +32,13 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn init_env() {
+    if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
+        env::set_var(env_logger::DEFAULT_FILTER_ENV, "warn");
+    }
+    env_logger::init();
+}
+
 fn run<T>(
     testcase: fn(Config) -> anyhow::Result<T>,
     name: &str,
@@ -51,70 +50,4 @@ fn run<T>(
         let elapsed = Instant::now().duration_since(start);
         println!("Ok! Elapsed time {}ms", elapsed.as_millis());
     })
-}
-
-fn test_finalization(config: Config) -> anyhow::Result<u32> {
-    let connection = create_connection(config.node);
-    wait_for_finalized_block(&connection, 1)
-}
-
-fn test_change_validators(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config.clone();
-
-    let accounts = accounts(seeds);
-    let sudo = get_sudo(config);
-
-    let connection = create_connection(node).set_signer(sudo);
-
-    let validators_before: Vec<AccountId> = connection
-        .get_storage_value("Session", "Validators", None)?
-        .unwrap();
-
-    info!("[+] Validators before tx: {:#?}", validators_before);
-
-    let new_validators: Vec<AccountId> = accounts
-        .into_iter()
-        .map(|pair| pair.public().into())
-        .chain(iter::once(
-            AccountId::from_ss58check("5EHkv1FCd4jeQmVrbYhrETL1EAr8NJxNbukDRT4FaYWbjW8f").unwrap(),
-        ))
-        .collect();
-
-    info!("[+] New validators {:#?}", new_validators);
-
-    // wait beyond session 1
-    let current_session_index = wait_for_session(&connection, 1)?;
-    let session_for_change = current_session_index + 2;
-    info!("[+] Current session index {:?}", current_session_index);
-
-    let call = compose_call!(
-        connection.metadata,
-        "Aleph",
-        "change_validators",
-        new_validators.clone(),
-        session_for_change
-    );
-
-    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
-
-    // send and watch extrinsic until finalized
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-        .expect("Could not send extrinsc")
-        .expect("Could not get tx hash");
-
-    info!("[+] change_validators transaction hash: {}", tx_hash);
-
-    // wait for the change to be applied
-    wait_for_session(&connection, session_for_change)?;
-
-    let validators_after: Vec<AccountId> = connection
-        .get_storage_value("Session", "Validators", None)?
-        .unwrap();
-
-    info!("[+] Validators after tx: {:#?}", validators_after);
-
-    assert!(new_validators.eq(&validators_after));
-
-    Ok(())
 }

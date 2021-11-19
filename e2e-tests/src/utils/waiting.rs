@@ -27,25 +27,6 @@ pub fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
     }
 }
 
-#[derive(Debug, Decode, Copy, Clone)]
-struct NewSessionEvent {
-    session_index: u32,
-}
-
-/// blocking wait, if ongoing session index is >= new_session_index returns the current
-pub fn wait_for_session(connection: &Connection, new_session_index: u32) -> anyhow::Result<u32> {
-    wait_for_event(
-        connection,
-        ("Session", "NewSession"),
-        |e: NewSessionEvent| {
-            let session_index = e.session_index;
-            info!("[+] NewSession event: session index {:?}", session_index);
-            session_index.ge(&new_session_index)
-        },
-    )
-    .map(|e| e.session_index)
-}
-
 /// blocks the main thread waiting for a block with a number at least `block_number`
 pub fn wait_for_finalized_block(connection: &Connection, block_number: u32) -> anyhow::Result<u32> {
     let (sender, receiver) = channel();
