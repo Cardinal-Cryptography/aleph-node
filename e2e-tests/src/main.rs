@@ -168,7 +168,7 @@ fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
 fn test_treasury_access(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
-    let proposer = get_first_account(&accounts(seeds));
+    let proposer = accounts(seeds)[0].to_owned();
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 

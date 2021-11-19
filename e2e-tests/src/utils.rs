@@ -38,23 +38,10 @@ pub fn accounts(seeds: Option<Vec<String>>) -> Vec<KeyPair> {
     seeds.into_iter().map(keypair_from_string).collect()
 }
 
-pub fn get_first_account(accounts: &[KeyPair]) -> KeyPair {
-    accounts.get(0).expect("No accounts passed").to_owned()
-}
-
-pub fn get_first_two_accounts(accounts: &[KeyPair]) -> (KeyPair, KeyPair) {
-    let first = get_first_account(accounts);
-    let second = accounts
-        .get(1)
-        .expect("Pass at least two accounts")
-        .to_owned();
-    (first, second)
-}
-
 pub fn get_sudo(config: Config) -> KeyPair {
     match config.sudo {
         Some(seed) => keypair_from_string(seed),
-        None => get_first_account(&accounts(config.seeds)),
+        None => accounts(config.seeds)[0].to_owned(),
     }
 }
 
@@ -92,7 +79,9 @@ pub fn get_free_balance(account: &AccountId32, connection: &Connection) -> Balan
 pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
     let Config { node, seeds, .. } = config;
 
-    let (from, to) = get_first_two_accounts(&accounts(seeds));
+    let accounts = accounts(seeds);
+    let (from, to) = (accounts[0].to_owned(), accounts[1].to_owned());
+
     let connection = create_connection(node).set_signer(from.clone());
     let from = AccountId::from(from.public());
     let to = AccountId::from(to.public());
