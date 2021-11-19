@@ -19,7 +19,7 @@ use crate::utils::transfer::{setup_for_transfer, transfer};
 use crate::utils::types::Connection;
 use crate::utils::waiting::wait_for_event;
 
-pub fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
+pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
 
@@ -65,7 +65,7 @@ pub fn test_channeling_fee(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn test_treasury_access(config: Config) -> anyhow::Result<()> {
+pub fn treasury_access(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
     let proposer = accounts(seeds)[0].to_owned();

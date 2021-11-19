@@ -12,7 +12,7 @@ use crate::utils::accounts::{accounts, get_sudo};
 use crate::utils::types::Connection;
 use crate::utils::waiting::wait_for_event;
 
-pub fn test_change_validators(config: Config) -> anyhow::Result<()> {
+pub fn change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
     let accounts = accounts(seeds);
