@@ -1,26 +1,22 @@
-mod config;
-
-use clap::Parser;
-use codec::Decode;
-use common::create_connection;
-use config::Config;
-use log::{debug, error, info};
-use sp_core::crypto::Ss58Codec;
-use sp_core::{sr25519, Pair};
-use sp_runtime::{generic, traits::BlakeTwo256};
-use std::convert::TryFrom;
 use std::env;
 use std::iter;
-use std::sync::mpsc::channel;
-use substrate_api_client::rpc::ws_client::{EventsDecoder, RuntimeEvent};
-use substrate_api_client::rpc::WsRpcClient;
-use substrate_api_client::utils::FromHexString;
-use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, Api, UncheckedExtrinsicV4, XtStatus,
-};
+use std::time::Instant;
 
-type BlockNumber = u32;
-type Header = generic::Header<BlockNumber, BlakeTwo256>;
+use clap::Parser;
+use common::create_connection;
+use log::info;
+use sp_core::crypto::Ss58Codec;
+use sp_core::Pair;
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
+
+use config::Config;
+
+use crate::utils::*;
+use crate::waiting::{wait_for_finalized_block, wait_for_session};
+
+mod config;
+mod utils;
+mod waiting;
 
 fn main() -> anyhow::Result<()> {
     if env::var(env_logger::DEFAULT_FILTER_ENV).is_err() {
@@ -30,67 +26,96 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
-    test_finalization(config.clone())?;
-    test_token_transfer(config.clone())?;
-    test_change_validators(config)?;
+    run(test_finalization, "finalization", config.clone())?;
+    run(test_fee_calculation, "fee calculation", config.clone())?;
+    run(test_token_transfer, "token transfer", config.clone())?;
+    run(test_change_validators, "validators change", config)?;
 
     Ok(())
 }
 
-/// wait until blocks are getting finalized
+fn run<T>(
+    testcase: fn(Config) -> anyhow::Result<T>,
+    name: &str,
+    config: Config,
+) -> anyhow::Result<()> {
+    println!("Running test: {}", name);
+    let start = Instant::now();
+    testcase(config).map(|_| {
+        let elapsed = Instant::now().duration_since(start);
+        println!("Ok! Elapsed time {}ms", elapsed.as_millis());
+    })
+}
+
 fn test_finalization(config: Config) -> anyhow::Result<u32> {
     let connection = create_connection(config.node);
-    // wait till at least one block is finalized
     wait_for_finalized_block(connection, 1)
+}
+
+fn test_fee_calculation(config: Config) -> anyhow::Result<()> {
+    let Config { node, seeds, .. } = config;
+
+    let (from, to) = get_first_two_accounts(&accounts(seeds));
+    let connection = create_connection(node).set_signer(from.clone());
+    let from = AccountId::from(from.public());
+    let to = AccountId::from(to.public());
+
+    let balance_before = get_free_balance(&from, &connection);
+    info!("[+] Account {} balance before tx: {}", to, balance_before);
+
+    let transfer_value = 1000u128;
+    let tx = transfer(&to, transfer_value, &connection);
+
+    let balance_after = get_free_balance(&from, &connection);
+    info!("[+] Account {} balance after tx: {}", to, balance_after);
+
+    let FeeInfo {
+        fee_without_weight,
+        unadjusted_weight,
+        adjusted_weight,
+    } = get_tx_fee_info(&connection, &tx);
+    let multiplier = 1; // corresponds to `ConstantFeeMultiplierUpdate`
+    assert_eq!(
+        multiplier * unadjusted_weight,
+        adjusted_weight,
+        "Weight fee was adjusted incorrectly: raw fee = {}, adjusted fee = {}",
+        unadjusted_weight,
+        adjusted_weight
+    );
+
+    let expected_fee = fee_without_weight + adjusted_weight;
+    assert_eq!(
+        balance_before - transfer_value - expected_fee,
+        balance_after,
+        "Incorrect balance: before = {}, after = {}, tx = {}, expected fee = {}",
+        balance_before,
+        balance_after,
+        transfer_value,
+        expected_fee
+    );
+
+    Ok(())
 }
 
 fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config;
 
-    let accounts: Vec<sr25519::Pair> = accounts(seeds);
-    let from: sr25519::Pair = accounts.get(0).expect("No accounts passed").to_owned();
-    let to = AccountId::from(
-        accounts
-            .get(1)
-            .expect("Pass at least two accounts")
-            .public(),
-    );
-
+    let (from, to) = get_first_two_accounts(&accounts(seeds));
     let connection = create_connection(node).set_signer(from);
+    let to = AccountId::from(to.public());
 
-    let balance_before = connection
-        .get_account_data(&to)?
-        .expect("Could not get account data")
-        .free;
-
+    let balance_before = get_free_balance(&to, &connection);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
+    transfer(&to, transfer_value, &connection);
 
-    let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-        connection,
-        "Balances",
-        "transfer",
-        GenericAddress::Id(to.clone()),
-        Compact(transfer_value)
-    );
-
-    // send and watch extrinsic until InBlock
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)?
-        .expect("Could not get tx hash");
-
-    info!("[+] Transaction hash: {}", tx_hash);
-
-    let balance_after = connection
-        .get_account_data(&to)?
-        .expect("Could not get account data")
-        .free;
-
+    let balance_after = get_free_balance(&to, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
-    assert!(
-        balance_before + transfer_value == balance_after,
+    assert_eq!(
+        balance_before + transfer_value,
+        balance_after,
         "before = {}, after = {}, tx = {}",
         balance_before,
         balance_after,
@@ -98,11 +123,6 @@ fn test_token_transfer(config: Config) -> anyhow::Result<()> {
     );
 
     Ok(())
-}
-
-#[derive(Debug, Decode)]
-struct NewSessionEvent {
-    session_index: u32,
 }
 
 fn test_change_validators(config: Config) -> anyhow::Result<()> {
@@ -168,83 +188,4 @@ fn test_change_validators(config: Config) -> anyhow::Result<()> {
     assert!(new_validators.eq(&validators_after));
 
     Ok(())
-}
-
-/// blocking wait, if ongoing session index is >= new_session_index returns the current
-fn wait_for_session(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    new_session_index: u32,
-) -> anyhow::Result<u32> {
-    let module = "Session";
-    let variant = "NewSession";
-    info!("[+] Creating event subscription {}/{}", module, variant);
-    let (events_in, events_out) = channel();
-    connection.subscribe_events(events_in)?;
-
-    let event_decoder = EventsDecoder::try_from(connection.metadata)?;
-
-    loop {
-        let event_str = events_out.recv().unwrap();
-        let events = event_decoder.decode_events(&mut Vec::from_hex(event_str)?.as_slice());
-
-        match events {
-            Ok(raw_events) => {
-                for (phase, event) in raw_events.into_iter() {
-                    info!("[+] Received event: {:?}, {:?}", phase, event);
-                    match event {
-                        RuntimeEvent::Raw(raw)
-                            if raw.module == module && raw.variant == variant =>
-                        {
-                            let NewSessionEvent { session_index } =
-                                NewSessionEvent::decode(&mut &raw.data[..])?;
-                            info!("[+] Decoded NewSession event {:?}", &session_index);
-                            if session_index.ge(&new_session_index) {
-                                return Ok(session_index);
-                            }
-                        }
-                        _ => debug!("Ignoring some other event: {:?}", event),
-                    }
-                }
-            }
-            Err(why) => error!("Error {:?}", why),
-        }
-    }
-}
-
-/// blocks the main thread waiting for a block with a number at least `block_number`
-fn wait_for_finalized_block(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    block_number: u32,
-) -> anyhow::Result<u32> {
-    let (sender, receiver) = channel();
-    connection.subscribe_finalized_heads(sender)?;
-
-    while let Ok(header) = receiver
-        .recv()
-        .map(|h| serde_json::from_str::<Header>(&h).unwrap())
-    {
-        info!("[+] Received header for a block number {:?}", header.number);
-
-        if header.number.ge(&block_number) {
-            return Ok(block_number);
-        }
-    }
-
-    Err(anyhow::anyhow!("Giving up"))
-}
-
-fn keypair_from_string(seed: String) -> sr25519::Pair {
-    sr25519::Pair::from_string(&seed, None).expect("Can't create pair from seed value")
-}
-
-fn accounts(seeds: Option<Vec<String>>) -> Vec<sr25519::Pair> {
-    let seeds = seeds.unwrap_or_else(|| {
-        vec![
-            "//Damian".into(),
-            "//Tomasz".into(),
-            "//Zbyszko".into(),
-            "//Hansu".into(),
-        ]
-    });
-    seeds.into_iter().map(keypair_from_string).collect()
 }
