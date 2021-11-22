@@ -7,23 +7,24 @@
 
 This repository contains the Rust implementation of [Aleph Zero][aleph-homepage] blockchain node based on the [Substrate][substrate-homepage] framework.
 
-Aleph Zero is an open-source layer 1 blockchain platform focused on privacy, scalability and energy efficiency. It is based on a unique, peer-reviewed consensus algorithm - AlephBFT (as described in our [paper][aleph-bft-paper] and implemented [here][aleph-bft-link]).
+Aleph Zero is an open-source layer 1 blockchain focused on privacy, scalability and energy efficiency. It is based on a unique, peer-reviewed consensus algorithm, AlephBFT (as described in our [paper][aleph-bft-paper] and implemented [here][aleph-bft-link]).
 
 Aleph node is based on a Substrate node where the default finality gadget (GRANDPA) has been replaced with AlephBFT. Block authoring is realized with Substrate's Aura. The chain is run in periodic sesssions (900 blocks each) utilizing the Session pallet. The authorities in each session serve for both Aura and AlephBFT authorities, and on top of that are responsible for running the Aggregator protocol producing multisignatures of finalized blocks.
 
 
 ### Installation
 
-1. Set up the Rust development environment following the instructions [here][rust-installation]
-2. Install the Substrate framework as described [here][substrate-installation]
-3. Clone this repo to your machine
-4. Run `cargo build --release -p aleph-node`
+1. Install the Substrate framework as described [here][substrate-installation], using the `nightly-2021-07-21` version of the rust toolchain (see the instruction at the bottom of the page)
+2. Clone this repository to your machine
+3. Run `cargo build --release -p aleph-node`
 
 ### Running
 
 To experiment with Aleph Node you can locally run a small blockchain network using the `run_nodes.sh` script from the root of this repository.  Please consult the script or the output of `run_nodes.sh -help` for additional parameters (like the number of nodes etc.). The script starts multiple instances of Aleph Node on your local machine, so please adjust the number of nodes carefully with performance of your system in mind. By default 4 nodes are started.
 
-You can interact with nodes started that way using RPC (using port 9933 for node0, 9934 for node1 and so on). A more convenient alternative is to attach to it with a polkadot.js wallet app. We recommend using our fork of that app which can be found [here][aleph-polkadot-link].
+Alternatively to `run_nodes.sh` 
+
+You can interact with your locally running nodes using RPC (use port 9933 for node0, 9934 for node1 and so on). A more convenient alternative is to attach to it with a polkadot.js wallet app. We recommend using our fork of that app which can be found [here][aleph-polkadot-link].
 
 ### Contributing
 
