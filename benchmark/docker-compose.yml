@@ -13,7 +13,7 @@ services:
   grafana:
     image: grafana/grafana:8.2.1
     ports:
-      - 3000
+      - ${GRAFANA_PORT:-3000}:3000
     volumes:
       - ./provisioning:/etc/grafana/provisioning
       - ./grafana.ini:/etc/grafana/grafana.ini
