@@ -34,7 +34,7 @@ The code in this repository is licensed under the terms of the the Apache Licens
 
 
 [aleph-homepage]: https://alephzero.org
-[aleph-logo]: https://alephzero.org/wp-content/uploads/A0_logotype_dark.png
+[aleph-logo]: https://alephzero.org/wp-content/uploads/A0_logotype_dark-1.jpg
 [aleph-bft-link]: https://github.com/Cardinal-Cryptography/AlephBFT
 [aleph-bft-paper]: https://arxiv.org/abs/1908.05156
 [aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
