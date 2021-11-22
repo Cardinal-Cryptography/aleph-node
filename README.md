@@ -14,9 +14,10 @@ Aleph node is based on a Substrate node where the default finality gadget (GRAND
 
 ### Installation
 
-1. Install the Substrate framework as described [here][substrate-installation]
-2. Clone this repo to your machine
-3. Run `cargo build --release -p aleph-node`
+1. Set up the Rust development environment following the instructions [here][rust-installation]
+2. Install the Substrate framework as described [here][substrate-installation]
+3. Clone this repo to your machine
+4. Run `cargo build --release -p aleph-node`
 
 ### Running
 
@@ -37,9 +38,10 @@ The code in this repository is licensed under the terms of the the Apache Licens
 [aleph-logo]: https://alephzero.org/wp-content/uploads/A0_logotype_dark.png
 [aleph-bft-link]: https://github.com/Cardinal-Cryptography/AlephBFT
 [aleph-bft-paper]: https://arxiv.org/abs/1908.05156
+[aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
 [substrate-homepage]: https://substrate.io
 [substrate-installation]: https://docs.substrate.io/v3/getting-started/installation
-[aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
+[rust-installation]: https://www.rust-lang.org/tools/install
 
 [unit-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml
 [unit-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml/badge.svg
