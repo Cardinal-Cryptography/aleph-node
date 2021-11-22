@@ -13,7 +13,7 @@ use substrate_api_client::sp_runtime::AccountId32;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
 
 use crate::config::Config;
-use crate::utils::accounts::{accounts, get_free_balance, get_sudo};
+use crate::utils::accounts::{accounts_from_seeds, get_free_balance, get_sudo};
 use crate::utils::fee::get_tx_fee_info;
 use crate::utils::transfer::{setup_for_transfer, transfer};
 use crate::utils::types::Connection;
@@ -68,7 +68,7 @@ pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
 pub fn treasury_access(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
-    let proposer = accounts(seeds)[0].to_owned();
+    let proposer = accounts_from_seeds(seeds)[0].to_owned();
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 

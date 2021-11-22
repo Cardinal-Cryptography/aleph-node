@@ -5,13 +5,13 @@ use substrate_api_client::sp_runtime::AccountId32;
 use substrate_api_client::AccountId;
 
 use crate::config::Config;
-use crate::utils::accounts::accounts;
+use crate::utils::accounts::accounts_from_seeds;
 use crate::utils::types::{Connection, TransferTransaction};
 
 pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
     let Config { node, seeds, .. } = config;
 
-    let accounts = accounts(seeds);
+    let accounts = accounts_from_seeds(seeds);
     let (from, to) = (accounts[0].to_owned(), accounts[1].to_owned());
 
     let connection = create_connection(node).set_signer(from.clone());

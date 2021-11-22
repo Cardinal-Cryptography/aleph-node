@@ -8,14 +8,14 @@ use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
 use crate::config::Config;
-use crate::utils::accounts::{accounts, get_sudo};
+use crate::utils::accounts::{accounts_from_seeds, get_sudo};
 use crate::utils::types::Connection;
 use crate::utils::waiting::wait_for_event;
 
 pub fn change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();
 
-    let accounts = accounts(seeds);
+    let accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
     let connection = create_connection(node).set_signer(sudo);
