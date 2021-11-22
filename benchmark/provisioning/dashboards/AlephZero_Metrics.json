@@ -1455,28 +1455,6 @@
         "total": false,
         "values": false
       },
-      "libraryPanel": {
-        "meta": {
-          "connectedDashboards": 0,
-          "created": "2021-11-18T12:12:57Z",
-          "createdBy": {
-            "avatarUrl": "",
-            "id": 0,
-            "name": ""
-          },
-          "folderName": "General",
-          "folderUid": "",
-          "updated": "2021-11-18T13:47:21Z",
-          "updatedBy": {
-            "avatarUrl": "",
-            "id": 0,
-            "name": ""
-          }
-        },
-        "name": "construction time x txs",
-        "uid": "B5qYSr57k",
-        "version": 4
-      },
       "lines": true,
       "linewidth": 1,
       "nullPointMode": "null",
