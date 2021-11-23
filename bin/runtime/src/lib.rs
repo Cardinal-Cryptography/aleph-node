@@ -448,7 +448,7 @@ pub const TREASURY_MAX_APPROVALS: u32 = 20;
 parameter_types! {
     pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
     pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
-	pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
+    pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
     pub const SpendPeriod: BlockNumber = TREASURY_SPEND_PERIOD;
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
@@ -495,7 +495,7 @@ construct_runtime!(
         Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
     }

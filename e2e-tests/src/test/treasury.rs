@@ -72,8 +72,8 @@ pub fn treasury_access(config: Config) -> anyhow::Result<()> {
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 
-    propose_treasury_spend(0u128, &beneficiary, &connection);
-    propose_treasury_spend(0u128, &beneficiary, &connection);
+    propose_treasury_spend(10u128, &beneficiary, &connection);
+    propose_treasury_spend(100u128, &beneficiary, &connection);
     let proposals_counter = get_proposals_counter(&connection);
     assert!(proposals_counter >= 2, "Proposal was not created");
 
