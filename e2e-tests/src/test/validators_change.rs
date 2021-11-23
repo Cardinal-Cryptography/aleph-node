@@ -7,10 +7,10 @@ use sp_core::crypto::Ss58Codec;
 use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
+use crate::accounts::{accounts_from_seeds, get_sudo};
 use crate::config::Config;
-use crate::utils::accounts::{accounts_from_seeds, get_sudo};
-use crate::utils::types::Connection;
-use crate::utils::waiting::wait_for_event;
+use crate::waiting::wait_for_event;
+use crate::Connection;
 
 pub fn change_validators(config: Config) -> anyhow::Result<()> {
     let Config { node, seeds, .. } = config.clone();

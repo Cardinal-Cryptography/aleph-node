@@ -1,3 +1,23 @@
+use codec::Compact;
+use sp_core::sr25519;
+use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress};
+use substrate_api_client::rpc::WsRpcClient;
+use substrate_api_client::{AccountId, Api, UncheckedExtrinsicV4};
+
+mod accounts;
+pub mod config;
+mod fee;
+pub mod test;
+mod transfer;
+mod waiting;
+
+type BlockNumber = u32;
+type Header = generic::Header<BlockNumber, BlakeTwo256>;
+type KeyPair = sr25519::Pair;
+type Connection = Api<KeyPair, WsRpcClient>;
+type TransferTransaction =
+    UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>)>;
+
 #[macro_export]
 macro_rules! send_extrinsic {
 	($connection: expr,

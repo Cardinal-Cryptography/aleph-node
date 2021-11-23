@@ -3,11 +3,8 @@ use std::time::Instant;
 
 use clap::Parser;
 
-use config::Config;
-
-mod config;
-mod test;
-mod utils;
+use aleph_e2e_client::test;
+use aleph_e2e_client::config::Config;
 
 fn main() -> anyhow::Result<()> {
     init_env();

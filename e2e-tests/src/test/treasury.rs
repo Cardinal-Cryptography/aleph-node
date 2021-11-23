@@ -12,12 +12,12 @@ use sp_runtime::MultiAddress;
 use substrate_api_client::sp_runtime::AccountId32;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
 
+use crate::accounts::{accounts_from_seeds, get_free_balance, get_sudo};
 use crate::config::Config;
-use crate::utils::accounts::{accounts_from_seeds, get_free_balance, get_sudo};
-use crate::utils::fee::get_tx_fee_info;
-use crate::utils::transfer::{setup_for_transfer, transfer};
-use crate::utils::types::Connection;
-use crate::utils::waiting::wait_for_event;
+use crate::fee::get_tx_fee_info;
+use crate::transfer::{setup_for_transfer, transfer};
+use crate::waiting::wait_for_event;
+use crate::Connection;
 
 pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);

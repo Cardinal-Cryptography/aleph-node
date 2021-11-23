@@ -1,5 +1,6 @@
-use crate::utils::types::{Connection, TransferTransaction};
 use substrate_api_client::Balance;
+
+use crate::{Connection, TransferTransaction};
 
 #[derive(Debug)]
 pub struct FeeInfo {

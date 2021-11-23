@@ -3,7 +3,7 @@ use substrate_api_client::sp_runtime::AccountId32;
 use substrate_api_client::Balance;
 
 use crate::config::Config;
-use crate::utils::types::{Connection, KeyPair};
+use crate::{Connection, KeyPair};
 
 pub fn keypair_from_string(seed: String) -> KeyPair {
     KeyPair::from_string(&seed, None).expect("Can't create pair from seed value")
