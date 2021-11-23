@@ -4521,6 +4521,7 @@ dependencies = [
  "primitives",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

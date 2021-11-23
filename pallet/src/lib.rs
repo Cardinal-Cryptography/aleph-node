@@ -85,11 +85,9 @@ pub mod pallet {
     pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
-    // impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I>
-    {
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::migrate::<T, Self>()
+            migrations::v0_to_v1::migrate::<T, Self>()
         }
     }
 
@@ -113,6 +111,9 @@ pub mod pallet {
             Ok(())
         }
     }
+
+    // #[pallet::storage]
+    // pub(super) type StorageVersion<T: Config> = StorageValue<_, u16, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
