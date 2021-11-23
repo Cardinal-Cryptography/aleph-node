@@ -15,15 +15,7 @@
 use sc_cli::SubstrateCli;
 use sc_service::PartialComponents;
 
-use crate::cli::{Cli, Subcommand};
-
-mod chain_spec;
-#[macro_use]
-mod service;
-mod aleph_cli;
-mod cli;
-mod commands;
-mod rpc;
+use aleph_node::{new_full, new_partial, Cli, Subcommand};
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
@@ -39,7 +31,7 @@ fn main() -> sc_cli::Result<()> {
                     task_manager,
                     import_queue,
                     ..
-                } = service::new_partial(&config)?;
+                } = new_partial(&config)?;
                 Ok((cmd.run(client, import_queue), task_manager))
             })
         }
@@ -50,7 +42,7 @@ fn main() -> sc_cli::Result<()> {
                     client,
                     task_manager,
                     ..
-                } = service::new_partial(&config)?;
+                } = new_partial(&config)?;
                 Ok((cmd.run(client, config.database), task_manager))
             })
         }
@@ -61,7 +53,7 @@ fn main() -> sc_cli::Result<()> {
                     client,
                     task_manager,
                     ..
-                } = service::new_partial(&config)?;
+                } = new_partial(&config)?;
                 Ok((cmd.run(client, config.chain_spec), task_manager))
             })
         }
@@ -73,7 +65,7 @@ fn main() -> sc_cli::Result<()> {
                     task_manager,
                     import_queue,
                     ..
-                } = service::new_partial(&config)?;
+                } = new_partial(&config)?;
                 Ok((cmd.run(client, import_queue), task_manager))
             })
         }
@@ -89,7 +81,7 @@ fn main() -> sc_cli::Result<()> {
                     task_manager,
                     backend,
                     ..
-                } = service::new_partial(&config)?;
+                } = new_partial(&config)?;
                 Ok((cmd.run(client, backend), task_manager))
             })
         }
@@ -97,7 +89,7 @@ fn main() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
             let aleph_cli_config = cli.aleph;
             runner.run_node_until_exit(|config| async move {
-                service::new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
             })
         }
     }
