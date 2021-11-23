@@ -23,7 +23,6 @@ sp-keystore = { git = "https://github.com/paritytech/substrate.git", branch = "p
 sc-network = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 aleph-bft = "0.7"
-#aleph-bft = {path = "../../rush"}
 serde = "1.0"
 sc-service = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
