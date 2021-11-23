@@ -3,8 +3,8 @@ use std::time::Instant;
 
 use clap::Parser;
 
-use aleph_e2e_client::test;
 use aleph_e2e_client::config::Config;
+use aleph_e2e_client::test;
 
 fn main() -> anyhow::Result<()> {
     init_env();
@@ -12,11 +12,11 @@ fn main() -> anyhow::Result<()> {
     let config: Config = Config::parse();
 
     run(test::finalization, "finalization", config.clone())?;
+    run(test::change_validators, "validators change", config.clone())?;
     run(test::fee_calculation, "fee calculation", config.clone())?;
     run(test::token_transfer, "token transfer", config.clone())?;
     run(test::channeling_fee, "channeling fee", config.clone())?;
-    run(test::treasury_access, "treasury access", config.clone())?;
-    run(test::change_validators, "validators change", config)?;
+    run(test::treasury_access, "treasury access", config)?;
 
     Ok(())
 }
