@@ -25,10 +25,11 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use frame_support::PalletId;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::Perquintill;
+use frame_support::traits::SortedMembers;
 use frame_support::weights::constants::WEIGHT_PER_MILLIS;
+use frame_support::PalletId;
 pub use frame_support::{
     construct_runtime, parameter_types,
     sp_runtime::curve::PiecewiseLinear,
@@ -42,7 +43,6 @@ pub use frame_support::{
     },
     StorageValue,
 };
-use frame_support::traits::SortedMembers;
 use frame_system::EnsureSignedBy;
 use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 
