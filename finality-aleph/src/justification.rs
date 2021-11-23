@@ -1,5 +1,5 @@
 use crate::{
-    crypto::{AuthorityVerifier, Signature},
+    crypto::{AuthorityVerifier, Signature, SignatureV1},
     finalization::finalize_block,
     last_block_of_session,
     metrics::Checkpoint,
@@ -243,5 +243,25 @@ where
         Some(AuthorityVerifier::new(
             self.session_authorities.lock().get(&session_id)?.to_vec(),
         ))
+    }
+}
+
+/// Old format of justifications, needed for backwards compatibility.
+#[derive(Clone, Encode, Decode, Debug)]
+pub(crate) struct AlephJustificationV1 {
+    pub(crate) signature: SignatureSet<SignatureV1>,
+}
+
+impl From<AlephJustificationV1> for AlephJustification {
+    fn from(just_v1: AlephJustificationV1) -> AlephJustification {
+        let mut just_drop_id: SignatureSet<Signature> =
+            SignatureSet::with_size(just_v1.signature.size());
+        just_v1
+            .signature
+            .into_iter()
+            .for_each(|(id, sgn)| just_drop_id.insert(id, sgn.into()));
+        AlephJustification {
+            signature: just_drop_id,
+        }
     }
 }

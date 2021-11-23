@@ -1,11 +1,11 @@
 use crate::{
-    justification::{AlephJustification, JustificationNotification},
+    justification::{AlephJustification, AlephJustificationV1, JustificationNotification},
     metrics::{Checkpoint, Metrics},
 };
 use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::Decode;
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
-use log::debug;
+use log::{debug, warn};
 use sc_client_api::backend::Backend;
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
@@ -64,7 +64,7 @@ where
         number: NumberFor<Block>,
         justification: Justification,
     ) -> Result<(), SendJustificationError<Block>> {
-        debug!(target: "afa", "Importing justification for block #{:?}", number);
+        debug!(target: "afa", "Importing justification for block {:?}", number);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
                 ConsensusError::ClientImport("Aleph can import only Aleph justifications.".into()),
@@ -72,8 +72,20 @@ where
         }
         let justification_raw = justification.1;
 
-        let aleph_justification = AlephJustification::decode(&mut &*justification_raw)
-            .map_err(|_| SendJustificationError::Decode)?;
+        let aleph_justification: AlephJustification = {
+            if let Ok(justification) =
+                AlephJustification::decode(&mut &*(justification_raw.clone()))
+            {
+                justification
+            } else if let Ok(justification) = AlephJustificationV1::decode(&mut &*justification_raw)
+            {
+                debug!(target: "afa", "Justification for block {:?} decoded correctly as V1", number);
+                justification.into()
+            } else {
+                warn!(target: "afa", "Justification for block {:?} decoded incorrectly", number);
+                return Err(SendJustificationError::Decode);
+            }
+        };
 
         self.justification_tx
             .unbounded_send(JustificationNotification {
