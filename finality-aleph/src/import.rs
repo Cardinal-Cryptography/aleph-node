@@ -73,9 +73,7 @@ where
         let justification_raw = justification.1;
 
         let aleph_justification: AlephJustification = {
-            if let Ok(justification) =
-                AlephJustification::decode(&mut &*(justification_raw.clone()))
-            {
+            if let Ok(justification) = AlephJustification::decode(&mut &*(justification_raw)) {
                 justification
             } else if let Ok(justification) = AlephJustificationV1::decode(&mut &*justification_raw)
             {
