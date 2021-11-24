@@ -35,8 +35,10 @@ use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block, Header};
-use sp_runtime::SaturatedConversion;
+use sp_runtime::{
+    traits::{Block, Header},
+    SaturatedConversion,
+};
 use std::default::Default;
 use std::{
     cmp::min,
