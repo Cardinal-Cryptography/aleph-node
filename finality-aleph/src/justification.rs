@@ -1,5 +1,5 @@
 use crate::{
-    crypto::{v1::SignatureV1, AuthorityVerifier, Signature},
+    crypto::{AuthorityVerifier, Signature, SignatureV1},
     finalization::finalize_block,
     last_block_of_session,
     metrics::Checkpoint,
@@ -246,33 +246,30 @@ where
     }
 }
 
-pub mod v1 {
-    use super::*;
-    /// Old format of justifications, needed for backwards compatibility.
-    #[derive(Clone, Encode, Decode, Debug, PartialEq)]
-    pub(crate) struct AlephJustificationV1 {
-        pub(crate) signature: SignatureSet<SignatureV1>,
-    }
+/// Old format of justifications, needed for backwards compatibility.
+#[derive(Clone, Encode, Decode, Debug, PartialEq)]
+pub(crate) struct AlephJustificationV1 {
+    pub(crate) signature: SignatureSet<SignatureV1>,
+}
 
-    impl From<AlephJustificationV1> for AlephJustification {
-        fn from(just_v1: AlephJustificationV1) -> AlephJustification {
-            let size = just_v1.signature.size();
-            let just_drop_id: SignatureSet<Signature> = just_v1
-                .signature
-                .into_iter()
-                .fold(SignatureSet::with_size(size), |sig_set, (id, sgn)| {
-                    sig_set.add_signature(&sgn.into(), id)
-                });
-            AlephJustification {
-                signature: just_drop_id,
-            }
+impl From<AlephJustificationV1> for AlephJustification {
+    fn from(just_v1: AlephJustificationV1) -> AlephJustification {
+        let size = just_v1.signature.size();
+        let just_drop_id: SignatureSet<Signature> = just_v1
+            .signature
+            .into_iter()
+            .fold(SignatureSet::with_size(size), |sig_set, (id, sgn)| {
+                sig_set.add_signature(&sgn.into(), id)
+            });
+        AlephJustification {
+            signature: just_drop_id,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum JustificationDecoding {
-    V1(v1::AlephJustificationV1),
+    V1(AlephJustificationV1),
     V2(AlephJustification),
     Err,
 }
@@ -280,7 +277,7 @@ pub(crate) enum JustificationDecoding {
 pub(crate) fn backwards_compatible_decode(justification_raw: Vec<u8>) -> JustificationDecoding {
     if let Ok(justification) = AlephJustification::decode_all(&justification_raw) {
         JustificationDecoding::V2(justification)
-    } else if let Ok(justification) = v1::AlephJustificationV1::decode_all(&justification_raw) {
+    } else if let Ok(justification) = AlephJustificationV1::decode_all(&justification_raw) {
         JustificationDecoding::V1(justification)
     } else {
         JustificationDecoding::Err

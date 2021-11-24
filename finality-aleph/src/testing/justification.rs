@@ -1,7 +1,6 @@
-use crate::crypto::{v1::SignatureV1, Signature};
+use crate::crypto::{Signature, SignatureV1};
 use crate::justification::{
-    backwards_compatible_decode, v1::AlephJustificationV1, AlephJustification,
-    JustificationDecoding,
+    backwards_compatible_decode, AlephJustification, AlephJustificationV1, JustificationDecoding,
 };
 use aleph_bft::{NodeCount, PartialMultisignature, SignatureSet};
 use aleph_primitives::AuthoritySignature;
