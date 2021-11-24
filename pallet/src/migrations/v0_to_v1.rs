@@ -1,18 +1,20 @@
-use crate::{Config, ValidatorsChange, ValidatorsChangeStorageItem};
+use crate::Config;
 use frame_support::log;
+use frame_support::storage;
 use frame_support::{
+    storage::migration,
     traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
 use sp_std::prelude::*;
 
-frame_support::generate_storage_alias!(
-    Aleph, SessionForValidatorsChange => Value<u32>
-);
+// frame_support::generate_storage_alias!(
+//     Aleph, SessionForValidatorsChange => Value<Option<u32>>
+// );
 
-frame_support::generate_storage_alias!(
-    Aleph, Validators<T: Config> => Value<Option<Vec<T::AccountId>>>
-);
+// frame_support::generate_storage_alias!(
+//     Aleph, Validators<T: Config> => Value<Option<Vec<T::AccountId>>>
+// );
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -21,26 +23,15 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     if on_chain_storage_version == StorageVersion::default() && new_storage_version == 1 {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
 
-        // read the current storage values
-        let session_for_validators_change = match SessionForValidatorsChange::get() {
-            None => u32::default(),
-            Some(session) => session,
-        };
-
-        let validators = match Validators::<T>::get() {
-            None => Vec::new(),
-            Some(validators) => validators,
-        };
-
-        // store under new key
-        ValidatorsChange::<T>::put(ValidatorsChangeStorageItem::<T> {
-            validators,
-            session_for_validators_change,
+        let _ = crate::SessionForValidatorsChange::<T>::translate(|old| match old {
+            Some(current) => current,
+            None => None,
         });
 
-        // cleanup
-        sp_io::storage::clear(&storage_key("Aleph", "Validators"));
-        sp_io::storage::clear(&storage_key("Aleph", "SessionForValidatorsChange"));
+        let _ = crate::Validators::<T>::translate(|old| match old {
+            Some(current) => current,
+            None => None,
+        });
 
         // store new version
         StorageVersion::new(1).put::<P>();
@@ -58,13 +49,13 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     }
 }
 
-fn storage_key(module: &str, version: &str) -> [u8; 32] {
-    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
-    let postfix = sp_io::hashing::twox_128(version.as_bytes());
+// fn storage_key(module: &str, version: &str) -> [u8; 32] {
+//     let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
+//     let postfix = sp_io::hashing::twox_128(version.as_bytes());
 
-    let mut final_key = [0u8; 32];
-    final_key[..16].copy_from_slice(&pallet_name);
-    final_key[16..].copy_from_slice(&postfix);
+//     let mut final_key = [0u8; 32];
+//     final_key[..16].copy_from_slice(&pallet_name);
+//     final_key[16..].copy_from_slice(&postfix);
 
-    final_key
-}
+//     final_key
+// }

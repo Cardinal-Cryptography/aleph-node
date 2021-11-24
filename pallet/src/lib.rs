@@ -41,25 +41,13 @@ pub mod pallet {
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
     };
 
-    #[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-    pub struct ValidatorsChangeStorageItem<T: Config> {
-        pub session_for_validators_change: u32,
-        pub validators: Vec<T::AccountId>,
-    }
-
-    impl<T: Config> ValidatorsChangeStorageItem<T> {
-        fn new(validators: Vec<T::AccountId>, session_for_validators_change: u32) -> Self {
-            Self {
-                validators,
-                session_for_validators_change,
-            }
-        }
-    }
+    #[pallet::storage]
+    #[pallet::getter(fn validators)]
+    pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn validators_change)]
-    pub type ValidatorsChange<T: Config> =
-        StorageValue<_, ValidatorsChangeStorageItem<T>, OptionQuery>;
+    #[pallet::getter(fn session_for_validators_change)]
+    pub type SessionForValidatorsChange<T: Config> = StorageValue<_, u32, OptionQuery>;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_session::Config {
@@ -100,10 +88,8 @@ pub mod pallet {
             session_for_validators_change: u32,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            ValidatorsChange::<T>::put(ValidatorsChangeStorageItem::<T>::new(
-                validators.clone(),
-                session_for_validators_change,
-            ));
+            Validators::<T>::put(validators.clone());
+            SessionForValidatorsChange::<T>::put(session_for_validators_change);
             Self::deposit_event(Event::ChangeValidators(
                 validators,
                 session_for_validators_change,
@@ -111,9 +97,6 @@ pub mod pallet {
             Ok(())
         }
     }
-
-    // #[pallet::storage]
-    // pub(super) type StorageVersion<T: Config> = StorageValue<_, u16, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
@@ -192,16 +175,17 @@ pub mod pallet {
 
     impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
         fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
-            match Pallet::<T>::validators_change() {
-                None => None,
-                Some(ValidatorsChangeStorageItem {
-                    session_for_validators_change,
-                    ..
-                }) => match session_for_validators_change <= session {
-                    true => Some(ValidatorsChange::<T>::take().unwrap().validators),
-                    false => None,
-                },
+            if let Some(session_for_validators_change) =
+                Pallet::<T>::session_for_validators_change()
+            {
+                if session_for_validators_change <= session {
+                    let validators = Validators::<T>::take()
+                        .expect("When SessionForValidatorsChange is Some so should be Validators");
+                    let _ = SessionForValidatorsChange::<T>::take().unwrap();
+                    return Some(validators);
+                }
             }
+            None
         }
 
         fn start_session(_: u32) {}
