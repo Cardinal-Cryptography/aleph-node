@@ -1,9 +1,10 @@
 use crate::{
-    justification::{AlephJustification, AlephJustificationV1, JustificationNotification},
+    justification::{
+        backwards_compatible_decode, JustificationDecoding, JustificationNotification,
+    },
     metrics::{Checkpoint, Metrics},
 };
 use aleph_primitives::ALEPH_ENGINE_ID;
-use codec::Decode;
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
 use sc_client_api::backend::Backend;
@@ -30,6 +31,7 @@ where
     _phantom: PhantomData<Be>,
 }
 
+#[derive(Debug)]
 enum SendJustificationError<Block>
 where
     Block: BlockT,
@@ -71,16 +73,13 @@ where
             )));
         }
         let justification_raw = justification.1;
-
-        let aleph_justification: AlephJustification = {
-            if let Ok(justification) = AlephJustification::decode(&mut &*(justification_raw)) {
-                justification
-            } else if let Ok(justification) = AlephJustificationV1::decode(&mut &*justification_raw)
-            {
+        let aleph_justification = match backwards_compatible_decode(justification_raw) {
+            JustificationDecoding::V1(just) => {
                 debug!(target: "afa", "Justification for block {:?} decoded correctly as V1", number);
-                justification.into()
-            } else {
-                warn!(target: "afa", "Justification for block {:?} decoded incorrectly", number);
+                just.into()
+            }
+            JustificationDecoding::V2(just) => just,
+            JustificationDecoding::Err => {
                 return Err(SendJustificationError::Decode);
             }
         };
@@ -156,13 +155,12 @@ where
         if let Some(justification) =
             justifications.and_then(|just| just.into_justification(ALEPH_ENGINE_ID))
         {
-            debug!(target: "afa", "Got justification along imported block #{:?}", number);
+            debug!(target: "afa", "Got justification along imported block {:?}", number);
 
-            if self
-                .send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
-                .is_err()
+            if let Err(e) =
+                self.send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
             {
-                debug!(target: "afa", "Some issue with justification");
+                warn!(target: "afa", "Error while receiving justification for block {:?}: {:?}", post_hash, e);
             }
         }
 
@@ -202,6 +200,7 @@ where
                 )),
                 SendJustificationError::Consensus(e) => *e,
                 SendJustificationError::Decode => {
+                    warn!(target: "afa", "Justification for block {:?} decoded incorrectly", number);
                     ConsensusError::ClientImport(String::from("Could not decode justification"))
                 }
             })

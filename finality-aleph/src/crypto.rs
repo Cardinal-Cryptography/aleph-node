@@ -18,6 +18,12 @@ pub enum Error {
 #[derive(PartialEq, Eq, Clone, Debug, Decode, Encode)]
 pub struct Signature(AuthoritySignature);
 
+impl From<AuthoritySignature> for Signature {
+    fn from(authority_signature: AuthoritySignature) -> Signature {
+        Signature(authority_signature)
+    }
+}
+
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.
 #[derive(Clone)]
@@ -175,7 +181,7 @@ impl MultiKeychain for KeyBox {
 /// Old format of signatures, needed for backwards compatibility.
 #[derive(PartialEq, Eq, Clone, Debug, Decode, Encode)]
 pub(crate) struct SignatureV1 {
-    _id: NodeIndex,
+    pub(crate) _id: NodeIndex,
     pub(crate) sgn: AuthoritySignature,
 }
 
