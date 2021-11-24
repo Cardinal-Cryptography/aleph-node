@@ -1,4 +1,5 @@
 use crate::{metrics::Checkpoint, network, Metrics};
+use async_trait::async_trait;
 use codec::{Decode, Encode};
 use futures::channel::{
     mpsc,
@@ -390,8 +391,9 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
     }
 }
 
+#[async_trait]
 impl<B: BlockT> aleph_bft::DataProvider<AlephDataFor<B>> for DataProvider<B> {
-    fn get_data(&self) -> AlephDataFor<B> {
+    async fn get_data(&mut self) -> AlephDataFor<B> {
         let best = *self.proposed_block.lock();
 
         if let Some(m) = &self.metrics {
@@ -406,8 +408,9 @@ pub(crate) struct FinalizationHandler<B: BlockT> {
     pub(crate) ordered_units_tx: mpsc::UnboundedSender<AlephDataFor<B>>,
 }
 
+#[async_trait]
 impl<B: BlockT> aleph_bft::FinalizationHandler<AlephDataFor<B>> for FinalizationHandler<B> {
-    fn data_finalized(&mut self, data: AlephDataFor<B>) {
+    async fn data_finalized(&mut self, data: AlephDataFor<B>) {
         if let Err(err) = self.ordered_units_tx.unbounded_send(data) {
             error!(target: "afa", "Error in sending data from FinalizationHandler, {}", err);
         }
