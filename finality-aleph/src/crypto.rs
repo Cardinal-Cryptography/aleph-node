@@ -178,16 +178,19 @@ impl MultiKeychain for KeyBox {
     }
 }
 
-/// Old format of signatures, needed for backwards compatibility.
-#[derive(PartialEq, Eq, Clone, Debug, Decode, Encode)]
-pub(crate) struct SignatureV1 {
-    pub(crate) _id: NodeIndex,
-    pub(crate) sgn: AuthoritySignature,
-}
+pub mod v1 {
+    use super::*;
+    /// Old format of signatures, needed for backwards compatibility.
+    #[derive(PartialEq, Eq, Clone, Debug, Decode, Encode)]
+    pub(crate) struct SignatureV1 {
+        pub(crate) _id: NodeIndex,
+        pub(crate) sgn: AuthoritySignature,
+    }
 
-impl From<SignatureV1> for Signature {
-    fn from(sig_v1: SignatureV1) -> Signature {
-        Signature(sig_v1.sgn)
+    impl From<SignatureV1> for Signature {
+        fn from(sig_v1: SignatureV1) -> Signature {
+            Signature(sig_v1.sgn)
+        }
     }
 }
 
