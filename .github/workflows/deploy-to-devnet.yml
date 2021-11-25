@@ -73,7 +73,7 @@ jobs:
             
             # Deploy new image version for validator
             cd ${aleph_path}/aleph-apps/aleph-node-validators/overlays/devnet/${i}
-            kustomize edit set image ${{ env.RELEASE_IMAGE }}
+            kustomize edit set image "aleph-node-validator-image-placeholder=${{ env.RELEASE_IMAGE }}"
 
           done
 
