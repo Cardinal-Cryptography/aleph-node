@@ -16,8 +16,8 @@ use crate::{
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
     },
-    session_id_from_block_num, AuthorityId, Future, Metrics, NodeIndex, SessionId, SessionMap,
-    SessionPeriod, UnitCreationDelay,
+    session_id_from_block_num, AuthorityId, Future, Metrics, MillisecsPerBlock, NodeIndex,
+    SessionId, SessionMap, SessionPeriod, UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
 
@@ -55,6 +55,41 @@ pub struct AlephParams<B: Block, N, C, SC> {
     pub config: crate::AlephConfig<B, N, C, SC>,
 }
 
+fn get_justification_request_delay(
+    session_period: &SessionPeriod,
+    millisecs_per_block: &MillisecsPerBlock,
+) -> impl JustificationRequestDelay {
+    // NOTE: justifications are requested every so often
+    let delay = Duration::from_millis(min(
+        millisecs_per_block.0 * 2,
+        millisecs_per_block.0 * session_period.0 as u64 / 10,
+    ));
+    move |last_request_time: Instant, last_finalization_time: Instant| {
+        let now = Instant::now();
+        now - last_finalization_time > delay && now - last_request_time > 2 * delay
+    }
+}
+
+fn get_session_info_provider<B: Block>(
+    session_authorities: Arc<Mutex<HashMap<SessionId, Vec<AuthorityId>>>>,
+    session_period: SessionPeriod,
+) -> impl SessionInfoProvider<B> {
+    move |block_num| {
+        let current_session = session_id_from_block_num::<B>(block_num, session_period);
+        let last_block_height = last_block_of_session::<B>(current_session, session_period);
+        let verifier = session_authorities
+            .lock()
+            .get(&current_session)
+            .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
+
+        SessionInfo {
+            current_session,
+            last_block_height,
+            verifier,
+        }
+    }
+}
+
 pub async fn run_consensus_party<B, N, C, BE, SC>(aleph_params: AlephParams<B, N, C, SC>)
 where
     B: Block,
@@ -82,38 +117,11 @@ where
     } = aleph_params;
 
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
-
-    // NOTE: justifications are requested every so often
-    let delay = Duration::from_millis(min(
-        millisecs_per_block.0 * 2,
-        millisecs_per_block.0 * session_period.0 as u64 / 10,
-    ));
-    let just_request_delay = move |last_request_time: Instant, last_finalization_time: Instant| {
-        let now = Instant::now();
-        now - last_finalization_time > delay && now - last_request_time > 2 * delay
-    };
-
-    let session_authorities_cloned = session_authorities.clone();
-    let session_info_provider = move |block_num| {
-        let current_session = session_id_from_block_num::<B>(block_num, session_period);
-        let last_block_height = last_block_of_session::<B>(current_session, session_period);
-        let verifier = session_authorities_cloned
-            .lock()
-            .get(&current_session)
-            .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
-
-        SessionInfo {
-            current_session,
-            last_block_height,
-            verifier,
-        }
-    };
-
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
-        just_request_delay,
-        session_info_provider,
+        get_justification_request_delay(&session_period, &millisecs_per_block),
+        get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
         metrics.clone(),
