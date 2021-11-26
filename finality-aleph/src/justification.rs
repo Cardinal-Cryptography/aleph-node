@@ -7,7 +7,7 @@ use crate::{
 use aleph_bft::{PartialMultisignature, SignatureSet};
 use aleph_primitives::ALEPH_ENGINE_ID;
 use codec::{Decode, DecodeAll, Encode};
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error, warn};
 use sc_client_api::backend::Backend;
@@ -194,11 +194,13 @@ where
         }
     }
 
-    fn request_justification(&mut self, num: NumberFor<B>) {
-        if self
-            .justification_request_delay
+    fn can_request_justification(&self) -> bool {
+        self.justification_request_delay
             .can_request_now(self.last_finalization_time, self.last_request_time)
-        {
+    }
+
+    fn request_justification(&mut self, num: NumberFor<B>) {
+        if self.can_request_justification() {
             debug!(target: "afa", "Trying to request block {:?}", num);
 
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
@@ -217,24 +219,8 @@ where
         authority_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
         import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     ) {
-        let import_stream = import_justification_rx
-            .inspect(|_| {
-                debug!(target: "afa", "Got justification (import)");
-            })
-            .chain(futures::stream::iter(std::iter::from_fn(|| {
-                error!(target: "afa", "Justification (import) stream ended.");
-                None
-            })));
-
-        let authority_stream = authority_justification_rx
-            .inspect(|_| {
-                debug!(target: "afa", "Got justification (aggregator)");
-            })
-            .chain(futures::stream::iter(std::iter::from_fn(|| {
-                error!(target: "afa", "Justification (aggregator) stream ended.");
-                None
-            })));
-
+        let import_stream = wrap_channel(import_justification_rx, "import");
+        let authority_stream = wrap_channel(authority_justification_rx, "aggregator");
         let mut notification_stream = futures::stream::select(import_stream, authority_stream);
 
         loop {
@@ -269,6 +255,20 @@ where
             self.request_justification(stop_h);
         }
     }
+}
+
+fn wrap_channel<B: BlockT>(
+    channel: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    label: &'static str,
+) -> impl Stream<Item = JustificationNotification<B>> {
+    channel
+        .inspect(move |_| {
+            debug!(target: "afa", "Got justification ({})", label);
+        })
+        .chain(futures::stream::iter(std::iter::from_fn(move || {
+            error!(target: "afa", "Justification ({}) stream ended.", label);
+            None
+        })))
 }
 
 /// Old format of justifications, needed for backwards compatibility.
