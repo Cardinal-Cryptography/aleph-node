@@ -119,36 +119,35 @@ where
             number,
             hash,
         } = notification;
-        if justification.verify::<B>(hash, &verifier) {
-            if number > last_finalized && number <= stop_h {
-                debug!(target: "afa", "Finalizing block {:?} {:?}", number, hash);
-                let finalization_res = finalize_block(
-                    self.client.clone(),
-                    hash,
-                    number,
-                    Some((ALEPH_ENGINE_ID, justification.encode())),
-                );
-                match finalization_res {
-                    Ok(()) => {
-                        self.last_finalization_time = Instant::now();
-                        debug!(target: "afa", "Successfully finalized {:?}", number);
-                        if let Some(metrics) = &self.metrics {
-                            metrics.report_block(
-                                hash,
-                                self.last_finalization_time,
-                                Checkpoint::Finalized,
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
-                    }
-                }
-            } else {
-                debug!(target: "afa", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
-            }
-        } else {
+
+        if number <= last_finalized || number > stop_h {
+            debug!(target: "afa", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
+            return;
+        };
+
+        if !(justification.verify::<B>(hash, &verifier)) {
             error!(target: "afa", "Error when verifying justification for block {:?} {:?}", number, hash);
+            return;
+        };
+
+        debug!(target: "afa", "Finalizing block {:?} {:?}", number, hash);
+        let finalization_res = finalize_block(
+            self.client.clone(),
+            hash,
+            number,
+            Some((ALEPH_ENGINE_ID, justification.encode())),
+        );
+        match finalization_res {
+            Ok(()) => {
+                self.last_finalization_time = Instant::now();
+                debug!(target: "afa", "Successfully finalized {:?}", number);
+                if let Some(metrics) = &self.metrics {
+                    metrics.report_block(hash, self.last_finalization_time, Checkpoint::Finalized);
+                }
+            }
+            Err(e) => {
+                warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
+            }
         }
     }
 
