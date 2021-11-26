@@ -101,7 +101,11 @@ where
             .get(&current_session)
             .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
 
-        SessionInfo::<B>::new(current_session, last_block_height, verifier)
+        SessionInfo {
+            current_session,
+            last_block_height,
+            verifier,
+        }
     };
 
     let block_requester = network.clone();
@@ -257,7 +261,7 @@ async fn run_aggregator<B, C, BE>(
                     let number = client.number(hash).unwrap().unwrap();
                     // The unwrap might actually fail if data availability is not implemented correctly.
                     let notification = JustificationNotification {
-                        justification: AlephJustification::new::<B>(multisignature),
+                        justification: AlephJustification{signature: multisignature},
                         hash,
                         number
                     };

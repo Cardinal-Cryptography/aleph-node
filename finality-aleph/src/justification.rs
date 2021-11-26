@@ -27,10 +27,6 @@ pub struct AlephJustification {
 }
 
 impl AlephJustification {
-    pub(crate) fn new<Block: BlockT>(signature: SignatureSet<Signature>) -> Self {
-        Self { signature }
-    }
-
     pub(crate) fn verify<Block: BlockT>(
         &self,
         block_hash: Block::Hash,
@@ -56,23 +52,9 @@ impl<F: Fn(Instant, Instant) -> bool> JustificationRequestDelay for F {
 }
 
 pub(crate) struct SessionInfo<B: BlockT> {
-    current_session: SessionId,
-    last_block_height: NumberFor<B>,
-    verifier: Option<AuthorityVerifier>,
-}
-
-impl<B: BlockT> SessionInfo<B> {
-    pub(crate) fn new(
-        current_session: SessionId,
-        last_block_height: NumberFor<B>,
-        verifier: Option<AuthorityVerifier>,
-    ) -> Self {
-        Self {
-            current_session,
-            last_block_height,
-            verifier,
-        }
-    }
+    pub(crate) current_session: SessionId,
+    pub(crate) last_block_height: NumberFor<B>,
+    pub(crate) verifier: Option<AuthorityVerifier>,
 }
 
 /// Returns `SessionInfo` for the session regarding block with no. `number`.
