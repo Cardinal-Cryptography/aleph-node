@@ -225,13 +225,8 @@ where
                         stop_h,
                     );
                 }
-                Ok(None) => {
-                    error!(target: "afa", "Justification stream ended.");
-                    return;
-                }
-                Err(_) => {
-                    //Timeout passed
-                }
+                Ok(None) => panic!("Justification stream ended."),
+                Err(_) => {} //Timeout passed
             }
 
             self.request_justification(stop_h);
