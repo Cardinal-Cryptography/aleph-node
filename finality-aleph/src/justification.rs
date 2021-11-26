@@ -34,12 +34,12 @@ impl AlephJustification {
     }
 
     pub(crate) fn verify<Block: BlockT>(
-        aleph_justification: &AlephJustification,
+        &self,
         block_hash: Block::Hash,
         multi_verifier: &AuthorityVerifier,
     ) -> bool {
-        if !multi_verifier.is_complete(&block_hash.encode()[..], &aleph_justification.signature) {
-            debug!(target: "afa", "Bad justification for block hash #{:?} {:?}", block_hash, aleph_justification);
+        if !multi_verifier.is_complete(&block_hash.encode()[..], &self.signature) {
+            debug!(target: "afa", "Bad justification for block hash #{:?} {:?}", block_hash, self);
             return false;
         }
         true
@@ -114,42 +114,41 @@ where
         last_finalized: NumberFor<B>,
         stop_h: NumberFor<B>,
     ) {
-        let num = notification.number;
-        let block_hash = notification.hash;
-        if AlephJustification::verify::<B>(
-            &notification.justification,
-            notification.hash,
-            &verifier,
-        ) {
-            if num > last_finalized && num <= stop_h {
-                debug!(target: "afa", "Finalizing block {:?} {:?}", num, block_hash);
+        let JustificationNotification {
+            justification,
+            number,
+            hash,
+        } = notification;
+        if justification.verify::<B>(hash, &verifier) {
+            if number > last_finalized && number <= stop_h {
+                debug!(target: "afa", "Finalizing block {:?} {:?}", number, hash);
                 let finalization_res = finalize_block(
                     self.client.clone(),
-                    block_hash,
-                    num,
-                    Some((ALEPH_ENGINE_ID, notification.justification.encode())),
+                    hash,
+                    number,
+                    Some((ALEPH_ENGINE_ID, justification.encode())),
                 );
                 match finalization_res {
                     Ok(()) => {
                         self.last_finalization_time = Instant::now();
-                        debug!(target: "afa", "Successfully finalized {:?}", num);
+                        debug!(target: "afa", "Successfully finalized {:?}", number);
                         if let Some(metrics) = &self.metrics {
                             metrics.report_block(
-                                block_hash,
+                                hash,
                                 self.last_finalization_time,
                                 Checkpoint::Finalized,
                             );
                         }
                     }
                     Err(e) => {
-                        warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", num, block_hash, e);
+                        warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
                     }
                 }
             } else {
-                debug!(target: "afa", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", num, last_finalized, stop_h);
+                debug!(target: "afa", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
             }
         } else {
-            error!(target: "afa", "Error when verifying justification for block {:?} {:?}", num, block_hash);
+            error!(target: "afa", "Error when verifying justification for block {:?} {:?}", number, hash);
         }
     }
 
