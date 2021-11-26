@@ -33,7 +33,7 @@ PROMETHEUS_YAML=./prometheus_alternative.yml GRAFANA_PORT=3001 docker-compose -p
 
 ## Export/import of collected stats
 
-Collected data can be easily saved by the means of `docker`.
+Collected data can be easily saved and then imported on some different machine by the means of `docker`.
 
 Exporting data:
 ```
@@ -46,7 +46,7 @@ Importing data:
 docker load -i prometheus.tar
 ```
 
-Then you need to update the `docker-compose.yml` file accordingly,
+Then, in order to run provided image locally, you need to update the `docker-compose.yml` file accordingly,
 so it uses your saved `prometheus` instance. Example configuration:
 ```
 version: '3.2'
