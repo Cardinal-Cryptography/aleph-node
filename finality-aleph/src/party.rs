@@ -31,6 +31,7 @@ use futures::{
 };
 use log::{debug, error, info, trace};
 
+use crate::justification::JustificationRequestDelay;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -40,6 +41,7 @@ use sp_runtime::{
     SaturatedConversion,
 };
 use std::default::Default;
+use std::time::Instant;
 use std::{
     cmp::min,
     collections::{HashMap, HashSet},
@@ -81,21 +83,23 @@ where
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
 
     // NOTE: justifications are requested every so often
-    let cadence = min(
+    let delay = Duration::from_millis(min(
         millisecs_per_block.0 * 2,
         millisecs_per_block.0 * session_period.0 as u64 / 10,
-    );
-
-    let chain_cadence = ChainCadence {
-        session_period,
-        justifications_cadence: Duration::from_millis(cadence),
+    ));
+    let just_request_delay = move |last_request_time: Instant, last_finalization_time: Instant| {
+        let now = Instant::now();
+        now - last_finalization_time > delay && now - last_request_time > 2 * delay
     };
+
+    let chain_cadence = ChainCadence { session_period };
 
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
         session_authorities.clone(),
         chain_cadence,
+        just_request_delay,
         block_requester.clone(),
         client.clone(),
         metrics.clone(),
@@ -147,8 +151,8 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, N, C, BE>(
-    handler: JustificationHandler<B, N, C, BE>,
+fn run_justification_handler<B, N, C, BE, D>(
+    handler: JustificationHandler<B, N, C, BE, D>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
@@ -157,6 +161,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     B: Block,
+    D: JustificationRequestDelay + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 

@@ -48,7 +48,17 @@ impl AlephJustification {
 
 pub(crate) struct ChainCadence {
     pub session_period: SessionPeriod,
-    pub justifications_cadence: Duration,
+}
+
+/// Decides whether enough time has elapsed for making another request for justification.
+pub(crate) trait JustificationRequestDelay {
+    fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool;
+}
+
+impl<F: Fn(Instant, Instant) -> bool> JustificationRequestDelay for F {
+    fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool {
+        self(last_request_time, last_finalization_time)
+    }
 }
 
 /// A notification for sending justifications over the network.
@@ -64,15 +74,17 @@ where
     pub number: NumberFor<Block>,
 }
 
-pub(crate) struct JustificationHandler<B, RB, C, BE>
+pub(crate) struct JustificationHandler<B, RB, C, BE, D>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
+    D: JustificationRequestDelay,
 {
     session_authorities: Arc<Mutex<SessionMap>>,
     chain_cadence: ChainCadence,
+    justification_request_delay: D,
     block_requester: RB,
     client: Arc<C>,
     last_request_time: Instant,
@@ -81,16 +93,18 @@ where
     phantom: PhantomData<BE>,
 }
 
-impl<B, RB, C, BE> JustificationHandler<B, RB, C, BE>
+impl<B, RB, C, BE, D> JustificationHandler<B, RB, C, BE, D>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
+    D: JustificationRequestDelay,
 {
     pub(crate) fn new(
         session_authorities: Arc<Mutex<SessionMap>>,
         chain_cadence: ChainCadence,
+        justification_request_delay: D,
         block_requester: RB,
         client: Arc<C>,
         metrics: Option<Metrics<B::Header>>,
@@ -98,6 +112,7 @@ where
         Self {
             session_authorities,
             chain_cadence,
+            justification_request_delay,
             block_requester,
             client,
             last_request_time: Instant::now(),
@@ -152,21 +167,15 @@ where
     }
 
     fn request_justification(&mut self, num: NumberFor<B>) {
-        let current_time = Instant::now();
-
-        let ChainCadence {
-            justifications_cadence,
-            ..
-        } = self.chain_cadence;
-
-        if current_time - self.last_finalization_time > justifications_cadence
-            && current_time - self.last_request_time > 2 * justifications_cadence
+        if self
+            .justification_request_delay
+            .can_request_now(self.last_finalization_time, self.last_request_time)
         {
             debug!(target: "afa", "Trying to request block {:?}", num);
 
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
                 debug!(target: "afa", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
-                self.last_request_time = current_time;
+                self.last_request_time = Instant::now();
                 self.block_requester
                     .request_justification(&header.hash(), *header.number());
             } else {
