@@ -1,9 +1,8 @@
 use crate::{
     crypto::{AuthorityVerifier, Signature, SignatureV1},
     finalization::finalize_block,
-    last_block_of_session,
     metrics::Checkpoint,
-    network, session_id_from_block_num, Metrics, SessionId, SessionMap, SessionPeriod,
+    network, Metrics, SessionId,
 };
 use aleph_bft::{PartialMultisignature, SignatureSet};
 use aleph_primitives::ALEPH_ENGINE_ID;
@@ -11,7 +10,6 @@ use codec::{Decode, DecodeAll, Encode};
 use futures::{channel::mpsc, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error, warn};
-use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
@@ -46,10 +44,6 @@ impl AlephJustification {
     }
 }
 
-pub(crate) struct ChainCadence {
-    pub session_period: SessionPeriod,
-}
-
 /// Decides whether enough time has elapsed for making another request for justification.
 pub(crate) trait JustificationRequestDelay {
     fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool;
@@ -58,6 +52,41 @@ pub(crate) trait JustificationRequestDelay {
 impl<F: Fn(Instant, Instant) -> bool> JustificationRequestDelay for F {
     fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool {
         self(last_request_time, last_finalization_time)
+    }
+}
+
+pub(crate) struct SessionInfo<B: BlockT> {
+    current_session: SessionId,
+    last_block_height: NumberFor<B>,
+    verifier: Option<AuthorityVerifier>,
+}
+
+impl<B: BlockT> SessionInfo<B> {
+    pub(crate) fn new(
+        current_session: SessionId,
+        last_block_height: NumberFor<B>,
+        verifier: Option<AuthorityVerifier>,
+    ) -> Self {
+        Self {
+            current_session,
+            last_block_height,
+            verifier,
+        }
+    }
+}
+
+/// Returns `SessionInfo` for the session regarding block with no. `number`.
+pub(crate) trait SessionInfoProvider<B: BlockT> {
+    fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B>;
+}
+
+impl<F, B> SessionInfoProvider<B> for F
+where
+    B: BlockT,
+    F: Fn(NumberFor<B>) -> SessionInfo<B>,
+{
+    fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B> {
+        self(number)
     }
 }
 
@@ -74,17 +103,17 @@ where
     pub number: NumberFor<Block>,
 }
 
-pub(crate) struct JustificationHandler<B, RB, C, BE, D>
+pub(crate) struct JustificationHandler<B, RB, C, BE, D, SI>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
+    SI: SessionInfoProvider<B>,
 {
-    session_authorities: Arc<Mutex<SessionMap>>,
-    chain_cadence: ChainCadence,
     justification_request_delay: D,
+    session_info_provider: SI,
     block_requester: RB,
     client: Arc<C>,
     last_request_time: Instant,
@@ -93,26 +122,25 @@ where
     phantom: PhantomData<BE>,
 }
 
-impl<B, RB, C, BE, D> JustificationHandler<B, RB, C, BE, D>
+impl<B, RB, C, BE, D, SI> JustificationHandler<B, RB, C, BE, D, SI>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
+    SI: SessionInfoProvider<B>,
 {
     pub(crate) fn new(
-        session_authorities: Arc<Mutex<SessionMap>>,
-        chain_cadence: ChainCadence,
         justification_request_delay: D,
+        session_info_provider: SI,
         block_requester: RB,
         client: Arc<C>,
         metrics: Option<Metrics<B::Header>>,
     ) -> Self {
         Self {
-            session_authorities,
-            chain_cadence,
             justification_request_delay,
+            session_info_provider,
             block_requester,
             client,
             last_request_time: Instant::now(),
@@ -209,14 +237,15 @@ where
 
         let mut notification_stream = futures::stream::select(import_stream, authority_stream);
 
-        let ChainCadence { session_period, .. } = self.chain_cadence;
-
         loop {
             let last_finalized_number = self.client.info().finalized_number;
-            let current_session =
-                session_id_from_block_num::<B>(last_finalized_number + 1u32.into(), session_period);
-            let stop_h: NumberFor<B> = last_block_of_session::<B>(current_session, session_period);
-            let verifier = self.session_verifier(current_session);
+            let SessionInfo {
+                verifier,
+                last_block_height: stop_h,
+                current_session,
+            } = self
+                .session_info_provider
+                .for_block_num(last_finalized_number + 1u32.into());
             if verifier.is_none() {
                 debug!(target: "afa", "Verifier for session {:?} not yet available. Waiting 500ms and will try again ...", current_session);
                 Delay::new(Duration::from_millis(500)).await;
@@ -239,12 +268,6 @@ where
 
             self.request_justification(stop_h);
         }
-    }
-
-    fn session_verifier(&self, session_id: SessionId) -> Option<AuthorityVerifier> {
-        Some(AuthorityVerifier::new(
-            self.session_authorities.lock().get(&session_id)?.to_vec(),
-        ))
     }
 }
 

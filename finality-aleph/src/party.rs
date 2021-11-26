@@ -7,7 +7,8 @@ use crate::{
     default_aleph_config,
     finalization::should_finalize,
     justification::{
-        AlephJustification, ChainCadence, JustificationHandler, JustificationNotification,
+        AlephJustification, JustificationHandler, JustificationNotification,
+        JustificationRequestDelay, SessionInfo, SessionInfoProvider,
     },
     last_block_of_session,
     metrics::Checkpoint,
@@ -31,7 +32,6 @@ use futures::{
 };
 use log::{debug, error, info, trace};
 
-use crate::justification::JustificationRequestDelay;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -92,14 +92,23 @@ where
         now - last_finalization_time > delay && now - last_request_time > 2 * delay
     };
 
-    let chain_cadence = ChainCadence { session_period };
+    let session_authorities_cloned = session_authorities.clone();
+    let session_info_provider = move |block_num| {
+        let current_session = session_id_from_block_num::<B>(block_num, session_period);
+        let last_block_height = last_block_of_session::<B>(current_session, session_period);
+        let verifier = session_authorities_cloned
+            .lock()
+            .get(&current_session)
+            .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
+
+        SessionInfo::<B>::new(current_session, last_block_height, verifier)
+    };
 
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
-        session_authorities.clone(),
-        chain_cadence,
         just_request_delay,
+        session_info_provider,
         block_requester.clone(),
         client.clone(),
         metrics.clone(),
@@ -151,8 +160,8 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, N, C, BE, D>(
-    handler: JustificationHandler<B, N, C, BE, D>,
+fn run_justification_handler<B, N, C, BE, D, SI>(
+    handler: JustificationHandler<B, N, C, BE, D, SI>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
@@ -162,6 +171,7 @@ where
     BE: Backend<B> + 'static,
     B: Block,
     D: JustificationRequestDelay + Send + 'static,
+    SI: SessionInfoProvider<B> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
