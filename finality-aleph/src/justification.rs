@@ -132,7 +132,7 @@ where
         }
     }
 
-    pub(crate) fn handle_justification_notification(
+    fn handle_justification_notification(
         &mut self,
         notification: JustificationNotification<B>,
         verifier: AuthorityVerifier,
