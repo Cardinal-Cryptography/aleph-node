@@ -32,6 +32,7 @@ use futures::{
 };
 use log::{debug, error, info, trace};
 
+use crate::finalization::Finalizer;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -116,6 +117,7 @@ where
         block_requester.clone(),
         client.clone(),
         metrics.clone(),
+        (),
     );
 
     let authority_justification_tx =
@@ -164,8 +166,8 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, N, C, BE, D, SI>(
-    handler: JustificationHandler<B, N, C, BE, D, SI>,
+fn run_justification_handler<B, N, C, BE, D, SI, F>(
+    handler: JustificationHandler<B, N, C, BE, D, SI, F>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
@@ -176,6 +178,7 @@ where
     B: Block,
     D: JustificationRequestDelay + Send + 'static,
     SI: SessionInfoProvider<B> + Send + 'static,
+    F: Finalizer<BE, B, C> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 

@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityVerifier, Signature, SignatureV1},
-    finalization::finalize_block,
+    finalization::Finalizer,
     metrics::Checkpoint,
     network, Metrics, SessionId,
 };
@@ -85,7 +85,7 @@ where
     pub number: NumberFor<Block>,
 }
 
-pub(crate) struct JustificationHandler<B, RB, C, BE, D, SI>
+pub(crate) struct JustificationHandler<B, RB, C, BE, D, SI, F>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
@@ -93,6 +93,7 @@ where
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
     SI: SessionInfoProvider<B>,
+    F: Finalizer<BE, B, C>,
 {
     justification_request_delay: D,
     session_info_provider: SI,
@@ -100,11 +101,12 @@ where
     client: Arc<C>,
     last_request_time: Instant,
     last_finalization_time: Instant,
+    finalizer: F,
     metrics: Option<Metrics<B::Header>>,
     phantom: PhantomData<BE>,
 }
 
-impl<B, RB, C, BE, D, SI> JustificationHandler<B, RB, C, BE, D, SI>
+impl<B, RB, C, BE, D, SI, F> JustificationHandler<B, RB, C, BE, D, SI, F>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
@@ -112,6 +114,7 @@ where
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
     SI: SessionInfoProvider<B>,
+    F: Finalizer<BE, B, C>,
 {
     pub(crate) fn new(
         justification_request_delay: D,
@@ -119,6 +122,7 @@ where
         block_requester: RB,
         client: Arc<C>,
         metrics: Option<Metrics<B::Header>>,
+        finalizer: F,
     ) -> Self {
         Self {
             justification_request_delay,
@@ -127,6 +131,7 @@ where
             client,
             last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
+            finalizer,
             metrics,
             phantom: PhantomData,
         }
@@ -156,7 +161,7 @@ where
         };
 
         debug!(target: "afa", "Finalizing block {:?} {:?}", number, hash);
-        let finalization_res = finalize_block(
+        let finalization_res = self.finalizer.finalize_block(
             self.client.clone(),
             hash,
             number,

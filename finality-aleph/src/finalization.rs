@@ -9,33 +9,38 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-pub(crate) fn finalize_block<BE, B, C>(
-    client: Arc<C>,
-    hash: B::Hash,
-    block_number: NumberFor<B>,
-    justification: Option<Justification>,
-) -> Result<(), sp_blockchain::Error>
-where
-    B: Block,
-    BE: Backend<B>,
-    C: crate::ClientForAleph<B, BE>,
-{
-    let status = client.info();
-    if status.finalized_number >= block_number {
-        warn!(target: "afa", "trying to finalize a block with hash {} and number {}
+pub(crate) trait Finalizer<BE, B, C> {
+    fn finalize_block(
+        &self,
+        client: Arc<C>,
+        hash: B::Hash,
+        block_number: NumberFor<B>,
+        justification: Option<Justification>,
+    ) -> Result<(), sp_blockchain::Error>
+    where
+        B: Block,
+        BE: Backend<B>,
+        C: crate::ClientForAleph<B, BE>,
+    {
+        let status = client.info();
+        if status.finalized_number >= block_number {
+            warn!(target: "afa", "trying to finalize a block with hash {} and number {}
                that is not greater than already finalized {}", hash, block_number, status.finalized_number);
+        }
+
+        debug!(target: "afa", "Finalizing block with hash {:?} and number {:?}. Previous best: #{:?}.", hash, block_number, status.finalized_number);
+
+        let update_res = client.lock_import_and_run(|import_op| {
+            // NOTE: all other finalization logic should come here, inside the lock
+            client.apply_finality(import_op, BlockId::Hash(hash), justification, true)
+        });
+        let status = client.info();
+        debug!(target: "afa", "Attempted to finalize block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
+        update_res
     }
-
-    debug!(target: "afa", "Finalizing block with hash {:?} and number {:?}. Previous best: #{:?}.", hash, block_number, status.finalized_number);
-
-    let update_res = client.lock_import_and_run(|import_op| {
-        // NOTE: all other finalization logic should come here, inside the lock
-        client.apply_finality(import_op, BlockId::Hash(hash), justification, true)
-    });
-    let status = client.info();
-    debug!(target: "afa", "Attempted to finalize block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
-    update_res
 }
+
+impl<BE, B, C> Finalizer<BE, B, C> for () {}
 
 /// Given hash `last_finalized` and `AlephDataFor` `new_data` of two blocks, returns
 /// Some(new_data) if the block hash represented by new_data is a descendant of last_finalized
