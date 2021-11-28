@@ -125,11 +125,11 @@ pub struct ChainParams {
     #[structopt(long)]
     pub millisecs_per_block: Option<u64>,
 
-    #[structopt(long)]
-    pub chain_name: Option<String>,
+    #[structopt(long, default_value = "Aleph Zero Development")]
+    pub chain_name: String,
 
-    #[structopt(long)]
-    pub token_symbol: Option<String>,
+    #[structopt(long, default_value = "DZERO")]
+    pub token_symbol: String,
 
     /// Pass the AccountIds of authorities forming the committe at the genesis
     ///
@@ -154,6 +154,10 @@ impl ChainParams {
         self.base_path.clone().into()
     }
 
+    pub fn session_period(&self) -> SessionPeriod {
+        SessionPeriod(self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD))
+    }
+
     pub fn millisecs_per_block(&self) -> MillisecsPerBlock {
         MillisecsPerBlock(
             self.millisecs_per_block
@@ -161,22 +165,12 @@ impl ChainParams {
         )
     }
 
-    pub fn session_period(&self) -> SessionPeriod {
-        SessionPeriod(self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD))
+    pub fn chain_name(&self) -> &str {
+        &self.chain_name
     }
 
     pub fn token_symbol(&self) -> &str {
-        match &self.token_symbol {
-            Some(symbol) => symbol,
-            None => "DZERO",
-        }
-    }
-
-    pub fn chain_name(&self) -> &str {
-        match &self.chain_name {
-            Some(name) => name,
-            None => "Aleph Zero Development",
-        }
+        &self.token_symbol
     }
 
     pub fn account_ids(&self) -> Vec<AccountId> {
