@@ -1,13 +1,17 @@
-use crate::data_io::AlephDataFor;
 use core::result::Result;
+use std::sync::Arc;
+
 use log::{debug, error, warn};
 use sc_client_api::Backend;
 use sp_api::{BlockId, NumberFor};
+use sp_blockchain::Error;
 use sp_runtime::{
-    traits::{Block, Header},
     Justification,
+    traits::{Block, Header},
 };
-use std::sync::Arc;
+
+use crate::ClientForAleph;
+use crate::data_io::AlephDataFor;
 
 pub(crate) trait Finalizer<BE, B, C> {
     fn finalize_block(
@@ -16,11 +20,27 @@ pub(crate) trait Finalizer<BE, B, C> {
         hash: B::Hash,
         block_number: NumberFor<B>,
         justification: Option<Justification>,
-    ) -> Result<(), sp_blockchain::Error>
+    ) -> Result<(), Error>
     where
         B: Block,
         BE: Backend<B>,
-        C: crate::ClientForAleph<B, BE>,
+        C: ClientForAleph<B, BE>;
+}
+
+pub(crate) struct AlephFinalizer;
+
+impl<BE, B, C> Finalizer<BE, B, C> for AlephFinalizer {
+    fn finalize_block(
+        &self,
+        client: Arc<C>,
+        hash: B::Hash,
+        block_number: NumberFor<B>,
+        justification: Option<Justification>,
+    ) -> Result<(), Error>
+    where
+        B: Block,
+        BE: Backend<B>,
+        C: ClientForAleph<B, BE>,
     {
         let status = client.info();
         if status.finalized_number >= block_number {
@@ -39,8 +59,6 @@ pub(crate) trait Finalizer<BE, B, C> {
         update_res
     }
 }
-
-impl<BE, B, C> Finalizer<BE, B, C> for () {}
 
 /// Given hash `last_finalized` and `AlephDataFor` `new_data` of two blocks, returns
 /// Some(new_data) if the block hash represented by new_data is a descendant of last_finalized
@@ -109,8 +127,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::data_io::AlephData;
     use sc_block_builder::BlockBuilderProvider;
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime::Extrinsic;
@@ -118,6 +134,10 @@ mod tests {
         ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
         TestClientBuilder, TestClientBuilderExt,
     };
+
+    use crate::data_io::AlephData;
+
+    use super::*;
 
     fn create_chain(client: &mut Arc<TestClient>, n: u64) -> Vec<sp_core::H256> {
         let mut blocks = vec![client.genesis_hash()];

@@ -33,7 +33,7 @@ use futures::{
 use log::{debug, error, info, trace};
 
 use crate::data_io::FinalizationHandler;
-use crate::finalization::Finalizer;
+use crate::finalization::{AlephFinalizer, Finalizer};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -146,7 +146,7 @@ where
         block_requester.clone(),
         client.clone(),
         metrics.clone(),
-        (),
+        AlephFinalizer {},
     );
 
     let authority_justification_tx =
