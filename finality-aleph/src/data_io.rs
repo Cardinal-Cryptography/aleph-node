@@ -5,7 +5,7 @@ use futures::channel::{mpsc, oneshot};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, Header, NumberFor};
 use std::default::Default;
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
@@ -311,7 +311,7 @@ where
 pub(crate) struct DataIO<B: BlockT> {
     pub(crate) proposed_block: Arc<Mutex<AlephDataFor<B>>>,
     pub(crate) ordered_batch_tx: mpsc::UnboundedSender<OrderedBatch<AlephDataFor<B>>>,
-    pub(crate) metrics: Option<Metrics<B::Header>>,
+    pub(crate) metrics: Option<Metrics<<B::Header as Header>::Hash>>,
 }
 
 // Reduce block header to the level given by num, by traversing down via parents.

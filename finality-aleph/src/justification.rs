@@ -77,7 +77,7 @@ where
     client: Arc<C>,
     last_request_time: Instant,
     last_finalization_time: Instant,
-    metrics: Option<Metrics<B::Header>>,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     phantom: PhantomData<BE>,
 }
 
@@ -93,7 +93,7 @@ where
         chain_cadence: ChainCadence,
         block_requester: RB,
         client: Arc<C>,
-        metrics: Option<Metrics<B::Header>>,
+        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     ) -> Self {
         Self {
             session_authorities,

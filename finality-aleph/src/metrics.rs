@@ -1,27 +1,27 @@
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::{collections::HashMap, time::Instant};
+
 use log::trace;
 use lru::LruCache;
 use parking_lot::Mutex;
 use prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
 use sc_service::Arc;
-use sp_runtime::traits::Header;
-use std::{collections::HashMap, time::Instant};
 
 // How many entries (block hash + timestamp) we keep in memory per one checkpoint type.
 const MAX_BLOCKS_PER_CHECKPOINT: usize = 20;
 
-struct Inner<H: Header> {
+pub trait Key: Hash + Eq + Debug + Copy {}
+impl<T: Hash + Eq + Debug + Copy> Key for T {}
+
+struct Inner<H: Key> {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
-    starts: HashMap<Checkpoint, LruCache<H::Hash, Instant>>,
+    starts: HashMap<Checkpoint, LruCache<H, Instant>>,
 }
 
-impl<H: Header> Inner<H> {
-    fn report_block(
-        &mut self,
-        hash: H::Hash,
-        checkpoint_time: Instant,
-        checkpoint_type: Checkpoint,
-    ) {
+impl<H: Key> Inner<H> {
+    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
         trace!(target: "afa", "Reporting block stage: {:?} (hash: {:?}, at: {:?}", checkpoint_type, hash, checkpoint_time);
 
         self.starts.entry(checkpoint_type).and_modify(|starts| {
@@ -55,11 +55,11 @@ pub(crate) enum Checkpoint {
 }
 
 #[derive(Clone)]
-pub struct Metrics<H: Header> {
+pub struct Metrics<H: Key> {
     inner: Arc<Mutex<Inner<H>>>,
 }
 
-impl<H: Header> Metrics<H> {
+impl<H: Key> Metrics<H> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
@@ -98,7 +98,7 @@ impl<H: Header> Metrics<H> {
 
     pub(crate) fn report_block(
         &self,
-        hash: H::Hash,
+        hash: H,
         checkpoint_time: Instant,
         checkpoint_type: Checkpoint,
     ) {

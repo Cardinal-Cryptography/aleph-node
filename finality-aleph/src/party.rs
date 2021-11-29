@@ -188,7 +188,7 @@ where
     keystore: Arc<dyn CryptoStore>,
     block_requester: RB,
     phantom: PhantomData<BE>,
-    metrics: Option<Metrics<B::Header>>,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
 }
@@ -199,7 +199,7 @@ async fn run_aggregator<B, C, BE>(
     justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     client: Arc<C>,
     last_block_in_session: NumberFor<B>,
-    metrics: Option<Metrics<B::Header>>,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     mut exit_rx: futures::channel::oneshot::Receiver<()>,
 ) where
     B: Block,
