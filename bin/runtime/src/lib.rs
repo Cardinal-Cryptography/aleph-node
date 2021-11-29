@@ -469,21 +469,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPallets,
-    // MigratePalletVersionToStorageVersion,
 >;
-
-// /// Migrate from `PalletVersion` to the new `StorageVersion`
-// /// We need this migration if we want to follow future Substrate pallet migrations, as all pallet storage migrations in Substrate now rely on the StorageVersion to check whether to execute
-// /// IMPORTANT: This custom runtime migration runs *before* the pallet's runtime upgrade(s) (defined inside hooks)
-// pub struct MigratePalletVersionToStorageVersion;
-
-// impl OnRuntimeUpgrade for MigratePalletVersionToStorageVersion {
-//     fn on_runtime_upgrade() -> frame_support::weights::Weight {
-//         frame_support::migrations::migrate_from_pallet_version_to_storage_version::<
-//             AllPalletsWithSystem,
-//         >(&RocksDbWeight::get())
-//     }
-// }
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
