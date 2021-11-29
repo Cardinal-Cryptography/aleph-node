@@ -4,14 +4,17 @@ import re
 import shutil
 from argparse import Namespace
 from pathlib import Path
+from typing import List
 
 from shell import terminate_instances_in_region
 from utils import default_region
 
 
-def stop_protocol(tag: str):
+def stop_protocol(regions: List[str], tag: str):
     logging.info('Stopping instances...')
-    terminate_instances_in_region(default_region(), tag)
+    for region in regions:
+        logging.info(f'stoppping in {region}...')
+        terminate_instances_in_region(region, tag)
     logging.info('Instances stopped.')
 
 
@@ -39,7 +42,7 @@ def stop_monitoring():
 
 
 def clean(args: Namespace):
-    stop_protocol(args.tag)
+    stop_protocol(args.regions, args.tag)
     remove_files()
     if args.kill_monitoring:
         stop_monitoring()

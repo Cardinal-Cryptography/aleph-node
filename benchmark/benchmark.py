@@ -35,8 +35,10 @@ def get_args() -> argparse.Namespace:
     parser_clean = subparsers.add_parser('clean')
     parser_clean.add_argument('--kill-monitoring', '-k', action='store_true',
                               help='whether to stop docker with Prometheus and Grafana')
+    parser_clean.add_argument('--regions', nargs='+', type=str,
+                              help='list of regions where the machines should be created')
     parser_clean.add_argument(
-        'tag', type=str, help='tag for the machines', default='b2')
+        '--tag', type=str, help='tag for the machines', default='b2')
     parser_clean.set_defaults(func=clean)
 
     parser_flooder = subparsers.add_parser('flood')
