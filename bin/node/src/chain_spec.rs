@@ -234,10 +234,9 @@ pub fn config(
     let faucet_account: AccountId =
         hex!["eaefd9d9b42915bda608154f17bb03e407cbf244318a0499912c2fb1cd879b74"].into();
 
-    let chain_type = if chain_params.dev_chain {
-        ChainType::Development
-    } else {
-        ChainType::Live
+    let chain_type = match chain_params.dev_chain {
+        true => ChainType::Development,
+        false => ChainType::Live,
     };
 
     Ok(ChainSpec::from_genesis(
