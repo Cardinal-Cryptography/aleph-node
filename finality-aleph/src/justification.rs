@@ -176,7 +176,7 @@ where
                 }
             }
             Err(e) => {
-                warn!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
+                error!(target: "afa", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
             }
         }
     }
