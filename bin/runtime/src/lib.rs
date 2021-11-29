@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use frame_support::log;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -582,6 +583,23 @@ impl_runtime_apis! {
             tx: <Block as BlockT>::Extrinsic,
             block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
+            // TODO
+
+            let _ = tx.signature.clone().map(|sig|
+                                                {
+
+                                                    let who = sig.0;
+                                                    let nonce = sig.2.4;
+                                                    // frame_system::Account::<T>::get(who).nonce
+                                                    // let nonce: frame_system::CheckNonce<_> = sig.2.4;
+                                                    // (
+                                                    //     sig.0,
+                                                    //     nonce.0
+                                                    // )
+                                                    log::info!(target: "mev", "who: {:?} nonce : {:?}", who, nonce);
+
+                                                }
+            );
             Executive::validate_transaction(source, tx, block_hash)
         }
     }
