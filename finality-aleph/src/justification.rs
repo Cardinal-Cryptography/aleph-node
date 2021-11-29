@@ -206,8 +206,8 @@ where
         authority_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
         import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     ) {
-        let import_stream = wrap_channel(import_justification_rx, "import");
-        let authority_stream = wrap_channel(authority_justification_rx, "aggregator");
+        let import_stream = wrap_channel_with_logging(import_justification_rx, "import");
+        let authority_stream = wrap_channel_with_logging(authority_justification_rx, "aggregator");
         let mut notification_stream = futures::stream::select(import_stream, authority_stream);
 
         loop {
@@ -244,7 +244,7 @@ where
     }
 }
 
-fn wrap_channel<B: BlockT>(
+fn wrap_channel_with_logging<B: BlockT>(
     channel: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     label: &'static str,
 ) -> impl Stream<Item = JustificationNotification<B>> {
