@@ -56,18 +56,38 @@ pub struct AlephParams<B: Block, N, C, SC> {
     pub config: crate::AlephConfig<B, N, C, SC>,
 }
 
-fn get_justification_request_delay(
-    session_period: &SessionPeriod,
-    millisecs_per_block: &MillisecsPerBlock,
-) -> impl JustificationRequestDelay {
-    // NOTE: justifications are requested every so often
-    let delay = Duration::from_millis(min(
-        millisecs_per_block.0 * 2,
-        millisecs_per_block.0 * session_period.0 as u64 / 10,
-    ));
-    move |last_request_time: Instant, last_finalization_time: Instant| {
+struct JustificationRequestDelayImpl {
+    last_request_time: Instant,
+    last_finalization_time: Instant,
+    delay: Duration,
+}
+
+impl JustificationRequestDelayImpl {
+    fn new(session_period: &SessionPeriod, millisecs_per_block: &MillisecsPerBlock) -> Self {
+        Self {
+            last_request_time: Instant::now(),
+            last_finalization_time: Instant::now(),
+            delay: Duration::from_millis(min(
+                millisecs_per_block.0 * 2,
+                millisecs_per_block.0 * session_period.0 as u64 / 10,
+            )),
+        }
+    }
+}
+
+impl JustificationRequestDelay for JustificationRequestDelayImpl {
+    fn can_request_now(&self) -> bool {
         let now = Instant::now();
-        now - last_finalization_time > delay && now - last_request_time > 2 * delay
+        now - self.last_finalization_time > self.delay
+            && now - self.last_request_time > 2 * self.delay
+    }
+
+    fn on_block_finalized(&mut self) {
+        self.last_finalization_time = Instant::now();
+    }
+
+    fn on_request_sent(&mut self) {
+        self.last_request_time = Instant::now();
     }
 }
 
@@ -121,7 +141,7 @@ where
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
-        get_justification_request_delay(&session_period, &millisecs_per_block),
+        JustificationRequestDelayImpl::new(&session_period, &millisecs_per_block),
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),

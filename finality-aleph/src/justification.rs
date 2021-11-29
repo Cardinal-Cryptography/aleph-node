@@ -13,11 +13,8 @@ use log::{debug, error, warn};
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
-use std::{
-    marker::PhantomData,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::Instant;
+use std::{marker::PhantomData, sync::Arc, time::Duration};
 use tokio::time::timeout;
 
 /// A proof of block finality, currently in the form of a sufficiently long list of signatures.
@@ -40,15 +37,14 @@ impl AlephJustification {
     }
 }
 
-/// Decides whether enough time has elapsed for making another request for justification.
+/// Bunch of methods for managing frequency of sending justification requests.
 pub(crate) trait JustificationRequestDelay {
-    fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool;
-}
-
-impl<F: Fn(Instant, Instant) -> bool> JustificationRequestDelay for F {
-    fn can_request_now(&self, last_request_time: Instant, last_finalization_time: Instant) -> bool {
-        self(last_request_time, last_finalization_time)
-    }
+    /// Decides whether enough time has elapsed.
+    fn can_request_now(&self) -> bool;
+    /// Notice block finalization.
+    fn on_block_finalized(&mut self);
+    /// Notice request sending.
+    fn on_request_sent(&mut self);
 }
 
 pub(crate) struct SessionInfo<B: BlockT> {
@@ -99,8 +95,6 @@ where
     session_info_provider: SI,
     block_requester: RB,
     client: Arc<C>,
-    last_request_time: Instant,
-    last_finalization_time: Instant,
     finalizer: F,
     metrics: Option<Metrics<B::Header>>,
     phantom: PhantomData<BE>,
@@ -129,8 +123,6 @@ where
             session_info_provider,
             block_requester,
             client,
-            last_request_time: Instant::now(),
-            last_finalization_time: Instant::now(),
             finalizer,
             metrics,
             phantom: PhantomData,
@@ -169,10 +161,10 @@ where
         );
         match finalization_res {
             Ok(()) => {
-                self.last_finalization_time = Instant::now();
+                self.justification_request_delay.on_block_finalized();
                 debug!(target: "afa", "Successfully finalized {:?}", number);
                 if let Some(metrics) = &self.metrics {
-                    metrics.report_block(hash, self.last_finalization_time, Checkpoint::Finalized);
+                    metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
                 }
             }
             Err(e) => {
@@ -181,18 +173,13 @@ where
         }
     }
 
-    fn can_request_justification(&self) -> bool {
-        self.justification_request_delay
-            .can_request_now(self.last_finalization_time, self.last_request_time)
-    }
-
     fn request_justification(&mut self, num: NumberFor<B>) {
-        if self.can_request_justification() {
+        if self.justification_request_delay.can_request_now() {
             debug!(target: "afa", "Trying to request block {:?}", num);
 
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
                 debug!(target: "afa", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
-                self.last_request_time = Instant::now();
+                self.justification_request_delay.on_request_sent();
                 self.block_requester
                     .request_justification(&header.hash(), *header.number());
             } else {
