@@ -1,15 +1,18 @@
 use log::trace;
+use lru::LruCache;
 use parking_lot::Mutex;
 use prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
 use sc_service::Arc;
 use sp_runtime::traits::Header;
 use std::{collections::HashMap, time::Instant};
 
-#[derive(Clone)]
+// How many entries (block hash + timestamp) we keep in memory per one checkpoint type.
+const MAX_BLOCKS_PER_CHECKPOINT: usize = 20;
+
 struct Inner<H: Header> {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
-    starts: HashMap<Checkpoint, HashMap<H::Hash, Instant>>,
+    starts: HashMap<Checkpoint, LruCache<H::Hash, Instant>>,
 }
 
 impl<H: Header> Inner<H> {
@@ -22,13 +25,13 @@ impl<H: Header> Inner<H> {
         trace!(target: "afa", "Reporting block stage: {:?} (hash: {:?}, at: {:?}", checkpoint_type, hash, checkpoint_time);
 
         self.starts.entry(checkpoint_type).and_modify(|starts| {
-            starts.entry(hash).or_insert(checkpoint_time);
+            starts.put(hash, checkpoint_time);
         });
 
         if let Some(prev_checkpoint_type) = self.prev.get(&checkpoint_type) {
             if let Some(start) = self
                 .starts
-                .get(prev_checkpoint_type)
+                .get_mut(prev_checkpoint_type)
                 .expect("All checkpoint types were initialized")
                 .get(&hash)
             {
@@ -84,7 +87,10 @@ impl<H: Header> Metrics<H> {
         let inner = Arc::new(Mutex::new(Inner {
             prev,
             gauges,
-            starts: keys.iter().map(|k| (*k, HashMap::new())).collect(),
+            starts: keys
+                .iter()
+                .map(|k| (*k, LruCache::new(MAX_BLOCKS_PER_CHECKPOINT)))
+                .collect(),
         }));
 
         Ok(Self { inner })
