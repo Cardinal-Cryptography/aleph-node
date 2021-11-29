@@ -156,7 +156,7 @@ where
         };
 
         if !(justification.verify::<B>(hash, &verifier)) {
-            error!(target: "afa", "Error when verifying justification for block {:?} {:?}", number, hash);
+            warn!(target: "afa", "Error when verifying justification for block {:?} {:?}", number, hash);
             return;
         };
 
