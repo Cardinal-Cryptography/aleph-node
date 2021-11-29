@@ -4,6 +4,15 @@ use frame_support::{
     traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
+use sp_std::prelude::*;
+
+frame_support::generate_storage_alias!(
+    Aleph, SessionForValidatorsChange => Value<Option<u32>>
+);
+
+frame_support::generate_storage_alias!(
+    Aleph, Validators<T: Config> => Value<Option<Vec<T::AccountId>>>
+);
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -12,12 +21,12 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     if on_chain_storage_version == StorageVersion::default() && new_storage_version == 1 {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
 
-        let _ = crate::SessionForValidatorsChange::<T>::translate(|old| match old {
+        let _ = SessionForValidatorsChange::translate(|old| match old {
             Some(current) => current,
             None => None,
         });
 
-        let _ = crate::Validators::<T>::translate(|old| match old {
+        let _ = Validators::<T>::translate(|old| match old {
             Some(current) => current,
             None => None,
         });

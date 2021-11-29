@@ -25,7 +25,7 @@ fn test_initialize_authorities() {
 #[test]
 fn test_validators_should_be_none() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        assert_eq!(Aleph::validators_change(), None);
+        assert_eq!(Aleph::validators(), None);
     });
 }
 
@@ -38,13 +38,7 @@ fn test_change_validators() {
             0
         ));
 
-        assert_eq!(
-            Aleph::validators_change(),
-            Some(crate::pallet::ValidatorsChangeStorageItem::<Test> {
-                session_for_validators_change: 0,
-                validators: vec![AccountId::default()],
-            }),
-        );
+        assert_eq!(Aleph::validators(), Some(vec![AccountId::default()]));
     });
 }
 
