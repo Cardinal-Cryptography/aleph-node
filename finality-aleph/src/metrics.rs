@@ -107,3 +107,37 @@ impl<H: Key> Metrics<H> {
             .report_block(hash, checkpoint_time, checkpoint_type);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cmp::min;
+
+    use super::*;
+
+    fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
+        m.inner.lock().starts.get(&c).unwrap().len()
+    }
+
+    fn check_reporting_with_memory_excess(metrics: &Metrics<usize>, checkpoint: Checkpoint) {
+        for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
+            metrics.report_block(i, Instant::now(), checkpoint);
+            assert_eq!(
+                min(i, MAX_BLOCKS_PER_CHECKPOINT),
+                starts_for(metrics, checkpoint)
+            )
+        }
+    }
+
+    #[test]
+    fn should_keep_entries_up_to_defined_limit() {
+        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
+        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
+    }
+
+    #[test]
+    fn should_manage_space_for_checkpoints_independently() {
+        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
+        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
+        check_reporting_with_memory_excess(&m, Checkpoint::Imported);
+    }
+}
