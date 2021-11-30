@@ -81,6 +81,15 @@ where
     pub number: NumberFor<Block>,
 }
 
+pub(crate) struct JustificationHandlerConfig<B: BlockT, D: JustificationRequestDelay> {
+    pub(crate) justification_request_delay: D,
+    pub(crate) metrics: Option<Metrics<B::Header>>,
+    /// How long should we wait when the session verifier is not yet available.
+    pub(crate) verifier_timeout: Duration,
+    /// How long should we wait for any notification.
+    pub(crate) notification_timeout: Duration,
+}
+
 pub(crate) struct JustificationHandler<B, RB, C, BE, D, SI, F>
 where
     B: BlockT,
@@ -91,12 +100,11 @@ where
     SI: SessionInfoProvider<B>,
     F: BlockFinalizer<BE, B, C>,
 {
-    justification_request_delay: D,
     session_info_provider: SI,
     block_requester: RB,
     client: Arc<C>,
     finalizer: F,
-    metrics: Option<Metrics<B::Header>>,
+    config: JustificationHandlerConfig<B, D>,
     phantom: PhantomData<BE>,
 }
 
@@ -111,20 +119,18 @@ where
     F: BlockFinalizer<BE, B, C>,
 {
     pub(crate) fn new(
-        justification_request_delay: D,
         session_info_provider: SI,
         block_requester: RB,
         client: Arc<C>,
-        metrics: Option<Metrics<B::Header>>,
         finalizer: F,
+        config: JustificationHandlerConfig<B, D>,
     ) -> Self {
         Self {
-            justification_request_delay,
             session_info_provider,
             block_requester,
             client,
             finalizer,
-            metrics,
+            config,
             phantom: PhantomData,
         }
     }
@@ -161,9 +167,9 @@ where
         );
         match finalization_res {
             Ok(()) => {
-                self.justification_request_delay.on_block_finalized();
+                self.config.justification_request_delay.on_block_finalized();
                 debug!(target: "afa", "Successfully finalized {:?}", number);
-                if let Some(metrics) = &self.metrics {
+                if let Some(metrics) = &self.config.metrics {
                     metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
                 }
             }
@@ -174,12 +180,12 @@ where
     }
 
     fn request_justification(&mut self, num: NumberFor<B>) {
-        if self.justification_request_delay.can_request_now() {
+        if self.config.justification_request_delay.can_request_now() {
             debug!(target: "afa", "Trying to request block {:?}", num);
 
             if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
                 debug!(target: "afa", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
-                self.justification_request_delay.on_request_sent();
+                self.config.justification_request_delay.on_request_sent();
                 self.block_requester
                     .request_justification(&header.hash(), *header.number());
             } else {
@@ -207,13 +213,13 @@ where
                 .session_info_provider
                 .for_block_num(last_finalized_number + 1u32.into());
             if verifier.is_none() {
-                debug!(target: "afa", "Verifier for session {:?} not yet available. Waiting 500ms and will try again ...", current_session);
-                Delay::new(Duration::from_millis(500)).await;
+                debug!(target: "afa", "Verifier for session {:?} not yet available. Waiting {}ms and will try again ...", current_session, self.config.verifier_timeout.as_millis());
+                Delay::new(self.config.verifier_timeout).await;
                 continue;
             }
             let verifier = verifier.expect("We loop until this is some.");
 
-            match timeout(Duration::from_millis(1000), notification_stream.next()).await {
+            match timeout(self.config.notification_timeout, notification_stream.next()).await {
                 Ok(Some(notification)) => {
                     self.handle_justification_notification(
                         notification,

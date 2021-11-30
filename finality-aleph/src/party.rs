@@ -34,6 +34,7 @@ use log::{debug, error, info, trace};
 
 use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
+use crate::justification::JustificationHandlerConfig;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -141,12 +142,19 @@ where
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
-        JustificationRequestDelayImpl::new(&session_period, &millisecs_per_block),
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
-        metrics.clone(),
         AlephFinalizer {},
+        JustificationHandlerConfig {
+            justification_request_delay: JustificationRequestDelayImpl::new(
+                &session_period,
+                &millisecs_per_block,
+            ),
+            metrics: metrics.clone(),
+            verifier_timeout: Duration::from_millis(500),
+            notification_timeout: Duration::from_millis(1000),
+        },
     );
 
     let authority_justification_tx =
