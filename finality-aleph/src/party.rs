@@ -36,7 +36,7 @@ use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use crate::justification::JustificationHandlerConfig;
 use parking_lot::Mutex;
-use sc_client_api::backend::Backend;
+use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::{
@@ -210,7 +210,7 @@ fn run_justification_handler<B, N, C, BE, D, SI, F>(
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
 where
     N: network::Network<B> + network::RequestBlocks<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     B: Block,
     D: JustificationRequestDelay + Send + 'static,

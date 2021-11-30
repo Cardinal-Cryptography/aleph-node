@@ -63,7 +63,7 @@ where
 /// Given hash `last_finalized` and `AlephDataFor` `new_data` of two blocks, returns
 /// Some(new_data) if the block hash represented by new_data is a descendant of last_finalized
 /// (and the new_data.number is correct). Otherwise it outputs None.
-pub(crate) fn should_finalize<BE, B, C>(
+pub(crate) fn should_finalize<B, C>(
     last_finalized: B::Hash,
     new_data: AlephDataFor<B>,
     client: &C,
@@ -71,8 +71,7 @@ pub(crate) fn should_finalize<BE, B, C>(
 ) -> Option<AlephDataFor<B>>
 where
     B: Block,
-    BE: Backend<B>,
-    C: crate::ClientForAleph<B, BE>,
+    C: HeaderBackend<B>,
 {
     // this early return is for optimization reasons only.
     if new_data.hash == last_finalized {
