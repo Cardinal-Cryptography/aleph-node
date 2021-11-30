@@ -2,12 +2,13 @@ use crate::{
     aggregator::BlockSignatureAggregator,
     crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
     data_io::{
-        reduce_header_to_num, refresh_best_chain, AlephData, AlephDataFor, DataIO, DataStore,
+        reduce_header_to_num, refresh_best_chain, AlephData, AlephDataFor, DataProvider, DataStore,
     },
     default_aleph_config,
     finalization::should_finalize,
     justification::{
-        AlephJustification, ChainCadence, JustificationHandler, JustificationNotification,
+        AlephJustification, JustificationHandler, JustificationNotification,
+        JustificationRequestDelay, SessionInfo, SessionInfoProvider,
     },
     last_block_of_session,
     metrics::Checkpoint,
@@ -15,12 +16,12 @@ use crate::{
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
     },
-    session_id_from_block_num, AuthorityId, Future, Metrics, NodeIndex, SessionId, SessionMap,
-    SessionPeriod, UnitCreationDelay,
+    session_id_from_block_num, AuthorityId, Future, Metrics, MillisecsPerBlock, NodeIndex,
+    SessionId, SessionMap, SessionPeriod, UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
 
-use aleph_bft::{DelayConfig, OrderedBatch, SpawnHandle};
+use aleph_bft::{DelayConfig, SpawnHandle};
 use aleph_primitives::{AlephSessionApi, KEY_TYPE};
 use futures_timer::Delay;
 
@@ -31,8 +32,11 @@ use futures::{
 };
 use log::{debug, error, info, trace};
 
+use crate::data_io::FinalizationHandler;
+use crate::finalization::{AlephFinalizer, BlockFinalizer};
+use crate::justification::JustificationHandlerConfig;
 use parking_lot::Mutex;
-use sc_client_api::backend::Backend;
+use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::{
@@ -40,6 +44,7 @@ use sp_runtime::{
     SaturatedConversion,
 };
 use std::default::Default;
+use std::time::Instant;
 use std::{
     cmp::min,
     collections::{HashMap, HashSet},
@@ -50,6 +55,61 @@ use std::{
 
 pub struct AlephParams<B: Block, N, C, SC> {
     pub config: crate::AlephConfig<B, N, C, SC>,
+}
+
+struct JustificationRequestDelayImpl {
+    last_request_time: Instant,
+    last_finalization_time: Instant,
+    delay: Duration,
+}
+
+impl JustificationRequestDelayImpl {
+    fn new(session_period: &SessionPeriod, millisecs_per_block: &MillisecsPerBlock) -> Self {
+        Self {
+            last_request_time: Instant::now(),
+            last_finalization_time: Instant::now(),
+            delay: Duration::from_millis(min(
+                millisecs_per_block.0 * 2,
+                millisecs_per_block.0 * session_period.0 as u64 / 10,
+            )),
+        }
+    }
+}
+
+impl JustificationRequestDelay for JustificationRequestDelayImpl {
+    fn can_request_now(&self) -> bool {
+        let now = Instant::now();
+        now - self.last_finalization_time > self.delay
+            && now - self.last_request_time > 2 * self.delay
+    }
+
+    fn on_block_finalized(&mut self) {
+        self.last_finalization_time = Instant::now();
+    }
+
+    fn on_request_sent(&mut self) {
+        self.last_request_time = Instant::now();
+    }
+}
+
+fn get_session_info_provider<B: Block>(
+    session_authorities: Arc<Mutex<HashMap<SessionId, Vec<AuthorityId>>>>,
+    session_period: SessionPeriod,
+) -> impl SessionInfoProvider<B> {
+    move |block_num| {
+        let current_session = session_id_from_block_num::<B>(block_num, session_period);
+        let last_block_height = last_block_of_session::<B>(current_session, session_period);
+        let verifier = session_authorities
+            .lock()
+            .get(&current_session)
+            .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
+
+        SessionInfo {
+            current_session,
+            last_block_height,
+            verifier,
+        }
+    }
 }
 
 pub async fn run_consensus_party<B, N, C, BE, SC>(aleph_params: AlephParams<B, N, C, SC>)
@@ -79,26 +139,22 @@ where
     } = aleph_params;
 
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
-
-    // NOTE: justifications are requested every so often
-    let cadence = min(
-        millisecs_per_block.0 * 2,
-        millisecs_per_block.0 * session_period.0 as u64 / 10,
-    );
-
-    let chain_cadence = ChainCadence {
-        session_period,
-        justifications_cadence: Duration::from_millis(cadence),
-    };
-
     let block_requester = network.clone();
 
     let handler = JustificationHandler::new(
-        session_authorities.clone(),
-        chain_cadence,
+        get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
-        metrics.clone(),
+        AlephFinalizer {},
+        JustificationHandlerConfig {
+            justification_request_delay: JustificationRequestDelayImpl::new(
+                &session_period,
+                &millisecs_per_block,
+            ),
+            metrics: metrics.clone(),
+            verifier_timeout: Duration::from_millis(500),
+            notification_timeout: Duration::from_millis(1000),
+        },
     );
 
     let authority_justification_tx =
@@ -147,16 +203,19 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, N, C, BE>(
-    handler: JustificationHandler<B, N, C, BE>,
+fn run_justification_handler<B, N, C, BE, D, SI, F>(
+    handler: JustificationHandler<B, N, C, BE, D, SI, F>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
 where
     N: network::Network<B> + network::RequestBlocks<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     B: Block,
+    D: JustificationRequestDelay + Send + 'static,
+    SI: SessionInfoProvider<B> + Send + 'static,
+    F: BlockFinalizer<BE, B, C> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
@@ -195,7 +254,7 @@ where
 
 async fn run_aggregator<B, C, BE>(
     mut aggregator: BlockSignatureAggregator<'_, B, KeyBox>,
-    mut ordered_batch_rx: mpsc::UnboundedReceiver<OrderedBatch<AlephDataFor<B>>>,
+    mut ordered_units_rx: mpsc::UnboundedReceiver<AlephDataFor<B>>,
     justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     client: Arc<C>,
     last_block_in_session: NumberFor<B>,
@@ -211,29 +270,26 @@ async fn run_aggregator<B, C, BE>(
     let mut last_block_seen = false;
     loop {
         tokio::select! {
-            maybe_batch = ordered_batch_rx.next() => {
-                if let Some(batch) = maybe_batch {
-                    trace!(target: "afa", "Received batch {:?} in aggregator.", batch);
+            maybe_unit = ordered_units_rx.next() => {
+                if let Some(new_block_data) = maybe_unit {
+                    trace!(target: "afa", "Received unit {:?} in aggregator.", new_block_data);
                     if last_block_seen {
                         //This is only for optimization purposes.
                         continue;
                     }
-                    for new_block_data in batch {
-                        if let Some(metrics) = &metrics {
-                            metrics.report_block(new_block_data.hash, std::time::Instant::now(), Checkpoint::Ordered);
-                        }
-                        if let Some(data) = should_finalize(last_finalized, new_block_data, client.as_ref(), last_block_in_session) {
-                            aggregator.start_aggregation(data.hash).await;
-                            last_finalized = data.hash;
-                            if data.number == last_block_in_session {
-                                aggregator.notify_last_hash();
-                                last_block_seen = true;
-                                break;
-                            }
+                    if let Some(metrics) = &metrics {
+                        metrics.report_block(new_block_data.hash, std::time::Instant::now(), Checkpoint::Ordered);
+                    }
+                    if let Some(data) = should_finalize(last_finalized, new_block_data, client.as_ref(), last_block_in_session) {
+                        aggregator.start_aggregation(data.hash).await;
+                        last_finalized = data.hash;
+                        if data.number == last_block_in_session {
+                            aggregator.notify_last_hash();
+                            last_block_seen = true;
                         }
                     }
                 } else {
-                    debug!(target: "afa", "Batches ended in aggregator. Terminating.");
+                    debug!(target: "afa", "Units ended in aggregator. Terminating.");
                     break;
                 }
             }
@@ -242,7 +298,7 @@ async fn run_aggregator<B, C, BE>(
                     let number = client.number(hash).unwrap().unwrap();
                     // The unwrap might actually fail if data availability is not implemented correctly.
                     let notification = JustificationNotification {
-                        justification: AlephJustification::new::<B>(multisignature),
+                        justification: AlephJustification{signature: multisignature},
                         hash,
                         number
                     };
@@ -286,7 +342,7 @@ where
     ) -> impl Future<Output = ()> {
         debug!(target: "afa", "Authority task {:?}", session_id);
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
-        let (ordered_batch_tx, ordered_batch_rx) = mpsc::unbounded();
+        let (ordered_units_tx, ordered_units_rx) = mpsc::unbounded();
         let (aleph_network_tx, data_store_rx) = mpsc::unbounded();
         let (data_store_tx, aleph_network_rx) = mpsc::unbounded();
         let mut data_store = DataStore::<B, C, BE, RB, AlephNetworkData<B>>::new(
@@ -316,11 +372,12 @@ where
             reduced_header.hash(),
             *reduced_header.number(),
         )));
-        let data_io = DataIO::<B> {
-            ordered_batch_tx,
+        let data_provider = DataProvider::<B> {
             proposed_block: proposed_block.clone(),
             metrics: self.metrics.clone(),
         };
+
+        let finalization_handler = FinalizationHandler::<B> { ordered_units_tx };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
         let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
@@ -336,7 +393,8 @@ where
                 aleph_bft::run_session(
                     consensus_config,
                     aleph_network,
-                    data_io,
+                    data_provider,
+                    finalization_handler,
                     multikeychain,
                     spawn_handle,
                     exit_member_rx,
@@ -366,7 +424,7 @@ where
                 debug!(target: "afa", "Running the aggregator task for {:?}", session_id.0);
                 run_aggregator(
                     aggregator,
-                    ordered_batch_rx,
+                    ordered_units_rx,
                     justification_tx,
                     client,
                     last_block,

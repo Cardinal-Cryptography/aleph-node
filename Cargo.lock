@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "972cc3d0e242dd26caf8f6fa542d79e1cf61e03119b4d28ae682929c8a8eda08"
+checksum = "540a42c8afdb2b0b658ee0b74cd62602d63d3f5af7192102e4981c425da50df2"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -177,6 +177,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
  "pallet-vesting",
  "parity-scale-codec",
  "primitives",
@@ -1680,6 +1681,7 @@ dependencies = [
  "futures 0.3.17",
  "futures-timer 3.0.2",
  "hash-db",
+ "ip_network 0.4.1",
  "log",
  "lru",
  "parity-scale-codec",
@@ -2682,6 +2684,12 @@ name = "ip_network"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
+
+[[package]]
+name = "ip_network"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
 
 [[package]]
 name = "ipconfig"
@@ -4750,6 +4758,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-treasury"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.9#91061a7d925b5bc597804293da283477512ba4ff"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-vesting"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.9#91061a7d925b5bc597804293da283477512ba4ff"
@@ -6332,7 +6355,7 @@ dependencies = [
  "futures 0.3.17",
  "futures-timer 3.0.2",
  "hex",
- "ip_network",
+ "ip_network 0.3.4",
  "libp2p 0.37.1",
  "linked-hash-map",
  "linked_hash_set",

@@ -22,7 +22,7 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 sp-keystore = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 sc-network = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
-aleph-bft = "0.7"
+aleph-bft = "0.8"
 serde = "1.0"
 sc-service = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
@@ -40,6 +40,7 @@ sp-io= { git = "https://github.com/paritytech/substrate.git", branch = "polkadot
 derive_more = "0.99.7"
 env_logger = "0.8.3"
 async-trait = "0.1.42"
+ip_network = "0.4"
 
 [dev-dependencies]
 substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
