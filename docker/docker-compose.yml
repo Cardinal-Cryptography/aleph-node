@@ -8,7 +8,7 @@ services:
     network_mode: host
     environment:
       - CUSTOM_ARGS=-lpallet_aleph=debug,runtime=debug
-      - PURGE_BEFORE_START=true
+      # - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9933
       - WS_PORT=9943
@@ -28,7 +28,7 @@ services:
     container_name: tomasz
     network_mode: host
     environment:
-      - PURGE_BEFORE_START=true
+      # - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9934
       - WS_PORT=9944
@@ -49,7 +49,7 @@ services:
     container_name: zbyszko
     network_mode: host
     environment:
-      - PURGE_BEFORE_START=true
+      # - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9935
       - WS_PORT=9945
@@ -65,23 +65,23 @@ services:
     volumes:
       - ./data/:/data/
 
-  hansu:
-    image: aleph-node:latest
-    container_name: hansu
-    network_mode: host
-    environment:
-      - PURGE_BEFORE_START=true
-      - RUST_LOG=info
-      - RPC_PORT=9936
-      - WS_PORT=9946
-      - PORT=30336
-      - NAME=Hansu
-      - BASE_PATH=/data/$HANSU
-      - NODE_KEY_PATH=/data/$HANSU/p2p_secret
-      - CHAIN=/data/chainspec.json
-      - ALLOW_PRIVATE_IPV4=true
-      - DISCOVER_LOCAL=true
-      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-      - UNIT_CREATION_DELAY=50
-    volumes:
-      - ./data/:/data/
+  # hansu:
+  #   image: aleph-node:latest
+  #   container_name: hansu
+  #   network_mode: host
+  #   environment:
+  #     - PURGE_BEFORE_START=true
+  #     - RUST_LOG=info
+  #     - RPC_PORT=9936
+  #     - WS_PORT=9946
+  #     - PORT=30336
+  #     - NAME=Hansu
+  #     - BASE_PATH=/data/$HANSU
+  #     - NODE_KEY_PATH=/data/$HANSU/p2p_secret
+  #     - CHAIN=/data/chainspec.json
+  #     - ALLOW_PRIVATE_IPV4=true
+  #     - DISCOVER_LOCAL=true
+  #     - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+  #     - UNIT_CREATION_DELAY=50
+  #   volumes:
+  #     - ./data/:/data/

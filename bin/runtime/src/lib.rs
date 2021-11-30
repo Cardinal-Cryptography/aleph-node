@@ -584,23 +584,14 @@ impl_runtime_apis! {
             block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
             // TODO
-
-            let _ = tx.signature.clone().map(|sig|
-                                                {
-
-                                                    let who = sig.0;
-                                                    let nonce = sig.2.4;
-                                                    // frame_system::Account::<T>::get(who).nonce
-                                                    // let nonce: frame_system::CheckNonce<_> = sig.2.4;
-                                                    // (
-                                                    //     sig.0,
-                                                    //     nonce.0
-                                                    // )
-                                                    log::info!(target: "mev", "who: {:?} nonce : {:?}", who, nonce);
-
-                                                }
+            let _ = tx.signature.clone().map(|sig| {
+                let who = sig.0;
+                let nonce = sig.2.4;
+                log::info!(target: "mev", "who: {:?} nonce : {:?}", who, nonce);
+            }
             );
-            Executive::validate_transaction(source, tx, block_hash)
+            let valid_transaction = Executive::validate_transaction(source, tx, block_hash);
+            valid_transaction
         }
     }
 
