@@ -9,7 +9,10 @@ use prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
 use sc_service::Arc;
 
 // How many entries (block hash + timestamp) we keep in memory per one checkpoint type.
-const MAX_BLOCKS_PER_CHECKPOINT: usize = 20;
+// Each entry takes 32B (Hash) + 16B (Instant), so a limit of 5000 gives ~234kB (per checkpoint).
+// Notice that some issues like finalization stall may lead to incomplete metrics
+// (e.g. when the gap between checkpoints for a block grows over `MAX_BLOCKS_PER_CHECKPOINT`).
+const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
 pub trait Key: Hash + Eq + Debug + Copy {}
 impl<T: Hash + Eq + Debug + Copy> Key for T {}
