@@ -2,46 +2,46 @@ use core::result::Result;
 use std::sync::Arc;
 
 use log::{debug, error, warn};
-use sc_client_api::Backend;
+use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
 use sp_api::{BlockId, NumberFor};
 use sp_blockchain::Error;
 use sp_runtime::{
-    Justification,
     traits::{Block, Header},
+    Justification,
 };
 
-use crate::ClientForAleph;
 use crate::data_io::AlephDataFor;
 
-pub(crate) trait Finalizer<BE, B, C> {
+pub(crate) trait BlockFinalizer<BE, B, C>
+where
+    B: Block,
+    BE: Backend<B>,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
+{
     fn finalize_block(
         &self,
         client: Arc<C>,
         hash: B::Hash,
         block_number: NumberFor<B>,
         justification: Option<Justification>,
-    ) -> Result<(), Error>
-    where
-        B: Block,
-        BE: Backend<B>,
-        C: ClientForAleph<B, BE>;
+    ) -> Result<(), Error>;
 }
 
 pub(crate) struct AlephFinalizer;
 
-impl<BE, B, C> Finalizer<BE, B, C> for AlephFinalizer {
+impl<BE, B, C> BlockFinalizer<BE, B, C> for AlephFinalizer
+where
+    B: Block,
+    BE: Backend<B>,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
+{
     fn finalize_block(
         &self,
         client: Arc<C>,
         hash: B::Hash,
         block_number: NumberFor<B>,
         justification: Option<Justification>,
-    ) -> Result<(), Error>
-    where
-        B: Block,
-        BE: Backend<B>,
-        C: ClientForAleph<B, BE>,
-    {
+    ) -> Result<(), Error> {
         let status = client.info();
         if status.finalized_number >= block_number {
             warn!(target: "afa", "trying to finalize a block with hash {} and number {}

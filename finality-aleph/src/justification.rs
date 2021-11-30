@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityVerifier, Signature, SignatureV1},
-    finalization::Finalizer,
+    finalization::BlockFinalizer,
     metrics::Checkpoint,
     network, Metrics, SessionId,
 };
@@ -10,7 +10,7 @@ use codec::{Decode, DecodeAll, Encode};
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error, warn};
-use sc_client_api::backend::Backend;
+use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
 use std::time::Instant;
@@ -85,11 +85,11 @@ pub(crate) struct JustificationHandler<B, RB, C, BE, D, SI, F>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
     SI: SessionInfoProvider<B>,
-    F: Finalizer<BE, B, C>,
+    F: BlockFinalizer<BE, B, C>,
 {
     justification_request_delay: D,
     session_info_provider: SI,
@@ -104,11 +104,11 @@ impl<B, RB, C, BE, D, SI, F> JustificationHandler<B, RB, C, BE, D, SI, F>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     D: JustificationRequestDelay,
     SI: SessionInfoProvider<B>,
-    F: Finalizer<BE, B, C>,
+    F: BlockFinalizer<BE, B, C>,
 {
     pub(crate) fn new(
         justification_request_delay: D,

@@ -33,7 +33,7 @@ use futures::{
 use log::{debug, error, info, trace};
 
 use crate::data_io::FinalizationHandler;
-use crate::finalization::{AlephFinalizer, Finalizer};
+use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_api::{BlockId, NumberFor};
@@ -207,7 +207,7 @@ where
     B: Block,
     D: JustificationRequestDelay + Send + 'static,
     SI: SessionInfoProvider<B> + Send + 'static,
-    F: Finalizer<BE, B, C> + Send + 'static,
+    F: BlockFinalizer<BE, B, C> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
