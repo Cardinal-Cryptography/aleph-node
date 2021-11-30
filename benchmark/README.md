@@ -23,6 +23,51 @@ _Remark: Use `host.docker.internal` instead of `localhost`_.
 
 **Important: Run `aleph-node` with `--prometheus-external` flag.**
 
+## Running multiple instances in parallel
+
+You can run multiple instances of docker-compose images for prometheus and grafana in parallel. For this, you need to provide an alternative port for grafana and an alternative `prometheus.yml` configuration file for prometheus. 
+Example command line invocation:
+```
+PROMETHEUS_YAML=./prometheus_alternative.yml GRAFANA_PORT=3001 docker-compose -p alternative_name up
+``` 
+
+## Export/import of collected stats
+
+Collected data can be easily saved and then imported on some different machine by the means of `docker`.
+
+Exporting data:
+```
+docker commit <prometheus_container_id> prometheus:exported_data
+docker save -o prometheus.tar prometheus:exported_data
+```
+
+Importing data:
+```
+docker load -i prometheus.tar
+```
+
+Then, in order to run provided image locally, you need to update the `docker-compose.yml` file accordingly,
+so it uses your saved `prometheus` instance. Example configuration:
+```
+version: '3.2'
+
+services:
+  prometheus:
+    image: prometheus:exported_data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ${PROMETHEUS_YAML:-./prometheus.yml}:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:8.2.1
+    ports:
+      - ${GRAFANA_PORT:-3000}:3000
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+      - ./grafana.ini:/etc/grafana/grafana.ini
+```
+
 ## Troubleshooting
 
 In case there is no data displayed in Grafana, check the connection between Prometheus server and its targets at 
