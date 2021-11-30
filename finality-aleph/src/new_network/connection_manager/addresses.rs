@@ -94,7 +94,7 @@ fn get_peer_id(address: &Multiaddr) -> Option<PeerId> {
 
 /// Returns the peer id contained in the set of multiaddresses if it's unique and present in every
 /// address, None otherwise.
-pub fn get_unique_peer_id(addresses: &[Multiaddr]) -> Option<PeerId> {
+pub fn get_common_peer_id(addresses: &[Multiaddr]) -> Option<PeerId> {
     addresses
         .iter()
         .fold(UniquePeerId::Unknown, |result, address| {
@@ -105,7 +105,7 @@ pub fn get_unique_peer_id(addresses: &[Multiaddr]) -> Option<PeerId> {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_unique_peer_id, is_global, is_p2p};
+    use super::{get_common_peer_id, is_global, is_p2p};
     use sc_network::Multiaddr as ScMultiaddr;
 
     fn address(text: &str) -> ScMultiaddr {
@@ -141,12 +141,12 @@ mod tests {
 
     #[test]
     fn no_addresses_have_no_peer_id() {
-        assert!(get_unique_peer_id(&[]).is_none());
+        assert!(get_common_peer_id(&[]).is_none());
     }
 
     #[test]
     fn non_p2p_addresses_have_no_peer_id() {
-        assert!(get_unique_peer_id(&[
+        assert!(get_common_peer_id(&[
             address("/dns4/example.com/udt/sctp/5678").into(),
             address("/ip4/81.6.39.166/udt/sctp/5678").into(),
         ])
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn p2p_addresses_with_common_peer_id_have_unique_peer_id() {
-        assert!(get_unique_peer_id(&[
+        assert!(get_common_peer_id(&[
                 address("/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
                 address("/dns4/peer.example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
         ]).is_some());
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn mixed_addresses_have_no_unique_peer_id() {
-        assert!(get_unique_peer_id(&[
+        assert!(get_common_peer_id(&[
                 address("/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
                 address("/dns4/peer.example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
                 address("/dns4/example.com/udt/sctp/5678").into(),
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn p2p_addresses_with_differing_peer_ids_have_no_unique_peer_id() {
-        assert!(get_unique_peer_id(&[
+        assert!(get_common_peer_id(&[
                 address("/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
                 address("/dns4/peer.example.com/tcp/30333/p2p/12D3KooWFVXnvJdPuGnGYMPn5qLQAQYwmRBgo6SmEQsKZSrDoo2k").into(),
         ]).is_none());

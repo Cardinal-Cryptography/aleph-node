@@ -1,7 +1,7 @@
 use crate::{
     crypto::KeyBox,
     new_network::{
-        connection_manager::{get_unique_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
+        connection_manager::{get_common_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
         PeerId,
     },
     NodeIndex, SessionId,
@@ -38,7 +38,7 @@ async fn construct_authentication(
     if addresses.is_empty() {
         return Err(AddressError::NoP2pAddresses);
     }
-    let peer_id = match get_unique_peer_id(&addresses) {
+    let peer_id = match get_common_peer_id(&addresses) {
         Some(peer_id) => peer_id,
         None => return Err(AddressError::MultiplePeerIds),
     };
@@ -107,7 +107,7 @@ impl Handler {
             return false;
         }
         // The auth is completely useless if it doesn't have a consistent PeerId.
-        let peer_id = match get_unique_peer_id(&auth_data.addresses) {
+        let peer_id = match get_common_peer_id(&auth_data.addresses) {
             Some(peer_id) => peer_id,
             None => return false,
         };
@@ -183,7 +183,7 @@ impl Handler {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_unique_peer_id, AddressError, Handler};
+    use super::{get_common_peer_id, AddressError, Handler};
     use crate::{
         crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
         new_network::connection_manager::Multiaddr,
@@ -303,7 +303,7 @@ mod tests {
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (2..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
-        let peer_id1 = get_unique_peer_id(&correct_addresses_1());
+        let peer_id1 = get_common_peer_id(&correct_addresses_1());
         assert_eq!(handler0.peer_id(&NodeIndex(1)), peer_id1);
         assert_eq!(handler0.node_id(&peer_id1.unwrap()), Some(NodeIndex(1)));
     }
@@ -405,7 +405,7 @@ mod tests {
         assert_eq!(missing_nodes, expected_missing);
         assert_eq!(
             handler0.peer_id(&NodeIndex(1)),
-            get_unique_peer_id(&correct_addresses_1())
+            get_common_peer_id(&correct_addresses_1())
         );
     }
 }

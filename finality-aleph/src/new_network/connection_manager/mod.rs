@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 mod addresses;
 mod session;
 
-use addresses::{get_unique_peer_id, is_p2p};
+use addresses::{get_common_peer_id, is_p2p};
 
 /// A wrapper for the Substrate multiaddress to allow encoding & decoding.
 #[derive(Clone, Debug)]
