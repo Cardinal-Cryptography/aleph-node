@@ -20,7 +20,7 @@ impl From<ScMultiaddr> for Multiaddr {
 
 impl Encode for Multiaddr {
     fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        self.0.as_ref().using_encoded(f)
+        self.0.to_vec().using_encoded(f)
     }
 }
 
@@ -44,3 +44,24 @@ pub struct AuthData {
 
 /// A full authentication, consisting of a signed AuthData.
 pub type Authentication = (AuthData, Signature);
+
+#[cfg(test)]
+mod test {
+    use super::{Multiaddr, ScMultiaddr};
+    use codec::{Decode, Encode};
+
+    #[test]
+    fn multiaddr_encode_decode() {
+        let sc_multiaddr: ScMultiaddr =
+            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L"
+                .parse()
+                .unwrap();
+        let multiaddr: Multiaddr = sc_multiaddr.into();
+        assert_eq!(
+            Multiaddr::decode(&mut &multiaddr.encode()[..])
+                .unwrap()
+                .encode(),
+            multiaddr.encode()
+        );
+    }
+}
