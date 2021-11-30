@@ -7,11 +7,11 @@ use frame_support::{
 use sp_std::prelude::*;
 
 frame_support::generate_storage_alias!(
-    Aleph, SessionForValidatorsChange => Value<Option<u32>>
+    Aleph, OldSessionForValidatorsChange => Value<Option<u32>>
 );
 
 frame_support::generate_storage_alias!(
-    Aleph, Validators<T: Config> => Value<Option<Vec<T::AccountId>>>
+    Aleph, OldValidators<T: Config> => Value<Option<Vec<T::AccountId>>>
 );
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
@@ -21,21 +21,28 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     if on_chain_storage_version == StorageVersion::default() && new_storage_version == 1 {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
 
-        let _ = SessionForValidatorsChange::translate(|old| match old {
-            Some(current) => current,
+        let mut writes = 0;
+        let _ = OldSessionForValidatorsChange::translate(|old| match old {
+            Some(current) => {
+                writes += 1;
+                current
+            }
             None => None,
         });
 
-        let _ = Validators::<T>::translate(|old| match old {
-            Some(current) => current,
+        let _ = OldValidators::<T>::translate(|old| match old {
+            Some(current) => {
+                writes += 1;
+                current
+            }
             None => None,
         });
 
         // store new version
         StorageVersion::new(1).put::<P>();
+        writes += 1;
 
-        // for safety take the whole block
-        T::BlockWeights::get().max_block
+        T::DbWeight::get().reads(3) + T::DbWeight::get().writes(writes)
     } else {
         log::warn!(
             target: "pallet_aleph",
@@ -43,6 +50,7 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
             on_chain_storage_version,
             new_storage_version
         );
+        // I have only read the version
         T::DbWeight::get().reads(1)
     }
 }
