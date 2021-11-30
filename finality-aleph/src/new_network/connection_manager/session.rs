@@ -1,9 +1,7 @@
 use crate::{
     crypto::KeyBox,
     new_network::{
-        connection_manager::{
-            get_unique_peer_id, is_global, is_p2p, AuthData, Authentication, Multiaddr,
-        },
+        connection_manager::{get_unique_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
         PeerId,
     },
     NodeIndex, SessionId,
@@ -27,7 +25,7 @@ pub struct Handler {
 /// or the addresses contain multiple libp2p PeerIds.
 #[derive(Debug)]
 pub enum AddressError {
-    NoExternalP2pAddresses,
+    NoP2pAddresses,
     MultiplePeerIds,
 }
 
@@ -36,13 +34,9 @@ async fn construct_authentication(
     session_id: SessionId,
     addresses: Vec<Multiaddr>,
 ) -> Result<(Authentication, PeerId), AddressError> {
-    let addresses: Vec<_> = addresses
-        .into_iter()
-        .filter(is_global)
-        .filter(is_p2p)
-        .collect();
+    let addresses: Vec<_> = addresses.into_iter().filter(is_p2p).collect();
     if addresses.is_empty() {
-        return Err(AddressError::NoExternalP2pAddresses);
+        return Err(AddressError::NoP2pAddresses);
     }
     let peer_id = match get_unique_peer_id(&addresses) {
         Some(peer_id) => peer_id,
@@ -265,7 +259,7 @@ mod tests {
     async fn fails_to_create_with_no_addresses() {
         assert!(matches!(
             Handler::new(keyboxes().await.pop().unwrap(), SessionId(43), Vec::new()).await,
-            Err(AddressError::NoExternalP2pAddresses)
+            Err(AddressError::NoP2pAddresses)
         ));
     }
 
