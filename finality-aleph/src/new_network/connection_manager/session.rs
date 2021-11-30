@@ -235,6 +235,13 @@ mod tests {
         ]
     }
 
+    fn local_p2p_addresses() -> Vec<Multiaddr> {
+        vec![address(
+            "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWFVXnvJdPuGnGYMPn5qLQAQYwmRBgo6SmEQsKZSrDoo2k",
+        )
+        .into()]
+    }
+
     fn mixed_addresses() -> Vec<Multiaddr> {
         vec![
                 address("/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
@@ -250,6 +257,17 @@ mod tests {
             keyboxes().await.pop().unwrap(),
             SessionId(43),
             correct_addresses_0()
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn creates_with_local_address() {
+        assert!(Handler::new(
+            keyboxes().await.pop().unwrap(),
+            SessionId(43),
+            local_p2p_addresses()
         )
         .await
         .is_ok());
