@@ -42,13 +42,13 @@ fn migration_from_v0_to_v1_works() {
         assert_eq!(
             Aleph::session_for_validators_change(),
             Some(1u32),
-            "migration should preserve ongoing session change with respect to the session number"
+            "Migration should preserve ongoing session change with respect to the session number"
         );
 
         assert_eq!(
             Aleph::validators(),
             Some(vec![AccountId::default()]),
-            "migration should preserve ongoing session change with respect to the validators set"
+            "Migration should preserve ongoing session change with respect to the validators set"
         );
     })
 }
