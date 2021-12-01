@@ -29,7 +29,7 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    _phantom: (PhantomData<B>, PhantomData<BE>),
+    phantom: PhantomData<(B, BE)>,
 }
 
 impl<B, BE, C> AlephFinalizer<B, BE, C>
@@ -41,7 +41,7 @@ where
     pub(crate) fn new(client: Arc<C>) -> Self {
         AlephFinalizer {
             client,
-            _phantom: (PhantomData, PhantomData),
+            phantom: PhantomData,
         }
     }
 }
