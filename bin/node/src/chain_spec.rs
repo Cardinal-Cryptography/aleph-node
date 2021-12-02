@@ -223,11 +223,11 @@ fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value
 pub fn config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
-    chain_id: &str,
 ) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
     let token_symbol = String::from(chain_params.token_symbol());
     let chain_name = String::from(chain_params.chain_name());
+    let chain_id = String::from(chain_params.chain_id());
     let sudo_account = chain_params.sudo_account_id();
 
     // NOTE: this could be passed as a CLI argument similar to the sudo-account id
@@ -243,7 +243,7 @@ pub fn config(
         // Name
         &chain_name,
         // ID
-        chain_id,
+        &chain_id,
         chain_type,
         move || {
             genesis(
