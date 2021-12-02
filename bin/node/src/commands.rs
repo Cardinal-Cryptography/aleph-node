@@ -192,3 +192,8 @@ impl BootstrapNodeCmd {
         }
     }
 }
+
+/// The `generate-raw-chainspec` command is used to generate key pairs for a single authority
+/// private keys are stored in a specified keystore, and the public keys are written to stdout.
+#[derive(Debug, StructOpt)]
+pub struct ConvertChainspecCmd {}
