@@ -583,15 +583,7 @@ impl_runtime_apis! {
             tx: <Block as BlockT>::Extrinsic,
             block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
-            // TODO
-            let _ = tx.signature.clone().map(|sig| {
-                let who = sig.0;
-                let nonce = sig.2.4;
-                log::info!(target: "mev", "who: {:?} nonce : {:?}", who, nonce);
-            }
-            );
-            let valid_transaction = Executive::validate_transaction(source, tx, block_hash);
-            valid_transaction
+            Executive::validate_transaction(source, tx, block_hash)
         }
     }
 
