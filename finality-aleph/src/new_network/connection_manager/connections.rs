@@ -17,15 +17,15 @@ impl Connections {
     }
 
     /// Mark the specified peers as ones we should be connected to for the given session.
-    pub fn add_peers(&mut self, session_id: SessionId, peers: HashSet<PeerId>) {
+    pub fn add_peers(&mut self, session_id: SessionId, peers: impl IntoIterator<Item = PeerId>) {
         for peer in peers {
             self.associated_sessions
                 .entry(peer)
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(session_id);
             self.peers_by_session
                 .entry(session_id)
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(peer);
         }
     }
@@ -81,5 +81,21 @@ mod tests {
         connections.add_peers(other_session_id, peer_ids);
         let to_remove = connections.remove_session(session_id);
         assert!(to_remove.is_empty());
+    }
+
+    #[test]
+    fn removes_peer_only_after_all_sessions_pass() {
+        let start = 43;
+        let end = 50;
+        let peer_ids = random_peer_ids(1);
+        let mut connections = Connections::new();
+        for i in start..end + 1 {
+            connections.add_peers(SessionId(i), peer_ids.clone());
+        }
+        for i in start..end {
+            assert!(connections.remove_session(SessionId(i)).is_empty());
+        }
+        let to_remove = connections.remove_session(SessionId(end));
+        assert_eq!(to_remove, peer_ids);
     }
 }
