@@ -5,9 +5,12 @@ use std::convert::TryFrom;
 
 mod addresses;
 mod connections;
+mod discovery;
 mod session;
 
 use addresses::{get_common_peer_id, is_p2p};
+
+use session::Handler as SessionHandler;
 
 /// A wrapper for the Substrate multiaddress to allow encoding & decoding.
 #[derive(Clone, Debug)]
@@ -41,6 +44,20 @@ pub struct AuthData {
     addresses: Vec<Multiaddr>,
     node_id: NodeIndex,
     session_id: SessionId,
+}
+
+impl AuthData {
+    pub fn session(&self) -> SessionId {
+        self.session_id
+    }
+
+    pub fn creator(&self) -> NodeIndex {
+        self.node_id
+    }
+
+    pub fn address(&self) -> Vec<Multiaddr> {
+        self.addresses.clone()
+    }
 }
 
 /// A full authentication, consisting of a signed AuthData.
