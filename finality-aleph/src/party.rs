@@ -36,7 +36,7 @@ use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use crate::justification::JustificationHandlerConfig;
 use parking_lot::Mutex;
-use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
+use sc_client_api::{Backend, HeaderBackend};
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::{
@@ -145,7 +145,7 @@ where
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
-        AlephFinalizer {},
+        AlephFinalizer::new(client.clone()),
         JustificationHandlerConfig {
             justification_request_delay: JustificationRequestDelayImpl::new(
                 &session_period,
@@ -203,19 +203,18 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, N, C, BE, D, SI, F>(
-    handler: JustificationHandler<B, N, C, BE, D, SI, F>,
+fn run_justification_handler<B, N, C, D, SI, F>(
+    handler: JustificationHandler<B, N, C, D, SI, F>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
 where
     N: network::Network<B> + network::RequestBlocks<B> + 'static,
-    C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE> + Send + Sync + 'static,
-    BE: Backend<B> + 'static,
+    C: HeaderBackend<B> + Send + Sync + 'static,
     B: Block,
     D: JustificationRequestDelay + Send + 'static,
     SI: SessionInfoProvider<B> + Send + 'static,
-    F: BlockFinalizer<BE, B, C> + Send + 'static,
+    F: BlockFinalizer<B> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
@@ -247,7 +246,7 @@ where
     keystore: Arc<dyn CryptoStore>,
     block_requester: RB,
     phantom: PhantomData<BE>,
-    metrics: Option<Metrics<B::Header>>,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
 }
@@ -258,7 +257,7 @@ async fn run_aggregator<B, C, BE>(
     justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     client: Arc<C>,
     last_block_in_session: NumberFor<B>,
-    metrics: Option<Metrics<B::Header>>,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     mut exit_rx: futures::channel::oneshot::Receiver<()>,
 ) where
     B: Block,
