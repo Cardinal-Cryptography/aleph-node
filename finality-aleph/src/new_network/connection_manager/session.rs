@@ -90,10 +90,7 @@ impl Handler {
     }
 
     fn session_id(&self) -> Option<SessionId> {
-        match self.own_authentication.as_ref() {
-            Some(own_authentication) => Some(own_authentication.0.session_id),
-            _ => None,
-        }
+        self.own_authentication.as_ref().map(|own_authentication| own_authentication.0.session_id)
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
@@ -124,15 +121,12 @@ impl Handler {
     pub fn handle_authentication(&mut self, authentication: Authentication) -> bool {
         let (auth_data, signature) = authentication.clone();
 
-        match self.session_id() {
-            Some(session_id) => {
-                if auth_data.session_id != session_id {
-                    return false;
-                }
+        if let Some(session_id) = self.session_id() {
+            if auth_data.session_id != session_id {
+                return false;
             }
-            _ => {}
         }
-
+        
         // The auth is completely useless if it doesn't have a consistent PeerId.
         let peer_id = match get_common_peer_id(&auth_data.addresses) {
             Some(peer_id) => peer_id,
