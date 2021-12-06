@@ -35,7 +35,7 @@ pub use frame_support::{
     sp_runtime::curve::PiecewiseLinear,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        OnRuntimeUpgrade, OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
+        OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
