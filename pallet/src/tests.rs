@@ -51,8 +51,12 @@ fn migration_from_v0_to_v1_works() {
             "Migration should preserve ongoing session change with respect to the validators set"
         );
 
-        // TODO : test noop
-        let _weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
+        let noop_weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
+        assert_eq!(
+            noop_weight,
+            TestDbWeight::get().reads(1),
+            "Migration cannot be run twice"
+        );
     })
 }
 
