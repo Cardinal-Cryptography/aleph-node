@@ -9,16 +9,16 @@ fn migration_from_v0_to_v1_works() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         frame_support::migration::put_storage_value(
             b"Aleph",
-            b"Validators",
+            b"SessionForValidatorsChange",
             &[],
-            vec![AccountId::default()],
+            1u32,
         );
 
         frame_support::migration::put_storage_value(
             b"Aleph",
-            b"SessionForValidatorsChange",
+            b"Validators",
             &[],
-            1u32,
+            vec![AccountId::default()],
         );
 
         let v0 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
@@ -50,6 +50,9 @@ fn migration_from_v0_to_v1_works() {
             Some(vec![AccountId::default()]),
             "Migration should preserve ongoing session change with respect to the validators set"
         );
+
+        // TODO : test noop
+        let _weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
     })
 }
 
