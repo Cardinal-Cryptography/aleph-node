@@ -17,9 +17,8 @@ pub struct Handler {
     authentications: HashMap<PeerId, (Authentication, Option<Authentication>)>,
     own_authentication: Option<Authentication>,
     own_peer_id: PeerId,
-    node_index: Option<NodeIndex>,
+    authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
     authority_verifier: AuthorityVerifier,
-    authority_pen: Option<AuthorityPen>,
 }
 
 /// Returned when a set of addresses is not usable for creating authentications.
@@ -31,18 +30,8 @@ pub enum AddressError {
     MultiplePeerIds,
 }
 
-/// Returned when a set of addresses is not usable for creating authentications.
-/// Either because none of the addresses are externally reachable libp2p addresses,
-/// or the addresses contain multiple libp2p PeerIds.
-#[derive(Debug)]
-pub enum HandlerError {
-    AddressError(AddressError),
-    SelfAuthenticationError,
-}
-
 async fn construct_authentication(
-    node_index: Option<NodeIndex>,
-    authority_pen: &Option<AuthorityPen>,
+    authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     addresses: Vec<Multiaddr>,
 ) -> Result<(Option<Authentication>, PeerId), AddressError> {
@@ -54,13 +43,13 @@ async fn construct_authentication(
         Some(peer_id) => peer_id,
         None => return Err(AddressError::MultiplePeerIds),
     };
-    if let Some(unwrapped_authority_pen) = authority_pen {
+    if let Some((node_index, authority_pen)) = authority_index_and_pen {
         let auth_data = AuthData {
             addresses,
-            node_id: node_index.unwrap(),
+            node_id: *node_index,
             session_id,
         };
-        let signature = unwrapped_authority_pen.sign(&auth_data.encode()).await;
+        let signature = authority_pen.sign(&auth_data.encode()).await;
         return Ok((Some((auth_data, signature)), peer_id));
     }
     Ok((None, peer_id))
@@ -70,38 +59,29 @@ impl Handler {
     /// Returns an error if the set of addresses contains no external libp2p addresses, or contains
     /// at least two such addresses with differing PeerIds.
     pub async fn new(
-        node_index: Option<NodeIndex>,
+        authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
-        authority_pen: Option<AuthorityPen>,
         session_id: SessionId,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Handler, HandlerError> {
-        match (node_index, &authority_pen) {
-            (Some(_), None) => {
-                return Err(HandlerError::SelfAuthenticationError);
-            }
-            (None, Some(_)) => {
-                return Err(HandlerError::SelfAuthenticationError);
-            }
-            _ => {}
-        };
+    ) -> Result<Handler, AddressError> {
         let (own_authentication, own_peer_id) =
-            construct_authentication(node_index, &authority_pen, session_id, addresses)
-                .await
-                .or_else(|err| Err(HandlerError::AddressError(err)))?;
+            construct_authentication(&authority_index_and_pen, session_id, addresses)
+                .await?;
         Ok(Handler {
             peers_by_node: HashMap::new(),
             authentications: HashMap::new(),
             own_authentication,
-            node_index,
+            authority_index_and_pen,
             authority_verifier,
-            authority_pen,
             own_peer_id,
         })
     }
 
     fn index(&self) -> Option<NodeIndex> {
-        self.node_index
+        match self.authority_index_and_pen {
+            Some((index, _)) => Some(index),
+            _ => None,
+        }
     }
 
     pub fn node_count(&self) -> NodeCount {
@@ -139,7 +119,7 @@ impl Handler {
     /// remain connected to the multiaddresses.
     pub fn handle_authentication(&mut self, authentication: Authentication) -> bool {
         let (auth_data, signature) = authentication.clone();
-        if let Some(_) = self.node_index {
+        if let Some(_) = self.authority_index_and_pen {
             if auth_data.session_id != self.session_id() {
                 return false;
             }
@@ -188,31 +168,19 @@ impl Handler {
     /// If successful returns a set of addresses that we should be connected to.
     pub async fn update(
         &mut self,
-        node_index: Option<NodeIndex>,
+        authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
-        authority_pen: Option<AuthorityPen>,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Vec<Multiaddr>, HandlerError> {
-        match (node_index, &authority_pen) {
-            (Some(_), None) => {
-                return Err(HandlerError::SelfAuthenticationError);
-            }
-            (None, Some(_)) => {
-                return Err(HandlerError::SelfAuthenticationError);
-            }
-            _ => {}
-        };
+    ) -> Result<Vec<Multiaddr>, AddressError> {
 
         let (own_authentication, own_peer_id) =
-            construct_authentication(node_index, &authority_pen, self.session_id(), addresses)
-                .await
-                .or_else(|err| Err(HandlerError::AddressError(err)))?;
+            construct_authentication(&authority_index_and_pen, self.session_id(), addresses)
+                .await?;
         let authentications = self.authentications.clone();
         self.authentications = HashMap::new();
         self.peers_by_node = HashMap::new();
-        self.node_index = node_index;
+        self.authority_index_and_pen = authority_index_and_pen;
         self.authority_verifier = authority_verifier;
-        self.authority_pen = authority_pen;
         self.own_authentication = own_authentication;
         self.own_peer_id = own_peer_id;
         for (_, (auth, maybe_auth)) in authentications {
@@ -237,7 +205,7 @@ impl Handler {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_common_peer_id, AddressError, Handler, HandlerError};
+    use super::{get_common_peer_id, AddressError, Handler};
     use crate::{
         crypto::{AuthorityPen, AuthorityVerifier},
         new_network::connection_manager::Multiaddr,
@@ -251,7 +219,7 @@ mod tests {
     const NUM_NODES: usize = 7;
 
     async fn keyboxes_components(
-    ) -> Vec<(Option<NodeIndex>, AuthorityVerifier, Option<AuthorityPen>)> {
+    ) -> Vec<(Option<(NodeIndex, AuthorityPen)>, AuthorityVerifier)> {
         let num_keyboxes_components = NUM_NODES;
         let keystore = Arc::new(KeyStore::new());
         let mut auth_ids = Vec::with_capacity(num_keyboxes_components);
@@ -262,13 +230,13 @@ mod tests {
         let mut result = Vec::with_capacity(num_keyboxes_components);
         for i in 0..num_keyboxes_components {
             result.push((
-                Some(NodeIndex(i)),
-                AuthorityVerifier::new(auth_ids.clone()),
-                Some(
+                Some((
+                    NodeIndex(i),
                     AuthorityPen::new(auth_ids[i].clone(), keystore.clone())
                         .await
                         .expect("The keys should sign successfully"),
-                ),
+                )),
+                AuthorityVerifier::new(auth_ids.clone()),
             ));
         }
         result
@@ -310,12 +278,11 @@ mod tests {
 
     #[tokio::test]
     async fn creates_with_correct_data() {
-        let (node_index, authority_verifier, authority_pen) =
+        let (authority_index_and_pen, authority_verifier) =
             keyboxes_components().await.pop().unwrap();
         assert!(Handler::new(
-            node_index,
+            authority_index_and_pen,
             authority_verifier,
-            authority_pen,
             SessionId(43),
             correct_addresses_0()
         )
@@ -325,12 +292,11 @@ mod tests {
 
     #[tokio::test]
     async fn creates_with_local_address() {
-        let (node_index, authority_verifier, authority_pen) =
+        let (authority_index_and_pen, authority_verifier) =
             keyboxes_components().await.pop().unwrap();
         assert!(Handler::new(
-            node_index,
+            authority_index_and_pen,
             authority_verifier,
-            authority_pen,
             SessionId(43),
             local_p2p_addresses()
         )
@@ -340,11 +306,10 @@ mod tests {
 
     #[tokio::test]
     async fn creates_without_node_index_nor_authority_pen() {
-        let (_, authority_verifier, _) = keyboxes_components().await.pop().unwrap();
+        let (_, authority_verifier) = keyboxes_components().await.pop().unwrap();
         assert!(Handler::new(
             None,
             authority_verifier,
-            None,
             SessionId(43),
             correct_addresses_0()
         )
@@ -353,57 +318,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_to_create_without_node_index_and_with_authority_pen() {
-        let (_, authority_verifier, authority_pen) = keyboxes_components().await.pop().unwrap();
-        assert!(matches!(
-            Handler::new(
-                None,
-                authority_verifier,
-                authority_pen,
-                SessionId(43),
-                Vec::new()
-            )
-            .await,
-            Err(HandlerError::SelfAuthenticationError)
-        ));
-    }
-
-    #[tokio::test]
-    async fn fails_to_create_with_node_index_and_without_authority_pen() {
-        let (node_index, authority_verifier, _) = keyboxes_components().await.pop().unwrap();
-        assert!(matches!(
-            Handler::new(
-                node_index,
-                authority_verifier,
-                None,
-                SessionId(43),
-                Vec::new()
-            )
-            .await,
-            Err(HandlerError::SelfAuthenticationError)
-        ));
-    }
-
-    #[tokio::test]
     async fn fails_to_create_with_no_addresses() {
-        let (node_index, authority_verifier, authority_pen) =
+        let (authority_index_and_pen, authority_verifier) =
             keyboxes_components().await.pop().unwrap();
         assert!(matches!(
             Handler::new(
-                node_index,
+                authority_index_and_pen,
                 authority_verifier,
-                authority_pen,
                 SessionId(43),
                 Vec::new()
             )
             .await,
-            Err(HandlerError::AddressError(AddressError::NoP2pAddresses))
+            Err(AddressError::NoP2pAddresses)
         ));
     }
 
     #[tokio::test]
     async fn fails_to_create_with_non_unique_peer_id() {
-        let (node_index, authority_verifier, authority_pen) =
+        let (authority_index_and_pen, authority_verifier) =
             keyboxes_components().await.pop().unwrap();
         let addresses = correct_addresses_0()
             .into_iter()
@@ -411,25 +343,23 @@ mod tests {
             .collect();
         assert!(matches!(
             Handler::new(
-                node_index,
+                authority_index_and_pen,
                 authority_verifier,
-                authority_pen,
                 SessionId(43),
                 addresses
             )
             .await,
-            Err(HandlerError::AddressError(AddressError::MultiplePeerIds))
+            Err(AddressError::MultiplePeerIds)
         ));
     }
 
     #[tokio::test]
     async fn misses_all_other_nodes_initially() {
-        let (node_index, authority_verifier, authority_pen) =
+        let (authority_index_and_pen, authority_verifier) =
             keyboxes_components().await.pop().unwrap();
         let handler0 = Handler::new(
-            node_index,
+            authority_index_and_pen,
             authority_verifier,
-            authority_pen,
             SessionId(43),
             correct_addresses_0(),
         )
@@ -447,7 +377,6 @@ mod tests {
         let mut handler0 = Handler::new(
             keyboxes_components[0].0.clone(),
             keyboxes_components[0].1.clone(),
-            keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -456,7 +385,6 @@ mod tests {
         let handler1 = Handler::new(
             keyboxes_components[1].0.clone(),
             keyboxes_components[1].1.clone(),
-            keyboxes_components[1].2.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -477,7 +405,6 @@ mod tests {
         let mut handler0 = Handler::new(
             None,
             keyboxes_components[0].1.clone(),
-            None,
             SessionId(43),
             correct_addresses_0(),
         )
@@ -486,7 +413,6 @@ mod tests {
         let handler1 = Handler::new(
             keyboxes_components[1].0.clone(),
             keyboxes_components[1].1.clone(),
-            keyboxes_components[1].2.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -508,7 +434,6 @@ mod tests {
         let mut handler0 = Handler::new(
             keyboxes_components[0].0.clone(),
             keyboxes_components[0].1.clone(),
-            keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -517,7 +442,6 @@ mod tests {
         let handler1 = Handler::new(
             keyboxes_components[1].0.clone(),
             keyboxes_components[1].1.clone(),
-            keyboxes_components[1].2.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -537,7 +461,6 @@ mod tests {
         let mut handler0 = Handler::new(
             keyboxes_components[0].0.clone(),
             keyboxes_components[0].1.clone(),
-            keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -546,7 +469,6 @@ mod tests {
         let handler1 = Handler::new(
             keyboxes_components[1].0.clone(),
             keyboxes_components[1].1.clone(),
-            keyboxes_components[1].2.clone(),
             SessionId(44),
             correct_addresses_1(),
         )
@@ -564,7 +486,6 @@ mod tests {
         let mut handler0 = Handler::new(
             awaited_keyboxes_components[0].0.clone(),
             awaited_keyboxes_components[0].1.clone(),
-            awaited_keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -582,7 +503,6 @@ mod tests {
         let mut handler0 = Handler::new(
             awaited_keyboxes_components[0].0.clone(),
             awaited_keyboxes_components[0].1.clone(),
-            awaited_keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -591,7 +511,6 @@ mod tests {
         let handler1 = Handler::new(
             awaited_keyboxes_components[1].0.clone(),
             awaited_keyboxes_components[1].1.clone(),
-            awaited_keyboxes_components[1].2.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -605,7 +524,6 @@ mod tests {
                 .update(
                     new_keyboxes_components[0].0.clone(),
                     new_keyboxes_components[0].1.clone(),
-                    new_keyboxes_components[0].2.clone(),
                     correct_addresses_0()
                 )
                 .await
@@ -623,7 +541,6 @@ mod tests {
         let mut handler0 = Handler::new(
             awaited_keyboxes_components[0].0.clone(),
             awaited_keyboxes_components[0].1.clone(),
-            awaited_keyboxes_components[0].2.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -632,7 +549,6 @@ mod tests {
         let mut handler1 = Handler::new(
             awaited_keyboxes_components[1].0.clone(),
             awaited_keyboxes_components[1].1.clone(),
-            awaited_keyboxes_components[1].2.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -644,7 +560,6 @@ mod tests {
             .update(
                 new_keyboxes_components[1].0.clone(),
                 new_keyboxes_components[1].1.clone(),
-                new_keyboxes_components[1].2.clone(),
                 correct_addresses_1()
             )
             .await
@@ -655,7 +570,6 @@ mod tests {
             .update(
                 new_keyboxes_components[0].0.clone(),
                 new_keyboxes_components[0].1.clone(),
-                new_keyboxes_components[0].2.clone(),
                 correct_addresses_0(),
             )
             .await
