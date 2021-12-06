@@ -43,7 +43,9 @@ async fn construct_authentication(
         Some(peer_id) => peer_id,
         None => return Err(AddressError::MultiplePeerIds),
     };
-    if let (Some((node_index, authority_pen)), Some(unwrapped_session_id)) = (authority_index_and_pen, session_id) {
+    if let (Some((node_index, authority_pen)), Some(unwrapped_session_id)) =
+        (authority_index_and_pen, session_id)
+    {
         let auth_data = AuthData {
             addresses,
             node_id: *node_index,
@@ -65,8 +67,7 @@ impl Handler {
         addresses: Vec<Multiaddr>,
     ) -> Result<Handler, AddressError> {
         let (own_authentication, own_peer_id) =
-            construct_authentication(&authority_index_and_pen, Some(session_id), addresses)
-                .await?;
+            construct_authentication(&authority_index_and_pen, Some(session_id), addresses).await?;
         Ok(Handler {
             peers_by_node: HashMap::new(),
             authentications: HashMap::new(),
@@ -128,8 +129,8 @@ impl Handler {
                 if auth_data.session_id != session_id {
                     return false;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         // The auth is completely useless if it doesn't have a consistent PeerId.
@@ -180,7 +181,6 @@ impl Handler {
         authority_verifier: AuthorityVerifier,
         addresses: Vec<Multiaddr>,
     ) -> Result<Vec<Multiaddr>, AddressError> {
-
         let (own_authentication, own_peer_id) =
             construct_authentication(&authority_index_and_pen, self.session_id(), addresses)
                 .await?;
@@ -226,8 +226,7 @@ mod tests {
 
     const NUM_NODES: usize = 7;
 
-    async fn keyboxes_components(
-    ) -> Vec<(Option<(NodeIndex, AuthorityPen)>, AuthorityVerifier)> {
+    async fn keyboxes_components() -> Vec<(Option<(NodeIndex, AuthorityPen)>, AuthorityVerifier)> {
         let num_keyboxes_components = NUM_NODES;
         let keystore = Arc::new(KeyStore::new());
         let mut auth_ids = Vec::with_capacity(num_keyboxes_components);
