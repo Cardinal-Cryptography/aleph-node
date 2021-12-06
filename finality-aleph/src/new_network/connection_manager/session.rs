@@ -32,7 +32,7 @@ pub enum AddressError {
 
 async fn construct_authentication(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
-    session_id: SessionId,
+    session_id: Option<SessionId>,
     addresses: Vec<Multiaddr>,
 ) -> Result<(Option<Authentication>, PeerId), AddressError> {
     let addresses: Vec<_> = addresses.into_iter().filter(is_p2p).collect();
@@ -43,11 +43,11 @@ async fn construct_authentication(
         Some(peer_id) => peer_id,
         None => return Err(AddressError::MultiplePeerIds),
     };
-    if let Some((node_index, authority_pen)) = authority_index_and_pen {
+    if let (Some((node_index, authority_pen)), Some(unwrapped_session_id)) = (authority_index_and_pen, session_id) {
         let auth_data = AuthData {
             addresses,
             node_id: *node_index,
-            session_id,
+            session_id: unwrapped_session_id,
         };
         let signature = authority_pen.sign(&auth_data.encode()).await;
         return Ok((Some((auth_data, signature)), peer_id));
@@ -65,7 +65,7 @@ impl Handler {
         addresses: Vec<Multiaddr>,
     ) -> Result<Handler, AddressError> {
         let (own_authentication, own_peer_id) =
-            construct_authentication(&authority_index_and_pen, session_id, addresses)
+            construct_authentication(&authority_index_and_pen, Some(session_id), addresses)
                 .await?;
         Ok(Handler {
             peers_by_node: HashMap::new(),
@@ -88,8 +88,11 @@ impl Handler {
         self.authority_verifier.node_count()
     }
 
-    fn session_id(&self) -> SessionId {
-        self.own_authentication.as_ref().unwrap().0.session_id
+    fn session_id(&self) -> Option<SessionId> {
+        match self.own_authentication.as_ref() {
+            Some(own_authentication) => Some(own_authentication.0.session_id),
+            _ => None,
+        }
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
@@ -119,11 +122,16 @@ impl Handler {
     /// remain connected to the multiaddresses.
     pub fn handle_authentication(&mut self, authentication: Authentication) -> bool {
         let (auth_data, signature) = authentication.clone();
-        if let Some(_) = self.authority_index_and_pen {
-            if auth_data.session_id != self.session_id() {
-                return false;
-            }
+
+        match self.session_id() {
+            Some(session_id) => {
+                if auth_data.session_id != session_id {
+                    return false;
+                }
+            },
+            _ => {},
         }
+
         // The auth is completely useless if it doesn't have a consistent PeerId.
         let peer_id = match get_common_peer_id(&auth_data.addresses) {
             Some(peer_id) => peer_id,
