@@ -86,6 +86,15 @@ fn parse_account_id(s: &str) -> AccountId {
     AccountId::from_string(s).expect("Passed string is not a hex encoding of a public key")
 }
 
+fn parse_chaintype(s: &str) -> ChainType {
+    match s {
+        CHAINTYPE_DEV => ChainType::Development,
+        CHAINTYPE_LOCAL => ChainType::Local,
+        CHAINTYPE_LIVE => ChainType::Live,
+        s => panic!("Wrong chain type {} Possible values: dev local live", s),
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AuthorityKeys {
     pub account_id: AccountId,
@@ -100,9 +109,9 @@ pub struct ChainParams {
     #[structopt(long, value_name = "ID", default_value = "a0dnet1")]
     pub chain_id: String,
 
-    /// The type of the chain. Can be "dev", "local", "live" or custom (any other string)
-    #[structopt(long, value_name = "TYPE", default_value = CHAINTYPE_LIVE)]
-    pub chain_type: String,
+    /// The type of the chain. Possible values: "dev", "local", "live" (default)
+    #[structopt(long, value_name = "TYPE", parse(from_str = parse_chaintype), default_value = CHAINTYPE_LIVE)]
+    pub chain_type: ChainType,
 
     /// Specify custom base path
     #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
@@ -154,12 +163,7 @@ impl ChainParams {
     }
 
     pub fn chain_type(&self) -> ChainType {
-        match self.chain_type.as_str() {
-            CHAINTYPE_DEV => ChainType::Development,
-            CHAINTYPE_LOCAL => ChainType::Local,
-            CHAINTYPE_LIVE => ChainType::Live,
-            s => ChainType::Custom(s.to_string()),
-        }
+        self.chain_type.clone()
     }
 
     pub fn base_path(&self) -> BasePath {
