@@ -304,6 +304,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn does_not_keep_own_peer_id_or_authentication() {
+        let handler0 = Handler::new(
+            keyboxes().await.pop().unwrap(),
+            SessionId(43),
+            correct_addresses_0(),
+        )
+        .await
+        .unwrap();
+        assert!(handler0.peer_id(&NodeIndex(0)).is_none());
+        assert!(handler0.authentication_for(&NodeIndex(0)).is_none());
+    }
+
+    #[tokio::test]
     async fn misses_all_other_nodes_initially() {
         let handler0 = Handler::new(
             keyboxes().await.pop().unwrap(),
@@ -371,6 +384,7 @@ mod tests {
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
+        assert!(handler0.authentication_for(&NodeIndex(1)).is_none());
     }
 
     #[tokio::test]
@@ -440,6 +454,10 @@ mod tests {
         assert_eq!(
             handler0.peer_id(&NodeIndex(1)),
             get_common_peer_id(&correct_addresses_1())
+        );
+        assert_eq!(
+            handler0.authentication_for(&NodeIndex(1)).unwrap().encode(),
+            handler1.authentication().encode()
         );
     }
 }

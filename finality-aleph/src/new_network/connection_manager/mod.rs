@@ -55,7 +55,7 @@ impl AuthData {
         self.node_id
     }
 
-    pub fn address(&self) -> Vec<Multiaddr> {
+    pub fn addresses(&self) -> Vec<Multiaddr> {
         self.addresses.clone()
     }
 }

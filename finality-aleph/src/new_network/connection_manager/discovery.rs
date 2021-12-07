@@ -3,21 +3,26 @@ use crate::{
         connection_manager::{Authentication, Multiaddr, SessionHandler},
         DataCommand, PeerId, Protocol,
     },
-    NodeIndex, SessionId,
+    NodeCount, NodeIndex, SessionId,
 };
 use codec::{Decode, Encode};
 use std::{
     collections::{HashMap, HashSet},
-    time,
+    time::{Duration, Instant},
 };
+
+/// How many nodes we should query about unknown authorities in one go.
+const NODES_TO_QUERY: usize = 2;
 
 /// Messages used for discovery and authentication.
 #[derive(Clone, Debug, Encode, Decode)]
 pub enum DiscoveryMessage {
-    // Contains the id of the broadcast, to avoid spam.
     AuthenticationBroadcast(Authentication),
-    // Requests always contain own authentication, to avoid asymetric trust.
+    // Requests always contain own authentication, to avoid asymmetric trust.
     Request(Vec<NodeIndex>, Authentication),
+    // Always assumed to contain only authentications for one session.
+    // Only authentications from the same session as the first present are guaranteed to be
+    // processed.
     Authentications(Vec<Authentication>),
 }
 
@@ -37,14 +42,17 @@ impl DiscoveryMessage {
 
 /// Handles creating and responding to discovery messages.
 pub struct Discovery {
-    cooldown: time::Duration,
-    last_broadcast: HashMap<NodeIndex, time::Instant>,
-    last_response: HashMap<NodeIndex, time::Instant>,
+    cooldown: Duration,
+    last_broadcast: HashMap<NodeIndex, Instant>,
+    last_response: HashMap<NodeIndex, Instant>,
     requested_authentications: HashMap<NodeIndex, HashSet<NodeIndex>>,
+    // Used to rotate the nodes we query about unknown nodes.
     next_query: NodeIndex,
 }
 
-fn authentication_broadcast(authentication: Authentication) -> (DiscoveryMessage, DataCommand) {
+type DiscoveryCommand = (DiscoveryMessage, DataCommand);
+
+fn authentication_broadcast(authentication: Authentication) -> DiscoveryCommand {
     (
         DiscoveryMessage::AuthenticationBroadcast(authentication),
         DataCommand::Broadcast,
@@ -55,17 +63,14 @@ fn request(
     missing_authorities: Vec<NodeIndex>,
     authentication: Authentication,
     peer_id: PeerId,
-) -> (DiscoveryMessage, DataCommand) {
+) -> DiscoveryCommand {
     (
         DiscoveryMessage::Request(missing_authorities, authentication),
         DataCommand::SendTo(peer_id, Protocol::Generic),
     )
 }
 
-fn response(
-    authentications: Vec<Authentication>,
-    peer_id: PeerId,
-) -> (DiscoveryMessage, DataCommand) {
+fn response(authentications: Vec<Authentication>, peer_id: PeerId) -> DiscoveryCommand {
     (
         DiscoveryMessage::Authentications(authentications),
         DataCommand::SendTo(peer_id, Protocol::Generic),
@@ -74,7 +79,7 @@ fn response(
 
 impl Discovery {
     /// Create a new discovery handler with the given response/broadcast cooldown.
-    pub fn new(cooldown: time::Duration) -> Self {
+    pub fn new(cooldown: Duration) -> Self {
         Discovery {
             cooldown,
             last_broadcast: HashMap::new(),
@@ -84,18 +89,20 @@ impl Discovery {
         }
     }
 
+    fn should_broadcast(missing_authorities_num: usize, total_node_count: NodeCount) -> bool {
+        // If we are not sure we know of at least one honest node.
+        missing_authorities_num * 3 > 2 * total_node_count.0
+    }
+
     /// Returns messages that should be sent as part of authority discovery at this moment.
-    pub fn discover_authorities(
-        &mut self,
-        handler: &SessionHandler,
-    ) -> Vec<(DiscoveryMessage, DataCommand)> {
+    pub fn discover_authorities(&mut self, handler: &SessionHandler) -> Vec<DiscoveryCommand> {
         let missing_authorities = handler.missing_nodes();
         if missing_authorities.is_empty() {
             return Vec::new();
         }
         let node_count = handler.node_count();
         let authentication = handler.authentication();
-        if missing_authorities.len() * 3 > 2 * node_count.0 {
+        if Self::should_broadcast(missing_authorities.len(), node_count) {
             // We know of fewer than 1/3 authorities, broadcast our authentication and hope others
             // respond in kind.
             vec![authentication_broadcast(authentication)]
@@ -103,7 +110,7 @@ impl Discovery {
             // Attempt learning about more authorities from the ones you already know.
             let mut result = Vec::new();
             let mut target = self.next_query;
-            while result.len() < 2 {
+            while result.len() < NODES_TO_QUERY {
                 if let Some(peer_id) = handler.peer_id(&target) {
                     result.push(request(
                         missing_authorities.clone(),
@@ -118,6 +125,8 @@ impl Discovery {
         }
     }
 
+    /// Checks the authentication using the handler and returns the addresses we should be
+    /// connected to if the authentication is correct.
     fn handle_authentication(
         &mut self,
         authentication: Authentication,
@@ -126,26 +135,29 @@ impl Discovery {
         if !handler.handle_authentication(authentication.clone()) {
             return Vec::new();
         }
-        authentication.0.address()
+        authentication.0.addresses()
+    }
+
+    fn should_rebroadcast(&self, node_id: &NodeIndex) -> bool {
+        match self.last_broadcast.get(node_id) {
+            Some(instant) => Instant::now() > *instant + self.cooldown,
+            None => true,
+        }
     }
 
     fn handle_broadcast(
         &mut self,
         authentication: Authentication,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<(DiscoveryMessage, DataCommand)>) {
+    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
             return (addresses, None);
         }
         let node_id = authentication.0.creator();
-        let rebroadcast = match self.last_broadcast.get(&node_id) {
-            Some(instant) => time::Instant::now() > *instant + self.cooldown,
-            None => true,
-        };
-        let message = match rebroadcast {
+        let message = match self.should_rebroadcast(&node_id) {
             true => {
-                self.last_broadcast.insert(node_id, time::Instant::now());
+                self.last_broadcast.insert(node_id, Instant::now());
                 Some(authentication_broadcast(authentication))
             }
             false => None,
@@ -158,14 +170,18 @@ impl Discovery {
         requester_id: NodeIndex,
         node_ids: Vec<NodeIndex>,
         handler: &mut SessionHandler,
-    ) -> Option<(DiscoveryMessage, DataCommand)> {
+    ) -> Option<DiscoveryCommand> {
         let requested_authentications = self
             .requested_authentications
             .entry(requester_id)
             .or_default();
-        requested_authentications.extend(node_ids);
+        requested_authentications.extend(
+            node_ids
+                .iter()
+                .filter(|n_id| n_id.0 < handler.node_count().0),
+        );
         if let Some(instant) = self.last_response.get(&requester_id) {
-            if time::Instant::now() < *instant + self.cooldown {
+            if Instant::now() < *instant + self.cooldown {
                 return None;
             }
         }
@@ -180,8 +196,7 @@ impl Discovery {
         if authentications.is_empty() {
             None
         } else {
-            self.last_response
-                .insert(requester_id, time::Instant::now());
+            self.last_response.insert(requester_id, Instant::now());
             self.requested_authentications.remove(&requester_id);
             Some(response(authentications, peer_id))
         }
@@ -192,7 +207,7 @@ impl Discovery {
         node_ids: Vec<NodeIndex>,
         authentication: Authentication,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<(DiscoveryMessage, DataCommand)>) {
+    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
         let node_id = authentication.0.creator();
         let addresses = self.handle_authentication(authentication, handler);
         if addresses.is_empty() {
@@ -218,7 +233,7 @@ impl Discovery {
         &mut self,
         message: DiscoveryMessage,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<(DiscoveryMessage, DataCommand)>) {
+    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
         use DiscoveryMessage::*;
         match message {
             AuthenticationBroadcast(authentication) => {
@@ -251,7 +266,9 @@ mod tests {
         multiaddr::Protocol as ScProtocol, Multiaddr as ScMultiaddr, PeerId as ScPeerId,
     };
     use sp_keystore::{testing::KeyStore, CryptoStore};
-    use std::{collections::HashSet, iter, net::Ipv4Addr, sync::Arc, thread::sleep, time};
+    use std::{
+        collections::HashSet, iter, net::Ipv4Addr, sync::Arc, thread::sleep, time::Duration,
+    };
 
     const NUM_NODES: u8 = 7;
     const MS_COOLDOWN: u64 = 200;
@@ -297,10 +314,7 @@ mod tests {
                     .unwrap(),
             );
         }
-        (
-            Discovery::new(time::Duration::from_millis(MS_COOLDOWN)),
-            handlers,
-        )
+        (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
     }
 
     #[tokio::test]
@@ -364,10 +378,10 @@ mod tests {
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), authentication.0.address().len());
+        assert_eq!(addresses.len(), authentication.0.addresses().len());
         assert_eq!(
             addresses[0].encode(),
-            authentication.0.address()[0].encode()
+            authentication.0.addresses()[0].encode()
         );
         match maybe_command {
             Some((
@@ -406,10 +420,10 @@ mod tests {
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), authentication.0.address().len());
+        assert_eq!(addresses.len(), authentication.0.addresses().len());
         assert_eq!(
             addresses[0].encode(),
-            authentication.0.address()[0].encode()
+            authentication.0.addresses()[0].encode()
         );
         assert!(maybe_command.is_none());
     }
@@ -423,15 +437,15 @@ mod tests {
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        sleep(time::Duration::from_millis(MS_COOLDOWN + 5));
+        sleep(Duration::from_millis(MS_COOLDOWN + 5));
         let (addresses, maybe_command) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), authentication.0.address().len());
+        assert_eq!(addresses.len(), authentication.0.addresses().len());
         assert_eq!(
             addresses[0].encode(),
-            authentication.0.address()[0].encode()
+            authentication.0.addresses()[0].encode()
         );
         match maybe_command {
             Some((
@@ -454,10 +468,13 @@ mod tests {
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), requester_authentication.0.address().len());
+        assert_eq!(
+            addresses.len(),
+            requester_authentication.0.addresses().len()
+        );
         assert_eq!(
             addresses[0].encode(),
-            requester_authentication.0.address()[0].encode()
+            requester_authentication.0.addresses()[0].encode()
         );
         match maybe_command {
             Some((
@@ -489,10 +506,13 @@ mod tests {
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), requester_authentication.0.address().len());
+        assert_eq!(
+            addresses.len(),
+            requester_authentication.0.addresses().len()
+        );
         assert_eq!(
             addresses[0].encode(),
-            requester_authentication.0.address()[0].encode()
+            requester_authentication.0.addresses()[0].encode()
         );
         assert!(maybe_command.is_none())
     }
@@ -526,10 +546,13 @@ mod tests {
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), requester_authentication.0.address().len());
+        assert_eq!(
+            addresses.len(),
+            requester_authentication.0.addresses().len()
+        );
         assert_eq!(
             addresses[0].encode(),
-            requester_authentication.0.address()[0].encode()
+            requester_authentication.0.addresses()[0].encode()
         );
         match maybe_command {
             Some((
@@ -553,10 +576,13 @@ mod tests {
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), requester_authentication.0.address().len());
+        assert_eq!(
+            addresses.len(),
+            requester_authentication.0.addresses().len()
+        );
         assert_eq!(
             addresses[0].encode(),
-            requester_authentication.0.address()[0].encode()
+            requester_authentication.0.addresses()[0].encode()
         );
         assert!(maybe_command.is_none());
     }
@@ -580,10 +606,13 @@ mod tests {
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), requester_authentication.0.address().len());
+        assert_eq!(
+            addresses.len(),
+            requester_authentication.0.addresses().len()
+        );
         assert_eq!(
             addresses[0].encode(),
-            requester_authentication.0.address()[0].encode()
+            requester_authentication.0.addresses()[0].encode()
         );
         match maybe_command {
             Some((
@@ -609,7 +638,7 @@ mod tests {
             handler,
         );
         assert!(maybe_command.is_none());
-        sleep(time::Duration::from_millis(MS_COOLDOWN + 5));
+        sleep(Duration::from_millis(MS_COOLDOWN + 5));
         let requested_node_id = NodeIndex(available_authentications_end);
         let (_, maybe_command) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
@@ -644,7 +673,7 @@ mod tests {
             (authentications_start..authentications_end).map(|i| handlers[i].authentication());
         let expected_addresses: HashSet<_> = authentications
             .clone()
-            .flat_map(|(auth_data, _)| auth_data.address())
+            .flat_map(|(auth_data, _)| auth_data.addresses())
             .map(|address| address.encode())
             .collect();
         let authentications = authentications.collect();
@@ -671,7 +700,7 @@ mod tests {
         let incorrect_authentication = (auth_data, signature);
         let expected_addresses: HashSet<_> = authentications
             .clone()
-            .flat_map(|(auth_data, _)| auth_data.address())
+            .flat_map(|(auth_data, _)| auth_data.addresses())
             .map(|address| address.encode())
             .collect();
         let authentications = iter::once(incorrect_authentication)
