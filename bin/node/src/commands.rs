@@ -45,7 +45,7 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
         .base_path()
         .path()
         .join(authority)
-        .join(&chain_params.node_key_file);
+        .join(chain_params.node_key_file());
 
     if file.exists() {
         let mut file_content =

@@ -107,42 +107,36 @@ pub struct AuthorityKeys {
 pub struct ChainParams {
     /// Chain ID is a short identifier of the chain
     #[structopt(long, value_name = "ID", default_value = "a0dnet1")]
-    pub chain_id: String,
+    chain_id: String,
 
     /// The type of the chain. Possible values: "dev", "local", "live" (default)
     #[structopt(long, value_name = "TYPE", parse(from_str = parse_chaintype), default_value = CHAINTYPE_LIVE)]
-    pub chain_type: ChainType,
+    chain_type: ChainType,
 
     /// Specify custom base path
     #[structopt(long, short = "d", value_name = "PATH", parse(from_os_str))]
-    pub base_path: PathBuf,
+    base_path: PathBuf,
 
     /// Specify filename to write node private p2p keys to
     /// Resulting keys will be stored at: base_path/account_id/node_key_file for each node
     #[structopt(long, default_value = "p2p_secret")]
-    pub node_key_file: String,
-
-    /// Specify filename to write the nodes private key to
-    /// Used in conjunction with `--n-members` argument
-    /// Resulting keys will be stored at: base_path/account_id/account_key_file for each node
-    #[structopt(long, default_value = "account_secret")]
-    pub account_key_file: String,
+    node_key_file: String,
 
     /// The length of a session (in seconds). Default is 900 s
     #[structopt(long)]
-    pub session_period: Option<u32>,
+    session_period: Option<u32>,
 
     /// Time interval (in milliseconds) between blocks. Default is 1000 ms
     #[structopt(long)]
-    pub millisecs_per_block: Option<u64>,
+    millisecs_per_block: Option<u64>,
 
     /// Chain name. Default is "Aleph Zero Development"
     #[structopt(long, default_value = "Aleph Zero Development")]
-    pub chain_name: String,
+    chain_name: String,
 
     /// Token symbol. Default is DZERO
     #[structopt(long, default_value = "DZERO")]
-    pub token_symbol: String,
+    token_symbol: String,
 
     /// AccountIds of authorities forming the committee at the genesis (comma delimited)
     #[structopt(long, require_delimiter = true, parse(from_str = parse_account_id))]
@@ -168,6 +162,10 @@ impl ChainParams {
 
     pub fn base_path(&self) -> BasePath {
         self.base_path.clone().into()
+    }
+
+    pub fn node_key_file(&self) -> &str {
+        &self.node_key_file
     }
 
     pub fn session_period(&self) -> SessionPeriod {
