@@ -118,23 +118,23 @@ pub struct ChainParams {
     #[structopt(long, default_value = "account_secret")]
     pub account_key_file: String,
 
-    // The length of a session
+    /// The length of a session (in seconds). Default is 900 s
     #[structopt(long)]
     pub session_period: Option<u32>,
 
-    /// Time interval (in milliseconds) between blocks
+    /// Time interval (in milliseconds) between blocks. Default is 1000 ms
     #[structopt(long)]
     pub millisecs_per_block: Option<u64>,
 
-    /// Chain name
+    /// Chain name. Default is "Aleph Zero Development"
     #[structopt(long, default_value = "Aleph Zero Development")]
     pub chain_name: String,
 
-    /// Token symbol
+    /// Token symbol. Default is DZERO
     #[structopt(long, default_value = "DZERO")]
     pub token_symbol: String,
 
-    /// AccountIds of authorities forming the committe at the genesis (comma delimited)
+    /// AccountIds of authorities forming the committee at the genesis (comma delimited)
     #[structopt(long, require_delimiter = true, parse(from_str = parse_account_id))]
     account_ids: Vec<AccountId>,
 
@@ -153,7 +153,7 @@ impl ChainParams {
     }
 
     pub fn chain_type(&self) -> ChainType {
-        match self.chain_id.as_str() {
+        match self.chain_type.as_str() {
             CHAINTYPE_DEV => ChainType::Development,
             CHAINTYPE_LOCAL => ChainType::Local,
             CHAINTYPE_LIVE => ChainType::Live,
@@ -264,7 +264,7 @@ fn deduplicate(accounts: Vec<AccountId>) -> Vec<AccountId> {
 fn genesis(
     wasm_binary: &[u8],
     authorities: Vec<AuthorityKeys>,
-    root_key: AccountId,
+    sudo_account: AccountId,
     faucet_account: Option<AccountId>,
     chain_params: ChainParams,
 ) -> GenesisConfig {
@@ -272,8 +272,8 @@ fn genesis(
     let millisecs_per_block = chain_params.millisecs_per_block();
 
     let special_accounts = match faucet_account {
-        Some(faucet_id) => vec![root_key.clone(), faucet_id],
-        None => vec![root_key.clone()],
+        Some(faucet_id) => vec![sudo_account.clone(), faucet_id],
+        None => vec![sudo_account.clone()],
     };
 
     // NOTE: some combinations of bootstrap chain arguments can potentially
@@ -303,7 +303,7 @@ fn genesis(
         },
         sudo: SudoConfig {
             // Assign network admin rights.
-            key: root_key,
+            key: sudo_account,
         },
         aleph: AlephConfig {
             authorities: vec![],
