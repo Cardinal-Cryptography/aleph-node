@@ -33,9 +33,9 @@ fn migration_from_v0_to_v1_works() {
 
         let v1 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
 
-        assert_eq!(
+        assert_ne!(
             v1,
-            StorageVersion::new(1),
+            StorageVersion::default(),
             "Storage version after applying migration should be incremented"
         );
 
