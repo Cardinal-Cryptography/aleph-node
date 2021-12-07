@@ -25,6 +25,7 @@ pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";
 pub const CHAINTYPE_LIVE: &str = "live";
 
+// This account was used in mainnet chainspec
 pub const DEFAULT_SUDO_ACCOUNT: &str = "5F4SvwaUEQubiqkPF8YnRfcN77cLsT2DfG4vFeQmSXNjR7hD";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
@@ -236,7 +237,7 @@ pub fn config(
             genesis(
                 wasm_binary,
                 authorities.clone(), // Initial PoA authorities, will receive funds
-                sudo_account.clone(), // Root account, will also be pre funded
+                sudo_account.clone(), // Sudo account, will also be pre funded
                 faucet_account.clone(), // Pre-funded faucet account
                 chain_params.clone(),
             )
@@ -277,7 +278,7 @@ fn genesis(
     };
 
     // NOTE: some combinations of bootstrap chain arguments can potentially
-    // lead to duplicated rich accounts, e.g. if a root account is also an authority
+    // lead to duplicated rich accounts, e.g. if a sudo account is also an authority
     // which is why we remove the duplicates if any here
     let unique_accounts: Vec<AccountId> = deduplicate(
         authorities
