@@ -53,7 +53,7 @@ async fn construct_authentication(
         let auth_data = AuthData {
             addresses,
             node_id: *node_index,
-            session_id: session_id,
+            session_id,
         };
         let signature = authority_pen.sign(&auth_data.encode()).await;
         return Ok((
