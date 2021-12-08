@@ -6,6 +6,7 @@ use crate::{
     NodeCount, NodeIndex, SessionId,
 };
 use codec::{Decode, Encode};
+use log::warn;
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
@@ -15,7 +16,7 @@ use std::{
 const NODES_TO_QUERY: usize = 2;
 
 /// Messages used for discovery and authentication.
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub enum DiscoveryMessage {
     AuthenticationBroadcast(Authentication),
     // Requests always contain own authentication, to avoid asymmetric trust.
@@ -149,20 +150,24 @@ impl Discovery {
         &mut self,
         authentication: Authentication,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
+    ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
-            return (addresses, None);
+            return (Vec::new(), Vec::new());
         }
         let node_id = authentication.0.creator();
-        let message = match self.should_rebroadcast(&node_id) {
-            true => {
-                self.last_broadcast.insert(node_id, Instant::now());
-                Some(authentication_broadcast(authentication))
+        let mut messages = Vec::new();
+        match handler.peer_id(&node_id) {
+            Some(peer_id) => messages.push(response(vec![handler.authentication()], peer_id)),
+            None => {
+                warn!(target: "aleph-network", "Id of correctly authenticated peer not present.")
             }
-            false => None,
-        };
-        (addresses, message)
+        }
+        if self.should_rebroadcast(&node_id) {
+            self.last_broadcast.insert(node_id, Instant::now());
+            messages.push(authentication_broadcast(authentication));
+        }
+        (addresses, messages)
     }
 
     fn create_response(
@@ -170,7 +175,7 @@ impl Discovery {
         requester_id: NodeIndex,
         node_ids: Vec<NodeIndex>,
         handler: &mut SessionHandler,
-    ) -> Option<DiscoveryCommand> {
+    ) -> Vec<DiscoveryCommand> {
         let requested_authentications = self
             .requested_authentications
             .entry(requester_id)
@@ -182,23 +187,23 @@ impl Discovery {
         );
         if let Some(instant) = self.last_response.get(&requester_id) {
             if Instant::now() < *instant + self.cooldown {
-                return None;
+                return Vec::new();
             }
         }
         let peer_id = match handler.peer_id(&requester_id) {
             Some(peer_id) => peer_id,
-            None => return None,
+            None => return Vec::new(),
         };
         let authentications: Vec<_> = requested_authentications
             .iter()
             .filter_map(|id| handler.authentication_for(id))
             .collect();
         if authentications.is_empty() {
-            None
+            Vec::new()
         } else {
             self.last_response.insert(requester_id, Instant::now());
             self.requested_authentications.remove(&requester_id);
-            Some(response(authentications, peer_id))
+            vec![response(authentications, peer_id)]
         }
     }
 
@@ -207,11 +212,11 @@ impl Discovery {
         node_ids: Vec<NodeIndex>,
         authentication: Authentication,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
+    ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
         let node_id = authentication.0.creator();
         let addresses = self.handle_authentication(authentication, handler);
         if addresses.is_empty() {
-            return (addresses, None);
+            return (Vec::new(), Vec::new());
         }
         (addresses, self.create_response(node_id, node_ids, handler))
     }
@@ -228,12 +233,13 @@ impl Discovery {
     }
 
     /// Analyzes the provided message and returns all the new multiaddresses we should
-    /// be connected to and any messages that we should send as a result of it.
+    /// be connected to if we want to stay connected to the committee and any messages
+    /// that we should send as a result of it.
     pub fn handle_message(
         &mut self,
         message: DiscoveryMessage,
         handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Option<DiscoveryCommand>) {
+    ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
         use DiscoveryMessage::*;
         match message {
             AuthenticationBroadcast(authentication) => {
@@ -243,7 +249,7 @@ impl Discovery {
                 self.handle_request(node_ids, authentication, handler)
             }
             Authentications(authentications) => {
-                (self.handle_response(authentications, handler), None)
+                (self.handle_response(authentications, handler), Vec::new())
             }
         }
     }
@@ -324,13 +330,13 @@ mod tests {
         let mut messages = discovery.discover_authorities(handler);
         assert_eq!(messages.len(), 1);
         let message = messages.pop().unwrap();
-        assert_eq!(message.1, DataCommand::Broadcast);
-        match message.0 {
-            DiscoveryMessage::AuthenticationBroadcast(authentication) => {
-                assert_eq!(authentication.encode(), handler.authentication().encode())
-            }
-            _ => panic!("Expected an authentication broadcast, got {:?}", message.0),
-        }
+        assert_eq!(
+            message,
+            (
+                DiscoveryMessage::AuthenticationBroadcast(handler.authentication()),
+                DataCommand::Broadcast
+            )
+        );
     }
 
     #[tokio::test]
@@ -345,14 +351,9 @@ mod tests {
         let messages = discovery.discover_authorities(handler);
         assert_eq!(messages.len(), 2);
         for message in messages {
-            assert!(matches!(message.1, DataCommand::SendTo(_, _)));
-            match message.0 {
-                DiscoveryMessage::Request(nodes, authentication) => {
-                    assert_eq!(authentication.encode(), handler.authentication().encode());
-                    assert_eq!(nodes, vec![NodeIndex(6)]);
-                }
-                _ => panic!("Expected a request, got {:?}", message.0),
-            }
+            assert!(
+                matches!(message, (DiscoveryMessage::Request(node_ids, authentication), DataCommand::SendTo(_, _)) if node_ids == vec![NodeIndex(6)] && authentication == handler.authentication())
+            );
         }
     }
 
@@ -370,45 +371,43 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rebroadcasts_and_accepts_addresses() {
+    async fn rebroadcasts_responds_and_accepts_addresses() {
         let (mut discovery, mut handlers) = build().await;
         let authentication = handlers[1].authentication();
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), authentication.0.addresses().len());
-        assert_eq!(
-            addresses[0].encode(),
-            authentication.0.addresses()[0].encode()
-        );
-        match maybe_command {
-            Some((
+        assert_eq!(addresses, authentication.0.addresses());
+        assert_eq!(commands.len(), 2);
+        assert!(commands.iter().any(|command| matches!(command, (
                 DiscoveryMessage::AuthenticationBroadcast(rebroadcast_authentication),
                 DataCommand::Broadcast,
-            )) => assert_eq!(authentication.encode(), rebroadcast_authentication.encode()),
-            _ => panic!("Expected a rebroadcast, got {:?}", maybe_command),
-        }
+            ) if rebroadcast_authentication == &authentication)));
+        assert!(commands.iter().any(|command| matches!(command, (
+                DiscoveryMessage::Authentications(authentications),
+                DataCommand::SendTo(_, _),
+            ) if authentications == &vec![handler.authentication()])));
     }
 
     #[tokio::test]
-    async fn does_not_rebroadcast_wrong_authentications() {
+    async fn does_not_rebroadcast_nor_respond_to_wrong_authentications() {
         let (mut discovery, mut handlers) = build().await;
         let (auth_data, _) = handlers[1].authentication();
         let (_, signature) = handlers[2].authentication();
         let authentication = (auth_data, signature);
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication),
             handler,
         );
         assert!(addresses.is_empty());
-        assert!(maybe_command.is_none());
+        assert!(commands.is_empty());
     }
 
     #[tokio::test]
-    async fn does_not_rebroadcast_quickly() {
+    async fn does_not_rebroadcast_quickly_but_still_responds() {
         let (mut discovery, mut handlers) = build().await;
         let authentication = handlers[1].authentication();
         let handler = &mut handlers[0];
@@ -416,7 +415,7 @@ mod tests {
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
@@ -425,7 +424,11 @@ mod tests {
             addresses[0].encode(),
             authentication.0.addresses()[0].encode()
         );
-        assert!(maybe_command.is_none());
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], (
+                DiscoveryMessage::Authentications(authentications),
+                DataCommand::SendTo(_, _),
+            ) if authentications == &vec![handler.authentication()]));
     }
 
     #[tokio::test]
@@ -438,22 +441,15 @@ mod tests {
             handler,
         );
         sleep(Duration::from_millis(MS_COOLDOWN + 5));
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
         );
-        assert_eq!(addresses.len(), authentication.0.addresses().len());
-        assert_eq!(
-            addresses[0].encode(),
-            authentication.0.addresses()[0].encode()
-        );
-        match maybe_command {
-            Some((
+        assert_eq!(addresses, authentication.0.addresses());
+        assert!(commands.iter().any(|command| matches!(command, (
                 DiscoveryMessage::AuthenticationBroadcast(rebroadcast_authentication),
                 DataCommand::Broadcast,
-            )) => assert_eq!(authentication.encode(), rebroadcast_authentication.encode()),
-            _ => panic!("Expected a rebroadcast, got {:?}", maybe_command),
-        }
+            ) if rebroadcast_authentication == &authentication)));
     }
 
     #[tokio::test]
@@ -464,36 +460,16 @@ mod tests {
         let requester_authentication = handlers[2].authentication();
         let handler = &mut handlers[0];
         assert!(handler.handle_authentication(requested_authentication.clone()));
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(
-            addresses.len(),
-            requester_authentication.0.addresses().len()
-        );
-        assert_eq!(
-            addresses[0].encode(),
-            requester_authentication.0.addresses()[0].encode()
-        );
-        match maybe_command {
-            Some((
+        assert_eq!(addresses, requester_authentication.0.addresses());
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            )) => {
-                assert_eq!(response_authentications.len(), 1);
-                let response_authentication = &response_authentications[0];
-                assert_eq!(
-                    requested_authentication.encode(),
-                    response_authentication.encode()
-                );
-                assert_eq!(
-                    Some(peer_id),
-                    handler.peer_id(&requester_authentication.0.creator())
-                )
-            }
-            _ => panic!("Expected a response, got {:?}", maybe_command),
-        }
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![requested_authentication]));
     }
 
     #[tokio::test]
@@ -502,19 +478,12 @@ mod tests {
         let requested_node_id = NodeIndex(1);
         let requester_authentication = handlers[2].authentication();
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(
-            addresses.len(),
-            requester_authentication.0.addresses().len()
-        );
-        assert_eq!(
-            addresses[0].encode(),
-            requester_authentication.0.addresses()[0].encode()
-        );
-        assert!(maybe_command.is_none())
+        assert_eq!(addresses, requester_authentication.0.addresses());
+        assert!(commands.is_empty())
     }
 
     #[tokio::test]
@@ -526,12 +495,12 @@ mod tests {
         let (_, signature) = handlers[3].authentication();
         let requester_authentication = (auth_data, signature);
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication),
             handler,
         );
         assert!(addresses.is_empty());
-        assert!(maybe_command.is_none());
+        assert!(commands.is_empty());
     }
 
     #[tokio::test]
@@ -542,49 +511,22 @@ mod tests {
         let requester_authentication = handlers[2].authentication();
         let handler = &mut handlers[0];
         assert!(handler.handle_authentication(requested_authentication.clone()));
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(
-            addresses.len(),
-            requester_authentication.0.addresses().len()
-        );
-        assert_eq!(
-            addresses[0].encode(),
-            requester_authentication.0.addresses()[0].encode()
-        );
-        match maybe_command {
-            Some((
+        assert_eq!(addresses, requester_authentication.0.addresses());
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            )) => {
-                assert_eq!(response_authentications.len(), 1);
-                let response_authentication = &response_authentications[0];
-                assert_eq!(
-                    requested_authentication.encode(),
-                    response_authentication.encode()
-                );
-                assert_eq!(
-                    Some(peer_id),
-                    handler.peer_id(&requester_authentication.0.creator())
-                )
-            }
-            _ => panic!("Expected a response, got {:?}", maybe_command),
-        }
-        let (addresses, maybe_command) = discovery.handle_message(
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![requested_authentication]));
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(
-            addresses.len(),
-            requester_authentication.0.addresses().len()
-        );
-        assert_eq!(
-            addresses[0].encode(),
-            requester_authentication.0.addresses()[0].encode()
-        );
-        assert!(maybe_command.is_none());
+        assert_eq!(addresses, requester_authentication.0.addresses());
+        assert!(commands.is_empty());
     }
 
     #[tokio::test]
@@ -602,66 +544,33 @@ mod tests {
             assert!(handler.handle_authentication(authentication.clone()));
         }
         let requested_node_id = NodeIndex(2);
-        let (addresses, maybe_command) = discovery.handle_message(
+        let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert_eq!(
-            addresses.len(),
-            requester_authentication.0.addresses().len()
-        );
-        assert_eq!(
-            addresses[0].encode(),
-            requester_authentication.0.addresses()[0].encode()
-        );
-        match maybe_command {
-            Some((
+        assert_eq!(addresses, requester_authentication.0.addresses());
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            )) => {
-                assert_eq!(response_authentications.len(), 1);
-                let response_authentication = &response_authentications[0];
-                assert_eq!(
-                    available_authentications[0].encode(),
-                    response_authentication.encode()
-                );
-                assert_eq!(
-                    Some(peer_id),
-                    handler.peer_id(&requester_authentication.0.creator())
-                )
-            }
-            _ => panic!("Expected a response, got {:?}", maybe_command),
-        }
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![available_authentications[0].clone()]));
         let requested_node_id = NodeIndex(3);
-        let (_, maybe_command) = discovery.handle_message(
+        let (_, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        assert!(maybe_command.is_none());
+        assert!(commands.is_empty());
         sleep(Duration::from_millis(MS_COOLDOWN + 5));
         let requested_node_id = NodeIndex(available_authentications_end);
-        let (_, maybe_command) = discovery.handle_message(
+        let (_, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
         );
-        match maybe_command {
-            Some((
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            )) => {
-                assert_eq!(response_authentications.len(), 1);
-                let response_authentication = &response_authentications[0];
-                assert_eq!(
-                    available_authentications[1].encode(),
-                    response_authentication.encode()
-                );
-                assert_eq!(
-                    Some(peer_id),
-                    handler.peer_id(&requester_authentication.0.creator())
-                )
-            }
-            _ => panic!("Expected a response, got {:?}", maybe_command),
-        }
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![available_authentications[1].clone()]));
     }
 
     #[tokio::test]
@@ -678,14 +587,14 @@ mod tests {
             .collect();
         let authentications = authentications.collect();
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) =
+        let (addresses, commands) =
             discovery.handle_message(DiscoveryMessage::Authentications(authentications), handler);
         let addresses: HashSet<_> = addresses
             .into_iter()
             .map(|address| address.encode())
             .collect();
         assert_eq!(addresses, expected_addresses);
-        assert!(maybe_command.is_none());
+        assert!(commands.is_empty());
     }
 
     #[tokio::test]
@@ -707,13 +616,13 @@ mod tests {
             .chain(authentications)
             .collect();
         let handler = &mut handlers[0];
-        let (addresses, maybe_command) =
+        let (addresses, commands) =
             discovery.handle_message(DiscoveryMessage::Authentications(authentications), handler);
         let addresses: HashSet<_> = addresses
             .into_iter()
             .map(|address| address.encode())
             .collect();
         assert_eq!(addresses, expected_addresses);
-        assert!(maybe_command.is_none());
+        assert!(commands.is_empty());
     }
 }

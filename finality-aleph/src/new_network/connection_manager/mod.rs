@@ -13,7 +13,7 @@ use addresses::{get_common_peer_id, is_p2p};
 use session::Handler as SessionHandler;
 
 /// A wrapper for the Substrate multiaddress to allow encoding & decoding.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Multiaddr(pub(crate) ScMultiaddr);
 
 impl From<ScMultiaddr> for Multiaddr {
@@ -39,7 +39,7 @@ impl Decode for Multiaddr {
 
 /// Data validators use to authenticate themselves for a single session
 /// and disseminate their addresses.
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub struct AuthData {
     addresses: Vec<Multiaddr>,
     node_id: NodeIndex,
