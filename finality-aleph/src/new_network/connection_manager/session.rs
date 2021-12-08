@@ -318,6 +318,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn handler_without_node_index_nor_authority_pen_returns_none_for_authentication() {
+        let crypto_basics = crypto_basics().await;
+        assert!(
+            Handler::new(None, crypto_basics.1, SessionId(43), correct_addresses_0())
+                .await
+                .unwrap()
+                .authentication()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
     async fn fails_to_create_with_no_addresses() {
         let mut crypto_basics = crypto_basics().await;
         assert!(matches!(
