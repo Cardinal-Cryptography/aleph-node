@@ -50,7 +50,7 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     } else {
         log::warn!(
             target: "pallet_aleph",
-            "Do not know which migration to apply because on-chain storage version is {:?} and the version declared in the aleph pallet is {:?}",
+            "Not applying any storage migration because on-chain storage version is {:?} and the version declared in the aleph pallet is {:?}",
             on_chain_storage_version,
             current_storage_version
         );
