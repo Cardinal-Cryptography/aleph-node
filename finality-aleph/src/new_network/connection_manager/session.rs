@@ -10,12 +10,18 @@ use aleph_bft::NodeCount;
 use codec::Encode;
 use std::collections::HashMap;
 
+#[derive(Debug)]
+pub enum SessionInfo {
+    SessionId(SessionId),
+    OwnAuthentication(Authentication),
+}
+
 /// A struct for handling authentications for a given session and maintaining
 /// mappings between PeerIds and NodeIndexes within that session.
 pub struct Handler {
     peers_by_node: HashMap<NodeIndex, PeerId>,
     authentications: HashMap<PeerId, (Authentication, Option<Authentication>)>,
-    own_authentication: Option<Authentication>,
+    session_info: SessionInfo,
     own_peer_id: PeerId,
     authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
     authority_verifier: AuthorityVerifier,
@@ -32,9 +38,9 @@ pub enum AddressError {
 
 async fn construct_authentication(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
-    session_id: Option<SessionId>,
+    session_id: SessionId,
     addresses: Vec<Multiaddr>,
-) -> Result<(Option<Authentication>, PeerId), AddressError> {
+) -> Result<(SessionInfo, PeerId), AddressError> {
     let addresses: Vec<_> = addresses.into_iter().filter(is_p2p).collect();
     if addresses.is_empty() {
         return Err(AddressError::NoP2pAddresses);
@@ -43,18 +49,19 @@ async fn construct_authentication(
         Some(peer_id) => peer_id,
         None => return Err(AddressError::MultiplePeerIds),
     };
-    if let (Some((node_index, authority_pen)), Some(unwrapped_session_id)) =
-        (authority_index_and_pen, session_id)
-    {
+    if let Some((node_index, authority_pen)) = authority_index_and_pen {
         let auth_data = AuthData {
             addresses,
             node_id: *node_index,
-            session_id: unwrapped_session_id,
+            session_id: session_id,
         };
         let signature = authority_pen.sign(&auth_data.encode()).await;
-        return Ok((Some((auth_data, signature)), peer_id));
+        return Ok((
+            SessionInfo::OwnAuthentication((auth_data, signature)),
+            peer_id,
+        ));
     }
-    Ok((None, peer_id))
+    Ok((SessionInfo::SessionId(session_id), peer_id))
 }
 
 impl Handler {
@@ -66,12 +73,12 @@ impl Handler {
         session_id: SessionId,
         addresses: Vec<Multiaddr>,
     ) -> Result<Handler, AddressError> {
-        let (own_authentication, own_peer_id) =
-            construct_authentication(&authority_index_and_pen, Some(session_id), addresses).await?;
+        let (session_info, own_peer_id) =
+            construct_authentication(&authority_index_and_pen, session_id, addresses).await?;
         Ok(Handler {
             peers_by_node: HashMap::new(),
             authentications: HashMap::new(),
-            own_authentication,
+            session_info,
             authority_index_and_pen,
             authority_verifier,
             own_peer_id,
@@ -89,13 +96,19 @@ impl Handler {
         self.authority_verifier.node_count()
     }
 
-    fn session_id(&self) -> Option<SessionId> {
-        self.own_authentication.as_ref().map(|own_authentication| own_authentication.0.session_id)
+    fn session_id(&self) -> SessionId {
+        match &self.session_info {
+            SessionInfo::SessionId(session_id) => *session_id,
+            SessionInfo::OwnAuthentication((auth_data, _)) => auth_data.session_id,
+        }
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
     pub fn authentication(&self) -> Option<Authentication> {
-        self.own_authentication.clone()
+        match &self.session_info {
+            SessionInfo::SessionId(_) => None,
+            SessionInfo::OwnAuthentication(own_authentication) => Some(own_authentication.clone()),
+        }
     }
 
     /// Returns a vector of indices of nodes for which the handler has no authentication.
@@ -104,16 +117,12 @@ impl Handler {
         if self.peers_by_node.len() + 1 == node_count {
             return Vec::new();
         }
-        match self.index() {
-            Some(index) => (0..node_count)
-                .map(NodeIndex)
-                .filter(|node_id| *node_id != index && !self.peers_by_node.contains_key(node_id))
-                .collect(),
-            _ => (0..node_count)
-                .map(NodeIndex)
-                .filter(|node_id| !self.peers_by_node.contains_key(node_id))
-                .collect(),
-        }
+        (0..node_count)
+            .map(NodeIndex)
+            .filter(|node_id| {
+                Some(*node_id) != self.index() && !self.peers_by_node.contains_key(node_id)
+            })
+            .collect()
     }
 
     /// Verifies the authentication, uses it to update mappings, and returns whether we should
@@ -121,12 +130,10 @@ impl Handler {
     pub fn handle_authentication(&mut self, authentication: Authentication) -> bool {
         let (auth_data, signature) = authentication.clone();
 
-        if let Some(session_id) = self.session_id() {
-            if auth_data.session_id != session_id {
-                return false;
-            }
+        if auth_data.session_id != self.session_id() {
+            return false;
         }
-        
+
         // The auth is completely useless if it doesn't have a consistent PeerId.
         let peer_id = match get_common_peer_id(&auth_data.addresses) {
             Some(peer_id) => peer_id,
@@ -175,7 +182,7 @@ impl Handler {
         authority_verifier: AuthorityVerifier,
         addresses: Vec<Multiaddr>,
     ) -> Result<Vec<Multiaddr>, AddressError> {
-        let (own_authentication, own_peer_id) =
+        let (session_info, own_peer_id) =
             construct_authentication(&authority_index_and_pen, self.session_id(), addresses)
                 .await?;
         let authentications = self.authentications.clone();
@@ -183,7 +190,7 @@ impl Handler {
         self.peers_by_node = HashMap::new();
         self.authority_index_and_pen = authority_index_and_pen;
         self.authority_verifier = authority_verifier;
-        self.own_authentication = own_authentication;
+        self.session_info = session_info;
         self.own_peer_id = own_peer_id;
         for (_, (auth, maybe_auth)) in authentications {
             print!(
@@ -220,27 +227,24 @@ mod tests {
 
     const NUM_NODES: usize = 7;
 
-    async fn keyboxes_components() -> Vec<(Option<(NodeIndex, AuthorityPen)>, AuthorityVerifier)> {
-        let num_keyboxes_components = NUM_NODES;
+    async fn crypto_basics() -> (Vec<(NodeIndex, AuthorityPen)>, AuthorityVerifier) {
+        let num_crypto_basics = NUM_NODES;
         let keystore = Arc::new(KeyStore::new());
-        let mut auth_ids = Vec::with_capacity(num_keyboxes_components);
-        for _ in 0..num_keyboxes_components {
+        let mut auth_ids = Vec::with_capacity(num_crypto_basics);
+        for _ in 0..num_crypto_basics {
             let pk = keystore.ed25519_generate_new(KEY_TYPE, None).await.unwrap();
             auth_ids.push(AuthorityId::from(pk));
         }
-        let mut result = Vec::with_capacity(num_keyboxes_components);
-        for i in 0..num_keyboxes_components {
+        let mut result = Vec::with_capacity(num_crypto_basics);
+        for i in 0..num_crypto_basics {
             result.push((
-                Some((
-                    NodeIndex(i),
-                    AuthorityPen::new(auth_ids[i].clone(), keystore.clone())
-                        .await
-                        .expect("The keys should sign successfully"),
-                )),
-                AuthorityVerifier::new(auth_ids.clone()),
+                NodeIndex(i),
+                AuthorityPen::new(auth_ids[i].clone(), keystore.clone())
+                    .await
+                    .expect("The keys should sign successfully"),
             ));
         }
-        result
+        (result, AuthorityVerifier::new(auth_ids))
     }
 
     fn address(text: &str) -> ScMultiaddr {
@@ -279,11 +283,10 @@ mod tests {
 
     #[tokio::test]
     async fn creates_with_correct_data() {
-        let (authority_index_and_pen, authority_verifier) =
-            keyboxes_components().await.pop().unwrap();
+        let mut crypto_basics = crypto_basics().await;
         assert!(Handler::new(
-            authority_index_and_pen,
-            authority_verifier,
+            Some(crypto_basics.0.pop().unwrap()),
+            crypto_basics.1,
             SessionId(43),
             correct_addresses_0()
         )
@@ -293,11 +296,10 @@ mod tests {
 
     #[tokio::test]
     async fn creates_with_local_address() {
-        let (authority_index_and_pen, authority_verifier) =
-            keyboxes_components().await.pop().unwrap();
+        let mut crypto_basics = crypto_basics().await;
         assert!(Handler::new(
-            authority_index_and_pen,
-            authority_verifier,
+            Some(crypto_basics.0.pop().unwrap()),
+            crypto_basics.1,
             SessionId(43),
             local_p2p_addresses()
         )
@@ -307,25 +309,21 @@ mod tests {
 
     #[tokio::test]
     async fn creates_without_node_index_nor_authority_pen() {
-        let (_, authority_verifier) = keyboxes_components().await.pop().unwrap();
-        assert!(Handler::new(
-            None,
-            authority_verifier,
-            SessionId(43),
-            correct_addresses_0()
-        )
-        .await
-        .is_ok());
+        let crypto_basics = crypto_basics().await;
+        assert!(
+            Handler::new(None, crypto_basics.1, SessionId(43), correct_addresses_0())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
     async fn fails_to_create_with_no_addresses() {
-        let (authority_index_and_pen, authority_verifier) =
-            keyboxes_components().await.pop().unwrap();
+        let mut crypto_basics = crypto_basics().await;
         assert!(matches!(
             Handler::new(
-                authority_index_and_pen,
-                authority_verifier,
+                Some(crypto_basics.0.pop().unwrap()),
+                crypto_basics.1,
                 SessionId(43),
                 Vec::new()
             )
@@ -336,16 +334,15 @@ mod tests {
 
     #[tokio::test]
     async fn fails_to_create_with_non_unique_peer_id() {
-        let (authority_index_and_pen, authority_verifier) =
-            keyboxes_components().await.pop().unwrap();
+        let mut crypto_basics = crypto_basics().await;
         let addresses = correct_addresses_0()
             .into_iter()
             .chain(correct_addresses_1())
             .collect();
         assert!(matches!(
             Handler::new(
-                authority_index_and_pen,
-                authority_verifier,
+                Some(crypto_basics.0.pop().unwrap()),
+                crypto_basics.1,
                 SessionId(43),
                 addresses
             )
@@ -356,11 +353,10 @@ mod tests {
 
     #[tokio::test]
     async fn misses_all_other_nodes_initially() {
-        let (authority_index_and_pen, authority_verifier) =
-            keyboxes_components().await.pop().unwrap();
+        let mut crypto_basics = crypto_basics().await;
         let handler0 = Handler::new(
-            authority_index_and_pen,
-            authority_verifier,
+            Some(crypto_basics.0.pop().unwrap()),
+            crypto_basics.1,
             SessionId(43),
             correct_addresses_0(),
         )
@@ -374,18 +370,18 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_correct_authentication() {
-        let keyboxes_components = keyboxes_components().await;
+        let crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            keyboxes_components[0].0.clone(),
-            keyboxes_components[0].1.clone(),
+            Some(crypto_basics.0[0].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let handler1 = Handler::new(
-            keyboxes_components[1].0.clone(),
-            keyboxes_components[1].1.clone(),
+            Some(crypto_basics.0[1].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -402,18 +398,18 @@ mod tests {
 
     #[tokio::test]
     async fn nonvalidator_accepts_correct_authentication() {
-        let keyboxes_components = keyboxes_components().await;
+        let crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
             None,
-            keyboxes_components[0].1.clone(),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let handler1 = Handler::new(
-            keyboxes_components[1].0.clone(),
-            keyboxes_components[1].1.clone(),
+            Some(crypto_basics.0[1].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -431,18 +427,18 @@ mod tests {
 
     #[tokio::test]
     async fn ignores_badly_signed_authentication() {
-        let keyboxes_components = keyboxes_components().await;
+        let crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            keyboxes_components[0].0.clone(),
-            keyboxes_components[0].1.clone(),
+            Some(crypto_basics.0[0].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let handler1 = Handler::new(
-            keyboxes_components[1].0.clone(),
-            keyboxes_components[1].1.clone(),
+            Some(crypto_basics.0[1].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
@@ -458,18 +454,18 @@ mod tests {
 
     #[tokio::test]
     async fn ignores_wrong_session_authentication() {
-        let keyboxes_components = keyboxes_components().await;
+        let crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            keyboxes_components[0].0.clone(),
-            keyboxes_components[0].1.clone(),
+            Some(crypto_basics.0[0].clone()),
+            crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let handler1 = Handler::new(
-            keyboxes_components[1].0.clone(),
-            keyboxes_components[1].1.clone(),
+            Some(crypto_basics.0[1].clone()),
+            crypto_basics.1.clone(),
             SessionId(44),
             correct_addresses_1(),
         )
@@ -483,10 +479,10 @@ mod tests {
 
     #[tokio::test]
     async fn ignores_own_authentication() {
-        let awaited_keyboxes_components = keyboxes_components().await;
+        let awaited_crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            awaited_keyboxes_components[0].0.clone(),
-            awaited_keyboxes_components[0].1.clone(),
+            Some(awaited_crypto_basics.0[0].clone()),
+            awaited_crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
@@ -500,31 +496,31 @@ mod tests {
 
     #[tokio::test]
     async fn invalidates_obsolete_authentication() {
-        let awaited_keyboxes_components = keyboxes_components().await;
+        let awaited_crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            awaited_keyboxes_components[0].0.clone(),
-            awaited_keyboxes_components[0].1.clone(),
+            Some(awaited_crypto_basics.0[0].clone()),
+            awaited_crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let handler1 = Handler::new(
-            awaited_keyboxes_components[1].0.clone(),
-            awaited_keyboxes_components[1].1.clone(),
+            Some(awaited_crypto_basics.0[1].clone()),
+            awaited_crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
         .await
         .unwrap();
         assert!(handler0.handle_authentication(handler1.authentication().unwrap()));
-        let new_keyboxes_components = keyboxes_components().await;
+        let new_crypto_basics = crypto_basics().await;
         print!(
             "{:?}",
             handler0
                 .update(
-                    new_keyboxes_components[0].0.clone(),
-                    new_keyboxes_components[0].1.clone(),
+                    Some(new_crypto_basics.0[0].clone()),
+                    new_crypto_basics.1.clone(),
                     correct_addresses_0()
                 )
                 .await
@@ -538,29 +534,29 @@ mod tests {
 
     #[tokio::test]
     async fn uses_cached_authentication() {
-        let awaited_keyboxes_components = keyboxes_components().await;
+        let awaited_crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            awaited_keyboxes_components[0].0.clone(),
-            awaited_keyboxes_components[0].1.clone(),
+            Some(awaited_crypto_basics.0[0].clone()),
+            awaited_crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_0(),
         )
         .await
         .unwrap();
         let mut handler1 = Handler::new(
-            awaited_keyboxes_components[1].0.clone(),
-            awaited_keyboxes_components[1].1.clone(),
+            Some(awaited_crypto_basics.0[1].clone()),
+            awaited_crypto_basics.1.clone(),
             SessionId(43),
             correct_addresses_1(),
         )
         .await
         .unwrap();
         assert!(handler0.handle_authentication(handler1.authentication().unwrap()));
-        let new_keyboxes_components = keyboxes_components().await;
+        let new_crypto_basics = crypto_basics().await;
         assert!(handler1
             .update(
-                new_keyboxes_components[1].0.clone(),
-                new_keyboxes_components[1].1.clone(),
+                Some(new_crypto_basics.0[1].clone()),
+                new_crypto_basics.1.clone(),
                 correct_addresses_1()
             )
             .await
@@ -569,8 +565,8 @@ mod tests {
         assert!(!handler0.handle_authentication(handler1.authentication().unwrap()));
         handler0
             .update(
-                new_keyboxes_components[0].0.clone(),
-                new_keyboxes_components[0].1.clone(),
+                Some(new_crypto_basics.0[0].clone()),
+                new_crypto_basics.1.clone(),
                 correct_addresses_0(),
             )
             .await
