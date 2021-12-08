@@ -351,9 +351,11 @@ mod tests {
         let messages = discovery.discover_authorities(handler);
         assert_eq!(messages.len(), 2);
         for message in messages {
-            assert!(
-                matches!(message, (DiscoveryMessage::Request(node_ids, authentication), DataCommand::SendTo(_, _)) if node_ids == vec![NodeIndex(6)] && authentication == handler.authentication())
-            );
+            assert!(matches!(message,(
+                        DiscoveryMessage::Request(node_ids, authentication),
+                        DataCommand::SendTo(_, _),
+                    ) if node_ids == vec![NodeIndex(6)]
+                        && authentication == handler.authentication()));
         }
     }
 
@@ -469,7 +471,8 @@ mod tests {
         assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![requested_authentication]));
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
+                && response_authentications == &vec![requested_authentication]));
     }
 
     #[tokio::test]
@@ -520,7 +523,8 @@ mod tests {
         assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![requested_authentication]));
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
+                && response_authentications == &vec![requested_authentication]));
         let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
             handler,
@@ -553,7 +557,8 @@ mod tests {
         assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![available_authentications[0].clone()]));
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
+                && response_authentications == &vec![available_authentications[0].clone()]));
         let requested_node_id = NodeIndex(3);
         let (_, commands) = discovery.handle_message(
             DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
@@ -570,7 +575,8 @@ mod tests {
         assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentications(response_authentications),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator()) && response_authentications == &vec![available_authentications[1].clone()]));
+            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
+                && response_authentications == &vec![available_authentications[1].clone()]));
     }
 
     #[tokio::test]
