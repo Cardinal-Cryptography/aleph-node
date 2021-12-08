@@ -48,7 +48,7 @@ pub struct Discovery {
     last_response: HashMap<NodeIndex, Instant>,
     requested_authentications: HashMap<NodeIndex, HashSet<NodeIndex>>,
     // Used to rotate the nodes we query about unknown nodes.
-    next_query: NodeIndex,
+    next_query: usize,
 }
 
 type DiscoveryCommand = (DiscoveryMessage, DataCommand);
@@ -86,7 +86,7 @@ impl Discovery {
             last_broadcast: HashMap::new(),
             last_response: HashMap::new(),
             requested_authentications: HashMap::new(),
-            next_query: NodeIndex(0),
+            next_query: rand::random(),
         }
     }
 
@@ -110,7 +110,7 @@ impl Discovery {
         } else {
             // Attempt learning about more authorities from the ones you already know.
             let mut result = Vec::new();
-            let mut target = self.next_query;
+            let mut target = NodeIndex(self.next_query % node_count.0);
             while result.len() < NODES_TO_QUERY {
                 if let Some(peer_id) = handler.peer_id(&target) {
                     result.push(request(
@@ -121,7 +121,7 @@ impl Discovery {
                 }
                 target = NodeIndex((target.0 + 1) % node_count.0);
             }
-            self.next_query = target;
+            self.next_query = target.0;
             result
         }
     }
