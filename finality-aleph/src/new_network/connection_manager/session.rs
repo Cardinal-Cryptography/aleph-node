@@ -225,11 +225,11 @@ mod tests {
     use super::{get_common_peer_id, AddressError, Handler};
     use crate::{
         crypto::{AuthorityPen, AuthorityVerifier},
-        new_network::connection_manager::Multiaddr,
+        new_network::connection_manager::{Multiaddr, Authentication},
         AuthorityId, NodeIndex, SessionId,
     };
     use aleph_primitives::KEY_TYPE;
-    use codec::Encode;
+    use codec::{Encode, Decode};
     use sc_network::Multiaddr as ScMultiaddr;
     use sp_keystore::{testing::KeyStore, CryptoStore};
     use std::sync::Arc;
@@ -374,8 +374,10 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_keep_own_peer_id_or_authentication() {
+        let mut crypto_basics = crypto_basics().await;
         let handler0 = Handler::new(
-            keyboxes().await.pop().unwrap(),
+            Some(crypto_basics.0.pop().unwrap()),
+            crypto_basics.1,
             SessionId(43),
             correct_addresses_0(),
         )
@@ -429,7 +431,7 @@ mod tests {
         assert_eq!(handler0.peer_id(&NodeIndex(1)), peer_id1);
         assert_eq!(handler0.node_id(&peer_id1.unwrap()), Some(NodeIndex(1)));
         assert_eq!(
-            handler0.authentication_for(&NodeIndex(1)).unwrap().encode(),
+            handler0.authentication_for(&NodeIndex(1)).encode(),
             handler1.authentication().encode()
         );
     }
@@ -620,7 +622,7 @@ mod tests {
             get_common_peer_id(&correct_addresses_1())
         );
         assert_eq!(
-            handler0.authentication_for(&NodeIndex(1)).unwrap().encode(),
+            handler0.authentication_for(&NodeIndex(1)).encode(),
             handler1.authentication().encode()
         );
     }
