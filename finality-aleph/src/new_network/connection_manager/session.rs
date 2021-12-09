@@ -36,11 +36,10 @@ pub struct Handler {
     authority_verifier: AuthorityVerifier,
 }
 
-
 #[derive(Debug)]
 pub enum HandlerError {
     /// Returned when handler is change from validator to nonvalidator
-    /// or vice versa 
+    /// or vice versa
     TypeChange,
     /// Returned when a set of addresses is not usable for creating authentications.
     /// Either because none of the addresses are externally reachable libp2p addresses,
@@ -198,13 +197,13 @@ impl Handler {
         authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Vec<Multiaddr>, HandlerError> {        
+    ) -> Result<Vec<Multiaddr>, HandlerError> {
         if authority_index_and_pen.is_none() != self.authority_index_and_pen.is_none() {
-            return Err(HandlerError::TypeChange)
+            return Err(HandlerError::TypeChange);
         }
 
         let authentications = self.authentications.clone();
-        
+
         *self = Handler::new(
             authority_index_and_pen,
             authority_verifier,
@@ -212,7 +211,7 @@ impl Handler {
             addresses,
         )
         .await?;
-        
+
         for (_, (auth, maybe_auth)) in authentications {
             print!(
                 "normal authentication: {:?}",
@@ -235,7 +234,7 @@ impl Handler {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_common_peer_id, HandlerError, Handler};
+    use super::{get_common_peer_id, Handler, HandlerError};
     use crate::{
         crypto::{AuthorityPen, AuthorityVerifier},
         new_network::connection_manager::Multiaddr,
@@ -390,17 +389,16 @@ mod tests {
         let mut crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
             Some(crypto_basics.0.pop().unwrap()),
-            crypto_basics.1.clone(), 
-            SessionId(43), 
-            correct_addresses_0()
-        ).await.unwrap();
+            crypto_basics.1.clone(),
+            SessionId(43),
+            correct_addresses_0(),
+        )
+        .await
+        .unwrap();
         assert!(matches!(
-            handler0.update(
-                None,
-                crypto_basics.1.clone(),
-                correct_addresses_0()
-            )
-            .await,
+            handler0
+                .update(None, crypto_basics.1.clone(), correct_addresses_0())
+                .await,
             Err(HandlerError::TypeChange)
         ));
     }
@@ -409,18 +407,21 @@ mod tests {
     async fn fails_to_update_from_non_validator_to_validator() {
         let mut crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
-            None, 
-            crypto_basics.1.clone(), 
-            SessionId(43), 
-            correct_addresses_0()
-        ).await.unwrap();
+            None,
+            crypto_basics.1.clone(),
+            SessionId(43),
+            correct_addresses_0(),
+        )
+        .await
+        .unwrap();
         assert!(matches!(
-            handler0.update(
-                Some(crypto_basics.0.pop().unwrap()),
-                crypto_basics.1.clone(),
-                correct_addresses_0()
-            )
-            .await,
+            handler0
+                .update(
+                    Some(crypto_basics.0.pop().unwrap()),
+                    crypto_basics.1.clone(),
+                    correct_addresses_0()
+                )
+                .await,
             Err(HandlerError::TypeChange)
         ));
     }

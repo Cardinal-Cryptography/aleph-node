@@ -330,9 +330,14 @@ mod tests {
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
             handlers.push(
-                SessionHandler::new(Some(authority_index_and_pen), crypto_basics.1.clone(), SessionId(43), vec![address.into()])
-                    .await
-                    .unwrap(),
+                SessionHandler::new(
+                    Some(authority_index_and_pen),
+                    crypto_basics.1.clone(),
+                    SessionId(43),
+                    vec![address.into()],
+                )
+                .await
+                .unwrap(),
             );
         }
         (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
@@ -599,8 +604,8 @@ mod tests {
         let (mut discovery, mut handlers) = build().await;
         let authentications_start: usize = 1;
         let authentications_end: usize = (NUM_NODES - 2).into();
-        let authentications =
-            (authentications_start..authentications_end).map(|i| handlers[i].authentication().unwrap());
+        let authentications = (authentications_start..authentications_end)
+            .map(|i| handlers[i].authentication().unwrap());
         let expected_addresses: HashSet<_> = authentications
             .clone()
             .flat_map(|(auth_data, _)| auth_data.addresses())
@@ -623,8 +628,8 @@ mod tests {
         let (mut discovery, mut handlers) = build().await;
         let authentications_start: usize = 1;
         let authentications_end: usize = (NUM_NODES - 2).into();
-        let authentications =
-            (authentications_start..authentications_end).map(|i| handlers[i].authentication().unwrap());
+        let authentications = (authentications_start..authentications_end)
+            .map(|i| handlers[i].authentication().unwrap());
         let (auth_data, _) = handlers[authentications_end].authentication().unwrap();
         let (_, signature) = handlers[authentications_end - 1].authentication().unwrap();
         let incorrect_authentication = (auth_data, signature);
