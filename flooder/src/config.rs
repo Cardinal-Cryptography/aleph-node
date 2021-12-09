@@ -27,6 +27,10 @@ pub struct Config {
     /// should we initialize all of the derived flooding accounts or just attempt to download their nonces
     #[clap(long)]
     pub initialize_accounts: bool,
+
+    /// beginning of the integer range used to derive accounts
+    #[clap(long, default_value = "0")]
+    pub accounts_range_start: u64,
 }
 
 pub fn read_phrase(phrase: String) -> String {
