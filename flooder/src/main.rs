@@ -45,6 +45,7 @@ fn main() -> Result<(), anyhow::Error> {
     let connection = pool.get(0).unwrap();
 
     let total_users = config.transactions;
+    let first_account_in_range = config.accounts_range_start;
     let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
 
@@ -56,7 +57,8 @@ fn main() -> Result<(), anyhow::Error> {
     let accounts_and_nonces = derive_user_accounts(
         connection.clone(),
         account.clone(),
-        total_users as usize,
+        first_account_in_range,
+        total_users,
         transfer_amount,
         initialize_accounts,
     );
@@ -190,19 +192,24 @@ fn sign_transactions(
 fn derive_user_accounts(
     connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
-    total_accounts: usize,
+    first_account: u64,
+    total_accounts: u64,
     transfer_amount: u128,
     initialize_account: bool,
 ) -> (Vec<sr25519::Pair>, Vec<u32>) {
-    let mut accounts = Vec::with_capacity(total_accounts);
-    let mut nonces = Vec::with_capacity(total_accounts);
+    let total_accounts_cap = total_accounts
+        .try_into()
+        .expect("total_accounts should withing usize range");
+
+    let mut accounts = Vec::with_capacity(total_accounts_cap);
+    let mut nonces = Vec::with_capacity(total_accounts_cap);
     let mut account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
     let existential_deposit = connection.get_existential_deposit().unwrap();
 
     // start with a heuristic tx fee
     let mut total_amount = existential_deposit + (transfer_amount + 375_000_000);
 
-    for index in 0..total_accounts {
+    for index in first_account..first_account + total_accounts {
         let path = Some(DeriveJunction::soft(index as u64));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
