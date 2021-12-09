@@ -36,11 +36,15 @@ pub struct Handler {
     authority_verifier: AuthorityVerifier,
 }
 
-/// Returned when a set of addresses is not usable for creating authentications.
-/// Either because none of the addresses are externally reachable libp2p addresses,
-/// or the addresses contain multiple libp2p PeerIds.
+
 #[derive(Debug)]
-pub enum AddressError {
+pub enum HandlerError {
+    /// Returned when handler is change from validator to nonvalidator
+    /// or vice versa 
+    TypeChange,
+    /// Returned when a set of addresses is not usable for creating authentications.
+    /// Either because none of the addresses are externally reachable libp2p addresses,
+    /// or the addresses contain multiple libp2p PeerIds.
     NoP2pAddresses,
     MultiplePeerIds,
 }
@@ -49,14 +53,14 @@ async fn construct_authentication(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     addresses: Vec<Multiaddr>,
-) -> Result<(SessionInfo, PeerId), AddressError> {
+) -> Result<(SessionInfo, PeerId), HandlerError> {
     let addresses: Vec<_> = addresses.into_iter().filter(is_p2p).collect();
     if addresses.is_empty() {
-        return Err(AddressError::NoP2pAddresses);
+        return Err(HandlerError::NoP2pAddresses);
     }
     let peer_id = match get_common_peer_id(&addresses) {
         Some(peer_id) => peer_id,
-        None => return Err(AddressError::MultiplePeerIds),
+        None => return Err(HandlerError::MultiplePeerIds),
     };
     if let Some((node_index, authority_pen)) = authority_index_and_pen {
         let auth_data = AuthData {
@@ -81,7 +85,7 @@ impl Handler {
         authority_verifier: AuthorityVerifier,
         session_id: SessionId,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Handler, AddressError> {
+    ) -> Result<Handler, HandlerError> {
         let (session_info, own_peer_id) =
             construct_authentication(&authority_index_and_pen, session_id, addresses).await?;
         Ok(Handler {
@@ -194,7 +198,11 @@ impl Handler {
         authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Vec<Multiaddr>, AddressError> {        
+    ) -> Result<Vec<Multiaddr>, HandlerError> {        
+        if authority_index_and_pen.is_none() != self.authority_index_and_pen.is_none() {
+            return Err(HandlerError::TypeChange)
+        }
+
         let authentications = self.authentications.clone();
         
         *self = Handler::new(
@@ -227,14 +235,14 @@ impl Handler {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_common_peer_id, AddressError, Handler};
+    use super::{get_common_peer_id, HandlerError, Handler};
     use crate::{
         crypto::{AuthorityPen, AuthorityVerifier},
-        new_network::connection_manager::{Multiaddr, Authentication},
+        new_network::connection_manager::Multiaddr,
         AuthorityId, NodeIndex, SessionId,
     };
     use aleph_primitives::KEY_TYPE;
-    use codec::{Encode, Decode};
+    use codec::Encode;
     use sc_network::Multiaddr as ScMultiaddr;
     use sp_keystore::{testing::KeyStore, CryptoStore};
     use std::sync::Arc;
@@ -354,7 +362,7 @@ mod tests {
                 Vec::new()
             )
             .await,
-            Err(AddressError::NoP2pAddresses)
+            Err(HandlerError::NoP2pAddresses)
         ));
     }
 
@@ -373,7 +381,47 @@ mod tests {
                 addresses
             )
             .await,
-            Err(AddressError::MultiplePeerIds)
+            Err(HandlerError::MultiplePeerIds)
+        ));
+    }
+
+    #[tokio::test]
+    async fn fails_to_update_from_validator_to_non_validator() {
+        let mut crypto_basics = crypto_basics().await;
+        let mut handler0 = Handler::new(
+            Some(crypto_basics.0.pop().unwrap()),
+            crypto_basics.1.clone(), 
+            SessionId(43), 
+            correct_addresses_0()
+        ).await.unwrap();
+        assert!(matches!(
+            handler0.update(
+                None,
+                crypto_basics.1.clone(),
+                correct_addresses_0()
+            )
+            .await,
+            Err(HandlerError::TypeChange)
+        ));
+    }
+
+    #[tokio::test]
+    async fn fails_to_update_from_non_validator_to_validator() {
+        let mut crypto_basics = crypto_basics().await;
+        let mut handler0 = Handler::new(
+            None, 
+            crypto_basics.1.clone(), 
+            SessionId(43), 
+            correct_addresses_0()
+        ).await.unwrap();
+        assert!(matches!(
+            handler0.update(
+                Some(crypto_basics.0.pop().unwrap()),
+                crypto_basics.1.clone(),
+                correct_addresses_0()
+            )
+            .await,
+            Err(HandlerError::TypeChange)
         ));
     }
 

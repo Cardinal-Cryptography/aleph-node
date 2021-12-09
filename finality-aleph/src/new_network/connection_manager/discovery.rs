@@ -274,7 +274,7 @@ impl Discovery {
 mod tests {
     use super::{Discovery, DiscoveryMessage};
     use crate::{
-        crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
+        crypto::{AuthorityPen, AuthorityVerifier},
         new_network::{
             connection_manager::{Authentication, SessionHandler},
             DataCommand, Multiaddr, Protocol,
