@@ -23,6 +23,10 @@ pub struct Config {
     /// secret seed of the account keypair passed on stdin
     #[clap(long, conflicts_with_all = &["phrase"])]
     pub seed: Option<String>,
+
+    /// should we initialize all of the derived flooding accounts or just attempt to download their nonces
+    #[clap(long)]
+    pub initialize_accounts: bool,
 }
 
 pub fn read_phrase(phrase: String) -> String {
