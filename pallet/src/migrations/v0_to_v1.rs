@@ -22,7 +22,14 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
 
         let mut writes = 0;
-        match SessionForValidatorsChange::translate(sp_std::convert::identity) {
+        match SessionForValidatorsChange::translate(|old: Option<Option<u32>>| {
+            log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
+            match old {
+                Some(None) => None,
+                Some(value) => Some(value),
+                None => None,
+            }
+        }) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for SessionForValidatorsChange");
