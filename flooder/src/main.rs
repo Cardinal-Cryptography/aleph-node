@@ -39,6 +39,7 @@ fn main() -> Result<(), anyhow::Error> {
             None => panic!("Needs --phrase or --seed"),
         },
     };
+    let initialize_accounts = config.initialize_accounts;
 
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
@@ -57,6 +58,7 @@ fn main() -> Result<(), anyhow::Error> {
         account.clone(),
         total_users as usize,
         transfer_amount,
+        initialize_accounts,
     );
 
     debug!("all accounts have received funds");
@@ -190,6 +192,7 @@ fn derive_user_accounts(
     account: sr25519::Pair,
     total_accounts: usize,
     transfer_amount: u128,
+    initialize_account: bool,
 ) -> (Vec<sr25519::Pair>, Vec<u32>) {
     let mut accounts = Vec::with_capacity(total_accounts);
     let mut nonces = Vec::with_capacity(total_accounts);
@@ -203,50 +206,55 @@ fn derive_user_accounts(
         let path = Some(DeriveJunction::soft(index as u64));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
-        let tx = sign_tx(
-            connection.clone(),
-            account.clone(),
-            account_nonce,
-            AccountId::from(derived.public()),
-            total_amount,
-        );
-
-        // estimate fees
-        if index.eq(&0) {
-            let tx_fee = estimate_tx_fee(connection.clone(), &tx);
-            info!("Estimated transfer tx fee {}", tx_fee);
-
-            // adjust with estimated tx fee
-            total_amount = existential_deposit + (transfer_amount + tx_fee);
-
-            assert!(
-                get_funds(connection.clone(), &AccountId::from(account.public()))
-                    .ge(&(total_amount * total_accounts as u128)),
-                "Account is too poor"
+        let mut hash = None;
+        if initialize_account {
+            let tx = sign_tx(
+                connection.clone(),
+                account.clone(),
+                account_nonce,
+                AccountId::from(derived.public()),
+                total_amount,
             );
+
+            // estimate fees
+            if index.eq(&0) {
+                let tx_fee = estimate_tx_fee(connection.clone(), &tx);
+                info!("Estimated transfer tx fee {}", tx_fee);
+
+                // adjust with estimated tx fee
+                total_amount = existential_deposit + (transfer_amount + tx_fee);
+
+                assert!(
+                    get_funds(connection.clone(), &AccountId::from(account.public()))
+                        .ge(&(total_amount * total_accounts as u128)),
+                    "Account is too poor"
+                );
+            }
+
+            hash = Some(if index.eq(&(total_accounts - 1)) {
+                // ensure all txs are finalized by waiting for the last one sent
+                connection
+                    .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+                    .expect("Could not send transaction")
+            } else {
+                connection
+                    .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
+                    .expect("Could not send transaction")
+            });
+
+            account_nonce += 1;
         }
-
-        let hash = if index.eq(&(total_accounts - 1)) {
-            // ensure all txs are finalized by waiting for the last one sent
-            connection
-                .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-                .expect("Could not send transaction")
-        } else {
-            connection
-                .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
-                .expect("Could not send transaction")
-        };
-
-        account_nonce += 1;
 
         let nonce = get_nonce(connection.clone(), &AccountId::from(derived.public()));
 
-        info!(
-            "account {} with nonce {} will receive funds, tx hash {:?}",
-            &derived.public(),
-            nonce,
-            hash
-        );
+        if let Some(hash) = hash {
+            info!(
+                "account {} with nonce {} will receive funds, tx hash {:?}",
+                &derived.public(),
+                nonce,
+                hash
+            );
+        }
 
         nonces.push(nonce);
         accounts.push(derived);
