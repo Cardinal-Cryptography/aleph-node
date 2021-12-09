@@ -318,7 +318,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handler_without_node_index_nor_authority_pen_returns_none_for_authentication() {
+    async fn non_validator_handler_returns_none_for_authentication() {
         let crypto_basics = crypto_basics().await;
         assert!(
             Handler::new(None, crypto_basics.1, SessionId(43), correct_addresses_0())
@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn nonvalidator_accepts_correct_authentication() {
+    async fn non_validator_accepts_correct_authentication() {
         let crypto_basics = crypto_basics().await;
         let mut handler0 = Handler::new(
             None,
