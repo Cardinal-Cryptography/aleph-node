@@ -16,6 +16,15 @@ pub enum SessionInfo {
     OwnAuthentication(Authentication),
 }
 
+impl SessionInfo {
+    fn session_id(&self) -> SessionId {
+        match self {
+            SessionInfo::SessionId(session_id) => *session_id,
+            SessionInfo::OwnAuthentication((auth_data, _)) => auth_data.session_id,
+        }
+    }
+}
+
 /// A struct for handling authentications for a given session and maintaining
 /// mappings between PeerIds and NodeIndexes within that session.
 pub struct Handler {
@@ -97,10 +106,7 @@ impl Handler {
     }
 
     fn session_id(&self) -> SessionId {
-        match &self.session_info {
-            SessionInfo::SessionId(session_id) => *session_id,
-            SessionInfo::OwnAuthentication((auth_data, _)) => auth_data.session_id,
-        }
+        self.session_info.session_id()
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
@@ -136,11 +142,10 @@ impl Handler {
     /// Verifies the authentication, uses it to update mappings, and returns whether we should
     /// remain connected to the multiaddresses.
     pub fn handle_authentication(&mut self, authentication: Authentication) -> bool {
-        let (auth_data, signature) = authentication.clone();
-
-        if auth_data.session_id != self.session_id() {
+        if authentication.0.session_id != self.session_id() {
             return false;
         }
+        let (auth_data, signature) = &authentication;
 
         // The auth is completely useless if it doesn't have a consistent PeerId.
         let peer_id = match get_common_peer_id(&auth_data.addresses) {
@@ -157,7 +162,7 @@ impl Handler {
             // This might be an authentication for a key that has been changed, but we are not yet
             // aware of the change.
             if let Some(auth_pair) = self.authentications.get_mut(&peer_id) {
-                auth_pair.1 = Some(authentication);
+                auth_pair.1 = Some(authentication.clone());
             }
             return false;
         }
@@ -189,17 +194,17 @@ impl Handler {
         authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Vec<Multiaddr>, AddressError> {
-        let (session_info, own_peer_id) =
-            construct_authentication(&authority_index_and_pen, self.session_id(), addresses)
-                .await?;
+    ) -> Result<Vec<Multiaddr>, AddressError> {        
         let authentications = self.authentications.clone();
-        self.authentications = HashMap::new();
-        self.peers_by_node = HashMap::new();
-        self.authority_index_and_pen = authority_index_and_pen;
-        self.authority_verifier = authority_verifier;
-        self.session_info = session_info;
-        self.own_peer_id = own_peer_id;
+        
+        *self = Handler::new(
+            authority_index_and_pen,
+            authority_verifier,
+            self.session_id(),
+            addresses,
+        )
+        .await?;
+        
         for (_, (auth, maybe_auth)) in authentications {
             print!(
                 "normal authentication: {:?}",
