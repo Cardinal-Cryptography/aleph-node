@@ -48,9 +48,11 @@ pub enum HandlerError {
     MultiplePeerIds,
 }
 
-fn retrieve_peer_id(
-    addresses: &Vec<Multiaddr>
-) -> Result<PeerId, HandlerError> {
+fn retrieve_peer_id(addresses: &Vec<Multiaddr>) -> Result<PeerId, HandlerError> {
+    if addresses.is_empty() {
+        return Err(HandlerError::NoP2pAddresses);
+    }
+
     match get_common_peer_id(addresses) {
         Some(peer_id) => Ok(peer_id),
         None => Err(HandlerError::MultiplePeerIds),
@@ -63,12 +65,8 @@ async fn construct_session_info(
     addresses: Vec<Multiaddr>,
 ) -> Result<(SessionInfo, PeerId), HandlerError> {
     let addresses: Vec<_> = addresses.into_iter().filter(is_p2p).collect();
-    if addresses.is_empty() {
-        return Err(HandlerError::NoP2pAddresses);
-    }
-
     let peer = retrieve_peer_id(&addresses)?;
-    
+
     if let Some((node_index, authority_pen)) = authority_index_and_pen {
         let auth_data = AuthData {
             addresses,
@@ -76,10 +74,7 @@ async fn construct_session_info(
             session_id,
         };
         let signature = authority_pen.sign(&auth_data.encode()).await;
-        return Ok((
-            SessionInfo::OwnAuthentication((auth_data, signature)),
-            peer
-        ));
+        return Ok((SessionInfo::OwnAuthentication((auth_data, signature)), peer));
     }
     Ok((SessionInfo::SessionId(session_id), peer))
 }
