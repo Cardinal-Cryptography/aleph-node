@@ -48,7 +48,16 @@ pub enum HandlerError {
     MultiplePeerIds,
 }
 
-async fn construct_authentication(
+fn retrieve_peer_id(
+    addresses: &Vec<Multiaddr>
+) -> Result<PeerId, HandlerError> {
+    match get_common_peer_id(addresses) {
+        Some(peer_id) => Ok(peer_id),
+        None => Err(HandlerError::MultiplePeerIds),
+    }
+}
+
+async fn construct_session_info(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     addresses: Vec<Multiaddr>,
@@ -57,10 +66,9 @@ async fn construct_authentication(
     if addresses.is_empty() {
         return Err(HandlerError::NoP2pAddresses);
     }
-    let peer_id = match get_common_peer_id(&addresses) {
-        Some(peer_id) => peer_id,
-        None => return Err(HandlerError::MultiplePeerIds),
-    };
+
+    let peer = retrieve_peer_id(&addresses)?;
+    
     if let Some((node_index, authority_pen)) = authority_index_and_pen {
         let auth_data = AuthData {
             addresses,
@@ -70,10 +78,10 @@ async fn construct_authentication(
         let signature = authority_pen.sign(&auth_data.encode()).await;
         return Ok((
             SessionInfo::OwnAuthentication((auth_data, signature)),
-            peer_id,
+            peer
         ));
     }
-    Ok((SessionInfo::SessionId(session_id), peer_id))
+    Ok((SessionInfo::SessionId(session_id), peer))
 }
 
 impl Handler {
@@ -86,7 +94,7 @@ impl Handler {
         addresses: Vec<Multiaddr>,
     ) -> Result<Handler, HandlerError> {
         let (session_info, own_peer_id) =
-            construct_authentication(&authority_index_and_pen, session_id, addresses).await?;
+            construct_session_info(&authority_index_and_pen, session_id, addresses).await?;
         Ok(Handler {
             peers_by_node: HashMap::new(),
             authentications: HashMap::new(),
