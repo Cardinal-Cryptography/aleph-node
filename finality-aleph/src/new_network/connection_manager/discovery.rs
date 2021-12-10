@@ -97,13 +97,10 @@ impl Discovery {
 
     /// Returns messages that should be sent as part of authority discovery at this moment.
     pub fn discover_authorities(&mut self, handler: &SessionHandler) -> Vec<DiscoveryCommand> {
-        let authentication = handler.authentication();
-
-        if authentication == None {
-            return Vec::new();
-        }
-
-        let authentication = authentication.unwrap();
+        let authentication = match handler.authentication() {
+            Some(authentication) => authentication,
+            None => return Vec::new(),
+        };
 
         let missing_authorities = handler.missing_nodes();
         if missing_authorities.is_empty() {
@@ -158,14 +155,6 @@ impl Discovery {
         authentication: Authentication,
         handler: &mut SessionHandler,
     ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
-        let handler_authentication = handler.authentication();
-
-        if handler_authentication == None {
-            return (Vec::new(), Vec::new());
-        }
-
-        let handler_authentication = handler_authentication.unwrap();
-
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
             return (Vec::new(), Vec::new());
@@ -173,7 +162,11 @@ impl Discovery {
         let node_id = authentication.0.creator();
         let mut messages = Vec::new();
         match handler.peer_id(&node_id) {
-            Some(peer_id) => messages.push(response(vec![handler_authentication], peer_id)),
+            Some(peer_id) => {
+                if let Some(handler_authentication) = handler.authentication() {
+                    messages.push(response(vec![handler_authentication], peer_id));
+                }
+            },
             None => {
                 warn!(target: "aleph-network", "Id of correctly authenticated peer not present.")
             }

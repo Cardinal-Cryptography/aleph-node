@@ -48,11 +48,10 @@ pub enum HandlerError {
     MultiplePeerIds,
 }
 
-fn retrieve_peer_id(addresses: &Vec<Multiaddr>) -> Result<PeerId, HandlerError> {
+fn retrieve_peer_id(addresses: &[Multiaddr]) -> Result<PeerId, HandlerError> {
     if addresses.is_empty() {
         return Err(HandlerError::NoP2pAddresses);
     }
-
     get_common_peer_id(addresses).ok_or(HandlerError::MultiplePeerIds)
 }
 
