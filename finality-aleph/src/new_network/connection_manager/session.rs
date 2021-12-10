@@ -53,10 +53,7 @@ fn retrieve_peer_id(addresses: &Vec<Multiaddr>) -> Result<PeerId, HandlerError> 
         return Err(HandlerError::NoP2pAddresses);
     }
 
-    match get_common_peer_id(addresses) {
-        Some(peer_id) => Ok(peer_id),
-        None => Err(HandlerError::MultiplePeerIds),
-    }
+    get_common_peer_id(addresses).ok_or(HandlerError::MultiplePeerIds)
 }
 
 async fn construct_session_info(
