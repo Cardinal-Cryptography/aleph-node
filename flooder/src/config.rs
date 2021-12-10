@@ -24,9 +24,9 @@ pub struct Config {
     #[clap(long, conflicts_with_all = &["phrase"])]
     pub seed: Option<String>,
 
-    /// should we initialize all of the derived flooding accounts or just attempt to download their nonces
+    /// allows to skip accounts initialization process and just attempt to download their nonces
     #[clap(long)]
-    pub initialize_accounts: bool,
+    pub skip_initialization: bool,
 
     /// beginning of the integer range used to derive accounts
     #[clap(long, default_value = "0")]

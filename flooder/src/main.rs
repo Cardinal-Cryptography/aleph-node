@@ -39,7 +39,7 @@ fn main() -> Result<(), anyhow::Error> {
             None => panic!("Needs --phrase or --seed"),
         },
     };
-    let initialize_accounts = config.initialize_accounts;
+    let initialize_accounts = !config.skip_initialization;
 
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
@@ -195,7 +195,7 @@ fn derive_user_accounts(
     first_account: u64,
     total_accounts: u64,
     transfer_amount: u128,
-    initialize_account: bool,
+    initialize_accounts: bool,
 ) -> (Vec<sr25519::Pair>, Vec<u32>) {
     let total_accounts_cap = total_accounts
         .try_into()
@@ -214,7 +214,7 @@ fn derive_user_accounts(
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
         let mut hash = None;
-        if initialize_account {
+        if initialize_accounts {
             let tx = sign_tx(
                 connection.clone(),
                 account.clone(),
