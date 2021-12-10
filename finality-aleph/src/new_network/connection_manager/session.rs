@@ -160,7 +160,7 @@ impl Handler {
         }
         if !self
             .authority_verifier
-            .verify(&auth_data.encode(), &signature, auth_data.node_id)
+            .verify(&auth_data.encode(), signature, auth_data.node_id)
         {
             // This might be an authentication for a key that has been changed, but we are not yet
             // aware of the change.
