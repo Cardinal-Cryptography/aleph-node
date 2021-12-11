@@ -157,6 +157,7 @@ impl Discovery {
     ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
+            println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
             return (Vec::new(), Vec::new());
         }
         let node_id = authentication.0.creator();
@@ -336,6 +337,37 @@ mod tests {
         (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
     }
 
+    async fn build_non_validators() -> (Discovery, Vec<SessionHandler>) {
+        let crypto_basics = crypto_basics().await;
+        let mut handlers = Vec::new();
+        for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
+            if handlers.is_empty() {
+                handlers.push(
+                    SessionHandler::new(
+                        None,
+                        crypto_basics.1.clone(),
+                        SessionId(43),
+                        vec![address.into()],
+                    )
+                    .await
+                    .unwrap(),
+                );
+            } else {
+                handlers.push(
+                    SessionHandler::new(
+                        Some(authority_index_and_pen),
+                        crypto_basics.1.clone(),
+                        SessionId(43),
+                        vec![address.into()],
+                    )
+                    .await
+                    .unwrap(),
+                );
+            }
+        }
+        (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
+    }
+
     #[tokio::test]
     async fn broadcasts_when_clueless() {
         let (mut discovery, mut handlers) = build().await;
@@ -350,6 +382,14 @@ mod tests {
                 DataCommand::Broadcast
             )
         );
+    }
+
+    #[tokio::test]
+    async fn non_validator_discover_authorities_returns_empty_vector() {
+        let (mut discovery, mut handlers) = build_non_validators().await;
+        let handler = &mut handlers[0];
+        let messages = discovery.discover_authorities(handler);
+        assert!(messages.is_empty());
     }
 
     #[tokio::test]
@@ -404,6 +444,23 @@ mod tests {
                 DiscoveryMessage::Authentications(authentications),
                 DataCommand::SendTo(_, _),
             ) if authentications == &vec![handler.authentication().unwrap()])));
+    }
+
+    #[tokio::test]
+    async fn non_validators_rebroadcasts_responds() {
+        let (mut discovery, mut handlers) = build_non_validators().await;
+        let authentication = handlers[1].authentication().unwrap();
+        let handler = &mut handlers[0];
+        let (addresses, commands) = discovery.handle_message(
+            DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
+            handler,
+        );
+        assert_eq!(addresses, authentication.0.addresses());
+        assert_eq!(commands.len(), 1);
+        assert!(commands.iter().any(|command| matches!(command, (
+                DiscoveryMessage::AuthenticationBroadcast(rebroadcast_authentication),
+                DataCommand::Broadcast,
+            ) if rebroadcast_authentication == &authentication)));
     }
 
     #[tokio::test]
