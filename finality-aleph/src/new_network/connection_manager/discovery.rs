@@ -157,7 +157,6 @@ impl Discovery {
     ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
-            println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
             return (Vec::new(), Vec::new());
         }
         let node_id = authentication.0.creator();
