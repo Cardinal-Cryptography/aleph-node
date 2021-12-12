@@ -336,34 +336,36 @@ mod tests {
         (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
     }
 
-    async fn build_non_validators() -> (Discovery, Vec<SessionHandler>) {
+    async fn build_with_non_validator() -> (Discovery, Vec<SessionHandler>) {
         let crypto_basics = crypto_basics().await;
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
-            if handlers.is_empty() {
-                handlers.push(
-                    SessionHandler::new(
-                        None,
-                        crypto_basics.1.clone(),
-                        SessionId(43),
-                        vec![address.into()],
-                    )
-                    .await
-                    .unwrap(),
-                );
-            } else {
-                handlers.push(
-                    SessionHandler::new(
-                        Some(authority_index_and_pen),
-                        crypto_basics.1.clone(),
-                        SessionId(43),
-                        vec![address.into()],
-                    )
-                    .await
-                    .unwrap(),
-                );
-            }
+            handlers.push(
+                SessionHandler::new(
+                    Some(authority_index_and_pen),
+                    crypto_basics.1.clone(),
+                    SessionId(43),
+                    vec![address.into()],
+                )
+                .await
+                .unwrap(),
+            );
         }
+        handlers.push(
+            SessionHandler::new(
+                None,
+                crypto_basics.1.clone(),
+                SessionId(43),
+                vec![
+                    ScMultiaddr::empty()
+                        .with(ScProtocol::Ip4(Ipv4Addr::new(192, 168, 1, (handlers.len() - 1) as u8)))
+                        .with(ScProtocol::Tcp(30333))
+                        .with(ScProtocol::P2p(ScPeerId::random().into())).into()
+                ],
+            )
+            .await
+            .unwrap(),
+        );
         (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
     }
 
@@ -385,8 +387,8 @@ mod tests {
 
     #[tokio::test]
     async fn non_validator_discover_authorities_returns_empty_vector() {
-        let (mut discovery, mut handlers) = build_non_validators().await;
-        let handler = &mut handlers[0];
+        let (mut discovery, mut handlers) = build_with_non_validator().await;
+        let handler = handlers.last_mut().unwrap();
         let messages = discovery.discover_authorities(handler);
         assert!(messages.is_empty());
     }
@@ -447,9 +449,9 @@ mod tests {
 
     #[tokio::test]
     async fn non_validators_rebroadcasts_responds() {
-        let (mut discovery, mut handlers) = build_non_validators().await;
+        let (mut discovery, mut handlers) = build_with_non_validator().await;
         let authentication = handlers[1].authentication().unwrap();
-        let handler = &mut handlers[0];
+        let handler = handlers.last_mut().unwrap();
         let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
             handler,
