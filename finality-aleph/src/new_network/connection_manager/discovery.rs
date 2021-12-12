@@ -336,7 +336,7 @@ mod tests {
         (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
     }
 
-    async fn build_with_non_validator() -> (Discovery, Vec<SessionHandler>) {
+    async fn build_with_non_validator() -> (Discovery, Vec<SessionHandler>, SessionHandler) {
         let crypto_basics = crypto_basics().await;
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
@@ -351,8 +351,7 @@ mod tests {
                 .unwrap(),
             );
         }
-        handlers.push(
-            SessionHandler::new(
+        let non_validator = SessionHandler::new(
                 None,
                 crypto_basics.1.clone(),
                 SessionId(43),
@@ -364,9 +363,8 @@ mod tests {
                 ],
             )
             .await
-            .unwrap(),
-        );
-        (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
+            .unwrap();
+        (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers, non_validator)
     }
 
     #[tokio::test]
@@ -387,9 +385,8 @@ mod tests {
 
     #[tokio::test]
     async fn non_validator_discover_authorities_returns_empty_vector() {
-        let (mut discovery, mut handlers) = build_with_non_validator().await;
-        let handler = handlers.last_mut().unwrap();
-        let messages = discovery.discover_authorities(handler);
+        let (mut discovery, _, mut non_validator) = build_with_non_validator().await;
+        let messages = discovery.discover_authorities(&mut non_validator);
         assert!(messages.is_empty());
     }
 
@@ -449,12 +446,11 @@ mod tests {
 
     #[tokio::test]
     async fn non_validators_rebroadcasts_responds() {
-        let (mut discovery, mut handlers) = build_with_non_validator().await;
+        let (mut discovery, handlers, mut non_validator) = build_with_non_validator().await;
         let authentication = handlers[1].authentication().unwrap();
-        let handler = handlers.last_mut().unwrap();
         let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
-            handler,
+            &mut non_validator,
         );
         assert_eq!(addresses, authentication.0.addresses());
         assert_eq!(commands.len(), 1);
