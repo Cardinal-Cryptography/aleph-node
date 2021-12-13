@@ -32,7 +32,7 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
             }
         };
 
-        match crate::Validators::<T>::translate(sp_std::convert::identity) {
+        match crate::Validators::<T>::translate(Option::unwrap) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for Validators");
