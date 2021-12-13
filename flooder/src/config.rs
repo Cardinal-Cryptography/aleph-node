@@ -30,7 +30,7 @@ pub struct Config {
 
     /// beginning of the integer range used to derive accounts
     #[clap(long, default_value = "0")]
-    pub accounts_range_start: u64,
+    pub first_account_in_range: u64,
 }
 
 pub fn read_phrase(phrase: String) -> String {
