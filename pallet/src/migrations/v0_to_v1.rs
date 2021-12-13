@@ -4,15 +4,6 @@ use frame_support::{
     traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
-use sp_std::prelude::*;
-
-frame_support::generate_storage_alias!(
-    Aleph, SessionForValidatorsChange => Value<Option<u32>>
-);
-
-frame_support::generate_storage_alias!(
-    Aleph, Validators<T: Config> => Value<Option<Vec<T::AccountId>>>
-);
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -23,13 +14,15 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
 
         let mut writes = 0;
 
-        match SessionForValidatorsChange::translate(|old: Option<_>| {
-            log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
-            match old {
-                Some(None) | Some(Some(0u32)) | None => None,
-                _ => old,
-            }
-        }) {
+        match crate::SessionForValidatorsChange::<T>::translate(
+            |old: Option<Option<u32>>| -> Option<u32> {
+                log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
+                match old {
+                    Some(Some(x)) => Some(x),
+                    _ => None,
+                }
+            },
+        ) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for SessionForValidatorsChange");
@@ -39,7 +32,7 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
             }
         };
 
-        match Validators::<T>::translate(sp_std::convert::identity) {
+        match crate::Validators::<T>::translate(sp_std::convert::identity) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for Validators");
