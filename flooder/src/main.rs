@@ -45,7 +45,7 @@ fn main() -> Result<(), anyhow::Error> {
     let connection = pool.get(0).unwrap();
 
     let total_users = config.transactions;
-    let first_account_in_range = config.accounts_range_start;
+    let first_account_in_range = config.first_account_in_range;
     let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
 
@@ -192,7 +192,7 @@ fn sign_transactions(
 fn derive_user_accounts(
     connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
-    first_account: u64,
+    first_account_in_range: u64,
     total_accounts: u64,
     transfer_amount: u128,
     initialize_accounts: bool,
@@ -209,7 +209,7 @@ fn derive_user_accounts(
     // start with a heuristic tx fee
     let mut total_amount = existential_deposit + (transfer_amount + 375_000_000);
 
-    for index in first_account..first_account + total_accounts {
+    for index in first_account_in_range..first_account_in_range + total_accounts {
         let path = Some(DeriveJunction::soft(index as u64));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
 
