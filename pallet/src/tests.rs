@@ -11,7 +11,7 @@ fn migration_from_v0_to_v1_works() {
             b"Aleph",
             b"SessionForValidatorsChange",
             &[],
-            Some(1u32),
+            Some(7u32),
         );
 
         let before = frame_support::migration::get_storage_value::<Option<u32>>(
@@ -22,8 +22,8 @@ fn migration_from_v0_to_v1_works() {
 
         assert_eq!(
             before,
-            Some(Some(1)),
-            "Storage before migration is a double Option wrapped type"
+            Some(Some(7)),
+            "Storage before migration has type Option<u32>"
         );
 
         frame_support::migration::put_storage_value(
@@ -53,7 +53,7 @@ fn migration_from_v0_to_v1_works() {
 
         assert_eq!(
             Aleph::session_for_validators_change(),
-            Some(1u32),
+            Some(7u32),
             "Migration should preserve ongoing session change with respect to the session number"
         );
 
