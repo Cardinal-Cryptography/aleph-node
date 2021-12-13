@@ -4,6 +4,7 @@ use frame_support::{
     traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
+use sp_std::vec::Vec;
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -32,7 +33,15 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
             }
         };
 
-        match crate::Validators::<T>::translate(Option::unwrap) {
+        match crate::Validators::<T>::translate(
+            |old: Option<Option<Vec<T::AccountId>>>| -> Option<Vec<T::AccountId>> {
+                log::info!(target: "pallet_aleph", "Current storage value for Validators {:?}", old);
+                match old {
+                    Some(Some(x)) => Some(x),
+                    _ => None,
+                }
+            },
+        ) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for Validators");
