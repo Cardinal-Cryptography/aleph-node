@@ -318,25 +318,7 @@ mod tests {
         (result, AuthorityVerifier::new(auth_ids))
     }
 
-    async fn build() -> (Discovery, Vec<SessionHandler>) {
-        let crypto_basics = crypto_basics().await;
-        let mut handlers = Vec::new();
-        for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
-            handlers.push(
-                SessionHandler::new(
-                    Some(authority_index_and_pen),
-                    crypto_basics.1.clone(),
-                    SessionId(43),
-                    vec![address.into()],
-                )
-                .await
-                .unwrap(),
-            );
-        }
-        (Discovery::new(Duration::from_millis(MS_COOLDOWN)), handlers)
-    }
-
-    async fn build_with_non_validator() -> (Discovery, Vec<SessionHandler>, SessionHandler) {
+    async fn build() -> (Discovery, Vec<SessionHandler>, SessionHandler) {
         let crypto_basics = crypto_basics().await;
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
@@ -369,7 +351,7 @@ mod tests {
 
     #[tokio::test]
     async fn broadcasts_when_clueless() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let handler = &mut handlers[0];
         let mut messages = discovery.discover_authorities(handler);
         assert_eq!(messages.len(), 1);
@@ -385,7 +367,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_validator_discover_authorities_returns_empty_vector() {
-        let (mut discovery, _, mut non_validator) = build_with_non_validator().await;
+        let (mut discovery, _, mut non_validator) = build().await;
         let messages = discovery.discover_authorities(&mut non_validator);
         assert!(messages.is_empty());
     }
@@ -393,7 +375,7 @@ mod tests {
     #[tokio::test]
     async fn requests_from_single_when_only_some_missing() {
         let num_nodes: usize = NUM_NODES.into();
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         for i in 1..num_nodes - 1 {
             let authentication = handlers[i].authentication().unwrap();
             assert!(handlers[0].handle_authentication(authentication));
@@ -413,7 +395,7 @@ mod tests {
     #[tokio::test]
     async fn requests_nothing_when_knows_all() {
         let num_nodes: usize = NUM_NODES.into();
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         for i in 1..num_nodes {
             let authentication = handlers[i].authentication().unwrap();
             assert!(handlers[0].handle_authentication(authentication));
@@ -425,7 +407,7 @@ mod tests {
 
     #[tokio::test]
     async fn rebroadcasts_responds_and_accepts_addresses() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let handler = &mut handlers[0];
         let (addresses, commands) = discovery.handle_message(
@@ -446,7 +428,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_validators_rebroadcasts_responds() {
-        let (mut discovery, handlers, mut non_validator) = build_with_non_validator().await;
+        let (mut discovery, handlers, mut non_validator) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let (addresses, commands) = discovery.handle_message(
             DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
@@ -462,7 +444,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_rebroadcast_nor_respond_to_wrong_authentications() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let (auth_data, _) = handlers[1].authentication().unwrap();
         let (_, signature) = handlers[2].authentication().unwrap();
         let authentication = (auth_data, signature);
@@ -477,7 +459,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_rebroadcast_quickly_but_still_responds() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let handler = &mut handlers[0];
         discovery.handle_message(
@@ -502,7 +484,7 @@ mod tests {
 
     #[tokio::test]
     async fn rebroadcasts_after_cooldown() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let handler = &mut handlers[0];
         discovery.handle_message(
@@ -523,7 +505,7 @@ mod tests {
 
     #[tokio::test]
     async fn responds_to_correct_request_when_can() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let requested_authentication = handlers[1].authentication().unwrap();
         let requested_node_id = requested_authentication.0.creator();
         let requester_authentication = handlers[2].authentication().unwrap();
@@ -544,7 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_respond_to_correct_request_when_cannot() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let requested_node_id = NodeIndex(1);
         let requester_authentication = handlers[2].authentication().unwrap();
         let handler = &mut handlers[0];
@@ -558,7 +540,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_respond_to_incorrect_request() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let requested_authentication = handlers[1].authentication().unwrap();
         let requested_node_id = requested_authentication.0.creator();
         let (auth_data, _) = handlers[2].authentication().unwrap();
@@ -575,7 +557,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_respond_too_quickly() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let requested_authentication = handlers[1].authentication().unwrap();
         let requested_node_id = requested_authentication.0.creator();
         let requester_authentication = handlers[2].authentication().unwrap();
@@ -602,7 +584,7 @@ mod tests {
 
     #[tokio::test]
     async fn responds_cumulatively_after_cooldown() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let requester_authentication = handlers[1].authentication().unwrap();
         let available_authentications_start: usize = 2;
         let available_authentications_end: usize = (NUM_NODES - 2).into();
@@ -648,7 +630,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_correct_authentications() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let authentications_start: usize = 1;
         let authentications_end: usize = (NUM_NODES - 2).into();
         let authentications = (authentications_start..authentications_end)
@@ -672,7 +654,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_accept_incorrect_authentications() {
-        let (mut discovery, mut handlers) = build().await;
+        let (mut discovery, mut handlers, _) = build().await;
         let authentications_start: usize = 1;
         let authentications_end: usize = (NUM_NODES - 2).into();
         let authentications = (authentications_start..authentications_end)
