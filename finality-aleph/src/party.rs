@@ -30,7 +30,7 @@ use futures::{
     future::select,
     pin_mut, StreamExt,
 };
-use log::{debug, error, info, trace};
+use log::{debug, error, info, trace, warn};
 
 use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
@@ -96,7 +96,7 @@ impl JustificationRequestDelay for JustificationRequestDelayImpl {
 impl<B: Block> Verifier<B> for AuthorityVerifier {
     fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
         if !self.is_complete(&hash.encode()[..], &justification.signature) {
-            debug!(target: "afa", "Bad justification for block hash #{:?} {:?}", hash, justification);
+            warn!(target: "afa", "Bad justification for block hash #{:?} {:?}", hash, justification);
             return false;
         }
         true
