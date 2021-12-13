@@ -8,6 +8,7 @@ use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
 mod connection_manager;
+pub mod data_network;
 mod service;
 mod substrate;
 

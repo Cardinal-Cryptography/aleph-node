@@ -13,9 +13,7 @@ use crate::{
     last_block_of_session,
     metrics::Checkpoint,
     network,
-    network::{
-        split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
-    },
+    network::{split_network, ConsensusNetwork, DataNetwork, NetworkData, SessionManager},
     session_id_from_block_num, AuthorityId, Future, Metrics, MillisecsPerBlock, NodeIndex,
     SessionId, SessionMap, SessionPeriod, UnitCreationDelay,
 };
@@ -35,6 +33,7 @@ use log::{debug, error, info, trace};
 use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use crate::justification::JustificationHandlerConfig;
+use crate::new_network::data_network::aleph_network::AlephNetworkData;
 use parking_lot::Mutex;
 use sc_client_api::{Backend, HeaderBackend};
 use sp_api::{BlockId, NumberFor};

@@ -14,7 +14,7 @@ use std::time::Duration;
 use crate::{
     aggregator::SignableHash,
     crypto::{KeyBox, Signature},
-    data_io::{AlephDataFor, AlephNetworkMessage},
+    data_io::AlephDataFor,
     Error, Hasher, SessionId,
 };
 use sp_api::NumberFor;
@@ -674,14 +674,7 @@ where
     }
 }
 
-pub(crate) type AlephNetworkData<B> =
-    aleph_bft::NetworkData<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>;
-
-impl<B: BlockT> AlephNetworkMessage<B> for AlephNetworkData<B> {
-    fn included_blocks(&self) -> Vec<AlephDataFor<B>> {
-        self.included_data()
-    }
-}
+use crate::new_network::data_network::aleph_network::AlephNetworkData;
 
 pub(crate) type RmcNetworkData<B> =
     aleph_bft::rmc::Message<SignableHash<<B as BlockT>::Hash>, Signature, SignatureSet<Signature>>;

@@ -1,21 +1,21 @@
-use sp_api::BlockT;
-use crate::crypto::Signature;
+use crate::{
+    crypto::Signature,
+    data_io::{AlephDataFor, AlephNetworkMessage},
+    new_network::data_network::split::DataNetwork,
+    Hasher,
+};
 use aleph_bft::SignatureSet;
-use crate::data_io::AlephDataFor;
-use crate::Hasher;
-use crate::data_io::AlephNetworkMessage;
-use crate::network::DataNetwork;
 use log::error;
+use sp_api::BlockT;
 
 pub(crate) type AlephNetworkData<B> =
     aleph_bft::NetworkData<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>;
 
-    /*
 impl<B: BlockT> AlephNetworkMessage<B> for AlephNetworkData<B> {
     fn included_blocks(&self) -> Vec<AlephDataFor<B>> {
         self.included_data()
     }
-}*/
+}
 
 pub(crate) struct AlephNetwork<B: BlockT> {
     inner: DataNetwork<AlephNetworkData<B>>,

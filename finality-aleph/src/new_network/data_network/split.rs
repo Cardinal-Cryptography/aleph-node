@@ -1,25 +1,18 @@
+use crate::{
+    new_network::data_network::{
+        aleph_network::{AlephNetwork, AlephNetworkData},
+        rmc_network::{RmcNetwork, RmcNetworkData},
+        Recipient, SessionCommand,
+    },
+    Error, NodeIndex, SessionId,
+};
+use codec::{Codec, Decode, Encode};
+use futures::{channel::mpsc, Future, FutureExt, StreamExt};
+use log::{debug, trace, warn};
 use sp_api::BlockT;
-use codec::Codec;
-use codec::Error;
-use crate::NodeIndex;
-use crate::new_network::data_network::Recipient;
-use crate::SessionId;
-use futures::channel::mpsc;
-use crate::new_network::data_network::rmc_network::RmcNetwork;
-use crate::new_network::data_network::rmc_network::RmcNetworkData;
-use crate::new_network::data_network::aleph_network::AlephNetwork;
-use crate::new_network::data_network::aleph_network::AlephNetworkData;
-use crate::new_network::data_network::SessionCommand;
-use futures::Future;
-use log::warn;
-use log::debug;
-use log::trace;
-use codec::Decode;
-use codec::Encode;
-
 
 #[derive(Clone, Encode, Decode, Debug)]
-    pub(crate) enum NetworkData<B: BlockT> {
+pub(crate) enum NetworkData<B: BlockT> {
     Aleph(AlephNetworkData<B>),
     Rmc(RmcNetworkData<B>),
 }
@@ -59,7 +52,7 @@ pub(crate) fn split_network<B: BlockT>(
     data_network: DataNetwork<NetworkData<B>>,
     data_store_tx: mpsc::UnboundedSender<AlephNetworkData<B>>,
     data_store_rx: mpsc::UnboundedReceiver<AlephNetworkData<B>>,
-    ) -> (AlephNetwork<B>, RmcNetwork<B>, impl Future<Output = ()>) {
+) -> (AlephNetwork<B>, RmcNetwork<B>, impl Future<Output = ()>) {
     let (rmc_data_tx, rmc_data_rx) = mpsc::unbounded();
     let (aleph_cmd_tx, aleph_cmd_rx) = mpsc::unbounded();
     let (rmc_cmd_tx, rmc_cmd_rx) = mpsc::unbounded();
@@ -119,5 +112,4 @@ pub(crate) fn split_network<B: BlockT>(
     let forwards = futures::future::join3(forward_data, forward_aleph_cmd, forward_rmc_cmd)
         .map(|((), (), ())| ());
     (aleph_network, rmc_network, forwards)
-    }
-    
+}

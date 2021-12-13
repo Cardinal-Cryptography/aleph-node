@@ -1,11 +1,11 @@
-use sp_api::BlockT;
-use crate::network::DataNetwork;
-use crate::NodeIndex;
-use crate::Error;
-use crate::new_network::data_network::Recipient;
-use crate::crypto::Signature;
-use crate::aggregator::SignableHash;
+use crate::{
+    aggregator::SignableHash,
+    crypto::Signature,
+    new_network::data_network::{split::DataNetwork, Recipient},
+    Error, NodeIndex,
+};
 use aleph_bft::SignatureSet;
+use sp_api::BlockT;
 
 pub(crate) type RmcNetworkData<B> =
     aleph_bft::rmc::Message<SignableHash<<B as BlockT>::Hash>, Signature, SignatureSet<Signature>>;
@@ -13,9 +13,8 @@ pub(crate) type RmcNetworkData<B> =
 pub(crate) struct RmcNetwork<B: BlockT> {
     inner: DataNetwork<RmcNetworkData<B>>,
 }
-    
-impl<B: BlockT> RmcNetwork<B> {
 
+impl<B: BlockT> RmcNetwork<B> {
     pub(crate) fn new(inner: DataNetwork<RmcNetworkData<B>>) -> Self {
         RmcNetwork { inner }
     }

@@ -1,15 +1,13 @@
-use crate::Encode;
-use crate::Decode;
-use crate::NodeIndex;
+use crate::{
+    crypto::Signature,
+    new_network::{connection_manager::AuthData, PeerId},
+    Decode, Encode, NodeIndex, SessionId,
+};
 use codec::Codec;
-use crate::SessionId;
-use crate::new_network::PeerId;
-use crate::new_network::connection_manager::AuthData;
-use crate::crypto::Signature;
 
-mod aleph_network;
-mod data_network;
+pub mod aleph_network;
 mod rmc_network;
+mod split;
 
 #[derive(Clone, Encode, Decode, Debug)]
 pub(crate) enum MetaMessage {
