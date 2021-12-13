@@ -341,10 +341,23 @@ async fn ignores_notifications_for_old_blocks() {
 async fn ignores_notifications_from_future_session() {
     run_test(
         prepare_env(FINALIZED_HEIGHT, AlwaysAccept, AlwaysReject),
+        |_, imp_just_tx, _, _, finalizer, jrd| async move {
+            let block = create_block([1u8; 32].into(), FINALIZED_HEIGHT + SESSION_PERIOD.0 as u64);
+            let message = create_justification_notification_for(block);
+            imp_just_tx.unbounded_send(message).unwrap();
+            expect_not_finalized(&finalizer, &jrd).await;
+        },
+    )
+    .await;
+}
+
+#[tokio::test(threaded_scheduler)]
+async fn does_not_buffer_notifications_from_future_session() {
+    run_test(
+        prepare_env((SESSION_PERIOD.0 - 2) as u64, AlwaysAccept, AlwaysReject),
         |_, imp_just_tx, client, _, finalizer, jrd| async move {
-            let future_block =
-                create_block([1u8; 32].into(), FINALIZED_HEIGHT + SESSION_PERIOD.0 as u64);
             let current_block = client.next_block_to_finalize();
+            let future_block = create_block(current_block.hash(), SESSION_PERIOD.0 as u64);
 
             let message = create_justification_notification_for(future_block);
             imp_just_tx.unbounded_send(message).unwrap();
@@ -353,6 +366,8 @@ async fn ignores_notifications_from_future_session() {
             let message = create_justification_notification_for(current_block.clone());
             imp_just_tx.unbounded_send(message).unwrap();
             expect_finalized(&finalizer, &jrd, current_block).await;
+
+            expect_not_finalized(&finalizer, &jrd).await;
         },
     )
     .await;
