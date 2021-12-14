@@ -54,9 +54,13 @@ fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let source_account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
-    let (accounts, mut source_account_nonce) =
-        derive_user_accounts(account.clone(), first_account_in_range, total_users);
+    let mut source_account_nonce =
+        get_nonce(connection.clone(), &AccountId::from(account.public()));
+
+    let accounts: Vec<sr25519::Pair> = (first_account_in_range
+        ..first_account_in_range + total_users)
+        .map(|seed| derive_user_account(&account, seed))
+        .collect();
 
     let total_amount = estimate_amount(
         connection.clone(),
@@ -277,27 +281,10 @@ fn initialize_account(
     account_nonce + 1
 }
 
-// fn derive_user_account(account: sr25519::Pair) {}
-
-/// returns a tuple of derived accounts and their nonces
-fn derive_user_accounts(
-    account: sr25519::Pair,
-    first_account_in_range: u64,
-    total_accounts: u64,
-) -> (Vec<sr25519::Pair>, u32) {
-    let total_accounts_cap = total_accounts
-        .try_into()
-        .expect("total_accounts should withing usize range");
-
-    let mut accounts = Vec::with_capacity(total_accounts_cap);
-
-    for index in first_account_in_range..first_account_in_range + total_accounts {
-        let path = Some(DeriveJunction::soft(index as u64));
-        let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
-        accounts.push(derived);
-    }
-
-    accounts
+fn derive_user_account(account: &sr25519::Pair, seed: u64) -> sr25519::Pair {
+    let path = Some(DeriveJunction::soft(seed as u64));
+    let (derived, _) = account.clone().derive(path.into_iter(), None).unwrap();
+    derived
 }
 
 fn send_tx<Call>(
