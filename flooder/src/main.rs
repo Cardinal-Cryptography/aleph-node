@@ -54,21 +54,55 @@ fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let accounts_and_nonces = derive_user_accounts(
+    let source_account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
+    let (accounts, mut source_account_nonce) =
+        derive_user_accounts(account.clone(), first_account_in_range, total_users);
+
+    let total_amount = estimate_amount(
         connection.clone(),
-        account.clone(),
-        first_account_in_range,
-        total_users,
+        &account,
+        source_account_nonce,
         transfer_amount,
-        initialize_accounts,
     );
+
+    assert!(
+        get_funds(connection.clone(), &AccountId::from(account.public()))
+            .ge(&(total_amount * total_users as u128)),
+        "Account is too poor"
+    );
+
+    if initialize_accounts {
+        for derived in accounts.iter().skip(1) {
+            source_account_nonce = initialize_account(
+                connection.clone(),
+                &account,
+                source_account_nonce,
+                derived,
+                total_amount,
+                XtStatus::Ready,
+            );
+        }
+        initialize_account(
+            connection.clone(),
+            &account,
+            source_account_nonce,
+            &accounts.first().unwrap(),
+            total_amount,
+            XtStatus::Finalized,
+        );
+    }
+
+    let nonces = accounts
+        .iter()
+        .map(|account| get_nonce(connection.clone(), &AccountId::from(account.public())))
+        .collect();
 
     debug!("all accounts have received funds");
 
     let txs = sign_transactions(
         connection.clone(),
         account,
-        accounts_and_nonces,
+        (accounts, nonces),
         config.transactions,
         transfer_amount,
     );
@@ -188,86 +222,82 @@ fn sign_transactions(
         .collect()
 }
 
+fn estimate_amount(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    account: &sr25519::Pair,
+    account_nonce: u32,
+    transfer_amount: u128,
+) -> u128 {
+    let existential_deposit = connection.get_existential_deposit().unwrap();
+    // start with a heuristic tx fee
+    let total_amount = existential_deposit + (transfer_amount + 375_000_000);
+
+    let tx = sign_tx(
+        connection.clone(),
+        account.clone(),
+        account_nonce,
+        AccountId::from(account.public()),
+        total_amount,
+    );
+
+    // estimate fees
+    let tx_fee = estimate_tx_fee(connection.clone(), &tx);
+    info!("Estimated transfer tx fee {}", tx_fee);
+    // adjust with estimated tx fee
+    existential_deposit + (transfer_amount + tx_fee)
+}
+
+fn initialize_account(
+    connection: Api<sr25519::Pair, WsRpcClient>,
+    account: &sr25519::Pair,
+    account_nonce: u32,
+    derived: &sr25519::Pair,
+    total_amount: u128,
+    status: XtStatus,
+) -> u32 {
+    let tx = sign_tx(
+        connection.clone(),
+        account.clone(),
+        account_nonce,
+        AccountId::from(derived.public()),
+        total_amount,
+    );
+
+    let hash = Some(
+        connection
+            .send_extrinsic(tx.hex_encode(), status)
+            .expect("Could not send transaction"),
+    );
+    info!(
+        "account {} will receive funds, tx hash {:?}",
+        &derived.public(),
+        hash
+    );
+
+    account_nonce + 1
+}
+
+// fn derive_user_account(account: sr25519::Pair) {}
+
 /// returns a tuple of derived accounts and their nonces
 fn derive_user_accounts(
-    connection: Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
     first_account_in_range: u64,
     total_accounts: u64,
-    transfer_amount: u128,
-    initialize_accounts: bool,
-) -> (Vec<sr25519::Pair>, Vec<u32>) {
+) -> (Vec<sr25519::Pair>, u32) {
     let total_accounts_cap = total_accounts
         .try_into()
         .expect("total_accounts should withing usize range");
 
     let mut accounts = Vec::with_capacity(total_accounts_cap);
-    let mut nonces = Vec::with_capacity(total_accounts_cap);
-    let mut account_nonce = get_nonce(connection.clone(), &AccountId::from(account.public()));
-    let existential_deposit = connection.get_existential_deposit().unwrap();
-
-    // start with a heuristic tx fee
-    let mut total_amount = existential_deposit + (transfer_amount + 375_000_000);
 
     for index in first_account_in_range..first_account_in_range + total_accounts {
         let path = Some(DeriveJunction::soft(index as u64));
         let (derived, _seed) = account.clone().derive(path.into_iter(), None).unwrap();
-
-        let mut hash = None;
-        if initialize_accounts {
-            let tx = sign_tx(
-                connection.clone(),
-                account.clone(),
-                account_nonce,
-                AccountId::from(derived.public()),
-                total_amount,
-            );
-
-            // estimate fees
-            if index.eq(&0) {
-                let tx_fee = estimate_tx_fee(connection.clone(), &tx);
-                info!("Estimated transfer tx fee {}", tx_fee);
-
-                // adjust with estimated tx fee
-                total_amount = existential_deposit + (transfer_amount + tx_fee);
-
-                assert!(
-                    get_funds(connection.clone(), &AccountId::from(account.public()))
-                        .ge(&(total_amount * total_accounts as u128)),
-                    "Account is too poor"
-                );
-            }
-
-            hash = Some(if index.eq(&(total_accounts - 1)) {
-                // ensure all txs are finalized by waiting for the last one sent
-                connection
-                    .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
-                    .expect("Could not send transaction")
-            } else {
-                connection
-                    .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
-                    .expect("Could not send transaction")
-            });
-
-            account_nonce += 1;
-        }
-
-        let nonce = get_nonce(connection.clone(), &AccountId::from(derived.public()));
-
-        if let Some(hash) = hash {
-            info!(
-                "account {} with nonce {} will receive funds, tx hash {:?}",
-                &derived.public(),
-                nonce,
-                hash
-            );
-        }
-
-        nonces.push(nonce);
         accounts.push(derived);
     }
 
-    (accounts, nonces)
+    accounts
 }
 
 fn send_tx<Call>(
