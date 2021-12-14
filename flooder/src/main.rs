@@ -54,23 +54,18 @@ fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let mut source_account_nonce =
-        get_nonce(connection.clone(), &AccountId::from(account.public()));
+    let mut source_account_nonce = get_nonce(&connection, &AccountId::from(account.public()));
 
     let accounts: Vec<sr25519::Pair> = (first_account_in_range
         ..first_account_in_range + total_users)
         .map(|seed| derive_user_account(&account, seed))
         .collect();
 
-    let total_amount = estimate_amount(
-        connection.clone(),
-        &account,
-        source_account_nonce,
-        transfer_amount,
-    );
+    let total_amount =
+        estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
 
     assert!(
-        get_funds(connection.clone(), &AccountId::from(account.public()))
+        get_funds(&connection, &AccountId::from(account.public()))
             .ge(&(total_amount * total_users as u128)),
         "Account is too poor"
     );
@@ -78,7 +73,7 @@ fn main() -> Result<(), anyhow::Error> {
     if initialize_accounts {
         for derived in accounts.iter().skip(1) {
             source_account_nonce = initialize_account(
-                connection.clone(),
+                &connection,
                 &account,
                 source_account_nonce,
                 derived,
@@ -87,7 +82,7 @@ fn main() -> Result<(), anyhow::Error> {
             );
         }
         initialize_account(
-            connection.clone(),
+            &connection,
             &account,
             source_account_nonce,
             &accounts.first().unwrap(),
@@ -98,13 +93,13 @@ fn main() -> Result<(), anyhow::Error> {
 
     let nonces = accounts
         .iter()
-        .map(|account| get_nonce(connection.clone(), &AccountId::from(account.public())))
+        .map(|account| get_nonce(&connection, &AccountId::from(account.public())))
         .collect();
 
     debug!("all accounts have received funds");
 
     let txs = sign_transactions(
-        connection.clone(),
+        &connection,
         account,
         (accounts, nonces),
         config.transactions,
@@ -152,7 +147,7 @@ fn flood(
     });
 }
 
-fn estimate_tx_fee(connection: Api<sr25519::Pair, WsRpcClient>, tx: &TransferTransaction) -> u128 {
+fn estimate_tx_fee(connection: &Api<sr25519::Pair, WsRpcClient>, tx: &TransferTransaction) -> u128 {
     let block = connection.get_block::<Block>(None).unwrap().unwrap();
     let block_hash = block.header.hash();
     let fee = connection
@@ -166,8 +161,8 @@ fn estimate_tx_fee(connection: Api<sr25519::Pair, WsRpcClient>, tx: &TransferTra
 }
 
 fn sign_tx(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    signer: sr25519::Pair,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
+    signer: &sr25519::Pair,
     nonce: u32,
     to: AccountId,
     amount: u128,
@@ -194,40 +189,41 @@ fn sign_tx(
 
 /// prepares payload for flooding
 fn sign_transactions(
-    connection: Api<sr25519::Pair, WsRpcClient>,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
     users_and_nonces: (Vec<sr25519::Pair>, Vec<u32>),
     total_transactions: u64,
     transfer_amount: u128,
 ) -> Vec<TransferTransaction> {
+    let total_transactions = usize::try_from(total_transactions)
+        .expect("total_transactions should be in the range of usize");
+
     let (users, initial_nonces) = users_and_nonces;
     let mut nonces = initial_nonces;
 
-    (0..total_transactions as usize)
-        .into_iter()
-        .map(|index| {
-            let connection = connection.clone();
-            // NOTE : assumes one tx per derived user account
-            // but we could create less accounts and send them round robin fashion
-            // (will need to seed them with more funds as well, tx_per_account times more to be exact)
-            let from = users.get(index).unwrap().to_owned();
+    let mut result = Vec::with_capacity(total_transactions);
+    for index in 0..total_transactions {
+        // NOTE : assumes one tx per derived user account
+        // but we could create less accounts and send them round robin fashion
+        // (will need to seed them with more funds as well, tx_per_account times more to be exact)
+        let from = users.get(index).unwrap().to_owned();
 
-            let tx = sign_tx(
-                connection,
-                from,
-                nonces[index],
-                AccountId::from(account.public()),
-                transfer_amount,
-            );
+        let tx = sign_tx(
+            connection,
+            &from,
+            nonces[index],
+            AccountId::from(account.public()),
+            transfer_amount,
+        );
 
-            nonces[index] += 1;
-            tx
-        })
-        .collect()
+        nonces[index] += 1;
+        result.push(tx);
+    }
+    result
 }
 
 fn estimate_amount(
-    connection: Api<sr25519::Pair, WsRpcClient>,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
     account: &sr25519::Pair,
     account_nonce: u32,
     transfer_amount: u128,
@@ -237,22 +233,22 @@ fn estimate_amount(
     let total_amount = existential_deposit + (transfer_amount + 375_000_000);
 
     let tx = sign_tx(
-        connection.clone(),
-        account.clone(),
+        connection,
+        account,
         account_nonce,
         AccountId::from(account.public()),
         total_amount,
     );
 
     // estimate fees
-    let tx_fee = estimate_tx_fee(connection.clone(), &tx);
+    let tx_fee = estimate_tx_fee(&connection, &tx);
     info!("Estimated transfer tx fee {}", tx_fee);
     // adjust with estimated tx fee
     existential_deposit + (transfer_amount + tx_fee)
 }
 
 fn initialize_account(
-    connection: Api<sr25519::Pair, WsRpcClient>,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
     account: &sr25519::Pair,
     account_nonce: u32,
     derived: &sr25519::Pair,
@@ -260,8 +256,8 @@ fn initialize_account(
     status: XtStatus,
 ) -> u32 {
     let tx = sign_tx(
-        connection.clone(),
-        account.clone(),
+        connection,
+        account,
         account_nonce,
         AccountId::from(derived.public()),
         total_amount,
@@ -283,7 +279,7 @@ fn initialize_account(
 
 fn derive_user_account(account: &sr25519::Pair, seed: u64) -> sr25519::Pair {
     let path = Some(DeriveJunction::soft(seed as u64));
-    let (derived, _) = account.clone().derive(path.into_iter(), None).unwrap();
+    let (derived, _) = account.derive(path.into_iter(), None).unwrap();
     derived
 }
 
@@ -313,14 +309,14 @@ fn create_connection_pool(nodes: Vec<String>) -> Vec<Api<sr25519::Pair, WsRpcCli
         .collect()
 }
 
-fn get_nonce(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
+fn get_nonce(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
     connection
         .get_account_info(account)
         .map(|acc_opt| acc_opt.map_or_else(|| 0, |acc| acc.nonce))
         .unwrap()
 }
 
-fn get_funds(connection: Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u128 {
+fn get_funds(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u128 {
     match connection.get_account_data(account).unwrap() {
         Some(data) => data.free,
         None => 0,
