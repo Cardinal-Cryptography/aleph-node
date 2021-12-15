@@ -27,7 +27,7 @@ jobs:
           profile: minimal
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
-          components: check
+          components: clippy
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
