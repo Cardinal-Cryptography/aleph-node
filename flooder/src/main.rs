@@ -9,12 +9,14 @@ use log::{debug, info};
 use rayon::prelude::*;
 use sp_core::{sr25519, DeriveJunction, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
-use substrate_api_client::rpc::WsRpcClient;
+use std::{
+    iter::{once, repeat, IntoIterator},
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 use substrate_api_client::{
-    compose_call, compose_extrinsic_offline, AccountId, Api, GenericAddress, UncheckedExtrinsicV4,
-    XtStatus,
+    compose_call, compose_extrinsic_offline, rpc::WsRpcClient, AccountId, Api, GenericAddress,
+    UncheckedExtrinsicV4, XtStatus,
 };
 
 type TransferTransaction =
@@ -39,7 +41,7 @@ fn main() -> Result<(), anyhow::Error> {
             None => panic!("Needs --phrase or --seed"),
         },
     };
-    let initialize_accounts = !config.skip_initialization;
+    let initialize_accounts_flag = !config.skip_initialization;
 
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
@@ -54,10 +56,10 @@ fn main() -> Result<(), anyhow::Error> {
         &account.public()
     );
 
-    let mut source_account_nonce = get_nonce(&connection, &AccountId::from(account.public()));
+    let source_account_id = AccountId::from(account.public());
+    let source_account_nonce = get_nonce(&connection, &source_account_id);
 
-    let accounts: Vec<sr25519::Pair> = (first_account_in_range
-        ..first_account_in_range + total_users)
+    let accounts = (first_account_in_range..first_account_in_range + total_users)
         .map(|seed| derive_user_account(&account, seed))
         .collect();
 
@@ -65,29 +67,17 @@ fn main() -> Result<(), anyhow::Error> {
         estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
 
     assert!(
-        get_funds(&connection, &AccountId::from(account.public()))
-            .ge(&(total_amount * total_users as u128)),
+        get_funds(&connection, &source_account_id).ge(&(total_amount * total_users as u128)),
         "Account is too poor"
     );
 
-    if initialize_accounts {
-        for derived in accounts.iter().skip(1) {
-            source_account_nonce = initialize_account(
-                &connection,
-                &account,
-                source_account_nonce,
-                derived,
-                total_amount,
-                XtStatus::Ready,
-            );
-        }
-        initialize_account(
+    if initialize_accounts_flag {
+        initialize_accounts(
             &connection,
             &account,
             source_account_nonce,
-            &accounts.first().unwrap(),
+            &accounts,
             total_amount,
-            XtStatus::Finalized,
         );
     }
 
@@ -247,6 +237,28 @@ fn estimate_amount(
     existential_deposit + (transfer_amount + tx_fee)
 }
 
+fn initialize_accounts<'a>(
+    connection: &Api<sr25519::Pair, WsRpcClient>,
+    source_account: &sr25519::Pair,
+    mut source_account_nonce: u32,
+    accounts: &Vec<sr25519::Pair>,
+    total_amount: u128,
+) {
+    let status = repeat(XtStatus::Ready)
+        .take(accounts.len() - 1)
+        .chain(once(XtStatus::Finalized));
+    for (derived, status) in accounts.iter().zip(status) {
+        source_account_nonce = initialize_account(
+            &connection,
+            &source_account,
+            source_account_nonce,
+            derived,
+            total_amount,
+            status,
+        );
+    }
+}
+
 fn initialize_account(
     connection: &Api<sr25519::Pair, WsRpcClient>,
     account: &sr25519::Pair,
@@ -313,7 +325,7 @@ fn get_nonce(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) 
     connection
         .get_account_info(account)
         .map(|acc_opt| acc_opt.map_or_else(|| 0, |acc| acc.nonce))
-        .unwrap()
+        .expect("retrieved nonce's value")
 }
 
 fn get_funds(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u128 {
