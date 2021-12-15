@@ -4,8 +4,7 @@ use crate::{
     AuthorityId, NodeIndex,
 };
 use aleph_primitives::KEY_TYPE;
-use sc_network::Multiaddr as ScMultiaddr;
-use sc_network::{multiaddr::Protocol as ScProtocol, PeerId as ScPeerId};
+use sc_network::{multiaddr::Protocol as ScProtocol, Multiaddr as ScMultiaddr, PeerId as ScPeerId};
 use sp_keystore::{testing::KeyStore, CryptoStore};
 use std::{net::Ipv4Addr, sync::Arc};
 
