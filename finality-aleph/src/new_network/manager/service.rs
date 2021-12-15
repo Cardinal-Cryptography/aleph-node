@@ -12,7 +12,7 @@ use crate::{
 use aleph_bft::Recipient;
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, warn};
+use log::{debug, warn};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -72,9 +72,9 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
     }
 
     fn network_message(
-        discovery_command: (DiscoveryMessage, DataCommand),
+        (message, command): (DiscoveryMessage, DataCommand),
     ) -> (NetworkData<D>, DataCommand) {
-        (NetworkData::Meta(discovery_command.0), discovery_command.1)
+        (NetworkData::Meta(message), command)
     }
 
     fn discover_authorities(
@@ -170,7 +170,7 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
                 ))
             }
         };
-        let stay_connected = session
+        let peers_to_stay = session
             .handler
             .update(Some((node_id, pen)), verifier, addresses)
             .await?
@@ -180,12 +180,12 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
         let maybe_command = Self::delete_reserved(
             self.connections
                 .remove_session(session_id)
-                .difference(&stay_connected)
+                .difference(&peers_to_stay)
                 .cloned()
                 .collect(),
         );
         session.data_for_user = Some(data_for_user);
-        self.connections.add_peers(session_id, stay_connected);
+        self.connections.add_peers(session_id, peers_to_stay);
         Ok((maybe_command, self.discover_authorities(&session_id)))
     }
 
@@ -333,12 +333,19 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
         }
     }
 
-    /// Returns a data sink for data received that is associated with the given session.
-    pub fn get_session_channel(&self, session_id: &SessionId) -> Option<&mpsc::UnboundedSender<D>> {
-        self.sessions
+    /// Sends the data to the identified session.
+    pub fn send_session_data(&self, session_id: &SessionId, data: D) -> Result<(), Error> {
+        match self
+            .sessions
             .get(session_id)
             .map(|session| session.data_for_user.as_ref())
             .flatten()
+        {
+            Some(data_for_user) => data_for_user
+                .unbounded_send(data)
+                .map_err(|_| Error::UserSend),
+            None => Err(Error::NoSession),
+        }
     }
 }
 
@@ -351,121 +358,95 @@ pub struct IO<D: Clone + Codec> {
     messages_from_network: mpsc::UnboundedReceiver<NetworkData<D>>,
 }
 
-#[derive(Debug)]
-enum SendError {
-    Network,
-    Command,
-    User,
+/// Errors that can happen during the network service operations.
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    NetworkSend,
+    CommandSend,
+    /// Should never be fatal.
+    UserSend,
+    /// Should never be fatal.
+    NoSession,
+    CommandsChannel,
+    MessageChannel,
+    NetworkChannel,
 }
 
 impl<D: Clone + Codec> IO<D> {
-    fn send_data(&self, to_send: (NetworkData<D>, DataCommand)) -> Result<(), SendError> {
+    fn send_data(&self, to_send: (NetworkData<D>, DataCommand)) -> Result<(), Error> {
         self.messages_for_network
             .unbounded_send(to_send)
-            .map_err(|_| SendError::Network)
+            .map_err(|_| Error::NetworkSend)
     }
 
-    fn send_command(&self, to_send: ConnectionCommand) -> Result<(), SendError> {
+    fn send_command(&self, to_send: ConnectionCommand) -> Result<(), Error> {
         self.commands_for_network
             .unbounded_send(to_send)
-            .map_err(|_| SendError::Command)
+            .map_err(|_| Error::CommandSend)
     }
 
     fn send(
         &self,
-        to_send: (
+        (maybe_command, data): (
             Option<ConnectionCommand>,
             Vec<(NetworkData<D>, DataCommand)>,
         ),
-    ) -> Result<(), SendError> {
-        if let Some(command) = to_send.0 {
+    ) -> Result<(), Error> {
+        if let Some(command) = maybe_command {
             self.send_command(command)?;
         }
-        for data_to_send in to_send.1 {
+        for data_to_send in data {
             self.send_data(data_to_send)?;
         }
         Ok(())
-    }
-
-    fn on_data<NI: NetworkIdentity>(
-        &self,
-        service: &Service<NI, D>,
-        data: D,
-        session_id: SessionId,
-    ) -> Result<(), SendError> {
-        if let Some(data_for_session_user) = service.get_session_channel(&session_id) {
-            data_for_session_user
-                .unbounded_send(data)
-                .map_err(|_| SendError::User)
-        } else {
-            debug!(target:"aleph-network", "Received data from unknown session {:?}", session_id);
-            Ok(())
-        }
     }
 
     fn on_network_message<NI: NetworkIdentity>(
         &self,
         service: &mut Service<NI, D>,
         message: NetworkData<D>,
-    ) -> Result<(), SendError> {
+    ) -> Result<(), Error> {
         use NetworkData::*;
         match message {
             Meta(message) => self.send(service.on_discovery_message(message)),
-            Data(data, session_id) => self.on_data(service, data, session_id),
+            Data(data, session_id) => service.send_session_data(&session_id, data),
         }
     }
 
     /// Run the connection manager service with this IO.
-    pub async fn run<NI: NetworkIdentity>(mut self, mut service: Service<NI, D>) {
+    pub async fn run<NI: NetworkIdentity>(
+        mut self,
+        mut service: Service<NI, D>,
+    ) -> Result<(), Error> {
         let mut maintenance = interval(Duration::from_secs(MAINTENANCE_PERIOD_SECONDS));
         loop {
             tokio::select! {
                 maybe_command = self.commands_from_user.next() => match maybe_command {
                     Some(command) => match service.on_command(command).await {
-                        Ok(to_send) => if let Err(e) = self.send(to_send) {
-                            error!(target: "aleph-network", "Failed to send: {:?}", e);
-                            return;
-                        },
+                        Ok(to_send) => self.send(to_send)?,
                         Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
                     },
-                    None => {
-                        error!(target: "aleph-network", "User command stream ended.");
-                        return;
-                    }
+                    None => return Err(Error::CommandsChannel),
                 },
                 maybe_message = self.messages_from_user.next() => match maybe_message {
                     Some((message, session_id, recipient)) => for message in service.on_user_message(message, session_id, recipient) {
-                        if let Err(e) = self.send_data(message) {
-                            error!(target: "aleph-network", "Failed to send: {:?}", e);
-                            return;
-                        }
+                         self.send_data(message)?;
                     },
-                    None => {
-                        error!(target: "aleph-network", "User message stream ended.");
-                        return;
-                    }
+                    None => return Err(Error::MessageChannel),
                 },
                 maybe_message = self.messages_from_network.next() => match maybe_message {
                     Some(message) => if let Err(e) = self.on_network_message(&mut service, message) {
                         match e {
-                            SendError::User => warn!(target: "aleph-network", "Failed to send to user in session."),
-                            _ => {
-                                error!(target: "aleph-network", "Failed to send: {:?}", e);
-                                return;
-                            },
+                            Error::UserSend => warn!(target: "aleph-network", "Failed to send to user in session."),
+                            Error::NoSession => warn!(target: "aleph-network", "Received message for unknown session."),
+                            _ => return Err(e),
                         }
                     },
-                    None => {
-                        error!(target: "aleph-network", "Network message stream ended.");
-                        return;
-                    }
+                    None => return Err(Error::NetworkChannel),
                 },
                 _ = maintenance.tick() => for to_send in service.discovery() {
-                    if let Err(e) = self.send_data(to_send) {
-                        error!(target: "aleph-network", "Failed to send: {:?}", e);
-                        return;
-                    }
-                }
+                    self.send_data(to_send)?;
+                },
             }
         }
     }
@@ -473,7 +454,7 @@ impl<D: Clone + Codec> IO<D> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Service, SessionCommand};
+    use super::{Error, Service, SessionCommand};
     use crate::{
         new_network::{
             manager::{
@@ -504,7 +485,10 @@ mod tests {
             .unwrap();
         assert!(maybe_command.is_none());
         assert!(data_commands.is_empty());
-        assert!(service.get_session_channel(&session_id).is_none());
+        assert_eq!(
+            service.send_session_data(&session_id, -43),
+            Err(Error::NoSession)
+        );
     }
 
     #[tokio::test]
@@ -513,7 +497,7 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _) = mpsc::unbounded();
+        let (data_for_user, _data_from_service) = mpsc::unbounded();
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
@@ -529,7 +513,7 @@ mod tests {
         assert!(data_commands
             .iter()
             .all(|(_, command)| command == &DataCommand::Broadcast));
-        assert!(service.get_session_channel(&session_id).is_some());
+        assert_eq!(service.send_session_data(&session_id, -43), Ok(()));
     }
 
     #[tokio::test]
@@ -538,7 +522,7 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _) = mpsc::unbounded();
+        let (data_for_user, _data_from_service) = mpsc::unbounded();
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
@@ -554,14 +538,17 @@ mod tests {
         assert!(data_commands
             .iter()
             .all(|(_, command)| command == &DataCommand::Broadcast));
-        assert!(service.get_session_channel(&session_id).is_some());
+        assert_eq!(service.send_session_data(&session_id, -43), Ok(()));
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::Stop(session_id))
             .await
             .unwrap();
         assert!(maybe_command.is_none());
         assert!(data_commands.is_empty());
-        assert!(service.get_session_channel(&session_id).is_none());
+        assert_eq!(
+            service.send_session_data(&session_id, -43),
+            Err(Error::NoSession)
+        );
     }
 
     #[tokio::test]
