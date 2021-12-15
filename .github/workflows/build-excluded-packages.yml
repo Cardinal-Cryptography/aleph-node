@@ -1,10 +1,10 @@
-name: Build excluded packages
+name: Check excluded packages
 
 on: pull_request
 
 jobs:
   build:
-    name: Build excluded packages
+    name: Check excluded packages
     runs-on: ubuntu-latest
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
@@ -27,7 +27,7 @@ jobs:
           profile: minimal
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
-          components: clippy
+          components: check
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
@@ -36,13 +36,13 @@ jobs:
           file: 'Cargo.toml'
           field: 'workspace.exclude'
 
-      - name: Build excluded packages
+      - name: Check excluded packages
         run: |
           packages=($(echo ${{ steps.read_excluded.outputs.value }} | sed 's/[][,]/ /g' | tr ' ' "\n"))
           for p in ${packages[@]}
           do
             echo "Compiling package $p..."
             pushd "$p"
-            cargo clippy --all-targets --all-features
+            cargo check --all-targets --all-features
             popd
           done
