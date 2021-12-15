@@ -1,10 +1,8 @@
 use crate::{
-    aggregator::SignableHash,
-    crypto::Signature,
-    new_network::data_network::split::DataNetwork,
+    aggregator::SignableHash, crypto::Signature, new_network::data_network::split::DataNetwork,
     Error,
 };
-use aleph_bft::{SignatureSet, Recipient};
+use aleph_bft::{Recipient, SignatureSet};
 use sp_api::BlockT;
 
 pub(crate) type RmcNetworkData<B> =
@@ -19,11 +17,7 @@ impl<B: BlockT> RmcNetwork<B> {
         RmcNetwork { inner }
     }
 
-    pub(crate) fn send(
-        &self,
-        data: RmcNetworkData<B>,
-        recipient: Recipient,
-    ) -> Result<(), Error> {
+    pub(crate) fn send(&self, data: RmcNetworkData<B>, recipient: Recipient) -> Result<(), Error> {
         self.inner.send(data, recipient)
     }
 

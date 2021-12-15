@@ -1,11 +1,11 @@
-use aleph_bft::Recipient;
 use crate::{
     new_network::data_network::{
         aleph_network::{AlephNetwork, AlephNetworkData},
         rmc_network::{RmcNetwork, RmcNetworkData},
     },
-    Error, SessionId, 
+    Error, SessionId,
 };
+use aleph_bft::Recipient;
 use codec::{Codec, Decode, Encode};
 use futures::{channel::mpsc, Future, FutureExt, StreamExt};
 use log::{debug, trace, warn};
@@ -91,7 +91,9 @@ pub(crate) fn split_network<B: BlockT>(
     let forward_aleph_cmd = {
         let cmd_tx = cmd_tx.clone();
         aleph_cmd_rx
-            .map(|(data, session_id, recipient)| Ok((NetworkData::Aleph(data), session_id, recipient)))
+            .map(|(data, session_id, recipient)| {
+                Ok((NetworkData::Aleph(data), session_id, recipient))
+            })
             .forward(cmd_tx)
             .map(|res| {
                 if let Err(e) = res {
@@ -101,8 +103,10 @@ pub(crate) fn split_network<B: BlockT>(
     };
     let forward_rmc_cmd = {
         rmc_cmd_rx
-        .map(|(data, session_id, recipient)| Ok((NetworkData::Rmc(data), session_id, recipient)))
-        .forward(cmd_tx)
+            .map(|(data, session_id, recipient)| {
+                Ok((NetworkData::Rmc(data), session_id, recipient))
+            })
+            .forward(cmd_tx)
             .map(|res| {
                 if let Err(e) = res {
                     warn!(target: "afa", "error forwarding rmc commands: {}", e);

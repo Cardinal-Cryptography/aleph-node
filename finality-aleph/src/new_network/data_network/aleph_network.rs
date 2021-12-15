@@ -2,7 +2,7 @@ use crate::{
     crypto::Signature,
     data_io::{AlephDataFor, AlephNetworkMessage},
     new_network::data_network::split::DataNetwork,
-    Hasher, 
+    Hasher,
 };
 use aleph_bft::SignatureSet;
 use log::warn;
