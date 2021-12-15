@@ -1,7 +1,7 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     new_network::{
-        connection_manager::{get_common_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
+        manager::{get_common_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
         PeerId,
     },
     NodeIndex, SessionId,
@@ -235,7 +235,7 @@ impl Handler {
 mod tests {
     use super::{get_common_peer_id, Handler, HandlerError};
     use crate::{
-        new_network::connection_manager::{
+        new_network::manager::{
             testing::{address, crypto_basics},
             Multiaddr,
         },

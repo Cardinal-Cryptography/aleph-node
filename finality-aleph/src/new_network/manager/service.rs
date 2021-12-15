@@ -1,7 +1,7 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     new_network::{
-        connection_manager::{
+        manager::{
             get_peer_id, Connections, Discovery, DiscoveryMessage, Multiaddr, NetworkData,
             SessionHandler, SessionHandlerError,
         },
@@ -121,10 +121,10 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
         node_id: NodeIndex,
         pen: AuthorityPen,
         data_for_user: mpsc::UnboundedSender<D>,
+        addresses: Vec<Multiaddr>,
     ) -> Result<Vec<(NetworkData<D>, DataCommand)>, SessionHandlerError> {
         let handler =
-            SessionHandler::new(Some((node_id, pen)), verifier, session_id, self.addresses())
-                .await?;
+            SessionHandler::new(Some((node_id, pen)), verifier, session_id, addresses).await?;
         let discovery = Discovery::new(Duration::from_secs(DISCOVERY_COOLDOWN_SECONDS));
         let data_for_user = Some(data_for_user);
         self.sessions.insert(
@@ -158,8 +158,15 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
             None => {
                 return Ok((
                     None,
-                    self.start_validator_session(session_id, verifier, node_id, pen, data_for_user)
-                        .await?,
+                    self.start_validator_session(
+                        session_id,
+                        verifier,
+                        node_id,
+                        pen,
+                        data_for_user,
+                        addresses,
+                    )
+                    .await?,
                 ))
             }
         };
@@ -186,8 +193,8 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
         &mut self,
         session_id: SessionId,
         verifier: AuthorityVerifier,
+        addresses: Vec<Multiaddr>,
     ) -> Result<(), SessionHandlerError> {
-        let addresses = self.addresses();
         let handler = SessionHandler::new(None, verifier, session_id, addresses).await?;
         let discovery = Discovery::new(Duration::from_secs(DISCOVERY_COOLDOWN_SECONDS));
         self.sessions.insert(
@@ -210,7 +217,9 @@ impl<NI: NetworkIdentity, D: Clone + Codec> Service<NI, D> {
         let session = match self.sessions.get_mut(&session_id) {
             Some(session) => session,
             None => {
-                return self.start_nonvalidator_session(session_id, verifier).await;
+                return self
+                    .start_nonvalidator_session(session_id, verifier, addresses)
+                    .await;
             }
         };
         session.handler.update(None, verifier, addresses).await?;
@@ -467,7 +476,7 @@ mod tests {
     use super::{Service, SessionCommand};
     use crate::{
         new_network::{
-            connection_manager::{
+            manager::{
                 testing::{crypto_basics, MockNetworkIdentity},
                 DiscoveryMessage, NetworkData,
             },

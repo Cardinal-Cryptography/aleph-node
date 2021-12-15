@@ -7,7 +7,7 @@ use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
-mod connection_manager;
+mod manager;
 mod service;
 mod substrate;
 

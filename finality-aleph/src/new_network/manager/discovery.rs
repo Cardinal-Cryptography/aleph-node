@@ -1,6 +1,6 @@
 use crate::{
     new_network::{
-        connection_manager::{Authentication, Multiaddr, SessionHandler},
+        manager::{Authentication, Multiaddr, SessionHandler},
         DataCommand, PeerId, Protocol,
     },
     NodeCount, NodeIndex, SessionId,
@@ -268,7 +268,7 @@ mod tests {
     use super::{Discovery, DiscoveryMessage};
     use crate::{
         new_network::{
-            connection_manager::{testing::crypto_basics, Authentication, SessionHandler},
+            manager::{testing::crypto_basics, Authentication, SessionHandler},
             DataCommand, Multiaddr, Protocol,
         },
         NodeIndex, SessionId,
