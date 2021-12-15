@@ -1,15 +1,21 @@
 // Everything here is dead code, but I don't want to create one enormous PR.
 #![allow(dead_code)]
-use codec::{Decode, Encode};
+use aleph_bft::Recipient;
+use codec::{Codec, Decode, Encode};
 use futures::stream::Stream;
 use sc_network::{Event, Multiaddr, NotificationSender, PeerId as ScPeerId};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
+mod bare;
 mod manager;
 mod service;
+mod session;
 mod substrate;
+
+use bare::{Network as BareNetwork, Sender};
+use manager::SessionCommand;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -119,4 +125,16 @@ pub enum DataCommand {
 pub enum ConnectionCommand {
     AddReserved(HashSet<Multiaddr>),
     DelReserved(HashSet<PeerId>),
+}
+
+/// What can go wrong when sending data.
+pub enum SendError {
+    SendFailed,
+}
+
+/// A generic interface for sending and receiving data.
+#[async_trait::async_trait]
+pub trait DataNetwork<D: Clone + Codec> {
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
+    async fn next(&self) -> Option<D>;
 }
