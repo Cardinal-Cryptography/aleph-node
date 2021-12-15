@@ -33,7 +33,7 @@ use log::{debug, error, info, trace};
 use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use crate::justification::JustificationHandlerConfig;
-use crate::new_network::data_network::aleph_network::AlephNetworkData;
+use crate::new_network::data_network::AlephNetworkData;
 use parking_lot::Mutex;
 use sc_client_api::{Backend, HeaderBackend};
 use sp_api::{BlockId, NumberFor};

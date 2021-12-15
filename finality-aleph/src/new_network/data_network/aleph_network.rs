@@ -2,10 +2,10 @@ use crate::{
     crypto::Signature,
     data_io::{AlephDataFor, AlephNetworkMessage},
     new_network::data_network::split::DataNetwork,
-    Hasher,
+    Hasher, 
 };
 use aleph_bft::SignatureSet;
-use log::error;
+use log::warn;
 use sp_api::BlockT;
 
 pub(crate) type AlephNetworkData<B> =
@@ -32,9 +32,8 @@ impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, Signature
     for AlephNetwork<B>
 {
     fn send(&self, data: AlephNetworkData<B>, recipient: aleph_bft::Recipient) {
-        let recipient = recipient.into();
-        if self.inner.send(data, recipient).is_err() {
-            error!(target: "afa", "error sending a message to {:?}", recipient);
+        if self.inner.send(data, recipient.clone()).is_err() {
+            warn!(target: "afa", "error sending a message to {:?}", recipient);
         }
     }
 

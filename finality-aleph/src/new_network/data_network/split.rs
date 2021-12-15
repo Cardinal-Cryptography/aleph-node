@@ -1,10 +1,10 @@
+use aleph_bft::Recipient;
 use crate::{
     new_network::data_network::{
         aleph_network::{AlephNetwork, AlephNetworkData},
         rmc_network::{RmcNetwork, RmcNetworkData},
-        Recipient, SessionCommand,
     },
-    Error, NodeIndex, SessionId,
+    Error, SessionId, 
 };
 use codec::{Codec, Decode, Encode};
 use futures::{channel::mpsc, Future, FutureExt, StreamExt};
@@ -20,14 +20,14 @@ pub(crate) enum NetworkData<B: BlockT> {
 pub(crate) struct DataNetwork<D: Clone + Codec> {
     session_id: SessionId,
     data_from_consensus_network: mpsc::UnboundedReceiver<D>,
-    commands_for_consensus_network: mpsc::UnboundedSender<SessionCommand<D>>,
+    commands_for_consensus_network: mpsc::UnboundedSender<(D, SessionId, Recipient)>,
 }
 
 impl<D: Clone + Codec> DataNetwork<D> {
     fn new(
         session_id: SessionId,
         data_from_consensus_network: mpsc::UnboundedReceiver<D>,
-        commands_for_consensus_network: mpsc::UnboundedSender<SessionCommand<D>>,
+        commands_for_consensus_network: mpsc::UnboundedSender<(D, SessionId, Recipient)>,
     ) -> Self {
         DataNetwork {
             session_id,
@@ -36,10 +36,10 @@ impl<D: Clone + Codec> DataNetwork<D> {
         }
     }
 
-    pub(crate) fn send(&self, data: D, recipient: Recipient<NodeIndex>) -> Result<(), Error> {
-        let sc = SessionCommand::Data(self.session_id, data, recipient);
+    pub(crate) fn send(&self, data: D, recipient: Recipient) -> Result<(), Error> {
+        let message = (data, self.session_id, recipient);
         self.commands_for_consensus_network
-            .unbounded_send(sc)
+            .unbounded_send(message)
             .map_err(|_| Error::SendData)
     }
 
@@ -91,7 +91,7 @@ pub(crate) fn split_network<B: BlockT>(
     let forward_aleph_cmd = {
         let cmd_tx = cmd_tx.clone();
         aleph_cmd_rx
-            .map(|cmd| Ok(cmd.map(NetworkData::Aleph)))
+            .map(|(data, session_id, recipient)| Ok((NetworkData::Aleph(data), session_id, recipient)))
             .forward(cmd_tx)
             .map(|res| {
                 if let Err(e) = res {
@@ -101,8 +101,8 @@ pub(crate) fn split_network<B: BlockT>(
     };
     let forward_rmc_cmd = {
         rmc_cmd_rx
-            .map(|cmd| Ok(cmd.map(NetworkData::Rmc)))
-            .forward(cmd_tx)
+        .map(|(data, session_id, recipient)| Ok((NetworkData::Rmc(data), session_id, recipient)))
+        .forward(cmd_tx)
             .map(|res| {
                 if let Err(e) = res {
                     warn!(target: "afa", "error forwarding rmc commands: {}", e);

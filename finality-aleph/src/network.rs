@@ -674,7 +674,7 @@ where
     }
 }
 
-use crate::new_network::data_network::aleph_network::AlephNetworkData;
+use crate::new_network::data_network::AlephNetworkData;
 
 pub(crate) type RmcNetworkData<B> =
     aleph_bft::rmc::Message<SignableHash<<B as BlockT>::Hash>, Signature, SignatureSet<Signature>>;
