@@ -7,11 +7,12 @@ use config::Config;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info};
 use rayon::prelude::*;
-use sp_core::{sr25519, DeriveJunction, Pair};
+use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::{
     iter::{once, repeat, IntoIterator},
     sync::{Arc, Mutex},
+    thread::yield_now,
     time::Instant,
 };
 use substrate_api_client::{
@@ -48,6 +49,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
+    let throughput = config.throughput;
     let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
 
@@ -102,7 +104,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let tick = Instant::now();
 
-    flood(pool, txs, transactions_per_batch as usize, &histogram);
+    flood(pool, txs, transactions_per_batch, throughput, &histogram);
 
     let tock = tick.elapsed().as_millis();
     let histogram = histogram.lock().unwrap();
@@ -122,18 +124,30 @@ fn main() -> Result<(), anyhow::Error> {
 fn flood(
     pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: Vec<TransferTransaction>,
-    transactions_per_batch: usize,
+    transactions_per_batch: u64,
+    txps: u64,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
-    txs.par_chunks(transactions_per_batch).for_each(|batch| {
-        println!("Sending a batch of {} transactions", &batch.len());
-        batch.iter().enumerate().for_each(|(index, tx)| {
-            send_tx(
-                pool.get(index % pool.len()).unwrap().to_owned(),
-                tx.to_owned(),
-                Arc::clone(histogram),
-            )
-        })
+    let transactions_per_batch = transactions_per_batch
+        .try_into()
+        .expect("transactions_per_batch within usize range");
+    let txps = txps.try_into().expect("txps within usize range");
+    let next = 1;
+    let elapsed = Instant::now();
+    txs.chunks(txps).for_each(|batch| {
+        batch.par_chunks(transactions_per_batch).for_each(|batch| {
+            println!("Sending a batch of {} transactions", &batch.len());
+            batch.iter().enumerate().for_each(|(index, tx)| {
+                send_tx(
+                    pool.get(index % pool.len()).unwrap().to_owned(),
+                    tx.to_owned(),
+                    Arc::clone(histogram),
+                )
+            })
+        });
+        while elapsed.elapsed().as_secs() < next {
+            yield_now();
+        }
     });
 }
 
