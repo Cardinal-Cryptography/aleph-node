@@ -8,13 +8,13 @@ use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
-mod bare;
+mod component;
 mod manager;
 mod service;
 mod session;
 mod substrate;
 
-use bare::{Network as BareNetwork, Sender};
+use component::{Network as ComponentNetwork, Sender};
 use manager::SessionCommand;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
@@ -127,7 +127,7 @@ pub enum ConnectionCommand {
     DelReserved(HashSet<PeerId>),
 }
 
-/// What can go wrong when sending data.
+/// Returned when something went wrong when sending data using a DataNetwork.
 pub enum SendError {
     SendFailed,
 }

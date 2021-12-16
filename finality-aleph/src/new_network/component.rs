@@ -25,7 +25,7 @@ pub trait Network<D: Clone + Codec + Send>: Sync {
 }
 
 #[async_trait::async_trait]
-impl<D: Clone + Codec + Send, BN: Network<D>> DataNetwork<D> for BN {
+impl<D: Clone + Codec + Send, CN: Network<D>> DataNetwork<D> for CN {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
         self.sender().send(data, recipient)
     }

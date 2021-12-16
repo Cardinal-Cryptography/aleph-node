@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{BareNetwork, SendError, Sender as SenderTrait, SessionCommand},
+    new_network::{ComponentNetwork, SendError, Sender as SenderTrait, SessionCommand},
     NodeIndex, SessionId,
 };
 use aleph_bft::Recipient;
@@ -30,7 +30,7 @@ pub struct Network<D: Clone + Codec + Send> {
     receiver: Arc<Mutex<mpsc::UnboundedReceiver<D>>>,
 }
 
-impl<D: Clone + Codec + Send> BareNetwork<D> for Network<D> {
+impl<D: Clone + Codec + Send> ComponentNetwork<D> for Network<D> {
     type S = Sender<D>;
     type R = mpsc::UnboundedReceiver<D>;
     fn sender(&self) -> &Self::S {
@@ -49,7 +49,7 @@ pub struct Manager<D: Clone + Codec + Send> {
 
 /// What went wrond during a session management operation.
 pub enum ManagerError {
-    SendCommand,
+    CommandSendFailed,
 }
 
 impl<D: Clone + Codec + Send> Manager<D> {
@@ -73,7 +73,7 @@ impl<D: Clone + Codec + Send> Manager<D> {
     ) -> Result<(), ManagerError> {
         self.commands_for_service
             .unbounded_send(SessionCommand::StartNonvalidator(session_id, verifier))
-            .map_err(|_| ManagerError::SendCommand)
+            .map_err(|_| ManagerError::CommandSendFailed)
     }
 
     /// Start participating or update the information about the given session where you are a
@@ -95,7 +95,7 @@ impl<D: Clone + Codec + Send> Manager<D> {
                 pen,
                 data_for_user,
             ))
-            .map_err(|_| ManagerError::SendCommand)?;
+            .map_err(|_| ManagerError::CommandSendFailed)?;
         let messages_for_network = self.messages_for_service.clone();
         Ok(Network {
             sender: Sender {
@@ -110,6 +110,6 @@ impl<D: Clone + Codec + Send> Manager<D> {
     pub fn stop_session(&self, session_id: SessionId) -> Result<(), ManagerError> {
         self.commands_for_service
             .unbounded_send(SessionCommand::Stop(session_id))
-            .map_err(|_| ManagerError::SendCommand)
+            .map_err(|_| ManagerError::CommandSendFailed)
     }
 }
