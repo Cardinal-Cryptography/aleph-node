@@ -30,17 +30,25 @@ fn main() -> Result<(), anyhow::Error> {
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
 
-    let account = match config.phrase {
+    if !config.skip_initialization && config.phrase.is_none() && config.seed.is_none() {
+        panic!("Needs --phrase or --seed")
+    }
+
+    let account = || match &config.phrase {
         Some(phrase) => {
-            sr25519::Pair::from_phrase(&config::read_phrase(phrase), None)
+            sr25519::Pair::from_phrase(&config::read_phrase(phrase.clone()), None)
                 .unwrap()
                 .0
         }
-        None => match config.seed {
-            Some(seed) => sr25519::Pair::from_string(&seed, None).unwrap(),
+        None => match &config.seed {
+            Some(seed) => sr25519::Pair::from_string(seed, None).unwrap(),
             None => panic!("Needs --phrase or --seed"),
         },
     };
+    // we want to fail fast in case seed or phrase are incorrect
+    if !config.skip_initialization {
+        account();
+    }
     let initialize_accounts_flag = !config.skip_initialization;
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
@@ -55,27 +63,25 @@ fn main() -> Result<(), anyhow::Error> {
     let thread_pool = thread_pool_builder.build().expect("thread pool created");
     let threads = thread_pool.current_num_threads();
 
-    info!(
-        "Using account {} to derive and fund accounts",
-        &account.public()
-    );
-
-    let source_account_id = AccountId::from(account.public());
-    let source_account_nonce = get_nonce(&connection, &source_account_id);
-
     let accounts = (first_account_in_range..first_account_in_range + total_users)
         .map(derive_user_account)
         .collect();
 
-    let total_amount =
-        estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
-
-    assert!(
-        get_funds(&connection, &source_account_id).ge(&(total_amount * total_users as u128)),
-        "Account is too poor"
-    );
-
     if initialize_accounts_flag {
+        let account = account();
+        info!(
+            "Using account {} to derive and fund accounts",
+            &account.public()
+        );
+        let source_account_id = AccountId::from(account.public());
+        let source_account_nonce = get_nonce(&connection, &source_account_id);
+        let total_amount =
+            estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
+
+        assert!(
+            get_funds(&connection, &source_account_id).ge(&(total_amount * total_users as u128)),
+            "Account is too poor"
+        );
         initialize_accounts(
             &connection,
             &account,
@@ -92,9 +98,13 @@ fn main() -> Result<(), anyhow::Error> {
 
     debug!("all accounts have received funds");
 
+    let reciever = accounts
+        .first()
+        .expect("we should be using some accounts for this test, but the list is empty")
+        .clone();
     let txs = sign_transactions(
         &connection,
-        account,
+        reciever,
         (accounts, nonces),
         config.transactions,
         transfer_amount,
