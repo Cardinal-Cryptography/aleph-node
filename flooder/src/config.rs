@@ -12,10 +12,6 @@ pub struct Config {
     #[clap(long, default_value = "10000")]
     pub transactions: u64,
 
-    /// what throughput to use (transactions/s)
-    #[clap(long, default_value = "1000")]
-    pub throughput: u64,
-
     /// secret phrase : a path to a file or passed on stdin
     #[clap(long)]
     pub phrase: Option<String>,
