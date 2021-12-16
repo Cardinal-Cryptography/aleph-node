@@ -11,6 +11,7 @@ use std::{borrow::Cow, collections::HashSet, pin::Pin};
 mod aleph;
 mod component;
 mod manager;
+mod rmc;
 mod service;
 mod session;
 mod split;
@@ -22,6 +23,7 @@ use component::{
 use manager::SessionCommand;
 
 pub use aleph::NetworkData as AlephNetworkData;
+pub use rmc::NetworkData as RmcNetworkData;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
