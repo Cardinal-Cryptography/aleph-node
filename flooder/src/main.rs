@@ -289,10 +289,8 @@ fn initialize_account(
     account_nonce + 1
 }
 
-fn derive_user_account(account: &sr25519::Pair, seed: u64) -> sr25519::Pair {
-    let path = Some(DeriveJunction::soft(seed as u64));
-    let (derived, _) = account.derive(path.into_iter(), None).unwrap();
-    derived
+fn derive_user_account(_account: &sr25519::Pair, seed: u64) -> sr25519::Pair {
+    sr25519::Pair::from_string(&("//".to_string() + &seed.to_string()), None).unwrap()
 }
 
 fn send_tx<Call>(
