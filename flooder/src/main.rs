@@ -43,10 +43,8 @@ fn main() -> Result<(), anyhow::Error> {
         },
     };
     let initialize_accounts_flag = !config.skip_initialization;
-
     let pool = create_connection_pool(config.nodes);
     let connection = pool.get(0).unwrap();
-
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
     let throughput = config.throughput;
@@ -71,7 +69,7 @@ fn main() -> Result<(), anyhow::Error> {
     let source_account_nonce = get_nonce(&connection, &source_account_id);
 
     let accounts = (first_account_in_range..first_account_in_range + total_users)
-        .map(|seed| derive_user_account(&account, seed))
+        .map(derive_user_account)
         .collect();
 
     let total_amount =
@@ -143,7 +141,7 @@ fn flood(
         .try_into()
         .expect("transactions_per_batch within usize range");
     let txps = txps.try_into().expect("txps within usize range");
-    let next = 1;
+    let mut next = 1;
     let elapsed = Instant::now();
     txs.chunks(txps).for_each(|batch| {
         batch.par_chunks(transactions_per_batch).for_each(|batch| {
@@ -156,7 +154,12 @@ fn flood(
                 )
             })
         });
-        while elapsed.elapsed().as_secs() < next {
+        loop {
+            let elapsed = elapsed.elapsed().as_secs();
+            if elapsed >= next {
+                next = elapsed + 1;
+                break;
+            }
             yield_now();
         }
     });
@@ -262,13 +265,14 @@ fn estimate_amount(
     existential_deposit + (transfer_amount + tx_fee)
 }
 
-fn initialize_accounts<'a>(
+fn initialize_accounts(
     connection: &Api<sr25519::Pair, WsRpcClient>,
     source_account: &sr25519::Pair,
     mut source_account_nonce: u32,
     accounts: &Vec<sr25519::Pair>,
     total_amount: u128,
 ) {
+    // ensure all txs are finalized by waiting for the last one sent
     let status = repeat(XtStatus::Ready)
         .take(accounts.len() - 1)
         .chain(once(XtStatus::Finalized));
@@ -314,8 +318,9 @@ fn initialize_account(
     account_nonce + 1
 }
 
-fn derive_user_account(_account: &sr25519::Pair, seed: u64) -> sr25519::Pair {
-    sr25519::Pair::from_string(&("//".to_string() + &seed.to_string()), None).unwrap()
+fn derive_user_account(seed: u64) -> sr25519::Pair {
+    let seed = seed.to_string();
+    sr25519::Pair::from_string(&("//".to_string() + &seed), None).unwrap()
 }
 
 fn send_tx<Call>(
@@ -338,10 +343,7 @@ fn send_tx<Call>(
 }
 
 fn create_connection_pool(nodes: Vec<String>) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
-    nodes
-        .into_iter()
-        .map(|url| create_connection(url))
-        .collect()
+    nodes.into_iter().map(create_connection).collect()
 }
 
 fn get_nonce(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
