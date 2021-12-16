@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{ComponentNetwork, SendError, Sender as SenderTrait, SessionCommand},
+    new_network::{ComponentNetwork, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 use aleph_bft::Recipient;
@@ -16,7 +16,7 @@ pub struct Sender<D: Clone + Codec + Send> {
     messages_for_network: mpsc::UnboundedSender<(D, SessionId, Recipient)>,
 }
 
-impl<D: Clone + Codec + Send> SenderTrait<D> for Sender<D> {
+impl<D: Clone + Codec + Send> SenderComponent<D> for Sender<D> {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
         self.messages_for_network
             .unbounded_send((data, self.session_id, recipient))

@@ -14,7 +14,7 @@ mod service;
 mod session;
 mod substrate;
 
-use component::{Network as ComponentNetwork, Sender};
+use component::{Network as ComponentNetwork, Sender as SenderComponent};
 use manager::SessionCommand;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
