@@ -31,6 +31,10 @@ pub struct Config {
     /// beginning of the integer range used to derive accounts
     #[clap(long, default_value = "0")]
     pub first_account_in_range: u64,
+
+    /// number of threads spawn during the flooding process
+    #[clap(long, default_value = "3")]
+    pub threads: u64,
 }
 
 pub fn read_phrase(phrase: String) -> String {

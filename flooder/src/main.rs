@@ -52,6 +52,15 @@ fn main() -> Result<(), anyhow::Error> {
     let throughput = config.throughput;
     let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(
+            config
+                .threads
+                .try_into()
+                .expect("threads within usize range"),
+        )
+        .build()
+        .expect("thread pool created");
 
     info!(
         "Using account {} to derive and fund accounts",
@@ -104,7 +113,9 @@ fn main() -> Result<(), anyhow::Error> {
 
     let tick = Instant::now();
 
-    flood(pool, txs, transactions_per_batch, throughput, &histogram);
+    thread_pool.install(|| {
+        flood(pool, txs, transactions_per_batch, throughput, &histogram);
+    });
 
     let tock = tick.elapsed().as_millis();
     let histogram = histogram.lock().unwrap();
