@@ -8,6 +8,7 @@ use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
+mod aleph;
 mod component;
 mod manager;
 mod service;
@@ -19,6 +20,8 @@ use component::{
     Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
 };
 use manager::SessionCommand;
+
+pub use aleph::NetworkData as AlephNetworkData;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -142,7 +145,7 @@ impl<D: Clone + Codec + Send + Sync> Data for D {}
 
 /// A generic interface for sending and receiving data.
 #[async_trait::async_trait]
-pub trait DataNetwork<D: Data> {
+pub trait DataNetwork<D: Data>: Send + Sync {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
     async fn next(&self) -> Option<D>;
 }
