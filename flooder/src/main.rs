@@ -12,7 +12,6 @@ use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::{
     iter::{once, repeat, IntoIterator},
     sync::{Arc, Mutex},
-    thread::yield_now,
     time::Instant,
 };
 use substrate_api_client::{
@@ -47,18 +46,14 @@ fn main() -> Result<(), anyhow::Error> {
     let connection = pool.get(0).unwrap();
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
-    let throughput = config.throughput;
-    let transactions_per_batch = config.throughput / rayon::current_num_threads() as u64;
     let transfer_amount = 1u128;
-    let thread_pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(
-            config
-                .threads
-                .try_into()
-                .expect("threads within usize range"),
-        )
-        .build()
-        .expect("thread pool created");
+    let mut thread_pool_builder = rayon::ThreadPoolBuilder::new();
+    if let Some(threads) = config.threads {
+        let threads = threads.try_into().expect("threads within usize range");
+        thread_pool_builder = thread_pool_builder.num_threads(threads);
+    }
+    let thread_pool = thread_pool_builder.build().expect("thread pool created");
+    let threads = thread_pool.current_num_threads();
 
     info!(
         "Using account {} to derive and fund accounts",
@@ -112,7 +107,7 @@ fn main() -> Result<(), anyhow::Error> {
     let tick = Instant::now();
 
     thread_pool.install(|| {
-        flood(pool, txs, transactions_per_batch, throughput, &histogram);
+        flood(pool, txs, threads, &histogram);
     });
 
     let tock = tick.elapsed().as_millis();
@@ -133,35 +128,19 @@ fn main() -> Result<(), anyhow::Error> {
 fn flood(
     pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: Vec<TransferTransaction>,
-    transactions_per_batch: u64,
-    txps: u64,
+    num_threads: usize,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
-    let transactions_per_batch = transactions_per_batch
-        .try_into()
-        .expect("transactions_per_batch within usize range");
-    let txps = txps.try_into().expect("txps within usize range");
-    let mut next = 1;
-    let elapsed = Instant::now();
-    txs.chunks(txps).for_each(|batch| {
-        batch.par_chunks(transactions_per_batch).for_each(|batch| {
-            println!("Sending a batch of {} transactions", &batch.len());
-            batch.iter().enumerate().for_each(|(index, tx)| {
-                send_tx(
-                    pool.get(index % pool.len()).unwrap().to_owned(),
-                    tx.to_owned(),
-                    Arc::clone(histogram),
-                )
-            })
-        });
-        loop {
-            let elapsed = elapsed.elapsed().as_secs();
-            if elapsed >= next {
-                next = elapsed + 1;
-                break;
-            }
-            yield_now();
-        }
+    let transactions_per_batch = txs.len() / num_threads;
+    txs.par_chunks(transactions_per_batch).for_each(|batch| {
+        println!("Sending a batch of {} transactions", &batch.len());
+        batch.iter().enumerate().for_each(|(index, tx)| {
+            send_tx(
+                pool.get(index % pool.len()).unwrap().to_owned(),
+                tx.to_owned(),
+                Arc::clone(histogram),
+            )
+        })
     });
 }
 

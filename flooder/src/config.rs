@@ -33,8 +33,8 @@ pub struct Config {
     pub first_account_in_range: u64,
 
     /// number of threads spawn during the flooding process
-    #[clap(long, default_value = "3")]
-    pub threads: u64,
+    #[clap(long)]
+    pub threads: Option<u64>,
 }
 
 pub fn read_phrase(phrase: String) -> String {
