@@ -9,77 +9,77 @@ use tokio::{
     time::{interval, Duration},
 };
 
+const MAXIMUM_RETRY_MS: u64 = 500;
+
 /// Used for routing data through split networks.
 #[derive(Clone, Encode, Decode)]
 pub enum Split<D1: Data, D2: Data> {
-    Hidari(D1),
-    Migi(D2),
+    Left(D1),
+    Right(D2),
 }
 
 #[derive(Clone)]
-struct HidariSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
+struct LeftSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
     sender: S,
-    d1: PhantomData<D1>,
-    d2: PhantomData<D2>,
+    phantom: PhantomData<(D1, D2)>,
 }
 
 impl<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> SenderComponent<D1>
-    for HidariSender<D1, D2, S>
+    for LeftSender<D1, D2, S>
 {
     fn send(&self, data: D1, recipient: Recipient) -> Result<(), SendError> {
-        self.sender.send(Split::Hidari(data), recipient)
+        self.sender.send(Split::Left(data), recipient)
     }
 }
 
 #[derive(Clone)]
-struct MigiSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
+struct RightSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
     sender: S,
-    d1: PhantomData<D1>,
-    d2: PhantomData<D2>,
+    phantom: PhantomData<(D1, D2)>,
 }
 
 impl<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> SenderComponent<D2>
-    for MigiSender<D1, D2, S>
+    for RightSender<D1, D2, S>
 {
     fn send(&self, data: D2, recipient: Recipient) -> Result<(), SendError> {
-        self.sender.send(Split::Migi(data), recipient)
+        self.sender.send(Split::Right(data), recipient)
     }
 }
 
-struct HidariReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
+struct LeftReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
     receiver: Arc<Mutex<R>>,
     translated_receiver: mpsc::UnboundedReceiver<D1>,
-    hidari_sender: mpsc::UnboundedSender<D1>,
-    migi_sender: mpsc::UnboundedSender<D2>,
+    left_sender: mpsc::UnboundedSender<D1>,
+    right_sender: mpsc::UnboundedSender<D2>,
 }
 
-struct MigiReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
+struct RightReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
     receiver: Arc<Mutex<R>>,
     translated_receiver: mpsc::UnboundedReceiver<D2>,
-    hidari_sender: mpsc::UnboundedSender<D1>,
-    migi_sender: mpsc::UnboundedSender<D2>,
+    left_sender: mpsc::UnboundedSender<D1>,
+    right_sender: mpsc::UnboundedSender<D2>,
 }
 
 async fn forward_or_wait<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>>(
     receiver: &Arc<Mutex<R>>,
-    hidari_sender: &mpsc::UnboundedSender<D1>,
-    migi_sender: &mpsc::UnboundedSender<D2>,
+    left_sender: &mpsc::UnboundedSender<D1>,
+    right_sender: &mpsc::UnboundedSender<D2>,
 ) {
     match receiver.try_lock().ok() {
         Some(mut receiver) => match receiver.next().await {
-            Some(Split::Hidari(data)) => {
-                if hidari_sender.unbounded_send(data).is_err() {
+            Some(Split::Left(data)) => {
+                if left_sender.unbounded_send(data).is_err() {
                     warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
                 }
             }
-            Some(Split::Migi(data)) => {
-                if migi_sender.unbounded_send(data).is_err() {
+            Some(Split::Right(data)) => {
+                if right_sender.unbounded_send(data).is_err() {
                     warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
                 }
             }
             None => {
-                hidari_sender.close_channel();
-                migi_sender.close_channel();
+                left_sender.close_channel();
+                right_sender.close_channel();
             }
         },
         None => {
@@ -90,17 +90,15 @@ async fn forward_or_wait<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>
     }
 }
 
-const MAXIMUM_RETRY_MS: u64 = 500;
-
 #[async_trait::async_trait]
 impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<D1>
-    for HidariReceiver<D1, D2, R>
+    for LeftReceiver<D1, D2, R>
 {
     async fn next(&mut self) -> Option<D1> {
         loop {
             tokio::select! {
                 data = self.translated_receiver.next() => return data,
-                _ = forward_or_wait(&self.receiver, &self.hidari_sender, &self.migi_sender) => (),
+                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => (),
             }
         }
     }
@@ -108,26 +106,26 @@ impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<
 
 #[async_trait::async_trait]
 impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<D2>
-    for MigiReceiver<D1, D2, R>
+    for RightReceiver<D1, D2, R>
 {
     async fn next(&mut self) -> Option<D2> {
         loop {
             tokio::select! {
                 data = self.translated_receiver.next() => return data,
-                _ = forward_or_wait(&self.receiver, &self.hidari_sender, &self.migi_sender) => (),
+                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => (),
             }
         }
     }
 }
 
-struct HidariNetwork<
+struct LeftNetwork<
     D1: Data,
     D2: Data,
     S: SenderComponent<Split<D1, D2>>,
     R: ReceiverComponent<Split<D1, D2>>,
 > {
-    sender: HidariSender<D1, D2, S>,
-    receiver: Arc<Mutex<HidariReceiver<D1, D2, R>>>,
+    sender: LeftSender<D1, D2, S>,
+    receiver: Arc<Mutex<LeftReceiver<D1, D2, R>>>,
 }
 
 impl<
@@ -135,10 +133,10 @@ impl<
         D2: Data,
         S: SenderComponent<Split<D1, D2>>,
         R: ReceiverComponent<Split<D1, D2>>,
-    > ComponentNetwork<D1> for HidariNetwork<D1, D2, S, R>
+    > ComponentNetwork<D1> for LeftNetwork<D1, D2, S, R>
 {
-    type S = HidariSender<D1, D2, S>;
-    type R = HidariReceiver<D1, D2, R>;
+    type S = LeftSender<D1, D2, S>;
+    type R = LeftReceiver<D1, D2, R>;
     fn sender(&self) -> &Self::S {
         &self.sender
     }
@@ -147,14 +145,14 @@ impl<
     }
 }
 
-struct MigiNetwork<
+struct RightNetwork<
     D1: Data,
     D2: Data,
     S: SenderComponent<Split<D1, D2>>,
     R: ReceiverComponent<Split<D1, D2>>,
 > {
-    sender: MigiSender<D1, D2, S>,
-    receiver: Arc<Mutex<MigiReceiver<D1, D2, R>>>,
+    sender: RightSender<D1, D2, S>,
+    receiver: Arc<Mutex<RightReceiver<D1, D2, R>>>,
 }
 
 impl<
@@ -162,10 +160,10 @@ impl<
         D2: Data,
         S: SenderComponent<Split<D1, D2>>,
         R: ReceiverComponent<Split<D1, D2>>,
-    > ComponentNetwork<D2> for MigiNetwork<D1, D2, S, R>
+    > ComponentNetwork<D2> for RightNetwork<D1, D2, S, R>
 {
-    type S = MigiSender<D1, D2, S>;
-    type R = MigiReceiver<D1, D2, R>;
+    type S = RightSender<D1, D2, S>;
+    type R = RightReceiver<D1, D2, R>;
     fn sender(&self) -> &Self::S {
         &self.sender
     }
@@ -176,55 +174,58 @@ impl<
 
 fn split_sender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>>(
     sender: &S,
-) -> (HidariSender<D1, D2, S>, MigiSender<D1, D2, S>) {
+) -> (LeftSender<D1, D2, S>, RightSender<D1, D2, S>) {
     (
-        HidariSender {
+        LeftSender {
             sender: sender.clone(),
-            d1: PhantomData,
-            d2: PhantomData,
+            phantom: PhantomData,
         },
-        MigiSender {
+        RightSender {
             sender: sender.clone(),
-            d1: PhantomData,
-            d2: PhantomData,
+            phantom: PhantomData,
         },
     )
 }
 
 fn split_receiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>>(
     receiver: Arc<Mutex<R>>,
-) -> (HidariReceiver<D1, D2, R>, MigiReceiver<D1, D2, R>) {
-    let (hidari_sender, hidari_receiver) = mpsc::unbounded();
-    let (migi_sender, migi_receiver) = mpsc::unbounded();
+) -> (LeftReceiver<D1, D2, R>, RightReceiver<D1, D2, R>) {
+    let (left_sender, left_receiver) = mpsc::unbounded();
+    let (right_sender, right_receiver) = mpsc::unbounded();
     (
-        HidariReceiver {
+        LeftReceiver {
             receiver: receiver.clone(),
-            translated_receiver: hidari_receiver,
-            hidari_sender: hidari_sender.clone(),
-            migi_sender: migi_sender.clone(),
+            translated_receiver: left_receiver,
+            left_sender: left_sender.clone(),
+            right_sender: right_sender.clone(),
         },
-        MigiReceiver {
+        RightReceiver {
             receiver,
-            translated_receiver: migi_receiver,
-            hidari_sender,
-            migi_sender,
+            translated_receiver: right_receiver,
+            left_sender,
+            right_sender,
         },
     )
 }
 
+/// Split a single component network into two separate ones. This way multiple components can send
+/// data to the same underlying session not knowing what types of data the other ones use.
+///
+/// The main example for now is creating an `aleph_bft::Network` and a separate one for accumulating
+/// signatures for justifications.
 pub fn split<D1: Data, D2: Data, CN: ComponentNetwork<Split<D1, D2>>>(
     network: CN,
 ) -> (impl ComponentNetwork<D1>, impl ComponentNetwork<D2>) {
-    let (hidari_sender, migi_sender) = split_sender(network.sender());
-    let (hidari_receiver, migi_receiver) = split_receiver(network.receiver());
+    let (left_sender, right_sender) = split_sender(network.sender());
+    let (left_receiver, right_receiver) = split_receiver(network.receiver());
     (
-        HidariNetwork {
-            sender: hidari_sender,
-            receiver: Arc::new(Mutex::new(hidari_receiver)),
+        LeftNetwork {
+            sender: left_sender,
+            receiver: Arc::new(Mutex::new(left_receiver)),
         },
-        MigiNetwork {
-            sender: migi_sender,
-            receiver: Arc::new(Mutex::new(migi_receiver)),
+        RightNetwork {
+            sender: right_sender,
+            receiver: Arc::new(Mutex::new(right_receiver)),
         },
     )
 }
