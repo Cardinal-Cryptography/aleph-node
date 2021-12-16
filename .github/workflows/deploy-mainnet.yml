@@ -43,6 +43,16 @@ jobs:
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
         env:
           AWS_REGION: us-east-1
+
+      - name: Verify aleph-node image existance
+        env:
+          IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+        run: |
+          export image_not_exist=$(docker manifest inspect ${{ env.IMAGE }} &> /dev/null ; echo $?)
+          if [ $image_not_exist -eq 1 ]; then
+            echo "::error title=Wrong docker image tag::Docker image ${{ env.IMAGE }} doesn't exist"
+            exit 1
+          fi
           
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
@@ -92,5 +102,5 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_USERNAME: GithubActions
-          SLACK_TITLE: deploy-testnet job has finished
+          SLACK_TITLE: deploy-mainnet job has finished
           MSG_MINIMAL: actions url
