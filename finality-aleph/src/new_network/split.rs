@@ -7,12 +7,7 @@ use codec::{Decode, Encode};
 use futures::channel::mpsc;
 use log::warn;
 use std::{marker::PhantomData, sync::Arc};
-use tokio::{
-    sync::Mutex,
-    time::{interval, Duration},
-};
-
-const MAXIMUM_RETRY_MS: u64 = 500;
+use tokio::sync::Mutex;
 
 /// Used for routing data through split networks.
 #[derive(Clone, Encode, Decode)]
@@ -81,27 +76,20 @@ async fn forward_or_wait<
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
 ) {
-    match receiver.try_lock().ok() {
-        Some(mut receiver) => match receiver.next().await {
-            Some(Split::Left(data)) => {
-                if left_sender.unbounded_send(data).is_err() {
-                    warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
-                }
+    match receiver.lock().await.next().await {
+        Some(Split::Left(data)) => {
+            if left_sender.unbounded_send(data).is_err() {
+                warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
-            Some(Split::Right(data)) => {
-                if right_sender.unbounded_send(data).is_err() {
-                    warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
-                }
+        }
+        Some(Split::Right(data)) => {
+            if right_sender.unbounded_send(data).is_err() {
+                warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
-            None => {
-                left_sender.close_channel();
-                right_sender.close_channel();
-            }
-        },
+        }
         None => {
-            interval(Duration::from_millis(MAXIMUM_RETRY_MS))
-                .tick()
-                .await;
+            left_sender.close_channel();
+            right_sender.close_channel();
         }
     }
 }
