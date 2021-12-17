@@ -13,57 +13,70 @@ const MAXIMUM_RETRY_MS: u64 = 500;
 
 /// Used for routing data through split networks.
 #[derive(Clone, Encode, Decode)]
-pub enum Split<D1: Data, D2: Data> {
-    Left(D1),
-    Right(D2),
+pub enum Split<LeftData: Data, RightData: Data> {
+    Left(LeftData),
+    Right(RightData),
 }
 
 #[derive(Clone)]
-struct LeftSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
+struct LeftSender<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>> {
     sender: S,
-    phantom: PhantomData<(D1, D2)>,
+    phantom: PhantomData<(LeftData, RightData)>,
 }
 
-impl<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> SenderComponent<D1>
-    for LeftSender<D1, D2, S>
+impl<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>>
+    SenderComponent<LeftData> for LeftSender<LeftData, RightData, S>
 {
-    fn send(&self, data: D1, recipient: Recipient) -> Result<(), SendError> {
+    fn send(&self, data: LeftData, recipient: Recipient) -> Result<(), SendError> {
         self.sender.send(Split::Left(data), recipient)
     }
 }
 
 #[derive(Clone)]
-struct RightSender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> {
+struct RightSender<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>>
+{
     sender: S,
-    phantom: PhantomData<(D1, D2)>,
+    phantom: PhantomData<(LeftData, RightData)>,
 }
 
-impl<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>> SenderComponent<D2>
-    for RightSender<D1, D2, S>
+impl<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>>
+    SenderComponent<RightData> for RightSender<LeftData, RightData, S>
 {
-    fn send(&self, data: D2, recipient: Recipient) -> Result<(), SendError> {
+    fn send(&self, data: RightData, recipient: Recipient) -> Result<(), SendError> {
         self.sender.send(Split::Right(data), recipient)
     }
 }
 
-struct LeftReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
+struct LeftReceiver<
+    LeftData: Data,
+    RightData: Data,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
+> {
     receiver: Arc<Mutex<R>>,
-    translated_receiver: mpsc::UnboundedReceiver<D1>,
-    left_sender: mpsc::UnboundedSender<D1>,
-    right_sender: mpsc::UnboundedSender<D2>,
+    translated_receiver: mpsc::UnboundedReceiver<LeftData>,
+    left_sender: mpsc::UnboundedSender<LeftData>,
+    right_sender: mpsc::UnboundedSender<RightData>,
 }
 
-struct RightReceiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> {
+struct RightReceiver<
+    LeftData: Data,
+    RightData: Data,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
+> {
     receiver: Arc<Mutex<R>>,
-    translated_receiver: mpsc::UnboundedReceiver<D2>,
-    left_sender: mpsc::UnboundedSender<D1>,
-    right_sender: mpsc::UnboundedSender<D2>,
+    translated_receiver: mpsc::UnboundedReceiver<RightData>,
+    left_sender: mpsc::UnboundedSender<LeftData>,
+    right_sender: mpsc::UnboundedSender<RightData>,
 }
 
-async fn forward_or_wait<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>>(
+async fn forward_or_wait<
+    LeftData: Data,
+    RightData: Data,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
+>(
     receiver: &Arc<Mutex<R>>,
-    left_sender: &mpsc::UnboundedSender<D1>,
-    right_sender: &mpsc::UnboundedSender<D2>,
+    left_sender: &mpsc::UnboundedSender<LeftData>,
+    right_sender: &mpsc::UnboundedSender<RightData>,
 ) {
     match receiver.try_lock().ok() {
         Some(mut receiver) => match receiver.next().await {
@@ -91,10 +104,10 @@ async fn forward_or_wait<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>
 }
 
 #[async_trait::async_trait]
-impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<D1>
-    for LeftReceiver<D1, D2, R>
+impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, RightData>>>
+    ReceiverComponent<LeftData> for LeftReceiver<LeftData, RightData, R>
 {
-    async fn next(&mut self) -> Option<D1> {
+    async fn next(&mut self) -> Option<LeftData> {
         loop {
             tokio::select! {
                 data = self.translated_receiver.next() => return data,
@@ -105,10 +118,10 @@ impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<
 }
 
 #[async_trait::async_trait]
-impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<D2>
-    for RightReceiver<D1, D2, R>
+impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, RightData>>>
+    ReceiverComponent<RightData> for RightReceiver<LeftData, RightData, R>
 {
-    async fn next(&mut self) -> Option<D2> {
+    async fn next(&mut self) -> Option<RightData> {
         loop {
             tokio::select! {
                 data = self.translated_receiver.next() => return data,
@@ -119,24 +132,24 @@ impl<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>> ReceiverComponent<
 }
 
 struct LeftNetwork<
-    D1: Data,
-    D2: Data,
-    S: SenderComponent<Split<D1, D2>>,
-    R: ReceiverComponent<Split<D1, D2>>,
+    LeftData: Data,
+    RightData: Data,
+    S: SenderComponent<Split<LeftData, RightData>>,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
 > {
-    sender: LeftSender<D1, D2, S>,
-    receiver: Arc<Mutex<LeftReceiver<D1, D2, R>>>,
+    sender: LeftSender<LeftData, RightData, S>,
+    receiver: Arc<Mutex<LeftReceiver<LeftData, RightData, R>>>,
 }
 
 impl<
-        D1: Data,
-        D2: Data,
-        S: SenderComponent<Split<D1, D2>>,
-        R: ReceiverComponent<Split<D1, D2>>,
-    > ComponentNetwork<D1> for LeftNetwork<D1, D2, S, R>
+        LeftData: Data,
+        RightData: Data,
+        S: SenderComponent<Split<LeftData, RightData>>,
+        R: ReceiverComponent<Split<LeftData, RightData>>,
+    > ComponentNetwork<LeftData> for LeftNetwork<LeftData, RightData, S, R>
 {
-    type S = LeftSender<D1, D2, S>;
-    type R = LeftReceiver<D1, D2, R>;
+    type S = LeftSender<LeftData, RightData, S>;
+    type R = LeftReceiver<LeftData, RightData, R>;
     fn sender(&self) -> &Self::S {
         &self.sender
     }
@@ -146,24 +159,24 @@ impl<
 }
 
 struct RightNetwork<
-    D1: Data,
-    D2: Data,
-    S: SenderComponent<Split<D1, D2>>,
-    R: ReceiverComponent<Split<D1, D2>>,
+    LeftData: Data,
+    RightData: Data,
+    S: SenderComponent<Split<LeftData, RightData>>,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
 > {
-    sender: RightSender<D1, D2, S>,
-    receiver: Arc<Mutex<RightReceiver<D1, D2, R>>>,
+    sender: RightSender<LeftData, RightData, S>,
+    receiver: Arc<Mutex<RightReceiver<LeftData, RightData, R>>>,
 }
 
 impl<
-        D1: Data,
-        D2: Data,
-        S: SenderComponent<Split<D1, D2>>,
-        R: ReceiverComponent<Split<D1, D2>>,
-    > ComponentNetwork<D2> for RightNetwork<D1, D2, S, R>
+        LeftData: Data,
+        RightData: Data,
+        S: SenderComponent<Split<LeftData, RightData>>,
+        R: ReceiverComponent<Split<LeftData, RightData>>,
+    > ComponentNetwork<RightData> for RightNetwork<LeftData, RightData, S, R>
 {
-    type S = RightSender<D1, D2, S>;
-    type R = RightReceiver<D1, D2, R>;
+    type S = RightSender<LeftData, RightData, S>;
+    type R = RightReceiver<LeftData, RightData, R>;
     fn sender(&self) -> &Self::S {
         &self.sender
     }
@@ -172,9 +185,12 @@ impl<
     }
 }
 
-fn split_sender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>>(
+fn split_sender<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>>(
     sender: &S,
-) -> (LeftSender<D1, D2, S>, RightSender<D1, D2, S>) {
+) -> (
+    LeftSender<LeftData, RightData, S>,
+    RightSender<LeftData, RightData, S>,
+) {
     (
         LeftSender {
             sender: sender.clone(),
@@ -187,9 +203,16 @@ fn split_sender<D1: Data, D2: Data, S: SenderComponent<Split<D1, D2>>>(
     )
 }
 
-fn split_receiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>>(
+fn split_receiver<
+    LeftData: Data,
+    RightData: Data,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
+>(
     receiver: Arc<Mutex<R>>,
-) -> (LeftReceiver<D1, D2, R>, RightReceiver<D1, D2, R>) {
+) -> (
+    LeftReceiver<LeftData, RightData, R>,
+    RightReceiver<LeftData, RightData, R>,
+) {
     let (left_sender, left_receiver) = mpsc::unbounded();
     let (right_sender, right_receiver) = mpsc::unbounded();
     (
@@ -211,11 +234,18 @@ fn split_receiver<D1: Data, D2: Data, R: ReceiverComponent<Split<D1, D2>>>(
 /// Split a single component network into two separate ones. This way multiple components can send
 /// data to the same underlying session not knowing what types of data the other ones use.
 ///
+/// Internally the returned networks compete for data returned by their parent network when
+/// `next()` is polled, and unpack it to two separate channels. At the same time each polls
+/// the end of those channels which contains the type that it is supposed to return.
+///
 /// The main example for now is creating an `aleph_bft::Network` and a separate one for accumulating
 /// signatures for justifications.
-pub fn split<D1: Data, D2: Data, CN: ComponentNetwork<Split<D1, D2>>>(
+pub fn split<LeftData: Data, RightData: Data, CN: ComponentNetwork<Split<LeftData, RightData>>>(
     network: CN,
-) -> (impl ComponentNetwork<D1>, impl ComponentNetwork<D2>) {
+) -> (
+    impl ComponentNetwork<LeftData>,
+    impl ComponentNetwork<RightData>,
+) {
     let (left_sender, right_sender) = split_sender(network.sender());
     let (left_receiver, right_receiver) = split_receiver(network.receiver());
     (
