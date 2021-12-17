@@ -31,6 +31,10 @@ pub struct Config {
     /// number of threads spawn during the flooding process
     #[clap(long)]
     pub threads: Option<u64>,
+
+    /// allows to download nonces instead of using zeros for each account
+    #[clap(long)]
+    pub download_nonces: bool,
 }
 
 pub fn read_phrase(phrase: String) -> String {

@@ -89,14 +89,15 @@ fn main() -> Result<(), anyhow::Error> {
             &accounts,
             total_amount,
         );
+        debug!("all accounts have received funds");
     }
-
-    let nonces = accounts
-        .iter()
-        .map(|account| get_nonce(&connection, &AccountId::from(account.public())))
-        .collect();
-
-    debug!("all accounts have received funds");
+    let nonces: Vec<_> = match config.download_nonces {
+        false => repeat(0).take(accounts.len()).collect(),
+        true => accounts
+            .par_iter()
+            .map(|account| get_nonce(&connection, &AccountId::from(account.public())))
+            .collect(),
+    };
 
     let receiver = accounts
         .first()
