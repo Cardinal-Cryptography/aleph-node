@@ -98,13 +98,13 @@ fn main() -> Result<(), anyhow::Error> {
 
     debug!("all accounts have received funds");
 
-    let reciever = accounts
+    let receiver = accounts
         .first()
         .expect("we should be using some accounts for this test, but the list is empty")
         .clone();
     let txs = sign_transactions(
         &connection,
-        reciever,
+        receiver,
         (accounts, nonces),
         config.transactions,
         transfer_amount,
