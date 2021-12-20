@@ -118,7 +118,7 @@ fn main() -> Result<(), anyhow::Error> {
     let tick = Instant::now();
 
     thread_pool.install(|| {
-        flood(pool, txs, threads, &histogram);
+        flood(&pool, txs, threads, &histogram);
     });
 
     let tock = tick.elapsed().as_millis();
@@ -137,7 +137,7 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn flood(
-    pool: Vec<Api<sr25519::Pair, WsRpcClient>>,
+    pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: Vec<TransferTransaction>,
     num_threads: usize,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
@@ -147,8 +147,8 @@ fn flood(
         println!("Sending a batch of {} transactions", &batch.len());
         batch.iter().enumerate().for_each(|(index, tx)| {
             send_tx(
-                pool.get(index % pool.len()).unwrap().to_owned(),
-                tx.to_owned(),
+                pool.get(index % pool.len()).unwrap(),
+                tx,
                 Arc::clone(histogram),
             )
         })
@@ -314,8 +314,8 @@ fn derive_user_account(seed: u64) -> sr25519::Pair {
 }
 
 fn send_tx<Call>(
-    connection: Api<sr25519::Pair, WsRpcClient>,
-    tx: UncheckedExtrinsicV4<Call>,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
+    tx: &UncheckedExtrinsicV4<Call>,
     histogram: Arc<Mutex<HdrHistogram<u64>>>,
 ) where
     Call: Encode,
