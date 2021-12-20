@@ -192,12 +192,12 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn flood<'a>(
+fn flood(
     pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
-    txs.enumerate().for_each(|(ix, tx)| {
+    txs.enumerate().into_par_iter().for_each(|(ix, tx)| {
         let api = pool.get(ix % pool.len()).unwrap();
         send_tx(api, &tx, Arc::clone(histogram));
     });
