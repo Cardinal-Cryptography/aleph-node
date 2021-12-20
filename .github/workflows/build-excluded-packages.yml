@@ -28,6 +28,9 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
 
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
+
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
         uses: SebRollen/toml-action@v1.0.0
