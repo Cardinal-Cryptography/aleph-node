@@ -57,6 +57,10 @@ fn main() -> Result<(), anyhow::Error> {
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
     let transfer_amount = 1u128;
+    let tx_status = match config.submit_only {
+        true => XtStatus::SubmitOnly,
+        false => XtStatus::Ready,
+    };
 
     info!(
         "initializing thread pool: {}ms",
@@ -196,7 +200,7 @@ fn main() -> Result<(), anyhow::Error> {
         );
         let tick = Instant::now();
 
-        flood(&pool, txs.into_par_iter(), &histogram);
+        flood(&pool, txs.into_par_iter(), tx_status, &histogram);
 
         let tock = tick.elapsed().as_millis();
         let histogram = histogram.lock().unwrap();
@@ -217,11 +221,12 @@ fn main() -> Result<(), anyhow::Error> {
 fn flood(
     pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
+    status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
     txs.enumerate().into_par_iter().for_each(|(ix, tx)| {
         let api = pool.get(ix % pool.len()).unwrap();
-        send_tx(api, &tx, XtStatus::SubmitOnly, Arc::clone(histogram));
+        send_tx(api, &tx, status, Arc::clone(histogram));
     });
 }
 
