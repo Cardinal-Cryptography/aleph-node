@@ -1,14 +1,19 @@
-#!/usr/bin/env python
+#!/bin/env python
 
 import subprocess
 from os.path import join
 from time import sleep
 from chainrunner import Chain, Seq, generate_keys
 
+# Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = '/tmp/workdir'
+# Path to the pre-update aleph-node binary:
 oldbin = join(workdir,'aleph-node-old')
+# Path to the post-update aleph-node binary:
 newbin = join(workdir,'aleph-node-new')
+# Path to the post-update compiled runtime:
 runtime = join(workdir,'aleph_runtime.compact.wasm')
+# Path to the send-runtime binary (which lives in aleph-node/local-tests/send-runtime):
 send_runtime = 'send-runtime/target/release/send_runtime'
 
 def query_runtime_version(chain):
