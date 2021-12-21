@@ -12,5 +12,5 @@ exclude = [
   "flooder",
   "e2e-tests",
   "common",
-  "local-tests"
+  "local-tests/send-runtime"
 ]
