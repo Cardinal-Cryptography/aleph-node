@@ -59,7 +59,7 @@ fn main() -> Result<(), anyhow::Error> {
     let transfer_amount = 1u128;
 
     println!(
-        "initializing thread pool: {}",
+        "initializing thread pool: {}ms",
         time_stats.elapsed().as_millis()
     );
     let mut thread_pool_builder = rayon::ThreadPoolBuilder::new();
@@ -70,33 +70,52 @@ fn main() -> Result<(), anyhow::Error> {
     let thread_pool = thread_pool_builder.build().expect("thread pool created");
 
     println!(
-        "thread pool initialized: {}",
+        "thread pool initialized: {}ms",
         time_stats.elapsed().as_millis()
     );
 
     thread_pool.install(|| {
+        println!(
+            "deriving accounts: {}ms",
+            time_stats.elapsed().as_millis()
+        );
+
         let accounts = (first_account_in_range..first_account_in_range + total_users)
             .into_par_iter()
             .map(derive_user_account)
             .collect();
 
+        println!(
+            "accounts derived: {}ms",
+            time_stats.elapsed().as_millis()
+        );
+
         if initialize_accounts_flag {
             let account = account();
-            info!(
-                "Using account {} to derive and fund accounts",
-                &account.public()
-            );
             let source_account_id = AccountId::from(account.public());
-            let source_account_nonce = get_nonce(&connection, &source_account_id);
+
             println!(
-                "source-nonce downloaded: {}",
+                "downloading source-nonce: {}ms",
                 time_stats.elapsed().as_millis()
             );
+
+            let source_account_nonce = get_nonce(&connection, &source_account_id);
+
+            println!(
+                "source-nonce downloaded: {}ms",
+                time_stats.elapsed().as_millis()
+            );
+
+            println!(
+                "estimating required amount: {}ms",
+                time_stats.elapsed().as_millis()
+            );
+
             let total_amount =
                 estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
 
             println!(
-                "amount estimated: {}",
+                "amount estimated: {}ms",
                 time_stats.elapsed().as_millis()
             );
 
@@ -107,7 +126,7 @@ fn main() -> Result<(), anyhow::Error> {
             );
 
             println!(
-                "initializing accounts: {}",
+                "initializing accounts: {}ms",
                 time_stats.elapsed().as_millis()
             );
 
@@ -120,7 +139,7 @@ fn main() -> Result<(), anyhow::Error> {
             );
 
             println!(
-                "accounts initialized: {}",
+                "accounts initialized: {}ms",
                 time_stats.elapsed().as_millis()
             );
 
@@ -128,9 +147,10 @@ fn main() -> Result<(), anyhow::Error> {
         }
 
         println!(
-            "initializing nonces: {}",
+            "initializing nonces: {}ms",
             time_stats.elapsed().as_millis()
         );
+
         let nonces: Vec<_> = match config.download_nonces {
             false => repeat(0).take(accounts.len()).collect(),
             true => accounts
@@ -138,8 +158,9 @@ fn main() -> Result<(), anyhow::Error> {
                 .map(|account| get_nonce(&connection, &AccountId::from(account.public())))
                 .collect(),
         };
+
         println!(
-            "nonces initialized: {}",
+            "nonces initialized: {}ms",
             time_stats.elapsed().as_millis()
         );
 
@@ -149,9 +170,10 @@ fn main() -> Result<(), anyhow::Error> {
             .clone();
 
         println!(
-            "signing transactions: {}",
+            "signing transactions: {}ms",
             time_stats.elapsed().as_millis()
         );
+
         let txs: Vec<_> = sign_transactions(
             connection.clone(),
             receiver,
@@ -160,7 +182,7 @@ fn main() -> Result<(), anyhow::Error> {
         ).collect();
 
         println!(
-            "transactions signed: {}",
+            "transactions signed: {}ms",
             time_stats.elapsed().as_millis()
         );
 
@@ -169,7 +191,7 @@ fn main() -> Result<(), anyhow::Error> {
         ));
 
         println!(
-            "flooding: {}",
+            "flooding: {}ms",
             time_stats.elapsed().as_millis()
         );
         let tick = Instant::now();
