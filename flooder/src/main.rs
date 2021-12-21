@@ -149,6 +149,7 @@ fn flood(
             send_tx(
                 pool.get(index % pool.len()).unwrap(),
                 tx,
+                XtStatus::SubmitOnly,
                 Arc::clone(histogram),
             )
         })
@@ -316,6 +317,7 @@ fn derive_user_account(seed: u64) -> sr25519::Pair {
 fn send_tx<Call>(
     connection: &Api<sr25519::Pair, WsRpcClient>,
     tx: &UncheckedExtrinsicV4<Call>,
+    status: XtStatus,
     histogram: Arc<Mutex<HdrHistogram<u64>>>,
 ) where
     Call: Encode,
@@ -323,7 +325,7 @@ fn send_tx<Call>(
     let start_time = Instant::now();
 
     connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Ready)
+        .send_extrinsic(tx.hex_encode(), status)
         .expect("Could not send transaction");
 
     let elapsed_time = start_time.elapsed().as_millis();
