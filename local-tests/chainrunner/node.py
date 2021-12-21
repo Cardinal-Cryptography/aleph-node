@@ -7,14 +7,18 @@ import subprocess
 
 from .utils import flags_from_dict
 
-class node:
-    """A class representing a single node of a running blockchain."""
+class Node:
+    """A class representing a single node of a running blockchain.
+    `binary` should be a path to a file with aleph-node binary.
+    `chainspec` should be a path to a file with chainspec,
+    `path` should point to a folder where the node's base path is."""
     def __init__(self, binary, chainspec, path, logdir=None):
         self.chainspec = chainspec
         self.binary = binary
         self.path = path
         self.logdir = logdir or path
         self.logfile = None
+        self.process = None
         self.flags = {}
         self.running = False
 
@@ -33,8 +37,9 @@ class node:
 
     def stop(self):
         """Stop the node by sending SIGKILL."""
-        self.process.kill()
-        self.running = False
+        if self.running:
+            self.process.kill()
+            self.running = False
 
 
     def purge(self):
@@ -44,27 +49,26 @@ class node:
 
 
     def greplog(self, regexp):
-        """Find in the logs all occurences of the given regexp. Returns a list of matches."""
-        if self.logfile:
-            p = re.compile(regexp)
-            with open(self.logfile) as f:
-                log = f.read()
-            return p.findall(log)
-        return []
+        """Find in the logs all occurrences of the given regexp. Returns a list of matches."""
+        if not self.logfile: return []
+        p = re.compile(regexp)
+        with open(self.logfile) as f:
+            log = f.read()
+        return p.findall(log)
 
 
     def highest_block(self):
         """Find in the logs the height of the most recent block.
         Returns two ints: highest block and highest finalized block."""
-        results = self.greplog('best: #(\d+) .+ finalized #(\d+)')
+        results = self.greplog(r'best: #(\d+) .+ finalized #(\d+)')
         if results:
             a,b = results[-1]
-            return (int(a), int(b))
-        return (-1,-1)
+            return int(a), int(b)
+        return -1,-1
 
 
     def state(self, block=None):
-        """Return a json repesentation of the chain state after the given block.
+        """Return a JSON representation of the chain state after the given block.
         If `block` is `None`, the most recent state is returned.
         Node must not be running, empty result is returned if called on a running node."""
         if self.running:

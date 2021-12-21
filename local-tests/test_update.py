@@ -3,7 +3,13 @@
 import subprocess
 from os.path import join
 from time import sleep
-from chainrunner import Chain, Seq, Generate_keys
+from chainrunner import Chain, Seq, generate_keys
+
+workdir = '/tmp/workdir'
+oldbin = join(workdir,'aleph-node-old')
+newbin = join(workdir,'aleph-node-new')
+runtime = join(workdir,'aleph_runtime.compact.wasm')
+send_runtime = 'send-runtime/target/release/send_runtime'
 
 def query_runtime_version(chain):
     print('Current version:')
@@ -19,14 +25,8 @@ def check_highest(chain):
     print('  Highest:   ', *highest)
     print('  Finalized: ', *finalized)
 
-workdir = '/tmp/workdir'
-oldbin = join(workdir,'aleph-node-old')
-newbin = join(workdir,'aleph-node-new')
-runtime = join(workdir,'aleph_runtime.compact.wasm')
-send_runtime = 'send-runtime/target/release/send_runtime'
-
 phrases = ['//Cartman','//Stan','//Kyle','//Kenny']
-keys = Generate_keys(newbin, phrases)
+keys = generate_keys(newbin, phrases)
 
 chain = Chain(workdir)
 print('Bootstraping the chain with old binary')

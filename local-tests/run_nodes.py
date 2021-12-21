@@ -6,19 +6,20 @@
 # using an interactive environment (Python console, Jupyter notebook etc.)
 
 from time import sleep
-from chainrunner import Chain, Seq, Generate_keys
+from chainrunner import Chain, Seq, generate_keys
 
 nodes = 4
 workdir = '.'
 binary = '../target/release/aleph-node'
 
 phrases = ['//Alice','//Bob','//Cedric','//Dick', '//Ezekiel', '//Fanny', '//George', '//Hugo']
-keys_dict = Generate_keys(binary, phrases)
+keys_dict = generate_keys(binary, phrases)
 keys = list(keys_dict.values())
+nodes = min(nodes, len(phrases))
 
 chain = Chain(workdir)
 
-print(f'Bootstraping chain for {nodes} nodes')
+print(f'Bootstrapping chain for {nodes} nodes')
 chain.bootstrap(binary, keys[:nodes], chain_type='local', millisecs_per_block=2000, session_period=40)
 chain.set_flags('validator', port=Seq(30334), ws_port=Seq(9944), rpc_port=Seq(9933), unit_creation_delay=200, execution='Native')
 

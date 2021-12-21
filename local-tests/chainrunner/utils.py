@@ -4,23 +4,27 @@ import subprocess
 from collections import OrderedDict
 
 
-def Generate_keys(binary, phrases):
+def generate_keys(binary, phrases):
     """Generate public keys based on the list of seed phrases.
     `binary` should be a path to some `aleph-node` binary. `phrases` should be a list of strings.
     Returns an ordered dictionary with phrases as keys and corresponding public keys as values.
     The order follows the order in `phrases`.
     """
-    if not op.isfile(binary):
-        raise FileNotFoundError(f'file not found: {binary}')
-
-    regexp = re.compile('SS58 Address:\s*(\w+)$', re.MULTILINE)
-
+    check_file(binary)
+    regexp = re.compile(r'SS58 Address:\s*(\w+)$', re.MULTILINE)
     res = OrderedDict()
     for p in phrases:
         out = subprocess.check_output([binary, 'key', 'inspect', p]).decode()
         matches = regexp.findall(out)
         res[p] = matches[0] if matches else None
     return res
+
+
+def check_file(path):
+    """Ensure the provided path points to an existing file."""
+    if not op.isfile(path):
+        raise FileNotFoundError(f'file not found: {path}')
+    return path
 
 
 def flag(s):

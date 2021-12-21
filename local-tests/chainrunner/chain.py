@@ -2,8 +2,8 @@ import os
 import os.path as op
 import subprocess
 
-from .node import node
-from .utils import flags_from_dict
+from .node import Node
+from .utils import flags_from_dict, check_file
 
 
 # Type alias for int
@@ -15,11 +15,9 @@ class Chain:
     The constructor takes only one argument - a path to a directory with the workspace.
     All other parameters are adjusted with `bootstrap()` and `set_flags()`."""
     def __init__(self, workdir):
-        if not op.exists(workdir):
-            os.makedirs(workdir)
-        if not op.isdir(workdir):
-            raise OSError("given path is not a directory")
+        os.makedirs(workdir, exist_ok=True)
         self.path = op.abspath(workdir)
+        self.nodes = []
 
 
     def __getitem__(self, i):
@@ -34,9 +32,7 @@ class Chain:
         """Bootstrap the chain. `accounts` should be a list of strings.
         Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
-        if not op.isfile(binary):
-            raise FileNotFoundError(f'file not found: {binary}')
-        cmd = [binary, 'bootstrap-chain', '--base-path', self.path, '--account-ids', ','.join(accounts), '--raw']
+        cmd = [check_file(binary), 'bootstrap-chain', '--base-path', self.path, '--account-ids', ','.join(accounts), '--raw']
         cmd += flags_from_dict(kwargs)
 
         chainspec = op.join(self.path, 'chainspec.json')
@@ -45,7 +41,7 @@ class Chain:
 
         self.nodes = []
         for a in accounts:
-            n = node(binary, chainspec, op.join(self.path, a), self.path)
+            n = Node(binary, chainspec, op.join(self.path, a), self.path)
             n.flags['node-key-file'] = op.join(self.path, a, 'p2p_secret')
             self.nodes.append(n)
 
@@ -65,7 +61,7 @@ class Chain:
 
     def set_binary(self, binary, nodes=None):
         """Replace nodes' binary with `binary`. Optional `nodes` argument can be used to specify
-        which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if ommitted."""
+        which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
         if not op.isfile(binary):
             raise FileNotFoundError(f'file not found: {binary}')
         idx = nodes or range(len(self.nodes))
@@ -75,7 +71,7 @@ class Chain:
 
     def set_chainspec(self, chainspec, nodes=None):
         """Replace nodes' chainspec with `chainspec`. Optional `nodes` argument can be used to specify
-        which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if ommitted."""
+        which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
         if not op.isfile(chainspec):
             raise FileNotFoundError(f'file not found: {chainspec}')
         idx = nodes or range(len(self.nodes))
@@ -86,7 +82,7 @@ class Chain:
     def start(self, name, nodes=None):
         """Start the chain. `name` will be used to name logfiles: name0.log, name1.log etc.
         Optional `nodes` argument can be used to specify which nodes are affected and should be
-        a list of integer indices (0..N-1). Affects all nodes if ommitted."""
+        a list of integer indices (0..N-1). Affects all nodes if omitted."""
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].start(name+str(i))
@@ -94,7 +90,7 @@ class Chain:
 
     def stop(self, nodes=None):
         """Stop the chain. Optional `nodes` argument can be used to specify which nodes are affected
-        and should be a list of integer indices (0..N-1). Affects all nodes if ommitted."""
+        and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].stop()
@@ -102,7 +98,7 @@ class Chain:
 
     def purge(self, nodes=None):
         """Delete the database of the chosen nodes. Optional `nodes` argument can be used to specify which
-        nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if ommitted."""
+        nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].purge()
