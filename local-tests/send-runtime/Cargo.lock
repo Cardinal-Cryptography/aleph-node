@@ -319,6 +319,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "sp-core",
+ "substrate-api-client",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1927,6 +1936,7 @@ dependencies = [
 name = "send_runtime"
 version = "0.1.0"
 dependencies = [
+ "common",
  "sp-core",
  "structopt",
  "substrate-api-client",

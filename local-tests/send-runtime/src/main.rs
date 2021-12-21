@@ -1,9 +1,10 @@
 // A minimal tool for sending a setCode extrinsic to some node.
 
+use common::create_connection;
 use sp_core::{sr25519, Pair};
-use std::{fs, io::Read};
+use std::fs;
 use structopt::StructOpt;
-use substrate_api_client::{compose_call, compose_extrinsic, rpc::WsRpcClient, Api, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -27,7 +28,7 @@ struct Args {
 fn main() {
     let args = Args::from_args();
 
-    let runtime = read_file(&args.runtime);
+    let runtime = fs::read(args.runtime).expect("File not found");
     let sudo = keypair_from_string(&args.sudo_phrase);
     let connection = create_connection(args.url).set_signer(sudo);
 
@@ -37,21 +38,6 @@ fn main() {
     connection
         .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
         .expect("Could not send extrinsic");
-}
-
-fn create_connection(url: String) -> Api<sr25519::Pair, WsRpcClient> {
-    let client = WsRpcClient::new(&format!("ws://{}", url));
-    Api::<sr25519::Pair, _>::new(client)
-        .expect(&format!("Could not establish connection with {}", url))
-}
-
-fn read_file(filename: &String) -> Vec<u8> {
-    let mut f = fs::File::open(&filename).expect("no file found");
-    let metadata = fs::metadata(&filename).expect("unable to read metadata");
-    let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer).expect("buffer overflow");
-
-    buffer
 }
 
 fn keypair_from_string(seed: &String) -> sr25519::Pair {
