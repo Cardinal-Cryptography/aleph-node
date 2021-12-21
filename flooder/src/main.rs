@@ -55,6 +55,10 @@ fn main() -> Result<(), anyhow::Error> {
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
     let transfer_amount = 1u128;
+    let tx_status = match config.submit_only {
+        true => XtStatus::SubmitOnly,
+        false => XtStatus::Ready,
+    };
     let mut thread_pool_builder = rayon::ThreadPoolBuilder::new();
     if let Some(threads) = config.threads {
         let threads = threads.try_into().expect("threads within usize range");
@@ -118,7 +122,7 @@ fn main() -> Result<(), anyhow::Error> {
     let tick = Instant::now();
 
     thread_pool.install(|| {
-        flood(&pool, txs, threads, &histogram);
+        flood(&pool, txs, threads, tx_status, &histogram);
     });
 
     let tock = tick.elapsed().as_millis();
@@ -140,6 +144,7 @@ fn flood(
     pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
     txs: Vec<TransferTransaction>,
     num_threads: usize,
+    status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
 ) {
     let transactions_per_batch = txs.len() / num_threads;
@@ -149,7 +154,7 @@ fn flood(
             send_tx(
                 pool.get(index % pool.len()).unwrap(),
                 tx,
-                XtStatus::SubmitOnly,
+                status,
                 Arc::clone(histogram),
             )
         })

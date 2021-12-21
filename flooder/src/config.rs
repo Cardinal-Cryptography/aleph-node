@@ -35,6 +35,10 @@ pub struct Config {
     /// allows to download nonces instead of using zeros for each account
     #[clap(long)]
     pub download_nonces: bool,
+
+    /// changes the awaited status of every transaction from Ready to SubmitOnly
+    #[clap(long)]
+    pub submit_only: bool,
 }
 
 pub fn read_phrase(phrase: String) -> String {
