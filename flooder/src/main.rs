@@ -58,7 +58,7 @@ fn main() -> Result<(), anyhow::Error> {
     let first_account_in_range = config.first_account_in_range;
     let transfer_amount = 1u128;
 
-    println!(
+    info!(
         "initializing thread pool: {}ms",
         time_stats.elapsed().as_millis()
     );
@@ -69,13 +69,13 @@ fn main() -> Result<(), anyhow::Error> {
     }
     let thread_pool = thread_pool_builder.build().expect("thread pool created");
 
-    println!(
+    info!(
         "thread pool initialized: {}ms",
         time_stats.elapsed().as_millis()
     );
 
     thread_pool.install(|| {
-        println!(
+        info!(
             "deriving accounts: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -85,7 +85,7 @@ fn main() -> Result<(), anyhow::Error> {
             .map(derive_user_account)
             .collect();
 
-        println!(
+        info!(
             "accounts derived: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -94,19 +94,19 @@ fn main() -> Result<(), anyhow::Error> {
             let account = account();
             let source_account_id = AccountId::from(account.public());
 
-            println!(
+            info!(
                 "downloading source-nonce: {}ms",
                 time_stats.elapsed().as_millis()
             );
 
             let source_account_nonce = get_nonce(&connection, &source_account_id);
 
-            println!(
+            info!(
                 "source-nonce downloaded: {}ms",
                 time_stats.elapsed().as_millis()
             );
 
-            println!(
+            info!(
                 "estimating required amount: {}ms",
                 time_stats.elapsed().as_millis()
             );
@@ -114,7 +114,7 @@ fn main() -> Result<(), anyhow::Error> {
             let total_amount =
                 estimate_amount(&connection, &account, source_account_nonce, transfer_amount);
 
-            println!(
+            info!(
                 "amount estimated: {}ms",
                 time_stats.elapsed().as_millis()
             );
@@ -125,7 +125,7 @@ fn main() -> Result<(), anyhow::Error> {
                 "Account is too poor"
             );
 
-            println!(
+            info!(
                 "initializing accounts: {}ms",
                 time_stats.elapsed().as_millis()
             );
@@ -138,7 +138,7 @@ fn main() -> Result<(), anyhow::Error> {
                 total_amount,
             );
 
-            println!(
+            info!(
                 "accounts initialized: {}ms",
                 time_stats.elapsed().as_millis()
             );
@@ -146,7 +146,7 @@ fn main() -> Result<(), anyhow::Error> {
             debug!("all accounts have received funds");
         }
 
-        println!(
+        info!(
             "initializing nonces: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -159,7 +159,7 @@ fn main() -> Result<(), anyhow::Error> {
                 .collect(),
         };
 
-        println!(
+        info!(
             "nonces initialized: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -169,7 +169,7 @@ fn main() -> Result<(), anyhow::Error> {
             .expect("we should be some accounts available for this test, but the list is empty")
             .clone();
 
-        println!(
+        info!(
             "signing transactions: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -181,7 +181,7 @@ fn main() -> Result<(), anyhow::Error> {
             transfer_amount,
         ).collect();
 
-        println!(
+        info!(
             "transactions signed: {}ms",
             time_stats.elapsed().as_millis()
         );
@@ -190,7 +190,7 @@ fn main() -> Result<(), anyhow::Error> {
             HdrHistogram::<u64>::new_with_bounds(1, u64::MAX, 3).unwrap(),
         ));
 
-        println!(
+        info!(
             "flooding: {}ms",
             time_stats.elapsed().as_millis()
         );
