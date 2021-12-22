@@ -1,11 +1,13 @@
 import json
 import os.path as op
 import re
-import requests
-import jsonrpcclient as rpc
 import subprocess
 
+import jsonrpcclient as rpc
+import requests
+
 from .utils import flags_from_dict
+
 
 class Node:
     """A class representing a single node of a running blockchain.
@@ -31,7 +33,9 @@ class Node:
         """Start the node. `name` is used to name of the logfile and for --name flag."""
         cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
         self.logfile = op.join(self.logdir, name+'.log')
-        self.process = subprocess.Popen(cmd, stderr=open(self.logfile, 'w'), stdout=subprocess.DEVNULL)
+        with open(self.logfile, 'w', encoding='utf-8') as logfile:
+            # pylint: disable=consider-using-with
+            self.process = subprocess.Popen(cmd, stderr=logfile, stdout=subprocess.DEVNULL)
         self.running = True
 
 
@@ -45,13 +49,14 @@ class Node:
     def purge(self):
         """Purge chain (delete the database of the node)."""
         cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
-        subprocess.run(cmd, stdout=subprocess.DEVNULL).check_returncode()
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
 
     def greplog(self, regexp):
         """Find in the logs all occurrences of the given regexp. Returns a list of matches."""
-        if not self.logfile: return []
-        with open(self.logfile) as f:
+        if not self.logfile:
+            return []
+        with open(self.logfile, encoding='utf-8') as f:
             log = f.read()
         return re.findall(regexp, log)
 
@@ -76,8 +81,7 @@ class Node:
         cmd = [self.binary, 'export-state', '--pruning', 'archive'] + self._stdargs()
         if block is not None:
             cmd.append(str(block))
-        proc = subprocess.run(cmd, capture_output=True)
-        proc.check_returncode()
+        proc = subprocess.run(cmd, capture_output=True, check=True)
         return json.loads(proc.stdout)
 
 

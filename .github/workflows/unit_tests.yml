@@ -78,7 +78,9 @@ jobs:
 
       - name: Run Pylint
         run: |
-          find . -type f -name "*.py" | xargs pylint
+          find . -type f -name "*.py" | xargs pylint \
+          --disable=missing-docstring,too-many-instance-attributes,duplicate-code \
+          --good-names-rgxs=^[_a-z][_a-z0-9]?$
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
