@@ -68,7 +68,7 @@ class Node:
 
     def state(self, block=None):
         """Return a JSON representation of the chain state after the given block.
-        If `block` is `None`, the most recent state is returned.
+        If `block` is `None`, the most recent state (after the highest seen block) is returned.
         Node must not be running, empty result is returned if called on a running node."""
         if self.running:
             print("cannot export state of a running node")
