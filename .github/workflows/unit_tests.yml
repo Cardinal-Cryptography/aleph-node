@@ -71,16 +71,19 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install Pylint
+      - name: Install pylint and pycodestyle
         run: |
           python -m pip install --upgrade pip
-          pip install pylint
+          pip install pylint pycodestyle
 
-      - name: Run Pylint
+      - name: Run pylint and pycodestyle
         run: |
           find . -type f -name "*.py" | xargs pylint \
           --disable=missing-docstring,too-many-instance-attributes,duplicate-code \
           --good-names-rgxs=^[_a-z][_a-z0-9]?$
+
+          find . -type f -name "*.py" | xargs pycodestyle \
+          --ignore=E501
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2

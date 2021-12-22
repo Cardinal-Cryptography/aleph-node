@@ -13,7 +13,7 @@ NODES = 4
 WORKDIR = '.'
 BINARY = '../target/release/aleph-node'
 
-phrases = ['//Alice','//Bob','//Cedric','//Dick', '//Ezekiel', '//Fanny', '//George', '//Hugo']
+phrases = ['//Alice', '//Bob', '//Cedric', '//Dick', '//Ezekiel', '//Fanny', '//George', '//Hugo']
 keys_dict = generate_keys(BINARY, phrases)
 keys = list(keys_dict.values())
 NODES = min(NODES, len(phrases))
@@ -41,7 +41,7 @@ sleep(60)
 
 print('Blocks seen by nodes:')
 for node in chain:
-    h,f = node.highest_block()
+    h, f = node.highest_block()
     print(f'highest:{h} finalized:{f}')
 
 print('Exiting script, leaving nodes running in the background')

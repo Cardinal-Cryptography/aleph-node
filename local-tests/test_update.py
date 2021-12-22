@@ -17,12 +17,14 @@ runtime = join(WORKDIR, 'aleph_runtime.compact.wasm')
 # Path to the send-runtime binary (which lives in aleph-node/local-tests/send-runtime):
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 
+
 def query_runtime_version(nodes):
     print('Current version:')
-    for i,node in enumerate(nodes):
+    for i, node in enumerate(nodes):
         sys = node.rpc('system_version').result
         rt = node.rpc('state_getRuntimeVersion').result['specVersion']
         print(f'  Node {i}: system: {sys}  runtime: {rt}')
+
 
 def check_highest(nodes):
     results = [node.highest_block() for node in nodes]
@@ -31,7 +33,8 @@ def check_highest(nodes):
     print('  Highest:   ', *highest)
     print('  Finalized: ', *finalized)
 
-phrases = ['//Cartman','//Stan','//Kyle','//Kenny']
+
+phrases = ['//Cartman', '//Stan', '//Kyle', '//Kenny']
 keys = generate_keys(newbin, phrases)
 
 chain = Chain(WORKDIR)
@@ -60,7 +63,7 @@ check_highest(chain)
 query_runtime_version(chain)
 
 print('Killing node 3 and deleting its database')
-chain[3].stop() # OH MY GOD THEY KILLED KENNY!
+chain[3].stop()  # OH MY GOD THEY KILLED KENNY!
 chain[3].purge()
 
 print('Restarting node 3 with new binary')
@@ -84,9 +87,9 @@ check_highest(chain)
 query_runtime_version(chain)
 
 print('Restarting remaining nodes with new binary')
-chain.stop(nodes=[0,1,2])
-chain.set_binary(newbin, nodes=[0,1,2])
-chain.start('new', nodes=[0,1,2])
+chain.stop(nodes=[0, 1, 2])
+chain.set_binary(newbin, nodes=[0, 1, 2])
+chain.start('new', nodes=[0, 1, 2])
 
 print('Waiting a minute')
 sleep(60)

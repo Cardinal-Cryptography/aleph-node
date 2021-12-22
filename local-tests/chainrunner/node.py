@@ -14,6 +14,7 @@ class Node:
     `binary` should be a path to a file with aleph-node binary.
     `chainspec` should be a path to a file with chainspec,
     `path` should point to a folder where the node's base path is."""
+
     def __init__(self, binary, chainspec, path, logdir=None):
         self.chainspec = chainspec
         self.binary = binary
@@ -24,20 +25,17 @@ class Node:
         self.flags = {}
         self.running = False
 
-
     def _stdargs(self):
         return ['--base-path', self.path, '--chain', self.chainspec]
-
 
     def start(self, name):
         """Start the node. `name` is used to name of the logfile and for --name flag."""
         cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
-        self.logfile = op.join(self.logdir, name+'.log')
+        self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
             # pylint: disable=consider-using-with
             self.process = subprocess.Popen(cmd, stderr=logfile, stdout=subprocess.DEVNULL)
         self.running = True
-
 
     def stop(self):
         """Stop the node by sending SIGKILL."""
@@ -45,12 +43,10 @@ class Node:
             self.process.kill()
             self.running = False
 
-
     def purge(self):
         """Purge chain (delete the database of the node)."""
         cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
         subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
-
 
     def greplog(self, regexp):
         """Find in the logs all occurrences of the given regexp. Returns a list of matches."""
@@ -60,16 +56,14 @@ class Node:
             log = f.read()
         return re.findall(regexp, log)
 
-
     def highest_block(self):
         """Find in the logs the height of the most recent block.
         Returns two ints: highest block and highest finalized block."""
         results = self.greplog(r'best: #(\d+) .+ finalized #(\d+)')
         if results:
-            a,b = results[-1]
+            a, b = results[-1]
             return int(a), int(b)
-        return -1,-1
-
+        return -1, -1
 
     def state(self, block=None):
         """Return a JSON representation of the chain state after the given block.
@@ -83,7 +77,6 @@ class Node:
             cmd.append(str(block))
         proc = subprocess.run(cmd, capture_output=True, check=True)
         return json.loads(proc.stdout)
-
 
     def rpc(self, method, params=None):
         """Make an RPC call to the node with the given method and params.
