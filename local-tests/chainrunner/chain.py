@@ -62,8 +62,7 @@ class Chain:
     def set_binary(self, binary, nodes=None):
         """Replace nodes' binary with `binary`. Optional `nodes` argument can be used to specify
         which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
-        if not op.isfile(binary):
-            raise FileNotFoundError(f'file not found: {binary}')
+        check_file(binary)
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].binary = binary
@@ -72,8 +71,7 @@ class Chain:
     def set_chainspec(self, chainspec, nodes=None):
         """Replace nodes' chainspec with `chainspec`. Optional `nodes` argument can be used to specify
         which nodes are affected and should be a list of integer indices (0..N-1). Affects all nodes if omitted."""
-        if not op.isfile(chainspec):
-            raise FileNotFoundError(f'file not found: {chainspec}')
+        check_file(chainspec)
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].chainspec = chainspec
