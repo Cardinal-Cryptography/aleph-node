@@ -79,7 +79,7 @@ jobs:
       - name: Run pylint and pycodestyle
         run: |
           find . -type f -name "*.py" | xargs pylint \
-          --disable=missing-docstring,too-many-instance-attributes,duplicate-code \
+          --disable=missing-docstring,too-many-instance-attributes,duplicate-code,import-error \
           --good-names-rgxs=^[_a-z][_a-z0-9]?$
 
           find . -type f -name "*.py" | xargs pycodestyle \
