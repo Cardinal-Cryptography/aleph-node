@@ -6,7 +6,7 @@ from .node import Node
 from .utils import flags_from_dict, check_file
 
 
-# Type alias for int
+# Seq is a wrapper type around int for supplying numerical parameters that should differ for each node (ports etc.)
 class Seq(int): pass
 
 
