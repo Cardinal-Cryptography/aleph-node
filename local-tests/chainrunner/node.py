@@ -51,10 +51,9 @@ class Node:
     def greplog(self, regexp):
         """Find in the logs all occurrences of the given regexp. Returns a list of matches."""
         if not self.logfile: return []
-        p = re.compile(regexp)
         with open(self.logfile) as f:
             log = f.read()
-        return p.findall(log)
+        return re.findall(regexp, log)
 
 
     def highest_block(self):
