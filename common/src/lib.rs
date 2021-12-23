@@ -5,7 +5,7 @@ use std::time::Duration;
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::Api;
 
-pub fn create_connection(url: String) -> Api<sr25519::Pair, WsRpcClient> {
+pub fn create_connection(url: &String) -> Api<sr25519::Pair, WsRpcClient> {
     let client = WsRpcClient::new(&format!("ws://{}", url));
     match Api::<sr25519::Pair, _>::new(client) {
         Ok(api) => api,
