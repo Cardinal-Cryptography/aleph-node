@@ -79,7 +79,7 @@ fn main() -> Result<(), anyhow::Error> {
         time_stats.elapsed().as_millis()
     );
 
-    let txs = match config.generate_txs{
+    let txs = match config.generate_txs {
         true => {
             if config.tx_store_path.is_none() {
                 panic!("tx_store_path is not set");
@@ -93,10 +93,6 @@ fn main() -> Result<(), anyhow::Error> {
             let mut file = archive.by_index(0).unwrap();
             let mut bytes = Vec::with_capacity(file.size() as usize);
             file.read_to_end(&mut bytes).expect("buffer overflow");
-            if bytes.len() > 0 {
-                info!("bytes {:?}", bytes.len());
-                panic!("done");
-            }
 
             Vec::<TransferTransaction>::decode(&mut &bytes[..]).expect("Error while decoding txs")
         }
@@ -105,12 +101,19 @@ fn main() -> Result<(), anyhow::Error> {
             if store_txs && config.tx_store_path.is_none() {
                 panic!("tx_store_path is not set");
             }
+            let tx_store_path = config.tx_store_path.unwrap();
             thread_pool.install(|| {
                 info!("deriving accounts: {}ms", time_stats.elapsed().as_millis());
 
-                let accounts = (first_account_in_range..first_account_in_range + total_users)
+                let accounts: Vec<_> = (first_account_in_range
+                    ..first_account_in_range + total_users)
                     .into_par_iter()
-                    .map(|seed| {if seed%10000 == 0 {info!("{:?}", seed);};derive_user_account(seed)})
+                    .map(|seed| {
+                        if seed % 10000 == 0 {
+                            info!("{:?}", seed);
+                        };
+                        derive_user_account(seed)
+                    })
                     .collect();
 
                 info!("accounts derived: {}ms", time_stats.elapsed().as_millis());
@@ -210,11 +213,9 @@ fn main() -> Result<(), anyhow::Error> {
                     time_stats.elapsed().as_millis()
                 );
 
-
                 if store_txs {
-                    zip_and_store_txs(txs);
+                    zip_and_store_txs(txs, tx_store_path);
                 }
-
             });
             panic!("done");
         }
@@ -232,20 +233,27 @@ fn main() -> Result<(), anyhow::Error> {
     let tock = tick.elapsed().as_millis();
     let histogram = histogram.lock().unwrap();
 
-    println!("Summary:\n TransferTransactions sent: {}\n Total time:        {} ms\n Slowest tx:        {} ms\n Fastest tx:        {} ms\n Average:           {:.1} ms\n Throughput:        {:.1} tx/s",
-                 histogram.len (),
-                 tock,
-                 histogram.max (),
-                 histogram.min (),
-                 histogram.mean (),
-                 1000.0 * histogram.len () as f64 / tock as f64
-        );
+    println!(
+        "Summary:\n\
+    TransferTransactions sent: {}\n\
+    Total time:        {} ms\n\
+    Slowest tx:        {} ms\n\
+    Fastest tx:        {} ms\n\
+    Average:           {:.1} ms\n\
+    Throughput:        {:.1} tx/s",
+        histogram.len(),
+        tock,
+        histogram.max(),
+        histogram.min(),
+        histogram.mean(),
+        1000.0 * histogram.len() as f64 / tock as f64
+    );
 
     Ok(())
 }
 
 fn flood(
-    pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
+    pool: &[Api<sr25519::Pair, WsRpcClient>],
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
@@ -331,7 +339,7 @@ fn estimate_amount(
     );
 
     // estimate fees
-    let tx_fee = estimate_tx_fee(&connection, &tx);
+    let tx_fee = estimate_tx_fee(connection, &tx);
     info!("Estimated transfer tx fee {}", tx_fee);
     // adjust with estimated tx fee
     existential_deposit + (transfer_amount + tx_fee)
@@ -341,7 +349,7 @@ fn initialize_accounts(
     connection: &Api<sr25519::Pair, WsRpcClient>,
     source_account: &sr25519::Pair,
     mut source_account_nonce: u32,
-    accounts: &Vec<sr25519::Pair>,
+    accounts: &[sr25519::Pair],
     total_amount: u128,
 ) {
     // ensure all txs are finalized by waiting for the last one sent
@@ -350,8 +358,8 @@ fn initialize_accounts(
         .chain(once(XtStatus::Finalized));
     for (derived, status) in accounts.iter().zip(status) {
         source_account_nonce = initialize_account(
-            &connection,
-            &source_account,
+            connection,
+            source_account,
             source_account_nonce,
             derived,
             total_amount,
@@ -433,15 +441,14 @@ fn get_funds(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) 
     }
 }
 
-fn zip_and_store_txs(txs: Vec<TransferTransaction> ) {
-                let path = std::path::Path::new("tx_store.par.zip");
-                let file = std::fs::File::create(&path).unwrap();
-                let mut zip = zip::ZipWriter::new(file);
-                let options = zip::write::FileOptions::default()
-                    .compression_method(zip::CompressionMethod::Deflated);
-                zip.start_file("tx_store", options)
-                    .expect("Failed to initialize accounts");
-                zip.write_all(&txs.encode())
-                    .expect("Failed to store encoded bytes");
-                zip.finish().expect("Failed to zip the encoded txs");
+fn zip_and_store_txs(txs: Vec<TransferTransaction>, path: String) {
+    let file = std::fs::File::create(&path).unwrap();
+    let mut zip = zip::ZipWriter::new(file);
+    let options =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    zip.start_file("tx_store", options)
+        .expect("Failed to initialize accounts");
+    zip.write_all(&txs.encode())
+        .expect("Failed to store encoded bytes");
+    zip.finish().expect("Failed to zip the encoded txs");
 }
