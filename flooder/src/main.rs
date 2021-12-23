@@ -126,7 +126,7 @@ fn prepering_txs(
     let thread_pool = thread_pool_builder.build().expect("thread pool created");
 
     match config.generate_txs {
-        true => {
+        false => {
             if config.tx_store_path.is_none() {
                 panic!("tx_store_path is not set");
             }
@@ -142,7 +142,7 @@ fn prepering_txs(
 
             Vec::<TransferTransaction>::decode(&mut &bytes[..]).expect("Error while decoding txs")
         }
-        false => {
+        true => {
             let store_txs = config.store_txs;
             if store_txs && config.tx_store_path.is_none() {
                 panic!("tx_store_path is not set");
@@ -156,12 +156,7 @@ fn prepering_txs(
                 let accounts: Vec<_> = (first_account_in_range
                     ..first_account_in_range + total_users)
                     .into_par_iter()
-                    .map(|seed| {
-                        if seed % 10000 == 0 {
-                            info!("{:?}", seed);
-                        };
-                        derive_user_account(seed)
-                    })
+                    .map(derive_user_account)
                     .collect();
 
                 if initialize_accounts_flag {
@@ -380,7 +375,7 @@ fn send_tx<Call>(
     *hist += elapsed_time as u64;
 }
 
-fn create_connection_pool(nodes: &Vec<String>) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
+fn create_connection_pool(nodes: &[String]) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
     nodes.iter().map(create_connection).collect()
 }
 
@@ -398,7 +393,7 @@ fn get_funds(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) 
     }
 }
 
-fn zip_and_store_txs(txs: &Vec<TransferTransaction>, path: &str) {
+fn zip_and_store_txs(txs: &[TransferTransaction], path: &str) {
     let file = std::fs::File::create(path).unwrap();
     let mut zip = zip::ZipWriter::new(file);
     let options =
@@ -411,4 +406,36 @@ fn zip_and_store_txs(txs: &Vec<TransferTransaction>, path: &str) {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_read_txs() {
+        env_logger::init();
+
+        let url = "127.0.0.1:9944".to_string();
+        let mut config = Config {
+            nodes: vec![url.clone()],
+            transactions: 313,
+            phrase: None,
+            seed: None,
+            skip_initialization: true,
+            first_account_in_range: 0,
+            generate_txs: true,
+            tx_store_path: Some("/tmp/tx_store".to_string()),
+            threads: None,
+            download_nonces: false,
+            submit_only: false,
+            store_txs: true,
+        };
+        let conn = create_connection(&url);
+
+        let txs_gen = prepering_txs(&config, conn.clone());
+
+        config.generate_txs = false;
+
+        let txs_read = prepering_txs(&config, conn);
+
+        assert!(txs_gen == txs_read)
+    }
+}
