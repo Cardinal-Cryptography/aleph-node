@@ -67,6 +67,11 @@ fn main() -> Result<(), anyhow::Error> {
 
     flood(&pool, txs.into_par_iter(), tx_status, &histogram);
 
+    info!(
+        "source-nonce downloaded: {}ms",
+        time_stats.elapsed().as_millis()
+    );
+
     let tock = tick.elapsed().as_millis();
     let histogram = histogram.lock().unwrap();
 
