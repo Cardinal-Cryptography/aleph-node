@@ -78,7 +78,13 @@ jobs:
 
       - name: Run pylint and pycodestyle
         run: |
-          pylint --rcfile=local-tests/.pylintrc local-tests/
+          echo "Checking package local-tests..."
+
+          pip install -r local-tests/requirements.txt
+
+          export PYLINTRC=local-tests/.pylintrc
+          pylint local-tests/
+
           pycodestyle --config=local-tests/.pycodestyle local-tests/
 
       - name: Send Slack Notification
