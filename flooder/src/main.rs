@@ -9,11 +9,7 @@ use log::{debug, info};
 use rayon::prelude::*;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
-use std::{
-    iter::{once, repeat, IntoIterator},
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::{iter::{once, repeat, IntoIterator}, sync::{Arc, Mutex}, thread, time::{Duration, Instant}};
 use substrate_api_client::{
     compose_call, compose_extrinsic_offline, rpc::WsRpcClient, AccountId, Api, GenericAddress,
     UncheckedExtrinsicV4, XtStatus,
@@ -47,6 +43,12 @@ fn main() -> Result<(), anyhow::Error> {
             None => panic!("Needs --phrase or --seed"),
         },
     };
+
+    let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
+        (Some(tii), Some(is)) => Some((tii, is)),
+        _ => None,
+    };
+
     // we want to fail fast in case seed or phrase are incorrect
     if !config.skip_initialization {
         account();
@@ -200,7 +202,7 @@ fn main() -> Result<(), anyhow::Error> {
         );
         let tick = Instant::now();
 
-        flood(&pool, txs.into_par_iter(), tx_status, &histogram);
+        flood(&pool, txs, tx_status, &histogram, rate_limiting);
 
         let tock = tick.elapsed().as_millis();
         let histogram = histogram.lock().unwrap();
@@ -223,10 +225,37 @@ fn flood(
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
+    rate_limit: Option<(u64, u64)>,
 ) {
-    txs.enumerate().into_par_iter().for_each(|(ix, tx)| {
-        let api = pool.get(ix % pool.len()).unwrap();
-        send_tx(api, &tx, status, Arc::clone(histogram));
+    let (transactions_in_interval, interval_dr) = rate_limit
+        .map_or((txs.len(), Duration::from_secs(0)),
+                |(transactions_in_interval, secs)| {
+                    (transactions_in_interval as usize, Duration::from_secs(secs))
+                });
+    let transactions_per_batch = transactions_in_interval / num_threads;
+
+    txs.chunks(transactions_in_interval).enumerate().for_each(|(interval_idx, interval)| {
+        let start = Instant::now();
+        info!("Starting {} interval", interval_idx);
+        interval.par_chunks(transactions_per_batch).for_each(|batch| {
+            println!("Sending a batch of {} transactions", &batch.len());
+            batch.iter().enumerate().for_each(|(index, tx)| {
+                send_tx(
+                    pool.get(index % pool.len()).unwrap(),
+                    tx,
+                    status,
+                    Arc::clone(histogram),
+                )
+            });
+        });
+        let exec_time = start.elapsed();
+
+        if let Some(remaining_time) = interval_dr.checked_sub(exec_time) {
+            info!("Sleeping for {}ms", remaining_time.as_millis());
+            thread::sleep(remaining_time);
+        } else {
+            info!("Execution for interval {} was slower than desired the target {}ms, was {}ms", interval_idx, interval_dr.as_millis(), exec_time.as_millis())
+        }
     });
 }
 
