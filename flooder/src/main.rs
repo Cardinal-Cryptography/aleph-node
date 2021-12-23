@@ -53,7 +53,7 @@ fn main() -> Result<(), anyhow::Error> {
     }
     let initialize_accounts_flag = !config.skip_initialization;
     let pool = create_connection_pool(config.nodes);
-    let connection = pool.get(0).unwrap().clone();
+    let connection = pool.get(0).unwrap();
     let total_users = config.transactions;
     let first_account_in_range = config.first_account_in_range;
     let transfer_amount = 1u128;
@@ -158,7 +158,7 @@ fn main() -> Result<(), anyhow::Error> {
         let nonces: Vec<_> = match config.download_nonces {
             false => repeat(0).take(accounts.len()).collect(),
             true => accounts
-                .iter()
+                .par_iter()
                 .map(|account| get_nonce(&connection, &AccountId::from(account.public())))
                 .collect(),
         };
@@ -178,12 +178,12 @@ fn main() -> Result<(), anyhow::Error> {
             time_stats.elapsed().as_millis()
         );
 
-        let txs: Vec<_> = sign_transactions(
-            connection.clone(),
+        let txs = sign_transactions(
+            &connection,
             receiver,
             accounts.into_par_iter().zip(nonces),
             transfer_amount,
-        ).collect();
+        );
 
         info!(
             "transactions signed: {}ms",
@@ -272,11 +272,11 @@ fn sign_tx(
 
 /// prepares payload for flooding
 fn sign_transactions(
-    connection: Api<sr25519::Pair, WsRpcClient>,
+    connection: &Api<sr25519::Pair, WsRpcClient>,
     account: sr25519::Pair,
     users_and_nonces: impl IntoParallelIterator<Item = (sr25519::Pair, u32)>,
     transfer_amount: u128,
-) -> impl ParallelIterator<Item = TransferTransaction> {
+) -> Vec<TransferTransaction> {
     let to = AccountId::from(account.public());
     // NOTE : assumes one tx per derived user account
     // but we could create less accounts and send them round robin fashion
@@ -284,6 +284,7 @@ fn sign_transactions(
     users_and_nonces
         .into_par_iter()
         .map(move |(from, nonce)| sign_tx(&connection, &from, nonce, &to, transfer_amount))
+        .collect()
 }
 
 fn estimate_amount(

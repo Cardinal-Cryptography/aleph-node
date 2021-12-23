@@ -1,4 +1,4 @@
-use crate::{crypto::Signature, NodeIndex, SessionId};
+use crate::{crypto::Signature, new_network::Data, NodeIndex, SessionId};
 use codec::{Decode, Encode};
 use sc_network::Multiaddr as ScMultiaddr;
 use std::convert::TryFrom;
@@ -6,11 +6,18 @@ use std::convert::TryFrom;
 mod addresses;
 mod connections;
 mod discovery;
+mod service;
 mod session;
+#[cfg(test)]
+mod testing;
 
-use addresses::{get_common_peer_id, is_p2p};
+use addresses::{get_common_peer_id, get_peer_id, is_p2p};
 
-use session::Handler as SessionHandler;
+use connections::Connections;
+use discovery::{Discovery, DiscoveryMessage};
+use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
+
+pub use service::SessionCommand;
 
 /// A wrapper for the Substrate multiaddress to allow encoding & decoding.
 #[derive(Clone, Debug, PartialEq)]
@@ -62,6 +69,13 @@ impl AuthData {
 
 /// A full authentication, consisting of a signed AuthData.
 pub type Authentication = (AuthData, Signature);
+
+/// The data that should be sent to the network service.
+#[derive(Clone, Debug, PartialEq, Encode, Decode)]
+pub enum NetworkData<D: Data> {
+    Meta(DiscoveryMessage),
+    Data(D, SessionId),
+}
 
 #[cfg(test)]
 mod test {
