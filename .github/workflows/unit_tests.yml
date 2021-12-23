@@ -78,12 +78,8 @@ jobs:
 
       - name: Run pylint and pycodestyle
         run: |
-          find . -type f -name "*.py" | xargs pylint \
-          --disable=missing-docstring,too-many-instance-attributes,duplicate-code,import-error \
-          --good-names-rgxs=^[_a-z][_a-z0-9]?$
-
-          find . -type f -name "*.py" | xargs pycodestyle \
-          --ignore=E501
+          pylint --rcfile=local-tests/.pylintrc local-tests/
+          pycodestyle --config=local-tests/.pycodestyle local-tests/
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
