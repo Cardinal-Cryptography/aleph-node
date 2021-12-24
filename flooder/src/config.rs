@@ -40,7 +40,7 @@ pub struct Config {
     #[clap(long)]
     pub submit_only: bool,
 
-    /// How many transactions to put in the intervalt
+    /// How many transactions to put in the interval
     #[clap(long)]
     pub transactions_in_interval: Option<u64>,
 

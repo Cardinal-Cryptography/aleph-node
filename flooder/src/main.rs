@@ -46,7 +46,8 @@ fn main() -> Result<(), anyhow::Error> {
 
     let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
         (Some(tii), Some(is)) => Some((tii, is)),
-        _ => None,
+        (None, None) => None,
+        _ => panic!("--transactions-in-interval needs to be specified with--interval-secs"),
     };
 
     // we want to fail fast in case seed or phrase are incorrect
@@ -227,7 +228,7 @@ fn flood(
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
     rate_limit: Option<(u64, u64)>,
 ) {
-    let (transactions_in_interval, interval_dr) = rate_limit
+    let (transactions_in_interval, interval_duration) = rate_limit
         .map_or((txs.len(), Duration::from_secs(0)),
                 |(transactions_in_interval, secs)| {
                     (transactions_in_interval as usize, Duration::from_secs(secs))
@@ -250,11 +251,11 @@ fn flood(
         });
         let exec_time = start.elapsed();
 
-        if let Some(remaining_time) = interval_dr.checked_sub(exec_time) {
+        if let Some(remaining_time) = interval_duration.checked_sub(exec_time) {
             info!("Sleeping for {}ms", remaining_time.as_millis());
             thread::sleep(remaining_time);
         } else {
-            info!("Execution for interval {} was slower than desired the target {}ms, was {}ms", interval_idx, interval_dr.as_millis(), exec_time.as_millis())
+            info!("Execution for interval {} was slower than desired the target {}ms, was {}ms", interval_idx, interval_duration.as_millis(), exec_time.as_millis())
         }
     });
 }
