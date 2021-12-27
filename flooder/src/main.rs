@@ -381,7 +381,7 @@ fn send_tx<Call>(
 }
 
 fn create_connection_pool(nodes: &[String]) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
-    nodes.iter().map(create_connection).collect()
+    nodes.iter().cloned().map(create_connection).collect()
 }
 
 fn get_nonce(connection: &Api<sr25519::Pair, WsRpcClient>, account: &AccountId) -> u32 {
@@ -434,7 +434,7 @@ mod tests {
             submit_only: false,
             store_txs: true,
         };
-        let conn = create_connection(&url);
+        let conn = create_connection(url);
 
         let txs_gen = prepering_txs(&config, conn.clone());
 
