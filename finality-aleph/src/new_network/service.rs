@@ -3,8 +3,8 @@ use crate::new_network::{
     ALEPH_VALIDATOR_PROTOCOL_NAME,
 };
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, trace, warn};
-use sc_network::{multiaddr, Event, NotificationSender};
+use log::{debug, error, trace};
+use sc_network::{multiaddr, Event};
 use std::{
     borrow::Cow,
     collections::{HashSet, VecDeque},
@@ -126,20 +126,26 @@ impl<N: Network, D: Data> Service<N, D> {
         }
     }
 
-    fn next_sender(&mut self) -> Option<NotificationSender> {
+    async fn send(network: &N, send_queue: &mut VecDeque<(D, PeerId, Protocol)>) -> Option<()> {
         loop {
-            let (_, target, protocol) = self.to_send.front()?;
-            if let Some(sender) = self.network.message_sender(*target, protocol.name()) {
-                return Some(sender);
+            if let Some((data, peer, protocol)) = send_queue.front() {
+                if let Ok(()) = network.send(data.encode(), *peer, protocol.name()).await {
+                    send_queue.pop_front();
+                    return Some(());
+                } else {
+                    debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
+                }
+                send_queue.pop_front();
+            } else {
+                trace!(target: "aleph-network", "Attempted to send data with empty send queue.");
+                return None;
             }
-            self.to_send.pop_front();
         }
     }
 
     pub async fn run(mut self) {
         let mut events_from_network = self.network.event_stream();
         loop {
-            let maybe_sender = self.next_sender();
             tokio::select! {
                 maybe_event = events_from_network.next() => match maybe_event {
                     Some(event) => if let Err(e) = self.handle_network_event(event) {
@@ -165,21 +171,7 @@ impl<N: Network, D: Data> Service<N, D> {
                         return;
                     }
                 },
-                Some(maybe_ready) = async {
-                    match &maybe_sender {
-                        Some(sender) => Some(sender.ready().await),
-                        None => None,
-                    }
-                } => {
-                    match self.to_send.pop_front() {
-                        Some((data, peer, _)) => {
-                            if maybe_ready.ok().map(|ready| ready.send(data.encode()).ok()).flatten().is_none() {
-                                debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
-                            }
-                        },
-                        None => warn!(target: "aleph-network", "Attempted to send data despite empty queue."),
-                    }
-                },
+                Some(()) =  Self::send(&self.network, &mut self.to_send) => { },
             }
         }
     }

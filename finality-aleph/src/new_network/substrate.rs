@@ -1,8 +1,9 @@
-use crate::new_network::{Network, NetworkEventStream, NetworkIdentity, PeerId, RequestBlocks};
-use log::{debug, error};
-use sc_network::{
-    multiaddr, ExHashT, Multiaddr, NetworkService, NetworkStateInfo, NotificationSender,
+use crate::new_network::{
+    Network, NetworkEventStream, NetworkIdentity, NetworkSendError, PeerId, RequestBlocks,
 };
+use async_trait::async_trait;
+use log::{debug, error};
+use sc_network::{multiaddr, ExHashT, Multiaddr, NetworkService, NetworkStateInfo};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
@@ -21,19 +22,31 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     }
 }
 
+#[async_trait]
 impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     fn event_stream(&self) -> NetworkEventStream {
         Box::pin(self.as_ref().event_stream("aleph-network"))
     }
 
-    fn message_sender(
-        &self,
+    async fn send<'a>(
+        &'a self,
+        data: impl Into<Vec<u8>> + Send + Sync + 'static,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Option<NotificationSender> {
-        self.notification_sender(peer_id.into(), protocol)
-            .map_err(|_| debug!(target: "aleph-network", "Attempted send to peer we are not connected to."))
-            .ok()
+    ) -> Result<(), NetworkSendError> {
+        if let Ok(sender) = self.notification_sender(peer_id.into(), protocol).map_err(
+            |_| debug!(target: "aleph-network", "Attempted send to peer we are not connected to."),
+        ) {
+            sender
+                .ready()
+                .await
+                .ok()
+                .unwrap()
+                .send(data)
+                .map_err(|_| NetworkSendError::Closed)
+        } else {
+            Err(NetworkSendError::Closed)
+        }
     }
 
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>) {
