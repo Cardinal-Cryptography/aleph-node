@@ -414,6 +414,7 @@ fn zip_and_store_txs(txs: &[TransferTransaction], path: &str) {
 mod tests {
     use super::*;
 
+    #[ignore] // requires access to a chain
     #[test]
     fn write_read_txs() {
         env_logger::init();
