@@ -10,6 +10,7 @@ use rayon::prelude::*;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::{iter::{once, repeat, IntoIterator}, sync::{Arc, Mutex}, thread, time::{Duration, Instant}};
+use std::sync::mpsc::channel;
 use substrate_api_client::{
     compose_call, compose_extrinsic_offline, rpc::WsRpcClient, AccountId, Api, GenericAddress,
     UncheckedExtrinsicV4, XtStatus,
@@ -47,7 +48,7 @@ fn main() -> Result<(), anyhow::Error> {
     let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
         (Some(tii), Some(is)) => Some((tii, is)),
         (None, None) => None,
-        _ => panic!("--transactions-in-interval needs to be specified with--interval-secs"),
+        _ => panic!("--transactions-in-interval needs to be specified with --interval-secs"),
     };
 
     // we want to fail fast in case seed or phrase are incorrect
@@ -238,8 +239,9 @@ fn flood(
     txs.chunks(transactions_in_interval).enumerate().for_each(|(interval_idx, interval)| {
         let start = Instant::now();
         info!("Starting {} interval", interval_idx);
-        interval.par_chunks(transactions_per_batch).for_each(|batch| {
-            println!("Sending a batch of {} transactions", &batch.len());
+
+        let (sender, receiver) = channel();
+        interval.par_chunks(transactions_per_batch).for_each_with(sender, |s, batch| {
             batch.iter().enumerate().for_each(|(index, tx)| {
                 send_tx(
                     pool.get(index % pool.len()).unwrap(),
@@ -248,14 +250,28 @@ fn flood(
                     Arc::clone(histogram),
                 )
             });
+            s.send(()).unwrap();
         });
+
+        let mut batch = 0;
+        let n_batches = (interval.len() + transactions_per_batch - 1) / transactions_per_batch;
+        info!("{}/{} done", batch,  n_batches);
+        receiver.iter().for_each(|_| {
+            batch += 1;
+            info!("{}/{} done", batch, n_batches);
+        });
+
         let exec_time = start.elapsed();
 
         if let Some(remaining_time) = interval_duration.checked_sub(exec_time) {
-            info!("Sleeping for {}ms", remaining_time.as_millis());
+            debug!("Sleeping for {}ms", remaining_time.as_millis());
             thread::sleep(remaining_time);
         } else {
-            info!("Execution for interval {} was slower than desired the target {}ms, was {}ms", interval_idx, interval_duration.as_millis(), exec_time.as_millis())
+            debug!(
+                "Execution for interval {} was slower than desired the target {}ms, was {}ms",
+                interval_idx,
+                interval_duration.as_millis(),
+                exec_time.as_millis());
         }
     });
 }
