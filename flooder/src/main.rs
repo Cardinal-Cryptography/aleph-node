@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::{iter::{once, repeat, IntoIterator}, sync::{Arc, Mutex}, thread, time::{Duration, Instant}};
-use std::sync::mpsc::channel;
+use rayon::current_thread_index;
 use substrate_api_client::{
     compose_call, compose_extrinsic_offline, rpc::WsRpcClient, AccountId, Api, GenericAddress,
     UncheckedExtrinsicV4, XtStatus,
@@ -224,7 +224,7 @@ fn main() -> Result<(), anyhow::Error> {
 
 fn flood(
     pool: &Vec<Api<sr25519::Pair, WsRpcClient>>,
-    txs: impl IndexedParallelIterator<Item = TransferTransaction>,
+    txs: Vec<TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
     rate_limit: Option<(u64, u64)>,
@@ -234,33 +234,19 @@ fn flood(
                 |(transactions_in_interval, secs)| {
                     (transactions_in_interval as usize, Duration::from_secs(secs))
                 });
-    let transactions_per_batch = transactions_in_interval / num_threads;
 
     txs.chunks(transactions_in_interval).enumerate().for_each(|(interval_idx, interval)| {
         let start = Instant::now();
         info!("Starting {} interval", interval_idx);
 
-        let (sender, receiver) = channel();
-        interval.par_chunks(transactions_per_batch).for_each_with(sender, |s, batch| {
-            batch.iter().enumerate().for_each(|(index, tx)| {
-                send_tx(
-                    pool.get(index % pool.len()).unwrap(),
-                    tx,
-                    status,
-                    Arc::clone(histogram),
-                )
-            });
-            s.send(()).unwrap();
+        interval.into_par_iter().for_each(|tx| {
+            send_tx(
+                pool.get(current_thread_index().unwrap()).unwrap(),
+                &tx,
+                status,
+                Arc::clone(histogram),
+            );
         });
-
-        let mut batch = 0;
-        let n_batches = (interval.len() + transactions_per_batch - 1) / transactions_per_batch;
-        info!("{}/{} done", batch,  n_batches);
-        receiver.iter().for_each(|_| {
-            batch += 1;
-            info!("{}/{} done", batch, n_batches);
-        });
-
         let exec_time = start.elapsed();
 
         if let Some(remaining_time) = interval_duration.checked_sub(exec_time) {
