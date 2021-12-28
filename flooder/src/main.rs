@@ -6,6 +6,7 @@ use common::create_connection;
 use config::Config;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info};
+use rayon::current_thread_index;
 use rayon::prelude::*;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
@@ -13,7 +14,8 @@ use std::{
     io::{Read, Write},
     iter::{once, repeat},
     sync::{Arc, Mutex},
-    time::Instant,
+    thread,
+    time::{Duration, Instant},
 };
 use substrate_api_client::{
     compose_call, compose_extrinsic_offline, rpc::WsRpcClient, AccountId, Api, GenericAddress,
@@ -36,6 +38,12 @@ fn main() -> Result<(), anyhow::Error> {
     if !config.skip_initialization && config.phrase.is_none() && config.seed.is_none() {
         panic!("Needs --phrase or --seed")
     }
+
+    let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
+        (Some(tii), Some(is)) => Some((tii, is)),
+        (None, None) => None,
+        _ => panic!("--transactions-in-interval needs to be specified with --interval-secs"),
+    };
 
     // we want to fail fast in case seed or phrase are incorrect
     if !config.skip_initialization && config.phrase.is_none() && config.seed.is_none() {
@@ -65,11 +73,12 @@ fn main() -> Result<(), anyhow::Error> {
     info!("flooding: {}ms", time_stats.elapsed().as_millis());
     let tick = Instant::now();
 
-    flood(&pool, txs.into_par_iter(), tx_status, &histogram);
-
-    info!(
-        "source-nonce downloaded: {}ms",
-        time_stats.elapsed().as_millis()
+    flood(
+        &pool,
+        txs.into_par_iter(),
+        tx_status,
+        &histogram,
+        rate_limiting,
     );
 
     let tock = tick.elapsed().as_millis();
@@ -99,11 +108,43 @@ fn flood(
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
+    rate_limit: Option<(u64, u64)>,
 ) {
-    txs.enumerate().into_par_iter().for_each(|(ix, tx)| {
-        let api = pool.get(ix % pool.len()).unwrap();
-        send_tx(api, &tx, status, Arc::clone(histogram));
-    });
+    let (transactions_in_interval, interval_duration) = rate_limit.map_or(
+        (txs.len(), Duration::from_secs(0)),
+        |(transactions_in_interval, secs)| {
+            (transactions_in_interval as usize, Duration::from_secs(secs))
+        },
+    );
+
+    txs.chunks(transactions_in_interval)
+        .enumerate()
+        .for_each(|(interval_idx, interval)| {
+            let start = Instant::now();
+            info!("Starting {} interval", interval_idx);
+
+            interval.into_par_iter().for_each(|tx| {
+                send_tx(
+                    pool.get(current_thread_index().unwrap()).unwrap(),
+                    &tx,
+                    status,
+                    Arc::clone(histogram),
+                );
+            });
+            let exec_time = start.elapsed();
+
+            if let Some(remaining_time) = interval_duration.checked_sub(exec_time) {
+                debug!("Sleeping for {}ms", remaining_time.as_millis());
+                thread::sleep(remaining_time);
+            } else {
+                debug!(
+                    "Execution for interval {} was slower than desired the target {}ms, was {}ms",
+                    interval_idx,
+                    interval_duration.as_millis(),
+                    exec_time.as_millis()
+                );
+            }
+        });
 }
 
 fn estimate_tx_fee(connection: &Api<sr25519::Pair, WsRpcClient>, tx: &TransferTransaction) -> u128 {
@@ -433,6 +474,8 @@ mod tests {
             download_nonces: false,
             submit_only: false,
             store_txs: true,
+            interval_secs: None,
+            transactions_in_interval: None,
         };
         let conn = create_connection(url);
 

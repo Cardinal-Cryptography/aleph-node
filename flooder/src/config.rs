@@ -51,6 +51,14 @@ pub struct Config {
     /// store txs after generation
     #[clap(long)]
     pub store_txs: bool,
+
+    /// How many transactions to put in the interval
+    #[clap(long)]
+    pub transactions_in_interval: Option<u64>,
+
+    /// How long the interval is (in secs)
+    #[clap(long)]
+    pub interval_secs: Option<u64>,
 }
 
 pub fn read_phrase(phrase: String) -> String {
