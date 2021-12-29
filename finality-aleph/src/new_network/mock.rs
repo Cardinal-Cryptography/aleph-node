@@ -5,7 +5,11 @@ use parking_lot::Mutex;
 use sc_network::{Event, Multiaddr};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{HashSet, VecDeque},
+    sync::Arc,
+};
 
 type Channel<T> = (
     Arc<Mutex<mpsc::UnboundedSender<T>>>,
@@ -26,7 +30,7 @@ pub struct MockNetwork<B: Block> {
     pub send_message: Channel<(Vec<u8>, PeerId, Cow<'static, str>)>,
     pub event_sinks: Arc<Mutex<Vec<mpsc::UnboundedSender<Event>>>>,
     event_stream_taken_oneshot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-    pub network_error: Arc<Mutex<Option<NetworkSendError>>>,
+    pub network_errors: Arc<Mutex<VecDeque<NetworkSendError>>>,
 }
 
 impl<B: Block> RequestBlocks<B> for MockNetwork<B> {
@@ -65,8 +69,8 @@ impl<B: Block> Network for MockNetwork<B> {
         peer_id: PeerId,
         protocol: Cow<'static, str>,
     ) -> Result<(), NetworkSendError> {
-        if let Some(err) = &*self.network_error.lock() {
-            Err(*err)
+        if let Some(err) = self.network_errors.lock().pop_front() {
+            Err(err)
         } else {
             self.send_message
                 .0
@@ -104,7 +108,7 @@ impl<B: Block> MockNetwork<B> {
             send_message: channel(),
             event_sinks: Arc::new(Mutex::new(vec![])),
             event_stream_taken_oneshot: Arc::new(Mutex::new(Some(oneshot_sender))),
-            network_error: Arc::new(Mutex::new(None)),
+            network_errors: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
 

@@ -181,8 +181,8 @@ impl<N: Network, D: Data> Service<N, D> {
 mod tests {
     use super::{ConnectionCommand, DataCommand, Service, IO};
     use crate::new_network::{
-        manager::testing::MockNetworkIdentity, mock::MockNetwork, NetworkIdentity, Protocol,
-        ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,
+        manager::testing::MockNetworkIdentity, mock::MockNetwork, NetworkIdentity,
+        NetworkSendError, Protocol, ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,
     };
     use codec::Encode;
     use futures::{
@@ -489,6 +489,60 @@ mod tests {
                 .expect("Should receive message"),
             expected,
         );
+
+        exit_tx.send(()).ok();
+        service_handle.await.unwrap();
+        network.close_channels();
+    }
+
+    #[tokio::test]
+    async fn test_data_command_send_to_error() {
+        let (service_handle, exit_tx, network, mock_io) = prepare().await;
+        let all_authorities_n = 4;
+        let closed_authorities_n = 2;
+        for _ in 0..closed_authorities_n {
+            network
+                .network_errors
+                .lock()
+                .push_back(NetworkSendError::Closed);
+        }
+
+        let identities: Vec<_> = (0..4)
+            .map(|_| MockNetworkIdentity::new().identity())
+            .collect();
+        let message: Vec<u8> = vec![1, 2, 3];
+
+        identities.iter().for_each(|identity| {
+            mock_io
+                .messages_for_user
+                .unbounded_send((
+                    message.clone(),
+                    DataCommand::SendTo(identity.1, Protocol::Validator),
+                ))
+                .ok();
+        });
+
+        let broadcasted_messages = HashSet::<_>::from_iter(
+            network
+                .send_message
+                .1
+                .lock()
+                .by_ref()
+                .take(all_authorities_n - closed_authorities_n)
+                .collect::<Vec<_>>()
+                .await
+                .iter()
+                .cloned(),
+        );
+
+        let expected_messages = HashSet::from_iter(
+            identities
+                .iter()
+                .skip(closed_authorities_n)
+                .map(|identity| (message.encode(), identity.1, Protocol::Validator.name())),
+        );
+
+        assert_eq!(broadcasted_messages, expected_messages);
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
