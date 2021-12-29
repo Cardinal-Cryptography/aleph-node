@@ -113,4 +113,32 @@ impl<B: Block> MockNetwork<B> {
             sink.unbounded_send(event.clone()).unwrap();
         }
     }
+
+    // Consumes the network asserting there are no unreceived messages in the channels.
+    pub fn close_channels(self) {
+        self.event_sinks.lock().clear();
+
+        self.request_justification.0.lock().close_channel();
+        assert!(self
+            .request_justification
+            .1
+            .lock()
+            .try_next()
+            .unwrap()
+            .is_none());
+        self.request_stale_block.0.lock().close_channel();
+        assert!(self
+            .request_stale_block
+            .1
+            .lock()
+            .try_next()
+            .unwrap()
+            .is_none());
+        self.add_reserved.0.lock().close_channel();
+        assert!(self.add_reserved.1.lock().try_next().unwrap().is_none());
+        self.remove_reserved.0.lock().close_channel();
+        assert!(self.remove_reserved.1.lock().try_next().unwrap().is_none());
+        self.send_message.0.lock().close_channel();
+        assert!(self.send_message.1.lock().try_next().unwrap().is_none());
+    }
 }

@@ -192,8 +192,7 @@ mod tests {
     use sc_network::{
         multiaddr::Protocol as ScProtocol, Event, Multiaddr as ScMultiaddr, ObservedRole,
     };
-    use std::iter::FromIterator;
-    use std::{borrow::Cow, collections::HashSet, iter};
+    use std::{borrow::Cow, collections::HashSet, iter, iter::FromIterator};
     use substrate_test_runtime_client::runtime::Block;
 
     type MockData = Vec<u8>;
@@ -271,6 +270,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -301,6 +301,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -370,6 +371,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -456,6 +458,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -489,6 +492,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -527,6 +531,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -559,6 +564,7 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 
     #[tokio::test]
@@ -591,5 +597,6 @@ mod tests {
 
         exit_tx.send(()).ok();
         service_handle.await.unwrap();
+        network.close_channels();
     }
 }
