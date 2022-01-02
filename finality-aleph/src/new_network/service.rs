@@ -132,9 +132,8 @@ impl<N: Network, D: Data> Service<N, D> {
                 if let Ok(()) = network.send(data.encode(), *peer, protocol.name()).await {
                     send_queue.pop_front();
                     return Some(());
-                } else {
-                    debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
                 }
+                debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
                 send_queue.pop_front();
             } else {
                 trace!(target: "aleph-network", "Attempted to send data with empty send queue.");
@@ -171,7 +170,7 @@ impl<N: Network, D: Data> Service<N, D> {
                         return;
                     }
                 },
-                Some(()) =  Self::send(&self.network, &mut self.to_send) => { },
+                Some(_) =  Self::send(&self.network, &mut self.to_send) => { },
             }
         }
     }
