@@ -4,7 +4,7 @@
 // dump state
 // curl http://localhost:9933 -H "Content-type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"state_getPairs","params":["0x"]}' > /tmp/storage.json
 
-use common::create_connection;
+use common::{create_connection, storage_key, storage_key_hash};
 use reqwest;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -60,7 +60,16 @@ async fn main() -> anyhow::Result<()> {
         .output()
         .expect("failed to execute process");
 
-    println!("{:#?}", a);
+    // println!("{:#?}", a);
+
+    // twox128(stringToBytes("System")) + twox128(stringToBytes("AccountNonce"))
+
+    println!(
+        "{:#?}",
+        storage_key_hash(storage_key("System", "AccountNonce"))
+    );
+
+    // '26aa394eea5630e07c48ae0c9558cef79c2f82b23e5fd031fb54c292794b4cc4'
 
     Ok(())
 }

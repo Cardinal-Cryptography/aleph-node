@@ -3,7 +3,7 @@ mod ws_rpc_client;
 use log::warn;
 use sp_core::sr25519;
 use std::{thread::sleep, time::Duration};
-use substrate_api_client::{Api, RpcClient};
+use substrate_api_client::{Api, RpcClient, StorageKey};
 pub use ws_rpc_client::WsRpcClient;
 
 pub trait FromStr {
@@ -43,4 +43,18 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
             create_custom_connection(address)
         }
     }
+}
+
+pub fn storage_key(module: &str, version: &str) -> [u8; 32] {
+    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
+    let postfix = sp_io::hashing::twox_128(version.as_bytes());
+    let mut final_key = [0u8; 32];
+    final_key[..16].copy_from_slice(&pallet_name);
+    final_key[16..].copy_from_slice(&postfix);
+    final_key
+}
+
+pub fn storage_key_hash(bytes: [u8; 32]) -> String {
+    let storage_key = StorageKey(bytes.into());
+    hex::encode(storage_key.0)
 }
