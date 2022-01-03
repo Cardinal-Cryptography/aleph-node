@@ -128,6 +128,10 @@ impl<N: Network, D: Data> Service<N, D> {
 
     async fn send(network: &N, send_queue: &mut VecDeque<(D, PeerId, Protocol)>) -> Option<()> {
         loop {
+            // We should not pop send_queue here. Using `send_queue.front()` is intended.
+            // Send is asynchronous, so it might happen that we pop data here and then
+            // `network.send` does not finish and gets cancelled. So in this case we would
+            // lose a popped message.
             if let Some((data, peer, protocol)) = send_queue.front() {
                 if let Ok(()) = network.send(data.encode(), *peer, protocol.name()).await {
                     send_queue.pop_front();

@@ -12,6 +12,7 @@ use std::{borrow::Cow, collections::HashSet, pin::Pin};
 mod aleph;
 mod component;
 mod manager;
+#[cfg(test)]
 mod mock;
 mod rmc;
 mod service;
