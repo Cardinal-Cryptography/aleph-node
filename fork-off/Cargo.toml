@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.52"
+common = {path = "../common" }
+reqwest = { version = "0.11", features = ["json"] }
+serde_json = "1.0"
 sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", default-features = false, features = ["full_crypto"] }
 substrate-api-client = { git = "https://github.com/scs/substrate-api-client", rev = "aa4b84f8775f972e5967aca3d96dd163619f65d5"}
+tokio = { version = "1.0", features = ["full"]}
