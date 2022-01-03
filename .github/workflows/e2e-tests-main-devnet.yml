@@ -42,6 +42,8 @@ jobs:
       - name: Build docker image
         id: build-image
         run: |
+          ls -al target/release/aleph-node
+          chmod +x target/release/aleph-node
           sha256sum target/release/aleph-node
           docker build --tag aleph-node:latest -f ./docker/Dockerfile .
           docker save -o aleph-node.tar aleph-node:latest
@@ -89,6 +91,7 @@ jobs:
       - name: Build docker image
         id: build-image
         run: |
+          ls -al target/release/aleph-node
           sha256sum target/release/aleph-node
           docker build --tag aleph-node:latest -f ./docker/Dockerfile .
           docker save -o aleph-node.tar aleph-node:latest
