@@ -226,8 +226,8 @@ mod tests {
             commands_for_manager: mock_commands_for_manager,
         };
 
-        let (oneshot_tx, event_stream_taken_oneshot_rx) = oneshot::channel();
-        let network = MockNetwork::new(oneshot_tx);
+        let (event_stream_oneshot_tx, event_stream_oneshot_rx) = oneshot::channel();
+        let network = MockNetwork::new(event_stream_oneshot_tx);
         let service = Service::new(network.clone(), io);
 
         let (exit_tx, exit_rx) = oneshot::channel();
@@ -240,7 +240,7 @@ mod tests {
         let service_handle = tokio::spawn(task_handle);
 
         // wait till service takes the event_stream
-        event_stream_taken_oneshot_rx.await.unwrap();
+        event_stream_oneshot_rx.await.unwrap();
 
         (service_handle, exit_tx, network, mock_io)
     }
