@@ -1,6 +1,6 @@
 name: unit-tests
 
-on: pull_request
+on: workflow_call
 
 jobs:
   check-test-and-lint:

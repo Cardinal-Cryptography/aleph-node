@@ -1,5 +1,5 @@
 name: Post DoD checklist
-on: [pull_request_target]
+on: workflow_call
 jobs:
   run:
     runs-on: ubuntu-latest
