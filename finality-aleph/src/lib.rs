@@ -5,6 +5,7 @@ use aleph_bft::{NodeCount, NodeIndex, TaskHandle};
 use futures::{channel::oneshot, Future, TryFutureExt};
 use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
+use sc_network::{ExHashT, NetworkService};
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
@@ -24,7 +25,7 @@ mod import;
 mod justification;
 pub mod metrics;
 mod network;
-mod new_network;
+pub mod new_network;
 mod party;
 #[cfg(test)]
 pub mod testing;
@@ -144,6 +145,13 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
 
 pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
 
+pub fn first_block_of_session<B: Block>(
+    session_id: SessionId,
+    period: SessionPeriod,
+) -> NumberFor<B> {
+    (session_id.0 * period.0).into()
+}
+
 pub fn last_block_of_session<B: Block>(
     session_id: SessionId,
     period: SessionPeriod,
@@ -155,8 +163,8 @@ pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPer
     SessionId(num.saturated_into::<u32>() / period.0)
 }
 
-pub struct AlephConfig<B: Block, N, C, SC> {
-    pub network: N,
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
+    pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
@@ -168,12 +176,11 @@ pub struct AlephConfig<B: Block, N, C, SC> {
     pub unit_creation_delay: UnitCreationDelay,
 }
 
-pub fn run_aleph_consensus<B: Block, BE, C, N, SC>(
-    config: AlephConfig<B, N, C, SC>,
+pub fn run_aleph_consensus<B: Block, BE, C, H: ExHashT, SC>(
+    config: AlephConfig<B, H, C, SC>,
 ) -> impl Future<Output = ()>
 where
     BE: Backend<B> + 'static,
-    N: network::Network<B> + network::RequestBlocks<B> + 'static,
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     SC: SelectChain<B> + 'static,

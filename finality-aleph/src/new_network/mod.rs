@@ -8,13 +8,13 @@ use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
-mod aleph;
+pub mod aleph; //todo
 mod component;
-mod manager;
+pub mod manager; //todo
 mod rmc;
-mod service;
-mod session;
-mod split;
+pub mod service; //todo
+pub mod session; //todo
+pub mod split; //todo
 mod substrate;
 
 use component::{
@@ -136,6 +136,7 @@ pub enum ConnectionCommand {
 }
 
 /// Returned when something went wrong when sending data using a DataNetwork.
+#[derive(Debug)]
 pub enum SendError {
     SendFailed,
 }

@@ -88,7 +88,7 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     --unit-creation-delay 500 \
     --execution Native \
     --no-mdns \
-    -lafa=debug \
+    -ltrace \
     "$@" \
     2> $auth.log > /dev/null & \
 done

@@ -5,7 +5,7 @@ use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, SessionPeriod,
+    MillisecsPerBlock, SessionPeriod, new_network::Protocol
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -159,6 +159,16 @@ pub fn new_full(
         .network
         .extra_sets
         .push(finality_aleph::peers_set_config(None));
+
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(Some(Protocol::Generic)));
+    
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(Some(Protocol::Validator)));
 
     let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {

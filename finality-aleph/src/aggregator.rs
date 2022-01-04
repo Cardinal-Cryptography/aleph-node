@@ -1,10 +1,12 @@
 use crate::{
     crypto::Signature,
     metrics::Checkpoint,
-    network::{Recipient, RmcNetwork},
+    new_network::DataNetwork,
+    new_network::RmcNetworkData,
     Metrics,
 };
 use aleph_bft::{
+    Recipient,
     rmc::{DoublingDelayScheduler, Message, ReliableMulticast},
     MultiKeychain, Signable, SignatureSet,
 };
@@ -38,7 +40,7 @@ pub(crate) struct BlockSignatureAggregator<'a, B: Block, MK: MultiKeychain> {
     messages_from_rmc: mpsc::UnboundedReceiver<RmcMessage<B>>,
     signatures: HashMap<B::Hash, MK::PartialMultisignature>,
     hash_queue: VecDeque<B::Hash>,
-    network: RmcNetwork<B>,
+    network: Box<dyn DataNetwork<RmcNetworkData<B>>>,
     rmc: ReliableMulticast<'a, SignableHash<B::Hash>, MK>,
     last_hash_placed: bool,
     started_hashes: HashSet<B::Hash>,
@@ -52,7 +54,7 @@ impl<
     > BlockSignatureAggregator<'a, B, MK>
 {
     pub(crate) fn new(
-        network: RmcNetwork<B>,
+        network: Box<dyn DataNetwork<RmcNetworkData<B>>>,
         keychain: &'a MK,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     ) -> Self {
@@ -129,7 +131,7 @@ impl<
                     message_from_rmc = self.messages_from_rmc.next() => {
                         trace!(target: "afa", "Our rmc message {:?}.", message_from_rmc);
                         if let Some(message_from_rmc) = message_from_rmc {
-                            self.network.send(message_from_rmc, Recipient::All).expect("sending message from rmc failed")
+                            self.network.send(message_from_rmc, Recipient::Everyone).expect("sending message from rmc failed")
                         } else {
                             warn!(target: "afa", "the channel of messages from rmc closed");
                         }

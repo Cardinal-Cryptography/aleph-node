@@ -10,11 +10,27 @@ use crate::{
         AlephJustification, JustificationHandler, JustificationNotification,
         JustificationRequestDelay, SessionInfo, SessionInfoProvider,
     },
+    first_block_of_session,
     last_block_of_session,
     metrics::Checkpoint,
     network,
     network::{
         split_network, AlephNetworkData, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
+    },
+    new_network::{
+        aleph::NetworkWrapper,
+        manager::service::{
+            IO as ConnectionIO,
+            Service as ConnectionManager,
+        },
+        service::{
+            IO,
+            Service,
+        },
+        session::Manager,
+        SplicedAlephNetwork,
+        SplicedRmcNetwork,
+        split::{split, Split},
     },
     session_id_from_block_num, AuthorityId, Future, Metrics, MillisecsPerBlock, NodeIndex,
     SessionId, SessionMap, SessionPeriod, UnitCreationDelay,
@@ -38,6 +54,7 @@ use crate::justification::{JustificationHandlerConfig, Verifier};
 use codec::Encode;
 use parking_lot::Mutex;
 use sc_client_api::{Backend, HeaderBackend};
+use sc_network::ExHashT;
 use sp_api::{BlockId, NumberFor};
 use sp_consensus::SelectChain;
 use sp_runtime::{
@@ -53,9 +70,10 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use aleph_primitives;
 
-pub struct AlephParams<B: Block, N, C, SC> {
-    pub config: crate::AlephConfig<B, N, C, SC>,
+pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
+    pub config: crate::AlephConfig<B, H, C, SC>,
 }
 
 struct JustificationRequestDelayImpl {
@@ -123,10 +141,10 @@ fn get_session_info_provider<B: Block>(
     }
 }
 
-pub async fn run_consensus_party<B, N, C, BE, SC>(aleph_params: AlephParams<B, N, C, SC>)
+pub async fn run_consensus_party<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
 where
     B: Block,
-    N: network::Network<B> + network::RequestBlocks<B> + 'static,
+    H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
@@ -171,18 +189,55 @@ where
     let authority_justification_tx =
         run_justification_handler(handler, &spawn_handle.clone().into(), justification_rx);
 
-    // Prepare and start the network
-    let network =
-        ConsensusNetwork::<NetworkData<B>, _, _>::new(network.clone(), "/cardinals/aleph/1".into());
-    let session_manager = network.session_manager();
+    let (commands_for_network, commands_from_io) = mpsc::unbounded();
+    let (messages_for_network, messages_from_user) = mpsc::unbounded();
+    let (commands_for_service, commands_from_user) = mpsc::unbounded();
+    let (messages_for_service, commands_from_manager) = mpsc::unbounded();
+    let (messages_for_user, messages_from_network) = mpsc::unbounded();
 
-    let network_task = async move { network.run().await };
-    spawn_handle.spawn("aleph/network", network_task);
+    let new_connection_io = ConnectionIO::new(
+        commands_for_network,
+        messages_for_network,
+        commands_from_user,
+        commands_from_manager,
+        messages_from_network
+    );
+    let new_connection_manager = ConnectionManager::<_, _>::new(
+        network.clone()
+    );
+    let new_session_manager = Manager::new(commands_for_service, messages_for_service);
+    let new_network = Service::new(
+        network.clone(), 
+        IO::new (
+            messages_from_user,
+            messages_for_user,
+            commands_from_io,
+        ),
+    );
+
+    let new_network_manager_task = async move { new_connection_io.run(new_connection_manager).await.expect("todo") };
+    spawn_handle.spawn("aleph/new_network_manager", new_network_manager_task);
+    let new_network_task = async move { new_network.run().await };
+    spawn_handle.spawn("aleph/new_network", new_network_task);
+
+    // Prepare and start the network
+    /*let network =
+        ConsensusNetwork::<NetworkData<B>, _, _>::new(network.clone(), "/cardinals/aleph/1".into());
+    let session_manager = network.session_manager();*/
+
+   // let network_task = async move { network.run().await };
+    //spawn_handle.spawn("aleph/network", network_task);
 
     debug!(target: "afa", "Consensus network has started.");
 
+    let authorities = client
+    .runtime_api()
+    .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
+    .unwrap();
+
     let party = ConsensusParty {
-        session_manager,
+        session_manager: None,
+        new_session_manager,
         client,
         keystore,
         select_chain,
@@ -194,6 +249,7 @@ where
         spawn_handle: spawn_handle.into(),
         phantom: PhantomData,
         unit_creation_delay,
+        authorities
     };
 
     debug!(target: "afa", "Consensus party has started.");
@@ -249,7 +305,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: network::RequestBlocks<B> + 'static,
 {
-    session_manager: SessionManager<NetworkData<B>>,
+    session_manager: Option<SessionManager<NetworkData<B>>>,
+    new_session_manager: Manager<Split<AlephNetworkData<B>, RmcNetworkData<B>>>,
     session_authorities: Arc<Mutex<SessionMap>>,
     session_period: SessionPeriod,
     spawn_handle: crate::SpawnHandle,
@@ -261,7 +318,10 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
+    authorities: Vec<aleph_primitives::app::Public>,
 }
+
+use crate::new_network::RmcNetworkData;
 
 async fn run_aggregator<B, C, BE>(
     mut aggregator: BlockSignatureAggregator<'_, B, KeyBox>,
@@ -280,10 +340,11 @@ async fn run_aggregator<B, C, BE>(
     let mut last_finalized = client.info().finalized_hash;
     let mut last_block_seen = false;
     loop {
+        warn!(target: "aleph-network", "aggregator");
         tokio::select! {
             maybe_unit = ordered_units_rx.next() => {
                 if let Some(new_block_data) = maybe_unit {
-                    trace!(target: "afa", "Received unit {:?} in aggregator.", new_block_data);
+                    warn!(target: "afa", "Received unit {:?} in aggregator.", new_block_data);
                     if last_block_seen {
                         //This is only for optimization purposes.
                         continue;
@@ -305,6 +366,7 @@ async fn run_aggregator<B, C, BE>(
                 }
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
+                warn!(target: "aleph-network", "aggregator 2");
                 if let Some((hash, multisignature)) = multisigned_hash {
                     let number = client.number(hash).unwrap().unwrap();
                     // The unwrap might actually fail if data availability is not implemented correctly.
@@ -346,7 +408,8 @@ where
         &self,
         node_id: NodeIndex,
         multikeychain: KeyBox,
-        data_network: DataNetwork<NetworkData<B>>,
+        data_network: Option<DataNetwork<NetworkData<B>>>,
+        new_data_network: crate::new_network::session::Network<Split<crate::new_network::AlephNetworkData<B>, crate::new_network::RmcNetworkData<B>>>,
         session_id: SessionId,
         authorities: Vec<AuthorityId>,
         exit_rx: futures::channel::oneshot::Receiver<()>,
@@ -363,8 +426,13 @@ where
             data_store_rx,
             Default::default(),
         );
-        let (aleph_network, rmc_network, forwarder) =
-            split_network(data_network, aleph_network_tx, aleph_network_rx);
+        //let (aleph_network, rmc_network, _) =
+        //    split_network(data_network, aleph_network_tx, aleph_network_rx);
+
+        let (aleph_network, rmc_network) = split(new_data_network);
+        let aleph_network = NetworkWrapper::<B, _>::from(aleph_network);
+        //let aleph_network = NetworkWrapper::<B, _>::from(SplicedAlephNetwork::new(new_aleph_network, aleph_network));
+        //let rmc_network = SplicedRmcNetwork::new(new_rmc_network, rmc_network);
 
         let consensus_config = create_aleph_config(
             authorities.len(),
@@ -391,10 +459,10 @@ where
         let finalization_handler = FinalizationHandler::<B> { ordered_units_tx };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
-        let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
+        //let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
         let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
-        let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
-        let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
+        //let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
+        //let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
 
         let member_task = {
             let spawn_handle = self.spawn_handle.clone();
@@ -415,13 +483,13 @@ where
             }
         };
 
-        let data_store_task = {
+        /*let data_store_task = {
             async move {
                 debug!(target: "afa", "Running the data store task for {:?}", session_id.0);
                 data_store.run(exit_data_store_rx).await;
                 debug!(target: "afa", "Data store task stopped for {:?}", session_id.0);
             }
-        };
+        };*/
 
         let aggregator_task = {
             let client = self.client.clone();
@@ -431,7 +499,7 @@ where
             let multikeychain = multikeychain.clone();
             async move {
                 let aggregator =
-                    BlockSignatureAggregator::new(rmc_network, &multikeychain, metrics.clone());
+                    BlockSignatureAggregator::new(Box::new(rmc_network), &multikeychain, metrics.clone());
                 debug!(target: "afa", "Running the aggregator task for {:?}", session_id.0);
                 run_aggregator(
                     aggregator,
@@ -447,7 +515,7 @@ where
             }
         };
 
-        let forwarder_task = async move {
+        /*let forwarder_task = async move {
             debug!(target: "afa", "Running the forwarder task for {:?}", session_id.0);
             pin_mut!(forwarder);
             select(forwarder, exit_forwarder_rx).await;
@@ -462,23 +530,23 @@ where
                 last_block,
                 exit_refresher_rx,
             )
-        };
+        };*/
 
         let member_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_member", member_task);
-        let data_store_handle = self
+        /*let data_store_handle = self
             .spawn_handle
-            .spawn_essential("aleph/consensus_session_data_store", data_store_task);
+            .spawn_essential("aleph/consensus_session_data_store", data_store_task);*/
         let aggregator_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
-        let forwarder_handle = self
+        /*let forwarder_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
         let refresher_handle = self
             .spawn_handle
-            .spawn_essential("aleph/consensus_session_refresher", refresher_task);
+            .spawn_essential("aleph/consensus_session_refresher", refresher_task);*/
 
         async move {
             let _ = exit_rx.await;
@@ -494,7 +562,7 @@ where
             }
             let _ = aggregator_handle.await;
 
-            if let Err(e) = exit_forwarder_tx.send(()) {
+            /*if let Err(e) = exit_forwarder_tx.send(()) {
                 debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
             }
             let _ = forwarder_handle.await;
@@ -507,13 +575,13 @@ where
             if let Err(e) = exit_data_store_tx.send(()) {
                 debug!(target: "afa", "data store was closed before terminating it manually: {:?}", e)
             }
-            let _ = data_store_handle.await;
+            let _ = data_store_handle.await;*/
             info!(target: "afa", "Terminated authority run of session {:?}", session_id);
         }
     }
 
-    async fn run_session(&mut self, session_id: SessionId) {
-        let authorities = {
+    async fn run_session(&mut self, session_id: SessionId, authorities: Vec<aleph_primitives::app::Public>) {
+        /*let authorities = {
             if session_id == SessionId(0) {
                 self.client
                     .runtime_api()
@@ -537,10 +605,11 @@ where
                     }
                 }
             }
-        };
+        };*/
         self.session_authorities
             .lock()
             .insert(session_id, authorities.clone());
+        let first_block = first_block_of_session::<B>(session_id, self.session_period);
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
@@ -566,23 +635,34 @@ where
         let (exit_authority_tx, exit_authority_rx) = futures::channel::oneshot::channel();
         if let Some(node_id) = maybe_node_id {
             debug!(target: "afa", "Running session {:?} as authority id {:?}", session_id, node_id);
+            let authority_verifier = AuthorityVerifier::new(authorities.clone());
+            let authority_pen = AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
+            .await
+            .expect("The keys should sign successfully");
+
             let keybox = KeyBox::new(
                 node_id,
-                AuthorityVerifier::new(authorities.clone()),
-                AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
-                    .await
-                    .expect("The keys should sign successfully"),
+                authority_verifier.clone(),
+                authority_pen.clone(),
             );
-            let data_network = self
-                .session_manager
-                .start_session(session_id, keybox.clone())
-                .await;
+            let mut data_network = None;
+            if self.session_manager.is_some() {
+                data_network = Some(self
+                    .session_manager.as_ref().unwrap()
+                    .start_session(session_id, keybox.clone())
+                    .await);
+            }
+            
+            let new_data_network = self.new_session_manager.start_validator_session(
+                session_id, authority_verifier, node_id, authority_pen
+            ).expect("todo");
 
             let authority_task = self
                 .run_session_as_authority(
                     node_id,
                     keybox,
                     data_network,
+                    new_data_network,
                     session_id,
                     authorities,
                     exit_authority_rx,
@@ -595,7 +675,20 @@ where
         }
         loop {
             let last_finalized_number = self.client.info().finalized_number;
-            debug!(target: "afa", "Highest finalized: {:?} session {:?}", last_finalized_number, session_id);
+            if last_finalized_number > first_block {
+                self.authorities = match self
+                    .client
+                    .runtime_api()
+                    .next_session_authorities(&BlockId::Number(first_block))
+                {
+                    Ok(authorities) => authorities
+                        .expect("authorities for next session must be available at first block of current session"),
+                    Err(e) => {
+                        error!(target: "afa", "Error when getting authorities for session {:?} {:?}", session_id.0 + 1, e);
+                        return;
+                    }
+                };
+            }
             if last_finalized_number >= last_block {
                 debug!(target: "afa", "Terminating session {:?}", session_id);
                 break;
@@ -605,7 +698,8 @@ where
         if maybe_node_id.is_some() {
             debug!(target: "afa", "Sending exit signal to the authority task.");
             let _ = exit_authority_tx.send(());
-            self.session_manager.stop_session(session_id);
+            self.new_session_manager.stop_session(session_id);
+            //self.session_manager.stop_session(session_id);
         }
     }
 
@@ -624,7 +718,7 @@ where
             session_id_from_block_num::<B>(last_finalized_number, self.session_period).0;
         for curr_id in starting_session.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
-            self.run_session(SessionId(curr_id)).await;
+            self.run_session(SessionId(curr_id), self.authorities.clone()).await;
             if curr_id >= 10 && curr_id % 10 == 0 {
                 self.prune_session_data(SessionId(curr_id - 10));
             }

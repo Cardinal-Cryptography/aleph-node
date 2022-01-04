@@ -372,6 +372,22 @@ pub enum Error {
 }
 
 impl<D: Data> IO<D> {
+    pub fn new (
+        commands_for_network: mpsc::UnboundedSender<ConnectionCommand>,
+        messages_for_network: mpsc::UnboundedSender<(NetworkData<D>, DataCommand)>,
+        commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
+        messages_from_user: mpsc::UnboundedReceiver<(D, SessionId, Recipient)>,
+        messages_from_network: mpsc::UnboundedReceiver<NetworkData<D>>,
+    ) -> IO<D> {
+        IO {
+            commands_for_network,
+            messages_for_network,
+            commands_from_user,
+            messages_from_user,
+            messages_from_network,
+        }
+    }
+
     fn send_data(&self, to_send: (NetworkData<D>, DataCommand)) -> Result<(), Error> {
         self.messages_for_network
             .unbounded_send(to_send)
@@ -419,21 +435,30 @@ impl<D: Data> IO<D> {
     ) -> Result<(), Error> {
         let mut maintenance = interval(Duration::from_secs(MAINTENANCE_PERIOD_SECONDS));
         loop {
+            warn!(target: "aleph-network", "manager");
             tokio::select! {
-                maybe_command = self.commands_from_user.next() => match maybe_command {
+                maybe_command = self.commands_from_user.next() => {
+                    warn!(target: "aleph-network", "command");
+                    match maybe_command {
                     Some(command) => match service.on_command(command).await {
                         Ok(to_send) => self.send(to_send)?,
                         Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
                     },
                     None => return Err(Error::CommandsChannel),
+                }
                 },
-                maybe_message = self.messages_from_user.next() => match maybe_message {
+                maybe_message = self.messages_from_user.next() => {
+                    warn!(target: "aleph-network", "message user");
+                    match maybe_message {
                     Some((message, session_id, recipient)) => for message in service.on_user_message(message, session_id, recipient) {
                          self.send_data(message)?;
                     },
                     None => return Err(Error::MessageChannel),
+                }
                 },
-                maybe_message = self.messages_from_network.next() => match maybe_message {
+                maybe_message = self.messages_from_network.next() => {
+                    warn!(target: "aleph-network", "message network");
+                    match maybe_message {
                     Some(message) => if let Err(e) = self.on_network_message(&mut service, message) {
                         match e {
                             Error::UserSend => warn!(target: "aleph-network", "Failed to send to user in session."),
@@ -442,9 +467,13 @@ impl<D: Data> IO<D> {
                         }
                     },
                     None => return Err(Error::NetworkChannel),
+                }
                 },
-                _ = maintenance.tick() => for to_send in service.discovery() {
-                    self.send_data(to_send)?;
+                _ = maintenance.tick() => {
+                    warn!(target: "aleph-network", "tick");
+                    for to_send in service.discovery() {
+                        self.send_data(to_send)?;
+                    }
                 },
             }
         }

@@ -47,6 +47,7 @@ pub struct Manager<D: Data> {
 }
 
 /// What went wrond during a session management operation.
+#[derive(Debug)]
 pub enum ManagerError {
     CommandSendFailed,
 }

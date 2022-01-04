@@ -11,7 +11,7 @@ use std::{
     iter,
 };
 
-struct Service<N: Network, D: Data> {
+pub struct Service<N: Network, D: Data> {
     network: N,
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
     messages_for_user: mpsc::UnboundedSender<D>,
@@ -24,6 +24,20 @@ pub struct IO<D: Data> {
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
     messages_for_user: mpsc::UnboundedSender<D>,
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
+}
+
+impl<D: Data> IO<D> {
+    pub fn new(
+        messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
+        messages_for_user: mpsc::UnboundedSender<D>,
+        commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
+    ) -> IO<D> {
+        IO{
+            messages_from_user,
+            messages_for_user,
+            commands_from_manager,
+        }
+    }
 }
 
 impl<N: Network, D: Data> Service<N, D> {

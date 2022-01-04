@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 mod addresses;
 mod connections;
 mod discovery;
-mod service;
+pub mod service; //todo
 mod session;
 #[cfg(test)]
 mod testing;
