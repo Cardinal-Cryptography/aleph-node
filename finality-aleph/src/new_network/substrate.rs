@@ -23,6 +23,8 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
 #[derive(Debug, Copy, Clone)]
 pub enum SendError {
     NotConnectedToPeer(PeerId),
+    LostConnectionToPeer(PeerId),
+    LostConnectionToPeerReady(PeerId),
 }
 
 impl fmt::Display for SendError {
@@ -30,6 +32,20 @@ impl fmt::Display for SendError {
         match self {
             SendError::NotConnectedToPeer(peer_id) => {
                 write!(f, "Not connected to peer {:?}", peer_id)
+            }
+            SendError::LostConnectionToPeer(peer_id) => {
+                write!(
+                    f,
+                    "Lost connection to peer {:?} while preparing sender",
+                    peer_id
+                )
+            }
+            SendError::LostConnectionToPeerReady(peer_id) => {
+                write!(
+                    f,
+                    "Lost connection to peer {:?} after sender was ready",
+                    peer_id
+                )
             }
         }
     }
@@ -55,9 +71,9 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
             .map_err(|_| SendError::NotConnectedToPeer(peer_id))?
             .ready()
             .await
-            .map_err(|_| SendError::NotConnectedToPeer(peer_id))?
+            .map_err(|_| SendError::LostConnectionToPeer(peer_id))?
             .send(data)
-            .map_err(|_| SendError::NotConnectedToPeer(peer_id))
+            .map_err(|_| SendError::LostConnectionToPeerReady(peer_id))
     }
 
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>) {
