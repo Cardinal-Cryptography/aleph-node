@@ -1,13 +1,14 @@
-name: Deploy to Testnet
+name: Deploy to Mainnet
 
 on:
   release:
-    types: [prereleased]
+    types: [released]
 
 jobs:
-  deploy-testnet:
-    name: Deploy new aleph-node image to Testnet EKS
+  deploy-mainnet:
+    name: Deploy new aleph-node image to Mainnet EKS
     runs-on: ubuntu-latest
+    environment: 'mainnet'
     env:
       AWS_REGION: us-east-1 # this region is used by all public ECR repos
     steps:
@@ -42,27 +43,21 @@ jobs:
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
         env:
           AWS_REGION: us-east-1
-      
-      - name: Tag and push image for Testnet
-        env:
-          DEVNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.sha_short }}
-          TESTNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
-        run: |
-          export image_not_exist=$(docker manifest inspect ${{ env.DEVNET_IMAGE }} &> /dev/null ; echo $?)
 
+      - name: Verify aleph-node image existance
+        env:
+          IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+        run: |
+          export image_not_exist=$(docker manifest inspect ${{ env.IMAGE }} &> /dev/null ; echo $?)
           if [ $image_not_exist -eq 1 ]; then
-            echo "::error title=Wrong docker image tag::Docker image ${{ env.DEVNET_IMAGE }} doesn't exist"
+            echo "::error title=Wrong docker image tag::Docker image ${{ env.IMAGE }} doesn't exist"
             exit 1
-          else
-            docker pull ${{ env.DEVNET_IMAGE }}
-            docker tag ${{ env.DEVNET_IMAGE }} ${{ env.TESTNET_IMAGE }}
-            docker push ${{ env.TESTNET_IMAGE }}
           fi
           
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
         with:
-          ref: testnet
+          ref: mainnet
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
@@ -72,21 +67,21 @@ jobs:
         with:
           kustomize-version: "3.8.6"
           
-      - name: Update aleph-node docker image and trigger ArgoCD deploy for Testnet                                                                      
+      - name: Update aleph-node docker image and trigger ArgoCD deploy for Mainnet                                                                      
         env:                                                                                                          
-          TESTNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
           REGIONS_AWS: 'eu-central-1,eu-west-1,eu-west-2,us-east-1,us-east-2'
         run: |
           IFS="," read -a region_array <<< ${{ env.REGIONS_AWS }}
           export aleph_path=$(pwd)
           for i in "${region_array[@]}"; do
             # Deploy new image version for archivist 
-            cd ${aleph_path}/aleph-apps/aleph-node-archivists/overlays/testnet/${i}
-            kustomize edit set image "aleph-node-archivist-image-placeholder=${{ env.TESTNET_IMAGE }}"
+            cd ${aleph_path}/aleph-apps/aleph-node-archivists/overlays/mainnet/${i}
+            kustomize edit set image "aleph-node-archivist-image-placeholder=${{ env.MAINNET_IMAGE }}"
 
             # Deploy new image version for validator
-            cd ${aleph_path}/aleph-apps/aleph-node-validators/overlays/testnet/${i}
-            kustomize edit set image "aleph-node-validator-image-placeholder=${{ env.TESTNET_IMAGE }}"
+            cd ${aleph_path}/aleph-apps/aleph-node-validators/overlays/mainnet/${i}
+            kustomize edit set image "aleph-node-validator-image-placeholder=${{ env.MAINNET_IMAGE }}"
           done
 
       - name: GIT | Commit changes to aleph-apps repository.
@@ -94,10 +89,10 @@ jobs:
         with:
           author_name: AlephZero Automation
           author_email: alephzero@10clouds.com
-          message: "Updating Testnet docker image tag for pre-release: ${{ steps.vars.outputs.branch }}"
+          message: "Updating Mainnet docker image tag for release: ${{ steps.vars.outputs.branch }}"
           add: "*.yaml"
           cwd: "aleph-apps"
-          branch: testnet
+          branch: mainnet
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
 
@@ -108,5 +103,5 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_USERNAME: GithubActions
-          SLACK_TITLE: deploy-testnet job has finished
+          SLACK_TITLE: deploy-mainnet job has finished
           MSG_MINIMAL: actions url
