@@ -1,0 +1,46 @@
+name: Save send-runtime binary as an artifact
+
+on:
+  pull_request:
+    paths:
+      - 'local-tests/send-runtime/**'
+
+jobs:
+  build:
+    name: Save send-runtime binary as an artifact
+    runs-on: ubuntu-latest
+    env:
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Print toolchain version
+        run: echo running with "$RUST_TOOLCHAIN_VERSION"
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          override: true
+
+      - name: Build binary
+        run: |
+          pushd local-tests/send-runtime/
+          cargo build --release
+          popd
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: send-runtime
+          path: local-tests/send-runtime/target/release/send-runtime
+          if-no-files-found: error
+          retention-days: 7
