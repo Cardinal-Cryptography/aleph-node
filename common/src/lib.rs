@@ -45,6 +45,11 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
     }
 }
 
+pub fn prefix_as_hex(module: &str) -> String {
+    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
+    hex::encode(pallet_name)
+}
+
 pub fn storage_key(module: &str, version: &str) -> [u8; 32] {
     let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
     let postfix = sp_io::hashing::twox_128(version.as_bytes());
