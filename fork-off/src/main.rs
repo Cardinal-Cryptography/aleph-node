@@ -4,22 +4,35 @@
 // dump state
 // curl http://localhost:9933 -H "Content-type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"state_getPairs","params":["0x"]}' > /tmp/storage.json
 
-use common::{create_connection, storage_key, storage_key_hash};
+use common::{create_connection, read_file, storage_key, storage_key_hash};
 use reqwest;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::format;
 use std::process::Command;
 
-// const WASM_PATH: &str = "/home/filip/CloudStation/aleph/aleph-node/target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 const WASM_PATH: &str = "../target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
+const SPEC_PATH: &str = "../docker/data/chainspec.json";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let client = reqwest::Client::new();
 
     // dump state
-    // let body: serde_json::Value = client
+    let storage: Value = client
+        .post("http://127.0.0.1:9933")
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "state_getPairs",
+            "params": ["0x"]
+        }))
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    // let storage = client
     //     .post("http://127.0.0.1:9933")
     //     .json(&serde_json::json!({
     //         "jsonrpc": "2.0",
@@ -29,47 +42,42 @@ async fn main() -> anyhow::Result<()> {
     //     }))
     //     .send()
     //     .await?
-    //     .json()
+    //     .text()
     //     .await?;
 
-    let body = None::<u32>
-        // client
-        // .post("http://127.0.0.1:9933")
-        // .json(&serde_json::json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "state_getPairs",
-        //     "params": ["0x"]
-        // }))
-        // .send()
-        // .await?
-        // .text()
-        // .await?
-        ;
-
     // TODO : dump it to a file
-    println!("{:#?}", body);
+    println!("{:#?}", storage["result"]);
 
     // dump the current WASM code
     // cargo build -p aleph-runtime
     // cat target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm | hexdump -ve '/1 "%02x"' > /tmp/aleph.hex
 
-    let a = Command::new("sh")
+    let runtime_code = Command::new("sh")
         .arg("-c")
         .arg(format!("cat {} | hexdump -ve \'/1 \"%02x\"\'", WASM_PATH))
         .output()
         .expect("failed to execute process");
 
-    // println!("{:#?}", a);
+    // TODO : read spec
+    let data = read_file(SPEC_PATH);
+    let chain_spec: Value = serde_json::from_str(&data)?;
+
+    println!("{:#?}", chain_spec);
 
     // twox128(stringToBytes("System")) + twox128(stringToBytes("AccountNonce"))
 
-    println!(
-        "{:#?}",
-        storage_key_hash(storage_key("System", "AccountNonce"))
-    );
+    // println!(
+    //     "{:#?}",
+    //     storage_key_hash(storage_key("System", "AccountNonce"))
+    // );
 
     // '26aa394eea5630e07c48ae0c9558cef79c2f82b23e5fd031fb54c292794b4cc4'
+
+    // let storage = JSON.parse(fs.readFileSync(storagePath, 'utf8'));
+    // let originalSpec = JSON.parse(fs.readFileSync(originalSpecPath, 'utf8'));
+    // let forkedSpec = JSON.parse(fs.readFileSync(forkedSpecPath, 'utf8'));
+
+    // https://github.com/maxsam4/fork-off-substrate/blob/master/index.js#L133
 
     Ok(())
 }
