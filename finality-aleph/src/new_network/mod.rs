@@ -88,14 +88,10 @@ impl Protocol {
 
 type NetworkEventStream = Pin<Box<dyn Stream<Item = Event> + Send>>;
 
-#[derive(Copy, Clone)]
-pub enum NetworkSendError {
-    Closed,
-}
-
 /// Abstraction over a network.
 #[async_trait]
 pub trait Network: Clone + Send + Sync + 'static {
+    type SendError: std::error::Error;
     /// Returns a stream of events representing what happens on the network.
     fn event_stream(&self) -> NetworkEventStream;
 
@@ -105,7 +101,7 @@ pub trait Network: Clone + Send + Sync + 'static {
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<(), NetworkSendError>;
+    ) -> Result<(), Self::SendError>;
 
     /// Add peers to one of the reserved sets.
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>);

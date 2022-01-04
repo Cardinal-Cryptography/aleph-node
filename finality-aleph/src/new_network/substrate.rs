@@ -1,12 +1,10 @@
-use crate::new_network::{
-    Network, NetworkEventStream, NetworkIdentity, NetworkSendError, PeerId, RequestBlocks,
-};
+use crate::new_network::{Network, NetworkEventStream, NetworkIdentity, PeerId, RequestBlocks};
 use async_trait::async_trait;
-use log::{debug, error};
+use log::error;
 use sc_network::{multiaddr, ExHashT, Multiaddr, NetworkService, NetworkStateInfo};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, fmt, sync::Arc};
 
 impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
@@ -22,8 +20,27 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum SendError {
+    NotConnectedToPeer(PeerId),
+}
+
+impl fmt::Display for SendError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SendError::NotConnectedToPeer(peer_id) => {
+                write!(f, "Not connected to peer {:?}", peer_id)
+            }
+        }
+    }
+}
+
+impl std::error::Error for SendError {}
+
 #[async_trait]
 impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
+    type SendError = SendError;
+
     fn event_stream(&self) -> NetworkEventStream {
         Box::pin(self.as_ref().event_stream("aleph-network"))
     }
@@ -33,19 +50,14 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<(), NetworkSendError> {
-        if let Ok(sender) = self.notification_sender(peer_id.into(), protocol) {
-            sender
-                .ready()
-                .await
-                .ok()
-                .unwrap()
-                .send(data)
-                .map_err(|_| NetworkSendError::Closed)
-        } else {
-            debug!(target: "aleph-network", "Attempted send to peer we are not connected to.");
-            Err(NetworkSendError::Closed)
-        }
+    ) -> Result<(), SendError> {
+        self.notification_sender(peer_id.into(), protocol)
+            .map_err(|_| SendError::NotConnectedToPeer(peer_id))?
+            .ready()
+            .await
+            .map_err(|_| SendError::NotConnectedToPeer(peer_id))?
+            .send(data)
+            .map_err(|_| SendError::NotConnectedToPeer(peer_id))
     }
 
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>) {

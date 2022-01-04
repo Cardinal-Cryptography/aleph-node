@@ -126,24 +126,18 @@ impl<N: Network, D: Data> Service<N, D> {
         }
     }
 
-    async fn send(network: &N, send_queue: &mut VecDeque<(D, PeerId, Protocol)>) -> Option<()> {
-        loop {
-            // We should not pop send_queue here. Using `send_queue.front()` is intended.
-            // Send is asynchronous, so it might happen that we pop data here and then
-            // `network.send` does not finish and gets cancelled. So in this case we would
-            // lose a popped message.
-            if let Some((data, peer, protocol)) = send_queue.front() {
-                if let Ok(()) = network.send(data.encode(), *peer, protocol.name()).await {
-                    send_queue.pop_front();
-                    return Some(());
-                }
-                debug!(target: "aleph-network", "Failed sending data to peer {:?}", peer);
-                send_queue.pop_front();
-            } else {
-                trace!(target: "aleph-network", "Attempted to send data with empty send queue.");
-                return None;
-            }
-        }
+    async fn send(
+        network: &N,
+        send_queue: &mut VecDeque<(D, PeerId, Protocol)>,
+    ) -> Option<Result<(), N::SendError>> {
+        // We should not pop send_queue here. Using `send_queue.front()` is intended.
+        // Send is asynchronous, so it might happen that we pop data here and then
+        // `network.send` does not finish and gets cancelled. So in this case we would
+        // lose a popped message.
+        let (data, peer, protocol) = send_queue.front()?;
+        let result = network.send(data.encode(), *peer, protocol.name()).await;
+        send_queue.pop_front();
+        Some(result)
     }
 
     pub async fn run(mut self) {
@@ -174,7 +168,11 @@ impl<N: Network, D: Data> Service<N, D> {
                         return;
                     }
                 },
-                Some(_) =  Self::send(&self.network, &mut self.to_send) => { },
+                Some(result) = Self::send(&self.network, &mut self.to_send) => {
+                    if let Err(e) = result {
+                        debug!(target: "aleph-network", "Failed sending data to peer: {:?}", e);
+                    }
+                },
             }
         }
     }
@@ -184,8 +182,9 @@ impl<N: Network, D: Data> Service<N, D> {
 mod tests {
     use super::{ConnectionCommand, DataCommand, Service, IO};
     use crate::new_network::{
-        manager::testing::MockNetworkIdentity, mock::MockNetwork, NetworkIdentity,
-        NetworkSendError, Protocol, ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,
+        manager::testing::MockNetworkIdentity,
+        mock::{MockNetwork, MockSendError},
+        NetworkIdentity, Protocol, ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,
     };
     use codec::Encode;
     use futures::{
@@ -196,7 +195,6 @@ mod tests {
         multiaddr::Protocol as ScProtocol, Event, Multiaddr as ScMultiaddr, ObservedRole,
     };
     use std::{borrow::Cow, collections::HashSet, iter, iter::FromIterator};
-    use substrate_test_runtime_client::runtime::Block;
 
     type MockData = Vec<u8>;
 
@@ -209,7 +207,7 @@ mod tests {
     async fn prepare() -> (
         impl Future<Output = sc_service::Result<(), tokio::task::JoinError>>,
         oneshot::Sender<()>,
-        MockNetwork<Block>,
+        MockNetwork,
         MockIO,
     ) {
         let (mock_messages_for_user, messages_from_user) = mpsc::unbounded();
@@ -507,7 +505,7 @@ mod tests {
             network
                 .network_errors
                 .lock()
-                .push_back(NetworkSendError::Closed);
+                .push_back(MockSendError::SomeError);
         }
 
         let identities: Vec<_> = (0..4)

@@ -1,13 +1,12 @@
-use crate::new_network::{Network, NetworkEventStream, NetworkSendError, PeerId, RequestBlocks};
+use crate::new_network::{Network, NetworkEventStream, PeerId};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use parking_lot::Mutex;
 use sc_network::{Event, Multiaddr};
-use sp_api::NumberFor;
-use sp_runtime::traits::Block;
 use std::{
     borrow::Cow,
     collections::{HashSet, VecDeque},
+    fmt,
     sync::Arc,
 };
 
@@ -22,37 +21,36 @@ fn channel<T>() -> Channel<T> {
 }
 
 #[derive(Clone)]
-pub struct MockNetwork<B: Block> {
-    pub request_justification: Channel<(B::Hash, NumberFor<B>)>,
-    pub request_stale_block: Channel<(B::Hash, NumberFor<B>)>,
+pub struct MockNetwork {
     pub add_reserved: Channel<(HashSet<Multiaddr>, Cow<'static, str>)>,
     pub remove_reserved: Channel<(HashSet<PeerId>, Cow<'static, str>)>,
     pub send_message: Channel<(Vec<u8>, PeerId, Cow<'static, str>)>,
     pub event_sinks: Arc<Mutex<Vec<mpsc::UnboundedSender<Event>>>>,
     event_stream_taken_oneshot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-    pub network_errors: Arc<Mutex<VecDeque<NetworkSendError>>>,
+    pub network_errors: Arc<Mutex<VecDeque<MockSendError>>>,
 }
 
-impl<B: Block> RequestBlocks<B> for MockNetwork<B> {
-    fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
-        self.request_justification
-            .0
-            .lock()
-            .unbounded_send((*hash, number))
-            .unwrap();
-    }
+#[derive(Debug, Copy, Clone)]
+pub enum MockSendError {
+    SomeError,
+}
 
-    fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>) {
-        self.request_stale_block
-            .0
-            .lock()
-            .unbounded_send((hash, number))
-            .unwrap();
+impl fmt::Display for MockSendError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MockSendError::SomeError => {
+                write!(f, "Some error message")
+            }
+        }
     }
 }
+
+impl std::error::Error for MockSendError {}
 
 #[async_trait]
-impl<B: Block> Network for MockNetwork<B> {
+impl Network for MockNetwork {
+    type SendError = MockSendError;
+
     fn event_stream(&self) -> NetworkEventStream {
         let (tx, rx) = mpsc::unbounded();
         self.event_sinks.lock().push(tx);
@@ -68,7 +66,7 @@ impl<B: Block> Network for MockNetwork<B> {
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<(), NetworkSendError> {
+    ) -> Result<(), MockSendError> {
         if let Some(err) = self.network_errors.lock().pop_front() {
             Err(err)
         } else {
@@ -98,11 +96,9 @@ impl<B: Block> Network for MockNetwork<B> {
     }
 }
 
-impl<B: Block> MockNetwork<B> {
+impl MockNetwork {
     pub fn new(oneshot_sender: oneshot::Sender<()>) -> Self {
         MockNetwork {
-            request_justification: channel(),
-            request_stale_block: channel(),
             add_reserved: channel(),
             remove_reserved: channel(),
             send_message: channel(),
@@ -122,22 +118,6 @@ impl<B: Block> MockNetwork<B> {
     pub fn close_channels(self) {
         self.event_sinks.lock().clear();
 
-        self.request_justification.0.lock().close_channel();
-        assert!(self
-            .request_justification
-            .1
-            .lock()
-            .try_next()
-            .unwrap()
-            .is_none());
-        self.request_stale_block.0.lock().close_channel();
-        assert!(self
-            .request_stale_block
-            .1
-            .lock()
-            .try_next()
-            .unwrap()
-            .is_none());
         self.add_reserved.0.lock().close_channel();
         assert!(self.add_reserved.1.lock().try_next().unwrap().is_none());
         self.remove_reserved.0.lock().close_channel();
