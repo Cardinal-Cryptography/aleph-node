@@ -29,7 +29,7 @@ pub enum SendError {
     SendTimeout(PeerId, u64),
 }
 
-const SEND_TO_PEER_TIMEOUT: u64 = 200;
+const SEND_TO_PEER_TIMEOUT_MS: u64 = 200;
 
 impl fmt::Display for SendError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -79,13 +79,13 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
         protocol: Cow<'static, str>,
     ) -> Result<(), SendError> {
         timeout(
-            Duration::from_millis(SEND_TO_PEER_TIMEOUT),
+            Duration::from_millis(SEND_TO_PEER_TIMEOUT_MS),
             self.notification_sender(peer_id.into(), protocol)
                 .map_err(|_| SendError::NotConnectedToPeer(peer_id))?
                 .ready(),
         )
         .await
-        .map_err(|_| SendError::SendTimeout(peer_id, SEND_TO_PEER_TIMEOUT))?
+        .map_err(|_| SendError::SendTimeout(peer_id, SEND_TO_PEER_TIMEOUT_MS))?
         .map_err(|_| SendError::LostConnectionToPeer(peer_id))?
         .send(data)
         .map_err(|_| SendError::LostConnectionToPeerReady(peer_id))
