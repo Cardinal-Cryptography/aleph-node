@@ -6,20 +6,26 @@
 
 use common::{create_connection, prefix_as_hex, read_file, storage_key, storage_key_hash};
 use reqwest;
+use serde_json::Map;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::format;
 use std::process::Command;
+use std::str;
 
 const WASM_PATH: &str = "../target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 const CHAIN_SPEC_PATH: &str = "../docker/data/chainspec.json";
 const FORK_SPEC_PATH: &str = "../docker/data/chainspec.dev.json";
+const WRITE_TO_PATH: &str = "../docker/data/chainspec.fork.json";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // TODO : read spec
     let data = read_file(CHAIN_SPEC_PATH);
-    let mut chain_spec: Value = serde_json::from_str(&data)?;
+    let chain_spec: Value = serde_json::from_str(&data)?;
+
+    let data = read_file(FORK_SPEC_PATH);
+    let mut fork_spec: Value = serde_json::from_str(&data)?;
 
     // println!("{:#?}", chain_spec);
 
@@ -31,7 +37,8 @@ async fn main() -> anyhow::Result<()> {
         .arg("-c")
         .arg(format!("cat {} | hexdump -ve \'/1 \"%02x\"\'", WASM_PATH))
         .output()
-        .expect("failed to execute process");
+        .expect("failed to execute process")
+        .stdout;
 
     // get current chain state (storage)
     let storage: Value = reqwest::Client::new()
@@ -47,31 +54,68 @@ async fn main() -> anyhow::Result<()> {
         .json()
         .await?;
 
-    // set "code" to hex dump of code
+    let storage = storage["result"].as_array().unwrap();
 
-    // set sudo key
+    // set "code" to the hex dump of code
+    // fork_spec["genesis"]["raw"]["top"]["0x3a636f6465"] =
+    //     Value::String(format!("0x{:?}", str::from_utf8(&runtime_code)));
 
-    // set keys from storage in new spec (see which ones)
-    // session
-    let prefixes = vec!["Aura", "Sudo", "Aleph", "Session", "Treasury", "Vesting"];
+    // TODO move the desired storage values over from the snapshot of the chain to the forked chain genesis spec
 
-    println!(
-        "{:#?}",
-        storage_key_hash(storage_key("Aura", "Authorities"))
-    );
+    let prefixes = ["Aura", "Aleph", "Session", "Treasury", "Vesting"];
 
-    println!("{:#?}", prefix_as_hex("Session"));
+    storage
+        .iter()
+        .filter(|pair| {
+            // println!("@ {:?}", pair);
 
-    // println!("{:#?}", chain_spec["genesis"]["raw"]["top"]);
+            prefixes.iter().any(|prefix| {
+                let pair = pair.as_array().unwrap();
+                let storage_key = pair[0].as_str().unwrap();
 
-    let res = chain_spec["genesis"]["raw"]["top"]
-        .as_object()
-        .iter_mut()
-        .map(|pair| {
-            println!("element {:#?}", pair);
+                // println!("@@ {:?} {:?}", storage_key, prefix_as_hex(prefix));
+
+                storage_key.starts_with(&format!("0x{}", prefix_as_hex(prefix)))
+            })
         })
-        // .collect()
-        ;
+        .for_each(|pair| {
+            println!("@@@ {:?}", pair);
+        });
+
+    // storage
+    //    .filter((i) => prefixes.some((prefix) => i[0].startsWith(prefix)))
+    //    .forEach(([key, value]) => (forkedSpec.genesis.raw.top[key] = value));
+
+    // println!("{}", fork_spec["genesis"]["raw"]["top"]["0x3a636f6465"]);
+
+    // TODO set keys from storage in new spec (see which ones)
+
+    // let mut genesis_block = fork_spec["genesis"]["raw"]["top"].as_object_mut().unwrap();
+    // for (k, v) in chain_spec["genesis"]["raw"]["top"].as_object().unwrap() {
+    //     // println!("{:#?}", k);
+
+    //     let k = k.as_str();
+    //     if k.eq("0x3a636f6465") {
+    //         genesis_block.insert(k.to_owned(), Value::String("0x0".to_string()));
+    //     } else if k.eq(&prefix_as_hex("Aura")) {
+    //         //
+    //     } else if k.eq(&prefix_as_hex("Session")) {
+    //         //
+    //     } else if k.eq(&prefix_as_hex("Session")) {
+    //         //
+    //     } else if k.eq(&prefix_as_hex("Session")) {
+    //         //
+    //     } else if k.eq(&prefix_as_hex("Session")) {
+    //         //
+    //     }
+    // }
+
+    // fork_spec["genesis"]["raw"]["top"] = serde_json::to_value(&genesis_block).unwrap();
+
+    // println!(
+    //     "{:#?}",
+    //     storage_key_hash(storage_key("Aura", "Authorities"))
+    // );
 
     Ok(())
 }
