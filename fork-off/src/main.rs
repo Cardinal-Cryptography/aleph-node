@@ -1,3 +1,4 @@
+use clap::Parser;
 use common::{create_connection, prefix_as_hex, read_file, storage_key, storage_key_hash};
 use reqwest;
 use serde_json::Map;
@@ -8,20 +9,36 @@ use std::fs::File;
 use std::process::Command;
 use std::str;
 
-// TODO : from clap config
+#[derive(Debug, Parser)]
+#[clap(version = "1.0")]
+pub struct Config {
+    /// URL address of the node RPC endpoint for the chain you are forking
+    #[clap(long, default_value = "http://127.0.0.1:9933")]
+    pub http_rpc_endpoint: String,
 
-const FORK_SPEC_PATH: &str = "../docker/data/chainspec.dev.json";
-const WRITE_TO_PATH: &str = "../docker/data/chainspec.fork.json";
+    /// path to write the initial chainspec of the fork
+    /// as generated with the `bootstrap-chain` command
+    #[clap(long, default_value = "../docker/data/chainspec.json")]
+    pub fork_spec_path: String,
+
+    /// where to write the forked genesis chainspec
+    #[clap(long, default_value = "../docker/data/chainspec.fork.json")]
+    pub write_to_path: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let data = read_file(FORK_SPEC_PATH);
-    let mut fork_spec: Value = serde_json::from_str(&data)?;
+    let Config {
+        http_rpc_endpoint,
+        fork_spec_path,
+        write_to_path,
+    } = Config::parse();
+
+    let mut fork_spec: Value = serde_json::from_str(&read_file(&fork_spec_path))?;
 
     // get current chain state (storage)
     let storage: Value = reqwest::Client::new()
-        // TODO : from clap config
-        .post("http://127.0.0.1:9933")
+        .post(http_rpc_endpoint)
         .json(&serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -44,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
                 let pair = pair.as_array().unwrap();
                 let storage_key = pair[0].as_str().unwrap();
                 storage_key.starts_with(&format!("0x{}", prefix_as_hex(prefix)))
-                    || storage_key.eq("0x3a636f6465")
+                    || storage_key.eq("0x3a636f6465") // code
             })
         })
         .for_each(|pair| {
