@@ -2,10 +2,7 @@ use log::info;
 use serde_json::Value;
 use sp_core::H256 as Hash;
 use std::{
-    sync::{
-        mpsc::{channel, Sender as ThreadOut},
-        Arc, Mutex,
-    },
+    sync::{mpsc::channel, Arc, Mutex},
     thread,
     thread::JoinHandle,
 };
@@ -20,8 +17,11 @@ use substrate_api_client::{
     },
     ApiClientError, ApiResult, FromHexString, RpcClient as RpcClientTrait, XtStatus,
 };
-use ws::{connect, Handler, Message, Result as WsResult, Sender as WsSender};
+use ws::{
+    connect, Error as WsError, ErrorKind, Handler, Message, Result as WsResult, Sender as WsSender,
+};
 
+// It attempts to run a single thread with a single WebSocket connection that processes all outgoing requests.
 pub struct WsRpcClient {
     mux: Mutex<()>,
     next_handler: Arc<Mutex<Option<RpcClient>>>,
@@ -52,18 +52,7 @@ impl RpcClientTrait for WsRpcClient {
     fn get_request(&self, jsonreq: Value) -> ApiResult<String> {
         let _mux = self.mux.lock();
 
-        let (result_in, result_out) = channel();
-        self.get(jsonreq.to_string(), result_in)?;
-
-        let str = result_out.recv()?;
-
-        // reset the RpcClient handler used by the WebSocket's thread
-        *self
-            .next_handler
-            .lock()
-            .expect("unable to acquire a lock on RpcClient") = None;
-
-        Ok(str)
+        Ok(self.get(jsonreq.to_string())?)
     }
 
     fn send_extrinsic(
@@ -73,124 +62,95 @@ impl RpcClientTrait for WsRpcClient {
     ) -> ApiResult<Option<sp_core::H256>> {
         let _mux = self.mux.lock();
 
-        // Todo: Make all variants return a H256: #175.
-
         let jsonreq = match exit_on {
             XtStatus::SubmitOnly => json_req::author_submit_extrinsic(&xthex_prefixed).to_string(),
             _ => json_req::author_submit_and_watch_extrinsic(&xthex_prefixed).to_string(),
         };
 
-        let (result_in, result_out) = channel();
         let result = match exit_on {
             XtStatus::Finalized => {
-                self.send_extrinsic_and_wait_until_finalized(jsonreq, result_in)?;
-                let res = result_out.recv()?;
+                let res = self.send_extrinsic_and_wait_until_finalized(jsonreq)?;
                 info!("finalized: {}", res);
                 Ok(Some(Hash::from_hex(res)?))
             }
             XtStatus::InBlock => {
-                self.send_extrinsic_and_wait_until_in_block(jsonreq, result_in)?;
-                let res = result_out.recv()?;
+                let res = self.send_extrinsic_and_wait_until_in_block(jsonreq)?;
                 info!("inBlock: {}", res);
                 Ok(Some(Hash::from_hex(res)?))
             }
             XtStatus::Broadcast => {
-                self.send_extrinsic_and_wait_until_broadcast(jsonreq, result_in)?;
-                let res = result_out.recv()?;
+                let res = self.send_extrinsic_and_wait_until_broadcast(jsonreq)?;
                 info!("broadcast: {}", res);
                 Ok(None)
             }
             XtStatus::Ready => {
-                self.send_extrinsic_until_ready(jsonreq, result_in)?;
-                let res = result_out.recv()?;
+                let res = self.send_extrinsic_until_ready(jsonreq)?;
                 info!("ready: {}", res);
                 Ok(None)
             }
             XtStatus::SubmitOnly => {
-                self.send_extrinsic(jsonreq, result_in)?;
-                let res = result_out.recv()?;
+                let res = self.send_extrinsic(jsonreq)?;
                 info!("submitted xt: {}", res);
                 Ok(None)
             }
             _ => Err(ApiClientError::UnsupportedXtStatus(exit_on)),
         };
 
-        // reset the RpcClient handler used by the WebSocket's thread
-        *self
-            .next_handler
-            .lock()
-            .expect("unable to acquire a lock on RpcClient") = None;
+        self.set_next_handler(None);
         result
     }
 }
 
 impl WsRpcClient {
-    fn get(&self, json_req: String, result_in: ThreadOut<String>) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_get_request_msg)
+    fn get(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_get_request_msg)
     }
 
-    fn send_extrinsic(&self, json_req: String, result_in: ThreadOut<String>) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_extrinsic_msg_submit_only)
+    fn send_extrinsic(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_extrinsic_msg_submit_only)
     }
 
-    fn send_extrinsic_until_ready(
-        &self,
-        json_req: String,
-        result_in: ThreadOut<String>,
-    ) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_extrinsic_msg_until_ready)
+    fn send_extrinsic_until_ready(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_extrinsic_msg_until_ready)
     }
 
-    fn send_extrinsic_and_wait_until_broadcast(
-        &self,
-        json_req: String,
-        result_in: ThreadOut<String>,
-    ) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_extrinsic_msg_until_broadcast)
+    fn send_extrinsic_and_wait_until_broadcast(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_extrinsic_msg_until_broadcast)
     }
 
-    fn send_extrinsic_and_wait_until_in_block(
-        &self,
-        json_req: String,
-        result_in: ThreadOut<String>,
-    ) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_extrinsic_msg_until_in_block)
+    fn send_extrinsic_and_wait_until_in_block(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_extrinsic_msg_until_in_block)
     }
 
-    fn send_extrinsic_and_wait_until_finalized(
-        &self,
-        json_req: String,
-        result_in: ThreadOut<String>,
-    ) -> WsResult<()> {
-        self.send_rpc_request(json_req, result_in, on_extrinsic_msg_until_finalized)
+    fn send_extrinsic_and_wait_until_finalized(&self, json_req: String) -> WsResult<String> {
+        self.send_rpc_request(json_req, on_extrinsic_msg_until_finalized)
     }
 
-    fn send_rpc_request(
-        &self,
-        jsonreq: String,
-        result_in: ThreadOut<String>,
-        on_message_fn: OnMessageFn,
-    ) -> WsResult<()> {
+    fn send_rpc_request(&self, jsonreq: String, on_message_fn: OnMessageFn) -> WsResult<String> {
+        // ws_sender below is used by the RpcClient while being executed by another thread,
+        // but we don't want it actually to do anything, since we are sending the given request here
         // 1 used by `on_open` of RpcClient + 1 for `close`
         const MAGIC_SEND_CONST: usize = 2;
         let (ws_tx, _ws_rx) = mio::channel::sync_channel(MAGIC_SEND_CONST);
         let ws_sender = ws::Sender::new(0.into(), ws_tx, 0);
 
+        let (result_in, result_out) = channel();
         let rpc_client = RpcClient {
             out: ws_sender,
             request: jsonreq.clone(),
             result: result_in,
             on_message_fn,
         };
-        // force lock to be released before we send a message on ws::Sender, otherwise we might get a deadlock
-        {
-            let mut next_handler = self
-                .next_handler
-                .lock()
-                .expect("unable to acquire a lock on RpcClient");
-            *next_handler = Some(rpc_client);
-        }
-        self.out.send(jsonreq)
+        self.set_next_handler(Some(rpc_client));
+        self.out.send(jsonreq)?;
+        let res = result_out.recv().map_err(|err| {
+            WsError::new(
+                ErrorKind::Custom(Box::new(err)),
+                "unable to read an answer from the `result_out` channel",
+            )
+        })?;
+        self.set_next_handler(None);
+        WsResult::Ok(res)
     }
 
     pub fn close(&mut self) {
@@ -200,6 +160,13 @@ impl WsRpcClient {
         self.join_handle
             .take()
             .map(|handle| handle.join().expect("unable to join WebSocket's thread"));
+    }
+
+    fn set_next_handler(&self, handler: Option<RpcClient>) {
+        *self
+            .next_handler
+            .lock()
+            .expect("unable to acquire a lock on RpcClient") = handler;
     }
 }
 
