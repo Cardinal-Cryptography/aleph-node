@@ -9,6 +9,7 @@ use futures::channel::oneshot;
 use log::debug;
 use sp_runtime::traits::Block;
 
+/// Runs the member within a single session.
 pub fn task<B: Block>(
     subtask_common: AuthoritySubtaskCommon,
     multikeychain: KeyBox,

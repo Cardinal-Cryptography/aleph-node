@@ -12,6 +12,7 @@ use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
 use std::sync::Arc;
 
+/// Runs the latest block refresher within a single session.
 pub fn task<B, BE, SC, C>(
     subtask_common: AuthoritySubtaskCommon,
     select_chain: SC,

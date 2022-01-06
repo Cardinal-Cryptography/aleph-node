@@ -4,12 +4,14 @@ use crate::{
 };
 use futures::channel::oneshot;
 
+/// A wrapper for running the authority task within a specific session.
 pub struct Task {
     task: PureTask,
     node_id: NodeIndex,
 }
 
 impl Task {
+    /// Create a new authority task. The handle should be the handle to the actual task.
     pub fn new(handle: Handle, node_id: NodeIndex, exit: oneshot::Sender<()>) -> Self {
         Task {
             task: PureTask::new(handle, exit),
@@ -17,16 +19,20 @@ impl Task {
         }
     }
 
+    /// Stop the authority task and wait for it to finish.
     pub async fn stop(self) {
         self.task.stop().await
     }
 
+    /// If the authority task stops for any reason, this returns the associated NodeIndex, which
+    /// can be used to restart the task.
     pub async fn stopped(&mut self) -> NodeIndex {
         self.task.stopped().await;
         self.node_id
     }
 }
 
+/// All the subtasks required to participate in a session as an authority.
 pub struct Subtasks {
     exit: oneshot::Receiver<()>,
     member: PureTask,
@@ -37,6 +43,7 @@ pub struct Subtasks {
 }
 
 impl Subtasks {
+    /// Create the subtask collection by passing in all the tasks.
     pub fn new(
         exit: oneshot::Receiver<()>,
         member: PureTask,
@@ -65,6 +72,7 @@ impl Subtasks {
         self.data_store.stop().await;
     }
 
+    /// Blocks until the task is done and returns true if it quit unexpectedly.
     pub async fn failed(mut self) -> bool {
         let result = tokio::select! {
             _ = &mut self.exit => false,
@@ -79,6 +87,7 @@ impl Subtasks {
     }
 }
 
+/// Common args for authority subtasks.
 #[derive(Clone)]
 pub struct SubtaskCommon {
     pub spawn_handle: SpawnHandle,

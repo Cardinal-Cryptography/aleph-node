@@ -20,6 +20,7 @@ use sp_api::NumberFor;
 use sp_runtime::traits::{Block, Header};
 use std::sync::Arc;
 
+/// IO channels used by the aggregator task.
 pub struct IO<B: Block> {
     pub ordered_units_from_aleph: mpsc::UnboundedReceiver<AlephDataFor<B>>,
     pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<B>>,
@@ -98,6 +99,7 @@ async fn run_aggregator<B, C, BE>(
     let _ = exit_rx.await;
 }
 
+/// Runs the justification signature aggregator within a single session.
 pub fn task<B, C, BE>(
     subtask_common: AuthoritySubtaskCommon,
     client: Arc<C>,

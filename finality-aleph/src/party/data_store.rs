@@ -9,6 +9,7 @@ use log::debug;
 use sc_client_api::Backend;
 use sp_runtime::traits::Block;
 
+/// Runs the data store within a single session.
 pub fn task<B, C, BE, RB>(
     subtask_common: AuthoritySubtaskCommon,
     mut data_store: DataStore<B, C, BE, RB, AlephNetworkData<B>>,

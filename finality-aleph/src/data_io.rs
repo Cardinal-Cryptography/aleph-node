@@ -49,6 +49,8 @@ impl<H, N> AlephData<H, N> {
 
 pub(crate) type AlephDataFor<B> = AlephData<<B as BlockT>::Hash, NumberFor<B>>;
 
+/// A trait allowing to check the data contained in an AlephBFT network message, for the purpose of
+/// data vailability checks.
 pub trait AlephNetworkMessage<B: BlockT> {
     fn included_blocks(&self) -> Vec<AlephDataFor<B>>;
 }
@@ -310,6 +312,7 @@ where
     }
 }
 
+/// Provides data to AlephBFT for ordering.
 #[derive(Clone)]
 pub struct DataProvider<B: BlockT> {
     pub(crate) proposed_block: Arc<Mutex<AlephDataFor<B>>>,
@@ -405,6 +408,7 @@ impl<B: BlockT> aleph_bft::DataProvider<AlephDataFor<B>> for DataProvider<B> {
     }
 }
 
+/// Accepts and forwards units ordered by AlephBFT.
 pub struct FinalizationHandler<B: BlockT> {
     pub(crate) ordered_units_tx: mpsc::UnboundedSender<AlephDataFor<B>>,
 }

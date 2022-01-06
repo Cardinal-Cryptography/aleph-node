@@ -37,6 +37,7 @@ enum Error {
     SendData,
 }
 
+/// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(
     protocol: Option<new_network::Protocol>,
 ) -> sc_network::config::NonDefaultSetConfig {
@@ -114,6 +115,7 @@ where
 
 type Hasher = hash::Wrapper<BlakeTwo256>;
 
+/// A wrapper for spawning tasks in a way compatible with AlephBFT.
 #[derive(Clone)]
 pub struct SpawnHandle(SpawnTaskHandle);
 

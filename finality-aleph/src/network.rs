@@ -717,6 +717,7 @@ pub struct AlephNetwork<B: BlockT> {
     inner: DataNetwork<AlephNetworkData<B>>,
 }
 
+/// A network for sending messages related to the AlephBFT protocol.
 impl<B: BlockT> AlephNetwork<B> {
     pub(crate) fn new(inner: DataNetwork<AlephNetworkData<B>>) -> Self {
         AlephNetwork { inner }
@@ -739,6 +740,7 @@ impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, Signature
     }
 }
 
+/// A network for sending messages related to RMC.
 pub struct RmcNetwork<B: BlockT> {
     inner: DataNetwork<RmcNetworkData<B>>,
 }

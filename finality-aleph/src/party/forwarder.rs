@@ -6,6 +6,7 @@ use aleph_bft::SpawnHandle;
 use futures::{channel::oneshot, future::select, pin_mut};
 use log::debug;
 
+/// Runs the forwarder within a single session.
 pub fn task<F: Future<Output = ()> + Send + 'static>(
     subtask_common: AuthoritySubtaskCommon,
     forwarder: F,
