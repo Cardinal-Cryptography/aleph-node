@@ -459,9 +459,9 @@ where
         let finalization_handler = FinalizationHandler::<B> { ordered_units_tx };
 
         let (exit_member_tx, exit_member_rx) = oneshot::channel();
-        //let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
+        let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
         let (exit_aggregator_tx, exit_aggregator_rx) = oneshot::channel();
-        //let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
+        let (exit_refresher_tx, exit_refresher_rx) = oneshot::channel();
         //let (exit_forwarder_tx, exit_forwarder_rx) = oneshot::channel();
 
         let member_task = {
@@ -483,13 +483,13 @@ where
             }
         };
 
-        /*let data_store_task = {
+        let data_store_task = {
             async move {
                 debug!(target: "afa", "Running the data store task for {:?}", session_id.0);
                 data_store.run(exit_data_store_rx).await;
                 debug!(target: "afa", "Data store task stopped for {:?}", session_id.0);
             }
-        };*/
+        };
 
         let aggregator_task = {
             let client = self.client.clone();
@@ -520,7 +520,7 @@ where
             pin_mut!(forwarder);
             select(forwarder, exit_forwarder_rx).await;
             debug!(target: "afa", "Forwarder task stopped for {:?}", session_id.0);
-        };
+        };*/
 
         let refresher_task = {
             refresh_best_chain(
@@ -530,23 +530,23 @@ where
                 last_block,
                 exit_refresher_rx,
             )
-        };*/
+        };
 
         let member_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_member", member_task);
-        /*let data_store_handle = self
+        let data_store_handle = self
             .spawn_handle
-            .spawn_essential("aleph/consensus_session_data_store", data_store_task);*/
+            .spawn_essential("aleph/consensus_session_data_store", data_store_task);
         let aggregator_handle = self
             .spawn_handle
             .spawn_essential("aleph/consensus_session_aggregator", aggregator_task);
         /*let forwarder_handle = self
             .spawn_handle
-            .spawn_essential("aleph/consensus_session_forwarder", forwarder_task);
+            .spawn_essential("aleph/consensus_session_forwarder", forwarder_task);*/
         let refresher_handle = self
             .spawn_handle
-            .spawn_essential("aleph/consensus_session_refresher", refresher_task);*/
+            .spawn_essential("aleph/consensus_session_refresher", refresher_task);
 
         async move {
             let _ = exit_rx.await;
@@ -565,7 +565,7 @@ where
             /*if let Err(e) = exit_forwarder_tx.send(()) {
                 debug!(target: "afa", "forwarder was closed before terminating it manually: {:?}", e)
             }
-            let _ = forwarder_handle.await;
+            let _ = forwarder_handle.await;*/
 
             if let Err(e) = exit_refresher_tx.send(()) {
                 debug!(target: "afa", "refresh was closed before terminating it manually: {:?}", e)
@@ -575,7 +575,7 @@ where
             if let Err(e) = exit_data_store_tx.send(()) {
                 debug!(target: "afa", "data store was closed before terminating it manually: {:?}", e)
             }
-            let _ = data_store_handle.await;*/
+            let _ = data_store_handle.await;
             info!(target: "afa", "Terminated authority run of session {:?}", session_id);
         }
     }

@@ -7,6 +7,7 @@ use aleph_bft::Recipient;
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use log::trace;
 
 /// Sends data within a single session.
 #[derive(Clone)]
@@ -36,6 +37,7 @@ impl<D: Data> ComponentNetwork<D> for Network<D> {
         &self.sender
     }
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
+        trace!(target: "aleph-network", "ComponentNetwork receiver");
         self.receiver.clone()
     }
 }

@@ -5,7 +5,7 @@ use crate::new_network::{ComponentNetwork, Data, ReceiverComponent, SendError, S
 use aleph_bft::Recipient;
 use codec::{Decode, Encode};
 use futures::channel::mpsc;
-use log::warn;
+use log::{trace, warn};
 use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -76,18 +76,26 @@ async fn forward_or_wait<
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
 ) {
-    match receiver.lock().await.next().await {
+    trace!(target: "aleph-network", "forward_or_wait");
+    let mut receiver = receiver.lock().await;
+    trace!(target: "aleph-network", "forward_or_wait lock");
+    let message = receiver.next().await;
+    trace!(target: "aleph-network", "forward_or_wait match message");
+    match message {
         Some(Split::Left(data)) => {
+            trace!(target: "aleph-network", "forward_or_wait left case");
             if left_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
         }
         Some(Split::Right(data)) => {
+            trace!(target: "aleph-network", "forward_or_wait right case");
             if right_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
         }
         None => {
+            trace!(target: "aleph-network", "forward_or_wait none case");
             left_sender.close_channel();
             right_sender.close_channel();
         }
@@ -114,9 +122,16 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
 {
     async fn next(&mut self) -> Option<RightData> {
         loop {
+            trace!(target: "aleph-network", "right receiver next loop");
             tokio::select! {
-                data = self.translated_receiver.next() => return data,
-                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => (),
+                data = self.translated_receiver.next() => {
+                    trace!(target: "aleph-network", "right receiver next case 1");
+                    return data;
+                },
+                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
+                    trace!(target: "aleph-network", "right receiver next case 2");
+                    ()
+                },
             }
         }
     }
@@ -145,6 +160,7 @@ impl<
         &self.sender
     }
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
+        trace!(target: "aleph-network", "Split Receiver Left");
         self.receiver.clone()
     }
 }
@@ -172,6 +188,7 @@ impl<
         &self.sender
     }
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
+        trace!(target: "aleph-network", "Split Receiver Right");
         self.receiver.clone()
     }
 }

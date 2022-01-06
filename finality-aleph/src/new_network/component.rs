@@ -3,6 +3,8 @@ use aleph_bft::Recipient;
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use log::trace;
+use futures::StreamExt;
 
 /// For sending arbitrary messages.
 pub trait Sender<D: Data>: Sync + Send + Clone {
@@ -29,13 +31,20 @@ impl<D: Data, CN: Network<D>> DataNetwork<D> for CN {
         self.sender().send(data, recipient)
     }
     async fn next(&mut self) -> Option<D> {
-        self.receiver().clone().lock_owned().await.next().await
+        trace!(target: "aleph-network", "Component DataNetwork Next");
+        let r = self.receiver();
+        trace!(target: "aleph-network", "Component DataNetwork Next Cloned");
+        let mut q = r.lock_owned().await;
+        trace!(target: "aleph-network", "Component DataNetwork Next Locked");
+        let s = q.next().await;
+        trace!(target: "aleph-network", "Component DataNetwork Next Nexted");
+        s
     }
 }
 
 #[async_trait::async_trait]
 impl<D: Data> Receiver<D> for mpsc::UnboundedReceiver<D> {
     async fn next(&mut self) -> Option<D> {
-        self.next().await
+        StreamExt::next(self).await
     }
 }
