@@ -115,7 +115,7 @@ where
 type Hasher = hash::Wrapper<BlakeTwo256>;
 
 #[derive(Clone)]
-struct SpawnHandle(SpawnTaskHandle);
+pub struct SpawnHandle(SpawnTaskHandle);
 
 impl From<SpawnTaskHandle> for SpawnHandle {
     fn from(sth: SpawnTaskHandle) -> Self {

@@ -713,7 +713,7 @@ impl<D: Clone + Codec> DataNetwork<D> {
     }
 }
 
-pub(crate) struct AlephNetwork<B: BlockT> {
+pub struct AlephNetwork<B: BlockT> {
     inner: DataNetwork<AlephNetworkData<B>>,
 }
 
@@ -739,7 +739,7 @@ impl<B: BlockT> aleph_bft::Network<Hasher, AlephDataFor<B>, Signature, Signature
     }
 }
 
-pub(crate) struct RmcNetwork<B: BlockT> {
+pub struct RmcNetwork<B: BlockT> {
     inner: DataNetwork<RmcNetworkData<B>>,
 }
 
