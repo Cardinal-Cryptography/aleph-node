@@ -264,22 +264,22 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-        - name: Checkout old source code
-          uses: actions/checkout@v2
-          with:
-            ref: 'main'
-            path: 'old-repo'
+      - name: Checkout old source code
+        uses: actions/checkout@v2
+        with:
+          ref: 'main'
+          path: 'old-repo'
 
-        - name: Checkout current source code
-          uses: actions/checkout@v2
+      - name: Checkout current source code
+        uses: actions/checkout@v2
 
-        - name: Inspect versions
-          id: inspect
-          run: |
-            grep "spec_version:" old-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
-            grep "spec_version:" aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
-            diff old.version new.version
-            echo "::set-output name=diff::$?"
+      - name: Inspect versions
+        id: inspect
+        run: |
+          grep "spec_version:" old-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
+          grep "spec_version:" aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
+          diff old.version new.version
+          echo "::set-output name=diff::$?"
 
 
   build-old-node:
