@@ -14,5 +14,4 @@ RUN chmod +x /aleph-runtime/send_runtime
 COPY docker-runtime-hook/entrypoint.sh /aleph-runtime/entrypoint.sh
 RUN chmod +x /aleph-runtime/entrypoint.sh
 
-# ENTRYPOINT ["./entrypoint.sh"]
-CMD [ "./entrypoint.sh" ]
+ENTRYPOINT ["./entrypoint.sh"]
