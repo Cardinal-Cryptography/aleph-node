@@ -278,8 +278,6 @@ jobs:
       - name: Inspect versions
         id: inspect
         run: |
-          ls
-          ls -alR
           grep "spec_version:" old-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
           grep "spec_version:" new-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
           diff old.version new.version
