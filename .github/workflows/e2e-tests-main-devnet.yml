@@ -268,10 +268,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: 'main'
-          path: 'old-repo'
+          path: old-repo
 
       - name: Checkout current source code
         uses: actions/checkout@v2
+        with:
+          path: new-repo
 
       - name: Inspect versions
         id: inspect
@@ -279,7 +281,7 @@ jobs:
           ls
           ls -alR
           grep "spec_version:" old-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
-          grep "spec_version:" aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
+          grep "spec_version:" new-repo/aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
           diff old.version new.version
           echo "::set-output name=diff::$?"
 
