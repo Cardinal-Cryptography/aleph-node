@@ -287,7 +287,7 @@ jobs:
   build-old-node:
     name: Build node and runtime artifacts (main version)
     needs: [check-runtime-change]
-    if: ${{needs.check-runtime-change.outputs.runtime-updated}}
+    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
     with:
       rust-toolchain-version: 'nightly-2021-10-24'
