@@ -21,15 +21,14 @@ SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 
 def query_runtime_version(nodes):
     print('Current version:')
-    versions = []
+    versions = set()
     for i, node in enumerate(nodes):
         sysver = node.rpc('system_version').result
         rt = node.rpc('state_getRuntimeVersion').result['specVersion']
         print(f'  Node {i}: system: {sysver}  runtime: {rt}')
-        versions.append(rt)
-    versions = set(versions)
+        versions.add(rt)
     if len(versions) != 1:
-        print('ERROR: nodes reported different runtime versions')
+        print(f'ERROR: nodes reported different runtime versions: {versions}')
     return max(versions)
 
 
