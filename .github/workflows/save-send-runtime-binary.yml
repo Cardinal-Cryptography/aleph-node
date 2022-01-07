@@ -1,6 +1,7 @@
 name: Save send-runtime binary as an artifact
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'local-tests/send-runtime/**'
@@ -20,6 +21,13 @@ jobs:
 
       - name: Checkout source code
         uses: actions/checkout@v2
+
+      - name: GIT | Get branch info & current commit sha.
+        id: vars
+        shell: bash
+        run: |
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Print toolchain version
         run: echo running with "$RUST_TOOLCHAIN_VERSION"
@@ -41,6 +49,35 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: send-runtime
-          path: local-tests/send-runtime/target/release/send-runtime
+          path: local-tests/send-runtime/target/release/send_runtime
           if-no-files-found: error
           retention-days: 7
+
+      - name: Build send-runtime-image
+        run: |
+          docker build -f docker-runtime-hook/Dockerfile . -t send-runtime-image:${{ steps.vars.outputs.sha_short }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Push aleph-node Current Image to Public ECR
+        env:
+          CURRENT_IMAGE: send-runtime-image:${{ steps.vars.outputs.sha_short }}
+          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/send-runtime-image:${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}
