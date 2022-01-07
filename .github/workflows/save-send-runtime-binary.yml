@@ -45,17 +45,9 @@ jobs:
           cargo build --release
           popd
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: send-runtime
-          path: local-tests/send-runtime/target/release/send_runtime
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Build send-runtime-image
+      - name: Build runtime-update-hook
         run: |
-          docker build -f docker-runtime-hook/Dockerfile . -t send-runtime-image:${{ steps.vars.outputs.sha_short }}
+          docker build -f docker-runtime-hook/Dockerfile . -t runtime-update-hook:${{ steps.vars.outputs.sha_short }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -76,8 +68,8 @@ jobs:
 
       - name: Push aleph-node Current Image to Public ECR
         env:
-          CURRENT_IMAGE: send-runtime-image:${{ steps.vars.outputs.sha_short }}
-          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/send-runtime-image:${{ steps.vars.outputs.sha_short }}
+          CURRENT_IMAGE: runtime-update-hook:${{ steps.vars.outputs.sha_short }}
+          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/runtime-update-hook:${{ steps.vars.outputs.sha_short }}
         run: |
           docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
           docker push ${{ env.ECR_PUSH_IMAGE }}
