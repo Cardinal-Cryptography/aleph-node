@@ -50,7 +50,7 @@ impl<H, N> AlephData<H, N> {
 pub(crate) type AlephDataFor<B> = AlephData<<B as BlockT>::Hash, NumberFor<B>>;
 
 /// A trait allowing to check the data contained in an AlephBFT network message, for the purpose of
-/// data vailability checks.
+/// data availability checks.
 pub trait AlephNetworkMessage<B: BlockT> {
     fn included_blocks(&self) -> Vec<AlephDataFor<B>>;
 }

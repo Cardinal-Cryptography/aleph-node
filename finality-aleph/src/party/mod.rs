@@ -265,6 +265,8 @@ where
     unit_creation_delay: UnitCreationDelay,
 }
 
+const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
+
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
     B: Block,
@@ -474,7 +476,7 @@ where
                 break;
             }
             tokio::select! {
-                _ = Delay::new(Duration::from_millis(1000)) => (),
+                _ = Delay::new(Duration::from_millis(SESSION_STATUS_CHECK_PERIOD_MS)) => (),
                 Some(node_id) = async {
                     match maybe_authority_task.as_mut() {
                         Some(task) => Some(task.stopped().await),
