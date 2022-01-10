@@ -21,6 +21,9 @@ pub struct Config {
     /// where to write the forked genesis chainspec
     #[clap(long, default_value = "../docker/data/chainspec.fork.json")]
     pub write_to_path: String,
+
+    #[clap(long, default_value = "Aura, Aleph, Treasury, Vesting")]
+    pub prefixes: Vec<String>,
 }
 
 #[tokio::main]
@@ -29,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
         http_rpc_endpoint,
         fork_spec_path,
         write_to_path,
+        prefixes,
     } = Config::parse();
 
     env_logger::init();
@@ -61,8 +65,6 @@ async fn main() -> anyhow::Result<()> {
     info!("Succesfully retrieved chain state");
 
     // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
-    let prefixes = ["Aura", "Aleph", /*"Session",*/ "Treasury", "Vesting"];
-
     info!(
         "Following storage items will be moved to the fork: {:?}",
         prefixes
