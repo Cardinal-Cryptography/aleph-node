@@ -1,9 +1,10 @@
 use clap::Parser;
 use common::{prefix_as_hex, read_file};
 use serde_json::Value;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::ErrorKind;
 use std::io::Write;
+use substrate_api_client::extrinsic::log::info;
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -30,6 +31,13 @@ async fn main() -> anyhow::Result<()> {
         write_to_path,
     } = Config::parse();
 
+    env_logger::init();
+
+    info!(
+        "Running with config: \n\thttp_rpc_endpoint {}\n \tfork_spec_path: {}\n \twrite_to_path{}",
+        http_rpc_endpoint, fork_spec_path, write_to_path
+    );
+
     let mut fork_spec: Value = serde_json::from_str(&read_file(&fork_spec_path))?;
 
     // get current chain state (storage)
@@ -42,14 +50,24 @@ async fn main() -> anyhow::Result<()> {
             "params": ["0x"]
         }))
         .send()
-        .await?
+        .await
+        .expect("Storage request has failed")
         .json()
-        .await?;
+        .await
+        .expect("Could not deserialize response as JSON");
 
-    let storage = storage["result"].as_array().unwrap();
+    let storage = storage["result"].as_array().expect("No result in response");
+
+    info!("Succesfully retrieved chain state");
 
     // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
     let prefixes = ["Aura", "Aleph", /*"Session",*/ "Treasury", "Vesting"];
+
+    info!(
+        "Following storage items will be moved to the fork: {:?}",
+        prefixes
+    );
+
     storage
         .iter()
         .filter(|pair| {
@@ -64,18 +82,25 @@ async fn main() -> anyhow::Result<()> {
             let pair = pair.as_array().unwrap();
             let k = &pair[0].as_str().unwrap();
             let v = &pair[1];
+            info!("Moving {} to the fork", k);
             fork_spec["genesis"]["raw"]["top"][k] = v.to_owned();
         });
 
     // write out the fork spec
     let json = serde_json::to_string(&fork_spec)?;
+    info!("Writing forked chain spec to {}", &write_to_path);
     write_to_file(write_to_path, json.as_bytes());
 
+    info!("Done!");
     Ok(())
 }
 
 pub fn write_to_file(write_to_path: String, data: &[u8]) {
-    let mut file = match File::open(&write_to_path) {
+    let mut file = match fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&write_to_path)
+    {
         Ok(file) => file,
         Err(error) => match error.kind() {
             ErrorKind::NotFound => match File::create(&write_to_path) {
