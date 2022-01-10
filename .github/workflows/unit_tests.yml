@@ -28,19 +28,11 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Restore Cargo Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
 
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
@@ -50,6 +42,10 @@ jobs:
 
       - name: Run Linter
         uses: actions-rs/cargo@v1
+        env:
+          # https://github.com/mozilla/sccache/issues/966
+          RUSTC_WRAPPER: ""
+          RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
           args: -- -D warnings
@@ -58,6 +54,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
