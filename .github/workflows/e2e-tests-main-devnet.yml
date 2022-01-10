@@ -246,11 +246,6 @@ jobs:
     outputs:
       runtime-updated: ${{ steps.inspect.outputs.diff }}
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout old source code
         uses: actions/checkout@v2
         with:
