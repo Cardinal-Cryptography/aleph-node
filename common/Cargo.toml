@@ -10,8 +10,8 @@ tag = "fixed_dependencies"
 
 [dependencies]
 # Substrate dependencies
-sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master", features = ["full_crypto"] }
-sp-io = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "master"}
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9", features = ["full_crypto"] }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9" }
 
 # other dependencies
 hex = "0.4.3"
