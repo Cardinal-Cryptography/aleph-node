@@ -22,6 +22,7 @@ pub struct Config {
     #[clap(long, default_value = "../docker/data/chainspec.fork.json")]
     pub write_to_path: String,
 
+    /// which modules to set in forked spec
     #[clap(long, default_value = "Aura, Aleph, Treasury, Vesting")]
     pub prefixes: Vec<String>,
 }

@@ -23,65 +23,65 @@ services:
     volumes:
       - ./data/:/data/
 
-  # tomasz:
-  #   image: aleph-node:latest
-  #   container_name: tomasz
-  #   network_mode: host
-  #   environment:
-  #     - PURGE_BEFORE_START=true
-  #     - RUST_LOG=info
-  #     - RPC_PORT=9934
-  #     - WS_PORT=9944
-  #     - PORT=30334
-  #     - NAME=Tomasz
-  #     - BASE_PATH=/data/$TOMASZ
-  #     - NODE_KEY_PATH=/data/$TOMASZ/p2p_secret
-  #     - CHAIN=/data/chainspec.json
-  #     - ALLOW_PRIVATE_IPV4=true
-  #     - DISCOVER_LOCAL=true
-  #     - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-  #     - UNIT_CREATION_DELAY=50
-  #   volumes:
-  #     - ./data/:/data/
+  tomasz:
+    image: aleph-node:latest
+    container_name: tomasz
+    network_mode: host
+    environment:
+      - PURGE_BEFORE_START=true
+      - RUST_LOG=info
+      - RPC_PORT=9934
+      - WS_PORT=9944
+      - PORT=30334
+      - NAME=Tomasz
+      - BASE_PATH=/data/$TOMASZ
+      - NODE_KEY_PATH=/data/$TOMASZ/p2p_secret
+      - CHAIN=/data/chainspec.json
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - UNIT_CREATION_DELAY=50
+    volumes:
+      - ./data/:/data/
 
-  # zbyszko:
-  #   image: aleph-node:latest
-  #   container_name: zbyszko
-  #   network_mode: host
-  #   environment:
-  #     - PURGE_BEFORE_START=true
-  #     - RUST_LOG=info
-  #     - RPC_PORT=9935
-  #     - WS_PORT=9945
-  #     - PORT=30335
-  #     - NAME=Zbyszko
-  #     - BASE_PATH=/data/$ZBYSZKO
-  #     - NODE_KEY_PATH=/data/$ZBYSZKO/p2p_secret
-  #     - CHAIN=/data/chainspec.json
-  #     - ALLOW_PRIVATE_IPV4=true
-  #     - DISCOVER_LOCAL=true
-  #     - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-  #     - UNIT_CREATION_DELAY=50
-  #   volumes:
-  #     - ./data/:/data/
+  zbyszko:
+    image: aleph-node:latest
+    container_name: zbyszko
+    network_mode: host
+    environment:
+      - PURGE_BEFORE_START=true
+      - RUST_LOG=info
+      - RPC_PORT=9935
+      - WS_PORT=9945
+      - PORT=30335
+      - NAME=Zbyszko
+      - BASE_PATH=/data/$ZBYSZKO
+      - NODE_KEY_PATH=/data/$ZBYSZKO/p2p_secret
+      - CHAIN=/data/chainspec.json
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - UNIT_CREATION_DELAY=50
+    volumes:
+      - ./data/:/data/
 
-  # hansu:
-  #   image: aleph-node:latest
-  #   container_name: hansu
-  #   network_mode: host
-  #   environment:
-  #     - PURGE_BEFORE_START=true
-  #     - RUST_LOG=info
-  #     - RPC_PORT=9936
-  #     - WS_PORT=9946
-  #     - PORT=30336
-  #     - NAME=Hansu
-  #     - BASE_PATH=/data/$HANSU
-  #     - NODE_KEY_PATH=/data/$HANSU/p2p_secret
-  #     - CHAIN=/data/chainspec.json
-  #     - ALLOW_PRIVATE_IPV4=true
-  #     - DISCOVER_LOCAL=true
-  #     - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
-  #     - UNIT_CREATION_DELAY=50
-  #   volumes:
-  #     - ./data/:/data/
+  hansu:
+    image: aleph-node:latest
+    container_name: hansu
+    network_mode: host
+    environment:
+      - PURGE_BEFORE_START=true
+      - RUST_LOG=info
+      - RPC_PORT=9936
+      - WS_PORT=9946
+      - PORT=30336
+      - NAME=Hansu
+      - BASE_PATH=/data/$HANSU
+      - NODE_KEY_PATH=/data/$HANSU/p2p_secret
+      - CHAIN=/data/chainspec.json
+      - ALLOW_PRIVATE_IPV4=true
+      - DISCOVER_LOCAL=true
+      - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - UNIT_CREATION_DELAY=50
+    volumes:
+      - ./data/:/data/
