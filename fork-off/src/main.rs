@@ -1,13 +1,9 @@
 use clap::Parser;
-use common::{create_connection, prefix_as_hex, read_file, storage_key, storage_key_hash};
-use reqwest;
-use serde_json::Map;
+use common::{prefix_as_hex, read_file};
 use serde_json::Value;
-use std::collections::HashMap;
-use std::fmt::format;
 use std::fs::File;
-use std::process::Command;
-use std::str;
+use std::io::ErrorKind;
+use std::io::Write;
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -71,7 +67,24 @@ async fn main() -> anyhow::Result<()> {
             fork_spec["genesis"]["raw"]["top"][k] = v.to_owned();
         });
 
-    // TODO : write out the fork spec
+    // write out the fork spec
+    let json = serde_json::to_string(&fork_spec)?;
+    write_to_file(write_to_path, json.as_bytes());
 
     Ok(())
+}
+
+pub fn write_to_file(write_to_path: String, data: &[u8]) {
+    let mut file = match File::open(&write_to_path) {
+        Ok(file) => file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => match File::create(&write_to_path) {
+                Ok(file) => file,
+                Err(why) => panic!("Cannot create file: {:?}", why),
+            },
+            _ => panic!("Unexpected error when creating file: {}", &write_to_path),
+        },
+    };
+
+    file.write_all(data).expect("Could not write to file");
 }
