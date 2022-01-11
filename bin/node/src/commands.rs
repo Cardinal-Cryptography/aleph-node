@@ -195,15 +195,15 @@ impl BootstrapNodeCmd {
     }
 }
 
-/// The `generate-raw-chainspec` command is used to go from JSON to raw chainspec format
+/// Command used to go from chainspec to the raw chainspec format
 #[derive(Debug, StructOpt)]
-pub struct ConvertChainspecCmd {
+pub struct ConvertChainspecToRawCmd {
     /// Specify path to JSON chainspec
     #[structopt(long, parse(from_os_str))]
     pub chain: PathBuf,
 }
 
-impl ConvertChainspecCmd {
+impl ConvertChainspecToRawCmd {
     pub fn run(&self) -> Result<(), Error> {
         let spec = ChainSpec::from_json_file(self.chain.to_owned()).expect("Cannot read chainspec");
 

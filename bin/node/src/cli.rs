@@ -1,6 +1,8 @@
 use crate::commands::BootstrapNodeCmd;
 use crate::{
-    aleph_cli::AlephCli, chain_spec, commands::BootstrapChainCmd, commands::ConvertChainspecCmd,
+    aleph_cli::AlephCli,
+    chain_spec,
+    commands::{BootstrapChainCmd, ConvertChainspecToRawCmd},
 };
 use sc_cli::{ChainSpec, RunCmd, RuntimeVersion, SubstrateCli};
 use structopt::StructOpt;
@@ -61,14 +63,15 @@ pub enum Subcommand {
     // NOTE: similarly we could have a BootstrapNode command that takes a node-name parameter
     // and writes aura, aleph and (optionally) libp2p private keys to the base-path of a single node
     // and prints accountId and peerId to the stdout
-    /// Populate authorities keystore and generate JSON or raw chainspec (printed to stdout)    
+    /// Populate authorities keystore and generate chainspec in JSON format (printed to stdout)
+    /// Use `--raw` to produce the so called raw chainspec
     BootstrapChain(BootstrapChainCmd),
 
     /// Generate and print to stdout keys for a single node
     BootstrapNode(BootstrapNodeCmd),
 
-    /// Takes a JSON chainspec and generate a raw chainspec format
-    ConvertChainspec(ConvertChainspecCmd),
+    /// Takes a chainspec and generates a corresponfing raw chainspec
+    ConvertChainspecToRaw(ConvertChainspecToRawCmd),
 
     /// Validate blocks.
     CheckBlock(sc_cli::CheckBlockCmd),

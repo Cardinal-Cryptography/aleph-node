@@ -10,13 +10,19 @@ You can than spawn a forked-off chain using this chainspec as a starting point.
 Build the binary:
 
 ```bash
-cargo +nighlty build --release
+cargo +nightly build --release
 ```
 
 Create a chainspec for the fork, it will serve as a basis with known, sudo account, known set of validators and session keys etc:
 
 ```bash
 aleph-node bootstrap-chain --raw --base-path /data --chain-id a0fnet1 --account-ids <id1,id2,...>  --sudo-account-id <sudo_id> > chainspec.json
+```
+
+Alternatively, if you have a chainspec in a human-redable format, you can convert it into the "raw" format using the `convert-chainspec-to-raw` command:
+
+```bash
+aleph-node convert-chainspec-to-raw --chain docker/data/chainspec.json
 ```
 
 Tool will query the target chain for storage pairs (by default "Aura", "Aleph", "Treasury" and "Vesting") and copy them over to the target fork chainspec, which is finally written out to the specified path:
