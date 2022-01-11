@@ -12,46 +12,58 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
-  build-node:
-    name: Build binary artifact and docker image of the node
+  build-new-node:
+    name: Build node and runtime artifacts (PR version)
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
+    with:
+      rust-toolchain-version: 'nightly-2021-10-24'
+
+
+  build-docker:
+    needs: [build-new-node]
+    name: Build docker image of the node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-node
+          path: target/release/
+
+      - name: Build docker image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node.tar aleph-node:latest
+
+      - name: Upload docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: aleph-docker
+          path: aleph-node.tar
+          if-no-files-found: error
+          retention-days: 7
+
+
+  check-determinism:
+    needs: [build-new-node]
+    name: Verify runtime build determinism
     runs-on: ubuntu-latest
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
-      SCCACHE_VERSION: 0.2.13
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_PATH: /home/runner/.cache/sccache
-      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
-
-      - name: Install sccache for ubuntu-latest
-        env:
-          LINK: https://github.com/mozilla/sccache/releases/download
-        run: |
-          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
-          mkdir -p $HOME/.local/bin
-          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Restore Cargo Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
@@ -63,61 +75,23 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
 
-      - name: Restore sccache
-        uses: actions/cache@v2
-        continue-on-error: false
-        with:
-          path: ${{ env.SCCACHE_PATH }}
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Start sccache server
-        run: sccache --start-server
-
-      - name: Build Binary
-        run: |
-          export RUSTC_WRAPPER=$HOME/.local/bin/sccache
-          cargo build --release
-
-      - name: Build runtime
-        run: |
-          export RUSTC_WRAPPER=$HOME/.local/bin/sccache
-          cargo build --release -p aleph-runtime
-
-      - name: Print sccache stats
-        run: sccache --show-stats
-
-      - name: Stop sccache server
-        run: sccache --stop-server || true
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: aleph-node
-          path: target/release/aleph-node
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload runtime
-        uses: actions/upload-artifact@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v2
         with:
           name: aleph-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
-          if-no-files-found: error
-          retention-days: 7
 
-      - name: Build docker image
-        id: build-image
+      - name: Build runtime and compare checksum with artifact
+        env:
+          ARTIFACT: aleph_runtime.compact.wasm
+          TARGET_DIR: target/release/wbuild/aleph-runtime
         run: |
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-          docker save -o aleph-node.tar aleph-node:latest
+          mkdir -p "$TARGET_DIR"
+          mv "$ARTIFACT" "$TARGET_DIR"
+          sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
+          cargo clean
+          cargo build --release -p aleph-runtime
+          sha256sum -c checksum.sha256
 
-      - name: Upload docker image
-        uses: actions/upload-artifact@v2
-        with:
-          name: aleph-node
-          path: aleph-node.tar
-          if-no-files-found: error
-          retention-days: 7
 
   build-test-client:
     name: Build e2e test client suite
@@ -126,11 +100,6 @@ jobs:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -141,12 +110,20 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
 
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          cargo-targets: e2e-tests/target/
+
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
           cargo build --release
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
@@ -156,23 +133,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+
   run-e2e-tests:
-    needs: [build-node, build-test-client]
+    needs: [build-docker, build-test-client]
     name: Run e2e tests suite
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
         uses: actions/checkout@v2
 
       - name: Download artifact with docker image
         uses: actions/download-artifact@v2
         with:
-          name: aleph-node
+          name: aleph-docker
 
       - name: Load node docker image
         shell: bash
@@ -199,16 +172,12 @@ jobs:
         run: |
           ./.github/scripts/run_e2e_tests.sh
 
+
   push-image:
     needs: [run-e2e-tests]
     name: Push node image to the ECR repository
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
         if: github.event_name == 'push'
         uses: actions/checkout@v2
@@ -217,7 +186,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/download-artifact@v2
         with:
-          name: aleph-node
+          name: aleph-docker
 
       - name: Load node docker image
         if: github.event_name == 'push'
@@ -269,3 +238,98 @@ jobs:
           SLACK_USERNAME: GithubActions
           SLACK_TITLE: e2e tests job has finished
           MSG_MINIMAL: actions url
+
+
+  check-runtime-change:
+    name: Inspect whether runtime version has been changed
+    runs-on: ubuntu-latest
+    outputs:
+      runtime-updated: ${{ steps.inspect.outputs.diff }}
+    steps:
+      - name: Checkout old source code
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          path: old-repo
+
+      - name: Checkout current source code
+        uses: actions/checkout@v2
+        with:
+          path: new-repo
+
+      - name: Inspect versions
+        id: inspect
+        run: |
+          grep "spec_version:" old-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
+          grep "spec_version:" new-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
+          diff old.version new.version
+          echo "::set-output name=diff::$?"
+
+
+  build-old-node:
+    name: Build node and runtime artifacts (main version)
+    needs: [check-runtime-change]
+    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
+    with:
+      rust-toolchain-version: 'nightly-2021-10-24'
+      ref: 'main'
+      artifact-prefix: 'old-'
+
+
+  test-runtime-update:
+    name: Test runtime update
+    runs-on: ubuntu-latest
+    needs: [build-old-node, build-new-node]
+    env:
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          override: true
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          cargo-targets: local-tests/send-runtime/target/
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Test update
+        env:
+          # Relative to local-tests/ directory
+          OLD_BINARY: aleph-node/aleph-node
+          NEW_BINARY: old-aleph-node/aleph-node
+          NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
+        run: ./.github/scripts/test_update.sh
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
+
+
+  remove-old-artifacts:
+    name: Remove old node and runtime artifacts
+    runs-on: ubuntu-latest
+    needs: [test-runtime-update]
+    steps:
+      - name: Remove artifacts
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          failOnError: false
+          name: |
+            old-aleph-node
+            old-aleph-runtime

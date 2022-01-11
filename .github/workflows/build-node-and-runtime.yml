@@ -1,0 +1,69 @@
+name: Build aleph-node and aleph-runtime
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'The `ref` argument for `actions/checkout@v2`'
+        required: false
+        type: string
+      rust-toolchain-version:
+        description: 'Rust toolchain version'
+        required: true
+        type: string
+      artifact-prefix:
+        description: 'A string that will be prepended to the artifact names'
+        required: false
+        type: string
+
+
+jobs:
+  build:
+    name: Build binary artifacts
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: full
+      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ inputs.rust-toolchain-version }}
+          override: true
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain "${{ inputs.rust-toolchain-version }}"
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Build runtime
+        run: cargo build --release -p aleph-runtime
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.artifact-prefix }}aleph-node
+          path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload runtime
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.artifact-prefix }}aleph-runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          if-no-files-found: error
+          retention-days: 7

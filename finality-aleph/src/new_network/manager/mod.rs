@@ -9,7 +9,7 @@ mod discovery;
 pub mod service; //todo
 mod session;
 #[cfg(test)]
-mod testing;
+pub mod testing;
 
 use addresses::{get_common_peer_id, get_peer_id, is_p2p};
 

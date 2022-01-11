@@ -38,7 +38,10 @@ enum Error {
     SendData,
 }
 
-pub fn peers_set_config(protocol: Option<new_network::Protocol>) -> sc_network::config::NonDefaultSetConfig {
+/// Returns a NonDefaultSetConfig for the specified protocol.
+pub fn peers_set_config(
+    protocol: Option<new_network::Protocol>,
+) -> sc_network::config::NonDefaultSetConfig {
     let name = match protocol {
         Some(ref p) => p.name(),
         _ => network::ALEPH_PROTOCOL_NAME.into(),
@@ -54,15 +57,13 @@ pub fn peers_set_config(protocol: Option<new_network::Protocol>) -> sc_network::
     );
 
     config.set_config = match protocol {
-        Some(new_network::Protocol::Validator) => {
-            sc_network::config::SetConfig {
-                in_peers: 25,
-                out_peers: 0,
-                reserved_nodes: Vec::new(),
-                non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
-            }
+        Some(new_network::Protocol::Validator) => sc_network::config::SetConfig {
+            in_peers: 25,
+            out_peers: 0,
+            reserved_nodes: Vec::new(),
+            non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
         },
-        _ => sc_network::config::SetConfig::default()
+        _ => sc_network::config::SetConfig::default(),
     };
     config
 }
@@ -115,8 +116,9 @@ where
 
 type Hasher = hash::Wrapper<BlakeTwo256>;
 
+/// A wrapper for spawning tasks in a way compatible with AlephBFT.
 #[derive(Clone)]
-struct SpawnHandle(SpawnTaskHandle);
+pub struct SpawnHandle(SpawnTaskHandle);
 
 impl From<SpawnTaskHandle> for SpawnHandle {
     fn from(sth: SpawnTaskHandle) -> Self {
