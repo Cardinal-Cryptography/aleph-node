@@ -302,12 +302,10 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
- "hex",
  "log",
  "mio",
  "serde_json",
  "sp-core",
- "sp-io",
  "substrate-api-client",
  "ws",
 ]

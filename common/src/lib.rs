@@ -2,9 +2,8 @@ mod ws_rpc_client;
 
 use log::warn;
 use sp_core::sr25519;
-use std::fs::File;
 use std::{thread::sleep, time::Duration};
-use substrate_api_client::{Api, RpcClient, StorageKey};
+use substrate_api_client::{Api, RpcClient};
 pub use ws_rpc_client::WsRpcClient;
 
 pub trait FromStr {
