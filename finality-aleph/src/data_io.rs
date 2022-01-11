@@ -1,11 +1,20 @@
-use crate::{metrics::Checkpoint, network, Metrics};
+use crate::{metrics::Checkpoint, network, Error, Metrics};
 use async_trait::async_trait;
 use codec::{Decode, Encode};
-use futures::channel::{
-    mpsc,
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot,
+// use futures::channel::{
+//     mpsc,
+//     mpsc::{UnboundedReceiver, UnboundedSender},
+//     oneshot,
+// };
+
+use futures::{
+    channel::{
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        oneshot,
+    },
+    StreamExt,
 };
+
 use futures_timer::Delay;
 use log::{debug, error, trace};
 use lru::LruCache;
@@ -22,7 +31,7 @@ use std::{
     sync::Arc,
     time::{self, Duration},
 };
-use tokio::stream::StreamExt;
+// use tokio::stream::StreamExt;
 
 type MessageId = u64;
 const REFRESH_INTERVAL: u64 = 100;
