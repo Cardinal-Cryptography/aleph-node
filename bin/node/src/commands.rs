@@ -207,8 +207,11 @@ impl ConvertChainspecToRawCmd {
     pub fn run(&self) -> Result<(), Error> {
         let spec = ChainSpec::from_json_file(self.chain.to_owned()).expect("Cannot read chainspec");
 
-        let json = sc_service::chain_ops::build_spec(&spec, true)?;
-        if std::io::stdout().write_all(json.as_bytes()).is_err() {
+        let raw_chainspec = sc_service::chain_ops::build_spec(&spec, true)?;
+        if std::io::stdout()
+            .write_all(raw_chainspec.as_bytes())
+            .is_err()
+        {
             let _ = std::io::stderr().write_all(b"Error writing to stdout\n");
         }
 

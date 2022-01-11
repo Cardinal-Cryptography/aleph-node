@@ -21,7 +21,7 @@ pub struct Config {
     pub write_to_path: String,
 
     /// which modules to set in forked spec
-    #[clap(long, default_value = "Aura, Aleph, Treasury, Vesting")]
+    #[clap(long, default_value = "Aura, Aleph")]
     pub prefixes: Vec<String>,
 }
 
