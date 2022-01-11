@@ -18,10 +18,10 @@ echo -n $(date +"%d-%b-%y %T") "   Checking runtime version in latest source: "
 NEW_VER=$(grep "spec_version:" aleph-node/bin/runtime/src/lib.rs | grep -o '[0-9]*')
 echo "$NEW_VER"
 
-if (( "$NEW_VER" == "$OLD_VER" )); then
-    echo $(date +"%d-%b-%y %T") "   No update needed"
-    exit 0
-fi
+#if (( "$NEW_VER" == "$OLD_VER" )); then
+#    echo $(date +"%d-%b-%y %T") "   No update needed"
+#    exit 0
+#fi
 
 if (( "$NEW_VER" >= "$OLD_VER" )); then
     echo -n $(date +"%d-%b-%y %T") "   Fetching latest runtime from github..."
