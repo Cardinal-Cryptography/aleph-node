@@ -41,26 +41,11 @@ async fn main() -> anyhow::Result<()> {
         http_rpc_endpoint, fork_spec_path, write_to_path
     );
 
-    let mut fork_spec: Value =
-        serde_json::from_str(&fs::read_to_string(&fork_spec_path).expect("Could not read file"))?;
+    let mut fork_spec: Value = serde_json::from_str(
+        &fs::read_to_string(&fork_spec_path).expect("Could not read chainspec file"),
+    )?;
 
-    // get current chain state (storage)
-    let storage: Value = reqwest::Client::new()
-        .post(http_rpc_endpoint)
-        .json(&serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "state_getPairs",
-            "params": ["0x"]
-        }))
-        .send()
-        .await
-        .expect("Storage request has failed")
-        .json()
-        .await
-        .expect("Could not deserialize response as JSON");
-
-    let storage = storage["result"].as_array().expect("No result in response");
+    let storage = get_chain_state(http_rpc_endpoint).await;
 
     info!("Succesfully retrieved chain state");
 
@@ -100,7 +85,29 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn write_to_file(write_to_path: String, data: &[u8]) {
+async fn get_chain_state(http_rpc_endpoint: String) -> Vec<Value> {
+    let storage: Value = reqwest::Client::new()
+        .post(http_rpc_endpoint)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "state_getPairs",
+            "params": ["0x"]
+        }))
+        .send()
+        .await
+        .expect("Storage request has failed")
+        .json()
+        .await
+        .expect("Could not deserialize response as JSON");
+
+    storage["result"]
+        .as_array()
+        .expect("No result in response")
+        .to_owned()
+}
+
+fn write_to_file(write_to_path: String, data: &[u8]) {
     let mut file = match fs::OpenOptions::new()
         .write(true)
         .truncate(true)
