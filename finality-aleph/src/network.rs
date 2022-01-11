@@ -139,16 +139,15 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
     }
 
     fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
-        let addr =
-            iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
-        let result = NetworkService::remove_peers_from_reserved_set(
-            self,
-            protocol,
-            iter::once(addr).collect(),
-        );
-        if let Err(e) = result {
-            error!(target: "afa", "remove_set_reserved failed: {}", e);
-        }
+        // let addr =
+        //     iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
+        // let result = NetworkService::remove_peers_from_reserved_set(self, protocol, iter::once(addr).collect());
+        // if let Err(e) = result {
+        //     error!(target: "afa", "remove_set_reserved failed: {}", e);
+        // }
+
+        let address = who.0.into();
+        NetworkService::remove_peers_from_reserved_set(self, protocol, vec![address]);
     }
 
     fn peer_id(&self) -> PeerId {
