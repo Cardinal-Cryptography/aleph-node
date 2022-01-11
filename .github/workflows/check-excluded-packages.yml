@@ -58,7 +58,7 @@ jobs:
           do
             echo "Compiling package $p..."
             pushd "$p"
-            cargo build --all-targets --all-features
+            cargo check --all-targets --all-features
             popd
           done
 
