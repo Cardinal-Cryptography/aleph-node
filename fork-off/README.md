@@ -3,7 +3,7 @@
 Command-line tool for creating snapshots of a running aleph-bft chains.
 Given a (raw) chainspec of the target chain and a url to a node of the said chain to query it will create a raw chainspec, with the genesis block equal to the current state of the target chain.
 
-You can than spawn a forked-off chain using this chainspec as a starting point.
+You can then spawn a forked-off chain using this chainspec as a starting point.
 
 ## Using instructions
 
@@ -13,13 +13,13 @@ Build the binary:
 cargo +nightly build --release
 ```
 
-Create a chainspec for the fork, it will serve as a basis with known, sudo account, known set of validators and session keys etc:
+Create a chainspec for the fork, it will serve as a basis with a known sudo account, known set of validators, known session keys etc:
 
 ```bash
 aleph-node bootstrap-chain --raw --base-path /data --chain-id a0fnet1 --account-ids <id1,id2,...>  --sudo-account-id <sudo_id> > chainspec.json
 ```
 
-Alternatively, if you have a chainspec in a human-redable format, you can convert it into the "raw" format using the `convert-chainspec-to-raw` command:
+Alternatively, if you have a chainspec in a human-readable format, you can convert it into the "raw" format using the `convert-chainspec-to-raw` command:
 
 ```bash
 aleph-node convert-chainspec-to-raw --chain docker/data/chainspec.json

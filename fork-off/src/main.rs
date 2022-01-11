@@ -72,12 +72,15 @@ async fn main() -> anyhow::Result<()> {
     storage
         .iter()
         .filter(|pair| {
-            prefixes.iter().any(|prefix| {
-                let pair = pair.as_array().unwrap();
-                let storage_key = pair[0].as_str().unwrap();
-                storage_key.starts_with(&format!("0x{}", prefix_as_hex(prefix)))
-                    || storage_key.eq("0x3a636f6465") // code
-            })
+            prefixes
+                .iter()
+                .map(|p| prefix_as_hex(p))
+                .chain(vec!["0x3a636f6465".to_string()])
+                .any(|prefix| {
+                    let pair = pair.as_array().unwrap();
+                    let storage_key = pair[0].as_str().unwrap();
+                    storage_key.starts_with(&format!("0x{}", prefix_as_hex(&prefix)))
+                })
         })
         .for_each(|pair| {
             let pair = pair.as_array().unwrap();
