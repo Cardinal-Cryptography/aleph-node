@@ -1,7 +1,7 @@
 use clap::Parser;
 use serde_json::Value;
 use std::fs::{self, File};
-use std::io::{BufReader, ErrorKind, Read, Write};
+use std::io::{ErrorKind, Write};
 use substrate_api_client::extrinsic::log::info;
 
 #[derive(Debug, Parser)]
@@ -41,7 +41,8 @@ async fn main() -> anyhow::Result<()> {
         http_rpc_endpoint, fork_spec_path, write_to_path
     );
 
-    let mut fork_spec: Value = serde_json::from_str(&read_file(&fork_spec_path))?;
+    let mut fork_spec: Value =
+        serde_json::from_str(&fs::read_to_string(&fork_spec_path).expect("Could not read file"))?;
 
     // get current chain state (storage)
     let storage: Value = reqwest::Client::new()
@@ -116,17 +117,6 @@ pub fn write_to_file(write_to_path: String, data: &[u8]) {
     };
 
     file.write_all(data).expect("Could not write to file");
-}
-
-fn read_file(filepath: &str) -> String {
-    let file = File::open(filepath).expect("could not open file");
-    let mut buffered_reader = BufReader::new(file);
-    let mut contents = String::new();
-    let _number_of_bytes: usize = match buffered_reader.read_to_string(&mut contents) {
-        Ok(number_of_bytes) => number_of_bytes,
-        Err(_err) => 0,
-    };
-    contents
 }
 
 fn prefix_as_hex(module: &str) -> String {
