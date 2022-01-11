@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
 
     // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
     info!(
-        "Following storage items will be moved to the fork: {:?}",
+        "Looking for the following storage items to be moved to the fork: {:?}",
         prefixes
     );
 
