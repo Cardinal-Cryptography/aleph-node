@@ -1,9 +1,7 @@
 use clap::Parser;
-use common::{prefix_as_hex, read_file};
 use serde_json::Value;
 use std::fs::{self, File};
-use std::io::ErrorKind;
-use std::io::Write;
+use std::io::{BufReader, ErrorKind, Read, Write};
 use substrate_api_client::extrinsic::log::info;
 
 #[derive(Debug, Parser)]
@@ -115,4 +113,20 @@ pub fn write_to_file(write_to_path: String, data: &[u8]) {
     };
 
     file.write_all(data).expect("Could not write to file");
+}
+
+fn read_file(filepath: &str) -> String {
+    let file = File::open(filepath).expect("could not open file");
+    let mut buffered_reader = BufReader::new(file);
+    let mut contents = String::new();
+    let _number_of_bytes: usize = match buffered_reader.read_to_string(&mut contents) {
+        Ok(number_of_bytes) => number_of_bytes,
+        Err(_err) => 0,
+    };
+    contents
+}
+
+fn prefix_as_hex(module: &str) -> String {
+    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
+    hex::encode(pallet_name)
 }

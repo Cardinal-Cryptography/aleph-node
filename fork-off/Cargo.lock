@@ -352,20 +352,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "hex",
- "log",
- "mio 0.6.23",
- "serde_json",
- "sp-core",
- "sp-io",
- "substrate-api-client",
- "ws",
-]
-
-[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -639,12 +625,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "common",
  "env_logger",
+ "hex",
  "log",
  "reqwest",
  "serde_json",
  "sp-core",
+ "sp-io",
  "substrate-api-client",
  "tokio",
 ]

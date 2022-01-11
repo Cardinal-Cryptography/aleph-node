@@ -3,8 +3,6 @@ mod ws_rpc_client;
 use log::warn;
 use sp_core::sr25519;
 use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
 use std::{thread::sleep, time::Duration};
 use substrate_api_client::{Api, RpcClient, StorageKey};
 pub use ws_rpc_client::WsRpcClient;
@@ -46,34 +44,4 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
             create_custom_connection(address)
         }
     }
-}
-
-pub fn prefix_as_hex(module: &str) -> String {
-    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
-    hex::encode(pallet_name)
-}
-
-pub fn storage_key(module: &str, version: &str) -> [u8; 32] {
-    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
-    let postfix = sp_io::hashing::twox_128(version.as_bytes());
-    let mut final_key = [0u8; 32];
-    final_key[..16].copy_from_slice(&pallet_name);
-    final_key[16..].copy_from_slice(&postfix);
-    final_key
-}
-
-pub fn storage_key_hash(bytes: [u8; 32]) -> String {
-    let storage_key = StorageKey(bytes.into());
-    hex::encode(storage_key.0)
-}
-
-pub fn read_file(filepath: &str) -> String {
-    let file = File::open(filepath).expect("could not open file");
-    let mut buffered_reader = BufReader::new(file);
-    let mut contents = String::new();
-    let _number_of_bytes: usize = match buffered_reader.read_to_string(&mut contents) {
-        Ok(number_of_bytes) => number_of_bytes,
-        Err(_err) => 0,
-    };
-    contents
 }
