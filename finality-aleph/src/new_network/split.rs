@@ -76,12 +76,8 @@ async fn forward_or_wait<
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
 ) {
-    trace!(target: "aleph-network", "forward_or_wait");
-    let mut receiver = receiver.lock().await;
-    trace!(target: "aleph-network", "forward_or_wait lock");
-    let message = receiver.next().await;
-    trace!(target: "aleph-network", "forward_or_wait match message");
-    match message {
+    trace!(target: "aleph-network", "forward_or_wait called");
+    match receiver.lock().await.next().await {
         Some(Split::Left(data)) => {
             trace!(target: "aleph-network", "forward_or_wait left case");
             if left_sender.unbounded_send(data).is_err() {
@@ -109,8 +105,14 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
     async fn next(&mut self) -> Option<LeftData> {
         loop {
             tokio::select! {
-                data = self.translated_receiver.next() => return data,
-                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => (),
+                data = self.translated_receiver.next() => {
+                    trace!(target: "aleph-network", "Left Receiver Next Loop translated_receiver case");
+                    return data;
+                },
+                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
+                    trace!(target: "aleph-network", "Left Receiver Next Loop forward_or_wait case");
+                    ()
+                },
             }
         }
     }
@@ -122,14 +124,14 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
 {
     async fn next(&mut self) -> Option<RightData> {
         loop {
-            trace!(target: "aleph-network", "right receiver next loop");
+            trace!(target: "aleph-network", "Right Receiver Next Loop started a next iteration");
             tokio::select! {
                 data = self.translated_receiver.next() => {
-                    trace!(target: "aleph-network", "right receiver next case 1");
+                    trace!(target: "aleph-network", "Right Receiver Next Loop translated_receiver case");
                     return data;
                 },
                 _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
-                    trace!(target: "aleph-network", "right receiver next case 2");
+                    trace!(target: "aleph-network", "Right Receiver Next Loop forward_or_wait case");
                     ()
                 },
             }
@@ -160,7 +162,6 @@ impl<
         &self.sender
     }
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
-        trace!(target: "aleph-network", "Split Receiver Left");
         self.receiver.clone()
     }
 }
@@ -188,7 +189,6 @@ impl<
         &self.sender
     }
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
-        trace!(target: "aleph-network", "Split Receiver Right");
         self.receiver.clone()
     }
 }

@@ -1,8 +1,7 @@
 use crate::{
     crypto::Signature,
     metrics::Checkpoint,
-    new_network::DataNetwork,
-    new_network::RmcNetworkData,
+    new_network::{DataNetwork, RmcNetworkData},
     Metrics,
 };
 use aleph_bft::{
@@ -35,12 +34,12 @@ impl<H: AsRef<[u8]> + Hash + Clone + Codec> Signable for SignableHash<H> {
 
 type RmcMessage<B> = Message<SignableHash<<B as Block>::Hash>, Signature, SignatureSet<Signature>>;
 /// A wrapper around an RMC returning the signed hashes in the order of the [`ReliableMulticast::start_rmc`] calls.
-pub(crate) struct BlockSignatureAggregator<'a, B: Block, MK: MultiKeychain> {
+pub(crate) struct BlockSignatureAggregator<'a, B: Block, N: DataNetwork<RmcNetworkData<B>>, MK: MultiKeychain> {
     messages_for_rmc: mpsc::UnboundedSender<RmcMessage<B>>,
     messages_from_rmc: mpsc::UnboundedReceiver<RmcMessage<B>>,
     signatures: HashMap<B::Hash, MK::PartialMultisignature>,
     hash_queue: VecDeque<B::Hash>,
-    network: Box<dyn DataNetwork<RmcNetworkData<B>>>,
+    network: N,
     rmc: ReliableMulticast<'a, SignableHash<B::Hash>, MK>,
     last_hash_placed: bool,
     started_hashes: HashSet<B::Hash>,
@@ -51,10 +50,11 @@ impl<
         'a,
         B: Block,
         MK: MultiKeychain<Signature = Signature, PartialMultisignature = SignatureSet<Signature>>,
-    > BlockSignatureAggregator<'a, B, MK>
+        N: DataNetwork<RmcNetworkData<B>>,
+    > BlockSignatureAggregator<'a, B, N, MK>
 {
     pub(crate) fn new(
-        network: Box<dyn DataNetwork<RmcNetworkData<B>>>,
+        network: N,
         keychain: &'a MK,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     ) -> Self {

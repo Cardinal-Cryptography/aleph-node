@@ -283,6 +283,8 @@ pub fn new_full(
             .spawn_essential_handle()
             .spawn_blocking("aura", aura);
 
+        let no_network_compatibility = aleph_config.no_network_compatibility;
+
         let aleph_config = AlephConfig {
             network,
             client,
@@ -294,6 +296,7 @@ pub fn new_full(
             justification_rx,
             metrics,
             unit_creation_delay,
+            no_network_compatibility,
         };
         task_manager
             .spawn_essential_handle()

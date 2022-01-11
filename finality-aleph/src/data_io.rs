@@ -7,7 +7,7 @@ use futures::channel::{
     oneshot,
 };
 use futures_timer::Delay;
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
@@ -90,20 +90,22 @@ impl Default for DataStoreConfig {
     }
 }
 
+use crate::new_network::{DataNetwork, AlephNetworkData};
+use aleph_bft::Recipient;
+
 /// This component is used for filtering available data for Aleph Network.
 /// It receives new messages for network by `messages_rx` and sends available messages
 /// (messages with all blocks already imported by client) by `ready_messages_tx`
-pub struct DataStore<B, C, BE, RB, Message>
+pub struct DataStore<B, C, BE, RB, Message, N>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     RB: network::RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug,
+    Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
+    N: DataNetwork<Message>,
 {
     next_message_id: MessageId,
-    ready_messages_tx: UnboundedSender<Message>,
-    messages_rx: UnboundedReceiver<Message>,
     missing_blocks: HashMap<AlephDataFor<B>, MissingBlockInfo>,
     available_blocks: LruCache<AlephDataFor<B>, ()>,
     message_requirements: HashMap<MessageId, usize>,
@@ -112,36 +114,51 @@ where
     block_requester: RB,
     config: DataStoreConfig,
     _phantom: PhantomData<BE>,
+    network: N,
+    tx: UnboundedSender<Message>,
+    rx2: UnboundedReceiver<(Message, Recipient)>
 }
 
-impl<B, C, BE, RB, Message> DataStore<B, C, BE, RB, Message>
+use crate::new_network::component::BiedaNetwork;
+use crate::new_network::aleph::NetworkWrapper;
+
+impl<B, C, BE, RB, Message, N> DataStore<B, C, BE, RB, Message, N>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     RB: network::RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug,
+    Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
+    N: DataNetwork<Message>,
 {
     pub(crate) fn new(
         client: Arc<C>,
         block_requester: RB,
-        ready_messages_tx: UnboundedSender<Message>,
-        messages_rx: UnboundedReceiver<Message>,
         config: DataStoreConfig,
-    ) -> Self {
-        DataStore {
-            next_message_id: 0,
-            client,
-            block_requester,
-            message_requirements: HashMap::new(),
-            missing_blocks: HashMap::new(),
-            pending_messages: HashMap::new(),
-            available_blocks: LruCache::new(config.available_blocks_cache_capacity),
-            ready_messages_tx,
-            messages_rx,
-            config,
-            _phantom: PhantomData,
-        }
+        network: N,
+    ) -> (Self, impl DataNetwork<Message>) {
+        let (tx, rx) = mpsc::unbounded();
+        let (tx2, rx2) = mpsc::unbounded();
+        (
+            DataStore {
+                next_message_id: 0,
+                client,
+                block_requester,
+                message_requirements: HashMap::new(),
+                missing_blocks: HashMap::new(),
+                pending_messages: HashMap::new(),
+                available_blocks: LruCache::new(config.available_blocks_cache_capacity),
+                config,
+                _phantom: PhantomData,
+                network,
+                tx,
+                rx2
+            },
+            BiedaNetwork::new(
+                rx,
+                tx2
+            )
+        )
     }
 
     /// This method is used for running DataStore. It polls on 4 things:
@@ -161,9 +178,14 @@ where
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
-                Some(message) = &mut self.messages_rx.next() => {
+                Some(message) = &mut self.network.next() => {
                     trace!(target: "afa", "Received message at Data Store {:?}", message);
                     self.add_message(message);
+                }
+                Some((message, recipient)) = &mut self.rx2.next() => {
+                    if let Err(e) = self.network.send(message, recipient) {
+                        warn!(target: "afa", "Failed to send message within DataStore: {:?}", e);
+                    }
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
@@ -272,7 +294,7 @@ where
 
         if requirements.is_empty() {
             trace!(target: "afa", "Sending message from DataStore {:?}", message);
-            if let Err(e) = self.ready_messages_tx.unbounded_send(message) {
+            if let Err(e) = self.tx.unbounded_send(message) {
                 debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
             }
         } else {
@@ -296,7 +318,7 @@ where
                         .pending_messages
                         .remove(message_id)
                         .expect("there is a pending message");
-                    if let Err(e) = self.ready_messages_tx.unbounded_send(message) {
+                    if let Err(e) = self.tx.unbounded_send(message) {
                         debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
                     }
                     self.message_requirements.remove(message_id);

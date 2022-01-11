@@ -8,11 +8,12 @@ use futures::channel::oneshot;
 use log::debug;
 use sc_client_api::Backend;
 use sp_runtime::traits::Block;
+use crate::new_network::DataNetwork;
 
 /// Runs the data store within a single session.
-pub fn task<B, C, BE, RB>(
+pub fn task<B, C, BE, RB, N>(
     subtask_common: AuthoritySubtaskCommon,
-    mut data_store: DataStore<B, C, BE, RB, AlephNetworkData<B>>,
+    mut data_store: DataStore<B, C, BE, RB, AlephNetworkData<B>, N>,
 ) -> Task
 where
     B: Block,
@@ -20,6 +21,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     RB: RequestBlocks<B> + 'static,
+    N: DataNetwork<AlephNetworkData<B>> + 'static,
 {
     let AuthoritySubtaskCommon {
         spawn_handle,

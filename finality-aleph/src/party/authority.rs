@@ -37,7 +37,7 @@ pub struct Subtasks {
     exit: oneshot::Receiver<()>,
     member: PureTask,
     aggregator: PureTask,
-    forwarder: PureTask,
+    forwarder: Option<PureTask>,
     refresher: PureTask,
     data_store: PureTask,
 }
@@ -48,7 +48,7 @@ impl Subtasks {
         exit: oneshot::Receiver<()>,
         member: PureTask,
         aggregator: PureTask,
-        forwarder: PureTask,
+        forwarder: Option<PureTask>,
         refresher: PureTask,
         data_store: PureTask,
     ) -> Self {
@@ -67,20 +67,32 @@ impl Subtasks {
         // so we should force them to exit first to avoid any panics, i.e. `send on closed channel`
         self.member.stop().await;
         self.aggregator.stop().await;
-        self.forwarder.stop().await;
+        if let Some(forwarder) = self.forwarder {
+            forwarder.stop().await;
+        }
         self.refresher.stop().await;
         self.data_store.stop().await;
     }
 
     /// Blocks until the task is done and returns true if it quit unexpectedly.
     pub async fn failed(mut self) -> bool {
-        let result = tokio::select! {
-            _ = &mut self.exit => false,
-            _ = self.member.stopped() => true,
-            _ = self.aggregator.stopped() => true,
-            _ = self.forwarder.stopped() => true,
-            _ = self.refresher.stopped() => true,
-            _ = self.data_store.stopped() => true,
+        let result = if let Some(forwarder) = &mut self.forwarder {
+            tokio::select! {
+                _ = &mut self.exit => false,
+                _ = self.member.stopped() => true,
+                _ = self.aggregator.stopped() => true,
+                _ = forwarder.stopped() => true,
+                _ = self.refresher.stopped() => true,
+                _ = self.data_store.stopped() => true,
+            }
+        } else {
+            tokio::select! {
+                _ = &mut self.exit => false,
+                _ = self.member.stopped() => true,
+                _ = self.aggregator.stopped() => true,
+                _ = self.refresher.stopped() => true,
+                _ = self.data_store.stopped() => true,
+            }
         };
         self.stop().await;
         result

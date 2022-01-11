@@ -3,7 +3,6 @@ use aleph_bft::Recipient;
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tokio::{stream::StreamExt, sync::Mutex};
-use log::trace;
 
 /// For sending arbitrary messages.
 pub trait Sender<D: Data>: Sync + Send + Clone {
@@ -30,14 +29,14 @@ impl<D: Data, CN: Network<D>> DataNetwork<D> for CN {
         self.sender().send(data, recipient)
     }
     async fn next(&mut self) -> Option<D> {
-        trace!(target: "aleph-network", "Component DataNetwork Next");
-        let r = self.receiver();
-        trace!(target: "aleph-network", "Component DataNetwork Next Cloned");
-        let mut q = r.lock_owned().await;
-        trace!(target: "aleph-network", "Component DataNetwork Next Locked");
-        let s = q.next().await;
-        trace!(target: "aleph-network", "Component DataNetwork Next Nexted");
-        s
+        self.receiver().lock_owned().await.next().await
+    }
+}
+
+#[async_trait::async_trait]
+impl<D: Data> Sender<D> for mpsc::UnboundedSender<(D, Recipient)> {
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        self.unbounded_send((data, recipient)).map_err(|_| SendError::SendFailed)
     }
 }
 
@@ -45,6 +44,42 @@ impl<D: Data, CN: Network<D>> DataNetwork<D> for CN {
 impl<D: Data> Receiver<D> for mpsc::UnboundedReceiver<D> {
     async fn next(&mut self) -> Option<D> {
         StreamExt::next(self).await
+    }
+}
+
+use std::marker::PhantomData;
+
+pub struct BiedaNetwork<D: Data, R: Receiver<D>, S: Sender<D>> {
+    rx: Arc<Mutex<R>>,
+    tx: S,
+    _phantom: PhantomData<D>,
+}
+
+impl<D: Data, R: Receiver<D>, S: Sender<D>> BiedaNetwork<D, R, S> {
+    pub fn new(
+        rx: R,
+        tx: S,
+    ) -> Self {
+        BiedaNetwork{
+            rx: Arc::new(Mutex::new(rx)),
+            tx,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+
+impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for BiedaNetwork<D, R, S> {
+    type S = S;
+
+    type R = R;
+    
+    fn sender(&self) -> &Self::S {
+        &self.tx
+    }
+
+    fn receiver(&self) -> Arc<Mutex<Self::R>> {
+        self.rx.clone()
     }
 }
 

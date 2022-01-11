@@ -11,7 +11,7 @@ use crate::{
 };
 use aleph_bft::Recipient;
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, warn};
+use log::{debug, warn, trace};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -435,10 +435,10 @@ impl<D: Data> IO<D> {
     ) -> Result<(), Error> {
         let mut maintenance = interval(Duration::from_secs(MAINTENANCE_PERIOD_SECONDS));
         loop {
-            warn!(target: "aleph-network", "manager");
+            trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {
                 maybe_command = self.commands_from_user.next() => {
-                    warn!(target: "aleph-network", "command");
+                    trace!(target: "aleph-network", "Manager Loop command case");
                     match maybe_command {
                     Some(command) => match service.on_command(command).await {
                         Ok(to_send) => self.send(to_send)?,
@@ -448,7 +448,7 @@ impl<D: Data> IO<D> {
                 }
                 },
                 maybe_message = self.messages_from_user.next() => {
-                    warn!(target: "aleph-network", "message user");
+                    trace!(target: "aleph-network", "Manager Loop message from user case");
                     match maybe_message {
                     Some((message, session_id, recipient)) => for message in service.on_user_message(message, session_id, recipient) {
                          self.send_data(message)?;
@@ -457,7 +457,7 @@ impl<D: Data> IO<D> {
                 }
                 },
                 maybe_message = self.messages_from_network.next() => {
-                    warn!(target: "aleph-network", "message network");
+                    trace!(target: "aleph-network", "Manager Loop message from network case");
                     match maybe_message {
                     Some(message) => if let Err(e) = self.on_network_message(&mut service, message) {
                         match e {
@@ -470,7 +470,7 @@ impl<D: Data> IO<D> {
                 }
                 },
                 _ = maintenance.tick() => {
-                    warn!(target: "aleph-network", "tick");
+                    trace!(target: "aleph-network", "Manager Loop maintenance case");
                     for to_send in service.discovery() {
                         self.send_data(to_send)?;
                     }

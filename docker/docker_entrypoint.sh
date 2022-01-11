@@ -27,6 +27,7 @@ POOL_LIMIT=${POOL_LIMIT:-1024}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-true}
 TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
 UNIT_CREATION_DELAY=${UNIT_CREATION_DELAY:-300}
+RUN_OLD_NETWORK=${RUN_OLD_NETWORK:-true}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -102,6 +103,10 @@ fi
 
 if [[ -n "${UNIT_CREATION_DELAY:-}" ]]; then
   ARGS+=(--unit-creation-delay="${UNIT_CREATION_DELAY}")
+fi
+
+if [[ "false" == "${RUN_OLD_NETWORK}" ]]; then
+  ARGS+=(--run-old-network="${RUN_OLD_NETWORK}")
 fi
 
 if [[ -n "${CUSTOM_ARGS:-}" ]]; then

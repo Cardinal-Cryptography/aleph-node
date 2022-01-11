@@ -176,6 +176,7 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
+    pub no_network_compatibility: bool,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, H: ExHashT, SC>(

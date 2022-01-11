@@ -10,8 +10,8 @@ use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
 pub mod aleph; //todo
-mod component;
-pub mod manager;
+pub mod component; //todo
+pub mod manager; //todo
 #[cfg(test)]
 mod mock;
 mod rmc;

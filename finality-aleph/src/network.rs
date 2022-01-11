@@ -763,15 +763,16 @@ impl<B: BlockT> RmcNetwork<B> {
 
 pub(crate) fn split_network<B: BlockT>(
     data_network: DataNetwork<NetworkData<B>>,
-    data_store_tx: mpsc::UnboundedSender<AlephNetworkData<B>>,
-    data_store_rx: mpsc::UnboundedReceiver<AlephNetworkData<B>>,
+    //data_store_tx: mpsc::UnboundedSender<AlephNetworkData<B>>,
+    //data_store_rx: mpsc::UnboundedReceiver<AlephNetworkData<B>>,
 ) -> (AlephNetwork<B>, RmcNetwork<B>, impl Future<Output = ()>) {
+    let (aleph_data_tx, aleph_data_rx) = mpsc::unbounded();
     let (rmc_data_tx, rmc_data_rx) = mpsc::unbounded();
     let (aleph_cmd_tx, aleph_cmd_rx) = mpsc::unbounded();
     let (rmc_cmd_tx, rmc_cmd_rx) = mpsc::unbounded();
     let aleph_network = AlephNetwork::new(DataNetwork::new(
         data_network.session_id,
-        data_store_rx,
+        aleph_data_rx,
         aleph_cmd_tx,
     ));
     let rmc_network = RmcNetwork::new(DataNetwork::new(
@@ -787,7 +788,7 @@ pub(crate) fn split_network<B: BlockT>(
                 None => break,
                 Some(NetworkData::Aleph(data)) => {
                     trace!(target: "afa", "Forwarding a message to DataStore {:?} {:?}", session_id, data);
-                    if let Err(e) = data_store_tx.unbounded_send(data) {
+                    if let Err(e) = aleph_data_tx.unbounded_send(data) {
                         debug!(target: "afa", "unable to send data for {:?} to DataStore {}", session_id, e);
                     }
                 }
