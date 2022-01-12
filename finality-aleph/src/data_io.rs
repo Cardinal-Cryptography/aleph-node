@@ -1,4 +1,4 @@
-use crate::{metrics::Checkpoint, network, Error, Metrics};
+use crate::{metrics::Checkpoint, network, /*Error,*/ Metrics};
 use async_trait::async_trait;
 use codec::{Decode, Encode};
 // use futures::channel::{

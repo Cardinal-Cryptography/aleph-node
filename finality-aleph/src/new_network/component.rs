@@ -2,10 +2,7 @@ use crate::new_network::{Data, DataNetwork, SendError};
 use aleph_bft::Recipient;
 // use futures::channel::mpsc;
 use futures::{
-    channel::{
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
-        oneshot,
-    },
+    channel::mpsc::{self /*, UnboundedReceiver, UnboundedSender*/},
     StreamExt,
 };
 use std::sync::Arc;
