@@ -94,7 +94,9 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     --unit-creation-delay 500 \
     --execution Native \
     --no-mdns \
-    -ldebug \
+    -lafa=debug \
+    -laleph-party=debug \
+    -laleph-network=debug \
     "$@" \
     2> $auth.log > /dev/null & \
 done
