@@ -11,7 +11,7 @@ jobs:
     name: Run check, test and lints
     runs-on: ubuntu-latest
     env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-07-21
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       CARGO_INCREMENTAL: 0
     steps:
       - name: Checkout Source code
@@ -34,11 +34,6 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: TEMP CLEAN
-        uses: actions-rs/cargo@v1
-        with:
-          command: clean
-        
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
         with:
