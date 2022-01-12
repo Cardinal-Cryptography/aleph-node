@@ -311,7 +311,7 @@ struct SessionData<D> {
 
 #[derive(Clone, Encode, Decode)]
 enum SessionCommand<D: Clone + Encode + Decode> {
-    Meta(MetaMessage, Recipient<PeerId>),
+    Meta(Box<MetaMessage>, Recipient<PeerId>),
     Data(SessionId, D, Recipient<NodeIndex>),
     Control(ControlCommand),
 }
@@ -371,7 +371,7 @@ impl<D: Clone + Codec> SessionManager<D> {
         if let Err(e) = self
             .commands_for_session
             .unbounded_send(SessionCommand::Meta(
-                MetaMessage::Authentication(auth_data, signature),
+                Box::new(MetaMessage::Authentication(auth_data, signature)),
                 Recipient::All,
             ))
         {
@@ -452,10 +452,10 @@ where
     fn authenticate_to(&self, session_data: &SessionData<D>, peer_id: PeerId) {
         self.commands_for_session
             .unbounded_send(SessionCommand::Meta(
-                MetaMessage::Authentication(
+                Box::new(MetaMessage::Authentication(
                     session_data.auth_data.clone(),
                     session_data.auth_signature.clone(),
-                ),
+                )),
                 Recipient::Target(peer_id),
             ))
             .expect("Sending commands to session should work.");
@@ -525,7 +525,7 @@ where
                     trace!(target: "afa", "Received unauthenticated message from {:?} for session {:?}, requesting authentication.", peer_id, session_id);
                     self.commands_for_session
                         .unbounded_send(SessionCommand::Meta(
-                            MetaMessage::AuthenticationRequest(session_id),
+                            Box::new(MetaMessage::AuthenticationRequest(session_id)),
                             Recipient::Target(peer_id),
                         ))
                         .expect("Sending commands to session should work.");
@@ -544,7 +544,7 @@ where
         use SessionCommand::*;
         match sc {
             Meta(message, recipient) => {
-                let message = InternalMessage::Meta(message);
+                let message = InternalMessage::Meta(*message);
                 match recipient {
                     Recipient::All => {
                         for (peer_id, _) in self.peers.all_peers.iter() {
