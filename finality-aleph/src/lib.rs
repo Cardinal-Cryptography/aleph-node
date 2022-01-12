@@ -59,7 +59,7 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
             reserved_nodes: Vec::new(),
             non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
         },
-        _ => sc_network::config::SetConfig::default(),
+        Protocol::Generic => sc_network::config::SetConfig::default(),
     };
     config
 }

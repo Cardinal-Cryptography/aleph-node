@@ -8,8 +8,8 @@ use crate::{
     },
     last_block_of_session,
     network::{
-        split, AlephNetworkData, ConnectionIO, ConnectionManager, Manager,
-        RequestBlocks, RmcNetworkData, Service, SessionNetwork, Split, IO,
+        split, AlephNetworkData, ConnectionIO, ConnectionManager, Manager, RequestBlocks,
+        RmcNetworkData, Service, SessionNetwork, Split, IO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
     SessionMap, SessionPeriod, UnitCreationDelay,
@@ -295,13 +295,13 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
-    authorities: Vec<aleph_primitives::Public>, //todo
+    authorities: Vec<aleph_primitives::Public>,
 }
 
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
 const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
 
-type SplitData<B: Block> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
+type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
