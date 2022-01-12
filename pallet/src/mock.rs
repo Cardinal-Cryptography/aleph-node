@@ -9,6 +9,7 @@ use frame_support::{
     weights::RuntimeDbWeight,
 };
 use primitives::AuthorityId;
+use sp_api_hidden_includes_construct_runtime::hidden_include::traits::GenesisBuild;
 use sp_core::H256;
 use sp_runtime::{
     impl_opaque_keys,
@@ -111,7 +112,6 @@ impl pallet_session::Config for Test {
     type SessionManager = pallet_aleph::AlephSessionManager<Self>;
     type SessionHandler = <TestSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = TestSessionKeys;
-    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = ();
 }
 
