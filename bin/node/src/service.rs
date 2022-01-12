@@ -4,8 +4,8 @@ use crate::aleph_cli::AlephCli;
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
-    run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, SessionPeriod, new_network::Protocol
+    new_network::Protocol, run_aleph_consensus, AlephBlockImport, AlephConfig,
+    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -155,16 +155,20 @@ pub fn new_full(
         other: (block_import, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config(None));
+    let network_compatibility_mod = aleph_config.network_compatibility_mod;
+
+    if network_compatibility_mod {
+        config
+            .network
+            .extra_sets
+            .push(finality_aleph::peers_set_config(None));
+    }
 
     config
         .network
         .extra_sets
         .push(finality_aleph::peers_set_config(Some(Protocol::Generic)));
-    
+
     config
         .network
         .extra_sets
@@ -283,8 +287,6 @@ pub fn new_full(
             .spawn_essential_handle()
             .spawn_blocking("aura", aura);
 
-        let no_network_compatibility = aleph_config.no_network_compatibility;
-
         let aleph_config = AlephConfig {
             network,
             client,
@@ -296,7 +298,7 @@ pub fn new_full(
             justification_rx,
             metrics,
             unit_creation_delay,
-            no_network_compatibility,
+            network_compatibility_mod,
         };
         task_manager
             .spawn_essential_handle()

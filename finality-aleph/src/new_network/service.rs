@@ -32,7 +32,7 @@ impl<D: Data> IO<D> {
         messages_for_user: mpsc::UnboundedSender<D>,
         commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
     ) -> IO<D> {
-        IO{
+        IO {
             messages_from_user,
             messages_for_user,
             commands_from_manager,

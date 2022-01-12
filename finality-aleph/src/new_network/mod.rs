@@ -9,15 +9,15 @@ use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, pin::Pin};
 
-pub mod aleph; //todo
-pub mod component; //todo
-pub mod manager; //todo
+mod aleph;
+mod component;
+mod manager;
 #[cfg(test)]
 mod mock;
 mod rmc;
-pub mod service; //todo
-pub mod session; //todo
-pub mod split; //todo
+mod service;
+mod session;
+mod split;
 mod substrate;
 
 use component::{
@@ -25,8 +25,13 @@ use component::{
 };
 use manager::SessionCommand;
 
-pub use aleph::NetworkData as AlephNetworkData;
+pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
+pub use component::SimpleNetwork;
+pub use manager::{ConnectionIO, ConnectionManager};
 pub use rmc::NetworkData as RmcNetworkData;
+pub use service::{Service, IO};
+pub use session::{Manager, Network as SessionNetwork};
+pub use split::{split, Split};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);

@@ -1,6 +1,7 @@
 use crate::{
     data_io::DataStore,
-    network::{AlephNetworkData, RequestBlocks},
+    network::RequestBlocks,
+    new_network::{AlephNetworkData, DataNetwork},
     party::{AuthoritySubtaskCommon, Task},
 };
 use aleph_bft::SpawnHandle;
@@ -8,7 +9,6 @@ use futures::channel::oneshot;
 use log::debug;
 use sc_client_api::Backend;
 use sp_runtime::traits::Block;
-use crate::new_network::DataNetwork;
 
 /// Runs the data store within a single session.
 pub fn task<B, C, BE, RB, N>(

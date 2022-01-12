@@ -11,7 +11,7 @@ use crate::{
 };
 use aleph_bft::Recipient;
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, warn, trace};
+use log::{debug, trace, warn};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -372,7 +372,7 @@ pub enum Error {
 }
 
 impl<D: Data> IO<D> {
-    pub fn new (
+    pub fn new(
         commands_for_network: mpsc::UnboundedSender<ConnectionCommand>,
         messages_for_network: mpsc::UnboundedSender<(NetworkData<D>, DataCommand)>,
         commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,

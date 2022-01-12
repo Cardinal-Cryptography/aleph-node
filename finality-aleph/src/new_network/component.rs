@@ -1,7 +1,7 @@
 use crate::new_network::{Data, DataNetwork, SendError};
 use aleph_bft::Recipient;
 use futures::channel::mpsc;
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 use tokio::{stream::StreamExt, sync::Mutex};
 
 /// For sending arbitrary messages.
@@ -36,7 +36,8 @@ impl<D: Data, CN: Network<D>> DataNetwork<D> for CN {
 #[async_trait::async_trait]
 impl<D: Data> Sender<D> for mpsc::UnboundedSender<(D, Recipient)> {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
-        self.unbounded_send((data, recipient)).map_err(|_| SendError::SendFailed)
+        self.unbounded_send((data, recipient))
+            .map_err(|_| SendError::SendFailed)
     }
 }
 
@@ -47,39 +48,33 @@ impl<D: Data> Receiver<D> for mpsc::UnboundedReceiver<D> {
     }
 }
 
-use std::marker::PhantomData;
-
-pub struct BiedaNetwork<D: Data, R: Receiver<D>, S: Sender<D>> {
-    rx: Arc<Mutex<R>>,
-    tx: S,
+pub struct SimpleNetwork<D: Data, R: Receiver<D>, S: Sender<D>> {
+    receiver: Arc<Mutex<R>>,
+    sender: S,
     _phantom: PhantomData<D>,
 }
 
-impl<D: Data, R: Receiver<D>, S: Sender<D>> BiedaNetwork<D, R, S> {
-    pub fn new(
-        rx: R,
-        tx: S,
-    ) -> Self {
-        BiedaNetwork{
-            rx: Arc::new(Mutex::new(rx)),
-            tx,
+impl<D: Data, R: Receiver<D>, S: Sender<D>> SimpleNetwork<D, R, S> {
+    pub fn new(receiver: R, sender: S) -> Self {
+        SimpleNetwork {
+            receiver: Arc::new(Mutex::new(receiver)),
+            sender,
             _phantom: PhantomData,
         }
     }
 }
 
-
-impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for BiedaNetwork<D, R, S> {
+impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for SimpleNetwork<D, R, S> {
     type S = S;
 
     type R = R;
-    
+
     fn sender(&self) -> &Self::S {
-        &self.tx
+        &self.sender
     }
 
     fn receiver(&self) -> Arc<Mutex<Self::R>> {
-        self.rx.clone()
+        self.receiver.clone()
     }
 }
 

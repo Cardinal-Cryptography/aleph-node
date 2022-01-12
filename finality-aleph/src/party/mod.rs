@@ -1,26 +1,26 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
     data_io::{reduce_header_to_num, AlephData, DataProvider, DataStore},
-    default_aleph_config,
+    default_aleph_config, first_block_of_session,
     justification::{
         AlephJustification, JustificationHandler, JustificationNotification,
         JustificationRequestDelay, SessionInfo, SessionInfoProvider,
     },
-    first_block_of_session, last_block_of_session, network,
+    last_block_of_session, network,
     network::{
-        split_network, AlephNetworkData, ALEPH_PROTOCOL_NAME, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
+        split_network, ConsensusNetwork, DataNetwork, NetworkData, SessionManager,
+        ALEPH_PROTOCOL_NAME,
     },
     new_network::{
-        manager::service::{IO as ConnectionIO, Service as ConnectionManager},
-        session::{Manager, Network as NewNetwork},
-        service::{Service, IO},
-        split::Split,
-        RmcNetworkData,
+        split, AlephNetworkData, ConnectionIO, ConnectionManager, DataNetwork as NewDataNetwork,
+        Manager, RmcNetworkData, RmcNetworkData as NewRmcNetworkData, Service, SessionNetwork,
+        SplicedAlephNetwork, SplicedRmcNetwork, Split, IO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
     SessionMap, SessionPeriod, UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
+use std::future::Future;
 
 use aleph_bft::{DelayConfig, SpawnHandle};
 use aleph_primitives::{AlephSessionApi, KEY_TYPE};
@@ -32,6 +32,7 @@ use log::{debug, error, info, trace, warn};
 use crate::data_io::FinalizationHandler;
 use crate::finalization::{AlephFinalizer, BlockFinalizer};
 use crate::justification::{JustificationHandlerConfig, Verifier};
+use aleph_primitives;
 use codec::Encode;
 use parking_lot::Mutex;
 use sc_client_api::{Backend, HeaderBackend};
@@ -51,7 +52,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use aleph_primitives;
 
 mod task;
 use task::{Handle, Task};
@@ -156,7 +156,7 @@ where
                 session_period,
                 millisecs_per_block,
                 unit_creation_delay,
-                no_network_compatibility,
+                network_compatibility_mod,
                 ..
             },
     } = aleph_params;
@@ -195,45 +195,48 @@ where
         messages_for_network,
         commands_from_user,
         commands_from_manager,
-        messages_from_network
+        messages_from_network,
     );
-    let new_connection_manager = ConnectionManager::<_, _>::new(
-        network.clone()
-    );
+    let new_connection_manager = ConnectionManager::<_, _>::new(network.clone());
     let new_session_manager = Manager::new(commands_for_service, messages_for_service);
     let new_network = Service::new(
-        network.clone(), 
-        IO::new (
-            messages_from_user,
-            messages_for_user,
-            commands_from_io,
-        ),
+        network.clone(),
+        IO::new(messages_from_user, messages_for_user, commands_from_io),
     );
 
-    let new_network_manager_task = async move { new_connection_io.run(new_connection_manager).await.expect("todo") };
+    //TODO: we should retry
+    let new_network_manager_task = async move {
+        new_connection_io
+            .run(new_connection_manager)
+            .await
+            .expect("Failed to run new network manager")
+    };
     spawn_handle.spawn("aleph/new_network_manager", new_network_manager_task);
     let new_network_task = async move { new_network.run().await };
     spawn_handle.spawn("aleph/new_network", new_network_task);
 
-    let session_manager = if no_network_compatibility {
-        info!(target: "aleph-party", "Running without network compatibility");
-        None
-    } else {
+    let session_manager = if network_compatibility_mod {
         info!(target: "aleph-party", "Running with network compatibility");
-        let network = ConsensusNetwork::<NetworkData<B>, _, _>::new(network.clone(), ALEPH_PROTOCOL_NAME.into());
+        let network = ConsensusNetwork::<NetworkData<B>, _, _>::new(
+            network.clone(),
+            ALEPH_PROTOCOL_NAME.into(),
+        );
         let session_manager = network.session_manager();
 
         let network_task = async move { network.run().await };
         spawn_handle.spawn("aleph/network", network_task);
         Some(session_manager)
+    } else {
+        info!(target: "aleph-party", "Running without network compatibility");
+        None
     };
 
     debug!(target: "afa", "Consensus network has started.");
 
     let authorities = client
-    .runtime_api()
-    .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-    .unwrap();
+        .runtime_api()
+        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
+        .unwrap();
 
     let party = ConsensusParty {
         session_manager,
@@ -249,7 +252,7 @@ where
         spawn_handle: spawn_handle.into(),
         phantom: PhantomData,
         unit_creation_delay,
-        authorities
+        authorities,
     };
 
     debug!(target: "afa", "Consensus party has started.");
@@ -318,26 +321,21 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
-    authorities: Vec<aleph_primitives::app::Public>,
+    authorities: Vec<aleph_primitives::Public>,
 }
 
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
-
-use crate::new_network::SplicedAlephNetwork;
-use crate::new_network::SplicedRmcNetwork;
-use crate::new_network::aleph::NetworkWrapper;
-use crate::new_network::split::split;
-use crate::new_network::AlephNetworkData as NewAlephNetworkData;
-use crate::new_network::RmcNetworkData as NewRmcNetworkData;
-use crate::new_network::DataNetwork as NewDataNetwork;
-use std::future::Future;
+const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
 
 fn get_with_compatibility_network<B: Block>(
     data_network: DataNetwork<NetworkData<B>>,
-    new_data_network: NewNetwork<Split<NewAlephNetworkData<B>, NewRmcNetworkData<B>>>,
-) -> (impl NewDataNetwork<NewAlephNetworkData<B>>, impl NewDataNetwork<NewRmcNetworkData<B>>, impl Future<Output =()>) {
-    let (aleph_network, rmc_network, forwarder) =
-        split_network(data_network);
+    new_data_network: SessionNetwork<Split<AlephNetworkData<B>, NewRmcNetworkData<B>>>,
+) -> (
+    impl NewDataNetwork<AlephNetworkData<B>>,
+    impl NewDataNetwork<NewRmcNetworkData<B>>,
+    impl Future<Output = ()>,
+) {
+    let (aleph_network, rmc_network, forwarder) = split_network(data_network);
     let (new_aleph_network, new_rmc_network) = split(new_data_network);
     let aleph_network = SplicedAlephNetwork::new(new_aleph_network, aleph_network);
     let rmc_network = SplicedRmcNetwork::new(new_rmc_network, rmc_network);
@@ -358,7 +356,7 @@ where
         node_id: NodeIndex,
         multikeychain: KeyBox,
         data_network: Option<DataNetwork<NetworkData<B>>>,
-        new_data_network: NewNetwork<Split<crate::new_network::AlephNetworkData<B>, crate::new_network::RmcNetworkData<B>>>,
+        new_data_network: SessionNetwork<Split<AlephNetworkData<B>, RmcNetworkData<B>>>,
         session_id: SessionId,
         authorities: Vec<AuthorityId>,
         exit_rx: futures::channel::oneshot::Receiver<()>,
@@ -403,7 +401,8 @@ where
         };
 
         if let Some(data_network) = data_network {
-            let (aleph_network, rmc_network, forwarder) = get_with_compatibility_network(data_network, new_data_network);
+            let (aleph_network, rmc_network, forwarder) =
+                get_with_compatibility_network(data_network, new_data_network);
 
             let (data_store, aleph_network) = DataStore::new(
                 self.client.clone(),
@@ -440,7 +439,7 @@ where
                     last_block,
                 ),
                 data_store::task(subtask_common, data_store),
-            )  
+            )
         } else {
             let (aleph_network, rmc_network) = split(new_data_network);
 
@@ -490,28 +489,29 @@ where
         authorities: Vec<AuthorityId>,
     ) -> AuthorityTask {
         let authority_verifier = AuthorityVerifier::new(authorities.clone());
-        let authority_pen = AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
-            .await
-            .expect("The keys should sign successfully");
+        let authority_pen =
+            AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
+                .await
+                .expect("The keys should sign successfully");
 
-        let keybox = KeyBox::new(
-            node_id,
-            authority_verifier.clone(),
-            authority_pen.clone(),
-        );
+        let keybox = KeyBox::new(node_id, authority_verifier.clone(), authority_pen.clone());
         let data_network = if self.session_manager.is_some() {
             Some(
-                self.session_manager.as_ref().unwrap()
-                .start_session(session_id, keybox.clone())
-                .await
+                self.session_manager
+                    .as_ref()
+                    .unwrap()
+                    .start_session(session_id, keybox.clone())
+                    .await,
             )
         } else {
             None
         };
-        
-        let new_data_network = self.new_session_manager.start_validator_session(
-            session_id, authority_verifier, node_id, authority_pen
-        ).expect("todo");
+
+        //TODO: we should retry
+        let new_data_network = self
+            .new_session_manager
+            .start_validator_session(session_id, authority_verifier, node_id, authority_pen)
+            .expect("Failed to start validator session!");
 
         let (exit, exit_rx) = futures::channel::oneshot::channel();
         let authority_subtasks = self
@@ -537,32 +537,11 @@ where
         )
     }
 
-    async fn run_session(&mut self, session_id: SessionId, authorities: Vec<aleph_primitives::app::Public>) {
-        /*let authorities = {
-            if session_id == SessionId(0) {
-                self.client
-                    .runtime_api()
-                    .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-                    .unwrap()
-            } else {
-                let last_prev =
-                    last_block_of_session::<B>(SessionId(session_id.0 - 1), self.session_period);
-                // We must read the authorities for next session of the latest block of the previous session.
-                // The reason is that we are not guaranteed to have the first block of new session available yet.
-                match self
-                    .client
-                    .runtime_api()
-                    .next_session_authorities(&BlockId::Number(last_prev))
-                {
-                    Ok(authorities) => authorities
-                        .expect("authorities must be available at last block of previous session"),
-                    Err(e) => {
-                        error!(target: "afa", "Error when getting authorities for session {:?} {:?}", session_id, e);
-                        return;
-                    }
-                }
-            }
-        };*/
+    async fn run_session(
+        &mut self,
+        session_id: SessionId,
+        authorities: Vec<aleph_primitives::Public>,
+    ) {
         self.session_authorities
             .lock()
             .insert(session_id, authorities.clone());
@@ -627,7 +606,7 @@ where
                         None => None,
                     } } => {
                     warn!(target: "afa", "Authority task ended prematurely, restarting.");
-                    Delay::new(Duration::from_millis(500)).await; //todo wymysl stala
+                    Delay::new(Duration::from_millis(SESSION_RESTART_COOLDOWN_MS)).await;
                     maybe_authority_task = Some(self.spawn_authority_task(session_id, node_id, authorities.clone()).await);
                 },
             }
@@ -639,7 +618,10 @@ where
                 warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
             }
             if self.session_manager.is_some() {
-                self.session_manager.as_ref().unwrap().stop_session(session_id);
+                self.session_manager
+                    .as_ref()
+                    .unwrap()
+                    .stop_session(session_id);
             }
         }
     }
@@ -659,7 +641,8 @@ where
             session_id_from_block_num::<B>(last_finalized_number, self.session_period).0;
         for curr_id in starting_session.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
-            self.run_session(SessionId(curr_id), self.authorities.clone()).await;
+            self.run_session(SessionId(curr_id), self.authorities.clone())
+                .await;
             if curr_id >= 10 && curr_id % 10 == 0 {
                 self.prune_session_data(SessionId(curr_id - 10));
             }

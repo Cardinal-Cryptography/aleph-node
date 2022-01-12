@@ -38,10 +38,10 @@ enum Error {
     SendData,
 }
 
+use new_network::Protocol;
+
 /// Returns a NonDefaultSetConfig for the specified protocol.
-pub fn peers_set_config(
-    protocol: Option<new_network::Protocol>,
-) -> sc_network::config::NonDefaultSetConfig {
+pub fn peers_set_config(protocol: Option<Protocol>) -> sc_network::config::NonDefaultSetConfig {
     let name = match protocol {
         Some(ref p) => p.name(),
         _ => network::ALEPH_PROTOCOL_NAME.into(),
@@ -57,7 +57,7 @@ pub fn peers_set_config(
     );
 
     config.set_config = match protocol {
-        Some(new_network::Protocol::Validator) => sc_network::config::SetConfig {
+        Some(Protocol::Validator) => sc_network::config::SetConfig {
             in_peers: 25,
             out_peers: 0,
             reserved_nodes: Vec::new(),
@@ -176,7 +176,7 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
-    pub no_network_compatibility: bool,
+    pub network_compatibility_mod: bool,
 }
 
 pub fn run_aleph_consensus<B: Block, BE, C, H: ExHashT, SC>(

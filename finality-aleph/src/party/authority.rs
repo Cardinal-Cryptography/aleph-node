@@ -2,8 +2,8 @@ use crate::{
     party::{Handle, Task as PureTask},
     NodeIndex, SpawnHandle,
 };
-use log::{debug, trace};
 use futures::channel::oneshot;
+use log::{debug, trace};
 
 /// A wrapper for running the authority task within a specific session.
 pub struct Task {

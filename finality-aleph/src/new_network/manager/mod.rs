@@ -6,10 +6,12 @@ use std::convert::TryFrom;
 mod addresses;
 mod connections;
 mod discovery;
-pub mod service; //todo
+mod service;
 mod session;
 #[cfg(test)]
 pub mod testing;
+
+pub use service::{Service as ConnectionManager, IO as ConnectionIO};
 
 use addresses::{get_common_peer_id, get_peer_id, is_p2p};
 

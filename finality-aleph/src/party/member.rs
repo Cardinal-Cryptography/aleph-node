@@ -1,7 +1,7 @@
 use crate::{
     crypto::KeyBox,
     data_io::{DataProvider, FinalizationHandler},
-    new_network::{aleph::NetworkWrapper, DataNetwork, AlephNetworkData},
+    new_network::{AlephNetworkData, DataNetwork, NetworkWrapper},
     party::{AuthoritySubtaskCommon, Task},
 };
 use aleph_bft::{Config, SpawnHandle};

@@ -5,9 +5,8 @@ use crate::{
     Metrics,
 };
 use aleph_bft::{
-    Recipient,
     rmc::{DoublingDelayScheduler, Message, ReliableMulticast},
-    MultiKeychain, Signable, SignatureSet,
+    MultiKeychain, Recipient, Signable, SignatureSet,
 };
 use codec::{Codec, Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
@@ -34,7 +33,12 @@ impl<H: AsRef<[u8]> + Hash + Clone + Codec> Signable for SignableHash<H> {
 
 type RmcMessage<B> = Message<SignableHash<<B as Block>::Hash>, Signature, SignatureSet<Signature>>;
 /// A wrapper around an RMC returning the signed hashes in the order of the [`ReliableMulticast::start_rmc`] calls.
-pub(crate) struct BlockSignatureAggregator<'a, B: Block, N: DataNetwork<RmcNetworkData<B>>, MK: MultiKeychain> {
+pub(crate) struct BlockSignatureAggregator<
+    'a,
+    B: Block,
+    N: DataNetwork<RmcNetworkData<B>>,
+    MK: MultiKeychain,
+> {
     messages_for_rmc: mpsc::UnboundedSender<RmcMessage<B>>,
     messages_from_rmc: mpsc::UnboundedReceiver<RmcMessage<B>>,
     signatures: HashMap<B::Hash, MK::PartialMultisignature>,

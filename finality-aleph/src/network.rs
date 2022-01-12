@@ -14,13 +14,11 @@ use std::time::Duration;
 use crate::{
     crypto::{KeyBox, Signature},
     data_io::AlephDataFor,
+    new_network::{AlephNetworkData, RmcNetworkData},
     Error, Hasher, SessionId,
 };
 use sp_api::NumberFor;
 use std::{fmt::Debug, future::Future};
-
-pub use crate::new_network::AlephNetworkData;
-use crate::new_network::RmcNetworkData;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -763,8 +761,6 @@ impl<B: BlockT> RmcNetwork<B> {
 
 pub(crate) fn split_network<B: BlockT>(
     data_network: DataNetwork<NetworkData<B>>,
-    //data_store_tx: mpsc::UnboundedSender<AlephNetworkData<B>>,
-    //data_store_rx: mpsc::UnboundedReceiver<AlephNetworkData<B>>,
 ) -> (AlephNetwork<B>, RmcNetwork<B>, impl Future<Output = ()>) {
     let (aleph_data_tx, aleph_data_rx) = mpsc::unbounded();
     let (rmc_data_tx, rmc_data_rx) = mpsc::unbounded();
