@@ -71,9 +71,9 @@ class Node:
             return int(a), int(b)
         return -1, -1
 
-    def check_hash_of(self, number):
-        """Find in the logs the hash for block with number `number`."""
-        results = self.greplog(rf'Finalizing block {number} (.+)')
+    def get_hash(self, height):
+        """Find in the logs the hash for the block with height `height`."""
+        results = self.greplog(rf'Finalizing block {height} (.+)')
         if results:
             return results[-1].strip()
         return ''
