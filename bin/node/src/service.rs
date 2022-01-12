@@ -1,7 +1,8 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use crate::aleph_cli::AlephCli;
-use aleph_primitives::AlephSessionApi;
+use crate::executor::AlephExecutor;
+// use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
@@ -11,8 +12,8 @@ use futures::channel::mpsc;
 use log::warn;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
-use sc_executor::native_executor_instance;
-pub use sc_executor::NativeExecutor;
+// use sc_executor::native_executor_instance;
+// pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
@@ -25,13 +26,14 @@ use sp_runtime::{
 use std::sync::Arc;
 
 // Our native executor instance.
-native_executor_instance!(
-    pub Executor,
-    aleph_runtime::api::dispatch,
-    aleph_runtime::native_version,
-);
+// native_executor_instance!(
+//     pub Executor,
+//     aleph_runtime::api::dispatch,
+//     aleph_runtime::native_version,
+// );
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+// type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
