@@ -2,7 +2,7 @@ mod ws_rpc_client;
 
 use log::warn;
 use sp_core::sr25519;
-use std::{error::Error, thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration};
 use substrate_api_client::{Api, RpcClient};
 pub use ws_rpc_client::WsRpcClient;
 
