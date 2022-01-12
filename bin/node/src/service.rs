@@ -2,7 +2,7 @@
 
 use crate::aleph_cli::AlephCli;
 use crate::executor::AlephExecutor;
-// use aleph_primitives::AlephSessionApi;
+use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
@@ -178,7 +178,7 @@ pub fn new_full(
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
-            on_demand: None,
+            // on_demand: None,
             block_announce_validator_builder: None,
             warp_sync: None,
         })?;
@@ -226,8 +226,8 @@ pub fn new_full(
         task_manager: &mut task_manager,
         transaction_pool: transaction_pool.clone(),
         rpc_extensions_builder,
-        on_demand: None,
-        remote_blockchain: None,
+        // on_demand: None,
+        // remote_blockchain: None,
         backend,
         system_rpc_tx,
         config,
