@@ -147,8 +147,7 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
         //     error!(target: "afa", "remove_set_reserved failed: {}", e);
         // }
 
-        let address = who.0.into();
-        NetworkService::remove_peers_from_reserved_set(self, protocol, vec![address]);
+        NetworkService::remove_peers_from_reserved_set(self, protocol, vec![who.0]);
     }
 
     fn peer_id(&self) -> PeerId {

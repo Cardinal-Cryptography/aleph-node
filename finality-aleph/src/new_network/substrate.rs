@@ -109,7 +109,7 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
         //     error!(target: "aleph-network", "remove_reserved failed: {}", e);
         // }
 
-        let addresses = peers.into_iter().map(|peer_id| peer_id.0.into()).collect();
+        let addresses = peers.into_iter().map(|peer_id| peer_id.0).collect();
         self.remove_peers_from_reserved_set(protocol, addresses);
     }
 }

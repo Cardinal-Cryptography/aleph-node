@@ -204,10 +204,14 @@ where
         let finalized_number = self.client.info().finalized_number;
         let now = time::SystemTime::now();
         for (block_data, first_occurence) in blocks_with_timestamps {
-            if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.hash)) {
+            if
+            //let Ok(Some(_)) =
+            self.client.header(BlockId::Hash(block_data.hash)).is_ok()
+                || finalized_number >= block_data.number
+            {
                 self.add_block(block_data);
-            } else if finalized_number >= block_data.number {
-                self.add_block(block_data);
+            // } else if finalized_number >= block_data.number {
+            //     self.add_block(block_data);
             } else if let Ok(time_waiting) = now.duration_since(first_occurence) {
                 if time_waiting >= self.config.request_block_after {
                     debug!(target: "afa", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block_data, time_waiting.as_secs());
