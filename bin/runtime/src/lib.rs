@@ -27,6 +27,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::Perquintill;
+use frame_support::traits::EqualPrivilegeOnly;
 use frame_support::traits::SortedMembers;
 use frame_support::weights::constants::WEIGHT_PER_MILLIS;
 use frame_support::PalletId;
@@ -261,6 +262,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
+    pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 pub struct ConstantFeeMultiplierUpdate;
@@ -304,6 +306,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
@@ -320,6 +323,7 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+    type OriginPrivilegeCmp = EqualPrivilegeOnly;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -406,6 +410,8 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    // Maximum number of vesting schedules an account may have at a given moment
+    const MAX_VESTING_SCHEDULES: u32 = 42;
 }
 
 pub const MILLICENTS: Balance = 100_000_000;
