@@ -118,7 +118,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     flood(
         pool_getter,
-        txs.into_par_iter(),
+        txs,
         tx_status,
         &histogram,
         transactions_in_interval,
@@ -152,22 +152,30 @@ type ThreadId = usize;
 
 fn flood<'a>(
     pool: impl Fn(ThreadId, usize) -> &'a Api<sr25519::Pair, WsRpcClient> + Sync,
-    txs: impl IndexedParallelIterator<Item = TransferTransaction>,
+    txs: Vec<TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
     transactions_in_interval: usize,
     interval_duration: Duration,
     thread_pool: &rayon::ThreadPool,
 ) {
+    let mut current_start_ix = 0;
     thread_pool.install(|| {
-        txs.enumerate()
+        txs
             .chunks(transactions_in_interval)
             .enumerate()
             .for_each(|(interval_idx, interval)| {
                 let start = Instant::now();
                 info!("Starting {} interval", interval_idx);
 
-                interval.into_par_iter().for_each(|(tx_ix, tx)| {
+                let interval_len = interval.len();
+
+                interval.
+                    into_par_iter()
+                    .enumerate()
+                    .map(|( tx_ix, tx )| (tx_ix + current_start_ix, tx))
+                    .for_each(|(tx_ix, tx)| {
+
                     const DEFAULT_THREAD_ID: usize = 0;
                     let thread_id = thread_pool.current_thread_index().unwrap_or(DEFAULT_THREAD_ID);
                     send_tx(
@@ -191,6 +199,7 @@ fn flood<'a>(
                         exec_time.as_millis()
                     );
                 }
+                current_start_ix += interval_len;
             });
     });
 }
