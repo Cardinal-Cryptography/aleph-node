@@ -81,7 +81,9 @@ pub fn new_partial(
         )?;
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        task_manager
+            .spawn_handle()
+            .spawn("telemetry", None, worker.run());
         telemetry
     });
 
@@ -280,7 +282,7 @@ pub fn new_full(
 
         task_manager
             .spawn_essential_handle()
-            .spawn_blocking("aura", aura);
+            .spawn_blocking("aura", None, aura);
 
         let aleph_config = AlephConfig {
             network,
@@ -294,9 +296,11 @@ pub fn new_full(
             metrics,
             unit_creation_delay,
         };
-        task_manager
-            .spawn_essential_handle()
-            .spawn_blocking("aleph", run_aleph_consensus(aleph_config));
+        task_manager.spawn_essential_handle().spawn_blocking(
+            "aleph",
+            None,
+            run_aleph_consensus(aleph_config),
+        );
     }
 
     network_starter.start_network();
