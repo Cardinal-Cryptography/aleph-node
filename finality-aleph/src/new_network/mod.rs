@@ -147,9 +147,9 @@ pub enum SendError {
 }
 
 /// What the data sent using the network has to satisfy.
-pub trait Data: Clone + Codec + Send + Sync {}
+pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
-impl<D: Clone + Codec + Send + Sync> Data for D {}
+impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 
 /// A generic interface for sending and receiving data.
 #[async_trait::async_trait]
