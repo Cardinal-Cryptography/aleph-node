@@ -81,6 +81,11 @@ class Chain:
         for i in idx:
             self.nodes[i].chainspec = chainspec
 
+    def set_log_level(self, target, level, nodes=None):
+        idx = nodes or range(len(self.nodes))
+        for i in idx:
+            self.nodes[i].log_level[target] = level
+
     def start(self, name, nodes=None):
         """Start the chain. `name` will be used to name logfiles: name0.log, name1.log etc.
         Optional `nodes` argument can be used to specify which nodes are affected and should be
