@@ -67,10 +67,17 @@ pub fn new_partial(
         })
         .transpose()?;
 
+    let executor = AlephExecutor::new(
+        config.wasm_method,
+        config.default_heap_pages,
+        config.max_runtime_instances,
+    );
+
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+        sc_service::new_full_parts::<Block, RuntimeApi, AlephExecutor>(
             config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+            executor,
         )?;
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
