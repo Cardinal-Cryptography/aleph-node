@@ -1,4 +1,4 @@
-use crate::new_network::{
+use crate::network::{
     ConnectionCommand, Data, DataCommand, Network, PeerId, Protocol, ALEPH_PROTOCOL_NAME,
     ALEPH_VALIDATOR_PROTOCOL_NAME,
 };
@@ -195,7 +195,7 @@ impl<N: Network, D: Data> Service<N, D> {
 #[cfg(test)]
 mod tests {
     use super::{ConnectionCommand, DataCommand, Service, IO};
-    use crate::new_network::{
+    use crate::network::{
         manager::testing::MockNetworkIdentity,
         mock::{MockNetwork, MockSendError},
         NetworkIdentity, Protocol, ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,

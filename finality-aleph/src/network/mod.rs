@@ -30,7 +30,7 @@ pub use component::SimpleNetwork;
 pub use manager::{ConnectionIO, ConnectionManager};
 pub use rmc::NetworkData as RmcNetworkData;
 pub use service::{Service, IO};
-pub use session::{Manager, Network as SessionNetwork};
+pub use session::{Manager, ManagerError, Network as SessionNetwork};
 pub use split::{split, Split};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
@@ -162,7 +162,3 @@ pub trait DataNetwork<D: Data>: Send + Sync {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
     async fn next(&mut self) -> Option<D>;
 }
-
-// This should be removed after compatibility with the old network is no longer needed.
-mod compatibility;
-pub use compatibility::*;

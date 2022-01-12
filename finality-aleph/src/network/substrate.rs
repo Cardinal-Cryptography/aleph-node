@@ -1,4 +1,4 @@
-use crate::new_network::{Network, NetworkEventStream, NetworkIdentity, PeerId, RequestBlocks};
+use crate::network::{Network, NetworkEventStream, NetworkIdentity, PeerId, RequestBlocks};
 use async_trait::async_trait;
 use log::error;
 use sc_network::{multiaddr, ExHashT, Multiaddr, NetworkService, NetworkStateInfo};

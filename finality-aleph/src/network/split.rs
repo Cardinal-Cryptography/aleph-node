@@ -1,7 +1,7 @@
 // WARNING: A lot of the code below is duplicated and cannot be easily deduplicated within the Rust
 // typesystem (perhaps somewhat with macros?). Be very careful to change all the occurences if you
 // are modyfing this file.
-use crate::new_network::{ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent};
+use crate::network::{ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent};
 use aleph_bft::Recipient;
 use codec::{Decode, Encode};
 use futures::channel::mpsc;

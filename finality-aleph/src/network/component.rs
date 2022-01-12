@@ -1,4 +1,4 @@
-use crate::new_network::{Data, DataNetwork, SendError};
+use crate::network::{Data, DataNetwork, SendError};
 use aleph_bft::Recipient;
 use futures::channel::mpsc;
 use std::{marker::PhantomData, sync::Arc};

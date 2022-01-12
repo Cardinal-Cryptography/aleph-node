@@ -38,7 +38,6 @@ pub struct Subtasks {
     exit: oneshot::Receiver<()>,
     member: PureTask,
     aggregator: PureTask,
-    forwarder: Option<PureTask>,
     refresher: PureTask,
     data_store: PureTask,
 }
@@ -49,7 +48,6 @@ impl Subtasks {
         exit: oneshot::Receiver<()>,
         member: PureTask,
         aggregator: PureTask,
-        forwarder: Option<PureTask>,
         refresher: PureTask,
         data_store: PureTask,
     ) -> Self {
@@ -57,7 +55,6 @@ impl Subtasks {
             exit,
             member,
             aggregator,
-            forwarder,
             refresher,
             data_store,
         }
@@ -71,10 +68,6 @@ impl Subtasks {
         //trace!(target: "aleph-party", "Member stopped");
         self.aggregator.stop().await;
         trace!(target: "aleph-party", "Aggregator stopped");
-        if let Some(forwarder) = self.forwarder {
-            forwarder.stop().await;
-            trace!(target: "aleph-party", "Forwarder stopped");
-        }
         self.refresher.stop().await;
         trace!(target: "aleph-party", "Refresher stopped");
         self.data_store.stop().await;
@@ -83,23 +76,12 @@ impl Subtasks {
 
     /// Blocks until the task is done and returns true if it quit unexpectedly.
     pub async fn failed(mut self) -> bool {
-        let result = if let Some(forwarder) = &mut self.forwarder {
-            tokio::select! {
-                _ = &mut self.exit => false,
-                _ = self.member.stopped() => true,
-                _ = self.aggregator.stopped() => true,
-                _ = forwarder.stopped() => true,
-                _ = self.refresher.stopped() => true,
-                _ = self.data_store.stopped() => true,
-            }
-        } else {
-            tokio::select! {
-                _ = &mut self.exit => false,
-                _ = self.member.stopped() => true,
-                _ = self.aggregator.stopped() => true,
-                _ = self.refresher.stopped() => true,
-                _ = self.data_store.stopped() => true,
-            }
+        let result = tokio::select! {
+            _ = &mut self.exit => false,
+            _ = self.member.stopped() => true,
+            _ = self.aggregator.stopped() => true,
+            _ = self.refresher.stopped() => true,
+            _ = self.data_store.stopped() => true,
         };
         debug!(target: "aleph-party", "Something died and it was unexpected: {:?}", result);
         self.stop().await;

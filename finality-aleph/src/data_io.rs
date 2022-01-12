@@ -1,7 +1,6 @@
 use crate::{
     metrics::Checkpoint,
-    network,
-    new_network::{DataNetwork, SimpleNetwork},
+    network::{DataNetwork, RequestBlocks, SimpleNetwork},
     Metrics,
 };
 use aleph_bft::Recipient;
@@ -103,7 +102,7 @@ where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
-    RB: network::RequestBlocks<B> + 'static,
+    RB: RequestBlocks<B> + 'static,
     Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
     N: DataNetwork<Message>,
 {
@@ -126,7 +125,7 @@ where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
-    RB: network::RequestBlocks<B> + 'static,
+    RB: RequestBlocks<B> + 'static,
     Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
     N: DataNetwork<Message>,
 {

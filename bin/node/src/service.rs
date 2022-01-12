@@ -4,7 +4,7 @@ use crate::aleph_cli::AlephCli;
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
-    new_network::Protocol, run_aleph_consensus, AlephBlockImport, AlephConfig,
+    network::Protocol, run_aleph_consensus, AlephBlockImport, AlephConfig,
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;
@@ -155,24 +155,15 @@ pub fn new_full(
         other: (block_import, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let network_compatibility_mod = aleph_config.network_compatibility_mod;
-
-    if network_compatibility_mod {
-        config
-            .network
-            .extra_sets
-            .push(finality_aleph::peers_set_config(None));
-    }
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(Protocol::Generic));
 
     config
         .network
         .extra_sets
-        .push(finality_aleph::peers_set_config(Some(Protocol::Generic)));
-
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config(Some(Protocol::Validator)));
+        .push(finality_aleph::peers_set_config(Protocol::Validator));
 
     let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -298,7 +289,6 @@ pub fn new_full(
             justification_rx,
             metrics,
             unit_creation_delay,
-            network_compatibility_mod,
         };
         task_manager
             .spawn_essential_handle()

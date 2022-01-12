@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{
+    network::{
         manager::{
             get_peer_id, Connections, Discovery, DiscoveryMessage, Multiaddr, NetworkData,
             SessionHandler, SessionHandlerError,
@@ -484,7 +484,7 @@ impl<D: Data> IO<D> {
 mod tests {
     use super::{Error, Service, SessionCommand};
     use crate::{
-        new_network::{
+        network::{
             manager::{
                 testing::{crypto_basics, MockNetworkIdentity},
                 DiscoveryMessage, NetworkData,

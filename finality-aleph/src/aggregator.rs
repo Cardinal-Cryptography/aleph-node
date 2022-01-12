@@ -1,7 +1,7 @@
 use crate::{
     crypto::Signature,
     metrics::Checkpoint,
-    new_network::{DataNetwork, RmcNetworkData},
+    network::{DataNetwork, RmcNetworkData},
     Metrics,
 };
 use aleph_bft::{

@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
+    network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 use aleph_bft::Recipient;

@@ -6,8 +6,6 @@ use structopt::StructOpt;
 pub struct AlephCli {
     #[structopt(long)]
     pub unit_creation_delay: Option<u64>,
-    #[structopt(long)]
-    pub network_compatibility_mod: bool,
 }
 
 impl AlephCli {

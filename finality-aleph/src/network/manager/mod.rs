@@ -1,4 +1,4 @@
-use crate::{crypto::Signature, new_network::Data, NodeIndex, SessionId};
+use crate::{crypto::Signature, network::Data, NodeIndex, SessionId};
 use codec::{Decode, Encode};
 use sc_network::Multiaddr as ScMultiaddr;
 use std::convert::TryFrom;

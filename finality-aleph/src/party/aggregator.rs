@@ -5,7 +5,7 @@ use crate::{
     finalization::should_finalize,
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
-    new_network::{DataNetwork, RmcNetworkData},
+    network::{DataNetwork, RmcNetworkData},
     party::{AuthoritySubtaskCommon, Task},
     Metrics,
 };
