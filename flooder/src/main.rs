@@ -107,7 +107,6 @@ fn main() -> Result<(), anyhow::Error> {
         },
     );
 
-    // let pool_getter = |tx_ix: usize| pool.get(tx_ix % pool.len()).unwrap();
     let pool_getter = |thread_id: ThreadId, tx_ix: usize| {
         pool.get(thread_id % pool.len())
             .and_then(|threads_pool| threads_pool.get(tx_ix % threads_pool.len()))
