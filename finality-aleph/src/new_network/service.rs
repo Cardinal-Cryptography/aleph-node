@@ -37,10 +37,11 @@ async fn run_peer_sender<N: Network, D: Data>(
     loop {
         if let Some((data, protocol)) = receiver.next().await {
             if let Err(e) = network.send(data.encode(), peer_id, protocol.name()).await {
-                debug!(target: "aleph-network", "Failed sending data to peer: {:?}", e);
+                debug!(target: "aleph-network", "Failed sending data to peer. Peer sender exiting: {:?}", e);
                 return;
             }
         } else {
+            debug!(target: "aleph-network", "Sender was dropped for peer {:?}. Peer sender exiting.", peer_id);
             return;
         }
     }
@@ -70,9 +71,13 @@ impl<N: Network, D: Data> Service<N, D> {
     fn send_to_peer(&mut self, data: D, peer: PeerId, protocol: Protocol) {
         if let Some(sender) = self.peer_senders.get_mut(&peer) {
             if let Err(e) = sender.try_send((data, protocol)) {
-                // We only check if is full. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                 if e.is_full() {
                     debug!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
+                }
+                // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
+                // No need to remove the entry here
+                if e.is_disconnected() {
+                    trace!(target: "aleph-network", "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
                 }
             }
         }
@@ -232,7 +237,7 @@ mod tests {
         pub network: MockNetwork,
         pub mock_io: MockIO,
         // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
-        task_manager: TaskManager,
+        _task_manager: TaskManager,
     }
 
     impl TestData {
@@ -275,7 +280,7 @@ mod tests {
                 exit_tx,
                 network,
                 mock_io,
-                task_manager,
+                _task_manager: task_manager,
             }
         }
 
