@@ -7,6 +7,7 @@ use sp_runtime::traits::Block as BlockT;
 use std::{
     borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
 };
+use tokio_stream::wrappers::IntervalStream;
 
 use log::{debug, error, info, trace, warn};
 use std::time::Duration;
@@ -602,7 +603,8 @@ where
 
     pub async fn run(mut self) {
         let mut network_event_stream = self.network.event_stream();
-        let mut status_ticker = tokio::time::interval(Duration::from_secs(10));
+        // let mut status_ticker = tokio::time::interval(Duration::from_secs(10));
+        let mut status_ticker = IntervalStream::new(tokio::time::interval(Duration::from_secs(10)));
 
         loop {
             tokio::select! {

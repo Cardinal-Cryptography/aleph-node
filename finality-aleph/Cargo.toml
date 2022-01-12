@@ -10,6 +10,7 @@ edition = "2018"
 aleph-primitives = { package = "primitives", path = "../primitives" }
 # tokio = { version = "0.2.21", features = [ "sync", "macros", "time", "rt-threaded", "rt-core" ] }
 tokio = { version = "1.15.0", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
+tokio-stream = "0.1.7"
 codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
 hash-db = { version = "0.15.2", default-features = false }
 log = "0.4"
