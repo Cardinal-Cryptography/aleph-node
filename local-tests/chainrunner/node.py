@@ -67,11 +67,8 @@ class Node:
         return -1, -1
 
     def get_hash(self, height):
-        """Find in the logs the hash for the block with height `height`."""
-        results = self.greplog(rf'Finalizing block {height} (.+)')
-        if results:
-            return results[-1].strip()
-        return ''
+        """Find the hash of the block with the given height. Requires the node to be running."""
+        return self.rpc('chain_getBlockHash', [height]).result
 
     def state(self, block=None):
         """Return a JSON representation of the chain state after the given block.
