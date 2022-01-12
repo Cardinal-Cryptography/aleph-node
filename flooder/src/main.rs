@@ -11,7 +11,6 @@ use sp_core::{sr25519, Pair};
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress, OpaqueExtrinsic};
 use std::convert::TryInto;
 use std::{
-    cmp::max,
     io::{Read, Write},
     iter::{once, repeat},
     path::Path,
@@ -80,7 +79,7 @@ fn main() -> Result<(), anyhow::Error> {
         "connection-pool created: {}ms",
         time_stats.elapsed().as_millis()
     );
-    let connection = pool.get(0).unwrap().clone();
+    let connection = pool.get(0).unwrap().get(0).unwrap().clone();
 
     info!(
         "preparing transactions: {}ms",
@@ -108,7 +107,12 @@ fn main() -> Result<(), anyhow::Error> {
         },
     );
 
-    let pool_getter = |tx_ix: usize| pool.get(tx_ix % pool.len()).unwrap();
+    // let pool_getter = |tx_ix: usize| pool.get(tx_ix % pool.len()).unwrap();
+    let pool_getter = |thread_id: ThreadId, tx_ix: usize| {
+        pool.get(thread_id % pool.len())
+            .and_then(|threads_pool| threads_pool.get(tx_ix % threads_pool.len()))
+            .unwrap()
+    };
 
     info!("flooding: {}ms", time_stats.elapsed().as_millis());
     let tick = Instant::now();
@@ -145,8 +149,10 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+type ThreadId = usize;
+
 fn flood<'a>(
-    pool: impl Fn(usize) -> &'a Api<sr25519::Pair, WsRpcClient> + Sync,
+    pool: impl Fn(ThreadId, usize) -> &'a Api<sr25519::Pair, WsRpcClient> + Sync,
     txs: impl IndexedParallelIterator<Item = TransferTransaction>,
     status: XtStatus,
     histogram: &Arc<Mutex<HdrHistogram<u64>>>,
@@ -163,8 +169,10 @@ fn flood<'a>(
                 info!("Starting {} interval", interval_idx);
 
                 interval.into_par_iter().for_each(|(tx_ix, tx)| {
+                    const DEFAULT_THREAD_ID: usize = 0;
+                    let thread_id = thread_pool.current_thread_index().unwrap_or(DEFAULT_THREAD_ID);
                     send_tx(
-                        pool(tx_ix),
+                        pool(thread_id, tx_ix),
                         &tx,
                         status,
                         Arc::clone(histogram),
@@ -392,11 +400,23 @@ fn initialize_accounts_on_chain(
     accounts: &[sr25519::Pair],
     total_amount: u128,
 ) {
+    // NOTE: use a new connection for the last transaction.
+    // This is a workaround for issues with accounts initialization using our hacky
+    // single-threaded WsRpcClient. It seems like `subscriptions`
+    // for all `wait-until-Ready` transactions should be cancelled,
+    // otherwise they are producing a lot of noise, which can be incorrectly
+    // interpreted by the `substrate-api-client` library. Creating a separate
+    // connection for the last `wait-until-Finalized` transaction should `partially`
+    // fix this issue.
+    let conn_copy = connection.clone();
+    let connections = repeat(connection)
+        .take(accounts.len() - 1)
+        .chain(once(&conn_copy));
     // ensure all txs are finalized by waiting for the last one sent
     let status = repeat(XtStatus::Ready)
         .take(accounts.len() - 1)
         .chain(once(XtStatus::Finalized));
-    for (derived, status) in accounts.iter().zip(status) {
+    for ((derived, status), connection) in accounts.iter().zip(status).zip(connections) {
         source_account_nonce = initialize_account(
             connection,
             source_account,
@@ -424,11 +444,12 @@ fn initialize_account(
         total_amount,
     );
 
-    let hash = Some(
-        connection
-            .send_extrinsic(tx.hex_encode(), status)
-            .expect("Could not send transaction"),
-    );
+    info!("sending funds to account {}", &derived.public());
+
+    let hash = connection
+        .send_extrinsic(tx.hex_encode(), status)
+        .expect("Could not send transaction");
+
     info!(
         "account {} will receive funds, tx hash {:?}",
         &derived.public(),
@@ -467,13 +488,17 @@ fn send_tx<Call>(
 fn create_connection_pool(
     nodes: &[String],
     threads: usize,
-) -> Vec<Api<sr25519::Pair, WsRpcClient>> {
-    let pool_size = max(threads, nodes.len());
-    nodes
-        .iter()
+) -> Vec<Vec<Api<sr25519::Pair, WsRpcClient>>> {
+    repeat(nodes)
         .cycle()
-        .take(pool_size)
-        .map(|url| create_custom_connection(&url))
+        .take(threads)
+        .map(|urls| {
+            urls.iter()
+                .map(|url| {
+                    create_custom_connection(url).expect("it should return initialized connection")
+                })
+                .collect()
+        })
         .collect()
 }
 
@@ -529,7 +554,7 @@ mod tests {
             interval_secs: None,
             transactions_in_interval: None,
         };
-        let conn = create_custom_connection(&url);
+        let conn = create_custom_connection(&url).unwrap();
 
         let txs_gen = prepare_txs(&config, &conn);
 
