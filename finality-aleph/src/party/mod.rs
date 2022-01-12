@@ -1,10 +1,13 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
-    data_io::{reduce_header_to_num, AlephData, DataProvider, DataStore},
-    default_aleph_config, first_block_of_session,
+    data_io::{reduce_header_to_num, AlephData, DataProvider, DataStore, FinalizationHandler},
+    default_aleph_config,
+    finalization::{AlephFinalizer, BlockFinalizer},
+    first_block_of_session,
     justification::{
-        AlephJustification, JustificationHandler, JustificationNotification,
-        JustificationRequestDelay, SessionInfo, SessionInfoProvider,
+        AlephJustification, JustificationHandler, JustificationHandlerConfig,
+        JustificationNotification, JustificationRequestDelay, SessionInfo, SessionInfoProvider,
+        Verifier,
     },
     last_block_of_session,
     network::{
@@ -23,10 +26,6 @@ use futures_timer::Delay;
 use futures::channel::mpsc;
 use log::{debug, error, info, trace, warn};
 
-use crate::data_io::FinalizationHandler;
-use crate::finalization::{AlephFinalizer, BlockFinalizer};
-use crate::justification::{JustificationHandlerConfig, Verifier};
-use aleph_primitives;
 use codec::Encode;
 use parking_lot::Mutex;
 use sc_client_api::{Backend, HeaderBackend};
@@ -37,14 +36,13 @@ use sp_runtime::{
     traits::{Block, Header},
     SaturatedConversion,
 };
-use std::default::Default;
-use std::time::Instant;
 use std::{
     cmp::min,
     collections::{HashMap, HashSet},
+    default::Default,
     marker::PhantomData,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 mod task;
