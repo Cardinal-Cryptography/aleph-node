@@ -75,7 +75,7 @@ async fn forward_or_wait<
     receiver: &Arc<Mutex<R>>,
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
-) {
+) -> bool {
     trace!(target: "aleph-network", "forward_or_wait called");
     match receiver.lock().await.next().await {
         Some(Split::Left(data)) => {
@@ -83,17 +83,20 @@ async fn forward_or_wait<
             if left_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
+            true
         }
         Some(Split::Right(data)) => {
             trace!(target: "aleph-network", "forward_or_wait right case");
             if right_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
+            true
         }
         None => {
             trace!(target: "aleph-network", "forward_or_wait none case");
             left_sender.close_channel();
             right_sender.close_channel();
+            false
         }
     }
 }
@@ -109,9 +112,11 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
                     trace!(target: "aleph-network", "Left Receiver Next Loop translated_receiver case");
                     return data;
                 },
-                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
+                should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
                     trace!(target: "aleph-network", "Left Receiver Next Loop forward_or_wait case");
-                    ()
+                    if !should_go_on {
+                        return None;
+                    }
                 },
             }
         }
@@ -130,9 +135,11 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
                     trace!(target: "aleph-network", "Right Receiver Next Loop translated_receiver case");
                     return data;
                 },
-                _ = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
+                should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
                     trace!(target: "aleph-network", "Right Receiver Next Loop forward_or_wait case");
-                    ()
+                    if !should_go_on {
+                        return None;
+                    }
                 },
             }
         }

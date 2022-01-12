@@ -216,8 +216,10 @@ where
     spawn_handle.spawn("aleph/new_network", new_network_task);
 
     let session_manager = if no_network_compatibility {
+        info!(target: "aleph-party", "Running without network compatibility");
         None
     } else {
+        info!(target: "aleph-party", "Running with network compatibility");
         let network = ConsensusNetwork::<NetworkData<B>, _, _>::new(network.clone(), ALEPH_PROTOCOL_NAME.into());
         let session_manager = network.session_manager();
 
@@ -625,6 +627,7 @@ where
                         None => None,
                     } } => {
                     warn!(target: "afa", "Authority task ended prematurely, restarting.");
+                    Delay::new(Duration::from_millis(500)).await; //todo wymysl stala
                     maybe_authority_task = Some(self.spawn_authority_task(session_id, node_id, authorities.clone()).await);
                 },
             }

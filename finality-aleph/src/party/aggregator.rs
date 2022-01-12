@@ -86,7 +86,7 @@ async fn run_aggregator<B, C, N, BE>(
                     }
                 } else {
                     debug!(target: "aleph-party", "The stream of multisigned hashes has ended. Terminating.");
-                    break;
+                    return;
                 }
             }
             _ = &mut exit_rx => {

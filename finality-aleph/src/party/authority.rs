@@ -2,6 +2,7 @@ use crate::{
     party::{Handle, Task as PureTask},
     NodeIndex, SpawnHandle,
 };
+use log::{debug, trace};
 use futures::channel::oneshot;
 
 /// A wrapper for running the authority task within a specific session.
@@ -65,13 +66,19 @@ impl Subtasks {
     async fn stop(self) {
         // both member and aggregator are implicitly using forwarder,
         // so we should force them to exit first to avoid any panics, i.e. `send on closed channel`
-        self.member.stop().await;
+        debug!(target: "aleph-party", "Started to stop all tasks");
+        //self.member.stop().await;
+        //trace!(target: "aleph-party", "Member stopped");
         self.aggregator.stop().await;
+        trace!(target: "aleph-party", "Aggregator stopped");
         if let Some(forwarder) = self.forwarder {
             forwarder.stop().await;
+            trace!(target: "aleph-party", "Forwarder stopped");
         }
         self.refresher.stop().await;
+        trace!(target: "aleph-party", "Refresher stopped");
         self.data_store.stop().await;
+        trace!(target: "aleph-party", "DataStore stopped");
     }
 
     /// Blocks until the task is done and returns true if it quit unexpectedly.
@@ -94,7 +101,9 @@ impl Subtasks {
                 _ = self.data_store.stopped() => true,
             }
         };
+        debug!(target: "aleph-party", "Something died and it was unexpected: {:?}", result);
         self.stop().await;
+        debug!(target: "aleph-party", "Stopped all processes");
         result
     }
 }
