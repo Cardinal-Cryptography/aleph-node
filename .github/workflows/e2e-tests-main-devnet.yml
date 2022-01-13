@@ -310,8 +310,8 @@ jobs:
       - name: Test update
         env:
           # Relative to local-tests/ directory
-          OLD_BINARY: aleph-node/aleph-node
-          NEW_BINARY: old-aleph-node/aleph-node
+          OLD_BINARY: old-aleph-node/aleph-node
+          NEW_BINARY: aleph-node/aleph-node
           NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
 
