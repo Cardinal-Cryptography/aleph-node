@@ -51,7 +51,7 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args: --release --no-deps -- -D warnings
+          args: -- --release --no-deps -D warnings
 
       - name: Run Check
         uses: actions-rs/cargo@v1
