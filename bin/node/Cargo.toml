@@ -52,8 +52,7 @@ aleph-runtime = { path = "../runtime"}
 finality-aleph = { path = "../../finality-aleph"}
 aleph-primitives = { package = "primitives", path = "../../primitives"}
 
-# These dependencies are used for the node template's RPCs
-# jsonrpc-core = "15.1.0"
+# These dependencies are used for the node's RPCs
 jsonrpc-core = "18.0.0"
 sc-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -62,7 +61,6 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate.git", branch = 
 sp-block-builder = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
-# pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
