@@ -92,16 +92,8 @@ fn get_total_issuance(connection: &Connection) -> u128 {
         .unwrap()
 }
 
-fn get_treasury_account(connection: &Connection) -> AccountId32 {
-    let pallet_id = connection
-        .metadata
-        .module_with_constants_by_name("Treasury")
-        .unwrap()
-        .constant_by_name("PalletId")
-        .unwrap()
-        .get_value();
-
-    PalletId(pallet_id.try_into().unwrap()).into_account()
+fn get_treasury_account(_connection: &Connection) -> AccountId32 {
+    PalletId(*b"a0/trsry").into_account()
 }
 
 type ProposalTransaction =
