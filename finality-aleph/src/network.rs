@@ -140,13 +140,6 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
     }
 
     fn remove_set_reserved(&self, who: PeerId, protocol: Cow<'static, str>) {
-        // let addr =
-        //     iter::once(multiaddr::Protocol::P2p(who.0.into())).collect::<multiaddr::Multiaddr>();
-        // let result = NetworkService::remove_peers_from_reserved_set(self, protocol, iter::once(addr).collect());
-        // if let Err(e) = result {
-        //     error!(target: "afa", "remove_set_reserved failed: {}", e);
-        // }
-
         NetworkService::remove_peers_from_reserved_set(self, protocol, vec![who.0]);
     }
 
@@ -602,7 +595,6 @@ where
 
     pub async fn run(mut self) {
         let mut network_event_stream = self.network.event_stream();
-        // let mut status_ticker = tokio::time::interval(Duration::from_secs(10));
         let mut status_ticker = IntervalStream::new(tokio::time::interval(Duration::from_secs(10)));
 
         loop {

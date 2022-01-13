@@ -1,10 +1,9 @@
-//! A `CodeExecutor` specialization which uses natively compiled runtime when the wasm to be
+//! `CodeExecutor` specialization which uses natively compiled runtime when the WASM to be
 //! executed is equivalent to the natively compiled code.
 
 use sc_executor::NativeElseWasmExecutor;
 
-// Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as
-// the equivalent wasm code.
+// Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as the equivalent wasm code.
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {

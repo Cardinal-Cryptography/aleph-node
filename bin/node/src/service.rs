@@ -12,8 +12,6 @@ use futures::channel::mpsc;
 use log::warn;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
-// use sc_executor::native_executor_instance;
-// pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
@@ -25,14 +23,6 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-// Our native executor instance.
-// native_executor_instance!(
-//     pub Executor,
-//     aleph_runtime::api::dispatch,
-//     aleph_runtime::native_version,
-// );
-
-// type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
@@ -178,7 +168,6 @@ pub fn new_full(
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
-            // on_demand: None,
             block_announce_validator_builder: None,
             warp_sync: None,
         })?;
@@ -226,8 +215,6 @@ pub fn new_full(
         task_manager: &mut task_manager,
         transaction_pool: transaction_pool.clone(),
         rpc_extensions_builder,
-        // on_demand: None,
-        // remote_blockchain: None,
         backend,
         system_rpc_tx,
         config,

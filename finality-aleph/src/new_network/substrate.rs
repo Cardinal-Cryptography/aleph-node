@@ -99,16 +99,6 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     }
 
     fn remove_reserved(&self, peers: HashSet<PeerId>, protocol: Cow<'static, str>) {
-        // let addresses = peers
-        //     .into_iter()
-        //     .map(|peer_id| Multiaddr::empty().with(multiaddr::Protocol::P2p(peer_id.0.into())))
-        //     .collect();
-        // let result =
-        // self.remove_peers_from_reserved_set(protocol, addresses);
-        // if let Err(e) = result {
-        //     error!(target: "aleph-network", "remove_reserved failed: {}", e);
-        // }
-
         let addresses = peers.into_iter().map(|peer_id| peer_id.0).collect();
         self.remove_peers_from_reserved_set(protocol, addresses);
     }
