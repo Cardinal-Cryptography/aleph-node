@@ -13,9 +13,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ac-compose-macros"
+version = "0.1.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.metav14#6d24cb59f224f089159bbd302a3325a6bafc543d"
+dependencies = [
+ "ac-primitives",
+ "log",
+ "parity-scale-codec",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "ac-node-api"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13#93b06d0c045fcde445d315d89b3aaa568d746d12"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.metav14#6d24cb59f224f089159bbd302a3325a6bafc543d"
 dependencies = [
  "ac-primitives",
  "frame-metadata 14.2.0 (git+https://github.com/paritytech/frame-metadata.git?branch=main)",
@@ -24,6 +36,7 @@ dependencies = [
  "hex",
  "log",
  "parity-scale-codec",
+ "scale-info",
  "serde",
  "serde_json",
  "sp-core",
@@ -34,10 +47,13 @@ dependencies = [
 [[package]]
 name = "ac-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13#93b06d0c045fcde445d315d89b3aaa568d746d12"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.metav14#6d24cb59f224f089159bbd302a3325a6bafc543d"
 dependencies = [
+ "hex",
  "parity-scale-codec",
  "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -2506,8 +2522,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "substrate-api-client"
 version = "0.6.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13#93b06d0c045fcde445d315d89b3aaa568d746d12"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.metav14#6d24cb59f224f089159bbd302a3325a6bafc543d"
 dependencies = [
+ "ac-compose-macros",
  "ac-node-api",
  "ac-primitives",
  "frame-metadata 14.2.0 (git+https://github.com/paritytech/frame-metadata.git?branch=main)",
