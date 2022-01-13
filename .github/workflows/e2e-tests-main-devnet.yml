@@ -261,7 +261,7 @@ jobs:
 
       - name: Inspect versions
         id: inspect
-        run: ./.github/scripts/check_runtime_change.sh
+        run: ./new-repo/.github/scripts/check_runtime_change.sh
 
 
   build-old-node:
