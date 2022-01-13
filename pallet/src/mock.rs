@@ -15,7 +15,6 @@ use sp_runtime::{
     impl_opaque_keys,
     testing::{Header, TestXt, UintAuthorityId},
     traits::{ConvertInto, IdentityLookup, OpaqueKeys},
-    Perbill,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -84,7 +83,6 @@ impl frame_system::Config for Test {
 parameter_types! {
     pub const Period: u64 = 1;
     pub const Offset: u64 = 0;
-    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
 
 parameter_types! {
