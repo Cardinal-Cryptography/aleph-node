@@ -101,15 +101,19 @@ pub trait NetworkSender: Send + Sync + 'static {
 }
 
 /// Abstraction over a network.
-pub trait Network<NS: NetworkSender>: Clone + Send + Sync + 'static {
+pub trait Network: Clone + Send + Sync + 'static {
     type SenderError: std::error::Error;
+    type NetworkSender: NetworkSender;
 
     /// Returns a stream of events representing what happens on the network.
     fn event_stream(&self) -> NetworkEventStream;
 
     /// Returns a sender to the given peer using a given protocol. Returns Error if not connected to the peer.
-    fn sender(&self, peer_id: PeerId, protocol: Cow<'static, str>)
-        -> Result<NS, Self::SenderError>;
+    fn sender(
+        &self,
+        peer_id: PeerId,
+        protocol: Cow<'static, str>,
+    ) -> Result<Self::NetworkSender, Self::SenderError>;
 
     /// Add peers to one of the reserved sets.
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>);

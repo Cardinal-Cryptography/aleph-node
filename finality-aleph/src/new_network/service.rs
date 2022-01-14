@@ -9,11 +9,11 @@ use sc_service::SpawnTaskHandle;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet, VecDeque},
+    future::Future,
     iter,
-    marker::PhantomData,
 };
 
-struct Service<N: Network<NS>, NS: NetworkSender, D: Data> {
+struct Service<N: Network, D: Data> {
     network: N,
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
     messages_for_user: mpsc::UnboundedSender<D>,
@@ -22,7 +22,6 @@ struct Service<N: Network<NS>, NS: NetworkSender, D: Data> {
     peer_senders: HashMap<PeerId, mpsc::Sender<(D, Protocol)>>,
     to_send: VecDeque<(D, PeerId, Protocol)>,
     spawn_handle: SpawnTaskHandle,
-    _phantom: PhantomData<NS>,
 }
 
 pub struct IO<D: Data> {
@@ -31,40 +30,10 @@ pub struct IO<D: Data> {
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
 }
 
-async fn run_peer_sender<N: Network<NS>, NS: NetworkSender, D: Data>(
-    network: N,
-    peer_id: PeerId,
-    mut receiver: mpsc::Receiver<(D, Protocol)>,
-) {
-    let mut senders: HashMap<Cow<'static, str>, NS> = HashMap::new();
-    loop {
-        if let Some((data, protocol)) = receiver.next().await {
-            let sender = if let Some(sender) = senders.get(&protocol.name()) {
-                sender
-            } else {
-                match network.sender(peer_id, protocol.name()) {
-                    Ok(sender) => senders.entry(protocol.name()).or_insert(sender),
-                    Err(e) => {
-                        debug!(target: "aleph-network", "Failed creating sender. Dropping message: {:?}", e);
-                        continue;
-                    }
-                }
-            };
-            if let Err(e) = sender.send(data.encode()).await {
-                debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {:?}", e);
-                senders.remove(&protocol.name());
-            }
-        } else {
-            debug!(target: "aleph-network", "Sender was dropped for peer {:?}. Peer sender exiting.", peer_id);
-            return;
-        }
-    }
-}
-
 const PEER_BUFFER_SIZE: usize = 100;
 
-impl<N: Network<NS>, NS: NetworkSender, D: Data> Service<N, NS, D> {
-    pub fn new(network: N, spawn_handle: SpawnTaskHandle, io: IO<D>) -> Service<N, NS, D> {
+impl<N: Network, D: Data> Service<N, D> {
+    pub fn new(network: N, spawn_handle: SpawnTaskHandle, io: IO<D>) -> Service<N, D> {
         let IO {
             messages_from_user,
             messages_for_user,
@@ -79,7 +48,39 @@ impl<N: Network<NS>, NS: NetworkSender, D: Data> Service<N, NS, D> {
             connected_peers: HashSet::new(),
             peer_senders: HashMap::new(),
             to_send: VecDeque::new(),
-            _phantom: PhantomData,
+        }
+    }
+
+    fn peer_sender(
+        &self,
+        peer_id: PeerId,
+        mut receiver: mpsc::Receiver<(D, Protocol)>,
+    ) -> impl Future<Output = ()> + Send + 'static {
+        let network = self.network.clone();
+        async move {
+            let mut senders: HashMap<Cow<'static, str>, N::NetworkSender> = HashMap::new();
+            loop {
+                if let Some((data, protocol)) = receiver.next().await {
+                    let sender = if let Some(sender) = senders.get(&protocol.name()) {
+                        sender
+                    } else {
+                        match network.sender(peer_id, protocol.name()) {
+                            Ok(sender) => senders.entry(protocol.name()).or_insert(sender),
+                            Err(e) => {
+                                debug!(target: "aleph-network", "Failed creating sender. Dropping message: {:?}", e);
+                                continue;
+                            }
+                        }
+                    };
+                    if let Err(e) = sender.send(data.encode()).await {
+                        debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {:?}", e);
+                        senders.remove(&protocol.name());
+                    }
+                } else {
+                    debug!(target: "aleph-network", "Sender was dropped for peer {:?}. Peer sender exiting.", peer_id);
+                    return;
+                }
+            }
         }
     }
 
@@ -130,7 +131,7 @@ impl<N: Network<NS>, NS: NetworkSender, D: Data> Service<N, NS, D> {
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
                         "aleph/network/peer_sender",
-                        run_peer_sender::<N, NS, D>(self.network.clone(), remote.into(), rx),
+                        self.peer_sender(remote.into(), rx),
                     );
                     self.connected_peers.insert(remote.into());
                     self.peer_senders.insert(remote.into(), tx);
@@ -300,7 +301,7 @@ mod tests {
         }
 
         async fn cleanup(self) {
-            self.exit_tx.send(()).ok();
+            self.exit_tx.send(()).unwrap();
             self.service_handle.await.unwrap();
             self.network.close_channels();
         }
@@ -415,7 +416,7 @@ mod tests {
             .mock_io
             .messages_for_user
             .unbounded_send((message.clone(), DataCommand::Broadcast))
-            .ok();
+            .unwrap();
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
@@ -485,7 +486,7 @@ mod tests {
                 .mock_io
                 .messages_for_user
                 .unbounded_send((m.clone(), DataCommand::Broadcast))
-                .ok();
+                .unwrap();
         });
 
         let broadcasted_messages = HashSet::<_>::from_iter(
@@ -546,7 +547,7 @@ mod tests {
                 message.clone(),
                 DataCommand::SendTo(identity.1, Protocol::Validator),
             ))
-            .ok();
+            .unwrap();
 
         let expected = (message.encode(), identity.1, Protocol::Validator.name());
 
@@ -599,7 +600,7 @@ mod tests {
                 message_1.clone(),
                 DataCommand::SendTo(identity.1, Protocol::Validator),
             ))
-            .ok();
+            .unwrap();
 
         test_data
             .mock_io
@@ -608,7 +609,7 @@ mod tests {
                 message_2.clone(),
                 DataCommand::SendTo(identity.1, Protocol::Validator),
             ))
-            .ok();
+            .unwrap();
 
         let expected = (message_2.encode(), identity.1, Protocol::Validator.name());
 
@@ -668,7 +669,7 @@ mod tests {
                     message.clone(),
                     DataCommand::SendTo(identity.1, Protocol::Validator),
                 ))
-                .ok();
+                .unwrap();
         });
 
         let broadcasted_messages = HashSet::<_>::from_iter(
@@ -731,7 +732,7 @@ mod tests {
                 message_1.clone(),
                 DataCommand::SendTo(identity.1, Protocol::Validator),
             ))
-            .ok();
+            .unwrap();
 
         test_data
             .mock_io
@@ -740,7 +741,7 @@ mod tests {
                 message_2.clone(),
                 DataCommand::SendTo(identity.1, Protocol::Validator),
             ))
-            .ok();
+            .unwrap();
 
         let expected = (message_2.encode(), identity.1, Protocol::Validator.name());
 
@@ -800,7 +801,7 @@ mod tests {
                     message.clone(),
                     DataCommand::SendTo(identity.1, Protocol::Validator),
                 ))
-                .ok();
+                .unwrap();
         });
 
         let broadcasted_messages = HashSet::<_>::from_iter(
@@ -879,7 +880,7 @@ mod tests {
             .unbounded_send(ConnectionCommand::AddReserved(
                 identity.0.clone().into_iter().collect(),
             ))
-            .ok();
+            .unwrap();
 
         let expected = (
             identity.0.into_iter().collect(),
@@ -913,7 +914,7 @@ mod tests {
             .unbounded_send(ConnectionCommand::DelReserved(
                 iter::once(identity.1).collect(),
             ))
-            .ok();
+            .unwrap();
 
         let expected = (
             iter::once(identity.1).collect(),

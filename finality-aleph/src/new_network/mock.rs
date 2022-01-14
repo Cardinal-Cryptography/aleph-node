@@ -71,8 +71,9 @@ impl fmt::Display for MockSenderError {
 
 impl std::error::Error for MockSenderError {}
 
-impl Network<MockNetworkSender> for MockNetwork {
+impl Network for MockNetwork {
     type SenderError = MockSenderError;
+    type NetworkSender = MockNetworkSender;
 
     fn event_stream(&self) -> NetworkEventStream {
         let (tx, rx) = mpsc::unbounded();
@@ -88,7 +89,7 @@ impl Network<MockNetworkSender> for MockNetwork {
         &self,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<MockNetworkSender, Self::SenderError> {
+    ) -> Result<Self::NetworkSender, Self::SenderError> {
         self.create_sender_errors
             .lock()
             .pop_front()

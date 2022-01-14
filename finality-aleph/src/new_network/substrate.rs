@@ -83,9 +83,9 @@ impl NetworkSender for SubstrateNetworkSender {
     }
 }
 
-#[async_trait]
-impl<B: Block, H: ExHashT> Network<SubstrateNetworkSender> for Arc<NetworkService<B, H>> {
+impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     type SenderError = SenderError;
+    type NetworkSender = SubstrateNetworkSender;
 
     fn event_stream(&self) -> NetworkEventStream {
         Box::pin(self.as_ref().event_stream("aleph-network"))
@@ -95,7 +95,7 @@ impl<B: Block, H: ExHashT> Network<SubstrateNetworkSender> for Arc<NetworkServic
         &self,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<SubstrateNetworkSender, Self::SenderError> {
+    ) -> Result<Self::NetworkSender, Self::SenderError> {
         Ok(SubstrateNetworkSender {
             // Currently method `notification_sender` does not distinguish whether we are not connected to the peer
             // or there is no such protocol so we need to have this worthless `SenderError::CannotCreateSender` error here
