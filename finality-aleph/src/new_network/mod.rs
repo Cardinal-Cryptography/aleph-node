@@ -88,20 +88,28 @@ impl Protocol {
 
 type NetworkEventStream = Pin<Box<dyn Stream<Item = Event> + Send>>;
 
-/// Abstraction over a network.
+/// Abstraction over a sender to network.
 #[async_trait]
-pub trait Network: Clone + Send + Sync + 'static {
-    type SendError: std::error::Error;
-    /// Returns a stream of events representing what happens on the network.
-    fn event_stream(&self) -> NetworkEventStream;
+pub trait NetworkSender: Send + Sync + 'static {
+    type SenderError: std::error::Error;
 
-    /// A method for sending data to the given peer using a given protocol. Returns Error if not connected to the peer.
+    /// A method for sending data. Returns Error if not connected to the peer.
     async fn send<'a>(
         &'a self,
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
-        peer_id: PeerId,
-        protocol: Cow<'static, str>,
-    ) -> Result<(), Self::SendError>;
+    ) -> Result<(), Self::SenderError>;
+}
+
+/// Abstraction over a network.
+pub trait Network<NS: NetworkSender>: Clone + Send + Sync + 'static {
+    type SenderError: std::error::Error;
+
+    /// Returns a stream of events representing what happens on the network.
+    fn event_stream(&self) -> NetworkEventStream;
+
+    /// Returns a sender to the given peer using a given protocol. Returns Error if not connected to the peer.
+    fn sender(&self, peer_id: PeerId, protocol: Cow<'static, str>)
+        -> Result<NS, Self::SenderError>;
 
     /// Add peers to one of the reserved sets.
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>);
