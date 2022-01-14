@@ -4,7 +4,7 @@ use crate::aleph_cli::AlephCli;
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
-    network::Protocol, run_aleph_consensus, AlephBlockImport, AlephConfig,
+    Protocol, run_aleph_consensus, AlephBlockImport, AlephConfig,
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use futures::channel::mpsc;

@@ -76,24 +76,23 @@ async fn forward_or_wait<
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
 ) -> bool {
-    trace!(target: "aleph-network", "forward_or_wait called");
     match receiver.lock().await.next().await {
         Some(Split::Left(data)) => {
-            trace!(target: "aleph-network", "forward_or_wait left case");
+            trace!(target: "aleph-network", "Forwarding left data");
             if left_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
             true
         }
         Some(Split::Right(data)) => {
-            trace!(target: "aleph-network", "forward_or_wait right case");
+            trace!(target: "aleph-network", "Forwarding right data");
             if right_sender.unbounded_send(data).is_err() {
                 warn!(target: "aleph-network", "Failed send despite controlling receiver, this shouldn't've happened.");
             }
             true
         }
         None => {
-            trace!(target: "aleph-network", "forward_or_wait none case");
+            trace!(target: "aleph-network", "Split data channel ended");
             left_sender.close_channel();
             right_sender.close_channel();
             false

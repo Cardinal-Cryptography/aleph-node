@@ -24,7 +24,7 @@ mod hash;
 mod import;
 mod justification;
 pub mod metrics;
-pub mod network; //todo
+mod network;
 mod party;
 #[cfg(test)]
 pub mod testing;
@@ -37,7 +37,7 @@ enum Error {
     SendData,
 }
 
-use network::Protocol;
+pub use network::Protocol;
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSetConfig {

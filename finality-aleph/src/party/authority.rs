@@ -64,8 +64,8 @@ impl Subtasks {
         // both member and aggregator are implicitly using forwarder,
         // so we should force them to exit first to avoid any panics, i.e. `send on closed channel`
         debug!(target: "aleph-party", "Started to stop all tasks");
-        //self.member.stop().await;
-        //trace!(target: "aleph-party", "Member stopped");
+        self.member.stop().await;
+        trace!(target: "aleph-party", "Member stopped");
         self.aggregator.stop().await;
         trace!(target: "aleph-party", "Aggregator stopped");
         self.refresher.stop().await;
@@ -83,7 +83,9 @@ impl Subtasks {
             _ = self.refresher.stopped() => true,
             _ = self.data_store.stopped() => true,
         };
-        debug!(target: "aleph-party", "Something died and it was unexpected: {:?}", result);
+        if result {
+            debug!(target: "aleph-party", "Something died and it was unexpected");
+        }
         self.stop().await;
         debug!(target: "aleph-party", "Stopped all processes");
         result

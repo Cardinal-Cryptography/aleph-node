@@ -1,5 +1,3 @@
-// Everything here is dead code, but I don't want to create one enormous PR.
-#![allow(dead_code)]
 use aleph_bft::Recipient;
 use async_trait::async_trait;
 use codec::{Codec, Decode, Encode};
@@ -30,7 +28,7 @@ pub use component::SimpleNetwork;
 pub use manager::{ConnectionIO, ConnectionManager};
 pub use rmc::NetworkData as RmcNetworkData;
 pub use service::{Service, IO};
-pub use session::{Manager, ManagerError, Network as SessionNetwork};
+pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
 pub use split::{split, Split};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]

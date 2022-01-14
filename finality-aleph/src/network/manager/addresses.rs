@@ -1,15 +1,5 @@
 use crate::network::{manager::Multiaddr, PeerId};
-use ip_network::IpNetwork;
 use sc_network::{multiaddr::Protocol, PeerId as ScPeerId};
-
-/// Checks whether the given Multiaddr is globally accessible.
-pub fn is_global(address: &Multiaddr) -> bool {
-    address.0.iter().all(|protocol| match protocol {
-        Protocol::Ip4(ip) => IpNetwork::from(ip).is_global(),
-        Protocol::Ip6(ip) => IpNetwork::from(ip).is_global(),
-        _ => true,
-    })
-}
 
 /// Checks whether the given Multiaddr contains a libp2p component.
 pub fn is_p2p(address: &Multiaddr) -> bool {
@@ -105,25 +95,8 @@ pub fn get_common_peer_id(addresses: &[Multiaddr]) -> Option<PeerId> {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_common_peer_id, is_global, is_p2p};
+    use super::{get_common_peer_id, is_p2p};
     use crate::network::manager::testing::address;
-
-    #[test]
-    fn local_addresses_are_not_global() {
-        assert!(!is_global(&address("/ip4/127.0.0.1/udt/sctp/5678").into()));
-    }
-
-    #[test]
-    fn global_addresses_are_global() {
-        assert!(is_global(&address("/ip4/81.6.39.166/udt/sctp/5678").into()));
-    }
-
-    #[test]
-    fn dns_addresses_are_global() {
-        assert!(is_global(
-            &address("/dns4/example.com/udt/sctp/5678").into()
-        ));
-    }
 
     #[test]
     fn non_p2p_addresses_are_not_p2p() {

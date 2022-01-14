@@ -438,39 +438,39 @@ impl<D: Data> IO<D> {
             trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {
                 maybe_command = self.commands_from_user.next() => {
-                    trace!(target: "aleph-network", "Manager Loop command case");
+                    trace!(target: "aleph-network", "Manager received a command from user");
                     match maybe_command {
-                    Some(command) => match service.on_command(command).await {
-                        Ok(to_send) => self.send(to_send)?,
-                        Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
-                    },
-                    None => return Err(Error::CommandsChannel),
-                }
+                        Some(command) => match service.on_command(command).await {
+                            Ok(to_send) => self.send(to_send)?,
+                            Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
+                        },
+                        None => return Err(Error::CommandsChannel),
+                    }
                 },
                 maybe_message = self.messages_from_user.next() => {
-                    trace!(target: "aleph-network", "Manager Loop message from user case");
+                    trace!(target: "aleph-network", "Manager received a message from user");
                     match maybe_message {
-                    Some((message, session_id, recipient)) => for message in service.on_user_message(message, session_id, recipient) {
-                         self.send_data(message)?;
-                    },
-                    None => return Err(Error::MessageChannel),
-                }
+                        Some((message, session_id, recipient)) => for message in service.on_user_message(message, session_id, recipient) {
+                            self.send_data(message)?;
+                        },
+                        None => return Err(Error::MessageChannel),
+                    }
                 },
                 maybe_message = self.messages_from_network.next() => {
-                    trace!(target: "aleph-network", "Manager Loop message from network case");
+                    trace!(target: "aleph-network", "Manager received a message from network");
                     match maybe_message {
-                    Some(message) => if let Err(e) = self.on_network_message(&mut service, message) {
-                        match e {
-                            Error::UserSend => warn!(target: "aleph-network", "Failed to send to user in session."),
-                            Error::NoSession => warn!(target: "aleph-network", "Received message for unknown session."),
-                            _ => return Err(e),
-                        }
-                    },
-                    None => return Err(Error::NetworkChannel),
-                }
+                        Some(message) => if let Err(e) = self.on_network_message(&mut service, message) {
+                            match e {
+                                Error::UserSend => warn!(target: "aleph-network", "Failed to send to user in session."),
+                                Error::NoSession => warn!(target: "aleph-network", "Received message for unknown session."),
+                                _ => return Err(e),
+                            }
+                        },
+                        None => return Err(Error::NetworkChannel),
+                    }
                 },
                 _ = maintenance.tick() => {
-                    trace!(target: "aleph-network", "Manager Loop maintenance case");
+                    trace!(target: "aleph-network", "Manager starts maintenence");
                     for to_send in service.discovery() {
                         self.send_data(to_send)?;
                     }

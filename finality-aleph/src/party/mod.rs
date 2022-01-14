@@ -11,7 +11,7 @@ use crate::{
     },
     last_block_of_session,
     network::{
-        split, AlephNetworkData, ConnectionIO, ConnectionManager, Manager, RequestBlocks,
+        split, AlephNetworkData, ConnectionIO, ConnectionManager, SessionManager, RequestBlocks,
         RmcNetworkData, Service, SessionNetwork, Split, IO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
@@ -55,6 +55,8 @@ mod refresher;
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
+
+type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
 pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
     pub config: crate::AlephConfig<B, H, C, SC>,
@@ -187,8 +189,8 @@ where
         commands_from_manager,
         messages_from_network,
     );
-    let connection_manager = ConnectionManager::<_, _>::new(network.clone());
-    let session_manager = Manager::new(commands_for_service, messages_for_service);
+    let connection_manager = ConnectionManager::new(network.clone());
+    let session_manager = SessionManager::new(commands_for_service, messages_for_service);
     let network = Service::new(
         network.clone(),
         IO::new(messages_from_user, messages_for_user, commands_from_io),
@@ -210,7 +212,7 @@ where
     let authorities = client
         .runtime_api()
         .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-        .unwrap();
+        .expect("We should know authorities for the first session");
 
     let party = ConsensusParty {
         session_manager,
@@ -281,7 +283,7 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B> + 'static,
 {
-    session_manager: Manager<SplitData<B>>,
+    session_manager: SessionManager<SplitData<B>>,
     session_authorities: Arc<Mutex<SessionMap>>,
     session_period: SessionPeriod,
     spawn_handle: crate::SpawnHandle,
@@ -298,8 +300,6 @@ where
 
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
 const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
-
-type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
@@ -493,7 +493,7 @@ where
                         .expect("authorities for next session must be available at first block of current session"),
                     Err(e) => {
                         error!(target: "afa", "Error when getting authorities for session {:?} {:?}", next_session_id, e);
-                        return;
+                        panic!("We didn't get the authorities for the session {:?}", next_session_id);
                     }
                 };
 
