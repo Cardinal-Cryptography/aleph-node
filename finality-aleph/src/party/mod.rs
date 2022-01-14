@@ -196,7 +196,6 @@ where
         NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
     );
 
-    //TODO: we should retry
     let network_manager_task = async move {
         connection_io
             .run(connection_manager)
@@ -209,9 +208,12 @@ where
 
     debug!(target: "afa", "Consensus network has started.");
 
+    let last_finalized_number = client.info().finalized_number;
+    let starting_session =
+        session_id_from_block_num::<B>(last_finalized_number, session_period);
     let authorities = client
         .runtime_api()
-        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
+        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(starting_session.0)))
         .expect("We should know authorities for the first session");
 
     let party = ConsensusParty {
@@ -231,7 +233,7 @@ where
     };
 
     debug!(target: "afa", "Consensus party has started.");
-    party.run().await;
+    party.run(starting_session).await;
     error!(target: "afa", "Consensus party has finished unexpectedly.");
 }
 
@@ -410,7 +412,6 @@ where
 
         let keybox = KeyBox::new(node_id, authority_verifier.clone(), authority_pen.clone());
 
-        //TODO: we should retry
         let data_network = self
             .session_manager
             .start_validator_session(session_id, authority_verifier, node_id, authority_pen)
@@ -563,11 +564,8 @@ where
             .retain(|&s, _| s >= prune_below);
     }
 
-    async fn run(mut self) {
-        let last_finalized_number = self.client.info().finalized_number;
-        let starting_session =
-            session_id_from_block_num::<B>(last_finalized_number, self.session_period).0;
-        for curr_id in starting_session.. {
+    async fn run(mut self, starting_session: SessionId) {
+        for curr_id in starting_session.0.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id), self.authorities.clone())
                 .await;
