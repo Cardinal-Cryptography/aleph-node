@@ -430,13 +430,13 @@ where
         )
     }
 
-    async fn run_session(
-        &mut self,
-        session_id: SessionId,
-    ) {
-        let authorities = self.session_authorities
-            .lock().get(&session_id)
-            .expect("We should already know authorities for this session").clone();
+    async fn run_session(&mut self, session_id: SessionId) {
+        let authorities = self
+            .session_authorities
+            .lock()
+            .get(&session_id)
+            .expect("We should already know authorities for this session")
+            .clone();
         let first_block = first_block_of_session::<B>(session_id, self.session_period);
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
@@ -557,8 +557,10 @@ where
 
     async fn run(mut self) {
         let last_finalized_number = self.client.info().finalized_number;
-        let starting_session = session_id_from_block_num::<B>(last_finalized_number, self.session_period);
-        let authorities = self.client
+        let starting_session =
+            session_id_from_block_num::<B>(last_finalized_number, self.session_period);
+        let authorities = self
+            .client
             .runtime_api()
             .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(
                 starting_session.0,
@@ -569,8 +571,7 @@ where
             .insert(starting_session, authorities.clone());
         for curr_id in starting_session.0.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
-            self.run_session(SessionId(curr_id))
-                .await;
+            self.run_session(SessionId(curr_id)).await;
             if curr_id >= 10 && curr_id % 10 == 0 {
                 self.prune_session_data(SessionId(curr_id - 10));
             }

@@ -16,7 +16,6 @@ mod app {
     use sp_application_crypto::{app_crypto, ed25519};
     app_crypto!(ed25519, crate::KEY_TYPE);
 }
-pub use app::Public;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 sp_application_crypto::with_pair! {
