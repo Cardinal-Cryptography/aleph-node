@@ -208,15 +208,6 @@ where
 
     debug!(target: "afa", "Consensus network has started.");
 
-    let last_finalized_number = client.info().finalized_number;
-    let starting_session = session_id_from_block_num::<B>(last_finalized_number, session_period);
-    let authorities = client
-        .runtime_api()
-        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(
-            starting_session.0,
-        )))
-        .expect("We should know authorities for the first session");
-
     let party = ConsensusParty {
         session_manager,
         client,
@@ -230,13 +221,10 @@ where
         spawn_handle: spawn_handle.into(),
         phantom: PhantomData,
         unit_creation_delay,
-        // This field exists to allow getting and saving authorities for next session.
-        // During every session it is changed into next session authorities as soon as possible
-        authorities,
     };
 
     debug!(target: "afa", "Consensus party has started.");
-    party.run(starting_session).await;
+    party.run().await;
     error!(target: "afa", "Consensus party has finished unexpectedly.");
 }
 
@@ -300,7 +288,6 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
-    authorities: Vec<aleph_primitives::Public>,
 }
 
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
@@ -446,11 +433,10 @@ where
     async fn run_session(
         &mut self,
         session_id: SessionId,
-        authorities: Vec<aleph_primitives::Public>,
     ) {
-        self.session_authorities
-            .lock()
-            .insert(session_id, authorities.clone());
+        let authorities = self.session_authorities
+            .lock().get(&session_id)
+            .expect("We should already know authorities for this session").clone();
         let first_block = first_block_of_session::<B>(session_id, self.session_period);
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
@@ -530,7 +516,9 @@ where
                         }
                     }
                 }
-                self.authorities = next_session_authorities;
+                self.session_authorities
+                    .lock()
+                    .insert(next_session_id, next_session_authorities.clone());
             }
             if last_finalized_number >= last_block {
                 debug!(target: "afa", "Terminating session {:?}", session_id);
@@ -567,10 +555,21 @@ where
             .retain(|&s, _| s >= prune_below);
     }
 
-    async fn run(mut self, starting_session: SessionId) {
+    async fn run(mut self) {
+        let last_finalized_number = self.client.info().finalized_number;
+        let starting_session = session_id_from_block_num::<B>(last_finalized_number, self.session_period);
+        let authorities = self.client
+            .runtime_api()
+            .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(
+                starting_session.0,
+            )))
+            .expect("We should know authorities for the first session");
+        self.session_authorities
+            .lock()
+            .insert(starting_session, authorities.clone());
         for curr_id in starting_session.0.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
-            self.run_session(SessionId(curr_id), self.authorities.clone())
+            self.run_session(SessionId(curr_id))
                 .await;
             if curr_id >= 10 && curr_id % 10 == 0 {
                 self.prune_session_data(SessionId(curr_id - 10));
