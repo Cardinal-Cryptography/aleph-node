@@ -11,8 +11,8 @@ use crate::{
     },
     last_block_of_session,
     network::{
-        split, AlephNetworkData, ConnectionIO, ConnectionManager, SessionManager, RequestBlocks,
-        RmcNetworkData, Service as NetworkService, SessionNetwork, Split, IO as NetworkIO,
+        split, AlephNetworkData, ConnectionIO, ConnectionManager, RequestBlocks, RmcNetworkData,
+        Service as NetworkService, SessionManager, SessionNetwork, Split, IO as NetworkIO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
     SessionMap, SessionPeriod, UnitCreationDelay,
@@ -209,11 +209,12 @@ where
     debug!(target: "afa", "Consensus network has started.");
 
     let last_finalized_number = client.info().finalized_number;
-    let starting_session =
-        session_id_from_block_num::<B>(last_finalized_number, session_period);
+    let starting_session = session_id_from_block_num::<B>(last_finalized_number, session_period);
     let authorities = client
         .runtime_api()
-        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(starting_session.0)))
+        .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(
+            starting_session.0,
+        )))
         .expect("We should know authorities for the first session");
 
     let party = ConsensusParty {
@@ -229,6 +230,8 @@ where
         spawn_handle: spawn_handle.into(),
         phantom: PhantomData,
         unit_creation_delay,
+        // This field exists to allow getting and saving authorities for next session.
+        // During every session it is changed into next session authorities as soon as possible
         authorities,
     };
 
