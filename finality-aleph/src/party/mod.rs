@@ -12,7 +12,7 @@ use crate::{
     last_block_of_session,
     network::{
         split, AlephNetworkData, ConnectionIO, ConnectionManager, SessionManager, RequestBlocks,
-        RmcNetworkData, Service, SessionNetwork, Split, IO,
+        RmcNetworkData, Service as NetworkService, SessionNetwork, Split, IO as NetworkIO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
     SessionMap, SessionPeriod, UnitCreationDelay,
@@ -191,9 +191,9 @@ where
     );
     let connection_manager = ConnectionManager::new(network.clone());
     let session_manager = SessionManager::new(commands_for_service, messages_for_service);
-    let network = Service::new(
+    let network = NetworkService::new(
         network.clone(),
-        IO::new(messages_from_user, messages_for_user, commands_from_io),
+        NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
     );
 
     //TODO: we should retry
