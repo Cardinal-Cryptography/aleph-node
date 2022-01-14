@@ -108,11 +108,9 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
         loop {
             tokio::select! {
                 data = self.translated_receiver.next() => {
-                    trace!(target: "aleph-network", "Left Receiver Next Loop translated_receiver case");
                     return data;
                 },
                 should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
-                    trace!(target: "aleph-network", "Left Receiver Next Loop forward_or_wait case");
                     if !should_go_on {
                         return None;
                     }
@@ -128,14 +126,11 @@ impl<LeftData: Data, RightData: Data, R: ReceiverComponent<Split<LeftData, Right
 {
     async fn next(&mut self) -> Option<RightData> {
         loop {
-            trace!(target: "aleph-network", "Right Receiver Next Loop started a next iteration");
             tokio::select! {
                 data = self.translated_receiver.next() => {
-                    trace!(target: "aleph-network", "Right Receiver Next Loop translated_receiver case");
                     return data;
                 },
                 should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender) => {
-                    trace!(target: "aleph-network", "Right Receiver Next Loop forward_or_wait case");
                     if !should_go_on {
                         return None;
                     }
