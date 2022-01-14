@@ -18,6 +18,8 @@ runtime = os.getenv('NEW_RUNTIME', join(workdir, 'aleph_runtime.compact.wasm'))
 # Path to the send-runtime binary (which lives in aleph-node/local-tests/send-runtime):
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 
+print(workdir, oldbin, newbin, runtime)
+
 
 def query_runtime_version(nodes):
     print('Current version:')
@@ -42,7 +44,7 @@ def check_highest(nodes):
 
 phrases = ['//Cartman', '//Stan', '//Kyle', '//Kenny']
 keys = generate_keys(newbin, phrases)
-
+print(keys)
 chain = Chain(workdir)
 print('Bootstraping the chain with old binary')
 chain.bootstrap(oldbin,
