@@ -34,7 +34,7 @@ cargo build --release
 popd
 
 echo 'Running test'
-ls -alR
+# ls -alR
 python test_update.py
 
 popd
