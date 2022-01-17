@@ -1578,7 +1578,6 @@ dependencies = [
  "substrate-test-runtime",
  "substrate-test-runtime-client",
  "tokio",
- "tokio-stream",
 ]
 
 [[package]]

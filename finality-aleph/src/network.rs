@@ -1,16 +1,14 @@
 use aleph_bft::{Index, KeyBox as _, NodeIndex, SignatureSet};
 use codec::{Codec, Decode, Encode};
 use futures::{channel::mpsc, stream::Stream, FutureExt, StreamExt};
+use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
 use sc_network::{multiaddr, Event, ExHashT, NetworkService, PeerId as ScPeerId, ReputationChange};
 use sp_runtime::traits::Block as BlockT;
+use std::time::Duration;
 use std::{
     borrow::Cow, collections::HashMap, hash::Hash, iter, marker::PhantomData, pin::Pin, sync::Arc,
 };
-use tokio_stream::wrappers::IntervalStream;
-
-use log::{debug, error, info, trace, warn};
-use std::time::Duration;
 
 use crate::{
     crypto::{KeyBox, Signature},
@@ -595,7 +593,7 @@ where
 
     pub async fn run(mut self) {
         let mut network_event_stream = self.network.event_stream();
-        let mut status_ticker = IntervalStream::new(tokio::time::interval(Duration::from_secs(10)));
+        let mut status_ticker = tokio::time::interval(Duration::from_secs(10));
 
         loop {
             tokio::select! {
@@ -654,7 +652,8 @@ where
                         break;
                     }
                 }
-                _ = status_ticker.next() => {
+                _ = status_ticker.tick()
+                    => {
                     debug!(target: "afa", "Total peers in aleph network {:?}", self.peers.all_peers.len());
                     for (session_id, session_data) in self.sessions.lock().iter() {
                         let authenticated: Vec<usize> = self.peers.to_peer.get(session_id).into_iter().map(|hm| hm.keys()).flatten().map(|x| x.0).collect();
