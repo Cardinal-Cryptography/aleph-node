@@ -13,8 +13,7 @@ pub mod testing;
 
 pub use service::{Service as ConnectionManager, IO as ConnectionIO};
 
-use addresses::{get_common_peer_id, get_peer_id, is_p2p};
-
+use addresses::{add_matching_peer_id, get_common_peer_id, get_peer_id, is_p2p};
 use connections::Connections;
 use discovery::{Discovery, DiscoveryMessage};
 use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
