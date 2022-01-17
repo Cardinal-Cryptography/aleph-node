@@ -3,14 +3,20 @@ name: e2e-tests-main-devnet
 on:
   pull_request:
     paths-ignore:
-      - "*.md"
+      - '*.md'
+      - '.github/workflows/**'
     branches:
       - main
   push:
     paths-ignore:
-      - "*.md"
+      - '*.md'
+      - '.github/workflows/**'
     branches:
       - main
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   build-new-node:
@@ -25,11 +31,6 @@ jobs:
     name: Build docker image of the node
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -63,11 +64,6 @@ jobs:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -106,11 +102,6 @@ jobs:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -121,12 +112,20 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
 
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          cargo-targets: e2e-tests/target/
+
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
           cargo build --release
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
@@ -142,11 +141,6 @@ jobs:
     name: Run e2e tests suite
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
         uses: actions/checkout@v2
 
@@ -186,11 +180,6 @@ jobs:
     name: Push node image to the ECR repository
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
         if: github.event_name == 'push'
         uses: actions/checkout@v2
@@ -253,8 +242,36 @@ jobs:
           MSG_MINIMAL: actions url
 
 
+  check-runtime-change:
+    name: Inspect whether runtime version has been changed
+    runs-on: ubuntu-latest
+    outputs:
+      runtime-updated: ${{ steps.inspect.outputs.diff }}
+    steps:
+      - name: Checkout old source code
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          path: old-repo
+
+      - name: Checkout current source code
+        uses: actions/checkout@v2
+        with:
+          path: new-repo
+
+      - name: Inspect versions
+        id: inspect
+        run: |
+          grep "spec_version:" old-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
+          grep "spec_version:" new-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
+          diff old.version new.version
+          echo "::set-output name=diff::$?"
+
+
   build-old-node:
     name: Build node and runtime artifacts (main version)
+    needs: [check-runtime-change]
+    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
     with:
       rust-toolchain-version: 'nightly-2021-10-24'
@@ -269,11 +286,6 @@ jobs:
     env:
       RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout source code
         uses: actions/checkout@v2
 
@@ -284,16 +296,10 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
 
-      - name: Restore Cargo Cache
-        uses: actions/cache@v2
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cargo-targets: local-tests/send-runtime/target/
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
@@ -312,6 +318,9 @@ jobs:
           NEW_BINARY: old-aleph-node/aleph-node
           NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
 
   remove-old-artifacts:

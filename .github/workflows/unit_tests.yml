@@ -1,6 +1,13 @@
 name: unit-tests
 
-on: pull_request
+on: 
+  pull_request:
+    paths-ignore:
+      - ".github/workflows/**"
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   check-test-and-lint:
@@ -10,11 +17,6 @@ jobs:
       RUST_TOOLCHAIN_VERSION: nightly-2021-07-21
       CARGO_INCREMENTAL: 0
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -29,19 +31,11 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Restore Cargo Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
 
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
@@ -51,6 +45,10 @@ jobs:
 
       - name: Run Linter
         uses: actions-rs/cargo@v1
+        env:
+          # https://github.com/mozilla/sccache/issues/966
+          RUSTC_WRAPPER: ""
+          RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
           args: -- -D warnings
@@ -59,6 +57,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
