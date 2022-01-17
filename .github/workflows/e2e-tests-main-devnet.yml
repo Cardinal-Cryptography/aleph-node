@@ -307,6 +307,9 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: TMP FOR DEBUG: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Test update
         timeout-minutes: 10
         env:
