@@ -209,7 +209,8 @@ impl frame_system::Config for Runtime {
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
-    pub const MaxAuthorities: u32 = 100;
+    // follows polkadot https://github.com/paritytech/polkadot/blob/master/runtime/polkadot/src/lib.rs#L784
+    pub const MaxAuthorities: u32 = 100_000;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -259,6 +260,9 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1;
+    // This value increases the priority of `Operational` transactions by adding
+    // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
+    // follows polkadot : https://github.com/paritytech/polkadot/blob/master/runtime/polkadot/src/lib.rs#L369
     pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -407,7 +411,8 @@ impl pallet_vesting::Config for Runtime {
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
     // Maximum number of vesting schedules an account may have at a given moment
-    const MAX_VESTING_SCHEDULES: u32 = 42;
+    // follows polkadot https://github.com/paritytech/polkadot/blob/master/runtime/polkadot/src/lib.rs#L980
+    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 pub const MILLICENTS: Balance = 100_000_000;
