@@ -112,6 +112,9 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           override: true
 
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown --toolchain "${{ inputs.rust-toolchain-version }}"
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
