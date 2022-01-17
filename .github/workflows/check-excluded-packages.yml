@@ -31,7 +31,7 @@ jobs:
           override: true
 
       - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown --toolchain "${{ inputs.rust-toolchain-version }}"
+        run: rustup target add wasm32-unknown-unknown --toolchain "${{ env.RUST_TOOLCHAIN_VERSION }}"
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
