@@ -32,9 +32,9 @@ def query_runtime_version(nodes):
         else:
             rt = "ERROR"
         print(f'  Node {i}: system: {sysver}  runtime: {rt}')
-    if len(versions) != 1:
+    if len(versions) > 1:
         print(f'ERROR: nodes reported different runtime versions: {versions}')
-    return max(versions)
+    return max(versions) if versions else -1
 
 
 def check_highest(nodes):
