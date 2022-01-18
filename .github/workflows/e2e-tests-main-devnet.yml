@@ -309,7 +309,7 @@ jobs:
           python-version: '3.8'
 
       - name: Test update
-        timeout-minutes: 10
+        timeout-minutes: 21
         env:
           # Relative to local-tests/ directory
           OLD_BINARY: old-aleph-node/aleph-node
