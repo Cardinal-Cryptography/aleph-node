@@ -3,7 +3,7 @@ use crate::new_network::{
     ALEPH_PROTOCOL_NAME, ALEPH_VALIDATOR_PROTOCOL_NAME,
 };
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use sc_network::{multiaddr, Event};
 use sc_service::SpawnTaskHandle;
 use std::{
