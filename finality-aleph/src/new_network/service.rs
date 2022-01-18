@@ -131,6 +131,7 @@ impl<N: Network, D: Data> Service<N, D> {
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
                         "aleph/network/peer_sender",
+                        None,
                         self.peer_sender(remote.into(), rx),
                     );
                     self.connected_peers.insert(remote.into());

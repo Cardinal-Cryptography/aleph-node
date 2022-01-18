@@ -3,9 +3,7 @@ use crate::new_network::{
 };
 use async_trait::async_trait;
 use log::error;
-use sc_network::{
-    multiaddr, ExHashT, Multiaddr, NetworkService, NetworkStateInfo, NotificationSender,
-};
+use sc_network::{ExHashT, Multiaddr, NetworkService, NetworkStateInfo, NotificationSender};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 use std::{borrow::Cow, collections::HashSet, fmt, sync::Arc};
