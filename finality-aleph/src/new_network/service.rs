@@ -88,7 +88,7 @@ impl<N: Network, D: Data> Service<N, D> {
         if let Some(sender) = self.peer_senders.get_mut(&peer) {
             if let Err(e) = sender.try_send((data, protocol)) {
                 if e.is_full() {
-                    debug!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
+                    warn!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
                 }
                 // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                 // No need to remove the entry here
