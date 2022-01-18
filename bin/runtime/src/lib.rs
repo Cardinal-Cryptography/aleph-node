@@ -494,6 +494,7 @@ impl pallet_utility::Config for Runtime {
     type Event = Event;
     type Call = Call;
     type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+    type PalletsOrigin = OriginCaller;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
