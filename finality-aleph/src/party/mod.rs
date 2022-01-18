@@ -430,14 +430,41 @@ where
         )
     }
 
+    /// Returns authorities for a given session or None if the first block of this session is 
+    /// higher than the highest finalized block
+    fn get_authorities_for_session(&mut self, session_id: SessionId) -> Option<Vec<AuthorityId>> {
+        let mut session_authorities = self.session_authorities.lock();
+        if let Some(authorities) = session_authorities.get(&session_id) {
+            Some(authorities.clone())
+        } else {
+            let authorities = if session_id == SessionId(0) {
+                self.client.runtime_api()
+                    .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
+                    .unwrap()
+            } else {
+                let last_finalized_number = self.client.info().finalized_number;
+                let first_block = first_block_of_session::<B>(session_id, self.session_period);
+                if last_finalized_number >= first_block {
+                    return None;
+                }
+
+                match self.client.runtime_api().next_session_authorities(&BlockId::Number(first_block)) {
+                    Ok(authorities) => authorities
+                        .expect("Authorities for next session must be available at first block of current session"),
+                    Err(e) => {
+                        error!(target: "afa", "Error when getting authorities for session {:?} {:?}", session_id, e);
+                        panic!("We didn't get the authorities for the session {:?}", session_id);
+                    }
+                }
+            };
+            session_authorities.insert(session_id, authorities.clone());
+            Some(authorities.clone())
+        }
+    }
+
     async fn run_session(&mut self, session_id: SessionId) {
-        let authorities = self
-            .session_authorities
-            .lock()
-            .get(&session_id)
-            .expect("We should already know authorities for this session")
-            .clone();
-        let first_block = first_block_of_session::<B>(session_id, self.session_period);
+        let authorities = self.get_authorities_for_session(session_id)
+            .expect("We should know authorities for the session we are starting");
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
@@ -471,24 +498,9 @@ where
             None
         };
         loop {
-            let last_finalized_number = self.client.info().finalized_number;
-            if last_finalized_number >= first_block {
-                let next_session_id = SessionId(session_id.0 + 1);
-                let next_session_authorities = match self
-                    .client
-                    .runtime_api()
-                    .next_session_authorities(&BlockId::Number(first_block))
-                {
-                    Ok(authorities) => authorities
-                        .expect("authorities for next session must be available at first block of current session"),
-                    Err(e) => {
-                        error!(target: "afa", "Error when getting authorities for session {:?} {:?}", next_session_id, e);
-                        panic!("We didn't get the authorities for the session {:?}", next_session_id);
-                    }
-                };
-
+            let next_session_id = SessionId(session_id.0 + 1);
+            if let Some(next_session_authorities) = self.get_authorities_for_session(next_session_id) {
                 let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
-
                 match get_node_index(&authorities, self.keystore.clone()).await {
                     Some(node_id) => {
                         let authority_pen = AuthorityPen::new(
@@ -516,10 +528,9 @@ where
                         }
                     }
                 }
-                self.session_authorities
-                    .lock()
-                    .insert(next_session_id, next_session_authorities.clone());
             }
+
+            let last_finalized_number = self.client.info().finalized_number;
             if last_finalized_number >= last_block {
                 debug!(target: "afa", "Terminating session {:?}", session_id);
                 break;
