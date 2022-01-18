@@ -3,7 +3,6 @@ use log::info;
 use substrate_api_client::{compose_call, compose_extrinsic, GenericAddress, XtStatus};
 use sp_core::Pair;
 use crate::transfer::{setup_for_transfer};
-use std::fmt::Write;
 
 use codec::{Compact};
 
@@ -37,17 +36,7 @@ pub fn batch_transactions(config: Config) -> anyhow::Result<()> {
         .send_extrinsic(extrinsic.hex_encode(), XtStatus::Finalized)
         .expect("Could not send extrinsc")
         .expect("Could not get tx hash");
-    info!("[+] A batch of {} transactions was included in {} block.", NUMBER_OF_TRANSACTIONS, finalized_block_hash);
-
-    let block_with_batch_tx = connection.get_block::<aleph_runtime::Block>(Some(finalized_block_hash)).
-        expect("Could not get extrinsic").
-        expect("Coult not get block");
-
-    // a crude way of doing things - how to access members of Call directly?
-    let unchecked_batch_tx_extrinsic = &block_with_batch_tx.extrinsics;
-    let mut extrinsics_string = String::new();
-    write!(&mut extrinsics_string, "[+] {:?}", unchecked_batch_tx_extrinsic)?;
-    assert_eq!(extrinsics_string.matches("Call::Balances(Call::transfer(").count(), NUMBER_OF_TRANSACTIONS);
+    info!("[+] A batch of {} transactions was included in finalized {} block.", NUMBER_OF_TRANSACTIONS, finalized_block_hash);
 
     Ok(())
 }
