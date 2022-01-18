@@ -293,6 +293,33 @@ where
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
 const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
 
+fn get_authorities_for_session<'a, B, C>(
+    runtime_api: sp_api::ApiRef<'a, C::Api>,
+    session_id: SessionId,
+    first_block: NumberFor<B>,
+) -> Vec<AuthorityId>
+where
+    B: Block,
+    C: sp_api::ProvideRuntimeApi<B>,
+    C::Api: aleph_primitives::AlephSessionApi<B>,
+{
+    if session_id == SessionId(0) {
+        runtime_api
+            .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
+            .unwrap()
+    } else {
+        runtime_api
+            .next_session_authorities(&BlockId::Number(first_block))
+            .expect(&format!(
+                "We didn't get the authorities for the session {:?}",
+                session_id
+            ))
+            .expect(
+                "Authorities for next session must be available at first block of current session",
+            )
+    }
+}
+
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
     B: Block,
@@ -432,40 +459,32 @@ where
 
     /// Returns authorities for a given session or None if the first block of this session is
     /// higher than the highest finalized block
-    fn get_authorities_for_session(&mut self, session_id: SessionId) -> Option<Vec<AuthorityId>> {
-        let mut session_authorities = self.session_authorities.lock();
-        if let Some(authorities) = session_authorities.get(&session_id) {
-            Some(authorities.clone())
-        } else {
-            let authorities = if session_id == SessionId(0) {
-                self.client
-                    .runtime_api()
-                    .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-                    .unwrap()
-            } else {
-                let last_finalized_number = self.client.info().finalized_number;
-                let first_block = first_block_of_session::<B>(session_id, self.session_period);
-                if last_finalized_number >= first_block {
-                    return None;
-                }
-
-                match self.client.runtime_api().next_session_authorities(&BlockId::Number(first_block)) {
-                    Ok(authorities) => authorities
-                        .expect("Authorities for next session must be available at first block of current session"),
-                    Err(e) => {
-                        error!(target: "afa", "Error when getting authorities for session {:?} {:?}", session_id, e);
-                        panic!("We didn't get the authorities for the session {:?}", session_id);
-                    }
-                }
-            };
-            session_authorities.insert(session_id, authorities.clone());
-            Some(authorities.clone())
+    fn updated_authorities_for_session(
+        &mut self,
+        session_id: SessionId,
+    ) -> Option<Vec<AuthorityId>> {
+        let last_finalized_number = self.client.info().finalized_number;
+        let first_block = first_block_of_session::<B>(session_id, self.session_period);
+        if last_finalized_number < first_block {
+            return None;
         }
+
+        Some(
+            self.session_authorities
+                .lock()
+                .entry(session_id)
+                .or_insert(get_authorities_for_session::<_, C>(
+                    self.client.runtime_api(),
+                    session_id,
+                    first_block,
+                ))
+                .clone(),
+        )
     }
 
     async fn run_session(&mut self, session_id: SessionId) {
         let authorities = self
-            .get_authorities_for_session(session_id)
+            .updated_authorities_for_session(session_id)
             .expect("We should know authorities for the session we are starting");
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
@@ -502,7 +521,7 @@ where
         loop {
             let next_session_id = SessionId(session_id.0 + 1);
             if let Some(next_session_authorities) =
-                self.get_authorities_for_session(next_session_id)
+                self.updated_authorities_for_session(next_session_id)
             {
                 let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
                 match get_node_index(&authorities, self.keystore.clone()).await {
@@ -574,16 +593,6 @@ where
         let last_finalized_number = self.client.info().finalized_number;
         let starting_session =
             session_id_from_block_num::<B>(last_finalized_number, self.session_period);
-        let authorities = self
-            .client
-            .runtime_api()
-            .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(
-                starting_session.0,
-            )))
-            .expect("We should know authorities for the first session");
-        self.session_authorities
-            .lock()
-            .insert(starting_session, authorities.clone());
         for curr_id in starting_session.0.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
