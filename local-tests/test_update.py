@@ -1,4 +1,5 @@
 #!/bin/env python
+import jsonrpcclient
 import os
 import subprocess
 import sys
@@ -24,9 +25,13 @@ def query_runtime_version(nodes):
     versions = set()
     for i, node in enumerate(nodes):
         sysver = node.rpc('system_version').result
-        rt = node.rpc('state_getRuntimeVersion').result['specVersion']
+        resp = node.rpc('state_getRuntimeVersion')
+        if isinstance(resp, jsonrpcclient.Ok):
+            rt = resp.result['specVersion']
+            versions.add(rt)
+        else:
+            rt = "ERROR"
         print(f'  Node {i}: system: {sysver}  runtime: {rt}')
-        versions.add(rt)
     if len(versions) != 1:
         print(f'ERROR: nodes reported different runtime versions: {versions}')
     return max(versions)
