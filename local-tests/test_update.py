@@ -1,10 +1,10 @@
 #!/bin/env python
-import jsonrpcclient
 import os
 import subprocess
 import sys
 from os.path import join
 from time import sleep
+import jsonrpcclient
 
 from chainrunner import Chain, Seq, generate_keys
 
