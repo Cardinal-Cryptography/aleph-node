@@ -89,7 +89,6 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     --ws-port $((9944 + i)) \
     --port $((30334 + i)) \
     --bootnodes $bootnodes \
-    --public-addr ${addresses[i]} \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
     --unit-creation-delay 500 \
     --execution Native \
