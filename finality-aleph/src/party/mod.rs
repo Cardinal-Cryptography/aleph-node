@@ -430,7 +430,7 @@ where
         )
     }
 
-    /// Returns authorities for a given session or None if the first block of this session is 
+    /// Returns authorities for a given session or None if the first block of this session is
     /// higher than the highest finalized block
     fn get_authorities_for_session(&mut self, session_id: SessionId) -> Option<Vec<AuthorityId>> {
         let mut session_authorities = self.session_authorities.lock();
@@ -438,7 +438,8 @@ where
             Some(authorities.clone())
         } else {
             let authorities = if session_id == SessionId(0) {
-                self.client.runtime_api()
+                self.client
+                    .runtime_api()
                     .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
                     .unwrap()
             } else {
@@ -463,7 +464,8 @@ where
     }
 
     async fn run_session(&mut self, session_id: SessionId) {
-        let authorities = self.get_authorities_for_session(session_id)
+        let authorities = self
+            .get_authorities_for_session(session_id)
             .expect("We should know authorities for the session we are starting");
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
@@ -499,7 +501,9 @@ where
         };
         loop {
             let next_session_id = SessionId(session_id.0 + 1);
-            if let Some(next_session_authorities) = self.get_authorities_for_session(next_session_id) {
+            if let Some(next_session_authorities) =
+                self.get_authorities_for_session(next_session_id)
+            {
                 let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
                 match get_node_index(&authorities, self.keystore.clone()).await {
                     Some(node_id) => {
