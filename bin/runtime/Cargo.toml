@@ -33,6 +33,7 @@ pallet-transaction-payment = { default-features = false, git = "https://github.c
 pallet-treasury = { default-features = false,  git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-vesting = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 
 sp-api = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -69,6 +70,7 @@ std = [
     "pallet-treasury/std",
     "pallet-vesting/std",
     "pallet-multisig/std",
+    "pallet-utility/std",
     "serde",
     "sp-api/std",
     "sp-block-builder/std",
