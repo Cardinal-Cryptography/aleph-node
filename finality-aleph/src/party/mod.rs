@@ -193,6 +193,7 @@ where
     let session_manager = SessionManager::new(commands_for_service, messages_for_service);
     let network = NetworkService::new(
         network.clone(),
+        spawn_handle.clone(),
         NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
     );
 

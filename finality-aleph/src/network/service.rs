@@ -8,7 +8,7 @@ use sc_network::{multiaddr, Event};
 use sc_service::SpawnTaskHandle;
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     future::Future,
     iter,
 };
@@ -20,7 +20,6 @@ pub struct Service<N: Network, D: Data> {
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
     connected_peers: HashSet<PeerId>,
     peer_senders: HashMap<PeerId, mpsc::Sender<(D, Protocol)>>,
-    to_send: VecDeque<(D, PeerId, Protocol)>,
     spawn_handle: SpawnTaskHandle,
 }
 
@@ -60,7 +59,6 @@ impl<N: Network, D: Data> Service<N, D> {
             spawn_handle,
             connected_peers: HashSet::new(),
             peer_senders: HashMap::new(),
-            to_send: VecDeque::new(),
         }
     }
 

@@ -103,7 +103,8 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     RB: RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
+    Message:
+        AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
     N: DataNetwork<Message>,
 {
     next_message_id: MessageId,
@@ -126,7 +127,8 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     RB: RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec,
+    Message:
+        AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
     N: DataNetwork<Message>,
 {
     /// Returns a struct to be run and a network that outputs messages filtered as appropriate
