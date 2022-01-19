@@ -4,13 +4,13 @@ on:
   pull_request:
     paths-ignore:
       - '*.md'
-      - '.github/workflows/**'
+      # - '.github/workflows/**'
     branches:
       - main
   push:
     paths-ignore:
       - '*.md'
-      - '.github/workflows/**'
+      # - '.github/workflows/**'
     branches:
       - main
 
