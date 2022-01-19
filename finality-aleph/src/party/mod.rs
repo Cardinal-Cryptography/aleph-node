@@ -294,8 +294,8 @@ where
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
 const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
 
-fn get_authorities_for_session<'a, B, C>(
-    runtime_api: sp_api::ApiRef<'a, C::Api>,
+fn get_authorities_for_session<B, C>(
+    runtime_api: sp_api::ApiRef<C::Api>,
     session_id: SessionId,
     first_block: NumberFor<B>,
 ) -> Vec<AuthorityId>
@@ -311,10 +311,12 @@ where
     } else {
         runtime_api
             .next_session_authorities(&BlockId::Number(first_block))
-            .expect(&format!(
-                "We didn't get the authorities for the session {:?}",
-                session_id
-            ))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "We didn't get the authorities for the session {:?}",
+                    session_id
+                )
+            })
             .expect(
                 "Authorities for next session must be available at first block of current session",
             )
@@ -474,11 +476,13 @@ where
             self.session_authorities
                 .lock()
                 .entry(session_id)
-                .or_insert(get_authorities_for_session::<_, C>(
-                    self.client.runtime_api(),
-                    session_id,
-                    first_block,
-                ))
+                .or_insert_with(|| {
+                    get_authorities_for_session::<_, C>(
+                        self.client.runtime_api(),
+                        session_id,
+                        first_block,
+                    )
+                })
                 .clone(),
         )
     }
