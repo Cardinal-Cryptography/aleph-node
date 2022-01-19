@@ -6,10 +6,12 @@ use crate::{
 use aleph_bft::Recipient;
 use async_trait::async_trait;
 use codec::{Decode, Encode};
-use futures::channel::{
-    mpsc,
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot,
+use futures::{
+    channel::{
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        oneshot,
+    },
+    StreamExt,
 };
 use futures_timer::Delay;
 use log::{debug, error, trace, warn};
@@ -27,7 +29,6 @@ use std::{
     sync::Arc,
     time::{self, Duration},
 };
-use tokio::stream::StreamExt;
 
 type MessageId = u64;
 const REFRESH_INTERVAL: u64 = 100;
@@ -216,9 +217,11 @@ where
         let finalized_number = self.client.info().finalized_number;
         let now = time::SystemTime::now();
         for (block_data, first_occurence) in blocks_with_timestamps {
-            if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.hash)) {
-                self.add_block(block_data);
-            } else if finalized_number >= block_data.number {
+            if matches!(
+                self.client.header(BlockId::Hash(block_data.hash)),
+                Ok(Some(_))
+            ) || finalized_number >= block_data.number
+            {
                 self.add_block(block_data);
             } else if let Ok(time_waiting) = now.duration_since(first_occurence) {
                 if time_waiting >= self.config.request_block_after {
