@@ -2,7 +2,7 @@ use crate::network::{Data, DataNetwork, SendError};
 use aleph_bft::Recipient;
 use futures::{channel::mpsc, StreamExt};
 use std::{marker::PhantomData, sync::Arc};
-use tokio::{stream::StreamExt, sync::Mutex};
+use tokio::sync::Mutex;
 
 /// For sending arbitrary messages.
 pub trait Sender<D: Data>: Sync + Send + Clone {

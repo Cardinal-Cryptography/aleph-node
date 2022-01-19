@@ -203,7 +203,7 @@ where
             .await
             .expect("Failed to run new network manager")
     };
-    spawn_handle.spawn("aleph/network_manager", network_manager_task);
+    spawn_handle.spawn("aleph/network_manager", None, network_manager_task);
     let network_task = async move { network.run().await };
     spawn_handle.spawn("aleph/network", None, network_task);
 
