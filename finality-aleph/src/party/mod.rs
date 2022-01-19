@@ -307,7 +307,7 @@ where
     if session_id == SessionId(0) {
         runtime_api
             .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-            .unwrap()
+            .expect("Authorities for the session 0 must be available from the beginning")
     } else {
         runtime_api
             .next_session_authorities(&BlockId::Number(first_block))
