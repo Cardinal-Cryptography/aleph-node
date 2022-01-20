@@ -28,4 +28,3 @@ std = [
     "sp-std/std",
     "sp-consensus-aura/std",
 ]
-

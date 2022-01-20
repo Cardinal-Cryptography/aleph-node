@@ -34,7 +34,6 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate.git", branch = 
 sc-consensus = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-consensus = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sc-client-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
-sp-io= { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 derive_more = "0.99.7"
 env_logger = "0.8.3"
 async-trait = "0.1.42"

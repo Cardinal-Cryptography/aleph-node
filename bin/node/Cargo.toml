@@ -3,7 +3,7 @@ name = "aleph-node"
 version = "0.3.0"
 authors = ["Cardinal Cryptography"]
 description = "Aleph node binary"
-edition = "2018"
+edition = "2021"
 license = "Apache 2.0"
 build = "build.rs"
 homepage = "https://alephzero.org"
@@ -61,6 +61,7 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate.git", branch = 
 sp-block-builder = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+pallet-contracts-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}

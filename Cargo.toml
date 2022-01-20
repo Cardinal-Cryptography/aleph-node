@@ -15,3 +15,6 @@ exclude = [
   "local-tests/send-runtime",
   "fork-off"
 ]
+
+[profile.release]
+panic = 'unwind'

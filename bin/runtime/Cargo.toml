@@ -2,7 +2,7 @@
 name = "aleph-runtime"
 version = "0.3.0"
 authors = ["Cardinal Cryptography"]
-edition = "2018"
+edition = "2021"
 license = "Apache 2.0"
 homepage = "https://alephzero.org"
 repository = "https://github.com/aleph-zero-foundation/aleph-node"
@@ -35,6 +35,8 @@ pallet-vesting = { default-features = false, git = "https://github.com/paritytec
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 
+# NOTE: these two disabled features collide with std in wasm
+sp-io = { default-features = false, features = ["disable_oom", "disable_panic_handler"], git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-api = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-consensus-aura = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -50,11 +52,20 @@ sp-version = { default-features = false, git = "https://github.com/paritytech/su
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 
+# Contracts specific packages
+pallet-contracts = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13" }
+pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13" }
+pallet-contracts-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13" }
+
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0"}
 
 [features]
-default = ["std"]
+default = [
+    "std",
+    # temporarily enable unstable contracts features by default, remove this before using on a production chain
+    "contracts-unstable-interface",
+]
 std = [
     "codec/std",
     "frame-executive/std",
@@ -73,6 +84,7 @@ std = [
     "pallet-utility/std",
     "serde",
     "sp-api/std",
+    "sp-io/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
     "sp-core/std",
@@ -87,4 +99,13 @@ std = [
     "pallet-transaction-payment-rpc-runtime-api/std",
     "frame-system-rpc-runtime-api/std",
     "primitives/std",
+    "pallet-contracts-primitives/std",
+    "pallet-contracts-rpc-runtime-api/std",
+    "pallet-contracts/std",
+]
+
+# Make contract callable functions marked as __unstable__ available. Do not enable
+# on live chains as those are subject to change.
+contracts-unstable-interface = [
+    "pallet-contracts/unstable-interface"
 ]
