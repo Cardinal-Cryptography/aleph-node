@@ -467,7 +467,11 @@ where
         session_id: SessionId,
     ) -> Option<Vec<AuthorityId>> {
         let last_finalized_number = self.client.info().finalized_number;
-        let first_block = first_block_of_session::<B>(session_id, self.session_period);
+        let previous_session = match session_id {
+            SessionId(0) => SessionId(0),
+            SessionId(sid) => SessionId(sid - 1),
+        };
+        let first_block = first_block_of_session::<B>(previous_session, self.session_period);
         if last_finalized_number < first_block {
             return None;
         }
