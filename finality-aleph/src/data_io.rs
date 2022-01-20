@@ -1,20 +1,19 @@
 use crate::{
     metrics::Checkpoint,
-    network::{DataNetwork, RequestBlocks, SimpleNetwork},
+    network::{DataNetwork, RequestBlocks, SimpleNetwork, ComponentNetwork, ReceiverComponent},
     Metrics,
 };
-use aleph_bft::Recipient;
 use async_trait::async_trait;
 use codec::{Decode, Encode};
 use futures::{
     channel::{
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, UnboundedSender},
         oneshot,
     },
     StreamExt,
 };
 use futures_timer::Delay;
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
@@ -98,7 +97,7 @@ impl Default for DataStoreConfig {
 
 /// This component is used for filtering available data for Aleph Network.
 /// It needs to be started by calling the run method.
-pub struct DataStore<B, C, BE, RB, Message, N>
+pub struct DataStore<B, C, BE, RB, Message, R>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -106,7 +105,7 @@ where
     RB: RequestBlocks<B> + 'static,
     Message:
         AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
-    N: DataNetwork<Message>,
+    R: ReceiverComponent<Message>,
 {
     next_message_id: MessageId,
     missing_blocks: HashMap<AlephDataFor<B>, MissingBlockInfo>,
@@ -117,12 +116,11 @@ where
     block_requester: RB,
     config: DataStoreConfig,
     _phantom: PhantomData<BE>,
-    network: N,
+    messages_from_network: Arc<tokio::sync::Mutex<R>>,
     messages_for_network: UnboundedSender<Message>,
-    messages_from_network: UnboundedReceiver<(Message, Recipient)>,
 }
 
-impl<B, C, BE, RB, Message, N> DataStore<B, C, BE, RB, Message, N>
+impl<B, C, BE, RB, Message, R> DataStore<B, C, BE, RB, Message, R>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -130,17 +128,18 @@ where
     RB: RequestBlocks<B> + 'static,
     Message:
         AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
-    N: DataNetwork<Message>,
+    R: ReceiverComponent<Message>,
 {
     /// Returns a struct to be run and a network that outputs messages filtered as appropriate
-    pub(crate) fn new(
+    pub(crate) fn new<N: ComponentNetwork<Message, R=R>>(
         client: Arc<C>,
         block_requester: RB,
         config: DataStoreConfig,
-        network: N,
+        component_network: N,
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_network, messages_from_data_store) = mpsc::unbounded();
-        let (messages_to_data_store, messages_from_network) = mpsc::unbounded();
+        let messages_to_data_store = component_network.sender().clone();
+        let messages_from_network = component_network.receiver();
         (
             DataStore {
                 next_message_id: 0,
@@ -152,9 +151,8 @@ where
                 available_blocks: LruCache::new(config.available_blocks_cache_capacity),
                 config,
                 _phantom: PhantomData,
-                network,
-                messages_for_network,
                 messages_from_network,
+                messages_for_network,
             },
             SimpleNetwork::new(messages_from_data_store, messages_to_data_store),
         )
@@ -178,14 +176,12 @@ where
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
-                Some(message) = &mut self.network.next() => {
+                Some(message) = async {
+                    let mut lock = self.messages_from_network.lock().await;
+                    lock.next().await
+                } => {
                     trace!(target: "afa", "Received message at Data Store {:?}", message);
                     self.add_message(message);
-                }
-                Some((message, recipient)) = &mut self.messages_from_network.next() => {
-                    if let Err(e) = self.network.send(message, recipient) {
-                        warn!(target: "afa", "Failed to send message within DataStore: {:?}", e);
-                    }
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
