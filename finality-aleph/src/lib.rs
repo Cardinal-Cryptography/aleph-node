@@ -54,10 +54,10 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
 
     config.set_config = match protocol {
         Protocol::Validator => sc_network::config::SetConfig {
-            in_peers: 25,
+            in_peers: 0,
             out_peers: 0,
             reserved_nodes: Vec::new(),
-            non_reserved_mode: sc_network::config::NonReservedPeerMode::Accept,
+            non_reserved_mode: sc_network::config::NonReservedPeerMode::Deny,
         },
         Protocol::Generic => sc_network::config::SetConfig::default(),
     };
