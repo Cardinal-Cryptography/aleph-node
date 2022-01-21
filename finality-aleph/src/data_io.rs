@@ -117,7 +117,7 @@ where
     config: DataStoreConfig,
     _phantom: PhantomData<BE>,
     messages_from_network: Arc<tokio::sync::Mutex<R>>,
-    messages_for_network: UnboundedSender<Message>,
+    messages_for_aleph: UnboundedSender<Message>,
 }
 
 impl<B, C, BE, RB, Message, R> DataStore<B, C, BE, RB, Message, R>
@@ -137,8 +137,8 @@ where
         config: DataStoreConfig,
         component_network: N,
     ) -> (Self, impl DataNetwork<Message>) {
-        let (messages_for_network, messages_from_data_store) = mpsc::unbounded();
-        let messages_to_data_store = component_network.sender().clone();
+        let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
+        let messages_to_network = component_network.sender().clone();
         let messages_from_network = component_network.receiver();
         (
             DataStore {
@@ -152,18 +152,17 @@ where
                 config,
                 _phantom: PhantomData,
                 messages_from_network,
-                messages_for_network,
+                messages_for_aleph,
             },
-            SimpleNetwork::new(messages_from_data_store, messages_to_data_store),
+            SimpleNetwork::new(messages_from_data_store, messages_to_network),
         )
     }
 
     /// This method is used for running DataStore. It polls on 5 things:
     /// 1. Receives AlephNetworkMessage and either sends it further if message is available or saves it for later
-    /// 2. Receives data from original network and sends it to filtered network
-    /// 3. Receives newly imported blocks and sends all messages that are available because of this block further
-    /// 4. Periodically checks for saved massages that are available and sends them further
-    /// 5. Waits for exit signal
+    /// 2. Receives newly imported blocks and sends all messages that are available because of this block further
+    /// 3. Periodically checks for saved massages that are available and sends them further
+    /// 4. Waits for exit signal
     /// This component on each new imported block stores it in cache. There is no guarantee, that all blocks will
     /// be received from notification stream, so there is a periodic check for all needed blocks.
     /// It keeps `config.available_blocks_cache_capacity` blocks in cache, remembers messages with
@@ -292,7 +291,7 @@ where
 
         if requirements.is_empty() {
             trace!(target: "afa", "Sending message from DataStore {:?}", message);
-            if let Err(e) = self.messages_for_network.unbounded_send(message) {
+            if let Err(e) = self.messages_for_aleph.unbounded_send(message) {
                 debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
             }
         } else {
@@ -316,7 +315,7 @@ where
                         .pending_messages
                         .remove(message_id)
                         .expect("there is a pending message");
-                    if let Err(e) = self.messages_for_network.unbounded_send(message) {
+                    if let Err(e) = self.messages_for_aleph.unbounded_send(message) {
                         debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
                     }
                     self.message_requirements.remove(message_id);
