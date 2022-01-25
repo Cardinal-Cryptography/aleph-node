@@ -107,7 +107,7 @@ impl Handler {
         self.authority_verifier.node_count()
     }
 
-    fn session_id(&self) -> SessionId {
+    pub fn session_id(&self) -> SessionId {
         self.session_info.session_id()
     }
 
