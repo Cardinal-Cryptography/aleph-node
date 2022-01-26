@@ -91,8 +91,12 @@ impl Discovery {
     }
 
     fn should_broadcast(missing_authorities_num: usize, total_node_count: NodeCount) -> bool {
-        // If we are not sure we know of at least one honest node.
-        (missing_authorities_num + 1) * 3 >= 2 * total_node_count.0
+        // We can avoid broadcasting only when we are connected to more than 2/3 of all nodes.
+        // Then all clusters of nonbroadcasting nodes will have at least one honest node in their
+        // intersection, so we will eventually learn about all nodes by asking this node about
+        // missing nodes. Knowing more than 2/3 nodes is the same as not knowing at least 1/3
+        // nodes, the inverse of that is then:
+        missing_authorities_num * 3 > total_node_count.0
     }
 
     /// Returns messages that should be sent as part of authority discovery at this moment.
@@ -338,50 +342,20 @@ mod tests {
 
     #[tokio::test]
     async fn broadcasts_when_clueless() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let handler = &mut handlers[0];
-        let mut messages = discovery.discover_authorities(handler);
-        assert_eq!(messages.len(), 1);
-        let message = messages.pop().unwrap();
-        assert_eq!(
-            message,
-            (
-                DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap()),
-                DataCommand::Broadcast
-            )
-        );
-    }
-
-    #[tokio::test]
-    async fn broadcasts_when_clueless_modulo_3() {
-        let (mut discovery, mut handlers, _) = build_number(3).await;
-        let handler = &mut handlers[0];
-        let mut messages = discovery.discover_authorities(handler);
-        assert_eq!(messages.len(), 1);
-        let message = messages.pop().unwrap();
-        assert_eq!(
-            message,
-            (
-                DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap()),
-                DataCommand::Broadcast
-            )
-        );
-    }
-
-    #[tokio::test]
-    async fn broadcasts_when_clueless_just_2() {
-        let (mut discovery, mut handlers, _) = build_number(2).await;
-        let handler = &mut handlers[0];
-        let mut messages = discovery.discover_authorities(handler);
-        assert_eq!(messages.len(), 1);
-        let message = messages.pop().unwrap();
-        assert_eq!(
-            message,
-            (
-                DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap()),
-                DataCommand::Broadcast
-            )
-        );
+        for num_nodes in 2..NUM_NODES {
+            let (mut discovery, mut handlers, _) = build_number(num_nodes).await;
+            let handler = &mut handlers[0];
+            let mut messages = discovery.discover_authorities(handler);
+            assert_eq!(messages.len(), 1);
+            let message = messages.pop().unwrap();
+            assert_eq!(
+                message,
+                (
+                    DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap()),
+                    DataCommand::Broadcast
+                )
+            );
+        }
     }
 
     #[tokio::test]
