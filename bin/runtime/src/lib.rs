@@ -7,8 +7,9 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use pallet_contracts::weights::WeightInfo;
+use pallet_contracts::DefaultAddressGenerator;
 use pallet_contracts_primitives::{
-    ContractExecResult, ContractInstantiateResult, GetStorageResult,
+    CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -40,7 +41,8 @@ pub use frame_support::{
     sp_runtime::curve::PiecewiseLinear,
     traits::{
         Currency, EstimateNextNewSession, Everything, Imbalance, KeyOwnerProofSystem,
-        LockIdentifier, Nothing, OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
+        LockIdentifier, Nothing, OnUnbalanced, PreimageProvider, Randomness, U128CurrencyToVote,
+        ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -118,6 +120,9 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
+    /// Version of the state implementation used by this runtime.
+    /// Use of an incorrect version is consensus breaking.
+    state_version: 1,
 };
 
 /// This determines the average expected block time that we are targetting.
@@ -222,6 +227,8 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    /// The maximum number of consumers allowed on a single account.
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -331,6 +338,7 @@ impl pallet_transaction_payment::Config for Runtime {
 parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
+    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -343,6 +351,8 @@ impl pallet_scheduler::Config for Runtime {
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = ();
+    type NoPreimagePostponement = NoPreimagePostponement;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -470,6 +480,8 @@ pub const TREASURY_BURN: u32 = 0;
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+// TODO NOTE: I pulled this value from the air; it needs to be researched and understood
+pub const TREASURY_MAXIMUM_BOND: Balance = 10000 * CENTS;
 // Every 4h we implement accepted proposals.
 pub const TREASURY_SPEND_PERIOD: BlockNumber = 4 * HOURS;
 // We allow at most 20 approvals in the queue at once.
@@ -479,15 +491,17 @@ parameter_types! {
     pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
     pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
     pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
+    pub const ProposalBondMaximum: Balance = TREASURY_MAXIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
     pub const SpendPeriod: BlockNumber = TREASURY_SPEND_PERIOD;
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
 }
 
 pub struct TreasuryGovernance;
+
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        vec![pallet_sudo::Pallet::<Runtime>::key()]
+        vec![pallet_sudo::Pallet::<Runtime>::key().expect("No sudo key found")]
     }
 }
 
@@ -502,6 +516,7 @@ impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ProposalBondMaximum;
     type RejectOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
     type SpendFunds = ();
     type SpendPeriod = SpendPeriod;
@@ -516,12 +531,11 @@ impl pallet_utility::Config for Runtime {
 }
 
 parameter_types! {
-    pub TombstoneDeposit: Balance = deposit(
-        1,
-        <pallet_contracts::Pallet<Runtime>>::contract_info_size(),
-    );
-    pub DepositPerContract: Balance = TombstoneDeposit::get();
-    pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO * BlockWeights::get().max_block;
+    pub const DepositPerItem: Balance = deposit(1, 0);
+    pub const DepositPerByte: Balance = deposit(0, 1);
+    // The lazy deletion runs inside on_initialize.
+    pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+        BlockWeights::get().max_block;
     // The weight needed for decoding the queue should be less or equal than a fifth
     // of the overall weight dedicated to the lazy deletion.
     pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
@@ -544,6 +558,8 @@ impl pallet_contracts::Config for Runtime {
     /// change because that would break already deployed contracts. The `Call` structure itself
     /// is not allowed to change the indices of existing pallets, too.
     type CallFilter = Nothing;
+    type DepositPerItem = DepositPerItem;
+    type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     type ChainExtension = ();
@@ -551,7 +567,7 @@ impl pallet_contracts::Config for Runtime {
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
-    type ContractDeposit = DepositPerContract;
+    type AddressGenerator = DefaultAddressGenerator;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -575,7 +591,7 @@ construct_runtime!(
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
         Utility: pallet_utility::{Pallet, Call, Storage, Event},
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>}
+        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -609,7 +625,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+    AllPalletsWithSystem,
 >;
 
 impl_runtime_apis! {
@@ -679,6 +695,7 @@ impl_runtime_apis! {
             Executive::offchain_worker(header)
         }
     }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             opaque::SessionKeys::generate(seed)
@@ -738,20 +755,32 @@ impl_runtime_apis! {
             dest: AccountId,
             value: Balance,
             gas_limit: u64,
+            storage_deposit_limit: Option<Balance>,
             input_data: Vec<u8>,
-        ) -> ContractExecResult {
-            Contracts::bare_call(origin, dest, value, gas_limit, input_data, CONTRACTS_DEBUG_OUTPUT)
+        ) -> ContractExecResult<Balance> {
+            Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, CONTRACTS_DEBUG_OUTPUT)
         }
 
         fn instantiate(
             origin: AccountId,
-            endowment: Balance,
+            value: Balance,
             gas_limit: u64,
+            storage_deposit_limit: Option<Balance>,
             code: pallet_contracts_primitives::Code<Hash>,
             data: Vec<u8>,
             salt: Vec<u8>,
-        ) -> ContractInstantiateResult<AccountId> {
-            Contracts::bare_instantiate(origin, endowment, gas_limit, code, data, salt, CONTRACTS_DEBUG_OUTPUT)
+        ) -> ContractInstantiateResult<AccountId, Balance>
+        {
+            Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, CONTRACTS_DEBUG_OUTPUT)
+        }
+
+        fn upload_code(
+            origin: AccountId,
+            code: Vec<u8>,
+            storage_deposit_limit: Option<Balance>,
+        ) -> CodeUploadResult<Hash, Balance>
+        {
+            Contracts::bare_upload_code(origin, code, storage_deposit_limit)
         }
 
         fn get_storage(
