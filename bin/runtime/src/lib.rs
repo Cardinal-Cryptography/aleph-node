@@ -480,7 +480,7 @@ pub const TREASURY_BURN: u32 = 0;
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
-// NOTE: I pulled this value from the air
+// TODO NOTE: I pulled this value from the air; it needs to be researched and understood
 pub const TREASURY_MAXIMUM_BOND: Balance = 10000 * CENTS;
 // Every 4h we implement accepted proposals.
 pub const TREASURY_SPEND_PERIOD: BlockNumber = 4 * HOURS;

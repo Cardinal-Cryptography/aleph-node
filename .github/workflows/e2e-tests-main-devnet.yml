@@ -7,12 +7,14 @@ on:
       - '.github/workflows/**'
     branches:
       - main
+      - smartnet
   push:
     paths-ignore:
       - '*.md'
       - '.github/workflows/**'
     branches:
       - main
+      - smartnet
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
