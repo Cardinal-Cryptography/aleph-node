@@ -250,6 +250,7 @@ pub fn config(
         None,
         // Protocol ID
         None,
+        None,
         // Properties
         Some(system_properties(token_symbol)),
         // Extensions
@@ -305,7 +306,7 @@ fn genesis(
         },
         sudo: SudoConfig {
             // Assign network admin rights.
-            key: sudo_account,
+            key: Some(sudo_account),
         },
         aleph: AlephConfig {
             authorities: vec![],

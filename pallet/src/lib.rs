@@ -54,7 +54,7 @@ pub mod pallet {
         type AuthorityId: Member
             + Parameter
             + RuntimeAppPublic
-            + Default
+            // + Default
             + MaybeSerializeDeserialize;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
@@ -68,6 +68,7 @@ pub mod pallet {
     pub struct AlephSessionManager<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::pallet]
+    #[pallet::without_storage_info]
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
