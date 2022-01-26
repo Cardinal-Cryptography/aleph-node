@@ -92,7 +92,7 @@ impl Discovery {
 
     fn should_broadcast(missing_authorities_num: usize, total_node_count: NodeCount) -> bool {
         // If we are not sure we know of at least one honest node.
-        missing_authorities_num * 3 > 2 * total_node_count.0
+        missing_authorities_num * 3 >= 2 * total_node_count.0
     }
 
     /// Returns messages that should be sent as part of authority discovery at this moment.
