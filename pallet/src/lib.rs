@@ -51,11 +51,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_session::Config {
-        type AuthorityId: Member
-            + Parameter
-            + RuntimeAppPublic
-            // + Default
-            + MaybeSerializeDeserialize;
+        type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
 

@@ -7,6 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use pallet_contracts::weights::WeightInfo;
+use pallet_contracts::DefaultAddressGenerator;
 use pallet_contracts_primitives::{
     CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
 };
@@ -353,22 +354,6 @@ impl pallet_scheduler::Config for Runtime {
     type NoPreimagePostponement = NoPreimagePostponement;
 }
 
-// parameter_types! {
-//     pub const PreimageMaxSize: u32 = 4096 * 1024;
-//     pub const PreimageBaseDeposit: Balance = deposit(2, 64);
-//     pub const PreimageByteDeposit: Balance = deposit(0, 1);
-// }
-
-// impl pallet_preimage::Config for Runtime {
-//     type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
-//     type Event = Event;
-//     type Currency = Balances;
-//     type ManagerOrigin = EnsureRoot<AccountId>;
-//     type MaxSize = PreimageMaxSize;
-//     type BaseDeposit = PreimageBaseDeposit;
-//     type ByteDeposit = PreimageByteDeposit;
-// }
-
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
@@ -581,7 +566,7 @@ impl pallet_contracts::Config for Runtime {
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
-    type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
+    type AddressGenerator = DefaultAddressGenerator;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -606,7 +591,6 @@ construct_runtime!(
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
         Utility: pallet_utility::{Pallet, Call, Storage, Event},
         Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>},
-        // Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 10,
     }
 );
 
