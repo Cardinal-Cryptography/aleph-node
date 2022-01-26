@@ -31,10 +31,12 @@ use crate::{JustificationNotification, SessionPeriod};
 fn correctly_decodes_v1() {
     let mut signature_set: SignatureSet<SignatureV1> = SignatureSet::with_size(7.into());
     for i in 0..7 {
+        let data = [0u8; 64];
+        let sig = sp_core::ed25519::Signature(data);
         let id = i.into();
         let signature_v1 = SignatureV1 {
             _id: id,
-            sgn: Default::default(),
+            sgn: sig.into(),
         };
         signature_set = signature_set.add_signature(&signature_v1, id);
     }
@@ -51,7 +53,9 @@ fn correctly_decodes_v1() {
 fn correctly_decodes_v2() {
     let mut signature_set: SignatureSet<Signature> = SignatureSet::with_size(7.into());
     for i in 0..7 {
-        let authority_signature: AuthoritySignature = Default::default();
+        let data = [0u8; 64];
+        let sig = sp_core::ed25519::Signature(data);
+        let authority_signature: AuthoritySignature = sig.into();
         signature_set = signature_set.add_signature(&authority_signature.into(), i.into());
     }
 
