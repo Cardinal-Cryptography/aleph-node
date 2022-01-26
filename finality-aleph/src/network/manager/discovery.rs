@@ -293,8 +293,8 @@ mod tests {
             .collect()
     }
 
-    async fn build() -> (Discovery, Vec<SessionHandler>, SessionHandler) {
-        let crypto_basics = crypto_basics(NUM_NODES.into()).await;
+    async fn build_number(num_nodes: u8) -> (Discovery, Vec<SessionHandler>, SessionHandler) {
+        let crypto_basics = crypto_basics(num_nodes.into()).await;
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
             handlers.push(
@@ -332,9 +332,29 @@ mod tests {
         )
     }
 
+    async fn build() -> (Discovery, Vec<SessionHandler>, SessionHandler) {
+        build_number(NUM_NODES).await
+    }
+
     #[tokio::test]
     async fn broadcasts_when_clueless() {
         let (mut discovery, mut handlers, _) = build().await;
+        let handler = &mut handlers[0];
+        let mut messages = discovery.discover_authorities(handler);
+        assert_eq!(messages.len(), 1);
+        let message = messages.pop().unwrap();
+        assert_eq!(
+            message,
+            (
+                DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap()),
+                DataCommand::Broadcast
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn broadcasts_when_clueless_modulo_3() {
+        let (mut discovery, mut handlers, _) = build_number(3).await;
         let handler = &mut handlers[0];
         let mut messages = discovery.discover_authorities(handler);
         assert_eq!(messages.len(), 1);
