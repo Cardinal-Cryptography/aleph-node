@@ -121,7 +121,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
     /// Version of the state implementation used by this runtime.
-    /// Use of an incorrect version is consensus breaking.    
+    /// Use of an incorrect version is consensus breaking.
     state_version: 1,
 };
 
@@ -227,6 +227,7 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    /// The maximum number of consumers allowed on a single account.
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
