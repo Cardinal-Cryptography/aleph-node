@@ -276,51 +276,51 @@ jobs:
       artifact-prefix: 'old-'
 
 
-  test-runtime-update:
-    name: Test runtime update
-    runs-on: ubuntu-latest
-    needs: [build-old-node, build-new-node]
-    env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v2
-        with:
-          ref: 'main' # build send-runtime using code on main
+  # test-runtime-update:
+  #   name: Test runtime update
+  #   runs-on: ubuntu-latest
+  #   needs: [build-old-node, build-new-node]
+  #   env:
+  #     RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v2
+  #       with:
+  #         ref: 'main' # build send-runtime using code on main
 
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-          override: true
+  #     - name: Install rust toolchain
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+  #         override: true
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          cargo-targets: local-tests/send-runtime/target/
+  #     - name: Restore cache
+  #       uses: ./.github/actions/restore-cache
+  #       with:
+  #         cargo-targets: local-tests/send-runtime/target/
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v2
-        with:
-          path: local-tests/
+  #     - name: Download all artifacts
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         path: local-tests/
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
+  #     - name: Setup Python
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: '3.8'
 
-      - name: Test update
-        timeout-minutes: 21
-        env:
-          # Relative to local-tests/ directory
-          OLD_BINARY: old-aleph-node/aleph-node
-          NEW_BINARY: aleph-node/aleph-node
-          NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
-        run: ./.github/scripts/test_update.sh
+  #     - name: Test update
+  #       timeout-minutes: 21
+  #       env:
+  #         # Relative to local-tests/ directory
+  #         OLD_BINARY: old-aleph-node/aleph-node
+  #         NEW_BINARY: aleph-node/aleph-node
+  #         NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
+  #       run: ./.github/scripts/test_update.sh
 
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
+  #     - name: Stop cache
+  #       uses: ./.github/actions/post-cache
 
 
   remove-old-artifacts:
