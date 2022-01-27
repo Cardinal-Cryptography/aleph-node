@@ -7,7 +7,7 @@ use crate::{
         },
         ConnectionCommand, Data, DataCommand, NetworkIdentity, PeerId, Protocol,
     },
-    NodeIndex, SessionId,
+    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
 use aleph_bft::Recipient;
 use futures::{
@@ -20,9 +20,6 @@ use std::{
     time::Duration,
 };
 use tokio::time::interval;
-
-const DISCOVERY_COOLDOWN_SECONDS: u64 = 60;
-const MAINTENANCE_PERIOD_SECONDS: u64 = 120;
 
 /// Commands for manipulating sessions, stopping them and starting both validator and non-validator
 /// sessions.
@@ -52,6 +49,32 @@ struct PreSession {
     pen: AuthorityPen,
 }
 
+/// Configuration for the session manager service. Controls how often the maintenance and
+/// rebroadcasts are triggerred.
+pub struct Config {
+    discovery_cooldown: Duration,
+    maintenance_period: Duration,
+}
+
+impl Config {
+    fn new(discovery_cooldown: Duration, maintenance_period: Duration) -> Self {
+        Config {
+            discovery_cooldown,
+            maintenance_period,
+        }
+    }
+
+    /// Returns a configuration that triggers maintenance about 5 times per session.
+    pub fn with_session_period(
+        session_period: &SessionPeriod,
+        millisecs_per_block: &MillisecsPerBlock,
+    ) -> Self {
+        let discovery_cooldown =
+            Duration::from_millis(millisecs_per_block.0 * session_period.0 as u64 / 5);
+        Config::new(discovery_cooldown, discovery_cooldown / 2)
+    }
+}
+
 /// The connection manager service. It handles the abstraction over the network we build to support
 /// separate sessions. This includes:
 /// 1. Starting and ending specific sessions on user demand.
@@ -66,16 +89,24 @@ pub struct Service<NI: NetworkIdentity, D: Data> {
     connections: Connections,
     sessions: HashMap<SessionId, Session<D>>,
     to_retry: Vec<(PreSession, oneshot::Sender<mpsc::UnboundedReceiver<D>>)>,
+    discovery_cooldown: Duration,
+    maintenance_period: Duration,
 }
 
 impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
     /// Create a new connection manager service.
-    pub fn new(network_identity: NI) -> Self {
+    pub fn new(network_identity: NI, config: Config) -> Self {
+        let Config {
+            discovery_cooldown,
+            maintenance_period,
+        } = config;
         Service {
             network_identity,
             connections: Connections::new(),
             sessions: HashMap::new(),
             to_retry: Vec::new(),
+            discovery_cooldown,
+            maintenance_period,
         }
     }
 
@@ -156,7 +187,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         } = pre_session;
         let handler =
             SessionHandler::new(Some((node_id, pen)), verifier, session_id, addresses).await?;
-        let discovery = Discovery::new(Duration::from_secs(DISCOVERY_COOLDOWN_SECONDS));
+        let discovery = Discovery::new(self.discovery_cooldown);
         let (data_for_user, data_from_network) = mpsc::unbounded();
         let data_for_user = Some(data_for_user);
         self.sessions.insert(
@@ -252,7 +283,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         addresses: Vec<Multiaddr>,
     ) -> Result<(), SessionHandlerError> {
         let handler = SessionHandler::new(None, verifier, session_id, addresses).await?;
-        let discovery = Discovery::new(Duration::from_secs(DISCOVERY_COOLDOWN_SECONDS));
+        let discovery = Discovery::new(self.discovery_cooldown);
         self.sessions.insert(
             session_id,
             Session {
@@ -516,7 +547,7 @@ impl<D: Data> IO<D> {
         mut self,
         mut service: Service<NI, D>,
     ) -> Result<(), Error> {
-        let mut maintenance = interval(Duration::from_secs(MAINTENANCE_PERIOD_SECONDS));
+        let mut maintenance = interval(service.maintenance_period);
         loop {
             trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {
@@ -569,7 +600,7 @@ impl<D: Data> IO<D> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, Service, SessionCommand};
+    use super::{Config, Error, Service, SessionCommand};
     use crate::{
         network::{
             manager::{
@@ -582,11 +613,17 @@ mod tests {
     };
     use aleph_bft::Recipient;
     use futures::{channel::oneshot, StreamExt};
+    use std::time::Duration;
 
     const NUM_NODES: usize = 7;
+    const MAINTENANCE_PERIOD: Duration = Duration::from_secs(120);
+    const DISCOVERY_PERIOD: Duration = Duration::from_secs(60);
 
     fn build() -> Service<MockNetworkIdentity, i32> {
-        Service::new(MockNetworkIdentity::new())
+        Service::new(
+            MockNetworkIdentity::new(),
+            Config::new(MAINTENANCE_PERIOD, DISCOVERY_PERIOD),
+        )
     }
 
     #[tokio::test]

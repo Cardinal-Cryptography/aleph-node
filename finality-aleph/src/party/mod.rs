@@ -11,8 +11,9 @@ use crate::{
     },
     last_block_of_session,
     network::{
-        split, AlephNetworkData, ConnectionIO, ConnectionManager, RequestBlocks, RmcNetworkData,
-        Service as NetworkService, SessionManager, SessionNetwork, Split, IO as NetworkIO,
+        split, AlephNetworkData, ConnectionIO, ConnectionManager, ConnectionManagerConfig,
+        RequestBlocks, RmcNetworkData, Service as NetworkService, SessionManager, SessionNetwork,
+        Split, IO as NetworkIO,
     },
     session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
     SessionMap, SessionPeriod, UnitCreationDelay,
@@ -189,7 +190,10 @@ where
         commands_from_manager,
         messages_from_network,
     );
-    let connection_manager = ConnectionManager::new(network.clone());
+    let connection_manager = ConnectionManager::new(
+        network.clone(),
+        ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
+    );
     let session_manager = SessionManager::new(commands_for_service, messages_for_service);
     let network = NetworkService::new(
         network.clone(),
