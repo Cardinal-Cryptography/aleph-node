@@ -22,14 +22,14 @@ use manager::SessionCommand;
 
 pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
 pub use component::SimpleNetwork;
+pub use component::{
+    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
+};
 pub use manager::{ConnectionIO, ConnectionManager};
 pub use rmc::NetworkData as RmcNetworkData;
 pub use service::{Service, IO};
 pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
 pub use split::{split, Split};
-pub use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -138,6 +138,9 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
 
     /// Request the given block -- this is supposed to be used only for "old forks".
     fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
+
+    /// Clear all pending justification requests.
+    fn clear_justification_requests(&self);
 }
 
 /// What do do with a specific piece of data.

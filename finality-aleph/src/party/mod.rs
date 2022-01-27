@@ -5,9 +5,8 @@ use crate::{
     finalization::{AlephFinalizer, BlockFinalizer},
     first_block_of_session,
     justification::{
-        AlephJustification, JustificationHandler, JustificationHandlerConfig,
-        JustificationNotification, JustificationRequestDelay, SessionInfo, SessionInfoProvider,
-        Verifier,
+        AlephJustification, JustificationHandler, JustificationNotification,
+        JustificationRequestDelay, SessionInfo, SessionInfoProvider, Verifier,
     },
     last_block_of_session,
     network::{
@@ -57,6 +56,11 @@ use authority::{
 };
 
 type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
+
+/// How long should we wait when the session verifier is not yet available.
+const VERIFIER_TIMEOUT_MILISECONDS: u64 = 500;
+/// How long should we wait for any notification.
+const NOTIFICATION_TIMEOUT_MILISECONDS: u64 = 1000;
 
 pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
     pub config: crate::AlephConfig<B, H, C, SC>,
@@ -156,20 +160,18 @@ where
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
     let block_requester = network.clone();
 
+    let verifier_timeout = Duration::from_millis(VERIFIER_TIMEOUT_MILISECONDS);
+    let notification_timeout = Duration::from_millis(NOTIFICATION_TIMEOUT_MILISECONDS);
+
     let handler = JustificationHandler::new(
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
         AlephFinalizer::new(client.clone()),
-        JustificationHandlerConfig {
-            justification_request_delay: JustificationRequestDelayImpl::new(
-                &session_period,
-                &millisecs_per_block,
-            ),
-            metrics: metrics.clone(),
-            verifier_timeout: Duration::from_millis(500),
-            notification_timeout: Duration::from_millis(1000),
-        },
+        JustificationRequestDelayImpl::new(&session_period, &millisecs_per_block),
+        metrics.clone(),
+        verifier_timeout,
+        notification_timeout,
     );
 
     let authority_justification_tx =
