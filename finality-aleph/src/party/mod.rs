@@ -296,7 +296,6 @@ where
 }
 
 const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
-const SESSION_RESTART_COOLDOWN_MS: u64 = 500;
 
 fn get_authorities_for_session<B, C>(
     runtime_api: sp_api::ApiRef<C::Api>,
@@ -578,23 +577,22 @@ where
             }
             tokio::select! {
                 _ = Delay::new(Duration::from_millis(SESSION_STATUS_CHECK_PERIOD_MS)) => (),
-                Some(node_id) = async {
+                Some(_) = async {
                     match maybe_authority_task.as_mut() {
                         Some(task) => Some(task.stopped().await),
                         None => None,
                     } } => {
-                    warn!(target: "afa", "Authority task ended prematurely, restarting.");
-                    Delay::new(Duration::from_millis(SESSION_RESTART_COOLDOWN_MS)).await;
-                    maybe_authority_task = Some(self.spawn_authority_task(session_id, node_id, authorities.clone()).await);
+                    warn!(target: "afa", "Authority task ended prematurely, giving up for this session.");
+                    maybe_authority_task = None;
                 },
             }
         }
         if let Some(task) = maybe_authority_task {
             debug!(target: "afa", "Stopping the authority task.");
             task.stop().await;
-            if let Err(e) = self.session_manager.stop_session(session_id) {
-                warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
-            }
+        }
+        if let Err(e) = self.session_manager.stop_session(session_id) {
+            warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
         }
     }
 
