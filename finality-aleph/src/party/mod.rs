@@ -435,6 +435,7 @@ where
         let data_network = self
             .session_manager
             .start_validator_session(session_id, authority_verifier, node_id, authority_pen)
+            .await
             .expect("Failed to start validator session!");
 
         let (exit, exit_rx) = futures::channel::oneshot::channel();
@@ -542,12 +543,16 @@ where
                         .await
                         .expect("The keys should sign successfully");
 
-                        if let Err(e) = self.session_manager.start_validator_session(
-                            next_session_id,
-                            authority_verifier,
-                            node_id,
-                            authority_pen,
-                        ) {
+                        if let Err(e) = self
+                            .session_manager
+                            .start_validator_session(
+                                next_session_id,
+                                authority_verifier,
+                                node_id,
+                                authority_pen,
+                            )
+                            .await
+                        {
                             warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
                         }
                     }

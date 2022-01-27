@@ -10,7 +10,10 @@ use crate::{
     NodeIndex, SessionId,
 };
 use aleph_bft::Recipient;
-use futures::{channel::mpsc, StreamExt};
+use futures::{
+    channel::{mpsc, oneshot},
+    StreamExt,
+};
 use log::{debug, trace, warn};
 use std::{
     collections::{HashMap, HashSet},
@@ -29,7 +32,7 @@ pub enum SessionCommand<D: Data> {
         AuthorityVerifier,
         NodeIndex,
         AuthorityPen,
-        mpsc::UnboundedSender<D>,
+        oneshot::Sender<mpsc::UnboundedReceiver<D>>,
     ),
     StartNonvalidator(SessionId, AuthorityVerifier),
     Stop(SessionId),
@@ -39,6 +42,14 @@ struct Session<D: Data> {
     handler: SessionHandler,
     discovery: Discovery,
     data_for_user: Option<mpsc::UnboundedSender<D>>,
+}
+
+#[derive(Clone)]
+struct PreSession {
+    session_id: SessionId,
+    verifier: AuthorityVerifier,
+    node_id: NodeIndex,
+    pen: AuthorityPen,
 }
 
 /// The connection manager service. It handles the abstraction over the network we build to support
@@ -54,6 +65,7 @@ pub struct Service<NI: NetworkIdentity, D: Data> {
     network_identity: NI,
     connections: Connections,
     sessions: HashMap<SessionId, Session<D>>,
+    to_retry: Vec<(PreSession, oneshot::Sender<mpsc::UnboundedReceiver<D>>)>,
 }
 
 impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
@@ -63,6 +75,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             network_identity,
             connections: Connections::new(),
             sessions: HashMap::new(),
+            to_retry: Vec::new(),
         }
     }
 
@@ -75,6 +88,8 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
 
     fn finish_session(&mut self, session_id: SessionId) -> Option<ConnectionCommand> {
         self.sessions.remove(&session_id);
+        self.to_retry
+            .retain(|(pre_session, _)| pre_session.session_id != session_id);
         Self::delete_reserved(self.connections.remove_session(session_id))
     }
 
@@ -124,16 +139,25 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
 
     async fn start_validator_session(
         &mut self,
-        session_id: SessionId,
-        verifier: AuthorityVerifier,
-        node_id: NodeIndex,
-        pen: AuthorityPen,
-        data_for_user: mpsc::UnboundedSender<D>,
+        pre_session: PreSession,
         addresses: Vec<Multiaddr>,
-    ) -> Result<Vec<(NetworkData<D>, DataCommand)>, SessionHandlerError> {
+    ) -> Result<
+        (
+            Vec<(NetworkData<D>, DataCommand)>,
+            mpsc::UnboundedReceiver<D>,
+        ),
+        SessionHandlerError,
+    > {
+        let PreSession {
+            session_id,
+            verifier,
+            node_id,
+            pen,
+        } = pre_session;
         let handler =
             SessionHandler::new(Some((node_id, pen)), verifier, session_id, addresses).await?;
         let discovery = Discovery::new(Duration::from_secs(DISCOVERY_COOLDOWN_SECONDS));
+        let (data_for_user, data_from_network) = mpsc::unbounded();
         let data_for_user = Some(data_for_user);
         self.sessions.insert(
             session_id,
@@ -143,41 +167,35 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                 data_for_user,
             },
         );
-        Ok(self.discover_authorities(&session_id))
+        Ok((self.discover_authorities(&session_id), data_from_network))
     }
 
     async fn update_validator_session(
         &mut self,
-        session_id: SessionId,
-        verifier: AuthorityVerifier,
-        node_id: NodeIndex,
-        pen: AuthorityPen,
-        data_for_user: mpsc::UnboundedSender<D>,
+        pre_session: PreSession,
     ) -> Result<
         (
             Option<ConnectionCommand>,
             Vec<(NetworkData<D>, DataCommand)>,
+            mpsc::UnboundedReceiver<D>,
         ),
         SessionHandlerError,
     > {
         let addresses = self.addresses();
-        let session = match self.sessions.get_mut(&session_id) {
+        let session = match self.sessions.get_mut(&pre_session.session_id) {
             Some(session) => session,
             None => {
-                return Ok((
-                    None,
-                    self.start_validator_session(
-                        session_id,
-                        verifier,
-                        node_id,
-                        pen,
-                        data_for_user,
-                        addresses,
-                    )
-                    .await?,
-                ))
+                let (data, data_from_network) =
+                    self.start_validator_session(pre_session, addresses).await?;
+                return Ok((None, data, data_from_network));
             }
         };
+        let PreSession {
+            session_id,
+            verifier,
+            node_id,
+            pen,
+        } = pre_session;
         let peers_to_stay = session
             .handler
             .update(Some((node_id, pen)), verifier, addresses)
@@ -192,9 +210,39 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                 .cloned()
                 .collect(),
         );
+        let (data_for_user, data_from_network) = mpsc::unbounded();
         session.data_for_user = Some(data_for_user);
         self.connections.add_peers(session_id, peers_to_stay);
-        Ok((maybe_command, self.discover_authorities(&session_id)))
+        Ok((
+            maybe_command,
+            self.discover_authorities(&session_id),
+            data_from_network,
+        ))
+    }
+
+    async fn handle_validator_presession(
+        &mut self,
+        pre_session: PreSession,
+        result_for_user: oneshot::Sender<mpsc::UnboundedReceiver<D>>,
+    ) -> Result<
+        (
+            Option<ConnectionCommand>,
+            Vec<(NetworkData<D>, DataCommand)>,
+        ),
+        SessionHandlerError,
+    > {
+        match self.update_validator_session(pre_session.clone()).await {
+            Ok((maybe_command, data, data_from_network)) => {
+                if result_for_user.send(data_from_network).is_err() {
+                    warn!(target: "aleph-network", "Failed to send started session.")
+                }
+                Ok((maybe_command, data))
+            }
+            Err(e) => {
+                self.to_retry.push((pre_session, result_for_user));
+                Err(e)
+            }
+        }
     }
 
     async fn start_nonvalidator_session(
@@ -249,8 +297,14 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
     > {
         use SessionCommand::*;
         match command {
-            StartValidator(session_id, verifier, node_id, pen, data_for_user) => {
-                self.update_validator_session(session_id, verifier, node_id, pen, data_for_user)
+            StartValidator(session_id, verifier, node_id, pen, result_for_user) => {
+                let pre_session = PreSession {
+                    session_id,
+                    verifier,
+                    node_id,
+                    pen,
+                };
+                self.handle_validator_presession(pre_session, result_for_user)
                     .await
             }
             StartNonvalidator(session_id, verifier) => {
@@ -354,6 +408,26 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                 .map_err(|_| Error::UserSend),
             None => Err(Error::NoSession),
         }
+    }
+
+    /// Retries starting a validator session the user requested, but which failed to start
+    /// initially. Mostly useful when the network was not yet aware of its own address at time of
+    /// the request.
+    pub async fn retry_session_start(
+        &mut self,
+    ) -> Result<
+        (
+            Option<ConnectionCommand>,
+            Vec<(NetworkData<D>, DataCommand)>,
+        ),
+        SessionHandlerError,
+    > {
+        let (pre_session, result_for_user) = match self.to_retry.pop() {
+            Some(to_retry) => to_retry,
+            None => return Ok((None, Vec::new())),
+        };
+        self.handle_validator_presession(pre_session, result_for_user)
+            .await
     }
 }
 
@@ -480,6 +554,10 @@ impl<D: Data> IO<D> {
                 },
                 _ = maintenance.tick() => {
                     trace!(target: "aleph-network", "Manager starts maintenence");
+                    match service.retry_session_start().await {
+                        Ok(to_send) => self.send(to_send)?,
+                        Err(e) => warn!(target: "aleph-network", "Retry failed to update handler: {:?}", e),
+                    }
                     for to_send in service.discovery() {
                         self.send_data(to_send)?;
                     }
@@ -503,7 +581,7 @@ mod tests {
         SessionId,
     };
     use aleph_bft::Recipient;
-    use futures::channel::mpsc;
+    use futures::{channel::oneshot, StreamExt};
 
     const NUM_NODES: usize = 7;
 
@@ -534,14 +612,14 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _data_from_service) = mpsc::unbounded();
+        let (result_for_user, result_from_service) = oneshot::channel();
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
@@ -550,6 +628,7 @@ mod tests {
         assert!(data_commands
             .iter()
             .all(|(_, command)| command == &DataCommand::Broadcast));
+        let _data_from_network = result_from_service.await.unwrap();
         assert_eq!(service.send_session_data(&session_id, -43), Ok(()));
     }
 
@@ -559,14 +638,14 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _data_from_service) = mpsc::unbounded();
+        let (result_for_user, result_from_service) = oneshot::channel();
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
@@ -576,6 +655,8 @@ mod tests {
             .iter()
             .all(|(_, command)| command == &DataCommand::Broadcast));
         assert_eq!(service.send_session_data(&session_id, -43), Ok(()));
+        let mut data_from_network = result_from_service.await.unwrap();
+        assert_eq!(data_from_network.next().await, Some(-43));
         let (maybe_command, data_commands) = service
             .on_command(SessionCommand::Stop(session_id))
             .await
@@ -586,6 +667,7 @@ mod tests {
             service.send_session_data(&session_id, -43),
             Err(Error::NoSession)
         );
+        assert!(data_from_network.next().await.is_none());
     }
 
     #[tokio::test]
@@ -594,27 +676,27 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _) = mpsc::unbounded();
+        let (result_for_user, _result_from_service) = oneshot::channel();
         service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier.clone(),
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
         let mut other_service = build();
         let (node_id, pen) = validator_data[1].clone();
-        let (data_for_user, _) = mpsc::unbounded();
+        let (result_for_user, _result_from_service) = oneshot::channel();
         let (_, data_commands) = other_service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
@@ -651,27 +733,27 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (data_for_user, _) = mpsc::unbounded();
+        let (result_for_user, _result_from_service) = oneshot::channel();
         service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier.clone(),
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
         let mut other_service = build();
         let (node_id, pen) = validator_data[1].clone();
-        let (data_for_user, _) = mpsc::unbounded();
+        let (result_for_user, _result_from_service) = oneshot::channel();
         let (_, data_commands) = other_service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
                 node_id,
                 pen,
-                data_for_user,
+                result_for_user,
             ))
             .await
             .unwrap();
