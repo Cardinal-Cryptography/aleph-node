@@ -181,7 +181,7 @@ parameter_types! {
         .for_class(DispatchClass::Operational, |weights| {
             weights.max_total = Some(MAX_BLOCK_WEIGHT);
             // Operational transactions have some extra reserved space, so that they
-            // are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+            // are included even if block reached `MAX_BLOCK_WEIGHT`.
             weights.reserved = Some(
                 MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT
             );
