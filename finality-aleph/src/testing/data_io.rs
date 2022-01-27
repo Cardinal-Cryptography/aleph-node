@@ -203,12 +203,12 @@ async fn sends_messages_with_imported_blocks() {
 
     test_handler.send_data(blocks.clone());
 
-    if let Ok(Some(message)) = timeout(DEFAULT_TIMEOUT, network.next()).await {
-        assert_eq!(message.included_blocks(), blocks);
-    } else {
-        panic!("Did not receive message from Data Store");
-    }
-
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), blocks);
     test_handler.exit();
     data_store_handle.await.unwrap();
 }
@@ -225,11 +225,12 @@ async fn sends_messages_after_import() {
 
     test_handler.import_block(block, false).await;
 
-    if let Ok(Some(message)) = timeout(DEFAULT_TIMEOUT, network.next()).await {
-        assert_eq!(message.included_blocks(), vec![data]);
-    } else {
-        panic!("Did not receive message from Data Store");
-    }
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), vec![data]);
 
     test_handler.exit();
     data_store_handle.await.unwrap();
@@ -251,11 +252,12 @@ async fn sends_messages_with_number_lower_than_finalized() {
 
     test_handler.send_data(blocks.clone());
 
-    if let Ok(Some(message)) = timeout(DEFAULT_TIMEOUT, network.next()).await {
-        assert_eq!(message.included_blocks(), blocks);
-    } else {
-        panic!("Did not receive message from Data Store");
-    }
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), blocks);
 
     test_handler.exit();
     data_store_handle.await.unwrap();
@@ -274,11 +276,12 @@ async fn does_not_send_messages_without_import() {
 
     test_handler.send_data(blocks.clone());
 
-    if let Ok(Some(message)) = timeout(DEFAULT_TIMEOUT, network.next()).await {
-        assert_eq!(message.included_blocks(), blocks);
-    } else {
-        panic!("Did not receive message from Data Store");
-    }
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), blocks);
 
     test_handler.exit();
 
@@ -297,11 +300,10 @@ async fn sends_block_request_on_missing_block() {
 
     test_handler.send_data(vec![data]);
 
-    if let Ok(requested_block) = timeout(DEFAULT_TIMEOUT, test_handler.next_block_request()).await {
-        assert_eq!(requested_block, data);
-    } else {
-        panic!("Did not receive block request from Data Store");
-    }
+    let requested_block = timeout(DEFAULT_TIMEOUT, test_handler.next_block_request())
+        .await
+        .expect("Did not receive block request from Data Store");
+    assert_eq!(requested_block, data);
 
     test_handler.exit();
     data_store_handle.await.unwrap();
