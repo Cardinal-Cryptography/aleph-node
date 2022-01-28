@@ -554,7 +554,7 @@ impl pallet_utility::Config for Runtime {
 
 parameter_types! {
     pub const DepositPerItem: Balance = deposit(1, 0);
-    pub const DepositPerByte: Balance = 1_000; // 1 nano-aleph
+    pub const DepositPerByte: Balance = 1_000_000_000; // 1e-3 alepha (1 milli aleph)
     // The lazy deletion runs inside on_initialize.
     pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
         RuntimeBlockWeights::get().max_block;
