@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use lazy_static::lazy_static;
 use pallet_contracts::weights::WeightInfo;
 use pallet_contracts::DefaultAddressGenerator;
 use pallet_contracts_primitives::{
@@ -167,23 +168,28 @@ const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
+lazy_static! {
+    static ref NORMAL_WEIGHT: u64 = NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT;
+}
+
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
-    pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
+    pub RuntimeBlockWeights: BlockWeights =
+        BlockWeights::builder()
         .base_block(BlockExecutionWeight::get())
         .for_class(DispatchClass::all(), |weights| {
             weights.base_extrinsic = ExtrinsicBaseWeight::get();
         })
         .for_class(DispatchClass::Normal, |weights| {
-            weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
+            weights.max_total = Some(*NORMAL_WEIGHT);
         })
         .for_class(DispatchClass::Operational, |weights| {
             weights.max_total = Some(MAX_BLOCK_WEIGHT);
             // Operational transactions have some extra reserved space, so that they
             // are included even if block reached `MAX_BLOCK_WEIGHT`.
             weights.reserved = Some(
-                MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT
+                MAX_BLOCK_WEIGHT - *NORMAL_WEIGHT
             );
         })
         .avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
@@ -548,7 +554,7 @@ impl pallet_utility::Config for Runtime {
 
 parameter_types! {
     pub const DepositPerItem: Balance = deposit(1, 0);
-    pub const DepositPerByte: Balance = deposit(0, 1);
+    pub const DepositPerByte: Balance = 1000; // 1 nano-saleph
     // The lazy deletion runs inside on_initialize.
     pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
         RuntimeBlockWeights::get().max_block;
