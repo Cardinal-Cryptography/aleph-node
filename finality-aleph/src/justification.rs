@@ -45,19 +45,9 @@ pub(crate) struct SessionInfo<B: BlockT, V: Verifier<B>> {
 }
 
 /// Returns `SessionInfo` for the session regarding block with no. `number`.
+#[async_trait::async_trait]
 pub(crate) trait SessionInfoProvider<B: BlockT, V: Verifier<B>> {
-    fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, V>;
-}
-
-impl<F, B, V> SessionInfoProvider<B, V> for F
-where
-    B: BlockT,
-    V: Verifier<B>,
-    F: Fn(NumberFor<B>) -> SessionInfo<B, V>,
-{
-    fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, V> {
-        self(number)
-    }
+    async fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, V>;
 }
 
 /// A notification for sending justifications over the network.
@@ -200,7 +190,8 @@ where
                 current_session,
             } = self
                 .session_info_provider
-                .for_block_num(last_finalized_number + 1u32.into());
+                .for_block_num(last_finalized_number + 1u32.into())
+                .await;
             if verifier.is_none() {
                 debug!(target: "afa", "Verifier for session {:?} not yet available. Waiting {}ms and will try again ...", current_session, self.config.verifier_timeout.as_millis());
                 Delay::new(self.config.verifier_timeout).await;
