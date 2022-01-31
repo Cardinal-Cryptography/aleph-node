@@ -5,16 +5,17 @@ use crate::{
     finalization::{AlephFinalizer, BlockFinalizer},
     first_block_of_session,
     justification::{
-        AlephJustification, JustificationHandler, JustificationNotification,
-        JustificationRequestDelay, SessionInfo, SessionInfoProvider, Verifier,
+        AlephJustification, JustificationHandler, JustificationHandlerConfig,
+        JustificationNotification, JustificationRequestScheduler,
+        JustificationRequestSchedulerImpl, SessionInfo, SessionInfoProvider, Verifier,
     },
     last_block_of_session,
     network::{
         split, AlephNetworkData, ConnectionIO, ConnectionManager, RequestBlocks, RmcNetworkData,
         Service as NetworkService, SessionManager, SessionNetwork, Split, IO as NetworkIO,
     },
-    session_id_from_block_num, AuthorityId, Metrics, MillisecsPerBlock, NodeIndex, SessionId,
-    SessionMap, SessionPeriod, UnitCreationDelay,
+    session_id_from_block_num, AuthorityId, Metrics, NodeIndex, SessionId, SessionMap,
+    SessionPeriod, UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
 
@@ -36,12 +37,11 @@ use sp_runtime::{
     SaturatedConversion,
 };
 use std::{
-    cmp::min,
     collections::{HashMap, HashSet},
     default::Default,
     marker::PhantomData,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 mod task;
@@ -57,48 +57,8 @@ use authority::{
 
 type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
-/// How long should we wait when the session verifier is not yet available.
-const VERIFIER_TIMEOUT_MILISECONDS: u64 = 500;
-/// How long should we wait for any notification.
-const NOTIFICATION_TIMEOUT_MILISECONDS: u64 = 1000;
-
 pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
     pub config: crate::AlephConfig<B, H, C, SC>,
-}
-
-struct JustificationRequestDelayImpl {
-    last_request_time: Instant,
-    last_finalization_time: Instant,
-    delay: Duration,
-}
-
-impl JustificationRequestDelayImpl {
-    fn new(session_period: &SessionPeriod, millisecs_per_block: &MillisecsPerBlock) -> Self {
-        Self {
-            last_request_time: Instant::now(),
-            last_finalization_time: Instant::now(),
-            delay: Duration::from_millis(min(
-                millisecs_per_block.0 * 2,
-                millisecs_per_block.0 * session_period.0 as u64 / 10,
-            )),
-        }
-    }
-}
-
-impl JustificationRequestDelay for JustificationRequestDelayImpl {
-    fn can_request_now(&self) -> bool {
-        let now = Instant::now();
-        now - self.last_finalization_time > self.delay
-            && now - self.last_request_time > 2 * self.delay
-    }
-
-    fn on_block_finalized(&mut self) {
-        self.last_finalization_time = Instant::now();
-    }
-
-    fn on_request_sent(&mut self) {
-        self.last_request_time = Instant::now();
-    }
 }
 
 impl<B: Block> Verifier<B> for AuthorityVerifier {
@@ -160,18 +120,20 @@ where
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
     let block_requester = network.clone();
 
-    let verifier_timeout = Duration::from_millis(VERIFIER_TIMEOUT_MILISECONDS);
-    let notification_timeout = Duration::from_millis(NOTIFICATION_TIMEOUT_MILISECONDS);
+    let justification_handler_config: JustificationHandlerConfig<_> = Default::default();
 
     let handler = JustificationHandler::new(
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
         AlephFinalizer::new(client.clone()),
-        JustificationRequestDelayImpl::new(&session_period, &millisecs_per_block),
+        JustificationRequestSchedulerImpl::new(
+            &session_period,
+            &millisecs_per_block,
+            justification_handler_config.max_attemps(),
+        ),
         metrics.clone(),
-        verifier_timeout,
-        notification_timeout,
+        justification_handler_config,
     );
 
     let authority_justification_tx =
@@ -244,8 +206,8 @@ async fn get_node_index(
         .map(|id| id.into())
 }
 
-fn run_justification_handler<B, V, RB, C, D, SI, F>(
-    handler: JustificationHandler<B, V, RB, C, D, SI, F>,
+fn run_justification_handler<B, V, RB, C, S, SI, F>(
+    handler: JustificationHandler<B, V, RB, C, S, SI, F>,
     spawn_handle: &crate::SpawnHandle,
     import_justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
 ) -> mpsc::UnboundedSender<JustificationNotification<B>>
@@ -254,7 +216,7 @@ where
     B: Block,
     RB: RequestBlocks<B> + 'static,
     V: Verifier<B> + Send + 'static,
-    D: JustificationRequestDelay + Send + 'static,
+    S: JustificationRequestScheduler + Send + 'static,
     SI: SessionInfoProvider<B, V> + Send + 'static,
     F: BlockFinalizer<B> + Send + 'static,
 {

@@ -139,7 +139,8 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
     /// Request the given block -- this is supposed to be used only for "old forks".
     fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
 
-    /// Clear all pending justification requests.
+    /// Clear all pending justification requests. We need this function in case
+    /// we requested a justification for a block, which will never get it.
     fn clear_justification_requests(&self);
 }
 

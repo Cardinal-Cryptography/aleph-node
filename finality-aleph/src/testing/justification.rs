@@ -22,7 +22,7 @@ use crate::justification::{
     JustificationHandler, JustificationHandlerConfig,
 };
 use crate::testing::mocks::{
-    create_block, AcceptancePolicy, Client, JustificationRequestDelayImpl, MockedBlockFinalizer,
+    create_block, AcceptancePolicy, Client, JustificationRequestSchedulerImpl, MockedBlockFinalizer,
     MockedBlockRequester, SessionInfoProviderImpl, TBlock, VerifierWrapper,
 };
 use crate::{JustificationNotification, SessionPeriod};
@@ -126,7 +126,7 @@ type TJustHandler = JustificationHandler<
     VerifierWrapper,
     MockedBlockRequester,
     Client,
-    JustificationRequestDelayImpl,
+    JustificationRequestSchedulerImpl,
     SessionInfoProviderImpl,
     MockedBlockFinalizer,
 >;
@@ -136,7 +136,7 @@ type Environment = (
     Client,
     MockedBlockRequester,
     MockedBlockFinalizer,
-    JustificationRequestDelayImpl,
+    JustificationRequestSchedulerImpl,
 );
 
 fn create_justification_notification_for(block: TBlock) -> JustificationNotification<TBlock> {
@@ -167,18 +167,20 @@ fn prepare_env(
     let info_provider = SessionInfoProviderImpl::new(SESSION_PERIOD, verification_policy);
     let finalizer = MockedBlockFinalizer::new();
     let requester = MockedBlockRequester::new();
-    let config = JustificationHandlerConfig::new(request_policy);
-    let jrd = config.justification_request_delay.clone();
+    let config = JustificationHandlerConfig::test();
+    let jrs = JustificationRequestSchedulerImpl::new(request_policy);
 
     let jh = JustificationHandler::new(
         info_provider,
         requester.clone(),
         Arc::new(client.clone()),
         finalizer.clone(),
+        jrs.clone(),
+        None,
         config,
     );
 
-    (jh, client, requester, finalizer, jrd)
+    (jh, client, requester, finalizer, jrs)
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -216,10 +218,10 @@ where
         Client,
         MockedBlockRequester,
         MockedBlockFinalizer,
-        JustificationRequestDelayImpl,
+        JustificationRequestSchedulerImpl,
     ) -> F,
 {
-    let (jh, client, requester, finalizer, jrd) = env;
+    let (jh, client, requester, finalizer, jrs) = env;
     let (handle_run, auth_just_tx, imp_just_tx) = run_jh(jh);
     scenario(
         auth_just_tx.clone(),
@@ -227,7 +229,7 @@ where
         client,
         requester,
         finalizer,
-        jrd,
+        jrs,
     )
     .await;
     auth_just_tx.close_channel();
@@ -237,47 +239,47 @@ where
 
 async fn expect_finalized(
     finalizer: &MockedBlockFinalizer,
-    jrd: &JustificationRequestDelayImpl,
+    jrs: &JustificationRequestSchedulerImpl,
     block: TBlock,
 ) {
     assert!(finalizer.has_been_invoked_with(block).await);
-    assert!(jrd.has_been_finalized().await);
+    assert!(jrs.has_been_finalized().await);
 }
 
 async fn expect_not_finalized(
     finalizer: &MockedBlockFinalizer,
-    jrd: &JustificationRequestDelayImpl,
+    jrs: &JustificationRequestSchedulerImpl,
 ) {
     assert!(finalizer.has_not_been_invoked().await);
-    assert!(!jrd.has_been_finalized().await);
+    assert!(!jrs.has_been_finalized().await);
 }
 
 async fn expect_requested(
     requester: &MockedBlockRequester,
-    jrd: &JustificationRequestDelayImpl,
+    jrs: &JustificationRequestSchedulerImpl,
     block: TBlock,
 ) {
     assert!(requester.has_been_invoked_with(block).await);
-    assert!(jrd.has_been_requested().await);
+    assert!(jrs.has_been_requested().await);
 }
 
 async fn expect_not_requested(
     requester: &MockedBlockRequester,
-    jrd: &JustificationRequestDelayImpl,
+    jrs: &JustificationRequestSchedulerImpl,
 ) {
     assert!(requester.has_not_been_invoked().await);
-    assert!(!jrd.has_been_requested().await);
+    assert!(!jrs.has_been_requested().await);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn leads_to_finalization_when_appropriate_justification_comes() {
     run_test(
         prepare_env(FINALIZED_HEIGHT, AlwaysAccept, AlwaysReject),
-        |_, imp_just_tx, client, _, finalizer, jrd| async move {
+        |_, imp_just_tx, client, _, finalizer, jrs| async move {
             let block = client.next_block_to_finalize();
             let message = create_justification_notification_for(block.clone());
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_finalized(&finalizer, &jrd, block).await;
+            expect_finalized(&finalizer, &jrs, block).await;
         },
     )
     .await;
@@ -288,18 +290,18 @@ async fn waits_for_verifier_before_finalizing() {
     let verification_policy = FromSequence(RefCell::new(VecDeque::from(vec![false, false, true])));
     run_test(
         prepare_env(FINALIZED_HEIGHT, verification_policy, AlwaysReject),
-        |_, imp_just_tx, client, _, finalizer, jrd| async move {
+        |_, imp_just_tx, client, _, finalizer, jrs| async move {
             let block = client.next_block_to_finalize();
             let message = create_justification_notification_for(block.clone());
 
             imp_just_tx.unbounded_send(message.clone()).unwrap();
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
 
             imp_just_tx.unbounded_send(message.clone()).unwrap();
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
 
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_finalized(&finalizer, &jrd, block).await;
+            expect_finalized(&finalizer, &jrs, block).await;
         },
     )
     .await;
@@ -309,15 +311,15 @@ async fn waits_for_verifier_before_finalizing() {
 async fn keeps_finalizing_block_if_not_finalized_yet() {
     run_test(
         prepare_env(FINALIZED_HEIGHT, AlwaysAccept, AlwaysReject),
-        |auth_just_tx, imp_just_tx, client, _, finalizer, jrd| async move {
+        |auth_just_tx, imp_just_tx, client, _, finalizer, jrs| async move {
             let block = client.next_block_to_finalize();
             let message = create_justification_notification_for(block.clone());
 
             imp_just_tx.unbounded_send(message.clone()).unwrap();
-            expect_finalized(&finalizer, &jrd, block.clone()).await;
+            expect_finalized(&finalizer, &jrs, block.clone()).await;
 
             auth_just_tx.unbounded_send(message).unwrap();
-            expect_finalized(&finalizer, &jrd, block).await;
+            expect_finalized(&finalizer, &jrs, block).await;
         },
     )
     .await;
@@ -327,11 +329,11 @@ async fn keeps_finalizing_block_if_not_finalized_yet() {
 async fn ignores_notifications_for_old_blocks() {
     run_test(
         prepare_env(FINALIZED_HEIGHT, AlwaysAccept, AlwaysReject),
-        |_, imp_just_tx, client, _, finalizer, jrd| async move {
+        |_, imp_just_tx, client, _, finalizer, jrs| async move {
             let block = client.get_block(BlockId::Number(1u64)).unwrap();
             let message = create_justification_notification_for(block);
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
         },
     )
     .await;
@@ -341,11 +343,11 @@ async fn ignores_notifications_for_old_blocks() {
 async fn ignores_notifications_from_future_session() {
     run_test(
         prepare_env(FINALIZED_HEIGHT, AlwaysAccept, AlwaysReject),
-        |_, imp_just_tx, _, _, finalizer, jrd| async move {
+        |_, imp_just_tx, _, _, finalizer, jrs| async move {
             let block = create_block([1u8; 32].into(), FINALIZED_HEIGHT + SESSION_PERIOD.0 as u64);
             let message = create_justification_notification_for(block);
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
         },
     )
     .await;
@@ -355,19 +357,19 @@ async fn ignores_notifications_from_future_session() {
 async fn does_not_buffer_notifications_from_future_session() {
     run_test(
         prepare_env((SESSION_PERIOD.0 - 2) as u64, AlwaysAccept, AlwaysReject),
-        |_, imp_just_tx, client, _, finalizer, jrd| async move {
+        |_, imp_just_tx, client, _, finalizer, jrs| async move {
             let current_block = client.next_block_to_finalize();
             let future_block = create_block(current_block.hash(), SESSION_PERIOD.0 as u64);
 
             let message = create_justification_notification_for(future_block);
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
 
             let message = create_justification_notification_for(current_block.clone());
             imp_just_tx.unbounded_send(message).unwrap();
-            expect_finalized(&finalizer, &jrd, current_block).await;
+            expect_finalized(&finalizer, &jrs, current_block).await;
 
-            expect_not_finalized(&finalizer, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
         },
     )
     .await;
@@ -377,18 +379,18 @@ async fn does_not_buffer_notifications_from_future_session() {
 async fn requests_for_session_ending_justification() {
     run_test(
         prepare_env((SESSION_PERIOD.0 - 2) as u64, AlwaysReject, AlwaysAccept),
-        |_, imp_just_tx, client, requester, _, jrd| async move {
+        |_, imp_just_tx, client, requester, _, jrs| async move {
             let last_block = client.next_block_to_finalize();
 
             // doesn't need any notification passed to keep asking
-            expect_requested(&requester, &jrd, last_block.clone()).await;
-            expect_requested(&requester, &jrd, last_block.clone()).await;
+            expect_requested(&requester, &jrs, last_block.clone()).await;
+            expect_requested(&requester, &jrs, last_block.clone()).await;
 
             // asks also after processing some notifications
             let message = create_justification_notification_for(last_block.clone());
             imp_just_tx.unbounded_send(message).unwrap();
 
-            expect_requested(&requester, &jrd, last_block).await;
+            expect_requested(&requester, &jrs, last_block).await;
         },
     )
     .await;
@@ -398,32 +400,14 @@ async fn requests_for_session_ending_justification() {
 async fn does_not_request_for_session_ending_justification_too_often() {
     run_test(
         prepare_env((SESSION_PERIOD.0 - 2) as u64, AlwaysReject, AlwaysReject),
-        |_, _, client, requester, _, jrd| async move {
-            expect_not_requested(&requester, &jrd).await;
+        |_, _, client, requester, _, jrs| async move {
+            expect_not_requested(&requester, &jrs).await;
 
-            jrd.update_policy(AlwaysAccept);
-            expect_requested(&requester, &jrd, client.next_block_to_finalize()).await;
+            jrs.update_policy(AlwaysAccept);
+            expect_requested(&requester, &jrs, client.next_block_to_finalize()).await;
 
-            jrd.update_policy(AlwaysReject);
-            expect_not_requested(&requester, &jrd).await;
-        },
-    )
-    .await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn does_not_request_if_header_is_not_available() {
-    run_test(
-        prepare_env(FINALIZED_HEIGHT, AlwaysReject, AlwaysAccept),
-        |_, _, client, requester, _, jrd| async move {
-            let last_block_number =
-                (FINALIZED_HEIGHT as u32 / SESSION_PERIOD.0 + 1) * SESSION_PERIOD.0 - 1;
-
-            assert!(client
-                .header(BlockId::Number(last_block_number as u64))
-                .unwrap()
-                .is_none());
-            expect_not_requested(&requester, &jrd).await;
+            jrs.update_policy(AlwaysReject);
+            expect_not_requested(&requester, &jrs).await;
         },
     )
     .await;
@@ -433,16 +417,16 @@ async fn does_not_request_if_header_is_not_available() {
 async fn does_not_request_nor_finalize_when_verifier_is_not_available() {
     run_test(
         prepare_env((SESSION_PERIOD.0 - 2) as u64, Unavailable, AlwaysAccept),
-        |_, imp_just_tx, client, requester, finalizer, jrd| async move {
-            expect_not_requested(&requester, &jrd).await;
+        |_, imp_just_tx, client, requester, finalizer, jrs| async move {
+            expect_not_requested(&requester, &jrs).await;
 
             let block = client.next_block_to_finalize();
             imp_just_tx
                 .unbounded_send(create_justification_notification_for(block))
                 .unwrap();
 
-            expect_not_finalized(&finalizer, &jrd).await;
-            expect_not_requested(&requester, &jrd).await;
+            expect_not_finalized(&finalizer, &jrs).await;
+            expect_not_requested(&requester, &jrs).await;
         },
     )
     .await;
