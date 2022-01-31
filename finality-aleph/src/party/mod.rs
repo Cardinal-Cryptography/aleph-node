@@ -570,18 +570,14 @@ where
 
                                 if let Err(e) = self
                                     .session_manager
-                                    .start_validator_session(
+                                    .early_start_validator_session(
                                         next_session_id,
                                         authority_verifier,
                                         node_id,
                                         authority_pen,
                                     )
-                                    .await
                                 {
                                     warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
-                                    start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
-                                } else {
-                                    start_next_session_network = None;
                                 }
                             }
                             None => {
@@ -590,12 +586,10 @@ where
                                     .start_nonvalidator_session(next_session_id, authority_verifier)
                                 {
                                     warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
-                                    start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
-                                } else {
-                                    start_next_session_network = None;
                                 }
                             }
                         }
+                        start_next_session_network = None;
                     } else {
                         start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
                     }

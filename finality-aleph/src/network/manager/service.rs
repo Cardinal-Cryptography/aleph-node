@@ -29,7 +29,7 @@ pub enum SessionCommand<D: Data> {
         AuthorityVerifier,
         NodeIndex,
         AuthorityPen,
-        oneshot::Sender<mpsc::UnboundedReceiver<D>>,
+        Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
     ),
     StartNonvalidator(SessionId, AuthorityVerifier),
     Stop(SessionId),
@@ -88,7 +88,10 @@ pub struct Service<NI: NetworkIdentity, D: Data> {
     network_identity: NI,
     connections: Connections,
     sessions: HashMap<SessionId, Session<D>>,
-    to_retry: Vec<(PreSession, oneshot::Sender<mpsc::UnboundedReceiver<D>>)>,
+    to_retry: Vec<(
+        PreSession,
+        Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
+    )>,
     discovery_cooldown: Duration,
     maintenance_period: Duration,
 }
@@ -254,7 +257,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
     async fn handle_validator_presession(
         &mut self,
         pre_session: PreSession,
-        result_for_user: oneshot::Sender<mpsc::UnboundedReceiver<D>>,
+        result_for_user: Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
     ) -> Result<
         (
             Option<ConnectionCommand>,
@@ -264,8 +267,10 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
     > {
         match self.update_validator_session(pre_session.clone()).await {
             Ok((maybe_command, data, data_from_network)) => {
-                if result_for_user.send(data_from_network).is_err() {
-                    warn!(target: "aleph-network", "Failed to send started session.")
+                if let Some(result_for_user) = result_for_user {
+                    if result_for_user.send(data_from_network).is_err() {
+                        warn!(target: "aleph-network", "Failed to send started session.")
+                    }
                 }
                 Ok((maybe_command, data))
             }
@@ -656,7 +661,7 @@ mod tests {
                 verifier,
                 node_id,
                 pen,
-                result_for_user,
+                Some(result_for_user),
             ))
             .await
             .unwrap();
@@ -682,7 +687,7 @@ mod tests {
                 verifier,
                 node_id,
                 pen,
-                result_for_user,
+                Some(result_for_user),
             ))
             .await
             .unwrap();
@@ -713,27 +718,21 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (result_for_user, _result_from_service) = oneshot::channel();
         service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier.clone(),
                 node_id,
                 pen,
-                result_for_user,
+                None,
             ))
             .await
             .unwrap();
         let mut other_service = build();
         let (node_id, pen) = validator_data[1].clone();
-        let (result_for_user, _result_from_service) = oneshot::channel();
         let (_, data_commands) = other_service
             .on_command(SessionCommand::StartValidator(
-                session_id,
-                verifier,
-                node_id,
-                pen,
-                result_for_user,
+                session_id, verifier, node_id, pen, None,
             ))
             .await
             .unwrap();
@@ -770,27 +769,21 @@ mod tests {
         let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
-        let (result_for_user, _result_from_service) = oneshot::channel();
         service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier.clone(),
                 node_id,
                 pen,
-                result_for_user,
+                None,
             ))
             .await
             .unwrap();
         let mut other_service = build();
         let (node_id, pen) = validator_data[1].clone();
-        let (result_for_user, _result_from_service) = oneshot::channel();
         let (_, data_commands) = other_service
             .on_command(SessionCommand::StartValidator(
-                session_id,
-                verifier,
-                node_id,
-                pen,
-                result_for_user,
+                session_id, verifier, node_id, pen, None,
             ))
             .await
             .unwrap();

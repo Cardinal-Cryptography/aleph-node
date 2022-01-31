@@ -94,7 +94,7 @@ impl<D: Data> Manager<D> {
                 verifier,
                 node_id,
                 pen,
-                result_for_us,
+                Some(result_for_us),
             ))
             .map_err(|_| ManagerError::CommandSendFailed)?;
         let data_from_network = result_from_service
@@ -108,6 +108,23 @@ impl<D: Data> Manager<D> {
             },
             receiver: Arc::new(Mutex::new(data_from_network)),
         })
+    }
+
+    /// Start participating or update the information about the given session where you are a
+    /// validator. Used for early starts when you don't yet need the returned network, but would
+    /// like to start discovery.
+    pub fn early_start_validator_session(
+        &self,
+        session_id: SessionId,
+        verifier: AuthorityVerifier,
+        node_id: NodeIndex,
+        pen: AuthorityPen,
+    ) -> Result<(), ManagerError> {
+        self.commands_for_service
+            .unbounded_send(SessionCommand::StartValidator(
+                session_id, verifier, node_id, pen, None,
+            ))
+            .map_err(|_| ManagerError::CommandSendFailed)
     }
 
     /// Stop participating in the given session.
