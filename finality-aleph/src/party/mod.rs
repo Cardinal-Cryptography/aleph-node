@@ -533,7 +533,8 @@ where
             None
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
-        let mut start_next_session_network = Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD);
+        let mut start_next_session_network =
+            Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
         loop {
             tokio::select! {
                 _ = &mut check_session_status => {
@@ -544,7 +545,15 @@ where
                     }
                     check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
                 },
-                _ = &mut start_next_session_network => {
+                Some(_) = async {
+                    match &mut start_next_session_network {
+                        Some(start_next_session_network) => {
+                            start_next_session_network.await;
+                            Some(())
+                        },
+                        None => None,
+                    }
+                } => {
                     let next_session_id = SessionId(session_id.0 + 1);
                     if let Some(next_session_authorities) =
                         self.updated_authorities_for_session(next_session_id)
@@ -570,6 +579,9 @@ where
                                     .await
                                 {
                                     warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
+                                    start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+                                } else {
+                                    start_next_session_network = None;
                                 }
                             }
                             None => {
@@ -578,11 +590,15 @@ where
                                     .start_nonvalidator_session(next_session_id, authority_verifier)
                                 {
                                     warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
+                                    start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+                                } else {
+                                    start_next_session_network = None;
                                 }
                             }
                         }
+                    } else {
+                        start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
                     }
-                    start_next_session_network = Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD);
                 },
                 Some(_) = async {
                     match maybe_authority_task.as_mut() {
