@@ -42,7 +42,7 @@ impl JustificationRequestSchedulerImpl {
                 millisecs_per_block.0 * session_period.0 as u64 / 10,
             )),
             attempt: 0,
-            max_attemps: max_attemps,
+            max_attemps,
         }
     }
 }
