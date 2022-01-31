@@ -377,10 +377,11 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
     // uses is that once the block in `proposed_block` reaches the height of `max_block_num`, and the just queried
     // `best_block` is a `descendant` of the previous query, then we don't need to update proposed_block, as it is
     // already correct.
-    let block = proposed_block.lock().await;
-    let mut prev_best_hash: B::Hash = block.hash;
-    let mut prev_best_number: NumberFor<B> = block.number;
-    drop(block);
+    let (mut prev_best_hash, mut prev_best_number) = async {
+        let block = proposed_block.lock().await;
+        (block.hash, block.number)
+    }
+    .await;
     loop {
         let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
         tokio::select! {
