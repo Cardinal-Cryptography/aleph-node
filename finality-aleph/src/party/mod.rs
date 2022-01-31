@@ -295,7 +295,8 @@ where
     unit_creation_delay: UnitCreationDelay,
 }
 
-const SESSION_STATUS_CHECK_PERIOD_MS: u64 = 1000;
+const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
+const NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD: Duration = Duration::from_secs(30);
 
 fn get_authorities_for_session<B, C>(
     runtime_api: sp_api::ApiRef<C::Api>,
@@ -531,64 +532,70 @@ where
             debug!(target: "afa", "Running session {:?} as non-authority", session_id);
             None
         };
+        let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
+        let mut start_next_session_network = Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD);
         loop {
-            let next_session_id = SessionId(session_id.0 + 1);
-            if let Some(next_session_authorities) =
-                self.updated_authorities_for_session(next_session_id)
-            {
-                let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
-                match get_node_index(&authorities, self.keystore.clone()).await {
-                    Some(node_id) => {
-                        let authority_pen = AuthorityPen::new(
-                            next_session_authorities[node_id.0].clone(),
-                            self.keystore.clone(),
-                        )
-                        .await
-                        .expect("The keys should sign successfully");
-
-                        if let Err(e) = self
-                            .session_manager
-                            .start_validator_session(
-                                next_session_id,
-                                authority_verifier,
-                                node_id,
-                                authority_pen,
-                            )
-                            .await
-                        {
-                            warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
-                        }
-                    }
-                    None => {
-                        if let Err(e) = self
-                            .session_manager
-                            .start_nonvalidator_session(next_session_id, authority_verifier)
-                        {
-                            warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
-                        }
-                    }
-                }
-            }
-
-            let last_finalized_number = self.client.info().finalized_number;
-            if last_finalized_number >= last_block {
-                debug!(target: "afa", "Terminating session {:?}", session_id);
-                break;
-            }
             tokio::select! {
-                _ = Delay::new(Duration::from_millis(SESSION_STATUS_CHECK_PERIOD_MS)) => (),
+                _ = &mut check_session_status => {
+                    let last_finalized_number = self.client.info().finalized_number;
+                    if last_finalized_number >= last_block {
+                        debug!(target: "aleph-party", "Terminating session {:?}", session_id);
+                        break;
+                    }
+                    check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
+                },
+                _ = &mut start_next_session_network => {
+                    let next_session_id = SessionId(session_id.0 + 1);
+                    if let Some(next_session_authorities) =
+                        self.updated_authorities_for_session(next_session_id)
+                    {
+                        let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
+                        match get_node_index(&authorities, self.keystore.clone()).await {
+                            Some(node_id) => {
+                                let authority_pen = AuthorityPen::new(
+                                    next_session_authorities[node_id.0].clone(),
+                                    self.keystore.clone(),
+                                )
+                                .await
+                                .expect("The keys should sign successfully");
+
+                                if let Err(e) = self
+                                    .session_manager
+                                    .start_validator_session(
+                                        next_session_id,
+                                        authority_verifier,
+                                        node_id,
+                                        authority_pen,
+                                    )
+                                    .await
+                                {
+                                    warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
+                                }
+                            }
+                            None => {
+                                if let Err(e) = self
+                                    .session_manager
+                                    .start_nonvalidator_session(next_session_id, authority_verifier)
+                                {
+                                    warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
+                                }
+                            }
+                        }
+                    }
+                    start_next_session_network = Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD);
+                },
                 Some(_) = async {
                     match maybe_authority_task.as_mut() {
                         Some(task) => Some(task.stopped().await),
                         None => None,
                     } } => {
-                    warn!(target: "afa", "Authority task ended prematurely, giving up for this session.");
+                    warn!(target: "aleph-party", "Authority task ended prematurely, giving up for this session.");
                     maybe_authority_task = None;
                 },
             }
         }
         if let Some(task) = maybe_authority_task {
-            debug!(target: "afa", "Stopping the authority task.");
+            debug!(target: "aleph-party", "Stopping the authority task.");
             task.stop().await;
         }
         if let Err(e) = self.session_manager.stop_session(session_id) {
