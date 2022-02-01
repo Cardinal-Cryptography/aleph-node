@@ -25,7 +25,7 @@ pub use component::SimpleNetwork;
 pub use component::{
     Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
 };
-pub use manager::{ConnectionIO, ConnectionManager};
+pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use rmc::NetworkData as RmcNetworkData;
 pub use service::{Service, IO};
 pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
