@@ -8,7 +8,6 @@ use codec::Encode;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures::Future;
 use sp_api::BlockId;
-use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;

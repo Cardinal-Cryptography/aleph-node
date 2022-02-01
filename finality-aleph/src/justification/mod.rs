@@ -64,8 +64,6 @@ pub struct JustificationHandlerConfig<B: BlockT> {
     verifier_timeout: Duration,
     /// How long should we wait for any notification.
     notification_timeout: Duration,
-    ///Max amount of tries we can not update a finalized block number before we will clear requests queue
-    max_attemps: u32,
     ///Distance (in amount of blocks) between the best and the block we want to request justification
     min_allowed_delay: NumberFor<B>,
 }
@@ -75,29 +73,22 @@ impl<B: BlockT> Default for JustificationHandlerConfig<B> {
         Self {
             verifier_timeout: Duration::from_millis(500),
             notification_timeout: Duration::from_millis(1000),
-            max_attemps: 5,
             min_allowed_delay: 3u32.into(),
         }
     }
 }
 
+#[cfg(test)]
 impl<B: BlockT> JustificationHandlerConfig<B> {
-    #[allow(dead_code)] //for tests purpose
     pub fn new(
         verifier_timeout: Duration,
         notification_timeout: Duration,
-        max_attemps: u32,
         min_allowed_delay: NumberFor<B>,
     ) -> Self {
         Self {
             verifier_timeout,
             notification_timeout,
-            max_attemps,
             min_allowed_delay,
         }
-    }
-
-    pub fn max_attemps(&self) -> u32 {
-        self.max_attemps
     }
 }

@@ -62,7 +62,6 @@ impl JustificationHandlerConfig<TBlock> {
         JustificationHandlerConfig::new(
             Duration::from_millis(DEFAULT_VERIFIER_TIMEOUT_MS),
             Duration::from_millis(DEFAULT_NOTIFICATION_TIMEOUT_MS),
-            5,
             3u32.into(),
         )
     }

@@ -108,9 +108,9 @@ where
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
                 let num = if num > self.client.info().best_number
-                    && self.client.info().best_number > self.min_allowed_delay.into()
+                    && self.client.info().best_number > self.min_allowed_delay
                 {
-                    self.client.info().best_number - self.min_allowed_delay.into()
+                    self.client.info().best_number - self.min_allowed_delay
                 } else {
                     num
                 };

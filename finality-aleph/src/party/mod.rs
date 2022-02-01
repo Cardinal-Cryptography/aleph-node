@@ -91,6 +91,9 @@ fn get_session_info_provider<B: Block>(
     }
 }
 
+///Max amount of tries we can not update a finalized block number before we will clear requests queue
+const MAX_ATTEMPS: u32 = 5;
+
 pub async fn run_consensus_party<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
 where
     B: Block,
@@ -130,7 +133,7 @@ where
         JustificationRequestSchedulerImpl::new(
             &session_period,
             &millisecs_per_block,
-            justification_handler_config.max_attemps(),
+            MAX_ATTEMPS,
         ),
         metrics.clone(),
         justification_handler_config,
