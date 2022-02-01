@@ -553,8 +553,9 @@ impl pallet_utility::Config for Runtime {
 }
 
 parameter_types! {
-    pub const DepositPerItem: Balance = deposit(1, 0);
-    pub const DepositPerByte: Balance = 1_000_000_000; // 1e-3 alepha (1 milli aleph)
+    // The following weights are minimal to allow Smartnet users do whatever they want.
+    pub const DepositPerItem: Balance = 1_000_000_000;  //  1 milli-SZERO per item
+    pub const DepositPerByte: Balance = 1_000_000;      // ~1 milli-SZERO per kB storage
     // The lazy deletion runs inside on_initialize.
     pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
         RuntimeBlockWeights::get().max_block;
