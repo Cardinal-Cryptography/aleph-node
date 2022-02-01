@@ -13,6 +13,13 @@ use std::{
     iter,
 };
 
+/// A service managing all the direct interaction with the underlying network implementation. It
+/// handles:
+/// 1. Incoming network events
+///   1. Messages are forwarded to the user.
+///   2. Various forms of (dis)connecting, keeping track of all currently connected nodes.
+/// 2. Commands from the network manager, modifying the reserved peer set.
+/// 3. Outgoing messages, sending them out, using 1.2. to broadcast.
 pub struct Service<N: Network, D: Data> {
     network: N,
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
@@ -23,6 +30,7 @@ pub struct Service<N: Network, D: Data> {
     spawn_handle: SpawnTaskHandle,
 }
 
+/// Input/output channels for the network service.
 pub struct IO<D: Data> {
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand)>,
     messages_for_user: mpsc::UnboundedSender<D>,
@@ -139,6 +147,7 @@ impl<N: Network, D: Data> Service<N, D> {
                 remote, protocol, ..
             } => {
                 if protocol == ALEPH_PROTOCOL_NAME {
+                    trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?}", remote);
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
                         "aleph/network/peer_sender",
@@ -151,6 +160,7 @@ impl<N: Network, D: Data> Service<N, D> {
             }
             Event::NotificationStreamClosed { remote, protocol } => {
                 if protocol == ALEPH_PROTOCOL_NAME {
+                    trace!(target: "aleph-network", "NotificationStreamClosed event for peer {:?}", remote);
                     self.connected_peers.remove(&remote.into());
                     self.peer_senders.remove(&remote.into());
                 }
@@ -165,7 +175,7 @@ impl<N: Network, D: Data> Service<N, D> {
                         match D::decode(&mut &data[..]) {
                             Ok(message) => self.messages_for_user.unbounded_send(message)?,
                             Err(e) => {
-                                debug!(target: "aleph-network", "Error decoding message: {}", e)
+                                warn!(target: "aleph-network", "Error decoding message: {}", e)
                             }
                         }
                     }
