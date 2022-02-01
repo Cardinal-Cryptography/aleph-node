@@ -60,13 +60,11 @@ impl JustificationRequestScheduler for JustificationRequestSchedulerImpl {
     fn schedule_action(&mut self) -> SchedulerActions {
         let now = Instant::now();
         if self.enough_time_elapsed() {
-            if now - self.last_finalization_time > now - self.last_request_time {
-                self.attempt += 1;
+            self.attempt += 1;
 
-                if self.attempt == self.max_attemps {
-                    self.attempt = 0;
-                    return SchedulerActions::ClearQueue;
-                }
+            if self.attempt == self.max_attemps {
+                self.attempt = 0;
+                return SchedulerActions::ClearQueue;
             }
 
             self.last_request_time = now;
