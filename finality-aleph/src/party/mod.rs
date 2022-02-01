@@ -5,9 +5,9 @@ use crate::{
     finalization::{AlephFinalizer, BlockFinalizer},
     first_block_of_session,
     justification::{
-        AlephJustification, JustificationHandler, JustificationHandlerConfig,
-        JustificationNotification, JustificationRequestScheduler,
-        JustificationRequestSchedulerImpl, SessionInfo, SessionInfoProvider, Verifier,
+        AlephJustification, JustificationHandler, JustificationNotification,
+        JustificationRequestScheduler, JustificationRequestSchedulerImpl, SessionInfo,
+        SessionInfoProvider, Verifier,
     },
     last_block_of_session,
     network::{
@@ -124,18 +124,14 @@ where
     let session_authorities = Arc::new(Mutex::new(HashMap::new()));
     let block_requester = network.clone();
 
-    let justification_handler_config: JustificationHandlerConfig<_> = Default::default();
+    let justification_handler_config = Default::default();
 
     let handler = JustificationHandler::new(
         get_session_info_provider(session_authorities.clone(), session_period),
         block_requester.clone(),
         client.clone(),
         AlephFinalizer::new(client.clone()),
-        JustificationRequestSchedulerImpl::new(
-            &session_period,
-            &millisecs_per_block,
-            MAX_ATTEMPS,
-        ),
+        JustificationRequestSchedulerImpl::new(&session_period, &millisecs_per_block, MAX_ATTEMPS),
         metrics.clone(),
         justification_handler_config,
     );

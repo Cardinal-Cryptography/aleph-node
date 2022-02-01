@@ -21,8 +21,8 @@ use crate::justification::{
     JustificationHandler, JustificationHandlerConfig,
 };
 use crate::testing::mocks::{
-    create_block, AcceptancePolicy, Client, JustificationRequestSchedulerImpl, MockedBlockFinalizer,
-    MockedBlockRequester, SessionInfoProviderImpl, TBlock, VerifierWrapper,
+    create_block, AcceptancePolicy, Client, JustificationRequestSchedulerImpl,
+    MockedBlockFinalizer, MockedBlockRequester, SessionInfoProviderImpl, TBlock, VerifierWrapper,
 };
 use crate::{JustificationNotification, SessionPeriod};
 

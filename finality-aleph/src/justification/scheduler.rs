@@ -63,15 +63,12 @@ impl JustificationRequestScheduler for JustificationRequestSchedulerImpl {
             if now - self.last_finalization_time > now - self.last_request_time {
                 self.attempt += 1;
 
-                if self.attempt == self.max_attemps
-                    && now - self.last_finalization_time > self.max_attemps * self.delay
-                {
+                if self.attempt == self.max_attemps {
                     self.attempt = 0;
                     return SchedulerActions::ClearQueue;
                 }
-            } else {
-                self.attempt = 0;
             }
+
             self.last_request_time = now;
             SchedulerActions::Request
         } else {
@@ -80,6 +77,7 @@ impl JustificationRequestScheduler for JustificationRequestSchedulerImpl {
     }
 
     fn on_block_finalized(&mut self) {
+        self.attempt = 0;
         self.last_finalization_time = Instant::now();
     }
 
