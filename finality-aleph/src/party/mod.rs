@@ -237,7 +237,7 @@ where
     RB: RequestBlocks<B> + 'static,
     V: Verifier<B> + Send + 'static,
     S: JustificationRequestScheduler + Send + 'static,
-    SI: SessionInfoProvider<B, V> + Send + 'static,
+    SI: SessionInfoProvider<B, V> + Send + Sync + 'static,
     F: BlockFinalizer<B> + Send + 'static,
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
