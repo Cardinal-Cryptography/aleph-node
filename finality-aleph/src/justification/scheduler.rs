@@ -37,8 +37,8 @@ impl JustificationRequestSchedulerImpl {
         Self {
             last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
-            ///Request justification during the session, usually every two blocks,
-            ///unless session period is smaller than that in which case we make sure to check during the session 
+            ///Request justification during the session. Usually every two blocks,
+            ///unless session period is peculiar small in which case we request it more often to ensure non-validators won't lag
             delay: Duration::from_millis(min(
                 millisecs_per_block.0 * 2,
                 millisecs_per_block.0 * session_period.0 as u64 / 10,
