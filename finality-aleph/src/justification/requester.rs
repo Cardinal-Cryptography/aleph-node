@@ -30,7 +30,7 @@ where
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     min_allowed_delay: NumberFor<B>,
-    phantom: PhantomData<V>,
+    _phantom: PhantomData<V>,
 }
 
 impl<B, RB, C, S, F, V> BlockRequester<B, RB, C, S, F, V>
@@ -57,7 +57,7 @@ where
             justification_request_scheduler,
             metrics,
             min_allowed_delay,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 

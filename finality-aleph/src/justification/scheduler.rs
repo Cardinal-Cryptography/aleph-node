@@ -45,9 +45,7 @@ impl JustificationRequestSchedulerImpl {
             max_attemps,
         }
     }
-}
 
-impl JustificationRequestSchedulerImpl {
     fn enough_time_elapsed(&self) -> bool {
         let now = Instant::now();
 

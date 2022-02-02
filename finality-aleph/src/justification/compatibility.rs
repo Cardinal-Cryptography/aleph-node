@@ -12,9 +12,9 @@ pub struct AlephJustificationV1 {
 }
 
 impl From<AlephJustificationV1> for AlephJustification {
-    fn from(just_v1: AlephJustificationV1) -> AlephJustification {
-        let size = just_v1.signature.size();
-        let just_drop_id: SignatureSet<Signature> = just_v1
+    fn from(justification: AlephJustificationV1) -> AlephJustification {
+        let size = justification.signature.size();
+        let just_drop_id: SignatureSet<Signature> = justification
             .signature
             .into_iter()
             .fold(SignatureSet::with_size(size), |sig_set, (id, sgn)| {
