@@ -37,6 +37,9 @@ impl JustificationRequestSchedulerImpl {
         Self {
             last_request_time: Instant::now(),
             last_finalization_time: Instant::now(),
+            ///Checking every 2 blocks based on experience.
+            ///The min is in case someone does some peculiar tests with session_period like 2.
+            ///If the other branch was not there (in the min) then the non-validator nodes would lag behind.
             delay: Duration::from_millis(min(
                 millisecs_per_block.0 * 2,
                 millisecs_per_block.0 * session_period.0 as u64 / 10,
