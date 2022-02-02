@@ -148,11 +148,14 @@ fn create_justification_notification_for(block: TBlock) -> JustificationNotifica
     }
 }
 
-fn run_justification_handler(justification_handler: TJustHandler) -> (JoinHandle<()>, Sender, Sender) {
+fn run_justification_handler(
+    justification_handler: TJustHandler,
+) -> (JoinHandle<()>, Sender, Sender) {
     let (auth_just_tx, auth_just_rx) = unbounded();
     let (imp_just_tx, imp_just_rx) = unbounded();
 
-    let handle = tokio::spawn(async move { justification_handler.run(auth_just_rx, imp_just_rx).await });
+    let handle =
+        tokio::spawn(async move { justification_handler.run(auth_just_rx, imp_just_rx).await });
 
     (handle, auth_just_tx, imp_just_tx)
 }
@@ -179,7 +182,13 @@ fn prepare_env(
         config,
     );
 
-    (justification_handler, client, requester, finalizer, justification_request_scheduler)
+    (
+        justification_handler,
+        client,
+        requester,
+        finalizer,
+        justification_request_scheduler,
+    )
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -220,7 +229,8 @@ where
         JustificationRequestSchedulerImpl,
     ) -> F,
 {
-    let (justification_handler, client, requester, finalizer, justification_request_scheduler) = env;
+    let (justification_handler, client, requester, finalizer, justification_request_scheduler) =
+        env;
     let (handle_run, auth_just_tx, imp_just_tx) = run_justification_handler(justification_handler);
     scenario(
         auth_just_tx.clone(),
@@ -382,8 +392,18 @@ async fn requests_for_session_ending_justification() {
             let last_block = client.next_block_to_finalize();
 
             // doesn't need any notification passed to keep asking
-            expect_requested(&requester, &justification_request_scheduler, last_block.clone()).await;
-            expect_requested(&requester, &justification_request_scheduler, last_block.clone()).await;
+            expect_requested(
+                &requester,
+                &justification_request_scheduler,
+                last_block.clone(),
+            )
+            .await;
+            expect_requested(
+                &requester,
+                &justification_request_scheduler,
+                last_block.clone(),
+            )
+            .await;
 
             // asks also after processing some notifications
             let message = create_justification_notification_for(last_block.clone());
@@ -403,7 +423,12 @@ async fn does_not_request_for_session_ending_justification_too_often() {
             expect_not_requested(&requester, &justification_request_scheduler).await;
 
             justification_request_scheduler.update_policy(AlwaysAccept);
-            expect_requested(&requester, &justification_request_scheduler, client.next_block_to_finalize()).await;
+            expect_requested(
+                &requester,
+                &justification_request_scheduler,
+                client.next_block_to_finalize(),
+            )
+            .await;
 
             justification_request_scheduler.update_policy(AlwaysReject);
             expect_not_requested(&requester, &justification_request_scheduler).await;
