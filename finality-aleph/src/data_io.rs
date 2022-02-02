@@ -393,17 +393,16 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
                 if *new_best_header.number() <= max_block_num {
                     *proposed_block.lock().await = AlephData::new(new_best_header.hash(), *new_best_header.number());
                 } else {
-                    let mut block = proposed_block.lock().await;
                     // we check if prev_best_header is an ancestor of new_best_header:
-                    if block.number < max_block_num {
+                    if prev_best_number < max_block_num {
                         let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
-                        *block = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                        *proposed_block.lock().await = AlephData::new(reduced_header.hash(), *reduced_header.number());
                     } else {
                         let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), prev_best_number);
                         if reduced_header.hash() != prev_best_hash {
                             // the new best block is not a descendant of previous best
                             let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
-                            *block = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                            *proposed_block.lock().await = AlephData::new(reduced_header.hash(), *reduced_header.number());
                         }
                     }
                 }
