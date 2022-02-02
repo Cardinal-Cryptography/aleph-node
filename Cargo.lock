@@ -157,6 +157,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-rpc-runtime-api",
+ "lazy_static",
  "pallet-aleph",
  "pallet-aura",
  "pallet-balances",
