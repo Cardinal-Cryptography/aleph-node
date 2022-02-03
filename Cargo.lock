@@ -121,6 +121,7 @@ dependencies = [
  "jsonrpc-core",
  "libp2p 0.39.1",
  "log",
+ "pallet-staking",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "primitives",
