@@ -25,12 +25,14 @@ use frame_support::{
 pub use pallet::*;
 
 /// The current storage version.
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_election_provider_support::{ElectionDataProvider, ElectionProvider, Supports};
+    use frame_election_provider_support::{
+        ElectionDataProvider, ElectionProvider, Support, Supports,
+    };
     use frame_support::{
         pallet_prelude::*,
         sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
@@ -63,7 +65,7 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        ChangeValidators(Vec<T::AccountId>, u32),
+        ChangeValidators(Vec<T::AccountId>),
     }
 
     #[pallet::pallet]
@@ -73,7 +75,7 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::v0_to_v1::migrate::<T, Self>()
+            migrations::v1_to_v2::migrate::<T, Self>()
         }
     }
 
@@ -83,15 +85,11 @@ pub mod pallet {
         pub fn change_validators(
             origin: OriginFor<T>,
             validators: Vec<T::AccountId>,
-            session_for_validators_change: u32,
         ) -> DispatchResult {
             ensure_root(origin)?;
             Validators::<T>::put(validators.clone());
-            SessionForValidatorsChange::<T>::put(session_for_validators_change);
-            Self::deposit_event(Event::ChangeValidators(
-                validators,
-                session_for_validators_change,
-            ));
+            Self::deposit_event(Event::ChangeValidators(validators));
+
             Ok(())
         }
     }
@@ -174,27 +172,18 @@ pub mod pallet {
 
     impl<T: Config> ElectionProvider<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
         type Error = Error;
-        // We authoritarily decide on the committee so don't need any data for elections
         type DataProvider = T::DataProvider;
+
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            // if let Some(session_for_validators_change) =
-            //     Pallet::<T>::session_for_validators_change()
-            // {
-            //     if session_for_validators_change <= session {
-            //         let validators = Validators::<T>::take()
-            //             .expect("When SessionForValidatorsChange is Some so should be Validators");
-            //         let _ = SessionForValidatorsChange::<T>::take().unwrap();
-            //         let empty_support = Support {
-            //             total: 0,
-            //             voters: Vec::new(),
-            //         };
-            //         return Ok(validators
-            //             .iter()
-            //             .zip(iter::once(empty_support).cycle())
-            //             .collect());
-            //     }
-            // }
-            Ok(Vec::new())
+            let empty_support = Support {
+                total: 0,
+                voters: Vec::new(),
+            };
+            Ok(Pallet::<T>::validators()
+                .into_iter()
+                .flatten()
+                .zip(sp_std::iter::once(empty_support).cycle())
+                .collect())
         }
     }
 
