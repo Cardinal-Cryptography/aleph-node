@@ -179,6 +179,7 @@ pub mod pallet {
                 total: 0,
                 voters: Vec::new(),
             };
+
             Ok(Pallet::<T>::validators()
                 .into_iter()
                 .flatten()
