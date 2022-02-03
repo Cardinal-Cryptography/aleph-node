@@ -434,6 +434,21 @@ parameter_types! {
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
 }
 
+const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
+
+struct UniformEraPayout {}
+
+impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
+    fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
+        let portion = Perbill::from_rational(1u64, 365u64);
+        let total_payout = portion * YEARLY_INFLATION;
+        let validators_payout = Perbill::from_percent(90) * total_payout;
+        let rest = total_payout - validators_payout;
+
+        (validators_payout, rest)
+    }
+}
+
 impl pallet_staking::Config for Runtime {
     // TODO determine the correct value
     const MAX_NOMINATIONS: u32 = 16;
@@ -582,6 +597,7 @@ construct_runtime!(
         Authorship: pallet_authorship::{Pallet, Call, Storage},
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
+        History: pallet_session::historical::{Pallet},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
