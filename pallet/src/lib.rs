@@ -177,24 +177,16 @@ pub mod pallet {
         // We authoritarily decide on the committee so don't need any data for elections
         type DataProvider = T::DataProvider;
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            // if let Some(session_for_validators_change) =
-            //     Pallet::<T>::session_for_validators_change()
-            // {
-            //     if session_for_validators_change <= session {
-            //         let validators = Validators::<T>::take()
-            //             .expect("When SessionForValidatorsChange is Some so should be Validators");
-            //         let _ = SessionForValidatorsChange::<T>::take().unwrap();
-            //         let empty_support = Support {
-            //             total: 0,
-            //             voters: Vec::new(),
-            //         };
-            //         return Ok(validators
-            //             .iter()
-            //             .zip(iter::once(empty_support).cycle())
-            //             .collect());
-            //     }
-            // }
-            Ok(Vec::new())
+            let empty_support = Support {
+                total: 0,
+                voters: Vec::new(),
+            };
+
+            Ok(Pallet::<T>::validators()
+                .into_iter()
+                .flatten()
+                .zip(sp_std::iter::once(empty_support).cycle())
+                .collect())
         }
     }
 
