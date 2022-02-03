@@ -8,6 +8,7 @@ use aleph_runtime::{
 };
 use finality_aleph::{MillisecsPerBlock, SessionPeriod};
 use libp2p::PeerId;
+use pallet_staking::Forcing;
 use sc_service::config::BasePath;
 use sc_service::ChainType;
 use serde::de::Error;
@@ -328,6 +329,7 @@ fn genesis(
                 .collect(),
         },
         staking: StakingConfig {
+            force_era: Forcing::ForceNone,
             validator_count: authorities.len() as u32,
             minimum_validator_count: authorities.len() as u32,
             invulnerables: authorities.iter().map(|x| x.account_id.clone()).collect(),
