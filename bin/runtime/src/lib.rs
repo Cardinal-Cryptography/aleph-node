@@ -11,9 +11,7 @@ use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-    create_runtime_str,
-    curve::PiecewiseLinear,
-    generic, impl_opaque_keys,
+    create_runtime_str, generic, impl_opaque_keys,
     traits::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
         Verify,
@@ -417,7 +415,6 @@ parameter_types! {
     pub const SessionsPerEra: SessionIndex = 4*24;
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
-    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     // TODO determine the correct value
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
@@ -425,7 +422,7 @@ parameter_types! {
 
 const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
 
-struct UniformEraPayout {}
+pub struct UniformEraPayout {}
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
@@ -455,7 +452,7 @@ impl pallet_staking::Config for Runtime {
     type SlashDeferDuration = SlashDeferDuration;
     type SlashCancelOrigin = EnsureRoot<AccountId>;
     type SessionInterface = Self;
-    type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+    type EraPayout = UniformEraPayout;
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
