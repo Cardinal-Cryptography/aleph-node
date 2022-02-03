@@ -6,11 +6,14 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use pallet_staking::EraIndex;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys,
+    create_runtime_str,
+    curve::PiecewiseLinear,
+    generic, impl_opaque_keys,
     traits::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
         Verify,
@@ -19,6 +22,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, MultiSignature,
 };
 
+use sp_staking::SessionIndex;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -33,7 +37,6 @@ use frame_support::weights::constants::WEIGHT_PER_MILLIS;
 use frame_support::PalletId;
 pub use frame_support::{
     construct_runtime, parameter_types,
-    sp_runtime::curve::PiecewiseLinear,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier,
         OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
@@ -44,7 +47,7 @@ pub use frame_support::{
     },
     StorageValue,
 };
-use frame_system::EnsureSignedBy;
+use frame_system::{EnsureRoot, EnsureSignedBy};
 use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 
 pub use pallet_balances::Call as BalancesCall;
@@ -219,6 +222,17 @@ impl pallet_aura::Config for Runtime {
     type DisabledValidators = ();
 }
 
+parameter_types! {
+    pub const UncleGenerations: BlockNumber = 5;
+}
+
+impl pallet_authorship::Config for Runtime {
+    type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
+    type UncleGenerations = UncleGenerations;
+    type FilterUncle = ();
+    type EventHandler = (Staking,); // consider adding ImOnline
+}
+
 pub struct MinimumPeriod;
 impl MinimumPeriod {
     pub fn get() -> u64 {
@@ -335,6 +349,7 @@ impl pallet_sudo::Config for Runtime {
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type Event = Event;
+    type DataProvider = Staking;
 }
 
 impl_opaque_keys! {
@@ -383,13 +398,70 @@ impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
-    type ValidatorIdOf = ConvertInto;
+    type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = pallet_aleph::AlephSessionManager<Self>;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
-    type WeightInfo = ();
+    type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_session::historical::Config for Runtime {
+    type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
+    type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
+}
+
+// TODO #6469: This shouldn't be static, but a lazily cached value, not built unless needed, and
+// re-built in case input parameters have changed. The `ideal_stake` should be determined by the
+// amount of parachain slots being bid on: this should be around `(75 - 25.min(slots / 4))%`.
+pallet_staking_reward_curve::build! {
+    const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+        min_inflation: 0_025_000,
+        max_inflation: 0_100_000,
+        // 3:2:1 staked : parachains : float.
+        // while there's no parachains, then this is 75% staked : 25% float.
+        ideal_stake: 0_750_000,
+        falloff: 0_050_000,
+        max_piece_count: 40,
+        test_precision: 0_005_000,
+    );
+}
+
+parameter_types! {
+    // Six sessions in an era (24 hours).
+    pub const SessionsPerEra: SessionIndex = 4*24;
+    pub const BondingDuration: EraIndex = 14;
+    pub const SlashDeferDuration: EraIndex = 13;
+    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+    // TODO determine the correct value
+    pub const MaxNominatorRewardedPerValidator: u32 = 256;
+    pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
+}
+
+impl pallet_staking::Config for Runtime {
+    // TODO determine the correct value
+    const MAX_NOMINATIONS: u32 = 16;
+    type Currency = Balances;
+    type UnixTime = Timestamp;
+    type CurrencyToVote = U128CurrencyToVote;
+    type ElectionProvider = Aleph;
+    type GenesisElectionProvider = Aleph;
+    type RewardRemainder = Treasury;
+    type Event = Event;
+    type Slash = Treasury;
+    type Reward = ();
+    type SessionsPerEra = SessionsPerEra;
+    type BondingDuration = BondingDuration;
+    type SlashDeferDuration = SlashDeferDuration;
+    type SlashCancelOrigin = EnsureRoot<AccountId>;
+    type SessionInterface = Self;
+    type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+    type NextNewSession = Session;
+    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
+    type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
+    type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
@@ -512,6 +584,8 @@ construct_runtime!(
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
         Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Authorship: pallet_authorship::{Pallet, Call, Storage},
+        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
