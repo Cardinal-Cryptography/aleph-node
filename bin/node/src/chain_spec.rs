@@ -3,8 +3,8 @@ use aleph_primitives::{
     DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
-    AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, SessionConfig, SessionKeys,
-    Signature, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, GenesisConfig, Perbill, SessionConfig,
+    SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use finality_aleph::{MillisecsPerBlock, SessionPeriod};
 use libp2p::PeerId;
@@ -314,18 +314,26 @@ fn genesis(
         },
         session: SessionConfig {
             keys: authorities
-                .into_iter()
+                .iter()
                 .map(|auth| {
                     (
                         auth.account_id.clone(),
                         auth.account_id.clone(),
                         SessionKeys {
                             aura: auth.aura_key.clone(),
-                            aleph: auth.aleph_key,
+                            aleph: auth.aleph_key.clone(),
                         },
                     )
                 })
                 .collect(),
+        },
+        staking: StakingConfig {
+            validator_count: authorities.len() as u32,
+            minimum_validator_count: authorities.len() as u32,
+            invulnerables: authorities.iter().map(|x| x.account_id.clone()).collect(),
+            slash_reward_fraction: Perbill::from_percent(10), // TODO
+            stakers: Vec::new(),                              // TODO
+            ..Default::default()
         },
         treasury: Default::default(),
         vesting: VestingConfig { vesting: vec![] },

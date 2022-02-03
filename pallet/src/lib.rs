@@ -15,12 +15,12 @@ mod tests;
 
 mod migrations;
 
-use frame_support::Parameter;
 use sp_std::prelude::*;
 
 use frame_support::{
     sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
+    Parameter,
 };
 pub use pallet::*;
 
@@ -30,13 +30,13 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use frame_election_provider_support::{ElectionDataProvider, ElectionProvider, Supports};
     use frame_support::{
         pallet_prelude::*,
         sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
-        sp_std,
     };
-    use frame_system::pallet_prelude::*;
-    use pallet_session::{Pallet as Session, SessionManager};
+    use frame_system::pallet_prelude::{ensure_root, BlockNumberFor, OriginFor};
+    use pallet_session::Pallet as Session;
     use primitives::{
         ApiError as AlephApiError, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSION_PERIOD,
     };
@@ -57,6 +57,7 @@ pub mod pallet {
             + Default
             + MaybeSerializeDeserialize;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
     }
 
     #[pallet::event]
@@ -64,8 +65,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         ChangeValidators(Vec<T::AccountId>, u32),
     }
-
-    pub struct AlephSessionManager<T>(sp_std::marker::PhantomData<T>);
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -170,24 +169,33 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> SessionManager<T::AccountId> for AlephSessionManager<T> {
-        fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
-            if let Some(session_for_validators_change) =
-                Pallet::<T>::session_for_validators_change()
-            {
-                if session_for_validators_change <= session {
-                    let validators = Validators::<T>::take()
-                        .expect("When SessionForValidatorsChange is Some so should be Validators");
-                    let _ = SessionForValidatorsChange::<T>::take().unwrap();
-                    return Some(validators);
-                }
-            }
-            None
+    #[derive(Debug)]
+    pub enum Error {}
+
+    impl<T: Config> ElectionProvider<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+        type Error = Error;
+        // We authoritarily decide on the committee so don't need any data for elections
+        type DataProvider = T::DataProvider;
+        fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
+            // if let Some(session_for_validators_change) =
+            //     Pallet::<T>::session_for_validators_change()
+            // {
+            //     if session_for_validators_change <= session {
+            //         let validators = Validators::<T>::take()
+            //             .expect("When SessionForValidatorsChange is Some so should be Validators");
+            //         let _ = SessionForValidatorsChange::<T>::take().unwrap();
+            //         let empty_support = Support {
+            //             total: 0,
+            //             voters: Vec::new(),
+            //         };
+            //         return Ok(validators
+            //             .iter()
+            //             .zip(iter::once(empty_support).cycle())
+            //             .collect());
+            //     }
+            // }
+            Ok(Vec::new())
         }
-
-        fn start_session(_: u32) {}
-
-        fn end_session(_: u32) {}
     }
 
     impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
