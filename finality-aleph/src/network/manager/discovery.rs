@@ -6,7 +6,7 @@ use crate::{
     NodeCount, NodeIndex, SessionId,
 };
 use codec::{Decode, Encode};
-use log::{debug, warn};
+use log::{trace, debug, warn};
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
@@ -90,15 +90,6 @@ impl Discovery {
         }
     }
 
-    fn should_broadcast(missing_authorities_num: usize, total_node_count: NodeCount) -> bool {
-        // We can avoid broadcasting only when we are connected to more than 2/3 of all nodes.
-        // Then all clusters of nonbroadcasting nodes will have at least one honest node in their
-        // intersection, so we will eventually learn about all nodes by asking this node about
-        // missing nodes. Knowing more than 2/3 nodes is the same as not knowing at least 1/3
-        // nodes, the inverse of that is then:
-        missing_authorities_num * 3 > total_node_count.0
-    }
-
     /// Returns messages that should be sent as part of authority discovery at this moment.
     pub fn discover_authorities(&mut self, handler: &SessionHandler) -> Vec<DiscoveryCommand> {
         let authentication = match handler.authentication() {
@@ -107,33 +98,9 @@ impl Discovery {
         };
 
         let missing_authorities = handler.missing_nodes();
-        if missing_authorities.is_empty() {
-            debug!(target: "aleph-network", "All authorities known for session {:?}.", handler.session_id());
-            return Vec::new();
-        }
         let node_count = handler.node_count();
         debug!(target: "aleph-network", "{:?}/{:?} authorities known for session {:?}.", node_count.0-missing_authorities.len(), node_count, handler.session_id());
-        if Self::should_broadcast(missing_authorities.len(), node_count) {
-            // We know of fewer than 1/3 authorities, broadcast our authentication and hope others
-            // respond in kind.
-            vec![authentication_broadcast(authentication)]
-        } else {
-            // Attempt learning about more authorities from the ones you already know.
-            let mut result = Vec::new();
-            let mut target = NodeIndex(self.next_query % node_count.0);
-            while result.len() < NODES_TO_QUERY {
-                if let Some(peer_id) = handler.peer_id(&target) {
-                    result.push(request(
-                        missing_authorities.clone(),
-                        authentication.clone(),
-                        peer_id,
-                    ));
-                }
-                target = NodeIndex((target.0 + 1) % node_count.0);
-            }
-            self.next_query = target.0;
-            result
-        }
+        vec![authentication_broadcast(authentication)]
     }
 
     /// Checks the authentication using the handler and returns the addresses we should be
@@ -161,6 +128,7 @@ impl Discovery {
         authentication: Authentication,
         handler: &mut SessionHandler,
     ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
+        debug!(target: "aleph-network", "Handling broadcast with authentication {:?}.", authentication);
         let addresses = self.handle_authentication(authentication.clone(), handler);
         if addresses.is_empty() {
             return (Vec::new(), Vec::new());
@@ -178,6 +146,7 @@ impl Discovery {
             }
         }
         if self.should_rebroadcast(&node_id) {
+            trace!(target: "aleph-network", "Rebroadcasting {:?}.", authentication);
             self.last_broadcast.insert(node_id, Instant::now());
             messages.push(authentication_broadcast(authentication));
         }
