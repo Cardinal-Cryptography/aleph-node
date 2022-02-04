@@ -1,5 +1,3 @@
-// Everything here is dead code, but I don't want to create one enormous PR.
-#![allow(dead_code)]
 use aleph_bft::Recipient;
 use async_trait::async_trait;
 use codec::{Codec, Decode, Encode};
@@ -20,13 +18,18 @@ mod session;
 mod split;
 mod substrate;
 
-use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-};
 use manager::SessionCommand;
 
-pub use aleph::NetworkData as AlephNetworkData;
+pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
+pub use component::SimpleNetwork;
+pub use component::{
+    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
+};
+pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use rmc::NetworkData as RmcNetworkData;
+pub use service::{Service, IO};
+pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
+pub use split::{split, Split};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -135,6 +138,10 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
 
     /// Request the given block -- this is supposed to be used only for "old forks".
     fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
+
+    /// Clear all pending justification requests. We need this function in case
+    /// we requested a justification for a block, which will never get it.
+    fn clear_justification_requests(&self);
 }
 
 /// What do do with a specific piece of data.
@@ -169,7 +176,3 @@ pub trait DataNetwork<D: Data>: Send + Sync {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
     async fn next(&mut self) -> Option<D>;
 }
-
-// This should be removed after compatibility with the old network is no longer needed.
-mod compatibility;
-pub use compatibility::*;

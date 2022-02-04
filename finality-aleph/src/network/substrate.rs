@@ -1,4 +1,4 @@
-use crate::new_network::{
+use crate::network::{
     Network, NetworkEventStream, NetworkIdentity, NetworkSender, PeerId, RequestBlocks,
 };
 use async_trait::async_trait;
@@ -19,6 +19,11 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
         // of peers is empty (as in our case) then the underlying implementation should make a best effort to fetch
         // the block from any peers it is connected to.
         NetworkService::set_sync_fork_request(self, Vec::new(), hash, number)
+    }
+
+    /// Clear all pending justification requests.
+    fn clear_justification_requests(&self) {
+        NetworkService::clear_justification_requests(self)
     }
 }
 

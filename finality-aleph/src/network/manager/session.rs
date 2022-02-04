@@ -1,6 +1,6 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{
+    network::{
         manager::{get_common_peer_id, is_p2p, AuthData, Authentication, Multiaddr},
         PeerId,
     },
@@ -107,7 +107,7 @@ impl Handler {
         self.authority_verifier.node_count()
     }
 
-    fn session_id(&self) -> SessionId {
+    pub fn session_id(&self) -> SessionId {
         self.session_info.session_id()
     }
 
@@ -178,13 +178,6 @@ impl Handler {
         self.peers_by_node.get(node_id).copied()
     }
 
-    /// Returns the NodeIndex of the node with the given PeerId, if known.
-    pub fn node_id(&self, peer_id: &PeerId) -> Option<NodeIndex> {
-        self.authentications
-            .get(peer_id)
-            .map(|((auth_data, _), _)| auth_data.node_id)
-    }
-
     /// Updates the handler with the given keychain and set of own addresses.
     /// Returns an error if the set of addresses is not valid.
     /// All authentications will be rechecked, invalid ones purged and cached ones that turn out to
@@ -212,15 +205,9 @@ impl Handler {
         .await?;
 
         for (_, (auth, maybe_auth)) in authentications {
-            print!(
-                "normal authentication: {:?}",
-                self.handle_authentication(auth)
-            );
+            self.handle_authentication(auth);
             if let Some(auth) = maybe_auth {
-                print!(
-                    "alternative authentication: {:?}",
-                    self.handle_authentication(auth)
-                );
+                self.handle_authentication(auth);
             }
         }
         Ok(self
@@ -235,7 +222,7 @@ impl Handler {
 mod tests {
     use super::{get_common_peer_id, Handler, HandlerError};
     use crate::{
-        new_network::manager::{
+        network::manager::{
             testing::{address, crypto_basics},
             Multiaddr,
         },
@@ -264,15 +251,6 @@ mod tests {
             "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWFVXnvJdPuGnGYMPn5qLQAQYwmRBgo6SmEQsKZSrDoo2k",
         )
         .into()]
-    }
-
-    fn mixed_addresses() -> Vec<Multiaddr> {
-        vec![
-                address("/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
-                address("/dns4/peer.example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L").into(),
-                address("/ip4/example.com/udt/sctp/5678").into(),
-                address("/ip4/81.6.39.166/udt/sctp/5678").into(),
-        ]
     }
 
     #[tokio::test]
@@ -456,7 +434,6 @@ mod tests {
         assert_eq!(missing_nodes, expected_missing);
         let peer_id1 = get_common_peer_id(&correct_addresses_1());
         assert_eq!(handler0.peer_id(&NodeIndex(1)), peer_id1);
-        assert_eq!(handler0.node_id(&peer_id1.unwrap()), Some(NodeIndex(1)));
         assert_eq!(
             handler0.authentication_for(&NodeIndex(1)).encode(),
             handler1.authentication().encode()
@@ -489,7 +466,6 @@ mod tests {
         assert_eq!(missing_nodes, expected_missing);
         let peer_id1 = get_common_peer_id(&correct_addresses_1());
         assert_eq!(handler0.peer_id(&NodeIndex(1)), peer_id1);
-        assert_eq!(handler0.node_id(&peer_id1.unwrap()), Some(NodeIndex(1)));
     }
 
     #[tokio::test]
@@ -584,17 +560,14 @@ mod tests {
         .unwrap();
         assert!(handler0.handle_authentication(handler1.authentication().unwrap()));
         let new_crypto_basics = crypto_basics(NUM_NODES).await;
-        print!(
-            "{:?}",
-            handler0
-                .update(
-                    Some(new_crypto_basics.0[0].clone()),
-                    new_crypto_basics.1.clone(),
-                    correct_addresses_0()
-                )
-                .await
-                .unwrap()
-        );
+        handler0
+            .update(
+                Some(new_crypto_basics.0[0].clone()),
+                new_crypto_basics.1.clone(),
+                correct_addresses_0(),
+            )
+            .await
+            .unwrap();
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
