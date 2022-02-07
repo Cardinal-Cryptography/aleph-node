@@ -15,7 +15,8 @@ codec = { package = "parity-scale-codec", version = "2.0.0", default-features = 
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
 
 primitives = { path = "../../primitives", default-features = false }
-pallet-aleph = { path = "../../pallet", default-features = false}
+pallet-aleph = { path = "../../pallets/aleph", default-features = false}
+pallet-elections = { path = "../../pallets/elections", default-features = false}
 
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -24,7 +25,6 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 
 pallet-aura = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
-pallet-bags-list = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -67,8 +67,8 @@ std = [
     "pallet-aleph/std",
     "pallet-aura/std",
     "pallet-authorship/std",
-	"pallet-bags-list/std",
     "pallet-balances/std",
+    "pallet-elections/std",
     "pallet-randomness-collective-flip/std",
     "pallet-session/std",
     "pallet-staking/std",

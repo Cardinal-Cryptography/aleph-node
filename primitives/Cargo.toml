@@ -15,6 +15,7 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 # we need aura authorites till we have our own pallet
 sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 
 [features]
 default = ["std"]
@@ -27,5 +28,6 @@ std = [
     "sp-runtime/std",
     "sp-std/std",
     "sp-consensus-aura/std",
+    "sp-staking/std",
 ]
 

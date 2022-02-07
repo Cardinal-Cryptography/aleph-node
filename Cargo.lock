@@ -169,8 +169,8 @@ dependencies = [
  "pallet-aleph",
  "pallet-aura",
  "pallet-authorship",
- "pallet-bags-list",
  "pallet-balances",
+ "pallet-elections",
  "pallet-multisig",
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
@@ -4413,11 +4413,9 @@ dependencies = [
 name = "pallet-aleph"
 version = "0.2.0"
 dependencies = [
- "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",
  "primitives",
@@ -4485,21 +4483,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-bags-list"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.13#afb74de23dfe2994e7ce38c0870efb9734e966f7"
-dependencies = [
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-balances"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.13#afb74de23dfe2994e7ce38c0870efb9734e966f7"
@@ -4511,6 +4494,20 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-elections"
+version = "0.1.0"
+dependencies = [
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
  "sp-std",
 ]
 
@@ -5098,6 +5095,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 
