@@ -104,7 +104,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 8,
+    spec_version: 9,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -328,7 +328,7 @@ pub struct MillisecsPerBlock;
 
 impl MillisecsPerBlock {
     pub fn get() -> u64 {
-        Aleph::millisecs_per_block()
+        Elections::millisecs_per_block()
     }
 }
 
@@ -338,11 +338,18 @@ impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
     }
 }
 
+impl pallet_elections::Config for Runtime {
+    type Event = Event;
+    type DataProvider = Staking;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 pub struct SessionPeriod;
 
 impl SessionPeriod {
     pub fn get() -> u32 {
-        Aleph::session_period()
+        Elections::session_period()
     }
 }
 
@@ -388,6 +395,20 @@ parameter_types! {
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
+}
+
+pub struct SessionsPerEra;
+
+impl SessionsPerEra {
+    pub fn get() -> SessionIndex {
+        Elections::sessions_per_era()
+    }
+}
+
+impl<I: From<SessionIndex>> ::frame_support::traits::Get<I> for SessionsPerEra {
+    fn get() -> I {
+        I::from(Self::get())
+    }
 }
 
 const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
@@ -729,7 +750,7 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            Aleph::millisecs_per_block()
+            Elections::millisecs_per_block()
         }
 
         fn session_period() -> u32 {
