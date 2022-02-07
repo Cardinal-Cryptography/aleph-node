@@ -4,7 +4,8 @@ members = [
     "bin/node",
     "bin/runtime",
     "finality-aleph",
-    "pallet",
+    "pallets/aleph",
+    "pallets/elections",
     "primitives",
 ]
 

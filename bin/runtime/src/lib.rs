@@ -17,7 +17,7 @@ use sp_runtime::{
         Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature,
+    ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
 };
 
 use sp_staking::SessionIndex;
@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 8,
+    spec_version: 9,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 3,
@@ -207,8 +207,6 @@ impl frame_system::Config for Runtime {
     type OnSetCode = ();
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
-
 parameter_types! {
     // https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L784
     pub const MaxAuthorities: u32 = 100_000;
@@ -234,21 +232,13 @@ impl pallet_authorship::Config for Runtime {
 pub struct MinimumPeriod;
 impl MinimumPeriod {
     pub fn get() -> u64 {
-        Aleph::millisecs_per_block() / 2
+        Elections::millisecs_per_block() / 2
     }
 }
 impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
     fn get() -> I {
         I::from(Self::get())
     }
-}
-
-impl pallet_timestamp::Config for Runtime {
-    /// A timestamp: milliseconds since the unix epoch.
-    type Moment = u64;
-    type OnTimestampSet = Aura;
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -346,8 +336,6 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
-    type Event = Event;
-    type DataProvider = Staking;
 }
 
 impl_opaque_keys! {
@@ -369,7 +357,7 @@ pub struct MillisecsPerBlock;
 
 impl MillisecsPerBlock {
     pub fn get() -> u64 {
-        Aleph::millisecs_per_block()
+        Elections::millisecs_per_block()
     }
 }
 
@@ -379,11 +367,18 @@ impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
     }
 }
 
+impl pallet_elections::Config for Runtime {
+    type Event = Event;
+    type DataProvider = Staking;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 pub struct SessionPeriod;
 
 impl SessionPeriod {
     pub fn get() -> u32 {
-        Aleph::session_period()
+        Elections::session_period()
     }
 }
 
@@ -411,13 +406,25 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-    // Six sessions in an era (24 hours).
-    pub const SessionsPerEra: SessionIndex = 4*24;
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
     // TODO determine the correct value
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
+}
+
+pub struct SessionsPerEra;
+
+impl SessionsPerEra {
+    pub fn get() -> SessionIndex {
+        Elections::sessions_per_era()
+    }
+}
+
+impl<I: From<SessionIndex>> ::frame_support::traits::Get<I> for SessionsPerEra {
+    fn get() -> I {
+        I::from(Self::get())
+    }
 }
 
 const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
@@ -441,8 +448,8 @@ impl pallet_staking::Config for Runtime {
     type Currency = Balances;
     type UnixTime = Timestamp;
     type CurrencyToVote = U128CurrencyToVote;
-    type ElectionProvider = Aleph;
-    type GenesisElectionProvider = Aleph;
+    type ElectionProvider = Elections;
+    type GenesisElectionProvider = Elections;
     type RewardRemainder = Treasury;
     type Event = Event;
     type Slash = Treasury;
@@ -458,6 +465,14 @@ impl pallet_staking::Config for Runtime {
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_timestamp::Config for Runtime {
+    /// A timestamp: milliseconds since the unix epoch.
+    type Moment = u64;
+    type OnTimestampSet = Aura;
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
@@ -579,7 +594,8 @@ construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Aleph: pallet_aleph::{Pallet, Storage},
+        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>},
         Authorship: pallet_authorship::{Pallet, Call, Storage},
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
@@ -726,21 +742,23 @@ impl_runtime_apis! {
     }
 
     impl primitives::AlephSessionApi<Block> for Runtime {
-        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
-            Aleph::next_session_authorities()
-        }
-
         fn authorities() -> Vec<AlephId> {
             Aleph::authorities()
         }
 
-        fn session_period() -> u32 {
-            Aleph::session_period()
-        }
-
         fn millisecs_per_block() -> u64 {
-            Aleph::millisecs_per_block()
+            Elections::millisecs_per_block()
         }
 
+        fn session_period() -> u32 {
+            Elections::session_period()
+        }
+
+        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
+                Session::queued_keys()
+                .iter()
+                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
+                .collect::<Result<Vec<AlephId>, AlephApiError>>()
+        }
     }
 }

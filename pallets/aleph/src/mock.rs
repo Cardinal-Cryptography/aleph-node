@@ -33,7 +33,7 @@ construct_runtime!(
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Aleph: pallet_aleph::{Pallet,  Storage},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
     }
 );
