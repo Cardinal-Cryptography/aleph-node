@@ -43,7 +43,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn validators)]
-    pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>, OptionQuery>;
+    pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn session_for_validators_change)]
@@ -122,6 +122,7 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
+        pub validators: Vec<T::AccountId>,
         pub authorities: Vec<T::AuthorityId>,
         pub session_period: u32,
         pub millisecs_per_block: u64,
@@ -131,6 +132,7 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
+                validators: Vec::new(),
                 authorities: Vec::new(),
                 session_period: DEFAULT_SESSION_PERIOD,
                 millisecs_per_block: DEFAULT_MILLISECS_PER_BLOCK,
@@ -154,6 +156,16 @@ pub mod pallet {
                     "Authorities are already initialized!"
                 );
                 <Authorities<T>>::put(authorities);
+            }
+        }
+
+        pub(crate) fn initialize_validators(validators: &[T::AccountId]) {
+            if !validators.is_empty() {
+                assert!(
+                    <Validators<T>>::get().is_empty(),
+                    "Validators are already initialized!"
+                );
+                <Validators<T>>::put(validators);
             }
         }
 
@@ -181,10 +193,8 @@ pub mod pallet {
                 total: 0,
                 voters: Vec::new(),
             };
-
             Ok(Pallet::<T>::validators()
                 .into_iter()
-                .flatten()
                 .zip(sp_std::iter::once(empty_support).cycle())
                 .collect())
         }
@@ -202,7 +212,8 @@ pub mod pallet {
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
-            let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
+            let (accounts_ids, authorities): (Vec<_>, Vec<_>) = validators.unzip();
+            Self::initialize_validators(accounts_ids.into_iter().cloned().collect::<Vec<_>>().as_slice());
             Self::initialize_authorities(authorities.as_slice());
         }
 
