@@ -24,18 +24,13 @@ class Node:
         self.process = None
         self.flags = {}
         self.running = False
-        self.log_level = {}
 
     def _stdargs(self):
         return ['--base-path', self.path, '--chain', self.chainspec]
 
-    def _log_levels(self):
-        return [f'-l{k}={v}' for (k, v) in self.log_level.items()]
-
     def start(self, name):
         """Start the node. `name` is used to name of the logfile and for --name flag."""
-        cmd = [self.binary, '--name', name] + self._stdargs() + \
-            flags_from_dict(self.flags) + self._log_levels()
+        cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
 
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
@@ -71,12 +66,9 @@ class Node:
             return int(a), int(b)
         return -1, -1
 
-    def check_hash_of(self, number):
-        """Find in the logs the hash for block with number `number`."""
-        results = self.greplog(rf'Finalizing block {number} (.+)')
-        if results:
-            return results[-1].strip()
-        return ''
+    def get_hash(self, height):
+        """Find the hash of the block with the given height. Requires the node to be running."""
+        return self.rpc('chain_getBlockHash', [height]).result
 
     def state(self, block=None):
         """Return a JSON representation of the chain state after the given block.
@@ -103,3 +95,8 @@ class Node:
             return None
         resp = requests.post(f'http://localhost:{port}/', json=rpc.request(method, params))
         return rpc.parse(resp.json())
+
+    def set_log_level(self, target, level):
+        """Change log verbosity of the chosen target.
+        This method should be called on a running node."""
+        self.rpc('system_addLogFilter', [f'{target}={level}'])

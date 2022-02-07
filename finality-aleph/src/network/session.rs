@@ -1,10 +1,10 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    new_network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
+    network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 use aleph_bft::Recipient;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -46,9 +46,11 @@ pub struct Manager<D: Data> {
     messages_for_service: mpsc::UnboundedSender<(D, SessionId, Recipient)>,
 }
 
-/// What went wrond during a session management operation.
+/// What went wrong during a session management operation.
+#[derive(Debug)]
 pub enum ManagerError {
     CommandSendFailed,
+    NetworkReceiveFailed,
 }
 
 impl<D: Data> Manager<D> {
@@ -78,23 +80,26 @@ impl<D: Data> Manager<D> {
     /// Start participating or update the information about the given session where you are a
     /// validator. Returns a session network to be used for sending and receiving data within the
     /// session.
-    pub fn start_validator_session(
+    pub async fn start_validator_session(
         &self,
         session_id: SessionId,
         verifier: AuthorityVerifier,
         node_id: NodeIndex,
         pen: AuthorityPen,
     ) -> Result<Network<D>, ManagerError> {
-        let (data_for_user, data_from_network) = mpsc::unbounded();
+        let (result_for_us, result_from_service) = oneshot::channel();
         self.commands_for_service
             .unbounded_send(SessionCommand::StartValidator(
                 session_id,
                 verifier,
                 node_id,
                 pen,
-                data_for_user,
+                Some(result_for_us),
             ))
             .map_err(|_| ManagerError::CommandSendFailed)?;
+        let data_from_network = result_from_service
+            .await
+            .map_err(|_| ManagerError::NetworkReceiveFailed)?;
         let messages_for_network = self.messages_for_service.clone();
         Ok(Network {
             sender: Sender {
@@ -103,6 +108,23 @@ impl<D: Data> Manager<D> {
             },
             receiver: Arc::new(Mutex::new(data_from_network)),
         })
+    }
+
+    /// Start participating or update the information about the given session where you are a
+    /// validator. Used for early starts when you don't yet need the returned network, but would
+    /// like to start discovery.
+    pub fn early_start_validator_session(
+        &self,
+        session_id: SessionId,
+        verifier: AuthorityVerifier,
+        node_id: NodeIndex,
+        pen: AuthorityPen,
+    ) -> Result<(), ManagerError> {
+        self.commands_for_service
+            .unbounded_send(SessionCommand::StartValidator(
+                session_id, verifier, node_id, pen, None,
+            ))
+            .map_err(|_| ManagerError::CommandSendFailed)
     }
 
     /// Stop participating in the given session.

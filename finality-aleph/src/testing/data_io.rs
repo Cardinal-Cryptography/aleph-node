@@ -1,5 +1,5 @@
 use crate::data_io::{AlephData, AlephDataFor, AlephNetworkMessage, DataStore, DataStoreConfig};
-use crate::network::RequestBlocks;
+use crate::network::{DataNetwork, RequestBlocks, SimpleNetwork};
 use futures::{
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -13,26 +13,24 @@ use sp_api::NumberFor;
 use sp_consensus::BlockOrigin;
 use sp_runtime::traits::Block as BlockT;
 use sp_runtime::Digest;
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{default::Default, future::Future, sync::Arc, time::Duration};
 use substrate_test_runtime_client::{
-    runtime::{Block, Hash},
-    Backend, ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient, TestClientBuilder,
-    TestClientBuilderExt,
+    runtime::Block, Backend, ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient,
+    TestClientBuilder, TestClientBuilderExt,
 };
-
-use std::default::Default;
+use tokio::time::timeout;
 
 #[derive(Clone)]
 struct TestBlockRequester<B: BlockT> {
-    blocks: mpsc::UnboundedSender<AlephDataFor<B>>,
-    justifications: mpsc::UnboundedSender<AlephDataFor<B>>,
+    blocks: UnboundedSender<AlephDataFor<B>>,
+    justifications: UnboundedSender<AlephDataFor<B>>,
 }
 
 impl<B: BlockT> TestBlockRequester<B> {
     fn new() -> (
         Self,
-        mpsc::UnboundedReceiver<AlephDataFor<B>>,
-        mpsc::UnboundedReceiver<AlephDataFor<B>>,
+        UnboundedReceiver<AlephDataFor<B>>,
+        UnboundedReceiver<AlephDataFor<B>>,
     ) {
         let (blocks_tx, blocks_rx) = mpsc::unbounded();
         let (justifications_tx, justifications_rx) = mpsc::unbounded();
@@ -62,297 +60,255 @@ impl<B: BlockT> RequestBlocks<B> for TestBlockRequester<B> {
             .unbounded_send(AlephData { hash, number })
             .unwrap();
     }
-}
 
-#[derive(Debug)]
-struct TestNetworkData {
-    data: Vec<AlephDataFor<Block>>,
-}
-
-impl AlephNetworkMessage<Block> for TestNetworkData {
-    fn included_blocks(&self) -> Vec<AlephDataFor<Block>> {
-        self.data.clone()
+    fn clear_justification_requests(&self) {
+        panic!("`clear_justification_requests` not implemented!")
     }
 }
 
-struct DataStoreChannels {
-    store_tx: UnboundedSender<TestNetworkData>,
-    store_rx: UnboundedReceiver<TestNetworkData>,
+type TestData = Vec<AlephDataFor<Block>>;
+
+impl AlephNetworkMessage<Block> for TestData {
+    fn included_blocks(&self) -> Vec<AlephDataFor<Block>> {
+        self.clone()
+    }
+}
+
+struct TestHandler {
+    client: Arc<TestClient>,
     block_requests_rx: UnboundedReceiver<AlephDataFor<Block>>,
+    network_tx: UnboundedSender<TestData>,
     exit_data_store_tx: oneshot::Sender<()>,
 }
 
-fn prepare_data_store() -> (impl Future<Output = ()>, Arc<TestClient>, DataStoreChannels) {
+impl AlephDataFor<Block> {
+    fn from(block: Block) -> AlephDataFor<Block> {
+        AlephData::new(block.header.hash(), block.header.number)
+    }
+}
+
+impl TestHandler {
+    /// Import block in test client
+    async fn import_block(&mut self, block: Block, finalize: bool) {
+        if finalize {
+            self.client.import_as_final(BlockOrigin::Own, block.clone())
+        } else {
+            self.client.import(BlockOrigin::Own, block.clone())
+        }
+        .await
+        .unwrap();
+    }
+
+    /// Build block in test client
+    fn build_block(&mut self) -> Block {
+        self.client
+            .new_block(Default::default())
+            .unwrap()
+            .build()
+            .unwrap()
+            .block
+    }
+
+    /// Build block `at` in test client
+    fn build_block_at(&mut self, at: u64, contents: Vec<u8>) -> Block {
+        let mut digest = Digest::default();
+        digest.push(sp_runtime::generic::DigestItem::Other(contents));
+        self.client
+            .new_block_at(&BlockId::Number(at), digest, false)
+            .unwrap()
+            .build()
+            .unwrap()
+            .block
+    }
+
+    /// Build and import blocks in test client
+    async fn build_and_import_blocks(&mut self, n: u32, finalize: bool) -> TestData {
+        let mut blocks = vec![];
+        for _ in 0..n {
+            let block = self.build_block();
+            self.import_block(block.clone(), finalize).await;
+            blocks.push(AlephData::from(block));
+        }
+        blocks
+    }
+
+    /// Sends data to Data Store
+    fn send_data(&self, data: TestData) {
+        self.network_tx.unbounded_send(data).unwrap()
+    }
+
+    /// Exits Data Store
+    fn exit(self) {
+        self.exit_data_store_tx.send(()).unwrap();
+    }
+
+    /// Receive next block request from Data Store
+    async fn next_block_request(&mut self) -> AlephDataFor<Block> {
+        self.block_requests_rx.next().await.unwrap()
+    }
+}
+
+fn prepare_data_store() -> (
+    impl Future<Output = ()>,
+    TestHandler,
+    impl DataNetwork<TestData>,
+) {
     let client = Arc::new(TestClientBuilder::new().build());
 
-    let (aleph_network_tx, data_store_rx) = mpsc::unbounded();
-    let (data_store_tx, aleph_network_rx) = mpsc::unbounded();
     let (block_requester, block_requests_rx, _justification_requests_rx) =
         TestBlockRequester::new();
-
+    let (sender_tx, _sender_rx) = mpsc::unbounded();
+    let (network_tx, network_rx) = mpsc::unbounded();
+    let test_network = SimpleNetwork::new(network_rx, sender_tx);
     let data_store_config = DataStoreConfig {
         available_blocks_cache_capacity: 1000,
         message_id_boundary: 100_000,
         periodic_maintenance_interval: Duration::from_millis(30),
         request_block_after: Duration::from_millis(50),
     };
-    let mut data_store =
-        DataStore::<Block, TestClient, Backend, TestBlockRequester<Block>, TestNetworkData>::new(
-            client.clone(),
-            block_requester,
-            data_store_tx,
-            data_store_rx,
-            data_store_config,
-        );
+
+    let (mut data_store, network) = DataStore::<
+        Block,
+        TestClient,
+        Backend,
+        TestBlockRequester<Block>,
+        TestData,
+        UnboundedReceiver<TestData>,
+    >::new(
+        client.clone(),
+        block_requester,
+        data_store_config,
+        test_network,
+    );
     let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
+
     (
         async move {
             data_store.run(exit_data_store_rx).await;
         },
-        client,
-        DataStoreChannels {
-            store_tx: aleph_network_tx,
-            store_rx: aleph_network_rx,
+        TestHandler {
+            client,
             block_requests_rx,
+            network_tx,
             exit_data_store_tx,
         },
+        network,
     )
 }
 
-async fn import_blocks(
-    client: &mut Arc<TestClient>,
-    n: u32,
-    finalize: bool,
-) -> Vec<AlephDataFor<Block>> {
-    let mut blocks = vec![];
-    for _ in 0..n {
-        let block = client
-            .new_block(Default::default())
-            .unwrap()
-            .build()
-            .unwrap()
-            .block;
-        if finalize {
-            client
-                .import_as_final(BlockOrigin::Own, block.clone())
-                .await
-                .unwrap();
-        } else {
-            client
-                .import(BlockOrigin::Own, block.clone())
-                .await
-                .unwrap();
-        }
-        blocks.push(AlephData::new(block.header.hash(), block.header.number));
-    }
-    blocks
-}
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[tokio::test]
 async fn sends_messages_with_imported_blocks() {
-    let (
-        task_handle,
-        mut client,
-        DataStoreChannels {
-            store_tx,
-            mut store_rx,
-            block_requests_rx: _,
-            exit_data_store_tx,
-        },
-    ) = prepare_data_store();
-
+    let (task_handle, mut test_handler, mut network) = prepare_data_store();
     let data_store_handle = tokio::spawn(task_handle);
 
-    let blocks = import_blocks(&mut client, 4, false).await;
+    let blocks = test_handler.build_and_import_blocks(4, false).await;
 
-    store_tx
-        .unbounded_send(TestNetworkData {
-            data: blocks.clone(),
-        })
-        .unwrap();
+    test_handler.send_data(blocks.clone());
 
-    let message = store_rx.next().await.expect("We own the tx");
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
     assert_eq!(message.included_blocks(), blocks);
-
-    exit_data_store_tx.send(()).unwrap();
+    test_handler.exit();
     data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn sends_messages_after_import() {
-    let (
-        task_handle,
-        mut client,
-        DataStoreChannels {
-            store_tx,
-            mut store_rx,
-            block_requests_rx: _,
-            exit_data_store_tx,
-        },
-    ) = prepare_data_store();
-
+    let (task_handle, mut test_handler, mut network) = prepare_data_store();
     let data_store_handle = tokio::spawn(task_handle);
 
-    let block = client
-        .new_block(Default::default())
-        .unwrap()
-        .build()
-        .unwrap()
-        .block;
+    let block = test_handler.build_block();
+    let data = AlephData::from(block.clone());
 
-    let data = AlephData::new(block.header.hash(), block.header.number);
+    test_handler.send_data(vec![data]);
 
-    store_tx
-        .unbounded_send(TestNetworkData { data: vec![data] })
-        .unwrap();
-    client
-        .import(BlockOrigin::Own, block.clone())
+    test_handler.import_block(block, false).await;
+
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
         .await
-        .unwrap();
-
-    let message = store_rx.next().await.expect("We own the tx");
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
     assert_eq!(message.included_blocks(), vec![data]);
 
-    exit_data_store_tx.send(()).unwrap();
+    test_handler.exit();
     data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn sends_messages_with_number_lower_than_finalized() {
-    let (
-        task_handle,
-        mut client,
-        DataStoreChannels {
-            store_tx,
-            mut store_rx,
-            block_requests_rx: _,
-            exit_data_store_tx,
-        },
-    ) = prepare_data_store();
-
+    let (task_handle, mut test_handler, mut network) = prepare_data_store();
     let data_store_handle = tokio::spawn(task_handle);
 
-    import_blocks(&mut client, 4, true).await;
+    test_handler.build_and_import_blocks(4, true).await;
 
-    let mut digest = Digest::default();
-    digest.push(sp_runtime::generic::DigestItem::Other::<Hash>(
-        1u32.to_le_bytes().to_vec(),
-    ));
+    let mut blocks = Vec::new();
+    for i in 0u64..4 {
+        blocks.push(AlephData::from(
+            test_handler.build_block_at(i, i.to_le_bytes().to_vec()),
+        ));
+    }
 
-    let block = client
-        .new_block_at(&BlockId::Number(1), digest, false)
-        .unwrap()
-        .build()
-        .unwrap()
-        .block;
+    test_handler.send_data(blocks.clone());
 
-    let data = AlephData::new(block.header.hash(), block.header.number);
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
+        .await
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), blocks);
 
-    store_tx
-        .unbounded_send(TestNetworkData { data: vec![data] })
-        .unwrap();
-
-    let message = store_rx.next().await.expect("We own the tx");
-    assert_eq!(message.included_blocks(), vec![data]);
-
-    exit_data_store_tx.send(()).unwrap();
+    test_handler.exit();
     data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn does_not_send_messages_without_import() {
-    let (
-        task_handle,
-        mut client,
-        DataStoreChannels {
-            store_tx,
-            mut store_rx,
-            block_requests_rx: _,
-            exit_data_store_tx,
-        },
-    ) = prepare_data_store();
-
+    let (task_handle, mut test_handler, mut network) = prepare_data_store();
     let data_store_handle = tokio::spawn(task_handle);
 
-    let imported_block = client
-        .new_block(Default::default())
-        .unwrap()
-        .build()
-        .unwrap()
-        .block;
+    let blocks = test_handler.build_and_import_blocks(4, true).await;
 
-    client
-        .import(BlockOrigin::Own, imported_block.clone())
+    let not_imported_block = test_handler.build_block();
+
+    test_handler.send_data(vec![AlephData::from(not_imported_block)]);
+
+    test_handler.send_data(blocks.clone());
+
+    let message = timeout(DEFAULT_TIMEOUT, network.next())
         .await
-        .unwrap();
+        .ok()
+        .flatten()
+        .expect("Did not receive message from Data Store");
+    assert_eq!(message.included_blocks(), blocks);
 
-    let not_imported_block = client
-        .new_block(Default::default())
-        .unwrap()
-        .build()
-        .unwrap()
-        .block;
+    test_handler.exit();
 
-    store_tx
-        .unbounded_send(TestNetworkData {
-            data: vec![AlephData::new(
-                not_imported_block.header.hash(),
-                not_imported_block.header.number,
-            )],
-        })
-        .unwrap();
+    let message = network.next().await;
+    assert!(message.is_none());
 
-    let data = AlephData::new(imported_block.header.hash(), imported_block.header.number);
-    store_tx
-        .unbounded_send(TestNetworkData { data: vec![data] })
-        .unwrap();
-
-    let message = store_rx.next().await.expect("We own the tx");
-    assert_eq!(message.included_blocks(), vec![data]);
-
-    let message = store_rx.try_next();
-    assert!(message.is_err());
-
-    exit_data_store_tx.send(()).unwrap();
     data_store_handle.await.unwrap();
 }
 
 #[tokio::test]
 async fn sends_block_request_on_missing_block() {
-    let (
-        task_handle,
-        client,
-        DataStoreChannels {
-            store_tx,
-            store_rx: _,
-            mut block_requests_rx,
-            exit_data_store_tx,
-        },
-    ) = prepare_data_store();
-
+    let (task_handle, mut test_handler, _network) = prepare_data_store();
     let data_store_handle = tokio::spawn(task_handle);
 
-    let not_imported_block = client
-        .new_block(Default::default())
-        .unwrap()
-        .build()
-        .unwrap()
-        .block;
+    let data = AlephData::from(test_handler.build_block());
 
-    let data = AlephData::new(
-        not_imported_block.header.hash(),
-        not_imported_block.header.number,
-    );
-    store_tx
-        .unbounded_send(TestNetworkData { data: vec![data] })
-        .unwrap();
+    test_handler.send_data(vec![data]);
 
-    let requested_block = block_requests_rx
-        .next()
+    let requested_block = timeout(DEFAULT_TIMEOUT, test_handler.next_block_request())
         .await
-        .expect("Block should be requested");
+        .expect("Did not receive block request from Data Store");
     assert_eq!(requested_block, data);
 
-    exit_data_store_tx.send(()).unwrap();
+    test_handler.exit();
     data_store_handle.await.unwrap();
 }

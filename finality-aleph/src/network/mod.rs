@@ -1,5 +1,3 @@
-// Everything here is dead code, but I don't want to create one enormous PR.
-#![allow(dead_code)]
 use aleph_bft::Recipient;
 use async_trait::async_trait;
 use codec::{Codec, Decode, Encode};
@@ -20,13 +18,18 @@ mod session;
 mod split;
 mod substrate;
 
-use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-};
 use manager::SessionCommand;
 
-pub use aleph::NetworkData as AlephNetworkData;
+pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
+pub use component::SimpleNetwork;
+pub use component::{
+    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
+};
+pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use rmc::NetworkData as RmcNetworkData;
+pub use service::{Service, IO};
+pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
+pub use split::{split, Split};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -88,20 +91,32 @@ impl Protocol {
 
 type NetworkEventStream = Pin<Box<dyn Stream<Item = Event> + Send>>;
 
-/// Abstraction over a network.
+/// Abstraction over a sender to network.
 #[async_trait]
-pub trait Network: Clone + Send + Sync + 'static {
-    type SendError: std::error::Error;
-    /// Returns a stream of events representing what happens on the network.
-    fn event_stream(&self) -> NetworkEventStream;
+pub trait NetworkSender: Send + Sync + 'static {
+    type SenderError: std::error::Error;
 
-    /// A method for sending data to the given peer using a given protocol. Returns Error if not connected to the peer.
+    /// A method for sending data. Returns Error if not connected to the peer.
     async fn send<'a>(
         &'a self,
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
+    ) -> Result<(), Self::SenderError>;
+}
+
+/// Abstraction over a network.
+pub trait Network: Clone + Send + Sync + 'static {
+    type SenderError: std::error::Error;
+    type NetworkSender: NetworkSender;
+
+    /// Returns a stream of events representing what happens on the network.
+    fn event_stream(&self) -> NetworkEventStream;
+
+    /// Returns a sender to the given peer using a given protocol. Returns Error if not connected to the peer.
+    fn sender(
+        &self,
         peer_id: PeerId,
         protocol: Cow<'static, str>,
-    ) -> Result<(), Self::SendError>;
+    ) -> Result<Self::NetworkSender, Self::SenderError>;
 
     /// Add peers to one of the reserved sets.
     fn add_reserved(&self, addresses: HashSet<Multiaddr>, protocol: Cow<'static, str>);
@@ -123,6 +138,10 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
 
     /// Request the given block -- this is supposed to be used only for "old forks".
     fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
+
+    /// Clear all pending justification requests. We need this function in case
+    /// we requested a justification for a block, which will never get it.
+    fn clear_justification_requests(&self);
 }
 
 /// What do do with a specific piece of data.
@@ -147,9 +166,9 @@ pub enum SendError {
 }
 
 /// What the data sent using the network has to satisfy.
-pub trait Data: Clone + Codec + Send + Sync {}
+pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
-impl<D: Clone + Codec + Send + Sync> Data for D {}
+impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 
 /// A generic interface for sending and receiving data.
 #[async_trait::async_trait]
@@ -157,7 +176,3 @@ pub trait DataNetwork<D: Data>: Send + Sync {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
     async fn next(&mut self) -> Option<D>;
 }
-
-// This should be removed after compatibility with the old network is no longer needed.
-mod compatibility;
-pub use compatibility::*;
