@@ -19,8 +19,6 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-/// The AccountId alias in this test module.
-pub(crate) type AccountId = u64;
 
 // Based on grandpa mock
 
@@ -107,7 +105,7 @@ impl pallet_session::Config for Test {
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-    type SessionManager = pallet_aleph::AlephSessionManager<Self>;
+    type SessionManager = ();
     type SessionHandler = <TestSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = TestSessionKeys;
     type WeightInfo = ();
@@ -132,11 +130,8 @@ impl pallet_timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {}
-
 impl Config for Test {
     type AuthorityId = AuthorityId;
-    type Event = Event;
 }
 
 pub fn to_authorities(authorities: &[u64]) -> Vec<AuthorityId> {
@@ -144,6 +139,12 @@ pub fn to_authorities(authorities: &[u64]) -> Vec<AuthorityId> {
         .iter()
         .map(|id| UintAuthorityId(*id).to_public_key::<AuthorityId>())
         .collect()
+}
+
+pub fn new_session_validators(validators: &[u64]) -> impl Iterator<Item = (&u64, AuthorityId)> {
+    validators
+        .iter()
+        .zip(to_authorities(validators).into_iter())
 }
 
 pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
@@ -173,18 +174,26 @@ pub fn new_test_ext(authorities: &[(u64, u64)]) -> sp_io::TestExternalities {
     t.into()
 }
 
-pub(crate) fn run_session(n: u64) {
-    while System::block_number() < n {
+pub(crate) fn run_session(n: u32) {
+    for i in Session::current_index()..n {
         Session::on_finalize(System::block_number());
         Aleph::on_finalize(System::block_number());
         System::on_finalize(System::block_number());
 
+        let parent_hash = if System::block_number() > 1 {
+            System::finalize().hash()
+        } else {
+            System::parent_hash()
+        };
+
         System::initialize(
             &(System::block_number() + 1),
-            &System::parent_hash(),
+            &parent_hash,
             &Default::default(),
             Default::default(),
         );
+        System::set_block_number((i + 1).into());
+        Timestamp::set_timestamp(System::block_number() * 1000);
 
         System::on_initialize(System::block_number());
         Session::on_initialize(System::block_number());
