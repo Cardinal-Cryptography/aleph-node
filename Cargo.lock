@@ -4506,10 +4506,13 @@ dependencies = [
  "frame-election-provider-support",
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "pallet-session",
  "parity-scale-codec",
  "primitives",
  "scale-info",
+ "sp-core",
+ "sp-runtime",
  "sp-std",
 ]
 

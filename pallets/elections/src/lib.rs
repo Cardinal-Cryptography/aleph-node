@@ -1,5 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
 
@@ -107,6 +112,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
+            <Members<T>>::put(&self.members);
             <MillisecsPerBlock<T>>::put(&self.millisecs_per_block);
             <SessionPeriod<T>>::put(&self.session_period);
             <SessionsPerEra<T>>::put(&self.sessions_per_era);
