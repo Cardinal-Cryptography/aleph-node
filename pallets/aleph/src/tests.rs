@@ -1,76 +1,8 @@
 #![cfg(test)]
 
-use crate::{migrations, mock::*, pallet};
-use frame_support::assert_ok;
-use frame_support::traits::{GetStorageVersion, StorageVersion};
+use crate::mock::*;
 
-#[test]
-fn migration_from_v0_to_v1_works() {
-    new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        frame_support::migration::put_storage_value(
-            b"Aleph",
-            b"SessionForValidatorsChange",
-            &[],
-            Some(7u32),
-        );
-
-        let before = frame_support::migration::get_storage_value::<Option<u32>>(
-            b"Aleph",
-            b"SessionForValidatorsChange",
-            &[],
-        );
-
-        assert_eq!(
-            before,
-            Some(Some(7)),
-            "Storage before migration has type Option<u32>"
-        );
-
-        frame_support::migration::put_storage_value(
-            b"Aleph",
-            b"Validators",
-            &[],
-            Some(vec![AccountId::default()]),
-        );
-
-        let v0 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
-
-        assert_eq!(
-            v0,
-            StorageVersion::default(),
-            "Storage version before applying migration should be default"
-        );
-
-        let _weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
-
-        let v1 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
-
-        assert_ne!(
-            v1,
-            StorageVersion::default(),
-            "Storage version after applying migration should be incremented"
-        );
-
-        assert_eq!(
-            Aleph::session_for_validators_change(),
-            Some(7u32),
-            "Migration should preserve ongoing session change with respect to the session number"
-        );
-
-        assert_eq!(
-            Aleph::validators(),
-            Some(vec![AccountId::default()]),
-            "Migration should preserve ongoing session change with respect to the validators set"
-        );
-
-        let noop_weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
-        assert_eq!(
-            noop_weight,
-            TestDbWeight::get().reads(1),
-            "Migration cannot be run twice"
-        );
-    })
-}
+use frame_support::traits::OneSessionHandler;
 
 #[test]
 fn test_update_authorities() {
@@ -88,27 +20,6 @@ fn test_update_authorities() {
 fn test_initialize_authorities() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         assert_eq!(Aleph::authorities(), to_authorities(&[1, 2]));
-    });
-}
-
-#[test]
-fn test_validators_should_be_none() {
-    new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        assert_eq!(Aleph::validators(), None);
-    });
-}
-
-#[test]
-fn test_change_validators() {
-    new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        assert_ok!(Aleph::change_validators(
-            Origin::root(),
-            vec![AccountId::default()],
-            0
-        ));
-
-        assert_eq!(Aleph::session_for_validators_change(), Some(0));
-        assert_eq!(Aleph::validators(), Some(vec![AccountId::default()]));
     });
 }
 
@@ -140,22 +51,14 @@ fn test_current_authorities() {
 }
 
 #[test]
-fn test_next_session_authorities() {
+fn test_session_rotation() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         initialize_session();
-
         run_session(1);
 
-        assert_eq!(
-            Aleph::next_session_authorities().unwrap(),
-            to_authorities(&[1, 2])
-        );
-
-        run_session(2);
-
-        assert_eq!(
-            Aleph::next_session_authorities().unwrap(),
-            to_authorities(&[1, 2])
-        );
+        let new_validators = new_session_validators(&[3u64, 4u64]);
+        let queued_validators = new_session_validators(&[]);
+        Aleph::on_new_session(true, new_validators, queued_validators);
+        assert_eq!(Aleph::authorities(), to_authorities(&[3, 4]));
     })
 }

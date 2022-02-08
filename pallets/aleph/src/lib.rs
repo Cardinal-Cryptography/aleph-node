@@ -8,10 +8,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// #[cfg(test)]
-// mod mock;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 
 mod migrations;
 
@@ -94,7 +94,7 @@ pub mod pallet {
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
-            let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
+            let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
             Self::update_authorities(authorities.as_slice());
         }
 

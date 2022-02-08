@@ -12,13 +12,14 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 serde = "1.0"
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+primitives = { path = "../../primitives", default-features = false}
 
 [dev-dependencies]
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-primitives = { path = "../../primitives", default-features = false}
 
 [features]
 default = ["std"]
@@ -27,4 +28,7 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "sp-std/std",
+    "primitives/std",
+    "pallet-balances/std",
+    "pallet-session/std"
 ]
