@@ -192,7 +192,7 @@ impl BootstrapNodeCmd {
             Some(id) => AccountId::from_string(id.as_str())
                 .expect("Passed string is not a hex encoding of a public key"),
             None => get_account_id_from_seed::<sr25519::Public>(
-                &self
+                self
                     .account_seed
                     .clone()
                     .expect("Pass account-seed argument")

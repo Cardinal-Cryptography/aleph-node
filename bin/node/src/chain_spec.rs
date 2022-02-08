@@ -238,15 +238,13 @@ fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value
 
 pub fn devnet_config(chain_params: ChainParams, authorities: Vec<AuthorityKeys>)
                      -> Result<ChainSpec, String> {
-    generate_chain_spec_config(chain_params,
-                               authorities.clone(),
-                               (0..authorities.len())
-                                   .map(|index| get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", index)[..]))
-                                   .cycle()
-                                   .zip(authorities.into_iter().map(|authority| authority.account_id))
-                                   .map(|(stash_account_id, controller_account_id)| ((StashAccountId(stash_account_id), ControllerAccountId(controller_account_id))))
-                                   .collect(),
-    )
+    let stakers = (0..authorities.len())
+        .map(|index| get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", index)[..]))
+        .cycle()
+        .zip(authorities.clone().into_iter().map(|authority| authority.account_id))
+        .map(|(stash_account_id, controller_account_id)| (StashAccountId(stash_account_id), ControllerAccountId(controller_account_id)))
+        .collect();
+    generate_chain_spec_config(chain_params, authorities, stakers)
 }
 
 pub fn config(chain_params: ChainParams, authorities: Vec<AuthorityKeys>)
