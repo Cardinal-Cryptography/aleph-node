@@ -7,6 +7,8 @@ use frame_support::{
 };
 
 generate_storage_alias!(Aleph, SessionForValidatorsChange => Value<()>);
+generate_storage_alias!(Aleph, MillisecsPerBlock => Value<()>);
+generate_storage_alias!(Aleph, SessionPeriod => Value<()>);
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -16,6 +18,8 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 1 to 2");
 
         SessionForValidatorsChange::kill();
+        MillisecsPerBlock::kill();
+        SessionPeriod::kill();
 
         // store new version
         StorageVersion::new(2).put::<P>();
