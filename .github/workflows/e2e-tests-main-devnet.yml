@@ -65,6 +65,9 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
