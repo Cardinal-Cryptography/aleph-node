@@ -244,7 +244,7 @@ jobs:
     name: Build node and runtime artifacts (main version)
     needs: [check-runtime-change]
     if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
-    uses: .github/workflows/build-node-and-runtime.yml
+    uses: ./.github/workflows/build-node-and-runtime.yml
     with:
       ref: 'main'
       artifact-prefix: 'old-'
