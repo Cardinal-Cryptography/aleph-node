@@ -25,7 +25,7 @@ pub mod pallet {
     use primitives::{
         SessionIndex, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
     };
-    use sp_std::{prelude::Vec, vec};
+    use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
     #[pallet::storage]
     #[pallet::getter(fn members)]
@@ -122,25 +122,50 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {}
 
     #[derive(Debug)]
-    pub enum Error {}
+    pub enum Error {
+        DataProvider(&'static str),
+    }
 
     impl<T: Config> ElectionProvider<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
         type Error = Error;
         type DataProvider = T::DataProvider;
 
+        // We use authority list so the supports don't influance the result
+        // but we still have to calculate them for the sake of eras payouts
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            Ok(Pallet::<T>::members()
-                .into_iter()
+            let voters = Self::DataProvider::voters(None).map_err(Error::DataProvider)?;
+            let members = Pallet::<T>::members();
+            let mut supports: BTreeMap<T::AccountId, Support<T::AccountId>> = members
+                .iter()
                 .map(|id| {
                     (
                         id.clone(),
                         Support {
-                            total: 1,
-                            voters: vec![(id, 1)],
+                            total: 0,
+                            voters: Vec::new(),
                         },
                     )
                 })
-                .collect())
+                .collect();
+
+            for (voter, vote, targets) in voters {
+                assert!(
+                    targets.len() == 1,
+                    "There should be only one target in one vote"
+                );
+                let member = &targets[0];
+                if !members.contains(member) {
+                    continue;
+                }
+
+                let support = supports
+                    .get_mut(member)
+                    .expect("Was initialized with all members; qed.");
+                support.total += vote as u128;
+                support.voters.push((voter, vote as u128));
+            }
+
+            Ok(Vec::from_iter(supports.into_iter()))
         }
     }
 }
