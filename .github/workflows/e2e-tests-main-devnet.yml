@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build-new-node:
     name: Build node and runtime artifacts (PR version)
-    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@feature/rust-toolchain #main TEMPORARY to see if passes
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
 
 
   build-docker:
@@ -247,7 +247,7 @@ jobs:
     name: Build node and runtime artifacts (main version)
     needs: [check-runtime-change]
     if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
-    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@feature/rust-toolchain #main TEMPORARY to see if passes
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
     with:
       ref: 'main'
       artifact-prefix: 'old-'
