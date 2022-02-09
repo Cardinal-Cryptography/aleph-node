@@ -25,7 +25,7 @@ pub mod pallet {
     use primitives::{
         SessionIndex, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
     };
-    use sp_std::prelude::Vec;
+    use sp_std::{prelude::Vec, vec};
 
     #[pallet::storage]
     #[pallet::getter(fn members)]
@@ -129,13 +129,17 @@ pub mod pallet {
         type DataProvider = T::DataProvider;
 
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            let empty_support = Support {
-                total: 0,
-                voters: Vec::new(),
-            };
             Ok(Pallet::<T>::members()
                 .into_iter()
-                .zip(sp_std::iter::once(empty_support).cycle())
+                .map(|id| {
+                    (
+                        id.clone(),
+                        Support {
+                            total: 1,
+                            voters: vec![(id, 1)],
+                        },
+                    )
+                })
                 .collect())
         }
     }
