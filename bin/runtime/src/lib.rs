@@ -436,7 +436,9 @@ pub struct UniformEraPayout {}
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
-        let miliseconds_per_era = Elections::millisecs_per_block() * Elections::session_period() as u64 * Elections::sessions_per_era() as u64;
+        let miliseconds_per_era = Elections::millisecs_per_block()
+            * Elections::session_period() as u64
+            * Elections::sessions_per_era() as u64;
         let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
         let total_payout = portion * YEARLY_INFLATION;
         let validators_payout = Perbill::from_percent(90) * total_payout;
@@ -591,24 +593,29 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Aleph: pallet_aleph::{Pallet, Storage, Event<T>},
-        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Authorship: pallet_authorship::{Pallet, Call, Storage},
-        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        History: pallet_session::historical::{Pallet},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Storage, Event},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
+
+        Aura: pallet_aura::{Pallet, Config<T>} = 3,
+
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 4,
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 6,
+
+        Authorship: pallet_authorship::{Pallet, Call, Storage} = 7,
+        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
+        History: pallet_session::historical::{Pallet} = 9,
+        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
+        Aleph: pallet_aleph::{Pallet, Storage} = 11,
+        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
+
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+        Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
+
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
     }
 );
 
