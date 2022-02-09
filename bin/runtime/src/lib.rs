@@ -408,8 +408,7 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
-    // TODO determine the correct value
-    pub const MaxNominatorRewardedPerValidator: u32 = 256;
+    pub const MaxNominatorRewardedPerValidator: u32 = 2048;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
 }
 
@@ -448,7 +447,6 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
 }
 
 impl pallet_staking::Config for Runtime {
-    // TODO determine the correct value
     const MAX_NOMINATIONS: u32 = 16;
     type Currency = Balances;
     type UnixTime = Timestamp;
