@@ -16,7 +16,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{Pair, Public, sr25519};
+use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::collections::HashSet;
 use std::{path::PathBuf, str::FromStr};
@@ -236,19 +236,33 @@ fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value
     .collect()
 }
 
-pub fn devnet_config(chain_params: ChainParams, authorities: Vec<AuthorityKeys>)
-                     -> Result<ChainSpec, String> {
+pub fn devnet_config(
+    chain_params: ChainParams,
+    authorities: Vec<AuthorityKeys>,
+) -> Result<ChainSpec, String> {
     let stakers = (0..authorities.len())
         .map(|index| get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", index)[..]))
         .cycle()
-        .zip(authorities.clone().into_iter().map(|authority| authority.account_id))
-        .map(|(stash_account_id, controller_account_id)| (StashAccountId(stash_account_id), ControllerAccountId(controller_account_id)))
+        .zip(
+            authorities
+                .clone()
+                .into_iter()
+                .map(|authority| authority.account_id),
+        )
+        .map(|(stash_account_id, controller_account_id)| {
+            (
+                StashAccountId(stash_account_id),
+                ControllerAccountId(controller_account_id),
+            )
+        })
         .collect();
     generate_chain_spec_config(chain_params, authorities, stakers)
 }
 
-pub fn config(chain_params: ChainParams, authorities: Vec<AuthorityKeys>)
-              -> Result<ChainSpec, String> {
+pub fn config(
+    chain_params: ChainParams,
+    authorities: Vec<AuthorityKeys>,
+) -> Result<ChainSpec, String> {
     generate_chain_spec_config(chain_params, authorities, vec![])
 }
 
@@ -328,7 +342,12 @@ fn generate_genesis_config(
             .map(|auth| &auth.account_id)
             .cloned()
             .chain(special_accounts)
-            .chain(stakers.iter().cloned().map(|(stash_account, _)| stash_account.0))
+            .chain(
+                stakers
+                    .iter()
+                    .cloned()
+                    .map(|(stash_account, _)| stash_account.0),
+            )
             .collect(),
     );
 
@@ -342,7 +361,10 @@ fn generate_genesis_config(
         },
         balances: BalancesConfig {
             // Configure endowed accounts with an initial, significant balance
-            balances: unique_accounts.into_iter().map(|account| (account, ENDOWMENT)).collect(),
+            balances: unique_accounts
+                .into_iter()
+                .map(|account| (account, ENDOWMENT))
+                .collect(),
         },
         aura: AuraConfig {
             authorities: vec![],
@@ -358,7 +380,7 @@ fn generate_genesis_config(
                 .collect(),
             millisecs_per_block: millisecs_per_block.0,
             session_period: session_period.0,
-            sessions_per_era
+            sessions_per_era,
         },
         session: SessionConfig {
             keys: authorities
@@ -383,8 +405,14 @@ fn generate_genesis_config(
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: stakers
                 .into_iter()
-                .map(|(stash_account, controller_account)|
-                    (stash_account.0, controller_account.0, STASH, StakerStatus::Validator))
+                .map(|(stash_account, controller_account)| {
+                    (
+                        stash_account.0,
+                        controller_account.0,
+                        STASH,
+                        StakerStatus::Validator,
+                    )
+                })
                 .collect(),
             ..Default::default()
         },

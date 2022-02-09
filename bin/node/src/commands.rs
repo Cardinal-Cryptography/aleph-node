@@ -1,7 +1,7 @@
-use crate::chain_spec::{ChainSpec, DEFAULT_CHAIN_ID};
 use crate::chain_spec::{
     self, get_account_id_from_seed, AuthorityKeys, ChainParams, SerializablePeerId,
 };
+use crate::chain_spec::{ChainSpec, DEFAULT_CHAIN_ID};
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
@@ -192,8 +192,7 @@ impl BootstrapNodeCmd {
             Some(id) => AccountId::from_string(id.as_str())
                 .expect("Passed string is not a hex encoding of a public key"),
             None => get_account_id_from_seed::<sr25519::Public>(
-                self
-                    .account_seed
+                self.account_seed
                     .clone()
                     .expect("Pass account-seed argument")
                     .as_str(),
