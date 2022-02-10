@@ -408,8 +408,8 @@ fn generate_genesis_config(
                 .into_iter()
                 .map(|(stash_account, controller_account)| {
                     (
-                        stash_account.0,
                         controller_account.0,
+                        stash_account.0,
                         MIN_VALIDATOR_BOND,
                         StakerStatus::Validator,
                     )
