@@ -352,7 +352,7 @@ fn generate_genesis_config(
     );
 
     const ENDOWMENT: u128 = 1 << 60;
-    const STASH: u128 = 25_000 * 1_000_000_000_000;
+    const MIN_BOND: u128 = 25_000 * 1_000_000_000_000;
 
     GenesisConfig {
         system: SystemConfig {
@@ -409,11 +409,12 @@ fn generate_genesis_config(
                     (
                         stash_account.0,
                         controller_account.0,
-                        STASH,
+                        MIN_BOND,
                         StakerStatus::Validator,
                     )
                 })
                 .collect(),
+            min_validator_bond: MIN_BOND,
             ..Default::default()
         },
         treasury: Default::default(),
