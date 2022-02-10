@@ -409,7 +409,7 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
-    pub const MaxNominatorRewardedPerValidator: u32 = 2048;
+    pub const MaxNominatorRewardedPerValidator: u32 = 512;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
 }
 
