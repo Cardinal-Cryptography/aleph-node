@@ -149,10 +149,10 @@ pub mod pallet {
                 .collect();
 
             for (voter, vote, targets) in voters {
-                if targets.len() != 1 {
-                    // There should be only one target in one vote"
-                    continue;
-                }
+                assert!(
+                    targets.len() == 1,
+                    "There should be only one target in one vote"
+                );
                 let member = &targets[0];
                 if !members.contains(member) {
                     continue;
