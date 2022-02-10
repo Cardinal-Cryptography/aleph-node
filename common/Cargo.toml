@@ -10,7 +10,7 @@ tag = "polkadot-v0.9.13.metav14"
 
 [dependencies]
 # Substrate dependencies
-sp-core = { git = "https://github.com/pmikolajczyk41/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
 
 # other dependencies
 log = "0.4"
