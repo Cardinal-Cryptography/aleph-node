@@ -149,10 +149,10 @@ pub mod pallet {
                 .collect();
 
             for (voter, vote, targets) in voters {
-                assert!(
-                    targets.len() == 1,
-                    "There should be only one target in one vote"
-                );
+                if targets.len() != 1 {
+                    // There should be only one target in one vote"
+                    continue;
+                }
                 let member = &targets[0];
                 if !members.contains(member) {
                     continue;
@@ -165,7 +165,7 @@ pub mod pallet {
                 support.voters.push((voter, vote as u128));
             }
 
-            Ok(Vec::from_iter(supports.into_iter()))
+            Ok(supports.into_iter().collect())
         }
     }
 }
