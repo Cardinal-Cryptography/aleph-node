@@ -108,7 +108,8 @@ fn parse_chaintype(s: &str) -> ChainType {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AuthorityKeys {
-    pub account_id: AccountId,
+    pub stash: AccountId,
+    pub controller: AccountId,
     pub aura_key: AuraId,
     pub aleph_key: AlephId,
     pub peer_id: SerializablePeerId,
@@ -238,21 +239,21 @@ fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value
 
 pub fn devnet_config(
     chain_params: ChainParams,
-    authorities: Vec<AuthorityKeys>,
+    mut authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let stakers = (0..authorities.len())
-        .map(|index| get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", index)[..]))
-        .cycle()
-        .zip(
-            authorities
-                .clone()
-                .into_iter()
-                .map(|authority| authority.account_id),
-        )
-        .map(|(stash_account_id, controller_account_id)| {
+    authorities
+        .iter_mut()
+        .enumerate()
+        .for_each(|(index, auth)| {
+            auth.stash =
+                get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", index)[..])
+        });
+    let stakers = authorities
+        .iter()
+        .map(|auth| {
             (
-                StashAccountId(stash_account_id),
-                ControllerAccountId(controller_account_id),
+                StashAccountId(auth.stash.clone()),
+                ControllerAccountId(auth.controller.clone()),
             )
         })
         .collect();
@@ -339,7 +340,7 @@ fn generate_genesis_config(
     let unique_accounts: Vec<AccountId> = deduplicate(
         authorities
             .iter()
-            .map(|auth| &auth.account_id)
+            .map(|auth| &auth.controller)
             .cloned()
             .chain(special_accounts)
             .chain(
@@ -377,7 +378,7 @@ fn generate_genesis_config(
         elections: ElectionsConfig {
             members: authorities
                 .iter()
-                .map(|auth| auth.account_id.clone())
+                .map(|auth| auth.controller.clone())
                 .collect(),
             millisecs_per_block: millisecs_per_block.0,
             session_period: session_period.0,
@@ -388,8 +389,8 @@ fn generate_genesis_config(
                 .iter()
                 .map(|auth| {
                     (
-                        auth.account_id.clone(),
-                        auth.account_id.clone(),
+                        auth.stash.clone(),
+                        auth.controller.clone(),
                         SessionKeys {
                             aura: auth.aura_key.clone(),
                             aleph: auth.aleph_key.clone(),
@@ -402,7 +403,7 @@ fn generate_genesis_config(
             force_era: Forcing::NotForcing,
             validator_count: authorities.len() as u32,
             minimum_validator_count: authorities.len() as u32,
-            invulnerables: authorities.iter().map(|x| x.account_id.clone()).collect(),
+            invulnerables: authorities.iter().map(|x| x.stash.clone()).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: stakers
                 .into_iter()
