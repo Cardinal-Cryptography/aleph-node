@@ -448,7 +448,7 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
 }
 
 impl pallet_staking::Config for Runtime {
-    // Do not change this!!! It guarantees that we have DPoS instead of NPos.
+    // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
     const MAX_NOMINATIONS: u32 = 1;
     type Currency = Balances;
     type UnixTime = Timestamp;
