@@ -57,6 +57,3 @@ jobs:
           BINARY: aleph-node/aleph-node
           FLOODER: ../.github/scripts/flooder.sh
         run: ./.github/scripts/test_flood.sh
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
