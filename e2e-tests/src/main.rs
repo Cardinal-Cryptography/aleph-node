@@ -17,7 +17,12 @@ fn main() -> anyhow::Result<()> {
     run(test::token_transfer, "token transfer", config.clone())?;
     run(test::channeling_fee, "channeling fee", config.clone())?;
     run(test::treasury_access, "treasury access", config.clone())?;
-    run(test::batch_transactions, "batch_transactions", config)?;
+    run(
+        test::batch_transactions,
+        "batch_transactions",
+        config.clone(),
+    )?;
+    run(test::staking_test, "staking_test", config.clone())?;
 
     Ok(())
 }

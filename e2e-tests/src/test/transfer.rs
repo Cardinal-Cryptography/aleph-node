@@ -1,4 +1,5 @@
 use log::info;
+use substrate_api_client::XtStatus;
 
 use crate::accounts::get_free_balance;
 use crate::config::Config;
@@ -12,7 +13,7 @@ pub fn fee_calculation(config: Config) -> anyhow::Result<()> {
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
-    let tx = transfer(&to, transfer_value, &connection);
+    let tx = transfer(&to, transfer_value, &connection, XtStatus::Finalized);
 
     let balance_after = get_free_balance(&from, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
@@ -52,7 +53,7 @@ pub fn token_transfer(config: Config) -> anyhow::Result<()> {
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
-    transfer(&to, transfer_value, &connection);
+    transfer(&to, transfer_value, &connection, XtStatus::Finalized);
 
     let balance_after = get_free_balance(&to, &connection);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
