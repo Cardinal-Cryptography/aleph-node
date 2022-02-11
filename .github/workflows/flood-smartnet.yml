@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build-node:
     name: Build node and runtime artifacts (PR version)
-    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@smartnet
     with:
       rust-toolchain-version: 'nightly-2021-10-24'
 
@@ -58,7 +58,7 @@ jobs:
           # Relative to local-tests/ directory
           BINARY: aleph-node/aleph-node
           FLOODER: ../.github/scripts/flooder.sh
-        run: ./.github/scripts/test_update.sh
+        run: ./.github/scripts/test_flood.sh
 
       - name: Stop cache
         uses: ./.github/actions/post-cache
