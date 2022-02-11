@@ -98,11 +98,9 @@ fn authority_keys(
     let aleph_key = aleph_key(keystore);
     let peer_id = p2p_key(chain_params, account_id);
 
-    let stash = account_id.clone();
-    let controller = account_id.clone();
+    let account_id = account_id.clone();
     AuthorityKeys {
-        stash,
-        controller,
+        account_id,
         aura_key,
         aleph_key,
         peer_id,
