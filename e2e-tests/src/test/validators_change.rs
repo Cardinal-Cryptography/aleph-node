@@ -62,7 +62,7 @@ pub fn change_validators(config: Config) -> anyhow::Result<()> {
         |e: NewMembersEvent| {
             info!("[+] NewMembersEvent: members{:?}", e.members);
 
-            &e.members == &new_members
+            e.members == new_members
         },
     )?;
 
