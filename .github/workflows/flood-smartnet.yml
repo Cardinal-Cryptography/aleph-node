@@ -51,7 +51,7 @@ jobs:
           docker image tag kostiiii/contracts-flood:latest flooder
 
       - name: Test flood
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           # Relative to local-tests/ directory
           BINARY: aleph-node/aleph-node
