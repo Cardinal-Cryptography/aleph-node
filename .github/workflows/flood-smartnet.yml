@@ -34,8 +34,6 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
-        with:
-          ref: 'smartnet'
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
