@@ -17,7 +17,7 @@ pub fn batch_transactions(config: Config) -> anyhow::Result<()> {
         connection.metadata,
         "Balances",
         "transfer",
-        GenericAddress::Id(to.clone()),
+        GenericAddress::Id(to),
         Compact(1000u128)
     );
     let mut transactions = Vec::new();
