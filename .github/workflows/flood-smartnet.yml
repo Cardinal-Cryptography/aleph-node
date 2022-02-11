@@ -1,0 +1,64 @@
+name: flood-smartnet
+
+on:
+  pull_request:
+    paths-ignore:
+      - '*.md'
+      - '.github/workflows/**'
+    branches:
+      - smartnet
+  push:
+    paths-ignore:
+      - '*.md'
+      - '.github/workflows/**'
+    branches:
+      - smartnet
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-node:
+    name: Build node and runtime artifacts (PR version)
+    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
+    with:
+      rust-toolchain-version: 'nightly-2021-10-24'
+
+  test-contracts-flooding:
+    name: Test contracts flooding
+    runs-on: ubuntu-latest
+    needs: [ build-node ]
+    env:
+      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          ref: 'smartnet'
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Setup Flooder
+        run: |
+          docker pull kostiiii/contracts-flood
+          docker image tag kostiiii/contracts-flood:latest flooder
+
+      - name: Test flood
+        timeout-minutes: 10
+        env:
+          # Relative to local-tests/ directory
+          BINARY: aleph-node/aleph-node
+          FLOODER: ../.github/scripts/flooder.sh
+        run: ./.github/scripts/test_update.sh
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
