@@ -25,6 +25,7 @@ env_logger = "0.8"
 log = "0.4"
 serde_json = "1.0"
 codec = { package = 'parity-scale-codec', version = "2.0.0", default-features = false,  features = ['derive']}
+rayon = "1.5.1"
 
 [features]
 default = ["std"]
