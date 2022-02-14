@@ -46,7 +46,7 @@ pub fn change_validators(config: Config) -> anyhow::Result<()> {
 
     // send and watch extrinsic until finalized
     let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::Finalized)
+        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
         .expect("Could not send extrinsc")
         .expect("Could not get tx hash");
 
