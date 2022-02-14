@@ -5,8 +5,8 @@ use common::create_connection;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::AccountId32;
-use substrate_api_client::AccountId;
 use substrate_api_client::GenericAddress;
+use substrate_api_client::{AccountId, XtStatus};
 
 pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
     let Config { node, seeds, .. } = config;
@@ -20,11 +20,17 @@ pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId
     (connection, from, to)
 }
 
-pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
+pub fn transfer(
+    target: &AccountId32,
+    value: u128,
+    connection: &Connection,
+    exit_on: XtStatus,
+) -> TransferTransaction {
     crate::send_extrinsic!(
         connection,
         "Balances",
         "transfer",
+        exit_on,
         |tx_hash| info!("[+] Transfer transaction hash: {}", tx_hash),
         GenericAddress::Id(target.clone()),
         Compact(value)

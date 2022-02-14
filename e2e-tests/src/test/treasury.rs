@@ -15,8 +15,8 @@ use sp_runtime::MultiAddress;
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
-use substrate_api_client::GenericAddress;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
+use substrate_api_client::{GenericAddress, XtStatus};
 
 pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
@@ -29,7 +29,7 @@ pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
         treasury_balance_before, issuance_before
     );
 
-    let tx = transfer(&to, 1000u128, &connection);
+    let tx = transfer(&to, 1000u128, &connection, XtStatus::Finalized);
 
     let treasury_balance_after = get_free_balance(&treasury, &connection);
     let issuance_after = get_total_issuance(&connection);
@@ -107,6 +107,7 @@ fn propose_treasury_spend(
         connection,
         "Treasury",
         "propose_spend",
+        XtStatus::Finalized,
         |tx_hash| info!("[+] Treasury spend transaction hash: {}", tx_hash),
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
@@ -126,6 +127,7 @@ fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> Governan
         connection,
         "Treasury",
         "approve_proposal",
+        XtStatus::Finalized,
         |tx_hash| info!("[+] Treasury approval transaction hash: {}", tx_hash),
         Compact(proposal_id)
     )
@@ -141,6 +143,7 @@ fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> Governa
         connection,
         "Treasury",
         "reject_proposal",
+        XtStatus::Finalized,
         |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
         Compact(proposal_id)
     )
