@@ -18,7 +18,7 @@ use std::time::Duration;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
 use substrate_api_client::{GenericAddress, XtStatus};
 
-pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
+pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
 
@@ -64,10 +64,12 @@ pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn treasury_access(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config.clone();
+pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
+    let Config {
+        ref node, seeds, ..
+    } = config;
 
-    let proposer = accounts_from_seeds(seeds)[0].to_owned();
+    let proposer = accounts_from_seeds(seeds.as_ref())[0].to_owned();
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 
