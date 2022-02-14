@@ -49,11 +49,12 @@ def test_code_substitute():
 
     update_to_corrupted()
     query_runtime_version(chain)
+    check_highest(chain)
 
     stalled_hash, finalized = wait_for_stalling(chain)
 
     update_chainspec(stalled_hash, FIXING_RUNTIME)
-    restart_nodes(chain)
+    restart_nodes(chain, 'chainspec-new.json')
 
     wait_for_continuation(chain, finalized)
 

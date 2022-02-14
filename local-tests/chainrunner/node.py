@@ -23,14 +23,18 @@ class Node:
         self.logfile = None
         self.process = None
         self.flags = {}
+        self.log_levels = {}
         self.running = False
 
     def _stdargs(self):
         return ['--base-path', self.path, '--chain', self.chainspec]
 
+    def _log_levels(self):
+        return [f'-l{channel}={level}' for (channel, level) in self.log_levels.items()]
+
     def start(self, name):
         """Start the node. `name` is used to name of the logfile and for --name flag."""
-        cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
+        cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags) + self._log_levels()
 
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
@@ -96,7 +100,12 @@ class Node:
         resp = requests.post(f'http://localhost:{port}/', json=rpc.request(method, params))
         return rpc.parse(resp.json())
 
+    # Not suitable, as we need these logs right away
+    #
+    # def set_log_level(self, target, level):
+    #     """Change log verbosity of the chosen target.
+    #     This method should be called on a running node."""
+    #     self.rpc('system_addLogFilter', [f'{target}={level}'])
+
     def set_log_level(self, target, level):
-        """Change log verbosity of the chosen target.
-        This method should be called on a running node."""
-        self.rpc('system_addLogFilter', [f'{target}={level}'])
+        self.log_levels[target] = level

@@ -29,7 +29,7 @@ def test_code_substitute():
     stalled_hash, finalized = wait_for_stalling(chain)
 
     update_chainspec(stalled_hash, FIXING_RUNTIME)
-    restart_nodes(chain)
+    restart_nodes(chain, 'chainspec-new.json')
 
     wait_for_continuation(chain, finalized)
     assert False, 'Should have panicked'

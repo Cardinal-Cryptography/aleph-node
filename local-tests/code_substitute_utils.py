@@ -5,6 +5,8 @@ from time import sleep
 
 from chainrunner import Chain, generate_keys, Seq
 
+import xxhash
+
 
 def query_runtime_version(nodes):
     print('Current version:')
@@ -42,6 +44,7 @@ def run_binary(workdir, binary, phrases, name):
                     session_period=40)
 
     chain.set_flags('validator',
+                    'enable-log-reloading',
                     port=Seq(30334),
                     ws_port=Seq(9944),
                     rpc_port=Seq(9933),
@@ -50,9 +53,11 @@ def run_binary(workdir, binary, phrases, name):
 
     chain.set_log_level('afa', 'debug')
     chain.set_log_level('wasm_substitutes', 'debug')
+    chain.set_log_level('wasm_overrides', 'debug')
 
     chain.start(name)
-    sleep(10)
+    sleep(20)
+
     return chain
 
 
@@ -69,9 +74,9 @@ def stop(chain):
     chain.purge()
 
 
-def restart_nodes(chain):
+def restart_nodes(chain, chainspec):
     chain.stop()
-    chain.set_chainspec('chainspec-new.json')
+    chain.set_chainspec(chainspec)
     chain.start('fixed')
 
     sleep(10)
@@ -91,14 +96,14 @@ def wait_for_stalling(chain):
         panic(chain, 'Chain is not running long enough to witness breakage.')
     print(f'There are still {finalized_50} finalized  blocks. Finalization stalled.')
 
-    finalized_hash = chain[0].check_hash_of(finalized_50)
+    finalized_hash = chain[0].get_hash(finalized_50)
     if not finalized_hash:
         panic(chain, 'First node does not know hash of the highest finalized.')
     return finalized_hash, finalized_50
 
 
 def wait_for_continuation(chain, stalled_at):
-    sleep(10)
+    sleep(15)
     finalized = check_highest(chain)
     if finalized <= stalled_at:
         panic(chain, 'There are still troubles with finalization.')
@@ -115,3 +120,11 @@ def update_chainspec(stalled_hash, fixing_runtime):
     chainspec['codeSubstitutes'] = {stalled_hash: f'0x{fix}'}
     with open('chainspec-new.json', mode='w', encoding='utf-8') as chainspec_out:
         chainspec_out.write(json.dumps(chainspec))
+
+
+def hash_key(key):
+    first_be = bytearray.fromhex(xxhash.xxh64(key, 0).hexdigest())
+    second_be = bytearray.fromhex(xxhash.xxh64(key, 1).hexdigest())
+    first_be.reverse()
+    second_be.reverse()
+    return ''.join(format(b, '02x') for b in first_be) + ''.join(format(b, '02x') for b in second_be)
