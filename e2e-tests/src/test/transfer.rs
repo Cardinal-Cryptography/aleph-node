@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::fee::{get_tx_fee_info, FeeInfo};
 use crate::transfer::{setup_for_transfer, transfer};
 
-pub fn fee_calculation(config: Config) -> anyhow::Result<()> {
+pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
     let (connection, from, to) = setup_for_transfer(config);
 
     let balance_before = get_free_balance(&from, &connection);
@@ -46,7 +46,7 @@ pub fn fee_calculation(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn token_transfer(config: Config) -> anyhow::Result<()> {
+pub fn token_transfer(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
 
     let balance_before = get_free_balance(&to, &connection);

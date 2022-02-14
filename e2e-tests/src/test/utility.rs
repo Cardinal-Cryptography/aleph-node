@@ -8,7 +8,7 @@ use codec::Compact;
 
 use crate::config::Config;
 
-pub fn batch_transactions(config: Config) -> anyhow::Result<()> {
+pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
     const NUMBER_OF_TRANSACTIONS: usize = 100;
 
     let (connection, _, to) = setup_for_transfer(config);

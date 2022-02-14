@@ -11,10 +11,12 @@ use crate::accounts::{accounts_from_seeds, get_sudo};
 use crate::config::Config;
 use crate::waiting::wait_for_event;
 
-pub fn change_validators(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config.clone();
+pub fn change_validators(config: &Config) -> anyhow::Result<()> {
+    let Config {
+        ref node, seeds, ..
+    } = config;
 
-    let accounts = accounts_from_seeds(seeds);
+    let accounts = accounts_from_seeds(seeds.as_ref());
     let sudo = get_sudo(config);
 
     let connection = create_connection(node).set_signer(sudo);

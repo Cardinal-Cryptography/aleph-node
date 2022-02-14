@@ -5,26 +5,29 @@ use substrate_api_client::Balance;
 use crate::config::Config;
 use crate::{Connection, KeyPair};
 
-pub fn keypair_from_string(seed: String) -> KeyPair {
-    KeyPair::from_string(&seed, None).expect("Can't create pair from seed value")
+pub fn keypair_from_string(seed: &str) -> KeyPair {
+    KeyPair::from_string(seed, None).expect("Can't create pair from seed value")
 }
 
-pub fn accounts_from_seeds(seeds: Option<Vec<String>>) -> Vec<KeyPair> {
-    let seeds = seeds.unwrap_or_else(|| {
-        vec![
-            "//Damian".into(),
-            "//Tomasz".into(),
-            "//Zbyszko".into(),
-            "//Hansu".into(),
-        ]
-    });
-    seeds.into_iter().map(keypair_from_string).collect()
+pub fn accounts_from_seeds(seeds: Option<&Vec<String>>) -> Vec<KeyPair> {
+    if let Some(seeds) = seeds {
+        seeds
+            .iter()
+            .map(String::as_str)
+            .map(keypair_from_string)
+            .collect()
+    } else {
+        ["//Damian", "//Hansu", "//Tomasz", "//Zbyszko"]
+            .into_iter()
+            .map(keypair_from_string)
+            .collect()
+    }
 }
 
-pub fn get_sudo(config: Config) -> KeyPair {
-    match config.sudo {
+pub fn get_sudo(config: &Config) -> KeyPair {
+    match &config.sudo {
         Some(seed) => keypair_from_string(seed),
-        None => accounts_from_seeds(config.seeds)[0].to_owned(),
+        None => accounts_from_seeds(None)[0].to_owned(),
     }
 }
 
