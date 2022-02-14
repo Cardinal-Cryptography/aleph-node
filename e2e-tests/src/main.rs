@@ -11,18 +11,14 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
-    run(test::finalization, "finalization", config.clone())?;
-    run(test::change_validators, "validators change", config.clone())?;
-    run(test::fee_calculation, "fee calculation", config.clone())?;
-    run(test::token_transfer, "token transfer", config.clone())?;
-    run(test::channeling_fee, "channeling fee", config.clone())?;
-    run(test::treasury_access, "treasury access", config.clone())?;
-    run(
-        test::batch_transactions,
-        "batch_transactions",
-        config.clone(),
-    )?;
-    run(test::staking_test, "staking_test", config.clone())?;
+    run(test::finalization, "finalization", &config)?;
+    run(test::change_validators, "validators change", &config)?;
+    run(test::fee_calculation, "fee calculation", &config)?;
+    run(test::token_transfer, "token transfer", &config)?;
+    run(test::channeling_fee, "channeling fee", &config)?;
+    run(test::treasury_access, "treasury access", &config)?;
+    run(test::batch_transactions, "batch_transactions", &config)?;
+    run(test::staking_test, "staking_test", &config)?;
 
     Ok(())
 }
@@ -35,9 +31,9 @@ fn init_env() {
 }
 
 fn run<T>(
-    testcase: fn(Config) -> anyhow::Result<T>,
+    testcase: fn(&Config) -> anyhow::Result<T>,
     name: &str,
-    config: Config,
+    config: &Config,
 ) -> anyhow::Result<()> {
     println!("Running test: {}", name);
     let start = Instant::now();

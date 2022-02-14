@@ -8,10 +8,12 @@ use sp_runtime::AccountId32;
 use substrate_api_client::GenericAddress;
 use substrate_api_client::{AccountId, XtStatus};
 
-pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
-    let Config { node, seeds, .. } = config;
+pub fn setup_for_transfer(config: &Config) -> (Connection, AccountId32, AccountId32) {
+    let Config {
+        ref node, seeds, ..
+    } = config;
 
-    let accounts = accounts_from_seeds(seeds);
+    let accounts = accounts_from_seeds(seeds.as_ref());
     let (from, to) = (accounts[0].to_owned(), accounts[1].to_owned());
 
     let connection = create_connection(node).set_signer(from.clone());

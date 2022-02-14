@@ -17,9 +17,9 @@ use substrate_api_client::extrinsic::staking::RewardDestination;
 use substrate_api_client::AccountId;
 
 fn endow_stash_balances(
-    address: String,
+    address: &str,
     signer_account: KeyPair,
-    stashes_accounts_key_pairs: &Vec<KeyPair>,
+    stashes_accounts_key_pairs: &[KeyPair],
     endowment: u128,
 ) {
     let connection = create_connection(address).set_signer(signer_account);
@@ -29,7 +29,7 @@ fn endow_stash_balances(
     }
 }
 
-fn bond(address: String, initial_stake: u128, controller: KeyPair) {
+fn bond(address: &str, initial_stake: u128, controller: KeyPair) {
     let controller_account_id = AccountId::from(controller.public());
     let connection = create_connection(address).set_signer(controller);
 
@@ -48,7 +48,7 @@ fn bond(address: String, initial_stake: u128, controller: KeyPair) {
     );
 }
 
-fn validate(address: String, controller_key_pair: KeyPair) {
+fn validate(address: &str, controller_key_pair: KeyPair) {
     let controller_account_id = AccountId::from(controller_key_pair.public());
     let connection = create_connection(address).set_signer(controller_key_pair);
 
@@ -68,7 +68,7 @@ fn validate(address: String, controller_key_pair: KeyPair) {
     );
 }
 
-fn nominate(address: String, nominator_key_pair: KeyPair, nominee_key_pair: KeyPair) {
+fn nominate(address: &str, nominator_key_pair: KeyPair, nominee_key_pair: KeyPair) {
     let nominator_account_id = AccountId::from(nominator_key_pair.public());
     let nominee_account_id = AccountId::from(nominee_key_pair.public());
     let connection = create_connection(address).set_signer(nominator_key_pair);
@@ -86,7 +86,7 @@ fn nominate(address: String, nominator_key_pair: KeyPair, nominee_key_pair: KeyP
 }
 
 fn get_top_finalized_block<F>(
-    address: String,
+    address: &str,
     sender_account_key_pair: KeyPair,
     predicate: F,
 ) -> anyhow::Result<Header>
@@ -109,11 +109,11 @@ where
 }
 
 fn wait_for_full_reward_era(
-    address: String,
+    address: &str,
     sender_account_key_pair: KeyPair,
 ) -> anyhow::Result<u32> {
     let current_finalized_block =
-        get_top_finalized_block(address.clone(), sender_account_key_pair.clone(), |_| true)?;
+        get_top_finalized_block(address, sender_account_key_pair.clone(), |_| true)?;
     // TODO: this should be expressed in terms of runtime chain configuration, not hardcoded values
     // 30 = block_in_session(10) * sessions_in_era (3)
     const BLOCKS_PER_ERA: u32 = 30;
@@ -124,7 +124,7 @@ fn wait_for_full_reward_era(
         "[+] Top finalized block is {}, waiting for block {}",
         current_finalized_block.number, next_full_era_block_number
     );
-    let _ = get_top_finalized_block(address.clone(), sender_account_key_pair.clone(), |header| {
+    let _ = get_top_finalized_block(address, sender_account_key_pair, |header| {
         header.number >= next_full_era_block_number
     })?;
 
@@ -133,9 +133,9 @@ fn wait_for_full_reward_era(
 }
 
 fn payout_staker(
-    address: String,
+    address: &str,
     sender_account_key_pair: KeyPair,
-    stash_account_key_pair: KeyPair,
+    stash_account_key_pair: &KeyPair,
     era_number: u32,
 ) {
     let stash_account_id = AccountId::from(stash_account_key_pair.public());
@@ -162,25 +162,25 @@ fn get_key_pairs() -> (Vec<KeyPair>, Vec<KeyPair>) {
         String::from("//Tomasz"),
         String::from("//Zbyszko"),
     ];
-    let validator_stashes: Vec<_> = validators
+    let validator_stashes = validators
         .iter()
         .map(|v| String::from(v) + "//stash")
         .collect();
-    let validator_accounts_key_pairs = accounts_from_seeds(Some(validators));
-    let stashes_accounts_key_pairs = accounts_from_seeds(Some(validator_stashes));
+    let validator_accounts_key_pairs = accounts_from_seeds(Some(validators).as_ref());
+    let stashes_accounts_key_pairs = accounts_from_seeds(Some(validator_stashes).as_ref());
 
     (stashes_accounts_key_pairs, validator_accounts_key_pairs)
 }
 
-pub fn staking_test(config: Config) -> anyhow::Result<()> {
+pub fn staking_test(config: &Config) -> anyhow::Result<()> {
     const TOKEN: u128 = 1_000_000_000_000;
     const VALIDATOR_STAKE: u128 = 25_000u128 * TOKEN;
     const NOMINATOR_STAKE: u128 = 1_000u128 * TOKEN;
 
-    let Config { node, .. } = config.clone();
+    let node = &config.node;
     let (stashes_accounts, validator_accounts) = get_key_pairs();
     endow_stash_balances(
-        node.clone(),
+        node,
         validator_accounts[0].clone(),
         &stashes_accounts,
         VALIDATOR_STAKE,
@@ -188,8 +188,8 @@ pub fn staking_test(config: Config) -> anyhow::Result<()> {
 
     for validator_account in validator_accounts.clone() {
         let validator_account = validator_account.to_owned();
-        bond(node.clone(), VALIDATOR_STAKE, validator_account.clone());
-        validate(node.clone(), validator_account);
+        bond(node, VALIDATOR_STAKE, validator_account.clone());
+        validate(node, validator_account);
     }
 
     for (nominator, nominee) in stashes_accounts
@@ -198,12 +198,12 @@ pub fn staking_test(config: Config) -> anyhow::Result<()> {
     {
         let nominator = nominator.to_owned();
         let nominee = nominee.to_owned();
-        bond(node.clone(), NOMINATOR_STAKE, nominator.clone());
-        nominate(node.clone(), nominator, nominee);
+        bond(node, NOMINATOR_STAKE, nominator.clone());
+        nominate(node, nominator, nominee);
     }
 
     let sender = validator_accounts[0].clone();
-    let current_era = wait_for_full_reward_era(node.clone(), sender.clone())?;
+    let current_era = wait_for_full_reward_era(node, sender.clone())?;
     info!(
         "[+] Full era {} passed, claiming rewards for era {}",
         current_era,
@@ -211,13 +211,7 @@ pub fn staking_test(config: Config) -> anyhow::Result<()> {
     );
 
     for validator_account in validator_accounts {
-        let validator_account = validator_account.to_owned();
-        payout_staker(
-            node.clone(),
-            sender.clone(),
-            validator_account,
-            current_era - 1,
-        );
+        payout_staker(node, sender.clone(), &validator_account, current_era - 1);
     }
 
     Ok(())
