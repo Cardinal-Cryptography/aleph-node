@@ -74,10 +74,10 @@ def stop(chain):
     chain.purge()
 
 
-def restart_nodes(chain, chainspec):
+def restart_nodes(chain, chainspec, name='fixed'):
     chain.stop()
     chain.set_chainspec(chainspec)
-    chain.start('fixed')
+    chain.start(name)
 
     sleep(10)
 
