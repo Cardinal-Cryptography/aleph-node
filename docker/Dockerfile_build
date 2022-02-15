@@ -5,7 +5,7 @@ RUN chmod +x /node/nix-build.sh
 COPY shell.nix /node/
 WORKDIR /node
 RUN nix-shell --pure shell.nix && \
-    nix-env -iA patchelf
+    nix-env -i patchelf
 
 WORKDIR /node/build
 ENTRYPOINT ["/node/nix-build.sh"]
