@@ -15,7 +15,7 @@ sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polka
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false}
 system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", package = "frame-system" }
-pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.13", optional = true }
+pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.13", optional = true, default-features = false }
 
 # other dependencies
 anyhow = "1.0"
