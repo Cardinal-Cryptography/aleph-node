@@ -17,20 +17,20 @@ procedure). Next step is to prepare our docker-image that handles the build proc
 docker build -t aleph-node/build -f docker/Dockerfile_build .
 ```
 Created docker-image contains all necessary native build-time dependencies of `aleph-node`, i.e. `cargo`, `clang`, etc.
-One can interact with that docker-image in two ways, using the `nix-shell` or `nix-build` commands:
-`nix-shell` approach - spawns a shell that includes all build dependencies. Within it we can simply call `cargo build`:
+One can interact with that docker-image in two ways, by using either the `nix-shell` or `nix-build` command.
+`nix-shell` spawns a shell that includes all build dependencies. Within it we can simply call `cargo build`.
+This way, our docker instance maintains all build artifacts inside of project's root directory, which allows to speed up
+ongoing build invocations, i.e. next time one invokes `cargo build` it should take significantly less time.
 ```
 # spawn nix-shell inside of our docker image
 docker run -ti --volume=$(pwd):/node/build aleph-node/build -s
-# build `aleph-node` and store it at the root of the source aleph-node's source directory
+# build `aleph-node` and store it at the root of the aleph-node's source directory
 cargo build --release -p aleph-node
 # set the proper loader (nix related)
 patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 target/x86_64-unknown-linux-gnu/release/aleph-node
 ```
-This way, our docker instance maintains all build artifacts inside of project's root directory, which allows to speed up
-ongoing build invocations, i.e. next time one invokes `cargo build` it should take significantly less time.
 
-Another way to interact with this docker image is to allow it to only provide us with a single `aleph-node` binary artifact,
+Another way to interact with this docker image is to allow it to create for us only a single `aleph-node` binary artifact,
 i.e. each time we call its build process it will start it from scratch in a isolated environment.
 ```
 # outputs the `aleph-node` binary in current dir
