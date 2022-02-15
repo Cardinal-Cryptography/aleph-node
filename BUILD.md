@@ -3,6 +3,7 @@
 docker build -t aleph-node/build -f docker/Dockerfile_build . && \
 docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ```
+Binary will be stored at `$(pwd)/aleph-node`.
 
 ### Build
 We provide a build procedure based on the `nix` package manager. There are several ways to interact with this process. Users can
