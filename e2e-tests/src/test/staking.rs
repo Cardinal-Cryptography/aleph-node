@@ -1,9 +1,10 @@
 use crate::{
-    accounts::accounts_from_seeds, config::Config, waiting::wait_for_finalized_block, BlockNumber,
-    Connection, Header, KeyPair,
+    accounts::accounts_from_seeds,
+    config::Config,
+    waiting::{wait_for_event, wait_for_finalized_block},
+    BlockNumber, Connection, Header, KeyPair,
 };
-use anyhow::anyhow;
-use codec::Compact;
+use codec::{Compact, Decode};
 use common::create_connection;
 use log::info;
 use pallet_staking::ValidatorPrefs;
@@ -12,7 +13,6 @@ use rayon::iter::{
 };
 use sp_core::Pair;
 use sp_runtime::Perbill;
-use std::sync::mpsc::channel;
 use substrate_api_client::{
     compose_call, compose_extrinsic, extrinsic::staking::RewardDestination, AccountId,
     GenericAddress, XtStatus,
@@ -87,49 +87,39 @@ fn payout_stakers(address: &str, validator: KeyPair, era_number: BlockNumber) {
     send_xt(&connection, xt.hex_encode(), "payout_stakers");
 }
 
-fn top_finalized_block_number<F>(
-    connection: &Connection,
-    predicate: F,
-) -> anyhow::Result<BlockNumber>
-where
-    F: Fn(BlockNumber) -> bool,
-{
-    let (sender, receiver) = channel();
-    connection.subscribe_finalized_heads(sender)?;
-
-    while let Ok(number) = receiver
-        .recv()
-        .map(|h| serde_json::from_str::<Header>(&h).unwrap().number)
-    {
-        if predicate(number) {
-            return Ok(number);
-        }
-    }
-    Err(anyhow!("Failed to receive finalized head block"))
-}
-
-fn wait_for_full_reward_era(connection: &Connection) -> anyhow::Result<BlockNumber> {
-    let current_finalized_block_number = top_finalized_block_number(connection, |_| true)?;
-    let session_period: u32 = connection
-        .get_storage_value("Elections", "SessionPeriod", None)
-        .unwrap()
-        .unwrap();
+fn wait_for_next_era(connection: &Connection) -> anyhow::Result<BlockNumber> {
     let sessions_per_era: u32 = connection
         .get_storage_value("Elections", "SessionsPerEra", None)
         .unwrap()
         .unwrap();
-    let blocks_per_era = session_period * sessions_per_era;
+    let current_era: u32 = connection
+        .get_storage_value("Staking", "ActiveEra", None)
+        .unwrap()
+        .unwrap();
+    let next_era = current_era + 1;
 
-    let next_full_era_block_number =
-        ((current_finalized_block_number + blocks_per_era) / blocks_per_era + 1) * blocks_per_era;
+    let first_session_in_next_era = next_era * sessions_per_era;
+
     info!(
-        "Top finalized block is {}, waiting for block {}",
-        current_finalized_block_number, next_full_era_block_number
+        "Current era: {}, waiting for the first session in the next era {}",
+        current_era, first_session_in_next_era
     );
-    let _ = top_finalized_block_number(connection, |number| number >= next_full_era_block_number)?;
 
-    let current_era = next_full_era_block_number / blocks_per_era;
-    Ok(current_era)
+    #[derive(Debug, Decode, Clone)]
+    struct NewSessionEvent {
+        session_index: u32,
+    }
+    wait_for_event(
+        &connection,
+        ("Session", "NewSession"),
+        |e: NewSessionEvent| {
+            info!("[+] new session {}", e.session_index);
+
+            e.session_index == first_session_in_next_era
+        },
+    )?;
+
+    Ok(next_era)
 }
 
 fn get_key_pairs() -> (Vec<KeyPair>, Vec<KeyPair>) {
@@ -184,9 +174,9 @@ pub fn staking_test(config: &Config) -> anyhow::Result<()> {
         .zip(validator_accounts.par_iter())
         .for_each(|(nominator, nominee)| nominate(node, nominator, nominee));
 
-    let current_era = wait_for_full_reward_era(&connection)?;
+    let current_era = wait_for_next_era(&connection)?;
     info!(
-        "Full era {} passed, claiming rewards for era {}",
+        "Era {} started, claiming rewards for era {}",
         current_era,
         current_era - 1
     );
@@ -206,7 +196,7 @@ pub fn staking_test(config: &Config) -> anyhow::Result<()> {
         block_number,
     );
 
-    wait_for_finalized_block(&connection, block_number);
+    wait_for_finalized_block(&connection, block_number)?;
 
     Ok(())
 }
