@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly-2021-10-24"
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+profile = "default"
