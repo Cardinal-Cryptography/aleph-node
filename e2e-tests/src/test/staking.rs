@@ -87,7 +87,7 @@ fn payout_stakers(address: &str, validator: KeyPair, era_number: BlockNumber) {
     send_xt(&connection, xt.hex_encode(), "payout_stakers");
 }
 
-fn wait_for_next_era(connection: &Connection) -> anyhow::Result<BlockNumber> {
+fn wait_for_full_era_completion(connection: &Connection) -> anyhow::Result<BlockNumber> {
     let sessions_per_era: u32 = connection
         .get_storage_value("Elections", "SessionsPerEra", None)
         .unwrap()
@@ -96,13 +96,13 @@ fn wait_for_next_era(connection: &Connection) -> anyhow::Result<BlockNumber> {
         .get_storage_value("Staking", "ActiveEra", None)
         .unwrap()
         .unwrap();
-    let next_era = current_era + 1;
+    let payout_era = current_era + 2;
 
-    let first_session_in_next_era = next_era * sessions_per_era;
+    let first_session_in_payout_era = payout_era * sessions_per_era;
 
     info!(
-        "Current era: {}, waiting for the first session in the next era {}",
-        current_era, first_session_in_next_era
+        "Current era: {}, waiting for the first session in the payout era {}",
+        current_era, first_session_in_payout_era
     );
 
     #[derive(Debug, Decode, Clone)]
@@ -110,16 +110,16 @@ fn wait_for_next_era(connection: &Connection) -> anyhow::Result<BlockNumber> {
         session_index: u32,
     }
     wait_for_event(
-        &connection,
+        connection,
         ("Session", "NewSession"),
         |e: NewSessionEvent| {
             info!("[+] new session {}", e.session_index);
 
-            e.session_index == first_session_in_next_era
+            e.session_index == first_session_in_payout_era
         },
     )?;
 
-    Ok(next_era)
+    Ok(payout_era)
 }
 
 fn get_key_pairs() -> (Vec<KeyPair>, Vec<KeyPair>) {
@@ -174,7 +174,8 @@ pub fn staking_test(config: &Config) -> anyhow::Result<()> {
         .zip(validator_accounts.par_iter())
         .for_each(|(nominator, nominee)| nominate(node, nominator, nominee));
 
-    let current_era = wait_for_next_era(&connection)?;
+    // All the above calls influace the next era, so we need to wait that it passes.
+    let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
