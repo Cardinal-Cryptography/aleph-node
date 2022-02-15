@@ -2,7 +2,9 @@
 import os
 import os.path
 
-from code_substitute_utils import *
+from code_substitute_utils import run_binary, restart_nodes, \
+    wait_for_stalling, wait_for_continuation, check_highest, \
+    update_chainspec, query_runtime_version
 
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 

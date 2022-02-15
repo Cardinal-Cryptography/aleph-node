@@ -2,8 +2,10 @@
 import os
 import os.path
 import subprocess
+from time import sleep
 
-from code_substitute_utils import *
+from code_substitute_utils import query_runtime_version, restart_nodes, stop, \
+    check_highest, update_chainspec, run_binary
 
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 

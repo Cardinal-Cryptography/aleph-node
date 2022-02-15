@@ -1,10 +1,13 @@
 #!/bin/env python
-import json
 import os
 import os.path
 import subprocess
 
-from code_substitute_utils import *
+from time import sleep
+
+from code_substitute_utils import query_runtime_version,\
+    update_chainspec, check_highest, wait_for_continuation, \
+    wait_for_stalling, stop, restart_nodes, run_binary
 
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 

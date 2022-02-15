@@ -127,4 +127,5 @@ def hash_key(key):
     second_be = bytearray.fromhex(xxhash.xxh64(key, 1).hexdigest())
     first_be.reverse()
     second_be.reverse()
-    return ''.join(format(b, '02x') for b in first_be) + ''.join(format(b, '02x') for b in second_be)
+    return ''.join(format(b, '02x') for b in first_be) + \
+           ''.join(format(b, '02x') for b in second_be)

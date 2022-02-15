@@ -34,7 +34,10 @@ class Node:
 
     def start(self, name):
         """Start the node. `name` is used to name of the logfile and for --name flag."""
-        cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags) + self._log_levels()
+        cmd = ([self.binary, '--name', name] +
+               self._stdargs() +
+               flags_from_dict(self.flags) +
+               self._log_levels())
 
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:

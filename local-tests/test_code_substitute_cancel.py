@@ -2,8 +2,10 @@
 import os
 import os.path
 import subprocess
+from time import sleep
 
-from code_substitute_utils import *
+from code_substitute_utils import run_binary, query_runtime_version, \
+    check_highest, restart_nodes, stop, update_chainspec
 
 SEND_RUNTIME = 'send-runtime/target/release/send_runtime'
 
@@ -15,9 +17,11 @@ NODES = 4
 WORKDIR = '.'
 PHRASES = ['//Alice', '//Bob', '//Cedric', '//Dick']
 
-EXTRINSIC = '0x2d02840030f8911d2b4f40d22c3b71c26cd3f49dd938a7f91bbd62bc732fe921f19003560156abd9ef33ce4f057cdaf9cba5d' \
-            '83320b3ff48b7dd79e48fe3c3fa570d867561cdbc9a52b955685a01161ee96263bca4ceddbd1907e99a2fbbda05e144fd818a00' \
-            '040004000098c2366f07c9631d23a57fba9e8624541d52f25a61dea9cfed20ea792640bd00a10f'
+EXTRINSIC = '0x2d02840030f8911d2b4f40d22c3b71c26cd3f49dd938a7f91bbd62bc732fe9' \
+            '21f19003560156abd9ef33ce4f057cdaf9cba5d83320b3ff48b7dd79e48fe3c3' \
+            'fa570d867561cdbc9a52b955685a01161ee96263bca4ceddbd1907e99a2fbbda' \
+            '05e144fd818a00040004000098c2366f07c9631d23a57fba9e8624541d52f25a' \
+            '61dea9cfed20ea792640bd00a10f'
 
 
 def check_if_files_are_built():
@@ -34,7 +38,7 @@ def update_to_on_chain():
 
 
 def print_fees_now(chain):
-    print(f'Querying fee details of an extrinsic at current block')
+    print('Querying fee details of an extrinsic at current block')
     print(chain[0].rpc('payment_queryFeeDetails', [EXTRINSIC]))
 
 
