@@ -1,24 +1,21 @@
+use crate::{
+    accounts::accounts_from_seeds, config::Config, BlockNumber, Connection, Header, KeyPair,
+};
+use anyhow::anyhow;
 use codec::Compact;
+use common::create_connection;
 use log::info;
-
+use pallet_staking::ValidatorPrefs;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
 use sp_core::Pair;
-use substrate_api_client::compose_call;
-use substrate_api_client::{compose_extrinsic, GenericAddress, XtStatus};
-
-use crate::accounts::accounts_from_seeds;
-use crate::config::Config;
-use crate::KeyPair;
-use crate::{BlockNumber, Connection, Header};
-use anyhow::anyhow;
-use common::create_connection;
-use pallet_staking::ValidatorPrefs;
 use sp_runtime::Perbill;
 use std::sync::mpsc::channel;
-use substrate_api_client::extrinsic::staking::RewardDestination;
-use substrate_api_client::AccountId;
+use substrate_api_client::{
+    compose_call, compose_extrinsic, extrinsic::staking::RewardDestination, AccountId,
+    GenericAddress, XtStatus,
+};
 
 fn send_xt(connection: &Connection, xt: String, xt_name: &'static str) {
     let block_hash = connection
@@ -125,7 +122,7 @@ fn wait_for_full_reward_era(connection: &Connection) -> anyhow::Result<BlockNumb
     let next_full_era_block_number =
         ((current_finalized_block_number + blocks_per_era) / blocks_per_era + 1) * blocks_per_era;
     info!(
-        "[+] Top finalized block is {}, waiting for block {}",
+        "Top finalized block is {}, waiting for block {}",
         current_finalized_block_number, next_full_era_block_number
     );
     let _ = top_finalized_block_number(connection, |number| number >= next_full_era_block_number)?;
@@ -188,7 +185,7 @@ pub fn staking_test(config: &Config) -> anyhow::Result<()> {
 
     let current_era = wait_for_full_reward_era(&connection)?;
     info!(
-        "[+] Full era {} passed, claiming rewards for era {}",
+        "Full era {} passed, claiming rewards for era {}",
         current_era,
         current_era - 1
     );
