@@ -5,6 +5,10 @@ docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ```
 Binary will be stored at `$(pwd)/aleph-node`.
 
+If you have [nix][nix] installed locally, you can simply call `nix-shell shell.nix`. It should spawn a shell with all build
+dependencies installed. Inside, you can simply use `cargo build --release -p aleph-node`. Keep in mind that a binary created
+this way will most likely depend on `glibc` referenced by `nix` and necessary default for your system.
+
 ### Build
 We provide a build procedure based on the `nix` package manager. There are several ways to interact with this process. Users can
 install `nix` locally or interact with it using docker. We prepared a simple docker image that provides necessary tools for the
@@ -41,3 +45,5 @@ docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ## WARNING
 `nix` attempts to copy whole source tree in current directory before it starts the compilation process. This includes all binary
 artifacts stored in `target` directory or any other files not under git.
+
+[nix]: https://nixos.org/manual/nix/stable/
