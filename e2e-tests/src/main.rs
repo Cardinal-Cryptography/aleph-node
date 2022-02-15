@@ -5,6 +5,7 @@ use clap::Parser;
 
 use aleph_e2e_client::config::Config;
 use aleph_e2e_client::test;
+use log::info;
 
 fn main() -> anyhow::Result<()> {
     init_env();
@@ -35,7 +36,7 @@ fn run<T>(
     name: &str,
     config: &Config,
 ) -> anyhow::Result<()> {
-    println!("Running test: {}", name);
+    info!("Running test: {}", name);
     let start = Instant::now();
     testcase(config).map(|_| {
         let elapsed = Instant::now().duration_since(start);
