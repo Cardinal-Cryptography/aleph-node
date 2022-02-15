@@ -22,4 +22,3 @@ echo "BOOTNODE_PEER_ID : $BOOTNODE_PEER_ID"
 docker-compose -f docker/docker-compose.yml up -d
 
 exit $?
-
