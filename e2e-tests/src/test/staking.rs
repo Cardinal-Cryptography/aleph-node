@@ -1,5 +1,6 @@
 use crate::{
-    accounts::accounts_from_seeds, config::Config, BlockNumber, Connection, Header, KeyPair,
+    accounts::accounts_from_seeds, config::Config, waiting::wait_for_finalized_block, BlockNumber,
+    Connection, Header, KeyPair,
 };
 use anyhow::anyhow;
 use codec::Compact;
@@ -193,6 +194,19 @@ pub fn staking_test(config: &Config) -> anyhow::Result<()> {
     validator_accounts
         .into_par_iter()
         .for_each(|account| payout_stakers(node, account, current_era - 1));
+
+    // Sanity check
+    let block_number = connection
+        .get_header::<Header>(None)
+        .unwrap()
+        .unwrap()
+        .number;
+    info!(
+        "Current block number is {}, waiting till it finalizes",
+        block_number,
+    );
+
+    wait_for_finalized_block(&connection, block_number);
 
     Ok(())
 }
