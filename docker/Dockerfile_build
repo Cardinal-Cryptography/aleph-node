@@ -4,7 +4,8 @@ COPY docker/nix-build.sh /node/
 RUN chmod +x /node/nix-build.sh
 COPY shell.nix /node/
 WORKDIR /node
-RUN nix-shell --pure shell.nix
+RUN nix-shell --pure shell.nix && \
+    nix-env -iA patchelf
 
 WORKDIR /node/build
 ENTRYPOINT ["/node/nix-build.sh"]
