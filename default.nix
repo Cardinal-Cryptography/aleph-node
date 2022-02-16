@@ -4,14 +4,23 @@ let
       url = "https://github.com/mozilla/nixpkgs-mozilla.git";
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
-  nixpkgs = import (builtins.fetchGit {
-    url = "https://github.com/NixOS/nixpkgs.git";
-    ref = "refs/tags/21.11";
+  nixpkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.11.tar.gz";
+    sha256 = "162dywda2dvfj1248afxc45kcrg83appjd0nmdb541hl7rnncf02";
   }) { overlays = [ rustOverlay ]; };
+  # nixpkgs = import (builtins.fetchTarball {
+  #   url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.11.tar.gz";
+  #   sha256 = "162dywda2dvfj1248afxc45kcrg83appjd0nmdb541hl7rnncf02";
+  # }) {};
+  # nixpkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
+  # rust-nightly = with nixpkgs; ((rustChannelOf { channel = "stable"; }).rust.override {
+  #   extensions = [ "rust-src" ];
+  #   targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
+  # });
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
     name = "binutils-2.36.1";
     src = nixpkgs.fetchurl {
@@ -30,12 +39,14 @@ let
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
+  # customEnv = env;
 in
 with nixpkgs; customEnv.mkDerivation rec {
   name = "aleph-node";
   src = ./.;
 
   buildInputs = [
+    rustup
     llvm.clang
     binutils-unwrapped'
     openssl.dev
@@ -49,7 +60,6 @@ with nixpkgs; customEnv.mkDerivation rec {
   ];
 
   shellHook = ''
-    export RUST_SRC_PATH="${rust-nightly}/lib/rustlib/src/rust/src"
     export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
     export PROTOC="${protobuf}/bin/protoc"
     export CFLAGS=" \
@@ -69,6 +79,7 @@ with nixpkgs; customEnv.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
+    # rustup toolchain install .
   '';
 
   buildPhase = ''
