@@ -6,13 +6,9 @@ use frame_support::{
 };
 use sp_std::vec::Vec;
 
-generate_storage_alias!(
-    Aleph, SessionForValidatorsChange => Value<u32>
-);
+generate_storage_alias!(Aleph, SessionForValidatorsChange => Value<u32>);
 
-generate_storage_alias!(
-    Aleph, Validators<T: Config> => Value<Vec<T::AccountId>>
-);
+generate_storage_alias!(Aleph, Validators<T: Config> => Value<Vec<T::AccountId>>);
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
