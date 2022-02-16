@@ -18,10 +18,33 @@ use std::time::Duration;
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
 use substrate_api_client::{GenericAddress, XtStatus};
 
+fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
+    let sessions_per_era: u32 = connection
+        .get_storage_value("Elections", "SessionsPerEra", None)
+        .unwrap()
+        .unwrap();
+    let millisecs_per_block: u64 = connection
+        .get_storage_value("Elections", "MillisecsPerBlock", None)
+        .unwrap()
+        .unwrap();
+    let session_period: u32 = connection
+        .get_storage_value("Elections", "SessionPeriod", None)
+        .unwrap()
+        .unwrap();
+    let miliseconds_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
+    let treasury_era_payout_from_staking = primitives::staking::era_payout(miliseconds_per_era).1;
+    info!(
+        "[+] Possible treasury gain from staking is {}",
+        treasury_era_payout_from_staking
+    );
+    treasury_era_payout_from_staking
+}
+
 pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
 
+    let possibly_treasury_gain_from_staking = calculate_staking_treasury_addition(&connection);
     let treasury_balance_before = get_free_balance(&treasury, &connection);
     let issuance_before = get_total_issuance(&connection);
     info!(
@@ -38,11 +61,16 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
         treasury_balance_after, issuance_after
     );
 
-    assert!(
-        issuance_after <= issuance_before,
-        "Unexpectedly {} was minted",
-        issuance_after - issuance_before
-    );
+    if issuance_after > issuance_before {
+        let difference = issuance_after - issuance_before;
+        assert_eq!(
+            difference % possibly_treasury_gain_from_staking,
+            0,
+            "Unexpectedly {} was minted, and it's not related to staking treasury reward which is {}",
+            difference, possibly_treasury_gain_from_staking
+        );
+    }
+
     assert!(
         issuance_before <= issuance_after,
         "Unexpectedly {} was burned",
@@ -52,13 +80,16 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let fee_info = get_tx_fee_info(&connection, &tx);
     let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
 
+    let difference = treasury_balance_after - (treasury_balance_before + fee);
     assert_eq!(
-        treasury_balance_before + fee,
-        treasury_balance_after,
-        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}",
+        difference % possibly_treasury_gain_from_staking,
+        0,
+        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}, and \
+        it's not related to staking treasury reward which is {}",
         treasury_balance_before,
         treasury_balance_after,
-        fee
+        fee,
+        possibly_treasury_gain_from_staking
     );
 
     Ok(())

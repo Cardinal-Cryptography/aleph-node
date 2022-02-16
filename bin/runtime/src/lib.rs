@@ -72,7 +72,7 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 pub type AccountIndex = u32;
 
 /// Balance of an account.
-pub type Balance = u128;
+pub type Balance = primitives::Balance;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
@@ -426,10 +426,6 @@ impl<I: From<SessionIndex>> ::frame_support::traits::Get<I> for SessionsPerEra {
     }
 }
 
-const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
-// Milliseconds per year for the Julian year (365.25 days).
-const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
-
 pub struct UniformEraPayout {}
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
@@ -437,12 +433,7 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
         let miliseconds_per_era = Elections::millisecs_per_block()
             * Elections::session_period() as u64
             * Elections::sessions_per_era() as u64;
-        let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
-        let total_payout = portion * YEARLY_INFLATION;
-        let validators_payout = Perbill::from_percent(90) * total_payout;
-        let rest = total_payout - validators_payout;
-
-        (validators_payout, rest)
+        primitives::staking::era_payout(miliseconds_per_era)
     }
 }
 
