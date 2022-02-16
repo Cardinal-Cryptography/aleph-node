@@ -31,7 +31,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 pub mod pallet {
     use super::*;
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
-    // use frame_system::pallet_prelude::BlockNumberFor;
+    use frame_system::pallet_prelude::BlockNumberFor;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -46,12 +46,15 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
-    // #[pallet::hooks]
-    // impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-    //     fn on_runtime_upgrade() -> frame_support::weights::Weight {
-    //         migrations::v1_to_v2::migrate::<T, Self>()
-    //     }
-    // }
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight = 0;
+            weight += migrations::v0_to_v1::migrate::<T, Self>();
+            weight += migrations::v1_to_v2::migrate::<T, Self>();
+            weight
+        }
+    }
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
