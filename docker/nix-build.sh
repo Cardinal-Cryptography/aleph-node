@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SPAWN_SHELL=${SPAWN_SHELL:-false}
-SHELL_NIX_FILE=${SHELL_NIX_FILE:-"shell.nix"}
+SHELL_NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
 
 while getopts "s" flag
 do

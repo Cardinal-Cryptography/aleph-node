@@ -1,26 +1,17 @@
 let
-  # rustOverlay =
-  #   import (builtins.fetchGit {
-  #     url = "https://github.com/oxalica/rust-overlay.git";
-  #     rev = "6d50a4f52d517a53cf740a9746f4e226ac17cf6a";
-  #   });
   rustOverlay =
     import (builtins.fetchGit {
       url = "https://github.com/mozilla/nixpkgs-mozilla.git";
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
-  # nixpkgs = import (fetchTarball ("https://github.com/NixOS/nixpkgs/archive/66e44425c6dfecbea68a5d6dc221ccd56561d4f1.tar.gz")) { overlays = [ rustOverlay ]; };
-  baseNixpkgs = import (builtins.fetchGit {
+  nixpkgs = import (builtins.fetchGit {
     url = "https://github.com/NixOS/nixpkgs.git";
     ref = "refs/tags/21.11";
   }) { overlays = [ rustOverlay ]; };
-  nixpkgs = baseNixpkgs.pkgsCross.musl64;
-  # nixpkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
-    targets = [ "x86_64-unknown-linux-musl" "wasm32-unknown-unknown" ];
+    targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
-  # rust-nightly = nixpkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
     name = "binutils-2.36.1";
     src = nixpkgs.fetchurl {
@@ -29,27 +20,13 @@ let
     };
     patches = [];
   });
-  # llvm = nixpkgs.llvmPackages_13;
+  llvm = nixpkgs.llvmPackages_13;
   llvmVersionString = "13.0.0";
-  customGlibc = (import (builtins.fetchGit {
-    # Descriptive name to make the store path easier to identify
-    name = "glibc-old-revision";
-    url = "https://github.com/NixOS/nixpkgs/";
-    ref = "refs/tags/20.09";
-    # ref = "refs/heads/nixos-20.09";
-    # rev = "f6cc8cb29a3909136af1539848026bd41276e2ac";
-     }) {}).glibc;
-  # env = llvm.libcxxStdenv;
-  # env = llvm.stdenv;
-  env = nixpkgs.clangStdenv;
-  # env = nixpkgs.stdenvNoCC;
+  env = llvm.stdenv;
   cc = nixpkgs.wrapCCWith rec {
-    # cc = env.cc;
-    cc = nixpkgs.clang_13;
+    cc = env.cc;
     bintools = nixpkgs.wrapBintoolsWith {
       bintools = binutils-unwrapped';
-      # libc = nixpkgs.glibc_2.33-59;
-      # libc = customGlibc;
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
@@ -59,8 +36,7 @@ with nixpkgs; customEnv.mkDerivation rec {
   src = ./.;
 
   buildInputs = [
-    # llvm.clang
-    clang_13
+    llvm.clang
     binutils-unwrapped'
     openssl.dev
     pkg-config
@@ -70,8 +46,6 @@ with nixpkgs; customEnv.mkDerivation rec {
     git
     findutils
     patchelf
-    # customGlibc
-    # glibc_2.31
   ];
 
   shellHook = ''
@@ -95,13 +69,13 @@ with nixpkgs; customEnv.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
-    export RUSTFLAGS="-C target-cpu=x86-64-v3 $RUSTFLAGS"
-    export CARGO_BUILD_TARGET="x86_64-unknown-linux-musl"
   '';
 
   buildPhase = ''
     ${shellHook}
     export CARGO_HOME="$out/cargo"
+    export RUSTFLAGS="-C target-cpu=x86-64-v3 $RUSTFLAGS"
+    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
 
     cargo build --locked --release -p aleph-node
   '';
