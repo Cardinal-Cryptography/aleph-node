@@ -28,7 +28,6 @@ services:
     container_name: tomasz
     network_mode: host
     environment:
-      - CUSTOM_ARGS=-lpallet_aleph=debug,runtime=debug
       - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9934
@@ -50,7 +49,6 @@ services:
     container_name: zbyszko
     network_mode: host
     environment:
-      - CUSTOM_ARGS=-lpallet_aleph=debug,runtime=debug
       - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9935
@@ -72,7 +70,6 @@ services:
     container_name: hansu
     network_mode: host
     environment:
-      - CUSTOM_ARGS=-lpallet_aleph=debug,runtime=debug
       - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - RPC_PORT=9936
