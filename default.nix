@@ -17,7 +17,7 @@ let
   # nixpkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
-    targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
+    targets = [ "x86_64-unknown-linux-musl" "wasm32-unknown-unknown" ];
   });
   # rust-nightly = nixpkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
@@ -38,6 +38,7 @@ let
     # ref = "refs/heads/nixos-20.09";
     # rev = "f6cc8cb29a3909136af1539848026bd41276e2ac";
      }) {}).glibc;
+  # env = llvm.libcxxStdenv;
   env = llvm.stdenv;
   # env = nixpkgs.stdenvNoCC;
   cc = nixpkgs.wrapCCWith rec {
@@ -45,7 +46,7 @@ let
     bintools = nixpkgs.wrapBintoolsWith {
       bintools = binutils-unwrapped';
       # libc = nixpkgs.glibc_2.33-59;
-      libc = customGlibc;
+      # libc = customGlibc;
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
@@ -91,7 +92,7 @@ with nixpkgs; customEnv.mkDerivation rec {
         $BINDGEN_EXTRA_CLANG_ARGS
     "
     export RUSTFLAGS="-C target-cpu=x86-64-v3 $RUSTFLAGS"
-    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
+    export CARGO_BUILD_TARGET="x86_64-unknown-linux-musl"
   '';
 
   buildPhase = ''
