@@ -632,6 +632,23 @@ pub type SignedExtra = (
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+
+mod custom_migration {
+    use super::*;
+    use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+    use pallet_aleph::migrations::{v0_to_v1, v1_to_v2};
+
+    pub struct Upgrade;
+    impl OnRuntimeUpgrade for Upgrade {
+        fn on_runtime_upgrade() -> Weight {
+            let mut weight = 0;
+            weight += v0_to_v1::migrate::<Runtime, pallet_aleph::Pallet<Runtime>>();
+            weight += v1_to_v2::migrate::<Runtime, pallet_aleph::Pallet<Runtime>>();
+            weight
+        }
+    }
+}
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
     Runtime,
@@ -639,6 +656,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPallets,
+    custom_migration::Upgrade,
 >;
 
 impl_runtime_apis! {

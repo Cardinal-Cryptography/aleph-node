@@ -13,7 +13,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-mod migrations;
+pub mod migrations;
 
 use sp_std::prelude::*;
 
@@ -46,12 +46,12 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::v1_to_v2::migrate::<T, Self>()
-        }
-    }
+    // #[pallet::hooks]
+    // impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    //     fn on_runtime_upgrade() -> frame_support::weights::Weight {
+    //         migrations::v1_to_v2::migrate::<T, Self>()
+    //     }
+    // }
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
