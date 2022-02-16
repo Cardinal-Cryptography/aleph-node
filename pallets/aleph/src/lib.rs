@@ -13,7 +13,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub mod migrations;
+mod migrations;
 
 use sp_std::prelude::*;
 
