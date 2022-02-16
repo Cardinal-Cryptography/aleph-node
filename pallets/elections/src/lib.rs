@@ -149,20 +149,12 @@ pub mod pallet {
                 .collect();
 
             for (voter, vote, targets) in voters {
-                assert!(
-                    targets.len() == 1,
-                    "There should be only one target in one vote"
-                );
+                // The parameter Staking::MAX_NOMINATIONS is set to 1 which guarantees that len(targets) == 1
                 let member = &targets[0];
-                if !members.contains(member) {
-                    continue;
+                if let Some(support) = supports.get_mut(member) {
+                    support.total += vote as u128;
+                    support.voters.push((voter, vote as u128));
                 }
-
-                let support = supports
-                    .get_mut(member)
-                    .expect("Was initialized with all members; qed.");
-                support.total += vote as u128;
-                support.voters.push((voter, vote as u128));
             }
 
             Ok(supports.into_iter().collect())

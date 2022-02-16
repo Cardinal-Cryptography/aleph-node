@@ -325,8 +325,8 @@ fn generate_genesis_config(
     );
 
     const ENDOWMENT: u128 = 1 << 60;
-    const MIN_VALIDATOR_BOND: u128 = 25_000 * 1_000_000_000_000;
-    const MIN_NOMINATOR_BOND: u128 = 1_000 * 1_000_000_000_000;
+    const MIN_VALIDATOR_BOND: u128 = 25_000 * TOKEN_DECIMALS as u128;
+    const MIN_NOMINATOR_BOND: u128 = 1_000 * TOKEN_DECIMALS as u128;
 
     GenesisConfig {
         system: SystemConfig {
