@@ -10,10 +10,11 @@ let
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
   # nixpkgs = import (fetchTarball ("https://github.com/NixOS/nixpkgs/archive/66e44425c6dfecbea68a5d6dc221ccd56561d4f1.tar.gz")) { overlays = [ rustOverlay ]; };
-  nixpkgs = import (builtins.fetchGit {
+  baseNixpkgs = import (builtins.fetchGit {
     url = "https://github.com/NixOS/nixpkgs.git";
     ref = "refs/tags/21.11";
   }) { overlays = [ rustOverlay ]; };
+  nixpkgs = baseNixpkgs.pkgsCross.musl64;
   # nixpkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
@@ -28,7 +29,7 @@ let
     };
     patches = [];
   });
-  llvm = nixpkgs.llvmPackages_13;
+  # llvm = nixpkgs.llvmPackages_13;
   llvmVersionString = "13.0.0";
   customGlibc = (import (builtins.fetchGit {
     # Descriptive name to make the store path easier to identify
@@ -39,10 +40,12 @@ let
     # rev = "f6cc8cb29a3909136af1539848026bd41276e2ac";
      }) {}).glibc;
   # env = llvm.libcxxStdenv;
-  env = llvm.stdenv;
+  # env = llvm.stdenv;
+  env = nixpkgs.clangStdenv;
   # env = nixpkgs.stdenvNoCC;
   cc = nixpkgs.wrapCCWith rec {
-    cc = env.cc;
+    # cc = env.cc;
+    cc = nixpkgs.clang_13;
     bintools = nixpkgs.wrapBintoolsWith {
       bintools = binutils-unwrapped';
       # libc = nixpkgs.glibc_2.33-59;
@@ -56,7 +59,8 @@ with nixpkgs; customEnv.mkDerivation rec {
   src = ./.;
 
   buildInputs = [
-    llvm.clang
+    # llvm.clang
+    clang_13
     binutils-unwrapped'
     openssl.dev
     pkg-config
