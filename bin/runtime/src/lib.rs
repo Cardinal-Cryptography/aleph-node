@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_version: 9,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 3,
+    transaction_version: 4,
 };
 
 /// This determines the average expected block time that we are targetting.
