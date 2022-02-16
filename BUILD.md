@@ -7,7 +7,7 @@ Binary will be stored at `$(pwd)/aleph-node`.
 
 If you have [nix][nix] installed locally, you can simply call `nix-shell`. It should spawn a shell with all build
 dependencies installed. Inside, you can simply use `cargo build --release -p aleph-node`. Keep in mind that a binary created
-this way will most likely depend on `glibc` referenced by `nix` and necessary default for your system.
+this way will depend on `glibc` referenced by `nix` and not necessary default for your system.
 
 ### Build
 We provide a build procedure based on the `nix` package manager. There are several ways to interact with this process. Users can
