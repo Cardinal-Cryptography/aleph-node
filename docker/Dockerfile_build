@@ -2,9 +2,9 @@ FROM nixos/nix:2.6.0
 
 COPY docker/nix-build.sh /node/
 RUN chmod +x /node/nix-build.sh
-COPY shell.nix /node/
+COPY default.nix /node/
 WORKDIR /node
-RUN nix-shell --pure shell.nix && \
+RUN nix-shell --pure default.nix && \
     nix-env -i patchelf
 
 WORKDIR /node/build
