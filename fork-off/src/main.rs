@@ -54,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
         .chain(vec!["0x3a636f6465".to_string()])
         .collect::<Vec<String>>(); // code
 
-    let storage = get_chain_state(http_rpc_endpoint, &hashed_prefixes).await;
+    let storage = get_chain_state(&http_rpc_endpoint, &hashed_prefixes).await;
 
     info!("Succesfully retrieved chain state");
 
@@ -94,22 +94,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn get_chain_state(http_rpc_endpoint: String, hashed_prefixes: &Vec<String>) -> Vec<Value> {
-    // let response: Value = reqwest::Client::new()
-    //     .post(http_rpc_endpoint)
-    //     .json(&serde_json::json!({
-    //         "jsonrpc": "2.0",
-    //         "id": 1,
-    //         "method": "state_getPairs",
-    //         "params": ["0x"]
-    //     }))
-    //     .send()
-    //     .await
-    //     .expect("Storage request has failed")
-    //     .json()
-    //     .await
-    //     .expect("Could not deserialize response as JSON");
-
+async fn get_chain_state(http_rpc_endpoint: &str, hashed_prefixes: &Vec<String>) -> Vec<Value> {
     // let connection = reqwest::Client::new();
 
     stream::iter(hashed_prefixes.to_owned())
@@ -135,23 +120,6 @@ async fn get_chain_state(http_rpc_endpoint: String, hashed_prefixes: &Vec<String
         })
         .collect::<Vec<i32>>()
         .await;
-
-    // let a = stream.map(|prefix_hash| async {
-    //     let response: Value = reqwest::Client::new()
-    //         .post(http_rpc_endpoint)
-    //         .json(&serde_json::json!({
-    //             "jsonrpc": "2.0",
-    //             "id": 1,
-    //             "method": "state_getPairs",
-    //             "params": ["0x"]
-    //         }))
-    //         .send()
-    //         .await
-    //         .expect("Storage request has failed")
-    //         .json()
-    //         .await
-    //         .expect("Could not deserialize response as JSON");
-    // });
 
     // .map(|prefix| {
     //     async {
