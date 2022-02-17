@@ -1,8 +1,11 @@
 use clap::Parser;
+// use log::{debug, info};
+use futures::stream::{self, StreamExt};
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
-use substrate_api_client::extrinsic::log::info;
+use std::path::Prefix;
+use substrate_api_client::extrinsic::log::{debug, info};
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -45,66 +48,161 @@ async fn main() -> anyhow::Result<()> {
         &fs::read_to_string(&fork_spec_path).expect("Could not read chainspec file"),
     )?;
 
-    let storage = get_chain_state(http_rpc_endpoint).await;
+    let hashed_prefixes = prefixes
+        .iter()
+        .map(|p| prefix_as_hex(p))
+        .chain(vec!["0x3a636f6465".to_string()])
+        .collect::<Vec<String>>(); // code
+
+    let storage = get_chain_state(http_rpc_endpoint, &hashed_prefixes).await;
 
     info!("Succesfully retrieved chain state");
 
     // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
-    info!(
-        "Looking for the following storage items to be moved to the fork: {:?}",
-        prefixes
-    );
+    // info!(
+    //     "Looking for the following storage items to be moved to the fork: {:?}",
+    //     prefixes
+    // );
 
-    storage
-        .iter()
-        .filter(|pair| {
-            prefixes
-                .iter()
-                .map(|p| prefix_as_hex(p))
-                .chain(vec!["0x3a636f6465".to_string()])
-                .any(|prefix| {
-                    let pair = pair.as_array().unwrap();
-                    let storage_key = pair[0].as_str().unwrap();
-                    storage_key.starts_with(&format!("0x{}", prefix_as_hex(&prefix)))
-                })
-        })
-        .for_each(|pair| {
-            let pair = pair.as_array().unwrap();
-            let k = &pair[0].as_str().unwrap();
-            let v = &pair[1];
-            info!("Moving {} to the fork", k);
-            fork_spec["genesis"]["raw"]["top"][k] = v.to_owned();
-        });
+    // storage
+    //     .iter()
+    //     .filter(|pair| {
+    //         prefixes
+    //             .iter()
+    //             .map(|p| prefix_as_hex(p))
+    //             .chain(vec!["0x3a636f6465".to_string()]) // code
+    //             .any(|prefix| {
+    //                 let pair = pair.as_array().unwrap();
+    //                 let storage_key = pair[0].as_str().unwrap();
+    //                 storage_key.starts_with(&format!("0x{}", prefix_as_hex(&prefix)))
+    //             })
+    //     })
+    //     .for_each(|pair| {
+    //         let pair = pair.as_array().unwrap();
+    //         let k = &pair[0].as_str().unwrap();
+    //         let v = &pair[1];
+    //         info!("Moving {} to the fork", k);
+    //         fork_spec["genesis"]["raw"]["top"][k] = v.to_owned();
+    //     });
 
-    // write out the fork spec
-    let json = serde_json::to_string(&fork_spec)?;
-    info!("Writing forked chain spec to {}", &write_to_path);
-    write_to_file(write_to_path, json.as_bytes());
+    // // write out the fork spec
+    // let json = serde_json::to_string(&fork_spec)?;
+    // info!("Writing forked chain spec to {}", &write_to_path);
+    // write_to_file(write_to_path, json.as_bytes());
 
     info!("Done!");
     Ok(())
 }
 
-async fn get_chain_state(http_rpc_endpoint: String) -> Vec<Value> {
-    let storage: Value = reqwest::Client::new()
-        .post(http_rpc_endpoint)
-        .json(&serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "state_getPairs",
-            "params": ["0x"]
-        }))
-        .send()
-        .await
-        .expect("Storage request has failed")
-        .json()
-        .await
-        .expect("Could not deserialize response as JSON");
+async fn get_chain_state(http_rpc_endpoint: String, hashed_prefixes: &Vec<String>) -> Vec<Value> {
+    // let response: Value = reqwest::Client::new()
+    //     .post(http_rpc_endpoint)
+    //     .json(&serde_json::json!({
+    //         "jsonrpc": "2.0",
+    //         "id": 1,
+    //         "method": "state_getPairs",
+    //         "params": ["0x"]
+    //     }))
+    //     .send()
+    //     .await
+    //     .expect("Storage request has failed")
+    //     .json()
+    //     .await
+    //     .expect("Could not deserialize response as JSON");
 
-    storage["result"]
-        .as_array()
-        .expect("No result in response")
-        .to_owned()
+    // let connection = reqwest::Client::new();
+
+    stream::iter(hashed_prefixes.to_owned())
+        .then(|prefix| async move {
+            let response: Value = reqwest::Client::new()
+                .post(http_rpc_endpoint)
+                .json(&serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "state_getPairs",
+                    "params": [ &prefix ]
+                }))
+                .send()
+                .await
+                .expect("Storage request has failed")
+                .json()
+                .await
+                .expect("Could not deserialize response as JSON");
+
+            debug!("chain state query response: {:?}", &response);
+
+            0i32
+        })
+        .collect::<Vec<i32>>()
+        .await;
+
+    // let a = stream.map(|prefix_hash| async {
+    //     let response: Value = reqwest::Client::new()
+    //         .post(http_rpc_endpoint)
+    //         .json(&serde_json::json!({
+    //             "jsonrpc": "2.0",
+    //             "id": 1,
+    //             "method": "state_getPairs",
+    //             "params": ["0x"]
+    //         }))
+    //         .send()
+    //         .await
+    //         .expect("Storage request has failed")
+    //         .json()
+    //         .await
+    //         .expect("Could not deserialize response as JSON");
+    // });
+
+    // .map(|prefix| {
+    //     async {
+    //         let response: Value = reqwest::Client::new()
+    //             .post(http_rpc_endpoint)
+    //             .json(&serde_json::json!({
+    //                 "jsonrpc": "2.0",
+    //                 "id": 1,
+    //                 "method": "state_getPairs",
+    //                 "params": ["0x"]
+    //             }))
+    //             .send()
+    //             .await
+    //             .expect("Storage request has failed")
+    //             .json()
+    //             .await
+    //             .expect("Could not deserialize response as JSON");
+
+    //         debug!("chain state query response: {:?}", &response);
+
+    //         // "ret".to_owned()
+
+    //         Value::default()
+    //     }
+    //     // .await
+    // })
+    // .collect::<Vec<Value>>();
+
+    // let response: Value = reqwest::Client::new()
+    //     .post(http_rpc_endpoint)
+    //     .json(&serde_json::json!({
+    //         "jsonrpc": "2.0",
+    //         "id": 1,
+    //         "method": "state_getPairs",
+    //         "params": ["0x"]
+    //     }))
+    //     .send()
+    //     .await
+    //     .expect("Storage request has failed")
+    //     .json()
+    //     .await
+    //     .expect("Could not deserialize response as JSON");
+
+    // debug!("chain state query response: {:?}", &response);
+
+    // response["result"]
+    //     .as_array()
+    //     .expect("No result in response")
+    //     .to_owned()
+
+    vec![]
 }
 
 fn write_to_file(write_to_path: String, data: &[u8]) {
