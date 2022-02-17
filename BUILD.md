@@ -5,20 +5,21 @@ docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ```
 Binary will be stored at `$(pwd)/aleph-node`.
 
-If you have [nix][nix] installed locally, you can simply call `nix-shell`. It should spawn a shell with all build
-dependencies installed. Inside, you can simply use `cargo build --release -p aleph-node`. Keep in mind that a binary created
-this way will depend on `glibc` referenced by `nix` and not necessary default for your system.
+If you have [nix][nix] installed locally, you can simply call `nix-shell` (use `--pure` if you don't want to interfere with your
+system's packages, i.e. `gcc`, `clang`). It should spawn a shell with all build dependencies installed.
+Inside, you can simply use `cargo build --release -p aleph-node`. Keep in mind that a binary created this way will depend on
+`glibc` referenced by `nix` and not necessary default one used by your system.
 
 ### Build
-#### nix
+#### nix-with-docker way
 We provide a build procedure based on the `nix` package manager. There are several ways to interact with this process. Users can
 install `nix` locally or interact with it using docker. We prepared a simple docker image that provides necessary tools for the
 whole build process. You can attempt at reproducing the build process without using `nix` by simply installing all dependencies
 described by the `default.nix` file and following execution of its `buildPhase`.
 
-In order to build a binary for `aleph-node` using docker we first need to install docker, i.e. in case of the Ubuntu linux 
-distribution, by executing `sudo apt install docker.io` (please consult your distribution's manual describing docker installation 
-procedure). Next step is to prepare our docker-image that handles the build process, by invoking:
+In order to build a binary for `aleph-node` using docker we first need to install docker, i.e. in case of the Ubuntu linux
+distribution, by executing `sudo apt install docker.io` (please consult your distribution's manual describing docker
+installation procedure). Next step is to prepare our docker-image that handles the build process, by invoking:
 ```
 docker build -t aleph-node/build -f docker/Dockerfile_build .
 ```
@@ -40,7 +41,7 @@ Another way to interact with this docker image is to allow it to create for us o
 i.e. each time we call its build process it will start it from scratch in a isolated environment.
 ```
 # outputs the `aleph-node` binary in current dir
-docker run -ti --volume=$(pwd):/node/build aleph-node/build 
+docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ```
 
 #### `I feel lucky` way
@@ -61,7 +62,7 @@ you call rust within project's root directory. Naturally, we can try to use diff
 i.e. delivered by system's default package manager, but such process might be problematic. Notice, that the `nix` based process
 is not referencing any of the `gcc` compiler tools, where ubuntu's package `build-essential` already includes `gcc`. It might
 influence some of the build scripts of our build dependencies and it might be necessary to carefully craft some of the build-time
-related environment flags, like `CXXFLAGS` etc..
+related environment flags, like `CXXFLAGS` etc.
 
 ## WARNING
 `nix` attempts to copy whole source tree in current directory before it starts the compilation process. This includes all binary
