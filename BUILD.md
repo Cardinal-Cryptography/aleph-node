@@ -10,6 +10,7 @@ dependencies installed. Inside, you can simply use `cargo build --release -p ale
 this way will depend on `glibc` referenced by `nix` and not necessary default for your system.
 
 ### Build
+#### nix
 We provide a build procedure based on the `nix` package manager. There are several ways to interact with this process. Users can
 install `nix` locally or interact with it using docker. We prepared a simple docker image that provides necessary tools for the
 whole build process. You can attempt at reproducing the build process without using `nix` by simply installing all dependencies
@@ -42,8 +43,29 @@ i.e. each time we call its build process it will start it from scratch in a isol
 docker run -ti --volume=$(pwd):/node/build aleph-node/build 
 ```
 
+# `I feel lucky` way
+These are build dependencies used by our process for `aleph-node`
+```
+binutils-2.36,1
+clang-13.0.0
+protobuf-3.19.0
+openssl-1.1.1l
+git-2.33.1
+nss-cacert-3.71
+pkg-config-0.29.2
+rust
+```
+Version of the rust toolchain is specified by the `rust-toolchain.toml` file. You can use [rustup][rustup] to install a specific
+version of rust, including its custom compilation targets. Using `rustup` it should set correctly a toolchain automatically while
+you call rust within project's root directory. Naturally, we can try to use different versions of these dependencies,
+i.e. delivered by system's default package manager, but such process might be problematic. Notice, that the `nix` based process
+is not referencing any of the `gcc` compiler tools, where ubuntu's package `build-essential` already includes `gcc`. It might
+influence some of the build scripts of our build dependencies and it might be necessary to carefully craft some of the build-time
+related environment flags, like `CXXFLAGS` etc..
+
 ## WARNING
 `nix` attempts to copy whole source tree in current directory before it starts the compilation process. This includes all binary
 artifacts stored in `target` directory or any other files not under git.
 
 [nix]: https://nixos.org/manual/nix/stable/
+[rustup]: https://rustup.rs/
