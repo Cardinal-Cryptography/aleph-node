@@ -1,5 +1,5 @@
 use crate::{
-    accounts::accounts_from_seeds,
+    accounts::{accounts_from_seeds, default_accounts},
     config::Config,
     waiting::{wait_for_event, wait_for_finalized_block},
     BlockNumber, Connection, Header, KeyPair,
@@ -123,18 +123,13 @@ fn wait_for_full_era_completion(connection: &Connection) -> anyhow::Result<Block
 }
 
 fn get_key_pairs() -> (Vec<KeyPair>, Vec<KeyPair>) {
-    let validators = vec![
-        String::from("//Damian"),
-        String::from("//Hansu"),
-        String::from("//Tomasz"),
-        String::from("//Zbyszko"),
-    ];
-    let validator_stashes = validators
+    let validators = default_accounts();
+    let validator_stashes: Vec<_> = validators
         .iter()
         .map(|v| String::from(v) + "//stash")
         .collect();
-    let validator_accounts_key_pairs = accounts_from_seeds(Some(validators).as_ref());
-    let stashes_accounts_key_pairs = accounts_from_seeds(Some(validator_stashes).as_ref());
+    let validator_accounts_key_pairs = accounts_from_seeds(Some(&validators));
+    let stashes_accounts_key_pairs = accounts_from_seeds(Some(&validator_stashes));
 
     (stashes_accounts_key_pairs, validator_accounts_key_pairs)
 }

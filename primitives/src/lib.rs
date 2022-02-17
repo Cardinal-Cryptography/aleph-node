@@ -50,11 +50,11 @@ sp_api::decl_runtime_apis! {
 }
 
 pub mod staking {
-    use super::Balance;
+    use super::{Balance, TOKEN_DECIMALS};
     use sp_runtime::Perbill;
 
     pub fn era_payout(miliseconds_per_era: u64) -> (Balance, Balance) {
-        const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
+        const YEARLY_INFLATION: Balance = 30_000_000 * 10u128.pow(TOKEN_DECIMALS);
         // Milliseconds per year for the Julian year (365.25 days).
         const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
 

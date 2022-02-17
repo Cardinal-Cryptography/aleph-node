@@ -24,7 +24,6 @@ use frame_support::{
 };
 pub use pallet::*;
 
-/// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
