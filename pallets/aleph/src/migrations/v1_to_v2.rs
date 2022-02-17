@@ -17,8 +17,19 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     if on_chain_storage_version == 1 && current_storage_version == 2 {
         log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 1 to 2");
 
+        if !SessionForValidatorsChange::exists {
+            log::info!(target: "pallet_aleph", "Storage item SessionForValidatorsChange does not exist!");
+        }
         SessionForValidatorsChange::kill();
+
+        if !MillisecsPerBlock::exists {
+            log::info!(target: "pallet_aleph", "Storage item MillisecsPerBlock does not exist!");
+        }
         MillisecsPerBlock::kill();
+
+        if !SessionPeriod::exists {
+            log::info!(target: "pallet_aleph", "Storage item SessionPeriod does not exist!");
+        }
         SessionPeriod::kill();
 
         // store new version
