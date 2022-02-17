@@ -137,7 +137,7 @@ pub struct ChainParams {
     #[structopt(long)]
     session_period: Option<u32>,
 
-    /// The length of an era (in Sessions). Default is 4*24=96
+    /// The length of an era (in Sessions). Default is 4 * 24 = 96, so that one era lasts one day
     #[structopt(long)]
     sessions_per_era: Option<SessionIndex>,
 
@@ -316,7 +316,6 @@ fn generate_genesis_config(
     // NOTE: some combinations of bootstrap chain arguments can potentially
     // lead to duplicated rich accounts, e.g. if a sudo account is also an authority
     // which is why we remove the duplicates if any here
-    // endow as well stash accounts, if any
     let unique_accounts: Vec<AccountId> = deduplicate(
         to_account_ids(&authorities)
             .chain(special_accounts)
@@ -324,7 +323,7 @@ fn generate_genesis_config(
             .collect(),
     );
 
-    const ENDOWMENT: u128 = 1 << 60;
+    const ENDOWMENT: u128 = 1_000_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
     const MIN_VALIDATOR_BOND: u128 = 25_000u128 * 10u128.pow(TOKEN_DECIMALS);
     const MIN_NOMINATOR_BOND: u128 = 1_000u128 * 10u128.pow(TOKEN_DECIMALS);
 

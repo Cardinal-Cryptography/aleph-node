@@ -14,7 +14,7 @@ pub fn setup_for_transfer(config: &Config) -> (Connection, AccountId32, AccountI
     } = config;
 
     let accounts = accounts_from_seeds(seeds.as_ref());
-    let (from, to) = (accounts[0].to_owned(), accounts[1].to_owned());
+    let (from, to) = (accounts[0].clone(), accounts[1].clone());
 
     let connection = create_connection(node).set_signer(from.clone());
     let from = AccountId::from(from.public());

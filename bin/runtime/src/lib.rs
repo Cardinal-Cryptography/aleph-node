@@ -226,7 +226,7 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = (Staking,); // consider adding ImOnline
+    type EventHandler = (Staking,);
 }
 
 pub struct MinimumPeriod;
@@ -718,6 +718,7 @@ impl_runtime_apis! {
             Executive::offchain_worker(header)
         }
     }
+
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             opaque::SessionKeys::generate(seed)
@@ -765,10 +766,10 @@ impl_runtime_apis! {
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
-                Session::queued_keys()
-                .iter()
-                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<AlephId>, AlephApiError>>()
+            Session::queued_keys()
+            .iter()
+            .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
+            .collect::<Result<Vec<AlephId>, AlephApiError>>()
         }
     }
 }

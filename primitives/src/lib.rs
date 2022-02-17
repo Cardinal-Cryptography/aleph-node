@@ -46,3 +46,21 @@ sp_api::decl_runtime_apis! {
         fn millisecs_per_block() -> u64;
     }
 }
+
+pub mod staking {
+    use super::{Balance, TOKEN_DECIMALS};
+    use sp_runtime::Perbill;
+
+    pub fn era_payout(miliseconds_per_era: u64) -> (Balance, Balance) {
+        const YEARLY_INFLATION: Balance = 30_000_000 * 10u128.pow(TOKEN_DECIMALS);
+        // Milliseconds per year for the Julian year (365.25 days).
+        const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
+
+        let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
+        let total_payout = portion * YEARLY_INFLATION;
+        let validators_payout = Perbill::from_percent(90) * total_payout;
+        let rest = total_payout - validators_payout;
+
+        (validators_payout, rest)
+    }
+}

@@ -8,7 +8,6 @@ mod tests;
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
 
-/// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
@@ -130,8 +129,8 @@ pub mod pallet {
         type Error = Error;
         type DataProvider = T::DataProvider;
 
-        // We use authority list so the supports don't influance the result
-        // but we still have to calculate them for the sake of eras payouts
+        // The elections are PoA so only the nodes listed in the Members will be elected as validators.
+        // We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             let voters = Self::DataProvider::voters(None).map_err(Error::DataProvider)?;
             let members = Pallet::<T>::members();

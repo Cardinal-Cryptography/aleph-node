@@ -97,7 +97,7 @@ impl Config for Test {
 
 pub struct StakingMock;
 impl ElectionDataProvider<AccountId, u64> for StakingMock {
-    const MAXIMUM_VOTES_PER_VOTER: u32 = 16;
+    const MAXIMUM_VOTES_PER_VOTER: u32 = 1;
 
     fn targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
         Ok(Vec::new())
