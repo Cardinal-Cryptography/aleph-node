@@ -40,8 +40,8 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     info!(
-        "Running with config: \n\thttp_rpc_endpoint {}\n \tfork_spec_path: {}\n \twrite_to_path{}",
-        http_rpc_endpoint, fork_spec_path, write_to_path
+        "Running with config: \n\thttp_rpc_endpoint {}\n \tfork_spec_path: {}\n \twrite_to_path {}\n \tprefixes {:?}",
+        &http_rpc_endpoint, &fork_spec_path, &write_to_path, &prefixes
     );
 
     let mut fork_spec: Value = serde_json::from_str(
@@ -50,9 +50,17 @@ async fn main() -> anyhow::Result<()> {
 
     let hashed_prefixes = prefixes
         .iter()
-        .map(|p| prefix_as_hex(p))
-        .chain(vec!["0x3a636f6465".to_string()])
-        .collect::<Vec<String>>(); // code
+        .map(|prefix| {
+            let hash = format!("0x{}", prefix_as_hex(&prefix));
+
+            // let p = prefix_as_hex(p);
+            info!("prefix : {} hash {}", prefix, hash);
+            hash
+        })
+        // .chain(vec![
+        //     "0x3a636f6465".to_string(), // code
+        // ])
+        .collect::<Vec<String>>();
 
     let storage = get_chain_state(&http_rpc_endpoint, &hashed_prefixes).await;
 
@@ -104,7 +112,7 @@ async fn get_chain_state(http_rpc_endpoint: &str, hashed_prefixes: &Vec<String>)
                 .json(&serde_json::json!({
                     "jsonrpc": "2.0",
                     "id": 1,
-                    "method": "state_getPairs",
+                    "method": "state_getStorage",
                     "params": [ &prefix ]
                 }))
                 .send()
