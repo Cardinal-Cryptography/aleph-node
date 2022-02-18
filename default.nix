@@ -12,6 +12,11 @@ let
     extensions = [ "rust-src" ];
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
+  nixpkgs-old = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/15.09.tar.gz";
+    sha256 = "0pn142js99ncn7f53bw7hcp99ldjzb2m7xhjrax00xp72zswzv2n";
+  }) {};
+  oldGlibc = nixpkgs-old.glibc;
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
     name = "binutils-2.36.1";
     src = nixpkgs.fetchurl {
@@ -25,8 +30,10 @@ let
   env = llvm.stdenv;
   cc = nixpkgs.wrapCCWith rec {
     cc = env.cc;
+    libc = oldGlibc;
     bintools = nixpkgs.wrapBintoolsWith {
       bintools = binutils-unwrapped';
+      libc = oldGlibc;
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
@@ -37,6 +44,7 @@ with nixpkgs; customEnv.mkDerivation rec {
 
   buildInputs = [
     llvm.clang
+    oldGlibc
     binutils-unwrapped'
     openssl.dev
     pkg-config
