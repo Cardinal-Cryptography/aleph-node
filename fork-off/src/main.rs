@@ -1,12 +1,8 @@
 use clap::Parser;
-// use log::{debug, info};
 use futures::stream::{self, StreamExt};
 use serde_json::Value;
-use sp_core::crypto::key_types;
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
-use std::path::Prefix;
 use substrate_api_client::extrinsic::log::{debug, info};
 
 #[derive(Debug, Parser)]
@@ -61,50 +57,28 @@ async fn main() -> anyhow::Result<()> {
     let hashed_prefixes = prefixes
         .iter()
         .map(|prefix| {
-            let hash = format!("0x{}", prefix_as_hex(&prefix));
+            let hash = format!("0x{}", prefix_as_hex(prefix));
             info!("prefix: {}, hash: {}", prefix, hash);
             hash
         })
-        // .chain(vec![
-        //     "0x3a636f6465".to_string(), // code
-        // ])
+        .chain(vec![
+            "0x3a636f6465".to_string(), // code
+        ])
         .collect::<Vec<String>>();
 
     let storage = get_chain_state(&http_rpc_endpoint, &hashed_prefixes).await;
 
     info!("Succesfully retrieved chain state {:?}", storage);
 
-    // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
-    // info!(
-    //     "Looking for the following storage items to be moved to the fork: {:?}",
-    //     prefixes
-    // );
+    storage.into_iter().for_each(|(key, value)| {
+        info!("Moving {} to the fork", key);
+        fork_spec["genesis"]["raw"]["top"][key] = value.into();
+    });
 
-    // storage
-    //     .iter()
-    //     .filter(|pair| {
-    //         prefixes
-    //             .iter()
-    //             .map(|p| prefix_as_hex(p))
-    //             .chain(vec!["0x3a636f6465".to_string()]) // code
-    //             .any(|prefix| {
-    //                 let pair = pair.as_array().unwrap();
-    //                 let storage_key = pair[0].as_str().unwrap();
-    //                 storage_key.starts_with(&format!("0x{}", prefix_as_hex(&prefix)))
-    //             })
-    //     })
-    //     .for_each(|pair| {
-    //         let pair = pair.as_array().unwrap();
-    //         let k = &pair[0].as_str().unwrap();
-    //         let v = &pair[1];
-    //         info!("Moving {} to the fork", k);
-    //         fork_spec["genesis"]["raw"]["top"][k] = v.to_owned();
-    //     });
-
-    // // write out the fork spec
-    // let json = serde_json::to_string(&fork_spec)?;
-    // info!("Writing forked chain spec to {}", &write_to_path);
-    // write_to_file(write_to_path, json.as_bytes());
+    // write out the fork spec
+    let json = serde_json::to_string(&fork_spec)?;
+    info!("Writing forked chain spec to {}", &write_to_path);
+    write_to_file(write_to_path, json.as_bytes());
 
     info!("Done!");
     Ok(())
@@ -184,21 +158,21 @@ async fn get_value(http_rpc_endpoint: &str, key: &str) -> String {
 
 async fn get_chain_state(
     http_rpc_endpoint: &str,
-    hashed_prefixes: &Vec<String>,
+    hashed_prefixes: &[String],
 ) -> Vec<(String, String)> {
     stream::iter(hashed_prefixes.to_owned())
         .then(|prefix| async move {
             // collect storage pairs for this prefix
             let mut pairs = vec![];
-            let mut first_key = get_key(&http_rpc_endpoint, &prefix, None).await;
+            let mut first_key = get_key(http_rpc_endpoint, &prefix, None).await;
 
             debug!("hashed prefix: {}, first key: {:?}", &prefix, &first_key);
             loop {
                 match first_key {
                     Some(key) => {
-                        let value = get_value(&http_rpc_endpoint, &key).await;
+                        let value = get_value(http_rpc_endpoint, &key).await;
                         pairs.push((key.clone(), value));
-                        first_key = get_key(&http_rpc_endpoint, &prefix, Some(&key)).await;
+                        first_key = get_key(http_rpc_endpoint, &prefix, Some(&key)).await;
                     }
                     None => {
                         break;
