@@ -52,6 +52,8 @@ impl<D: Data> IO<D> {
 }
 const PEER_BUFFER_SIZE: usize = 100;
 
+use crate::network::get_peer_id;
+
 impl<N: Network, D: Data> Service<N, D> {
     pub fn new(network: N, spawn_handle: SpawnTaskHandle, io: IO<D>) -> Service<N, D> {
         let IO {
@@ -146,7 +148,7 @@ impl<N: Network, D: Data> Service<N, D> {
             Event::NotificationStreamOpened {
                 remote, protocol, ..
             } => {
-                if protocol == ALEPH_PROTOCOL_NAME {
+                if protocol == ALEPH_PROTOCOL_NAME || protocol == ALEPH_VALIDATOR_PROTOCOL_NAME {
                     trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?}", remote);
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
@@ -190,9 +192,15 @@ impl<N: Network, D: Data> Service<N, D> {
     fn on_manager_command(&self, command: ConnectionCommand) {
         use ConnectionCommand::*;
         match command {
-            AddReserved(addresses) => self
+            AddReserved(addresses) => {
+                let peer_ids: HashSet<PeerId> = addresses.iter().map(|addr| get_peer_id(&addr.clone().into()).unwrap()).collect();
+                self
                 .network
-                .add_reserved(addresses, Cow::Borrowed(ALEPH_VALIDATOR_PROTOCOL_NAME)),
+                .remove_reserved(peer_ids, Cow::Borrowed(ALEPH_PROTOCOL_NAME));
+                self
+                .network
+                .add_reserved(addresses, Cow::Borrowed(ALEPH_VALIDATOR_PROTOCOL_NAME));
+            },
             DelReserved(peers) => self
                 .network
                 .remove_reserved(peers, Cow::Borrowed(ALEPH_VALIDATOR_PROTOCOL_NAME)),
