@@ -10,7 +10,7 @@ from chainrunner import Chain, Seq, generate_keys
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the pre-update aleph-node binary:
-bin = abspath(os.getenv('BINARY', join(workdir, 'aleph-node-old')))
+binary = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
 # Path to the post-update aleph-node binary:
 flooder = abspath(os.getenv('FLOODER', join(workdir, '../.github/scripts/flooder.sh')))
 
@@ -26,11 +26,11 @@ def check_highest(nodes):
 
 
 phrases = ['//Alice', '//Bob', '//Charlie', '//Dave']
-keys = generate_keys(bin, phrases)
+keys = generate_keys(binary, phrases)
 chain = Chain(workdir)
 MILLISECS_PER_BLOCK = 1000
 print('Bootstraping the chain...')
-chain.bootstrap(bin,
+chain.bootstrap(binary,
                 keys.values(),
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local',
@@ -46,18 +46,17 @@ chain.set_flags('validator',
 
 chain.start('aleph')
 
-print('Waiting a minute')
+print('Waiting a bit')
 sleep(15)
 
 start = time()
 old = check_highest(chain)
 
-subprocess.run([flooder]).check_returncode()
+subprocess.run([flooder], check=True).check_returncode()
 new = check_highest(chain)
 
-expected = int((time() - start) * 1000) // MILLISECS_PER_BLOCK
-epsilon = 50
+expected_millis = int((time() - start) * 1000) // MILLISECS_PER_BLOCK
+EPSILON = 20
 
-if new - old + epsilon < expected:
+if new - old + EPSILON < expected_millis:
     sys.exit(1)
-
