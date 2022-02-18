@@ -167,18 +167,13 @@ async fn get_chain_state(
             let mut first_key = get_key(http_rpc_endpoint, &prefix, None).await;
 
             debug!("hashed prefix: {}, first key: {:?}", &prefix, &first_key);
-            loop {
-                match first_key {
-                    Some(key) => {
-                        let value = get_value(http_rpc_endpoint, &key).await;
-                        pairs.push((key.clone(), value));
-                        first_key = get_key(http_rpc_endpoint, &prefix, Some(&key)).await;
-                    }
-                    None => {
-                        break;
-                    }
-                }
+
+            while let Some(key) = first_key {
+                let value = get_value(http_rpc_endpoint, &key).await;
+                pairs.push((key.clone(), value));
+                first_key = get_key(http_rpc_endpoint, &prefix, Some(&key)).await;
             }
+
             pairs
         })
         .collect::<Vec<Vec<(String, String)>>>()
