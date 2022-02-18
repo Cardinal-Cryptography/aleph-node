@@ -9,9 +9,9 @@ from chainrunner import Chain, Seq, generate_keys
 
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
-# Path to the pre-update aleph-node binary:
+# Path to the aleph-node binary:
 binary = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
-# Path to the post-update aleph-node binary:
+# Path to the flooder script
 flooder = abspath(os.getenv('FLOODER', join(workdir, '../.github/scripts/flooder.sh')))
 
 
@@ -47,7 +47,7 @@ chain.set_flags('validator',
 chain.start('aleph')
 
 print('Waiting a bit')
-sleep(15)
+sleep(30)
 
 start = time()
 old = check_highest(chain)
@@ -59,4 +59,5 @@ expected_blocks = int((time() - start) * 1000) // MILLISECS_PER_BLOCK
 EPSILON = 20
 
 if new - old + EPSILON < expected_blocks:
+    print(f'Expected at least {expected_blocks - EPSILON} new blocks, got {new - old}')
     sys.exit(1)
