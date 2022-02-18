@@ -1,17 +1,23 @@
 let
+  # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
     import (builtins.fetchGit {
       url = "https://github.com/mozilla/nixpkgs-mozilla.git";
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
+
+  # pinned version of nix packages
   nixpkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.05.tar.gz";
     sha256 = "1ckzhh24mgz6jd1xhfgx0i9mijk6xjqxwsshnvq789xsavrmsc36";
   }) { overlays = [ rustOverlay ]; };
+
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
+
+  # rust toolchain requires a newer version of the linker than the one declared by nixpkgs
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
     name = "binutils-2.36.1";
     src = nixpkgs.fetchurl {
@@ -20,6 +26,9 @@ let
     };
     patches = [];
   });
+
+  # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
+  # in this version build process should rely only on clang, without access to gcc
   llvm = nixpkgs.llvmPackages_12;
   env = llvm.stdenv;
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
@@ -69,14 +78,11 @@ with nixpkgs; customEnv.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
-    export ROCKSDB_LIB_DIR="${rocksdb}/lib"
   '';
 
   buildPhase = ''
     ${shellHook}
     export CARGO_HOME="$out/cargo"
-    export RUSTFLAGS="-C target-cpu=x86-64-v3 $RUSTFLAGS"
-    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
 
     cargo build --locked --release -p aleph-node
   '';
