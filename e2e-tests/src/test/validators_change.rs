@@ -16,7 +16,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         ref node, seeds, ..
     } = config;
 
-    let accounts = accounts_from_seeds(seeds.as_ref());
+    let accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
     let connection = create_connection(node).set_signer(sudo);
