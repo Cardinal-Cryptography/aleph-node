@@ -69,7 +69,7 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
         ref node, seeds, ..
     } = config;
 
-    let proposer = accounts_from_seeds(seeds.as_ref())[0].clone();
+    let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 

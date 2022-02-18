@@ -13,7 +13,7 @@ pub fn setup_for_transfer(config: &Config) -> (Connection, AccountId32, AccountI
         ref node, seeds, ..
     } = config;
 
-    let accounts = accounts_from_seeds(seeds.as_ref());
+    let accounts = accounts_from_seeds(seeds);
     let (from, to) = (accounts[0].clone(), accounts[1].clone());
 
     let connection = create_connection(node).set_signer(from.clone());
