@@ -56,8 +56,8 @@ subprocess.run([flooder], check=True).check_returncode()
 new = check_highest(chain)
 
 expected_blocks = int((time() - start) * 1000) // MILLISECS_PER_BLOCK
-EPSILON = 20
+EPSILON = 25
 
-if new - old + EPSILON >= expected_blocks:
+if new - old + EPSILON < expected_blocks:
     print(f'Expected at least {expected_blocks - EPSILON} new blocks, got {new - old}')
     sys.exit(1)
