@@ -15,7 +15,7 @@ use sp_runtime::MultiAddress;
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
-use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
+use substrate_api_client::{AccountId, Balance, UncheckedExtrinsicV4};
 use substrate_api_client::{GenericAddress, XtStatus};
 
 pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
@@ -52,16 +52,34 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let fee_info = get_tx_fee_info(&connection, &tx);
     let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
 
-    assert_eq!(
-        treasury_balance_before + fee,
-        treasury_balance_after,
-        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}",
+    check_treasury_balance(
+        possibly_treasury_gain_from_staking,
         treasury_balance_before,
         treasury_balance_after,
-        fee
+        fee,
     );
 
     Ok(())
+}
+
+fn check_treasury_balance(
+    possibly_treasury_gain_from_staking: u128,
+    treasury_balance_before: Balance,
+    treasury_balance_after: Balance,
+    fee: Balance,
+) {
+    let treasury_balance_diff = treasury_balance_after - (treasury_balance_before + fee);
+    assert_eq!(
+        treasury_balance_diff % possibly_treasury_gain_from_staking,
+        0,
+        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}.  We can \
+        be different only as multiples of staking treasury reward {}, but the remainder is {}",
+        treasury_balance_before,
+        treasury_balance_after,
+        fee,
+        possibly_treasury_gain_from_staking,
+        treasury_balance_diff % possibly_treasury_gain_from_staking,
+    );
 }
 
 pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
