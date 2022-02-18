@@ -14,11 +14,7 @@ Aleph node is based on a Substrate node where the default finality gadget (GRAND
 
 ### Building
 
-1. Install the Substrate framework as described [here][substrate-installation], using the `nightly-2021-10-24` version of the rust toolchain (see the instruction at the bottom of the page)
-2. Clone this repository to your machine
-3. Run `cargo build --release -p aleph-node`
-
-We also prepared a configuration for the `nix` package manager that automates this process. For details please consult the [BUILD][BUILD] guide.
+Please consult the [BUILD][BUILD] guide.
 
 ### Running
 
