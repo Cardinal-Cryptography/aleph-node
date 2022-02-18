@@ -62,9 +62,7 @@ async fn main() -> anyhow::Result<()> {
         .iter()
         .map(|prefix| {
             let hash = format!("0x{}", prefix_as_hex(&prefix));
-
-            // let p = prefix_as_hex(p);
-            info!("prefix : {} hash {}", prefix, hash);
+            info!("prefix: {}, hash: {}", prefix, hash);
             hash
         })
         // .chain(vec![
@@ -74,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = get_chain_state(&http_rpc_endpoint, &hashed_prefixes).await;
 
-    info!("Succesfully retrieved chain state");
+    info!("Succesfully retrieved chain state {:?}", storage);
 
     // move the desired storage values from the snapshot of the chain to the forked chain genesis spec
     // info!(
@@ -119,14 +117,14 @@ async fn get_key(http_rpc_endpoint: &str, key: &str, start_key: Option<&str>) ->
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "state_getKeysPaged",
-                "params": [ key, start_key ]
+                "params": [ key, 1, start_key ]
             })
         }
         None => serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "state_getKeysPaged",
-            "params": [ key ]
+            "params": [ key, 1 ]
         }),
     };
 
@@ -139,6 +137,8 @@ async fn get_key(http_rpc_endpoint: &str, key: &str, start_key: Option<&str>) ->
         .json()
         .await
         .expect("Could not deserialize response as JSON");
+
+    debug!("get_key response: {}", response);
 
     let result = response["result"]
         .as_array()
@@ -174,12 +174,9 @@ async fn get_value(http_rpc_endpoint: &str, key: &str) -> String {
         .await
         .expect("Could not deserialize response as JSON");
 
+    debug!("get_value response: {}", response);
+
     response["result"]
-        .as_array()
-        .expect("No result in response")
-        .to_owned()
-        .first()
-        .expect("No value in result")
         .as_str()
         .expect("Not a string")
         .to_owned()
@@ -194,13 +191,13 @@ async fn get_chain_state(
             // collect storage pairs for this prefix
             let mut pairs = vec![];
             let mut first_key = get_key(&http_rpc_endpoint, &prefix, None).await;
+
+            debug!("hashed prefix: {}, first key: {:?}", &prefix, &first_key);
             loop {
                 match first_key {
                     Some(key) => {
                         let value = get_value(&http_rpc_endpoint, &key).await;
-
                         pairs.push((key.clone(), value));
-
                         first_key = get_key(&http_rpc_endpoint, &prefix, Some(&key)).await;
                     }
                     None => {
