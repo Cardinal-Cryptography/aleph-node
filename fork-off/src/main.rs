@@ -165,7 +165,6 @@ async fn get_chain_state(
             // collect storage pairs for this prefix
             let mut pairs = vec![];
             let mut first_key = get_key(http_rpc_endpoint, &prefix, None).await;
-
             debug!("hashed prefix: {}, first key: {:?}", &prefix, &first_key);
 
             while let Some(key) = first_key {
