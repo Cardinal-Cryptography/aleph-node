@@ -5,18 +5,13 @@ let
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
   nixpkgs = import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.11.tar.gz";
-    sha256 = "162dywda2dvfj1248afxc45kcrg83appjd0nmdb541hl7rnncf02";
+    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.05.tar.gz";
+    sha256 = "1ckzhh24mgz6jd1xhfgx0i9mijk6xjqxwsshnvq789xsavrmsc36";
   }) { overlays = [ rustOverlay ]; };
   rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
     extensions = [ "rust-src" ];
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
-  nixpkgs-old = import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/15.09.tar.gz";
-    sha256 = "0pn142js99ncn7f53bw7hcp99ldjzb2m7xhjrax00xp72zswzv2n";
-  }) {};
-  oldGlibc = nixpkgs-old.glibc;
   binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
     name = "binutils-2.36.1";
     src = nixpkgs.fetchurl {
@@ -25,15 +20,13 @@ let
     };
     patches = [];
   });
-  llvm = nixpkgs.llvmPackages_13;
-  llvmVersionString = "13.0.0";
+  llvm = nixpkgs.llvmPackages_12;
   env = llvm.stdenv;
+  llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
   cc = nixpkgs.wrapCCWith rec {
     cc = env.cc;
-    libc = oldGlibc;
     bintools = nixpkgs.wrapBintoolsWith {
       bintools = binutils-unwrapped';
-      libc = oldGlibc;
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
@@ -43,14 +36,13 @@ with nixpkgs; customEnv.mkDerivation rec {
   src = ./.;
 
   buildInputs = [
+    rust-nightly
     llvm.clang
-    oldGlibc
     binutils-unwrapped'
     openssl.dev
-    pkg-config
-    rust-nightly
-    cacert
     protobuf
+    pkg-config
+    cacert
     git
     findutils
     patchelf
@@ -77,6 +69,7 @@ with nixpkgs; customEnv.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
+    export ROCKSDB_LIB_DIR="${rocksdb}/lib"
   '';
 
   buildPhase = ''
