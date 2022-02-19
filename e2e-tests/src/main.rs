@@ -13,11 +13,11 @@ fn main() -> anyhow::Result<()> {
 
     run(test::finalization, "finalization", config.clone())?;
     run(test::change_validators, "validators change", config.clone())?;
-    run(test::fee_calculation, "fee calculation", config.clone())?;
     run(test::token_transfer, "token transfer", config.clone())?;
     run(test::channeling_fee, "channeling fee", config.clone())?;
     run(test::treasury_access, "treasury access", config.clone())?;
     run(test::batch_transactions, "batch_transactions", config.clone())?;
+    run(test::fee_calculation, "fee calculation", config.clone())?;
 
     Ok(())
 }
