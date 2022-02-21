@@ -20,7 +20,7 @@ pub mod pallet {
     use frame_election_provider_support::{
         ElectionDataProvider, ElectionProvider, Support, Supports,
     };
-    use frame_support::pallet_prelude::*;
+    use frame_support::{pallet_prelude::*, traits::Get};
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
@@ -33,7 +33,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        #[pallet::constant]
+        type MillisecsPerBlock: Get<u64>;
         type SessionPeriod: Get<u32>;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;

@@ -1,4 +1,4 @@
-FROM ubuntu:impish
+FROM ubuntu:latest
 
 RUN apt update && \
         apt install curl -y && \

@@ -91,10 +91,12 @@ where
 }
 
 parameter_types! {
-    pub const SessionPeriod: u32 = 5;
+    pub const MillisecsPerBlock: u64 = 1000;
+    pub const SessionPeriod: u32 = 40;
 }
 
 impl Config for Test {
+    type MillisecsPerBlock = MillisecsPerBlock;
     type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = StakingMock;

@@ -44,8 +44,10 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
-pub use primitives::Balance;
-use primitives::{ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_SESSIONS_PER_ERA};
+use primitives::{
+    ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -202,6 +204,8 @@ parameter_types! {
     pub const MaxAuthorities: u32 = 100_000;
 }
 
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
@@ -217,6 +221,18 @@ impl pallet_authorship::Config for Runtime {
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
     type EventHandler = (Staking,);
+}
+
+pub struct MinimumPeriod;
+impl MinimumPeriod {
+    pub fn get() -> u64 {
+        MillisecsPerBlock::get() / 2
+    }
+}
+impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
+    fn get() -> I {
+        I::from(Self::get())
+    }
 }
 
 parameter_types! {
@@ -324,40 +340,20 @@ impl_opaque_keys! {
     }
 }
 
-pub struct MillisecsPerBlock;
-
-impl MillisecsPerBlock {
-    pub fn get() -> u64 {
-        Elections::millisecs_per_block()
-    }
-}
-
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const MillisecsPerBlock: u64 = DEFAULT_MILLISECS_PER_BLOCK;
+    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
 }
 
 impl pallet_elections::Config for Runtime {
+    type MillisecsPerBlock = MillisecsPerBlock;
     type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = Staking;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
-
-pub struct SessionPeriod;
-
-impl SessionPeriod {
-    pub fn get() -> u32 {
-        Elections::session_period()
-    }
-}
-
-impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const Offset: u32 = 0;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -390,6 +386,7 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
+    pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
     pub const MaxNominatorRewardedPerValidator: u32 = 512;
@@ -398,36 +395,13 @@ parameter_types! {
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
 }
 
-pub struct SessionsPerEra;
-
-impl SessionsPerEra {
-    pub fn get() -> SessionIndex {
-        Elections::sessions_per_era()
-    }
-}
-
-impl<I: From<SessionIndex>> ::frame_support::traits::Get<I> for SessionsPerEra {
-    fn get() -> I {
-        I::from(Self::get())
-    }
-}
-
-const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
-// Milliseconds per year for the Julian year (365.25 days).
-const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
-
 pub struct UniformEraPayout {}
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
         let miliseconds_per_era =
             MillisecsPerBlock::get() * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
-        let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
-        let total_payout = portion * YEARLY_INFLATION;
-        let validators_payout = Perbill::from_percent(90) * total_payout;
-        let rest = total_payout - validators_payout;
-
-        (validators_payout, rest)
+        primitives::staking::era_payout(miliseconds_per_era)
     }
 }
 
@@ -743,11 +717,11 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            Elections::millisecs_per_block()
+            MillisecsPerBlock::get()
         }
 
         fn session_period() -> u32 {
-            Aleph::session_period()
+            SessionPeriod::get()
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
