@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     env_logger::init();
 
-    info!(
+    info!(target: "fork",
         "Running with config: \n\thttp_rpc_endpoint {}\n \tfork_spec_path: {}\n \twrite_to_path: {}\n \tprefixes: {:?}",
         &http_rpc_endpoint, &fork_spec_path, &write_to_path, &prefixes
     );
