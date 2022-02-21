@@ -95,6 +95,7 @@ parameter_types! {
 }
 
 impl Config for Test {
+    type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = StakingMock;
     type SessionPeriod = SessionPeriod;
