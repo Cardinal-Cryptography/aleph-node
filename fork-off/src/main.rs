@@ -168,13 +168,11 @@ async fn get_chain_state(
                 first_key = get_key(http_rpc_endpoint, &prefix, Some(&key)).await;
             }
 
-            pairs
+            futures::stream::iter(pairs)
         })
-        .collect::<Vec<Vec<(String, String)>>>()
-        .await
-        .into_iter()
         .flatten()
-        .collect()
+        .collect::<Vec<(String, String)>>()
+        .await
 }
 
 fn write_to_file(write_to_path: String, data: &[u8]) {
