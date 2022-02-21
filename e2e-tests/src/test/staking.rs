@@ -88,9 +88,8 @@ fn payout_stakers(address: &str, validator: KeyPair, era_number: BlockNumber) {
 }
 
 fn wait_for_full_era_completion(connection: &Connection) -> anyhow::Result<BlockNumber> {
-    let sessions_per_era: u32 = connection
-        .get_storage_value("Elections", "SessionsPerEra", None)
-        .unwrap()
+    let sessions_per_era = connection
+        .get_constant::<u32>("Staking", "SessionsPerEra")
         .unwrap();
     let current_era: u32 = connection
         .get_storage_value("Staking", "ActiveEra", None)

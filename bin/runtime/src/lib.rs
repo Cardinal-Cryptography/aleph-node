@@ -123,8 +123,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-
 // Time is measured by number of blocks.
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
@@ -230,18 +228,6 @@ impl pallet_authorship::Config for Runtime {
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
     type EventHandler = (Staking,);
-}
-
-pub struct MinimumPeriod;
-impl MinimumPeriod {
-    pub fn get() -> u64 {
-        MillisecsPerBlock::get() / 2
-    }
-}
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
 }
 
 parameter_types! {
@@ -354,7 +340,6 @@ parameter_types! {
 }
 
 impl pallet_elections::Config for Runtime {
-    type MillisecsPerBlock = MillisecsPerBlock;
     type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = Staking;
@@ -422,6 +407,10 @@ impl pallet_staking::Config for Runtime {
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = MillisecsPerBlock::get() / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {

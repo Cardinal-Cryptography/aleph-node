@@ -19,17 +19,14 @@ use substrate_api_client::{AccountId, Balance, UncheckedExtrinsicV4};
 use substrate_api_client::{GenericAddress, XtStatus};
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
-    let sessions_per_era: u32 = connection
-        .get_storage_value("Elections", "SessionsPerEra", None)
-        .unwrap()
+    let sessions_per_era = connection
+        .get_constant::<u32>("Staking", "SessionsPerEra")
         .unwrap();
-    let millisecs_per_block: u64 = connection
-        .get_storage_value("Elections", "MillisecsPerBlock", None)
-        .unwrap()
+    let session_period = connection
+        .get_constant::<u32>("Elections", "SessionPeriod")
         .unwrap();
-    let session_period: u32 = connection
-        .get_storage_value("Elections", "SessionPeriod", None)
-        .unwrap()
+    let millisecs_per_block = 2 * connection
+        .get_constant::<u64>("Timestamp", "MinimumPeriod")
         .unwrap();
     let miliseconds_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
     let treasury_era_payout_from_staking = primitives::staking::era_payout(miliseconds_per_era).1;
