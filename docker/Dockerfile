@@ -1,4 +1,4 @@
-FROM ubuntu:focal-20210827
+FROM ubuntu:latest
 
 RUN apt update && \
         apt install curl -y && \

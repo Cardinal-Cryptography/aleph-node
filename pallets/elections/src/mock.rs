@@ -90,7 +90,14 @@ where
     type OverarchingCall = Call;
 }
 
+parameter_types! {
+    pub const MillisecsPerBlock: u64 = 1000;
+    pub const SessionPeriod: u32 = 40;
+}
+
 impl Config for Test {
+    type MillisecsPerBlock = MillisecsPerBlock;
+    type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = StakingMock;
 }
@@ -129,17 +136,9 @@ pub fn new_test_ext(members: Vec<AccountId>) -> sp_io::TestExternalities {
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let millisecs_per_block = 1000;
-    let session_period = 5;
-    let sessions_per_era = 3;
-    crate::GenesisConfig::<Test> {
-        members,
-        millisecs_per_block,
-        session_period,
-        sessions_per_era,
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
+    crate::GenesisConfig::<Test> { members }
+        .assimilate_storage(&mut t)
+        .unwrap();
 
     t.into()
 }
