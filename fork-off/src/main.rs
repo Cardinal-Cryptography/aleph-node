@@ -48,8 +48,6 @@ async fn main() -> anyhow::Result<()> {
         &http_rpc_endpoint, &fork_spec_path, &write_to_path, &prefixes
     );
 
-    debug!("SIZE: {}", prefixes.len());
-
     let mut fork_spec: Value = serde_json::from_str(
         &fs::read_to_string(&fork_spec_path).expect("Could not read chainspec file"),
     )?;
@@ -61,9 +59,7 @@ async fn main() -> anyhow::Result<()> {
             info!("prefix: {}, hash: {}", prefix, hash);
             hash
         })
-        .chain(vec![
-            "0x3a636f6465".to_string(), // code
-        ])
+        .chain([format!("0x{}", hex::encode(":code"))])
         .collect::<Vec<String>>();
 
     let storage = get_chain_state(&http_rpc_endpoint, &hashed_prefixes).await;
@@ -116,8 +112,7 @@ async fn get_key(http_rpc_endpoint: &str, key: &str, start_key: Option<&str>) ->
 
     let result = response["result"]
         .as_array()
-        .expect("No result in response")
-        .to_owned();
+        .expect("No result in response");
 
     if !result.is_empty() {
         return Some(
