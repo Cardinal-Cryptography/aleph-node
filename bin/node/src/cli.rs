@@ -43,10 +43,15 @@ impl SubstrateCli for Cli {
         2021
     }
 
-    fn load_spec(&self, path: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-        Ok(Box::new(chain_spec::ChainSpec::from_json_file(
-            std::path::PathBuf::from(path),
-        )?))
+    fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        let id = if id.is_empty() { "mainnet" } else { id };
+
+        let chainspec = match id {
+            "mainnet" => chain_spec::mainnet_config(),
+            "testnet" => chain_spec::testnet_config(),
+            _ => Err("invalid chain id"),
+        };
+        chainspec.map(Box::new)
     }
 
     fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {

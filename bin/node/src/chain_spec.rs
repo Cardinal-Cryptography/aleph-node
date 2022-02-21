@@ -355,3 +355,11 @@ fn generate_genesis_config(
         vesting: VestingConfig { vesting: vec![] },
     }
 }
+
+pub fn mainnet_config() -> Result<ChainSpec, String> {
+    ChainSpec::from_json_bytes(&include_bytes!("../res/mainnet_chainspec.json")[..])
+}
+
+pub fn testnet_config() -> Result<ChainSpec, String> {
+    ChainSpec::from_json_bytes(&include_bytes!("../res/testnet_chainspec.json")[..])
+}
