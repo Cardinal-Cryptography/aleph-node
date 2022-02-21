@@ -35,8 +35,14 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: Build binary and runtime
+      - name: Set test constants
+        run: ./scripts/change_consts.sh 1000 30 3
+
+      - name: Build binary
         run: cargo build --release -p aleph-node
+
+      - name: Build runtime
+        run: cargo build --release -p aleph-runtime
 
       - name: Stop cache
         uses: ./.github/actions/post-cache

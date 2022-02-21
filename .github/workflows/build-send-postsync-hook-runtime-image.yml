@@ -34,7 +34,7 @@ jobs:
       - name: Build binary
         run: |
           pushd local-tests/send-runtime/
-          cargo build --release
+          cargo build --release -p aleph-node
           popd
 
       - name: Build runtime-update-hook
