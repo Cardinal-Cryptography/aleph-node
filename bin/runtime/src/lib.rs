@@ -114,10 +114,10 @@ pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
 pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
 pub const MILLISECS_PER_DAY: u64 = MILLISECS_PER_HOUR * 24;
 
-/// Get the number of blocks produced in the period given by `hours`
-pub fn hours_as_block_num(hours: u64) -> BlockNumber {
-    (MILLISECS_PER_HOUR * hours / Aleph::millisecs_per_block()) as BlockNumber
-}
+// Time is measured by number of blocks.
+pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
+pub const HOURS: BlockNumber = MINUTES * 60;
+pub const DAYS: BlockNumber = HOURS * 24;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -339,6 +339,7 @@ impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
 }
 
 impl pallet_elections::Config for Runtime {
+    type SessionPeriod = SessionPeriod;
     type Event = Event;
     type DataProvider = Staking;
 }
@@ -455,16 +456,8 @@ impl pallet_staking::Config for Runtime {
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
-pub struct MinimumPeriod;
-impl MinimumPeriod {
-    pub fn get() -> u64 {
-        Aleph::millisecs_per_block() / 2
-    }
-}
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const MinimumPeriod: u64 = MillisecsPerBlock::get() / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
