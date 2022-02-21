@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
         .iter()
         .map(|prefix| {
             let hash = format!("0x{}", prefix_as_hex(prefix));
-            info!("prefix: {}, hash: {}", prefix, hash);
+            info!(target: "fork", "prefix: {}, hash: {}", prefix, hash);
             hash
         })
         .chain([format!("0x{}", hex::encode(":code"))])
@@ -67,13 +67,13 @@ async fn main() -> anyhow::Result<()> {
     info!("Succesfully retrieved chain state {:?}", storage);
 
     storage.into_iter().for_each(|(key, value)| {
-        info!("Moving {} to the fork", key);
+        info!(target: "fork","Moving {} to the fork", key);
         fork_spec["genesis"]["raw"]["top"][key] = value.into();
     });
 
     // write out the fork spec
     let json = serde_json::to_string(&fork_spec)?;
-    info!("Writing forked chain spec to {}", &write_to_path);
+    info!(target: "fork", "Writing forked chain spec to {}", &write_to_path);
     write_to_file(write_to_path, json.as_bytes());
 
     info!("Done!");
@@ -108,7 +108,7 @@ async fn get_key(http_rpc_endpoint: &str, key: &str, start_key: Option<&str>) ->
         .await
         .expect("Could not deserialize response as JSON");
 
-    debug!("get_key response: {}", response);
+    debug!(target: "fork", "get_key response: {}", response);
 
     let result = response["result"]
         .as_array()
@@ -143,7 +143,7 @@ async fn get_value(http_rpc_endpoint: &str, key: &str) -> String {
         .await
         .expect("Could not deserialize response as JSON");
 
-    debug!("get_value response: {}", response);
+    debug!(target: "fork", "get_value response: {}", response);
 
     response["result"]
         .as_str()
@@ -160,18 +160,19 @@ async fn get_chain_state(
             // collect storage pairs for this prefix
             let mut pairs = vec![];
             let mut first_key = get_key(http_rpc_endpoint, &prefix, None).await;
-            debug!("hashed prefix: {}, first key: {:?}", &prefix, &first_key);
+            debug!(target: "fork", "hashed prefix: {}, first key: {:?}", &prefix, &first_key);
 
             while let Some(key) = first_key {
                 let value = get_value(http_rpc_endpoint, &key).await;
                 pairs.push((key.clone(), value));
                 first_key = get_key(http_rpc_endpoint, &prefix, Some(&key)).await;
+                debug!(target: "fork", "hashed prefix: {}, next key: {:?}", &prefix, &first_key);
             }
 
-            futures::stream::iter(pairs)
+            stream::iter(pairs)
         })
         .flatten()
-        .collect::<Vec<(String, String)>>()
+        .collect()
         .await
 }
 
