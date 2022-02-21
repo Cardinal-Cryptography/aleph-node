@@ -12,8 +12,7 @@ let
     sha256 = "1ckzhh24mgz6jd1xhfgx0i9mijk6xjqxwsshnvq789xsavrmsc36";
   }) { overlays = [ rustOverlay ]; };
 
-  rust-nightly = with nixpkgs; ((rustChannelOf { date = "2021-10-24"; channel = "nightly"; }).rust.override {
-    extensions = [ "rust-src" ];
+  rustToolchain = with nixpkgs; ((rustChannelOf { rustToolchain = ./rust-toolchain; }).rust.override {
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
 
@@ -45,7 +44,7 @@ with nixpkgs; customEnv.mkDerivation rec {
   src = ./.;
 
   buildInputs = [
-    rust-nightly
+    rustToolchain
     llvm.clang
     binutils-unwrapped'
     openssl.dev
@@ -58,7 +57,7 @@ with nixpkgs; customEnv.mkDerivation rec {
   ];
 
   shellHook = ''
-    export RUST_SRC_PATH="${rust-nightly}/lib/rustlib/src/rust/src"
+    export RUST_SRC_PATH="${rustToolchain}/lib/rustlib/src/rust/src"
     export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
     export PROTOC="${protobuf}/bin/protoc"
     export CFLAGS=" \
