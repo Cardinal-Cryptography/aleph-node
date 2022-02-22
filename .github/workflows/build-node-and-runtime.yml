@@ -64,7 +64,7 @@ jobs:
       - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-release-node
+          name: ${{ inputs.artifact-prefix }}aleph-test-node
           path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 7

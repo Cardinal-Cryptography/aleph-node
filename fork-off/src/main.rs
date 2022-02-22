@@ -5,7 +5,6 @@ use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
 use substrate_api_client::extrinsic::log::{debug, info};
 
-
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {

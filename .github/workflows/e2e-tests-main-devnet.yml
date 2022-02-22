@@ -19,8 +19,7 @@ concurrency:
 jobs:
   build-new-node:
     name: Build node and runtime artifacts (PR version)
-    uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
-
+    uses: ./.github/workflows/build-node-and-runtime.yml
 
   build-test-docker:
     needs: [build-new-node]
