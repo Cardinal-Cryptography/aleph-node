@@ -296,7 +296,8 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                 Ok((maybe_command, data))
             }
             Err(e) => {
-                self.to_retry.push((PreSession::Validator(pre_session), result_for_user));
+                self.to_retry
+                    .push((PreSession::Validator(pre_session), result_for_user));
                 Err(e)
             }
         }
@@ -337,21 +338,24 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                     .await;
             }
         };
-        session.handler.update(None, pre_session.verifier, addresses).await?;
+        session
+            .handler
+            .update(None, pre_session.verifier, addresses)
+            .await?;
         Ok(())
     }
 
     async fn handle_nonvalidator_presession(
         &mut self,
         pre_session: PreNonvalidatorSession,
-    ) -> Result<
-        (),
-        SessionHandlerError,
-    > {
-        self.update_nonvalidator_session(pre_session.clone()).await.map_err(|e| {
-            self.to_retry.push((PreSession::Nonvalidator(pre_session), None));
-            e
-        })
+    ) -> Result<(), SessionHandlerError> {
+        self.update_nonvalidator_session(pre_session.clone())
+            .await
+            .map_err(|e| {
+                self.to_retry
+                    .push((PreSession::Nonvalidator(pre_session), None));
+                e
+            })
     }
 
     /// Handle a session command.
@@ -384,8 +388,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                     session_id,
                     verifier,
                 };
-                self.handle_nonvalidator_presession(pre_session)
-                    .await?;
+                self.handle_nonvalidator_presession(pre_session).await?;
                 Ok((None, Vec::new()))
             }
             Stop(session_id) => Ok((self.finish_session(session_id), Vec::new())),
@@ -504,8 +507,10 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             None => return Ok((None, Vec::new())),
         };
         match pre_session {
-            PreSession::Validator(pre_session) => self.handle_validator_presession(pre_session, result_for_user)
-            .await,
+            PreSession::Validator(pre_session) => {
+                self.handle_validator_presession(pre_session, result_for_user)
+                    .await
+            }
             PreSession::Nonvalidator(pre_session) => {
                 self.handle_nonvalidator_presession(pre_session).await?;
                 Ok((None, Vec::new()))

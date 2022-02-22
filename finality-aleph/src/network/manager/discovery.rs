@@ -3,17 +3,14 @@ use crate::{
         manager::{Authentication, Multiaddr, SessionHandler},
         DataCommand, PeerId, Protocol,
     },
-    NodeCount, NodeIndex, SessionId,
+    NodeIndex, SessionId,
 };
 use codec::{Decode, Encode};
-use log::{trace, debug, warn};
+use log::{debug, trace, warn};
 use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
-
-/// How many nodes we should query about unknown authorities in one go.
-const NODES_TO_QUERY: usize = 2;
 
 /// Messages used for discovery and authentication.
 #[derive(Clone, Debug, PartialEq, Encode, Decode)]
@@ -47,8 +44,6 @@ pub struct Discovery {
     last_broadcast: HashMap<NodeIndex, Instant>,
     last_response: HashMap<NodeIndex, Instant>,
     requested_authentications: HashMap<NodeIndex, HashSet<NodeIndex>>,
-    // Used to rotate the nodes we query about unknown nodes.
-    next_query: usize,
 }
 
 type DiscoveryCommand = (DiscoveryMessage, DataCommand);
@@ -57,17 +52,6 @@ fn authentication_broadcast(authentication: Authentication) -> DiscoveryCommand 
     (
         DiscoveryMessage::AuthenticationBroadcast(authentication),
         DataCommand::Broadcast,
-    )
-}
-
-fn request(
-    missing_authorities: Vec<NodeIndex>,
-    authentication: Authentication,
-    peer_id: PeerId,
-) -> DiscoveryCommand {
-    (
-        DiscoveryMessage::Request(missing_authorities, authentication),
-        DataCommand::SendTo(peer_id, Protocol::Generic),
     )
 }
 
@@ -86,7 +70,6 @@ impl Discovery {
             last_broadcast: HashMap::new(),
             last_response: HashMap::new(),
             requested_authentications: HashMap::new(),
-            next_query: rand::random(),
         }
     }
 
@@ -333,39 +316,6 @@ mod tests {
     async fn non_validator_discover_authorities_returns_empty_vector() {
         let (mut discovery, _, non_validator) = build().await;
         let messages = discovery.discover_authorities(&non_validator);
-        assert!(messages.is_empty());
-    }
-
-    #[tokio::test]
-    async fn requests_from_single_when_only_some_missing() {
-        let num_nodes: usize = NUM_NODES.into();
-        let (mut discovery, mut handlers, _) = build().await;
-        for i in 1..num_nodes - 1 {
-            let authentication = handlers[i].authentication().unwrap();
-            assert!(handlers[0].handle_authentication(authentication));
-        }
-        let handler = &mut handlers[0];
-        let messages = discovery.discover_authorities(handler);
-        assert_eq!(messages.len(), 2);
-        for message in messages {
-            assert!(matches!(message,(
-                        DiscoveryMessage::Request(node_ids, authentication),
-                        DataCommand::SendTo(_, _),
-                    ) if node_ids == vec![NodeIndex(6)]
-                        && authentication == handler.authentication().unwrap()));
-        }
-    }
-
-    #[tokio::test]
-    async fn requests_nothing_when_knows_all() {
-        let num_nodes: usize = NUM_NODES.into();
-        let (mut discovery, mut handlers, _) = build().await;
-        for i in 1..num_nodes {
-            let authentication = handlers[i].authentication().unwrap();
-            assert!(handlers[0].handle_authentication(authentication));
-        }
-        let handler = &mut handlers[0];
-        let messages = discovery.discover_authorities(handler);
         assert!(messages.is_empty());
     }
 
