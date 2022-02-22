@@ -12,6 +12,7 @@ let
     sha256 = "1ckzhh24mgz6jd1xhfgx0i9mijk6xjqxwsshnvq789xsavrmsc36";
   }) { overlays = [ rustOverlay ]; };
 
+  # rustToolchain = nixpkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
   rustToolchain = with nixpkgs; ((rustChannelOf { rustToolchain = ./rust-toolchain; }).rust.override {
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
@@ -25,6 +26,27 @@ let
     };
     patches = [];
   });
+
+  customRocksdb = nixpkgs.rocksdb.overrideAttrs ( _: {
+    cmakeFlags = [
+       "-DPORTABLE=0"
+       "-DWITH_JNI=0"
+       "-DWITH_BENCHMARK_TOOLS=0"
+       "-DWITH_TESTS=1"
+       "-DWITH_TOOLS=0"
+       "-DWITH_BZ2=0"
+       "-DWITH_LZ4=0"
+       "-DWITH_SNAPPY=0"
+       "-DWITH_ZLIB=0"
+       "-DWITH_ZSTD=0"
+       "-DWITH_GFLAGS=0"
+       "-DUSE_RTTI=1"
+       "-DFORCE_SSE42=1"
+       "-DROCKSDB_BUILD_SHARED=0"
+    ];
+
+    propagatedBuildInputs = [];
+  } );
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
@@ -49,6 +71,7 @@ with nixpkgs; customEnv.mkDerivation rec {
     binutils-unwrapped'
     openssl.dev
     protobuf
+    customRocksdb
     pkg-config
     cacert
     git
@@ -77,6 +100,8 @@ with nixpkgs; customEnv.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
+    export ROCKSDB_LIB_DIR="${customRocksdb}/lib"
+    export ROCKSDB_STATIC=1
   '';
 
   buildPhase = ''
