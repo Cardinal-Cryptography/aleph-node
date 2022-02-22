@@ -2,7 +2,7 @@
 name = "finality-aleph"
 version = "0.3.0"
 authors = ["Cardinal Cryptography"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 aleph-primitives = { package = "primitives", path = "../primitives" }
@@ -12,7 +12,7 @@ hash-db = { version = "0.15.2", default-features = false }
 log = "0.4"
 lru = "0.6"
 rand = "0.8"
-futures = "0.3"
+futures = "0.3.17"
 futures-timer = "3.0"
 parking_lot = "0.11"
 parity-util-mem = "0.10"

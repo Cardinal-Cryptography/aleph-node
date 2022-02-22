@@ -35,30 +35,47 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: Set test constants
-        run: ./scripts/change_consts.sh 1000 30 3
-
-      - name: Build binary
+      - name: Build release binary
         run: cargo build --release -p aleph-node
 
-      - name: Build runtime
-        run: cargo build --release -p aleph-runtime
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
-
-      - name: Upload binary
+      - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-node
+          name: ${{ inputs.artifact-prefix }}aleph-release-node
           path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload runtime
+      - name: Upload release runtime
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-runtime
+          name: ${{ inputs.artifact-prefix }}aleph-release-runtime
           path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
+
+      # changes runtime constants and uploads new binaries
+      - name: Set test constants
+        run: ./scripts/change_consts.sh 1000 30 3
+
+      - name: Build test binary
+        run: cargo build --release -p aleph-node
+
+      - name: Upload test binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.artifact-prefix }}aleph-release-node
+          path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test runtime
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.artifact-prefix }}aleph-test-runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
