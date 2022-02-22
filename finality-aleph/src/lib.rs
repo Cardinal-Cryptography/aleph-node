@@ -26,6 +26,7 @@ mod justification;
 pub mod metrics;
 mod network;
 mod party;
+mod session_map;
 #[cfg(test)]
 pub mod testing;
 
