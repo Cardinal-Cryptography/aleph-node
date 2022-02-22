@@ -1,15 +1,20 @@
-use crate::{metrics::Checkpoint, network, Metrics};
+use crate::{
+    metrics::Checkpoint,
+    network::{ComponentNetwork, DataNetwork, ReceiverComponent, RequestBlocks, SimpleNetwork},
+    Metrics,
+};
 use async_trait::async_trait;
 use codec::{Decode, Encode};
-use futures::channel::{
-    mpsc,
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot,
+use futures::{
+    channel::{
+        mpsc::{self, UnboundedSender},
+        oneshot,
+    },
+    StreamExt,
 };
 use futures_timer::Delay;
 use log::{debug, error, trace};
 use lru::LruCache;
-use parking_lot::Mutex;
 use sc_client_api::backend::Backend;
 use sp_consensus::SelectChain;
 use sp_runtime::generic::BlockId;
@@ -22,7 +27,7 @@ use std::{
     sync::Arc,
     time::{self, Duration},
 };
-use tokio::stream::StreamExt;
+use tokio::sync::Mutex;
 
 type MessageId = u64;
 const REFRESH_INTERVAL: u64 = 100;
@@ -49,7 +54,9 @@ impl<H, N> AlephData<H, N> {
 
 pub(crate) type AlephDataFor<B> = AlephData<<B as BlockT>::Hash, NumberFor<B>>;
 
-pub(crate) trait AlephNetworkMessage<B: BlockT> {
+/// A trait allowing to check the data contained in an AlephBFT network message, for the purpose of
+/// data availability checks.
+pub trait AlephNetworkMessage<B: BlockT> {
     fn included_blocks(&self) -> Vec<AlephDataFor<B>>;
 }
 
@@ -89,19 +96,18 @@ impl Default for DataStoreConfig {
 }
 
 /// This component is used for filtering available data for Aleph Network.
-/// It receives new messages for network by `messages_rx` and sends available messages
-/// (messages with all blocks already imported by client) by `ready_messages_tx`
-pub(crate) struct DataStore<B, C, BE, RB, Message>
+/// It needs to be started by calling the run method.
+pub struct DataStore<B, C, BE, RB, Message, R>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
-    RB: network::RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug,
+    RB: RequestBlocks<B> + 'static,
+    Message:
+        AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
+    R: ReceiverComponent<Message>,
 {
     next_message_id: MessageId,
-    ready_messages_tx: UnboundedSender<Message>,
-    messages_rx: UnboundedReceiver<Message>,
     missing_blocks: HashMap<AlephDataFor<B>, MissingBlockInfo>,
     available_blocks: LruCache<AlephDataFor<B>, ()>,
     message_requirements: HashMap<MessageId, usize>,
@@ -110,39 +116,49 @@ where
     block_requester: RB,
     config: DataStoreConfig,
     _phantom: PhantomData<BE>,
+    messages_from_network: Arc<Mutex<R>>,
+    messages_for_aleph: UnboundedSender<Message>,
 }
 
-impl<B, C, BE, RB, Message> DataStore<B, C, BE, RB, Message>
+impl<B, C, BE, RB, Message, R> DataStore<B, C, BE, RB, Message, R>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
-    RB: network::RequestBlocks<B> + 'static,
-    Message: AlephNetworkMessage<B> + std::fmt::Debug,
+    RB: RequestBlocks<B> + 'static,
+    Message:
+        AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
+    R: ReceiverComponent<Message>,
 {
-    pub(crate) fn new(
+    /// Returns a struct to be run and a network that outputs messages filtered as appropriate
+    pub(crate) fn new<N: ComponentNetwork<Message, R = R>>(
         client: Arc<C>,
         block_requester: RB,
-        ready_messages_tx: UnboundedSender<Message>,
-        messages_rx: UnboundedReceiver<Message>,
         config: DataStoreConfig,
-    ) -> Self {
-        DataStore {
-            next_message_id: 0,
-            client,
-            block_requester,
-            message_requirements: HashMap::new(),
-            missing_blocks: HashMap::new(),
-            pending_messages: HashMap::new(),
-            available_blocks: LruCache::new(config.available_blocks_cache_capacity),
-            ready_messages_tx,
-            messages_rx,
-            config,
-            _phantom: PhantomData,
-        }
+        component_network: N,
+    ) -> (Self, impl DataNetwork<Message>) {
+        let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
+        let messages_to_network = component_network.sender().clone();
+        let messages_from_network = component_network.receiver();
+        (
+            DataStore {
+                next_message_id: 0,
+                client,
+                block_requester,
+                message_requirements: HashMap::new(),
+                missing_blocks: HashMap::new(),
+                pending_messages: HashMap::new(),
+                available_blocks: LruCache::new(config.available_blocks_cache_capacity),
+                config,
+                _phantom: PhantomData,
+                messages_from_network,
+                messages_for_aleph,
+            },
+            SimpleNetwork::new(messages_from_data_store, messages_to_network),
+        )
     }
 
-    /// This method is used for running DataStore. It polls on 4 things:
+    /// This method is used for running DataStore. It polls on 5 things:
     /// 1. Receives AlephNetworkMessage and either sends it further if message is available or saves it for later
     /// 2. Receives newly imported blocks and sends all messages that are available because of this block further
     /// 3. Periodically checks for saved massages that are available and sends them further
@@ -159,7 +175,10 @@ where
         let mut import_stream = self.client.import_notification_stream();
         loop {
             tokio::select! {
-                Some(message) = &mut self.messages_rx.next() => {
+                Some(message) = async {
+                    let mut lock = self.messages_from_network.lock().await;
+                    lock.next().await
+                } => {
                     trace!(target: "afa", "Received message at Data Store {:?}", message);
                     self.add_message(message);
                 }
@@ -193,9 +212,11 @@ where
         let finalized_number = self.client.info().finalized_number;
         let now = time::SystemTime::now();
         for (block_data, first_occurence) in blocks_with_timestamps {
-            if let Ok(Some(_)) = self.client.header(BlockId::Hash(block_data.hash)) {
-                self.add_block(block_data);
-            } else if finalized_number >= block_data.number {
+            if matches!(
+                self.client.header(BlockId::Hash(block_data.hash)),
+                Ok(Some(_))
+            ) || finalized_number >= block_data.number
+            {
                 self.add_block(block_data);
             } else if let Ok(time_waiting) = now.duration_since(first_occurence) {
                 if time_waiting >= self.config.request_block_after {
@@ -270,7 +291,7 @@ where
 
         if requirements.is_empty() {
             trace!(target: "afa", "Sending message from DataStore {:?}", message);
-            if let Err(e) = self.ready_messages_tx.unbounded_send(message) {
+            if let Err(e) = self.messages_for_aleph.unbounded_send(message) {
                 debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
             }
         } else {
@@ -294,7 +315,7 @@ where
                         .pending_messages
                         .remove(message_id)
                         .expect("there is a pending message");
-                    if let Err(e) = self.ready_messages_tx.unbounded_send(message) {
+                    if let Err(e) = self.messages_for_aleph.unbounded_send(message) {
                         debug!(target: "afa", "Unable to send a ready message from DataStore {}", e);
                     }
                     self.message_requirements.remove(message_id);
@@ -310,8 +331,9 @@ where
     }
 }
 
+/// Provides data to AlephBFT for ordering.
 #[derive(Clone)]
-pub(crate) struct DataProvider<B: BlockT> {
+pub struct DataProvider<B: BlockT> {
     pub(crate) proposed_block: Arc<Mutex<AlephDataFor<B>>>,
     pub(crate) metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
 }
@@ -355,8 +377,11 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
     // uses is that once the block in `proposed_block` reaches the height of `max_block_num`, and the just queried
     // `best_block` is a `descendant` of the previous query, then we don't need to update proposed_block, as it is
     // already correct.
-    let mut prev_best_hash: B::Hash = proposed_block.lock().hash;
-    let mut prev_best_number: NumberFor<B> = proposed_block.lock().number;
+    let (mut prev_best_hash, mut prev_best_number) = async {
+        let block = proposed_block.lock().await;
+        (block.hash, block.number)
+    }
+    .await;
     loop {
         let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
         tokio::select! {
@@ -366,18 +391,18 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
                     .await
                     .expect("No best chain");
                 if *new_best_header.number() <= max_block_num {
-                    *proposed_block.lock() = AlephData::new(new_best_header.hash(), *new_best_header.number());
+                    *proposed_block.lock().await = AlephData::new(new_best_header.hash(), *new_best_header.number());
                 } else {
                     // we check if prev_best_header is an ancestor of new_best_header:
-                    if proposed_block.lock().number < max_block_num {
+                    if prev_best_number < max_block_num {
                         let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
-                        *proposed_block.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                        *proposed_block.lock().await = AlephData::new(reduced_header.hash(), *reduced_header.number());
                     } else {
                         let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), prev_best_number);
                         if reduced_header.hash() != prev_best_hash {
                             // the new best block is not a descendant of previous best
                             let reduced_header = reduce_header_to_num(client.clone(), new_best_header.clone(), max_block_num);
-                            *proposed_block.lock() = AlephData::new(reduced_header.hash(), *reduced_header.number());
+                            *proposed_block.lock().await = AlephData::new(reduced_header.hash(), *reduced_header.number());
                         }
                     }
                 }
@@ -395,7 +420,7 @@ pub(crate) async fn refresh_best_chain<B, BE, SC, C>(
 #[async_trait]
 impl<B: BlockT> aleph_bft::DataProvider<AlephDataFor<B>> for DataProvider<B> {
     async fn get_data(&mut self) -> AlephDataFor<B> {
-        let best = *self.proposed_block.lock();
+        let best = *self.proposed_block.lock().await;
 
         if let Some(m) = &self.metrics {
             m.report_block(best.hash, std::time::Instant::now(), Checkpoint::Ordering);
@@ -405,7 +430,8 @@ impl<B: BlockT> aleph_bft::DataProvider<AlephDataFor<B>> for DataProvider<B> {
     }
 }
 
-pub(crate) struct FinalizationHandler<B: BlockT> {
+/// Accepts and forwards units ordered by AlephBFT.
+pub struct FinalizationHandler<B: BlockT> {
     pub(crate) ordered_units_tx: mpsc::UnboundedSender<AlephDataFor<B>>,
 }
 

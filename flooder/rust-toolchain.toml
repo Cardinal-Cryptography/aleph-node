@@ -1,3 +1,0 @@
-[toolchain]
-channel = "nightly-2021-12-02"
-profile = "minimal"

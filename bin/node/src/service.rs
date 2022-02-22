@@ -1,18 +1,17 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use crate::aleph_cli::AlephCli;
+use crate::executor::AlephExecutor;
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, SessionPeriod,
+    MillisecsPerBlock, Protocol, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
-use sc_executor::native_executor_instance;
-pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
@@ -24,14 +23,7 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-// Our native executor instance.
-native_executor_instance!(
-    pub Executor,
-    aleph_runtime::api::dispatch,
-    aleph_runtime::native_version,
-);
-
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
@@ -65,14 +57,23 @@ pub fn new_partial(
         })
         .transpose()?;
 
+    let executor = AlephExecutor::new(
+        config.wasm_method,
+        config.default_heap_pages,
+        config.max_runtime_instances,
+    );
+
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+        sc_service::new_full_parts::<Block, RuntimeApi, AlephExecutor>(
             config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+            executor,
         )?;
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        task_manager
+            .spawn_handle()
+            .spawn("telemetry", None, worker.run());
         telemetry
     });
 
@@ -158,7 +159,12 @@ pub fn new_full(
     config
         .network
         .extra_sets
-        .push(finality_aleph::peers_set_config(None));
+        .push(finality_aleph::peers_set_config(Protocol::Generic));
+
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(Protocol::Validator));
 
     let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -167,7 +173,6 @@ pub fn new_full(
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
-            on_demand: None,
             block_announce_validator_builder: None,
             warp_sync: None,
         })?;
@@ -188,7 +193,6 @@ pub fn new_full(
 
     let unit_creation_delay = aleph_config.unit_creation_delay();
 
-    let role = config.role.clone();
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
     let prometheus_registry = config.prometheus_registry().cloned();
@@ -215,80 +219,77 @@ pub fn new_full(
         task_manager: &mut task_manager,
         transaction_pool: transaction_pool.clone(),
         rpc_extensions_builder,
-        on_demand: None,
-        remote_blockchain: None,
         backend,
         system_rpc_tx,
         config,
         telemetry: telemetry.as_mut(),
     })?;
 
-    if role.is_authority() {
-        let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
-            task_manager.spawn_handle(),
-            client.clone(),
-            transaction_pool,
-            prometheus_registry.as_ref(),
-            None,
-        );
-        proposer_factory.set_default_block_size_limit(MAX_BLOCK_SIZE as usize);
+    let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        task_manager.spawn_handle(),
+        client.clone(),
+        transaction_pool,
+        prometheus_registry.as_ref(),
+        None,
+    );
+    proposer_factory.set_default_block_size_limit(MAX_BLOCK_SIZE as usize);
 
-        let can_author_with =
-            sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+    let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
-        let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
-        let raw_slot_duration = slot_duration.slot_duration();
+    let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
+    let raw_slot_duration = slot_duration.slot_duration();
 
-        let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
-            StartAuraParams {
-                slot_duration,
-                client: client.clone(),
-                select_chain: select_chain.clone(),
-                block_import,
-                proposer_factory,
-                create_inherent_data_providers: move |_, ()| async move {
-                    let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+    let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
+        StartAuraParams {
+            slot_duration,
+            client: client.clone(),
+            select_chain: select_chain.clone(),
+            block_import,
+            proposer_factory,
+            create_inherent_data_providers: move |_, ()| async move {
+                let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
-                    let slot =
-                        sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
-                            *timestamp,
-                            raw_slot_duration,
-                        );
+                let slot =
+                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                        *timestamp,
+                        raw_slot_duration,
+                    );
 
-                    Ok((timestamp, slot))
-                },
-                force_authoring,
-                backoff_authoring_blocks,
-                keystore: keystore_container.sync_keystore(),
-                can_author_with,
-                sync_oracle: network.clone(),
-                justification_sync_link: network.clone(),
-                block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
-                max_block_proposal_slot_portion: None,
-                telemetry: telemetry.as_ref().map(|x| x.handle()),
+                Ok((timestamp, slot))
             },
-        )?;
+            force_authoring,
+            backoff_authoring_blocks,
+            keystore: keystore_container.sync_keystore(),
+            can_author_with,
+            sync_oracle: network.clone(),
+            justification_sync_link: network.clone(),
+            block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
+            max_block_proposal_slot_portion: None,
+            telemetry: telemetry.as_ref().map(|x| x.handle()),
+        },
+    )?;
 
-        task_manager
-            .spawn_essential_handle()
-            .spawn_blocking("aura", aura);
+    task_manager
+        .spawn_essential_handle()
+        .spawn_blocking("aura", None, aura);
 
-        let aleph_config = AlephConfig {
-            network,
-            client,
-            select_chain,
-            session_period,
-            millisecs_per_block,
-            spawn_handle: task_manager.spawn_handle(),
-            keystore: keystore_container.keystore(),
-            justification_rx,
-            metrics,
-            unit_creation_delay,
-        };
-        task_manager
-            .spawn_essential_handle()
-            .spawn_blocking("aleph", run_aleph_consensus(aleph_config));
-    }
+    let aleph_config = AlephConfig {
+        network,
+        client,
+        select_chain,
+        session_period,
+        millisecs_per_block,
+        spawn_handle: task_manager.spawn_handle(),
+        keystore: keystore_container.keystore(),
+        justification_rx,
+        metrics,
+        unit_creation_delay,
+    };
+    task_manager.spawn_essential_handle().spawn_blocking(
+        "aleph",
+        None,
+        run_aleph_consensus(aleph_config),
+    );
 
     network_starter.start_network();
     Ok(task_manager)

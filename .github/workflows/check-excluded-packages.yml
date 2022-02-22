@@ -1,0 +1,59 @@
+name: Check excluded packages
+
+on:
+  pull_request
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Check excluded packages
+    runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Read excluded packages from Cargo.toml
+        id: read_excluded
+        uses: SebRollen/toml-action@v1.0.0
+        with:
+          file: 'Cargo.toml'
+          field: 'workspace.exclude'
+
+      - name: Format output
+        id: format_output
+        run: |
+          packages="$(echo ${{ steps.read_excluded.outputs.value }} | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
+          targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
+
+          packages="${packages//$'\n'/'%0A'}"
+          targets="${targets//$'\n'/'%0A'}"
+
+          echo "::set-output name=packages::$packages"
+          echo "::set-output name=targets::$targets"
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          cargo-targets: "${{ steps.format_output.outputs.targets }}"
+
+      - name: Check excluded packages
+        run: |
+          packages="${{ steps.format_output.outputs.packages }}"
+          for p in ${packages[@]}
+          do
+            echo "Compiling package $p..."
+            pushd "$p"
+            cargo check --all-targets --all-features
+            popd
+          done
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache

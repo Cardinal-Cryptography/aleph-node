@@ -3,21 +3,23 @@ name: e2e-tests-main-devnet
 on:
   pull_request:
     paths-ignore:
-      - "*.md"
+      - '*.md'
     branches:
       - main
   push:
     paths-ignore:
-      - "*.md"
+      - '*.md'
     branches:
       - main
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   build-new-node:
     name: Build node and runtime artifacts (PR version)
     uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
-    with:
-      rust-toolchain-version: 'nightly-2021-10-24'
 
 
   build-docker:
@@ -25,11 +27,6 @@ jobs:
     name: Build docker image of the node
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -60,26 +57,16 @@ jobs:
     name: Verify runtime build determinism
     runs-on: ubuntu-latest
     env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-          override: true
 
       - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN_VERSION"
+        run: rustup target add wasm32-unknown-unknown
 
       - name: Download artifact
         uses: actions/download-artifact@v2
@@ -103,23 +90,18 @@ jobs:
     name: Build e2e test client suite
     runs-on: ubuntu-latest
     env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
       RUST_BACKTRACE: full
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
         with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-          override: true
+          cargo-targets: e2e-tests/target/
 
       - name: Build binary and docker image
         run: |
@@ -127,6 +109,9 @@ jobs:
           cargo build --release
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
@@ -142,11 +127,6 @@ jobs:
     name: Run e2e tests suite
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
         uses: actions/checkout@v2
 
@@ -177,37 +157,28 @@ jobs:
       - name: Run e2e test suite
         shell: bash
         timeout-minutes: 10
-        run: |
-          ./.github/scripts/run_e2e_tests.sh
+        run: ./.github/scripts/run_e2e_tests.sh
 
 
   push-image:
     needs: [run-e2e-tests]
     name: Push node image to the ECR repository
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: GIT | Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: GIT | Checkout Source code
-        if: github.event_name == 'push'
         uses: actions/checkout@v2
 
       - name: Download artifact with docker image
-        if: github.event_name == 'push'
         uses: actions/download-artifact@v2
         with:
           name: aleph-docker
 
       - name: Load node docker image
-        if: github.event_name == 'push'
         shell: bash
         run: docker load -i aleph-node.tar
 
       - name: Configure AWS credentials
-        if: github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -215,7 +186,6 @@ jobs:
           aws-region: eu-central-1
 
       - name: Login to Public Amazon ECR
-        if: github.event_name == 'push'
         id: login-public-ecr
         uses: docker/login-action@v1
         with:
@@ -233,7 +203,6 @@ jobs:
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Push aleph-node Current Image to Public ECR
-        if: github.event_name == 'push'
         env:
           CURRENT_IMAGE: aleph-node:latest
           ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.sha_short }}
@@ -242,7 +211,6 @@ jobs:
           docker push ${{ env.ECR_PUSH_IMAGE }}
 
       - name: Send Slack Notification
-        if: github.event_name == 'push'
         uses: rtCamp/action-slack-notify@v2
         continue-on-error: true
         env:
@@ -259,11 +227,6 @@ jobs:
     outputs:
       runtime-updated: ${{ steps.inspect.outputs.diff }}
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout old source code
         uses: actions/checkout@v2
         with:
@@ -277,11 +240,7 @@ jobs:
 
       - name: Inspect versions
         id: inspect
-        run: |
-          grep "spec_version:" old-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > old.version
-          grep "spec_version:" new-repo/bin/runtime/src/lib.rs | grep -o '[0-9]*' > new.version
-          diff old.version new.version
-          echo "::set-output name=diff::$?"
+        run: ./new-repo/.github/scripts/check_runtime_change.sh
 
 
   build-old-node:
@@ -290,7 +249,6 @@ jobs:
     if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     uses: Cardinal-Cryptography/aleph-node/.github/workflows/build-node-and-runtime.yml@main
     with:
-      rust-toolchain-version: 'nightly-2021-10-24'
       ref: 'main'
       artifact-prefix: 'old-'
 
@@ -299,34 +257,19 @@ jobs:
     name: Test runtime update
     runs-on: ubuntu-latest
     needs: [build-old-node, build-new-node]
-    env:
-      RUST_TOOLCHAIN_VERSION: nightly-2021-10-24
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.9.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout source code
         uses: actions/checkout@v2
+        with:
+          ref: 'main' # build send-runtime using code on main
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-          override: true
 
-      - name: Restore Cargo Cache
-        uses: actions/cache@v2
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cargo-targets: local-tests/send-runtime/target/
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
@@ -339,12 +282,16 @@ jobs:
           python-version: '3.8'
 
       - name: Test update
+        timeout-minutes: 21
         env:
           # Relative to local-tests/ directory
-          OLD_BINARY: aleph-node/aleph-node
-          NEW_BINARY: old-aleph-node/aleph-node
+          OLD_BINARY: old-aleph-node/aleph-node
+          NEW_BINARY: aleph-node/aleph-node
           NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
 
 
   remove-old-artifacts:
