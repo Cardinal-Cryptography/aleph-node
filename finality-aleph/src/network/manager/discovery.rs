@@ -16,9 +16,6 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub enum DiscoveryMessage {
     AuthenticationBroadcast(Authentication),
-    // Always assumed to contain only authentications for one session.
-    // Only authentications from the same session as the first present are guaranteed to be
-    // processed.
     Authentication(Authentication),
 }
 

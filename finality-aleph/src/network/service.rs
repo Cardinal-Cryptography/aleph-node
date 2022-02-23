@@ -28,8 +28,8 @@ pub struct Service<N: Network, D: Data> {
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand>,
     generic_connected_peers: HashSet<PeerId>,
     validator_connected_peers: HashSet<PeerId>,
-    generic_peer_senders: HashMap<PeerId, mpsc::Sender<(D, Protocol)>>,
-    validator_peer_senders: HashMap<PeerId, mpsc::Sender<(D, Protocol)>>,
+    generic_peer_senders: HashMap<PeerId, mpsc::Sender<D>>,
+    validator_peer_senders: HashMap<PeerId, mpsc::Sender<D>>,
     spawn_handle: SpawnTaskHandle,
 }
 
@@ -81,11 +81,7 @@ impl<N: Network, D: Data> Service<N, D> {
         }
     }
 
-    fn get_sender(
-        &mut self,
-        peer: &PeerId,
-        protocol: Protocol,
-    ) -> Option<&mut mpsc::Sender<(D, Protocol)>> {
+    fn get_sender(&mut self, peer: &PeerId, protocol: Protocol) -> Option<&mut mpsc::Sender<D>> {
         match protocol {
             Protocol::Generic => self.generic_peer_senders.get_mut(peer),
             Protocol::Validator => self.validator_peer_senders.get_mut(peer),
@@ -95,13 +91,14 @@ impl<N: Network, D: Data> Service<N, D> {
     fn peer_sender(
         &self,
         peer_id: PeerId,
-        mut receiver: mpsc::Receiver<(D, Protocol)>,
+        mut receiver: mpsc::Receiver<D>,
+        protocol: Protocol,
     ) -> impl Future<Output = ()> + Send + 'static {
         let network = self.network.clone();
         async move {
             let mut senders: HashMap<Cow<'static, str>, N::NetworkSender> = HashMap::new();
             loop {
-                if let Some((data, protocol)) = receiver.next().await {
+                if let Some(data) = receiver.next().await {
                     let sender = if let Some(sender) = senders.get(&protocol.name()) {
                         sender
                     } else {
@@ -126,22 +123,25 @@ impl<N: Network, D: Data> Service<N, D> {
     }
 
     fn send_to_peer(&mut self, data: D, peer: PeerId, protocol: Protocol) -> Result<(), SendError> {
-        if let Some(sender) = self.get_sender(&peer, protocol.clone()) {
-            if let Err(e) = sender.try_send((data, protocol)) {
-                println!("{}", e);
-                if e.is_full() {
-                    warn!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
+        match self.get_sender(&peer, protocol) {
+            Some(sender) => {
+                match sender.try_send(data) {
+                    Err(e) => {
+                        if e.is_full() {
+                            warn!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
+                        }
+                        // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
+                        // No need to remove the entry here
+                        if e.is_disconnected() {
+                            trace!(target: "aleph-network", "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
+                        }
+                        Err(SendError::SendingFailed)
+                    }
+                    Ok(_) => Ok(()),
                 }
-                // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
-                // No need to remove the entry here
-                if e.is_disconnected() {
-                    trace!(target: "aleph-network", "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
-                }
-                return Err(SendError::SendingFailed);
             }
-            return Ok(());
+            None => Err(SendError::MissingSender),
         }
-        Err(SendError::MissingSender)
     }
 
     fn broadcast(&mut self, data: D) {
@@ -175,42 +175,46 @@ impl<N: Network, D: Data> Service<N, D> {
                 remote, protocol, ..
             } => match protocol.as_ref().try_into() {
                 Ok(Protocol::Generic) => {
-                    trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?}", remote);
+                    trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?} and protocol {:?}", remote, protocol);
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
                         "aleph/network/peer_sender",
                         None,
-                        self.peer_sender(remote.into(), rx),
+                        self.peer_sender(remote.into(), rx, Protocol::Generic),
                     );
                     self.generic_connected_peers.insert(remote.into());
                     self.generic_peer_senders.insert(remote.into(), tx);
                 }
                 Ok(Protocol::Validator) => {
-                    trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?}", remote);
+                    trace!(target: "aleph-network", "NotificationStreamOpened event for peer {:?} and protocol {:?}", remote, protocol);
                     let (tx, rx) = mpsc::channel(PEER_BUFFER_SIZE);
                     self.spawn_handle.spawn(
                         "aleph/network/peer_sender",
                         None,
-                        self.peer_sender(remote.into(), rx),
+                        self.peer_sender(remote.into(), rx, Protocol::Validator),
                     );
                     self.validator_connected_peers.insert(remote.into());
                     self.validator_peer_senders.insert(remote.into(), tx);
                 }
-                Err(_) => {}
+                Err(_) => {
+                    //Other protocols are irrelevant to us
+                }
             },
             Event::NotificationStreamClosed { remote, protocol } => {
                 match protocol.as_ref().try_into() {
                     Ok(Protocol::Generic) => {
-                        trace!(target: "aleph-network", "NotificationStreamClosed event for peer {:?}", remote);
+                        trace!(target: "aleph-network", "NotificationStreamClosed event for peer {:?} and protocol {:?}", remote, protocol);
                         self.generic_connected_peers.remove(&remote.into());
                         self.generic_peer_senders.remove(&remote.into());
                     }
                     Ok(Protocol::Validator) => {
-                        trace!(target: "aleph-network", "NotificationStreamClosed event for peer {:?}", remote);
+                        trace!(target: "aleph-network", "NotificationStreamClosed event for peer {:?} and protocol {:?}", remote, protocol);
                         self.validator_connected_peers.remove(&remote.into());
                         self.validator_peer_senders.remove(&remote.into());
                     }
-                    Err(_) => {}
+                    Err(_) => {
+                        //Other protocols are irrelevant to us
+                    }
                 }
             }
             Event::NotificationsReceived {
@@ -497,8 +501,7 @@ mod tests {
                 .take(identities.len())
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(identities.iter().map(|identity| {
@@ -569,8 +572,7 @@ mod tests {
                 .take(opened_authorities_n * messages.len())
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
@@ -749,8 +751,7 @@ mod tests {
                 .take(all_authorities_n - closed_authorities_n)
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
@@ -880,8 +881,7 @@ mod tests {
                 .take(all_authorities_n - closed_authorities_n)
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
@@ -1055,8 +1055,7 @@ mod tests {
                 .take(all_authorities_n - closed_authorities_n)
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
@@ -1186,8 +1185,7 @@ mod tests {
                 .take(all_authorities_n - closed_authorities_n)
                 .collect::<Vec<_>>()
                 .await
-                .iter()
-                .cloned(),
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
