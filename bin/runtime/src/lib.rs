@@ -606,7 +606,7 @@ construct_runtime!(
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
         History: pallet_session::historical::{Pallet} = 9,
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Aleph: pallet_aleph::{Pallet, Storage} = 11,
+        Aleph: pallet_aleph::{Pallet, Storage, Event<T>} = 11,
         Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
 
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,

@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-node"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aleph-runtime",
  "finality-aleph",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-runtime"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "frame-executive",
  "frame-support",
