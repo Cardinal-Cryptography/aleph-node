@@ -1,3 +1,7 @@
+//! This pallet manages changes in the committee responsible for producing blocks and establishing consensus.
+//! Currently, it's PoA where the validators are set by the root account. In the future, a new
+//! version for DPoS elections will replace the current one.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(test)]
