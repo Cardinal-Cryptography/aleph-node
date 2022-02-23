@@ -42,7 +42,9 @@ mod authority;
 mod data_store;
 mod member;
 mod refresher;
-use crate::session_map::{ReadOnlySessionMap, SessionMapUpdater};
+use crate::session_map::{
+    AuthorityProviderImpl, FinalityNotificatorImpl, ReadOnlySessionMap, SessionMapUpdater,
+};
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
@@ -125,7 +127,10 @@ where
             },
     } = aleph_params;
 
-    let map_updater = SessionMapUpdater::new(client.clone());
+    let map_updater = SessionMapUpdater::<_, _, B>::new(
+        AuthorityProviderImpl::new(client.clone()),
+        FinalityNotificatorImpl::new(client.clone()),
+    );
     let session_authorities = map_updater.session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
         debug!(target: "afa", "SessionMapUpdater has started.");

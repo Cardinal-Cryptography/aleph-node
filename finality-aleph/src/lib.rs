@@ -15,7 +15,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, Block},
     SaturatedConversion,
 };
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 mod aggregator;
 mod crypto;
 mod data_io;
@@ -142,8 +142,6 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
         Box::pin(rx.map_err(|_| ()))
     }
 }
-
-pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
 
 pub fn first_block_of_session<B: Block>(
     session_id: SessionId,
