@@ -595,25 +595,20 @@ construct_runtime!(
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
-
         Aura: pallet_aura::{Pallet, Config<T>} = 3,
-
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 4,
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 6,
-
         Authorship: pallet_authorship::{Pallet, Call, Storage} = 7,
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
         History: pallet_session::historical::{Pallet} = 9,
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
         Aleph: pallet_aleph::{Pallet, Storage, Event<T>} = 11,
         Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
-
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
-
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
     }
 );
@@ -767,9 +762,9 @@ impl_runtime_apis! {
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
             Session::queued_keys()
-            .iter()
-            .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-            .collect::<Result<Vec<AlephId>, AlephApiError>>()
+                .iter()
+                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
+                .collect::<Result<Vec<AlephId>, AlephApiError>>()
         }
     }
 }
