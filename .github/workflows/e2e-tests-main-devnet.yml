@@ -285,12 +285,12 @@ jobs:
           python-version: '3.8'
 
       - name: Test update
-        timeout-minutes: 21
+        timeout-minutes: 10
         env:
           # Relative to local-tests/ directory
           OLD_BINARY: old-aleph-node/aleph-node
-          NEW_BINARY: aleph-node/aleph-node
-          NEW_RUNTIME: aleph-runtime/aleph_runtime.compact.wasm
+          NEW_BINARY: aleph-test-node/aleph-node
+          NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
 
       - name: Stop cache
