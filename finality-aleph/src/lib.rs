@@ -1,7 +1,5 @@
-use codec::{Decode, Encode};
-
-pub use aleph_bft::default_config as default_aleph_config;
 use aleph_bft::{NodeIndex, TaskHandle};
+use codec::{Decode, Encode};
 use futures::{channel::oneshot, Future, TryFutureExt};
 use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
@@ -16,6 +14,7 @@ use sp_runtime::{
     SaturatedConversion,
 };
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
+
 mod aggregator;
 mod crypto;
 mod data_io;
@@ -26,11 +25,18 @@ mod justification;
 pub mod metrics;
 mod network;
 mod party;
+mod session;
 #[cfg(test)]
 pub mod testing;
 
+pub use aleph_bft::default_config as default_aleph_config;
 pub use import::AlephBlockImport;
 pub use justification::JustificationNotification;
+pub use session::SessionPeriod;
+use session::{
+    first_block_of_session, last_block_of_session, session_id_from_block_num, SessionBoundaries,
+    SessionId, SessionMap,
+};
 
 #[derive(Clone, Debug, Encode, Decode)]
 enum Error {
@@ -64,12 +70,6 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
     };
     config
 }
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct SessionId(pub u32);
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct SessionPeriod(pub u32);
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
@@ -142,25 +142,25 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
     }
 }
 
-pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
-
-pub fn first_block_of_session<B: Block>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> NumberFor<B> {
-    (session_id.0 * period.0).into()
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+pub struct HashNum<H, N> {
+    hash: H,
+    num: N,
 }
 
-pub fn last_block_of_session<B: Block>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> NumberFor<B> {
-    ((session_id.0 + 1) * period.0 - 1).into()
+impl<H, N> HashNum<H, N> {
+    fn new(hash: H, num: N) -> Self {
+        HashNum { hash, num }
+    }
 }
 
-pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId {
-    SessionId(num.saturated_into::<u32>() / period.0)
+impl<H, N> From<(H, N)> for HashNum<H, N> {
+    fn from(pair: (H, N)) -> Self {
+        HashNum::new(pair.0, pair.1)
+    }
 }
+
+pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
 pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub network: Arc<NetworkService<B, H>>,
