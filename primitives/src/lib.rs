@@ -23,6 +23,8 @@ sp_application_crypto::with_pair! {
 pub type AuthoritySignature = app::Signature;
 pub type AuthorityId = app::Public;
 
+pub use sp_staking::SessionIndex;
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 4 * 24;
 pub const DEFAULT_SESSION_PERIOD: u32 = 900;
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
 

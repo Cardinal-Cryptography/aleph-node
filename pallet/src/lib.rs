@@ -30,7 +30,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_election_provider_support::{ElectionDataProvider, ElectionProvider, Supports};
     use frame_support::{
         pallet_prelude::*,
         sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
@@ -57,7 +56,6 @@ pub mod pallet {
             + Default
             + MaybeSerializeDeserialize;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
     }
 
     #[pallet::event]
@@ -184,22 +182,6 @@ pub mod pallet {
     #[derive(Debug)]
     pub enum Error {}
 
-    impl<T: Config> ElectionProvider<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
-        type Error = Error;
-        // We authoritarily decide on the committee so don't need any data for elections
-        type DataProvider = T::DataProvider;
-        fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            let empty_support = Support {
-                total: 0,
-                voters: Vec::new(),
-            };
-            Ok(Pallet::<T>::validators()
-                .into_iter()
-                .zip(sp_std::iter::once(empty_support).cycle())
-                .collect())
-        }
-    }
-
     impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
         type Public = T::AuthorityId;
     }
@@ -213,7 +195,13 @@ pub mod pallet {
             T::AccountId: 'a,
         {
             let (accounts_ids, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-            Self::initialize_validators(accounts_ids.into_iter().cloned().collect::<Vec<_>>().as_slice());
+            Self::initialize_validators(
+                accounts_ids
+                    .into_iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
             Self::initialize_authorities(authorities.as_slice());
         }
 
