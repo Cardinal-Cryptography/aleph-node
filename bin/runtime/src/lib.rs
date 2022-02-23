@@ -46,6 +46,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
+pub use primitives::Balance;
 use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
 
 pub use pallet_balances::Call as BalancesCall;
@@ -70,9 +71,6 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
-
-/// Balance of an account.
-pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
