@@ -8,7 +8,7 @@ use crate::{
 use codec::{Decode, Encode};
 use log::{debug, trace, warn};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     time::{Duration, Instant},
 };
 
@@ -16,24 +16,19 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Encode, Decode)]
 pub enum DiscoveryMessage {
     AuthenticationBroadcast(Authentication),
-    // Requests always contain own authentication, to avoid asymmetric trust.
-    Request(Vec<NodeIndex>, Authentication),
     // Always assumed to contain only authentications for one session.
     // Only authentications from the same session as the first present are guaranteed to be
     // processed.
-    Authentications(Vec<Authentication>),
+    Authentication(Authentication),
 }
 
 impl DiscoveryMessage {
     pub fn session_id(&self) -> SessionId {
         use DiscoveryMessage::*;
         match self {
-            AuthenticationBroadcast((auth_data, _)) => auth_data.session(),
-            Request(_, (auth_data, _)) => auth_data.session(),
-            Authentications(auths) => match auths.get(0) {
-                Some((auth_data, _)) => auth_data.session(),
-                None => SessionId(0), // Broken message anyway, value doesn't matter.
-            },
+            AuthenticationBroadcast((auth_data, _)) | Authentication((auth_data, _)) => {
+                auth_data.session()
+            }
         }
     }
 }
@@ -42,8 +37,6 @@ impl DiscoveryMessage {
 pub struct Discovery {
     cooldown: Duration,
     last_broadcast: HashMap<NodeIndex, Instant>,
-    last_response: HashMap<NodeIndex, Instant>,
-    requested_authentications: HashMap<NodeIndex, HashSet<NodeIndex>>,
 }
 
 type DiscoveryCommand = (DiscoveryMessage, DataCommand);
@@ -55,9 +48,9 @@ fn authentication_broadcast(authentication: Authentication) -> DiscoveryCommand 
     )
 }
 
-fn response(authentications: Vec<Authentication>, peer_id: PeerId) -> DiscoveryCommand {
+fn response(authentication: Authentication, peer_id: PeerId) -> DiscoveryCommand {
     (
-        DiscoveryMessage::Authentications(authentications),
+        DiscoveryMessage::Authentication(authentication),
         DataCommand::SendTo(peer_id, Protocol::Generic),
     )
 }
@@ -68,8 +61,6 @@ impl Discovery {
         Discovery {
             cooldown,
             last_broadcast: HashMap::new(),
-            last_response: HashMap::new(),
-            requested_authentications: HashMap::new(),
         }
     }
 
@@ -121,7 +112,7 @@ impl Discovery {
         match handler.peer_id(&node_id) {
             Some(peer_id) => {
                 if let Some(handler_authentication) = handler.authentication() {
-                    messages.push(response(vec![handler_authentication], peer_id));
+                    messages.push(response(handler_authentication, peer_id));
                 }
             }
             None => {
@@ -134,68 +125,6 @@ impl Discovery {
             messages.push(authentication_broadcast(authentication));
         }
         (addresses, messages)
-    }
-
-    fn create_response(
-        &mut self,
-        requester_id: NodeIndex,
-        node_ids: Vec<NodeIndex>,
-        handler: &mut SessionHandler,
-    ) -> Vec<DiscoveryCommand> {
-        let requested_authentications = self
-            .requested_authentications
-            .entry(requester_id)
-            .or_default();
-        requested_authentications.extend(
-            node_ids
-                .iter()
-                .filter(|n_id| n_id.0 < handler.node_count().0),
-        );
-        if let Some(instant) = self.last_response.get(&requester_id) {
-            if Instant::now() < *instant + self.cooldown {
-                return Vec::new();
-            }
-        }
-        let peer_id = match handler.peer_id(&requester_id) {
-            Some(peer_id) => peer_id,
-            None => return Vec::new(),
-        };
-        let authentications: Vec<_> = requested_authentications
-            .iter()
-            .filter_map(|id| handler.authentication_for(id))
-            .collect();
-        if authentications.is_empty() {
-            Vec::new()
-        } else {
-            self.last_response.insert(requester_id, Instant::now());
-            self.requested_authentications.remove(&requester_id);
-            vec![response(authentications, peer_id)]
-        }
-    }
-
-    fn handle_request(
-        &mut self,
-        node_ids: Vec<NodeIndex>,
-        authentication: Authentication,
-        handler: &mut SessionHandler,
-    ) -> (Vec<Multiaddr>, Vec<DiscoveryCommand>) {
-        let node_id = authentication.0.creator();
-        let addresses = self.handle_authentication(authentication, handler);
-        if addresses.is_empty() {
-            return (Vec::new(), Vec::new());
-        }
-        (addresses, self.create_response(node_id, node_ids, handler))
-    }
-
-    fn handle_response(
-        &mut self,
-        authentications: Vec<Authentication>,
-        handler: &mut SessionHandler,
-    ) -> Vec<Multiaddr> {
-        authentications
-            .into_iter()
-            .flat_map(|authentication| self.handle_authentication(authentication, handler))
-            .collect()
     }
 
     /// Analyzes the provided message and returns all the new multiaddresses we should
@@ -211,12 +140,10 @@ impl Discovery {
             AuthenticationBroadcast(authentication) => {
                 self.handle_broadcast(authentication, handler)
             }
-            Request(node_ids, authentication) => {
-                self.handle_request(node_ids, authentication, handler)
-            }
-            Authentications(authentications) => {
-                (self.handle_response(authentications, handler), Vec::new())
-            }
+            Authentication(authentication) => (
+                self.handle_authentication(authentication, handler),
+                Vec::new(),
+            ),
         }
     }
 }
@@ -226,16 +153,16 @@ mod tests {
     use super::{Discovery, DiscoveryMessage};
     use crate::{
         network::{
-            manager::{testing::crypto_basics, Authentication, SessionHandler},
-            DataCommand, Multiaddr, Protocol,
+            manager::{testing::crypto_basics, SessionHandler},
+            DataCommand, Multiaddr,
         },
-        NodeIndex, SessionId,
+        SessionId,
     };
     use codec::Encode;
     use sc_network::{
         multiaddr::Protocol as ScProtocol, Multiaddr as ScMultiaddr, PeerId as ScPeerId,
     };
-    use std::{collections::HashSet, iter, net::Ipv4Addr, thread::sleep, time::Duration};
+    use std::{net::Ipv4Addr, thread::sleep, time::Duration};
 
     const NUM_NODES: u8 = 7;
     const MS_COOLDOWN: u64 = 200;
@@ -335,9 +262,9 @@ mod tests {
                 DataCommand::Broadcast,
             ) if rebroadcast_authentication == &authentication)));
         assert!(commands.iter().any(|command| matches!(command, (
-                DiscoveryMessage::Authentications(authentications),
+                DiscoveryMessage::Authentication(authentication),
                 DataCommand::SendTo(_, _),
-            ) if authentications == &vec![handler.authentication().unwrap()])));
+            ) if *authentication == handler.authentication().unwrap())));
     }
 
     #[tokio::test]
@@ -391,9 +318,9 @@ mod tests {
         );
         assert_eq!(commands.len(), 1);
         assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentications(authentications),
+                DiscoveryMessage::Authentication(authentication),
                 DataCommand::SendTo(_, _),
-            ) if authentications == &vec![handler.authentication().unwrap()]));
+            ) if *authentication == handler.authentication().unwrap()));
     }
 
     #[tokio::test]
@@ -418,180 +345,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn responds_to_correct_request_when_can() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let requested_authentication = handlers[1].authentication().unwrap();
-        let requested_node_id = requested_authentication.0.creator();
-        let requester_authentication = handlers[2].authentication().unwrap();
-        let handler = &mut handlers[0];
-        assert!(handler.handle_authentication(requested_authentication.clone()));
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses, requester_authentication.0.addresses());
-        assert_eq!(commands.len(), 1);
-        assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentications(response_authentications),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
-                && response_authentications == &vec![requested_authentication]));
-    }
-
-    #[tokio::test]
-    async fn does_not_respond_to_correct_request_when_cannot() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let requested_node_id = NodeIndex(1);
-        let requester_authentication = handlers[2].authentication().unwrap();
-        let handler = &mut handlers[0];
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses, requester_authentication.0.addresses());
-        assert!(commands.is_empty())
-    }
-
-    #[tokio::test]
-    async fn does_not_respond_to_incorrect_request() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let requested_authentication = handlers[1].authentication().unwrap();
-        let requested_node_id = requested_authentication.0.creator();
-        let (auth_data, _) = handlers[2].authentication().unwrap();
-        let (_, signature) = handlers[3].authentication().unwrap();
-        let requester_authentication = (auth_data, signature);
-        let handler = &mut handlers[0];
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication),
-            handler,
-        );
-        assert!(addresses.is_empty());
-        assert!(commands.is_empty());
-    }
-
-    #[tokio::test]
-    async fn does_not_respond_too_quickly() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let requested_authentication = handlers[1].authentication().unwrap();
-        let requested_node_id = requested_authentication.0.creator();
-        let requester_authentication = handlers[2].authentication().unwrap();
-        let handler = &mut handlers[0];
-        assert!(handler.handle_authentication(requested_authentication.clone()));
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses, requester_authentication.0.addresses());
-        assert_eq!(commands.len(), 1);
-        assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentications(response_authentications),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
-                && response_authentications == &vec![requested_authentication]));
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses, requester_authentication.0.addresses());
-        assert!(commands.is_empty());
-    }
-
-    #[tokio::test]
-    async fn responds_cumulatively_after_cooldown() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let requester_authentication = handlers[1].authentication().unwrap();
-        let available_authentications_start: usize = 2;
-        let available_authentications_end: usize = (NUM_NODES - 2).into();
-        let available_authentications: Vec<Authentication> = (available_authentications_start
-            ..available_authentications_end)
-            .map(|i| handlers[i].authentication().unwrap())
-            .collect();
-        let handler = &mut handlers[0];
-        for authentication in &available_authentications {
-            assert!(handler.handle_authentication(authentication.clone()));
-        }
-        let requested_node_id = NodeIndex(2);
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses, requester_authentication.0.addresses());
-        assert_eq!(commands.len(), 1);
-        assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentications(response_authentications),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
-                && response_authentications == &vec![available_authentications[0].clone()]));
-        let requested_node_id = NodeIndex(3);
-        let (_, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert!(commands.is_empty());
-        sleep(Duration::from_millis(MS_COOLDOWN + 5));
-        let requested_node_id = NodeIndex(available_authentications_end);
-        let (_, commands) = discovery.handle_message(
-            DiscoveryMessage::Request(vec![requested_node_id], requester_authentication.clone()),
-            handler,
-        );
-        assert_eq!(commands.len(), 1);
-        assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentications(response_authentications),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ) if Some(*peer_id) == handler.peer_id(&requester_authentication.0.creator())
-                && response_authentications == &vec![available_authentications[1].clone()]));
-    }
-
-    #[tokio::test]
     async fn accepts_correct_authentications() {
         let (mut discovery, mut handlers, _) = build().await;
-        let authentications_start: usize = 1;
-        let authentications_end: usize = (NUM_NODES - 2).into();
-        let authentications = (authentications_start..authentications_end)
-            .map(|i| handlers[i].authentication().unwrap());
-        let expected_addresses: HashSet<_> = authentications
-            .clone()
-            .flat_map(|(auth_data, _)| auth_data.addresses())
-            .map(|address| address.encode())
-            .collect();
-        let authentications = authentications.collect();
+        let expected_address = handlers[1].authentication().unwrap().0.addresses()[0].encode();
+        let authentication = handlers[1].authentication().unwrap();
         let handler = &mut handlers[0];
         let (addresses, commands) =
-            discovery.handle_message(DiscoveryMessage::Authentications(authentications), handler);
-        let addresses: HashSet<_> = addresses
-            .into_iter()
-            .map(|address| address.encode())
-            .collect();
-        assert_eq!(addresses, expected_addresses);
+            discovery.handle_message(DiscoveryMessage::Authentication(authentication), handler);
+        assert_eq!(addresses.len(), 1);
+        let address = addresses[0].encode();
+        assert_eq!(address, expected_address);
         assert!(commands.is_empty());
     }
 
     #[tokio::test]
     async fn does_not_accept_incorrect_authentications() {
         let (mut discovery, mut handlers, _) = build().await;
-        let authentications_start: usize = 1;
-        let authentications_end: usize = (NUM_NODES - 2).into();
-        let authentications = (authentications_start..authentications_end)
-            .map(|i| handlers[i].authentication().unwrap());
-        let (auth_data, _) = handlers[authentications_end].authentication().unwrap();
-        let (_, signature) = handlers[authentications_end - 1].authentication().unwrap();
+        let (auth_data, _) = handlers[1].authentication().unwrap();
+        let (_, signature) = handlers[2].authentication().unwrap();
         let incorrect_authentication = (auth_data, signature);
-        let expected_addresses: HashSet<_> = authentications
-            .clone()
-            .flat_map(|(auth_data, _)| auth_data.addresses())
-            .map(|address| address.encode())
-            .collect();
-        let authentications = iter::once(incorrect_authentication)
-            .chain(authentications)
-            .collect();
         let handler = &mut handlers[0];
-        let (addresses, commands) =
-            discovery.handle_message(DiscoveryMessage::Authentications(authentications), handler);
-        let addresses: HashSet<_> = addresses
-            .into_iter()
-            .map(|address| address.encode())
-            .collect();
-        assert_eq!(addresses, expected_addresses);
+        let (addresses, commands) = discovery.handle_message(
+            DiscoveryMessage::Authentication(incorrect_authentication),
+            handler,
+        );
+        assert!(addresses.is_empty());
         assert!(commands.is_empty());
     }
 }
