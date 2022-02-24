@@ -134,7 +134,7 @@ where
     );
     let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
-        debug!(target: "afa", "SessionMapUpdater has started.");
+        debug!(target: "aleph-party", "SessionMapUpdater has started.");
         map_updater.run(session_period).await
     });
 
