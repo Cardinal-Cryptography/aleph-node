@@ -1,4 +1,8 @@
-use super::*;
+use crate::AuthorityId;
+use crate::NumberFor;
+use codec::{Decode, Encode};
+use sp_runtime::{traits::Block, SaturatedConversion};
+use std::collections::HashMap;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SessionBoundaries<B: Block> {

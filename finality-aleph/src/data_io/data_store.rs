@@ -19,7 +19,6 @@ use futures_timer::Delay;
 use log::{debug, error, info, trace, warn};
 use lru::LruCache;
 use sc_client_api::{BlockchainEvents, HeaderBackend};
-use sp_runtime::generic::BlockId;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor, One};
 use std::collections::hash_map::Entry::Occupied;
 use std::default::Default;
@@ -261,7 +260,7 @@ where
                 }
                 Some(block) = &mut import_stream.next() => {
                     trace!(target: "afa", "Block import notification at Data Store for block {:?}", block);
-                    self.on_block_imported(block.header);
+                    self.on_block_imported((block.header.hash(), *block.header.number()).into());
                 },
                 Some(block) = &mut finality_stream.next() => {
                     trace!(target: "afa", "Finalized block import notification at Data Store for block {:?}", block);
@@ -278,23 +277,14 @@ where
             }
         }
     }
+
     // Updates our highest known and highest finalized block info directly from the client.
     fn update_highest_blocks(&mut self) {
-        let client_info = self.client.info();
-        if let Some(header) = self
-            .client
-            .header(BlockId::Hash(client_info.best_hash))
-            .expect("client must answer a query")
-        {
-            self.on_block_imported(header);
-        } else {
-            warn!(target: "afa", "Client info has best_block at {:?} but the block not available in the header backend.", client_info.best_number);
-        }
+        let highest = self.chain_info_provider.get_highest();
+        self.on_block_imported(highest.imported);
 
-        if self.highest_finalized_num < client_info.finalized_number {
-            self.on_block_finalized(
-                (client_info.finalized_hash, client_info.finalized_number).into(),
-            );
+        if self.highest_finalized_num < highest.finalized.num {
+            self.on_block_finalized(highest.finalized);
         }
     }
 
@@ -395,8 +385,7 @@ where
         }
     }
 
-    fn on_block_imported(&mut self, header: B::Header) {
-        let block: BlockHashNum<B> = (header.hash(), *header.number()).into();
+    fn on_block_imported(&mut self, block: BlockHashNum<B>) {
         if let Some(proposals_to_bump) = self.event_triggers.remove(&ChainEvent::Imported(block)) {
             for proposal in proposals_to_bump {
                 self.bump_proposal(&proposal);
@@ -489,28 +478,24 @@ where
             use crate::data_io::proposal::{PendingProposalStatus::*, ProposalStatus::*};
             let status = self.check_proposal_availability(proposal, None);
             match &status {
-                Pending(pending_status) => {
-                    match pending_status {
-                        PendingTopBlock => {
-                            self.pending_proposals
-                                .insert(proposal.clone(), PendingProposalInfo::new(status));
-                            self.register_block_import_trigger(proposal, &proposal.top_block());
-                            self.register_next_finality_trigger(proposal);
-                        }
-                        TopBlockImportedButIncorrectBranch => {
-                            self.pending_proposals
-                                .insert(proposal.clone(), PendingProposalInfo::new(status));
-                            // The only way this might ever get through is as a hopeless fork. So the only event that might
-                            // change the status of this proposal is a finalization event, hence we register a trigger.
-                            self.register_next_finality_trigger(proposal);
-                        }
-                        TopBlockImportedButNotFinalizedAncestor => {
-                            self.pending_proposals
-                                .insert(proposal.clone(), PendingProposalInfo::new(status));
+                Pending(PendingTopBlock) => {
+                    self.pending_proposals
+                        .insert(proposal.clone(), PendingProposalInfo::new(status));
+                    self.register_block_import_trigger(proposal, &proposal.top_block());
+                    self.register_next_finality_trigger(proposal);
+                }
+                Pending(TopBlockImportedButIncorrectBranch) => {
+                    self.pending_proposals
+                        .insert(proposal.clone(), PendingProposalInfo::new(status));
+                    // The only way this might ever get through is as a hopeless fork. So the only event that might
+                    // change the status of this proposal is a finalization event, hence we register a trigger.
+                    self.register_next_finality_trigger(proposal);
+                }
+                Pending(TopBlockImportedButNotFinalizedAncestor) => {
+                    self.pending_proposals
+                        .insert(proposal.clone(), PendingProposalInfo::new(status));
 
-                            self.register_next_finality_trigger(proposal);
-                        }
-                    }
+                    self.register_next_finality_trigger(proposal);
                 }
 
                 Finalize | Ignore => {

@@ -9,11 +9,8 @@ use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::{
-    traits::{BlakeTwo256, Block},
-    SaturatedConversion,
-};
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use sp_runtime::traits::{BlakeTwo256, Block};
+use std::{fmt::Debug, sync::Arc};
 
 mod aggregator;
 mod crypto;

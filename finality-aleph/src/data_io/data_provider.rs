@@ -9,7 +9,7 @@ use futures::channel::oneshot;
 use log::{debug, warn};
 use sc_client_api::HeaderBackend;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor, Zero};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor, One, Zero};
 use sp_runtime::{generic::BlockId, SaturatedConversion};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -48,13 +48,7 @@ where
         .header(BlockId::Hash(block.hash))
         .expect("client must respond")
     {
-        Some(
-            (
-                *header.parent_hash(),
-                block.num - <NumberFor<B>>::saturated_from(1u32),
-            )
-                .into(),
-        )
+        Some((*header.parent_hash(), block.num - <NumberFor<B>>::one()).into())
     } else {
         warn!(target: "afa", "Trying to fetch the parent of an unknown block {:?}.", block);
         None

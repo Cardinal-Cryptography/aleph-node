@@ -179,6 +179,10 @@ where
     }
 }
 
+// A wrapper around any ChainInfoProvider that uses auxiliary information on finalization `aux_finalized`
+// and considers as finalized a block that is either finalized in the sense of the inner ChainInfoProvider
+// or is <= the `aux_finalized` block.
+// `aux_finalized` is supposed to be updated using `update_aux_finalized`.
 pub struct AuxFinalizationChainInfoProvider<B, CIP>
 where
     B: BlockT,
