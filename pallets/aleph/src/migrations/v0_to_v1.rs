@@ -1,10 +1,18 @@
 use crate::Config;
-use frame_support::log;
+use frame_support::{generate_storage_alias, log};
 use frame_support::{
     traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
 use sp_std::vec::Vec;
+
+generate_storage_alias!(
+    Aleph, SessionForValidatorsChange => Value<u32>
+);
+
+generate_storage_alias!(
+    Aleph, Validators<T: Config> => Value<Vec<T::AccountId>>
+);
 
 pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
     let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -15,15 +23,13 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
 
         let mut writes = 0;
 
-        match crate::SessionForValidatorsChange::<T>::translate(
-            |old: Option<Option<u32>>| -> Option<u32> {
-                log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
-                match old {
-                    Some(Some(x)) => Some(x),
-                    _ => None,
-                }
-            },
-        ) {
+        match SessionForValidatorsChange::translate(|old: Option<Option<u32>>| -> Option<u32> {
+            log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
+            match old {
+                Some(Some(x)) => Some(x),
+                _ => None,
+            }
+        }) {
             Ok(_) => {
                 writes += 1;
                 log::info!(target: "pallet_aleph", "Succesfully migrated storage for SessionForValidatorsChange");
@@ -33,7 +39,7 @@ pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
             }
         };
 
-        match crate::Validators::<T>::translate(
+        match Validators::<T>::translate(
             |old: Option<Option<Vec<T::AccountId>>>| -> Option<Vec<T::AccountId>> {
                 log::info!(target: "pallet_aleph", "Current storage value for Validators {:?}", old);
                 match old {

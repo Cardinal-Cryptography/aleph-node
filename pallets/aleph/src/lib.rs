@@ -49,7 +49,7 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::v1_to_v2::migrate::<T, Self>()
+            migrations::v0_to_v1::migrate::<T, Self>();
         }
     }
 
