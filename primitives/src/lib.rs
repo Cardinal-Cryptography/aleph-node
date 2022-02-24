@@ -24,9 +24,11 @@ sp_application_crypto::with_pair! {
 pub type AuthoritySignature = app::Signature;
 pub type AuthorityId = app::Public;
 
+pub type Balance = u128;
+
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
-pub const DEFAULT_SESSION_PERIOD: u32 = 900;
-pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 4 * 24;
+pub const DEFAULT_SESSION_PERIOD: u32 = 40;
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 3;
 
 pub const TOKEN_DECIMALS: u32 = 12;
 pub const ADDRESSES_ENCODING: u32 = 42;

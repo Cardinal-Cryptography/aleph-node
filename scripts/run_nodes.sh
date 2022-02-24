@@ -34,10 +34,11 @@ set -e
 
 clear
 
-./scripts/change_consts.sh 1000 40 3
 
 if $BUILD_ALEPH_NODE ; then
+  ./scripts/change_consts.sh 1000 40 3
   cargo build --release -p aleph-node
+  ./scripts/change_consts.sh 1000 900 96
 fi
 
 account_ids=(

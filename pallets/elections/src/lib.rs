@@ -33,8 +33,6 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type MillisecsPerBlock: Get<u64>;
-        type SessionPeriod: Get<u32>;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
         #[pallet::constant]

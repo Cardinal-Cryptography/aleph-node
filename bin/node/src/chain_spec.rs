@@ -1,8 +1,7 @@
 use aleph_primitives::{AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN_DECIMALS};
 use aleph_runtime::{
-    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill,
-    SessionConfig, SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig,
-    WASM_BINARY,
+    AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
+    SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
@@ -302,11 +301,6 @@ fn generate_genesis_config(
                 .into_iter()
                 .map(|account| (account, ENDOWMENT))
                 .collect(),
-        },
-        aleph: AlephConfig {
-            authorities: vec![],
-            millisecs_per_block: millisecs_per_block.0,
-            session_period: session_period.0,
         },
         aura: AuraConfig {
             authorities: vec![],

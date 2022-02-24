@@ -44,6 +44,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
+pub use primitives::Balance;
 use primitives::{
     ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
     DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
@@ -112,14 +113,16 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     transaction_version: 4,
 };
 
+pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
+
 pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
 pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
 pub const MILLISECS_PER_DAY: u64 = MILLISECS_PER_HOUR * 24;
 
-// Time is measured by number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-pub const HOURS: BlockNumber = MINUTES * 60;
-pub const DAYS: BlockNumber = HOURS * 24;
+/// Get the number of blocks produced in the period given by `hours`
+pub fn hours_as_block_num(hours: u64) -> BlockNumber {
+    (MILLISECS_PER_HOUR * hours / MILLISECS_PER_BLOCK) as BlockNumber
+}
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -204,8 +207,6 @@ parameter_types! {
     pub const MaxAuthorities: u32 = 100_000;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
-
 impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
@@ -221,18 +222,6 @@ impl pallet_authorship::Config for Runtime {
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
     type EventHandler = (Staking,);
-}
-
-pub struct MinimumPeriod;
-impl MinimumPeriod {
-    pub fn get() -> u64 {
-        MillisecsPerBlock::get() / 2
-    }
-}
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
 }
 
 parameter_types! {
@@ -329,7 +318,6 @@ impl pallet_sudo::Config for Runtime {
 }
 
 impl pallet_aleph::Config for Runtime {
-    type Event = Event;
     type AuthorityId = AlephId;
 }
 
@@ -341,19 +329,7 @@ impl_opaque_keys! {
 }
 
 parameter_types! {
-    pub const MillisecsPerBlock: u64 = DEFAULT_MILLISECS_PER_BLOCK;
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
-}
-
-impl pallet_elections::Config for Runtime {
-    type MillisecsPerBlock = MillisecsPerBlock;
-    type SessionPeriod = SessionPeriod;
-    type Event = Event;
-    type DataProvider = Staking;
-}
-
-parameter_types! {
-    pub const Offset: u32 = 0;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -386,7 +362,6 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-    pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
     pub const MaxNominatorRewardedPerValidator: u32 = 512;
@@ -400,7 +375,7 @@ pub struct UniformEraPayout {}
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
         let miliseconds_per_era =
-            MillisecsPerBlock::get() * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
+            MILLISECS_PER_BLOCK * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
         primitives::staking::era_payout(miliseconds_per_era)
     }
 }
@@ -431,7 +406,7 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = MillisecsPerBlock::get() / 2;
+    pub const MinimumPeriod: u64 = MILLISECS_PER_BLOCK / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -567,7 +542,7 @@ construct_runtime!(
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
         History: pallet_session::historical::{Pallet} = 9,
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Aleph: pallet_aleph::{Pallet, Storage, Event<T>, Config<T>} = 11,
+        Aleph: pallet_aleph::{Pallet, Storage} = 11,
         Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
@@ -717,7 +692,7 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            MillisecsPerBlock::get()
+            MILLISECS_PER_BLOCK
         }
 
         fn session_period() -> u32 {
