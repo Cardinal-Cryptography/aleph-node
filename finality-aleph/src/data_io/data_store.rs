@@ -106,7 +106,6 @@ pub struct DataStoreConfig {
     pub max_triggers_pending: usize,
     pub max_proposals_pending: usize,
     pub max_messages_pending: usize,
-    pub requested_block_cache_capacity: usize,
     pub available_proposals_cache_capacity: usize,
     pub periodic_maintenance_interval: Duration,
     pub request_block_after: Duration,
@@ -118,7 +117,6 @@ impl Default for DataStoreConfig {
             max_triggers_pending: 80_000,
             max_proposals_pending: 80_000,
             max_messages_pending: 40_000,
-            requested_block_cache_capacity: 2000,
             available_proposals_cache_capacity: 8000,
             periodic_maintenance_interval: Duration::from_secs(60),
             request_block_after: Duration::from_secs(100),
@@ -183,7 +181,6 @@ where
     // when pruning messages.
     pending_messages: BTreeMap<MessageId, PendingMessageInfo<B, Message>>,
     chain_info_provider: CachedChainInfoProvider<B, Arc<C>>,
-    requested_blocks_cache: LruCache<BlockHashNum<B>, ()>,
     available_proposals_cache: LruCache<AlephProposal<B>, ProposalStatus<B>>,
     num_triggers_registered_since_last_pruning: usize,
     highest_finalized_num: NumberFor<B>,
@@ -226,7 +223,6 @@ where
                 event_triggers: HashMap::new(),
                 pending_messages: BTreeMap::new(),
                 chain_info_provider,
-                requested_blocks_cache: LruCache::new(config.requested_block_cache_capacity),
                 available_proposals_cache: LruCache::new(config.available_proposals_cache_capacity),
                 num_triggers_registered_since_last_pruning: 0,
                 highest_finalized_num,
@@ -313,11 +309,7 @@ where
                 if let Ok(time_waiting) = now.duration_since(first_occurrence) {
                     if time_waiting >= self.config.request_block_after {
                         let block = proposal.top_block();
-                        if !self.chain_info_provider.is_block_imported(&block)
-                            && !self.requested_blocks_cache.contains(&block)
-                        {
-                            // We remember the block to not request it again.
-                            self.requested_blocks_cache.put(block.clone(), ());
+                        if !self.chain_info_provider.is_block_imported(&block) {
                             debug!(target: "afa", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
                             self.block_requester
                                 .request_stale_block(block.hash, block.num);
