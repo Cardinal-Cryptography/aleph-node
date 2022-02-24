@@ -21,10 +21,10 @@ type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
 type SessionSubscribers = HashMap<SessionId, Vec<OneShotSender<()>>>;
 
 pub trait AuthorityProvider<B> {
-    /// returns authorities for block `b`
-    fn authorities(&self, b: B) -> Option<Vec<AuthorityId>>;
-    /// returns next session authorities where current session is for block `b`
-    fn next_authorities(&self, b: B) -> Option<Vec<AuthorityId>>;
+    /// returns authorities for block
+    fn authorities(&self, block: B) -> Option<Vec<AuthorityId>>;
+    /// returns next session authorities where current session is for block
+    fn next_authorities(&self, block: B) -> Option<Vec<AuthorityId>>;
 }
 
 /// Default implementation of authority provider trait.
