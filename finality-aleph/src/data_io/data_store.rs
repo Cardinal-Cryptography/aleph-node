@@ -276,10 +276,7 @@ where
     fn update_highest_blocks(&mut self) {
         let highest = self.chain_info_provider.get_highest();
         self.on_block_imported(highest.imported);
-
-        if self.highest_finalized_num < highest.finalized.num {
-            self.on_block_finalized(highest.finalized);
-        }
+        self.on_block_finalized(highest.finalized);
     }
 
     fn run_maintenance(&mut self) {
