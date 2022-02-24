@@ -512,6 +512,12 @@ where
             )
         } else {
             debug!(target: "afa", "Running session {:?} as non-authority", session_id);
+            if let Err(e) = self
+                .session_manager
+                .start_nonvalidator_session(session_id, AuthorityVerifier::new(authorities.clone()))
+            {
+                warn!(target: "aleph-party", "Failed to start nonvalidator session{:?}:{:?}", session_id, e);
+            }
             None
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
@@ -541,7 +547,7 @@ where
                         self.updated_authorities_for_session(next_session_id).await
                     {
                         let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
-                        match get_node_index(&authorities, self.keystore.clone()).await {
+                        match get_node_index(&next_session_authorities, self.keystore.clone()).await {
                             Some(node_id) => {
                                 let authority_pen = AuthorityPen::new(
                                     next_session_authorities[node_id.0].clone(),
