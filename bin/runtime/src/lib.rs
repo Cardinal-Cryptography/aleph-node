@@ -6,7 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use pallet_aleph::DefaultForMillisecsPerBlock;
 use pallet_staking::EraIndex;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -21,7 +20,6 @@ use sp_runtime::{
     ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
 };
 
-use sp_staking::SessionIndex;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -47,7 +45,10 @@ pub use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
-use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
+use primitives::{
+    ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -111,16 +112,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
 };
-
-/// This determines the average expected block time that we are targetting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
-/// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 1000;
-
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
 pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
 pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
@@ -340,15 +331,19 @@ impl_opaque_keys! {
     }
 }
 
+parameter_types! {
+    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+}
+
 impl pallet_elections::Config for Runtime {
     type Event = Event;
     type DataProvider = Staking;
+    type SessionPeriod = SessionPeriod;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
-    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const Offset: u32 = 0;
 }
 
@@ -375,7 +370,7 @@ parameter_types! {
     pub const MaxNominatorRewardedPerValidator: u32 = 512;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
-    pub const SessionsPerEra: EraIndex = DefaultForMillisecsPerBlock;
+    pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
 }
 
 const YEARLY_INFLATION: Balance = 30 * 1_000_000 * 1_000_000_000_000;
@@ -386,9 +381,8 @@ pub struct UniformEraPayout {}
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
-        let miliseconds_per_era = Elections::millisecs_per_block()
-            * Elections::session_period() as u64
-            * Elections::sessions_per_era() as u64;
+        let miliseconds_per_era =
+            MillisecsPerBlock::get() * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
         let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
         let total_payout = portion * YEARLY_INFLATION;
         let validators_payout = Perbill::from_percent(90) * total_payout;
@@ -424,7 +418,7 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = MillisecsPerBlock / 2;
+    pub const MinimumPeriod: u64 = MillisecsPerBlock::get() / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -710,11 +704,11 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            MillisecsPerBlock.into()
+            MillisecsPerBlock::get()
         }
 
         fn session_period() -> u32 {
-            SessionPeriod.into()
+            SessionPeriod::get()
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {

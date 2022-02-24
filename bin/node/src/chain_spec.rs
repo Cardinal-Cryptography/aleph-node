@@ -307,7 +307,6 @@ fn generate_genesis_config(
 ) -> GenesisConfig {
     let millisecs_per_block = chain_params.millisecs_per_block();
     let session_period = chain_params.session_period();
-    let sessions_per_era = chain_params.sessions_per_era();
 
     let special_accounts = match faucet_account {
         Some(faucet_id) => vec![sudo_account.clone(), faucet_id],
