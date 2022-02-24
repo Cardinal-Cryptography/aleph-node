@@ -45,10 +45,7 @@ pub use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
-use primitives::{
-    ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
-    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
-};
+use primitives::{ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_SESSIONS_PER_ERA};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -315,10 +312,6 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
-parameter_types! {
-    pub const MillisecsPerBlock: u64 = DEFAULT_MILLISECS_PER_BLOCK;
-}
-
 impl pallet_aleph::Config for Runtime {
     type Event = Event;
     type AuthorityId = AlephId;
@@ -331,8 +324,32 @@ impl_opaque_keys! {
     }
 }
 
-parameter_types! {
-    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+pub struct MillisecsPerBlock;
+
+impl MillisecsPerBlock {
+    pub fn get() -> u64 {
+        Aleph::millisecs_per_block()
+    }
+}
+
+impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
+    fn get() -> I {
+        I::from(Self::get())
+    }
+}
+
+pub struct SessionPeriod;
+
+impl SessionPeriod {
+    pub fn get() -> u32 {
+        Aleph::session_period()
+    }
+}
+
+impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
+    fn get() -> I {
+        I::from(Self::get())
+    }
 }
 
 impl pallet_elections::Config for Runtime {
@@ -417,8 +434,16 @@ impl pallet_staking::Config for Runtime {
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const MinimumPeriod: u64 = MillisecsPerBlock::get() / 2;
+pub struct MinimumPeriod;
+impl MinimumPeriod {
+    pub fn get() -> u64 {
+        Aleph::millisecs_per_block() / 2
+    }
+}
+impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
+    fn get() -> I {
+        I::from(Self::get())
+    }
 }
 
 impl pallet_timestamp::Config for Runtime {

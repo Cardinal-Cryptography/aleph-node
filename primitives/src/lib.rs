@@ -26,7 +26,7 @@ pub type AuthorityId = app::Public;
 pub type Balance = u128;
 
 pub use sp_staking::SessionIndex;
-pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 4 * 24;
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 3;
 pub const DEFAULT_SESSION_PERIOD: u32 = 900;
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
 
