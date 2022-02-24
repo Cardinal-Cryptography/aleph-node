@@ -1,3 +1,4 @@
+{ rocksDBVersion ? "6.29.3" }:
 let
   # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
@@ -27,16 +28,16 @@ let
     patches = [];
   });
 
-  # use a newer version of rocksdb than the one provided by nixpkgs
-  # we disable all compression algorithms and force to use SSE 4.2 cpu instruction set
+  # we use a newer version of rocksdb than the one provided by nixpkgs
+  # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
   customRocksdb = nixpkgs.rocksdb.overrideAttrs ( _: {
 
     src = builtins.fetchGit {
       url = "https://github.com/facebook/rocksdb.git";
-      ref = "refs/tags/v6.29.3";
+      ref = "refs/tags/v${rocksDBVersion}";
     };
 
-    version = "6.29.3";
+    version = "${rocksDBVersion}";
 
     cmakeFlags = [
        "-DPORTABLE=0"
@@ -70,10 +71,20 @@ let
     };
   };
   customEnv = nixpkgs.overrideCC env cc;
+
+  # allows to skip files listed by .gitignore
+  # otherwise `nix-build` copies everything, including the target directory
+  gitignoreSrc = nixpkgs.fetchFromGitHub {
+    owner = "hercules-ci";
+    repo = "gitignore.nix";
+    rev = "5b9e0ff9d3b551234b4f3eb3983744fa354b17f1";
+    sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
+  };
+  inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
 in
 with nixpkgs; customEnv.mkDerivation rec {
   name = "aleph-node";
-  src = ./.;
+  src = gitignoreSource ./.;
 
   buildInputs = [
     rustToolchain
