@@ -436,6 +436,9 @@ where
             }
         }
 
+        // We need to wait until session-authorities are awailable for current session.
+        // This should only be needed for the first ever session as all other session are known
+        // at least one session earlier.
         loop {
             if self.session_authorities.get(session_id).await.is_some() {
                 break;
