@@ -1,7 +1,8 @@
 use crate::{
     data_io::{
+        chain_info::{CachedChainInfoProvider, ChainInfoProvider},
         proposal::{AlephProposal, ProposalStatus},
-        status_provider::{get_proposal_status, CachedChainInfoProvider, ChainInfoProvider},
+        status_provider::get_proposal_status,
         AlephNetworkMessage,
     },
     network::{ComponentNetwork, DataNetwork, ReceiverComponent, RequestBlocks, SimpleNetwork},

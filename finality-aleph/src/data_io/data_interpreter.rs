@@ -1,8 +1,7 @@
 use crate::{
     data_io::{
-        status_provider::{
-            get_proposal_status, AuxFinalizationChainInfoProvider, CachedChainInfoProvider,
-        },
+        chain_info::{AuxFinalizationChainInfoProvider, CachedChainInfoProvider},
+        status_provider::get_proposal_status,
         AlephData, ChainInfoProvider,
     },
     BlockHashNum, SessionBoundaries,

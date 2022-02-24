@@ -5,17 +5,18 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+mod chain_info;
 mod data_interpreter;
 mod data_provider;
 mod data_store;
 mod proposal;
 mod status_provider;
 
+pub use chain_info::ChainInfoProvider;
 pub use data_interpreter::OrderedDataInterpreter;
 pub use data_provider::ChainTracker;
 pub use data_store::DataStore;
 pub use proposal::{AlephProposal, UnvalidatedAlephProposal};
-pub use status_provider::ChainInfoProvider;
 
 /// The data ordered by the Aleph consensus.
 #[derive(Clone, Debug, Encode, Decode)]
@@ -56,4 +57,17 @@ impl<B: BlockT> Eq for AlephData<B> {}
 /// data availability checks.
 pub trait AlephNetworkMessage<B: BlockT>: Clone + Debug {
     fn included_data(&self) -> Vec<AlephData<B>>;
+}
+
+#[derive(Clone, Debug)]
+pub struct ChainInfoCacheConfig {
+    pub block_cache_capacity: usize,
+}
+
+impl Default for ChainInfoCacheConfig {
+    fn default() -> ChainInfoCacheConfig {
+        ChainInfoCacheConfig {
+            block_cache_capacity: 2000,
+        }
+    }
 }
