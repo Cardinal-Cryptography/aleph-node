@@ -14,8 +14,16 @@ use crate::{
         RequestBlocks, RmcNetworkData, Service as NetworkService, SessionManager, SessionNetwork,
         Split, IO as NetworkIO,
     },
-    session_id_from_block_num, AuthorityId, Metrics, NodeIndex, SessionId, SessionPeriod,
+    session_id_from_block_num,
+    AuthorityId,
+    Metrics,
+    NodeIndex,
+    SessionId,
+    SessionPeriod,
     UnitCreationDelay,
+    session_map::{
+        AuthorityProviderImpl, FinalityNotificatorImpl, ReadOnlySessionMap, SessionMapUpdater,
+    }
 };
 use sp_keystore::CryptoStore;
 
@@ -42,9 +50,7 @@ mod authority;
 mod data_store;
 mod member;
 mod refresher;
-use crate::session_map::{
-    AuthorityProviderImpl, FinalityNotificatorImpl, ReadOnlySessionMap, SessionMapUpdater,
-};
+
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
@@ -131,7 +137,7 @@ where
         AuthorityProviderImpl::new(client.clone()),
         FinalityNotificatorImpl::new(client.clone()),
     );
-    let session_authorities = map_updater.session_map();
+    let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
         debug!(target: "afa", "SessionMapUpdater has started.");
         map_updater.run(session_period).await
@@ -274,7 +280,6 @@ where
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
-const SESSION_MAP_CHECK_PERIOD: Duration = Duration::from_millis(50);
 const NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD: Duration = Duration::from_secs(30);
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
@@ -436,15 +441,19 @@ where
             }
         }
 
-        // We need to wait until session-authorities are awailable for current session.
+        // We need to wait until session-authorities are available for current session.
         // This should only be needed for the first ever session as all other session are known
         // at least one session earlier.
-        loop {
-            if self.session_authorities.get(session_id).await.is_some() {
-                break;
-            }
-
-            Delay::new(SESSION_MAP_CHECK_PERIOD).await
+        if let Err(e) = self
+            .session_authorities
+            .subscribe_to_insertion(session_id)
+            .await
+            .await
+        {
+            panic!(
+                "Error while receiving the notification about current session {:?}",
+                e
+            );
         }
 
         let authorities = self

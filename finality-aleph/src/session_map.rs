@@ -3,7 +3,7 @@ use crate::{
 };
 use aleph_primitives::{AlephSessionApi, AuthorityId};
 use futures::StreamExt;
-use log::{debug, trace};
+use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_runtime::{
@@ -12,9 +12,13 @@ use sp_runtime::{
     SaturatedConversion,
 };
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{
+    oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
+    Mutex,
+};
 
-pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
+type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
+type SessionSubscribers = HashMap<SessionId, Vec<OneShotSender<()>>>;
 
 pub trait AuthorityProvider<B> {
     /// returns authorities for block `b`
@@ -126,17 +130,17 @@ where
 #[derive(Clone)]
 /// Wrapper around Mapping from sessionId to Vec of AuthorityIds allowing mutation
 /// and hiding locking details
-struct SharedSessionMap(Arc<Mutex<SessionMap>>);
+struct SharedSessionMap(Arc<Mutex<(SessionMap, SessionSubscribers)>>);
 
 #[derive(Clone)]
 /// Wrapper around Mapping from sessionId to Vec of AuthorityIds allowing only reads
 pub struct ReadOnlySessionMap {
-    inner: Arc<Mutex<SessionMap>>,
+    inner: Arc<Mutex<(SessionMap, SessionSubscribers)>>,
 }
 
 impl SharedSessionMap {
     fn new() -> Self {
-        Self(Arc::new(Mutex::new(HashMap::new())))
+        Self(Arc::new(Mutex::new((HashMap::new(), HashMap::new()))))
     }
 
     async fn update(
@@ -144,11 +148,25 @@ impl SharedSessionMap {
         id: SessionId,
         authorities: Vec<AuthorityId>,
     ) -> Option<Vec<AuthorityId>> {
-        self.0.lock().await.insert(id, authorities)
+        let mut guard = self.0.lock().await;
+
+        // notify all subscribers about insertion and remove them from subscription
+        if let Some(senders) = guard.1.remove(&id) {
+            for sender in senders {
+                if let Err(e) = sender.send(()) {
+                    error!(target: "aleph-session-updater", "Error while sending notification: {:?}", e);
+                }
+            }
+        }
+
+        guard.0.insert(id, authorities)
     }
 
     async fn prune_below(&mut self, id: SessionId) {
-        self.0.lock().await.retain(|&s, _| s >= id);
+        let mut guard = self.0.lock().await;
+
+        guard.0.retain(|&s, _| s >= id);
+        guard.1.retain(|&s, _| s >= id);
     }
 
     fn read_only(&self) -> ReadOnlySessionMap {
@@ -160,7 +178,24 @@ impl SharedSessionMap {
 
 impl ReadOnlySessionMap {
     pub async fn get(&self, id: SessionId) -> Option<Vec<AuthorityId>> {
-        self.inner.lock().await.get(&id).cloned()
+        self.inner.lock().await.0.get(&id).cloned()
+    }
+
+    /// returns an end of the oneshot channel that fires a message if either authorities are already
+    /// known for the session with id = `id` or when the authorities are inserted for this session.
+    pub async fn subscribe_to_insertion(&self, id: SessionId) -> OneShotReceiver<()> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+
+        let mut guard = self.inner.lock().await;
+
+        if guard.0.contains_key(&id) {
+            // if the value is already present notify immidiatelly
+            sender.send(()).expect("we control both ends");
+        } else {
+            guard.1.entry(id).or_insert_with(Vec::new).push(sender);
+        }
+
+        receiver
     }
 }
 
@@ -225,7 +260,7 @@ where
     }
 
     /// returns readonly view of the session map
-    pub fn session_map(&self) -> ReadOnlySessionMap {
+    pub fn readonly_session_map(&self) -> ReadOnlySessionMap {
         self.session_map.read_only()
     }
 
@@ -393,7 +428,7 @@ mod tests {
             .insert(2, authorities(12, 16));
 
         let updater = SessionMapUpdater::new(mock_provider, mock_notificator);
-        let session_map = updater.session_map();
+        let session_map = updater.readonly_session_map();
 
         let blocks = n_new_blocks(&mut client, 2);
         let block_1 = blocks.get(0).cloned().unwrap();
@@ -444,7 +479,7 @@ mod tests {
         mock_notificator.last_finalized = 2;
 
         let updater = SessionMapUpdater::new(mock_provider, mock_notificator);
-        let session_map = updater.session_map();
+        let session_map = updater.readonly_session_map();
 
         let _handle = tokio::spawn(updater.run(SessionPeriod(1)));
 
