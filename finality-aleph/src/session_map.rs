@@ -189,7 +189,7 @@ impl ReadOnlySessionMap {
         let mut guard = self.inner.lock().await;
 
         if guard.0.contains_key(&id) {
-            // if the value is already present notify immidiatelly
+            // if the value is already present notify immediately
             sender.send(()).expect("we control both ends");
         } else {
             guard.1.entry(id).or_insert_with(Vec::new).push(sender);
