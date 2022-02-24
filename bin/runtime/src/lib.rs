@@ -704,11 +704,11 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            Aleph::MillisecsPerBlock()
+            Aleph::millisecs_per_block()
         }
 
         fn session_period() -> u32 {
-            Aleph::SessionPeriod()
+            Aleph::session_period()
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
