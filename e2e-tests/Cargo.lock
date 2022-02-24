@@ -104,6 +104,7 @@ dependencies = [
  "log",
  "pallet-staking",
  "parity-scale-codec",
+ "primitives",
  "rayon",
  "serde_json",
  "sp-core",
@@ -1810,6 +1811,21 @@ dependencies = [
  "impl-serde",
  "scale-info",
  "uint",
+]
+
+[[package]]
+name = "primitives"
+version = "0.3.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
 ]
 
 [[package]]
