@@ -15,15 +15,10 @@ use crate::{
         Split, IO as NetworkIO,
     },
     session_id_from_block_num,
-    AuthorityId,
-    Metrics,
-    NodeIndex,
-    SessionId,
-    SessionPeriod,
-    UnitCreationDelay,
     session_map::{
         AuthorityProviderImpl, FinalityNotificatorImpl, ReadOnlySessionMap, SessionMapUpdater,
-    }
+    },
+    AuthorityId, Metrics, NodeIndex, SessionId, SessionPeriod, UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
 

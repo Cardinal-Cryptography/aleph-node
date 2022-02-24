@@ -338,6 +338,7 @@ mod tests {
         ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient, TestClientBuilder,
         TestClientBuilderExt,
     };
+    use tokio::sync::oneshot::error::TryRecvError;
 
     struct MockProvider {
         pub session_map: HashMap<NumberFor<TBlock>, Vec<AuthorityId>>,
@@ -496,5 +497,32 @@ mod tests {
             session_map.get(SessionId(3)).await,
             Some(authorities(12, 16))
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn subscription_with_already_defined_session_works() {
+        let mut shared = SharedSessionMap::new();
+        let readonly = shared.read_only();
+        let session = SessionId(0);
+
+        shared.update(session, authorities(0, 2)).await;
+
+        let mut receiver = readonly.subscribe_to_insertion(session).await;
+
+        // we should have this immediately
+        assert_eq!(Ok(()), receiver.try_recv());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn notifies_on_insertion() {
+        let mut shared = SharedSessionMap::new();
+        let readonly = shared.read_only();
+        let session = SessionId(0);
+        let mut receiver = readonly.subscribe_to_insertion(session).await;
+
+        // does not yet have any value
+        assert_eq!(Err(TryRecvError::Empty), receiver.try_recv());
+        shared.update(session, authorities(0, 2)).await;
+        assert_eq!(Ok(()), receiver.await);
     }
 }
