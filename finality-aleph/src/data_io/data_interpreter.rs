@@ -85,7 +85,7 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
                 use crate::data_io::proposal::ProposalStatus::*;
                 let status = get_proposal_status(&mut self.chain_info_provider, &proposal, None);
                 match status {
-                    Finalize => Some(proposal.top_block()),
+                    Finalize(block) => Some(block),
                     Ignore => {
                         debug!(target:"afa", "HopelessFork {:?} encountered in Data. Skipping.", proposal);
                         None

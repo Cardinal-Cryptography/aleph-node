@@ -183,8 +183,8 @@ pub enum PendingProposalStatus {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum ProposalStatus {
-    Finalize,
+pub enum ProposalStatus<B: BlockT> {
+    Finalize(BlockHashNum<B>),
     Ignore,
     Pending(PendingProposalStatus),
 }

@@ -8,8 +8,8 @@ use sp_runtime::SaturatedConversion;
 pub fn get_proposal_status<B, CIP>(
     chain_info_provider: &mut CIP,
     proposal: &AlephProposal<B>,
-    old_status: Option<&ProposalStatus>,
-) -> ProposalStatus
+    old_status: Option<&ProposalStatus<B>>,
+) -> ProposalStatus<B>
 where
     B: BlockT,
     CIP: ChainInfoProvider<B>,
@@ -34,7 +34,7 @@ where
                 // relation on the branch.
                 if is_branch_ancestry_correct(chain_info_provider, proposal) {
                     if is_ancestor_finalized(chain_info_provider, proposal) {
-                        Finalize
+                        Finalize(proposal.top_block())
                     } else {
                         // This could also be a hopeless fork, but we have checked before that it isn't (yet).
                         Pending(TopBlockImportedButNotFinalizedAncestor)
@@ -50,7 +50,7 @@ where
         }
         Pending(TopBlockImportedButNotFinalizedAncestor) => {
             if is_ancestor_finalized(chain_info_provider, proposal) {
-                Finalize
+                Finalize(proposal.top_block())
             } else {
                 // This could also be a hopeless fork, but we have checked before that it isn't (yet).
                 Pending(TopBlockImportedButNotFinalizedAncestor)

@@ -68,16 +68,16 @@ impl<B: BlockT> PartialEq for ChainEvent<B> {
 impl<B: BlockT> Eq for ChainEvent<B> {}
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct PendingProposalInfo {
+pub struct PendingProposalInfo<B: BlockT> {
     // Which messages are being held because of a missing the data item.
     messages: HashSet<MessageId>,
     // When was the first message containing this data item encountered.
     first_occurrence: time::SystemTime,
-    status: ProposalStatus,
+    status: ProposalStatus<B>,
 }
 
-impl PendingProposalInfo {
-    fn new(status: ProposalStatus) -> Self {
+impl<B: BlockT> PendingProposalInfo<B> {
+    fn new(status: ProposalStatus<B>) -> Self {
         PendingProposalInfo {
             messages: HashSet::new(),
             first_occurrence: time::SystemTime::now(),
@@ -177,16 +177,14 @@ where
     R: ReceiverComponent<Message>,
 {
     next_free_id: MessageId,
-    pending_proposals: HashMap<AlephProposal<B>, PendingProposalInfo>,
+    pending_proposals: HashMap<AlephProposal<B>, PendingProposalInfo<B>>,
     event_triggers: HashMap<ChainEvent<B>, HashSet<AlephProposal<B>>>,
-
     // We use BtreeMap instead of HashMap to be able to fetch the Message with lowest MessageId
     // when pruning messages.
     pending_messages: BTreeMap<MessageId, PendingMessageInfo<B, Message>>,
-
     chain_info_provider: CachedChainInfoProvider<B, Arc<C>>,
     requested_blocks_cache: LruCache<BlockHashNum<B>, ()>,
-    available_proposals_cache: LruCache<AlephProposal<B>, ProposalStatus>,
+    available_proposals_cache: LruCache<AlephProposal<B>, ProposalStatus<B>>,
     num_triggers_registered_since_last_pruning: usize,
     highest_finalized_num: NumberFor<B>,
     session_boundaries: SessionBoundaries<B>,
@@ -413,7 +411,7 @@ where
             }
             Some(info) => info.status.clone(),
         };
-        let new_status: ProposalStatus =
+        let new_status: ProposalStatus<B> =
             self.check_proposal_availability(proposal, Some(&old_status));
         self.pending_proposals.get_mut(proposal).unwrap().status = new_status.clone();
 
@@ -435,7 +433,7 @@ where
                 self.register_next_finality_trigger(proposal);
                 false
             }
-            Finalize | Ignore => {
+            Finalize(_) | Ignore => {
                 self.on_proposal_available(proposal);
                 true
             }
@@ -446,17 +444,20 @@ where
     fn check_proposal_availability(
         &mut self,
         proposal: &AlephProposal<B>,
-        old_status: Option<&ProposalStatus>,
-    ) -> ProposalStatus {
+        old_status: Option<&ProposalStatus<B>>,
+    ) -> ProposalStatus<B> {
         if let Some(status) = self.available_proposals_cache.get(proposal) {
             return status.clone();
         }
         let status = get_proposal_status(&mut self.chain_info_provider, proposal, old_status);
-        if status == ProposalStatus::Finalize || status == ProposalStatus::Ignore {
-            // We can cache only if the proposal is available. If it is pending, its
-            // status might change and we should not recover it from the cache.
-            self.available_proposals_cache
-                .put(proposal.clone(), status.clone());
+        match status {
+            ProposalStatus::Finalize(_) | ProposalStatus::Ignore => {
+                // We can cache only if the proposal is available. If it is pending, its
+                // status might change and we should not recover it from the cache.
+                self.available_proposals_cache
+                    .put(proposal.clone(), status.clone());
+            }
+            _ => {}
         }
         status
     }
@@ -498,7 +499,7 @@ where
                     self.register_next_finality_trigger(proposal);
                 }
 
-                Finalize | Ignore => {
+                Finalize(_) | Ignore => {
                     // Proposal available, no need to register any dependencies
                     return;
                 }
