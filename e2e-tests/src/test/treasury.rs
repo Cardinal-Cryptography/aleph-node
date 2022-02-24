@@ -50,9 +50,33 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     );
 
     let tx = transfer(&to, 1000u128, &connection, XtStatus::Finalized);
-
     let treasury_balance_after = get_free_balance(&treasury, &connection);
     let issuance_after = get_total_issuance(&connection);
+    check_treasury_issuance(
+        possibly_treasury_gain_from_staking,
+        treasury_balance_after,
+        issuance_before,
+        issuance_after,
+    );
+
+    let fee_info = get_tx_fee_info(&connection, &tx);
+    let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
+    check_treasury_balance(
+        possibly_treasury_gain_from_staking,
+        treasury_balance_before,
+        treasury_balance_after,
+        fee,
+    );
+
+    Ok(())
+}
+
+fn check_treasury_issuance(
+    possibly_treasury_gain_from_staking: u128,
+    treasury_balance_after: Balance,
+    issuance_before: u128,
+    issuance_after: u128,
+) {
     info!(
         "[+] Treasury balance after tx: {}. Total issuance: {}.",
         treasury_balance_after, issuance_after
@@ -73,17 +97,6 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
         "Unexpectedly {} was burned",
         issuance_before - issuance_after
     );
-
-    let fee_info = get_tx_fee_info(&connection, &tx);
-    let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
-    check_treasury_balance(
-        possibly_treasury_gain_from_staking,
-        treasury_balance_before,
-        treasury_balance_after,
-        fee,
-    );
-
-    Ok(())
 }
 
 fn check_treasury_balance(
