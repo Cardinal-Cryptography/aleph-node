@@ -3,8 +3,9 @@ use aleph_primitives::{
     DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
-    AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
-    SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill,
+    SessionConfig, SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig,
+    WASM_BINARY,
 };
 use finality_aleph::{MillisecsPerBlock, SessionPeriod};
 use libp2p::PeerId;
@@ -339,6 +340,11 @@ fn generate_genesis_config(
                 .map(|account| (account, ENDOWMENT))
                 .collect(),
         },
+        aleph: AlephConfig {
+            authorities: vec![],
+            millisecs_per_block: millisecs_per_block.0,
+            session_period: session_period.0,
+        },
         aura: AuraConfig {
             authorities: vec![],
         },
@@ -348,9 +354,6 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             members: to_account_ids(&authorities).collect(),
-            millisecs_per_block: millisecs_per_block.0,
-            session_period: session_period.0,
-            sessions_per_era,
         },
         session: SessionConfig {
             keys: authorities
