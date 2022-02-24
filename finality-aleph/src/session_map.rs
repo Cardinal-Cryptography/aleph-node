@@ -14,7 +14,7 @@ use sp_runtime::{
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
-    Mutex,
+    RwLock,
 };
 
 type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
@@ -130,17 +130,17 @@ where
 #[derive(Clone)]
 /// Wrapper around Mapping from sessionId to Vec of AuthorityIds allowing mutation
 /// and hiding locking details
-struct SharedSessionMap(Arc<Mutex<(SessionMap, SessionSubscribers)>>);
+struct SharedSessionMap(Arc<RwLock<(SessionMap, SessionSubscribers)>>);
 
 #[derive(Clone)]
 /// Wrapper around Mapping from sessionId to Vec of AuthorityIds allowing only reads
 pub struct ReadOnlySessionMap {
-    inner: Arc<Mutex<(SessionMap, SessionSubscribers)>>,
+    inner: Arc<RwLock<(SessionMap, SessionSubscribers)>>,
 }
 
 impl SharedSessionMap {
     fn new() -> Self {
-        Self(Arc::new(Mutex::new((HashMap::new(), HashMap::new()))))
+        Self(Arc::new(RwLock::new((HashMap::new(), HashMap::new()))))
     }
 
     async fn update(
@@ -148,7 +148,7 @@ impl SharedSessionMap {
         id: SessionId,
         authorities: Vec<AuthorityId>,
     ) -> Option<Vec<AuthorityId>> {
-        let mut guard = self.0.lock().await;
+        let mut guard = self.0.write().await;
 
         // notify all subscribers about insertion and remove them from subscription
         if let Some(senders) = guard.1.remove(&id) {
@@ -163,7 +163,7 @@ impl SharedSessionMap {
     }
 
     async fn prune_below(&mut self, id: SessionId) {
-        let mut guard = self.0.lock().await;
+        let mut guard = self.0.write().await;
 
         guard.0.retain(|&s, _| s >= id);
         guard.1.retain(|&s, _| s >= id);
@@ -178,7 +178,7 @@ impl SharedSessionMap {
 
 impl ReadOnlySessionMap {
     pub async fn get(&self, id: SessionId) -> Option<Vec<AuthorityId>> {
-        self.inner.lock().await.0.get(&id).cloned()
+        self.inner.read().await.0.get(&id).cloned()
     }
 
     /// returns an end of the oneshot channel that fires a message if either authorities are already
@@ -186,7 +186,7 @@ impl ReadOnlySessionMap {
     pub async fn subscribe_to_insertion(&self, id: SessionId) -> OneShotReceiver<()> {
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
-        let mut guard = self.inner.lock().await;
+        let mut guard = self.inner.write().await;
 
         if guard.0.contains_key(&id) {
             // if the value is already present notify immediately
