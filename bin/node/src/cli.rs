@@ -44,6 +44,7 @@ impl SubstrateCli for Cli {
     }
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        let id = id.trim();
         let id = if id.is_empty() { "mainnet" } else { id };
 
         let chainspec = match id {
