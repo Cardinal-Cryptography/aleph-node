@@ -33,6 +33,9 @@ ongoing build invocations, i.e. next time one invokes `cargo build` it should ta
 ```
 # spawn nix-shell inside of our docker image
 docker run -ti --volume=$(pwd):/node/build aleph-node/build -s
+# if your `target` directory contains some artifacts that were not created using this procedure, we first remove them
+# otherwise you might receive errors claiming that you are using wrong version of glibc
+cargo clean
 # build `aleph-node` and store it at the root of the aleph-node's source directory
 cargo build --release -p aleph-node
 # set the proper loader (nix related)
