@@ -27,3 +27,4 @@ std = [
     "sp-std/std",
     "sp-staking/std",
 ]
+short_session = []

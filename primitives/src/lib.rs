@@ -27,7 +27,17 @@ pub type AuthorityId = app::Public;
 pub type Balance = u128;
 
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
+
+// Quick sessions for testing purposes
+#[cfg(feature = "short_session")]
+pub const DEFAULT_SESSION_PERIOD: u32 = 30;
+#[cfg(feature = "short_session")]
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 3;
+
+// Default values outside testing
+#[cfg(not(feature = "short_session"))]
 pub const DEFAULT_SESSION_PERIOD: u32 = 900;
+#[cfg(not(feature = "short_session"))]
 pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 96;
 
 pub const TOKEN_DECIMALS: u32 = 12;
