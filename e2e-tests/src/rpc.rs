@@ -19,11 +19,9 @@ pub fn author_rotate_keys() -> Value {
 pub fn get_author_rotate_keys(connection: &Connection) -> ApiResult<Option<TestSessionKeys>> {
     let jsonreq = author_rotate_keys();
     let p = connection.get_request(jsonreq)?;
-    match p {
-        Some(keys_in_hex) => {
-            let bytes: Vec<u8> = FromHexString::from_hex(keys_in_hex)?;
-            Ok(Some(TestSessionKeys::from(bytes)))
-        }
-        None => Ok(None),
-    }
+    Ok(p.map(|keys| {
+        let bytes: Vec<u8> =
+            FromHexString::from_hex(keys).expect("String hex-encoded session cannot be decoded");
+        TestSessionKeys::from(bytes)
+    }))
 }

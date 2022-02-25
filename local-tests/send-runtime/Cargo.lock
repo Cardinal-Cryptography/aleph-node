@@ -17,19 +17,7 @@ name = "ac-compose-macros"
 version = "0.1.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
- "log",
- "parity-scale-codec",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "ac-compose-macros"
-version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
-dependencies = [
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
+ "ac-primitives",
  "log",
  "parity-scale-codec",
  "sp-runtime",
@@ -41,27 +29,7 @@ name = "ac-node-api"
 version = "0.1.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
- "frame-metadata 14.1.0",
- "frame-support",
- "frame-system",
- "hex",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "serde_json",
- "sp-core",
- "sp-runtime",
- "thiserror",
-]
-
-[[package]]
-name = "ac-node-api"
-version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
-dependencies = [
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
+ "ac-primitives",
  "frame-metadata 14.1.0",
  "frame-support",
  "frame-system",
@@ -80,18 +48,6 @@ dependencies = [
 name = "ac-primitives"
 version = "0.1.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
-dependencies = [
- "hex",
- "parity-scale-codec",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "ac-primitives"
-version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
  "hex",
  "parity-scale-codec",
@@ -386,7 +342,7 @@ dependencies = [
  "mio",
  "serde_json",
  "sp-core",
- "substrate-api-client 0.6.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
+ "substrate-api-client",
  "ws",
 ]
 
@@ -1964,7 +1920,7 @@ dependencies = [
  "common",
  "sp-core",
  "structopt",
- "substrate-api-client 0.6.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
+ "substrate-api-client",
 ]
 
 [[package]]
@@ -2534,38 +2490,9 @@ name = "substrate-api-client"
 version = "0.6.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
- "ac-compose-macros 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
- "ac-node-api 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3)",
- "frame-metadata 14.1.0",
- "frame-support",
- "frame-system",
- "hex",
- "log",
- "pallet-balances",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "primitive-types",
- "serde",
- "serde_json",
- "sp-application-crypto",
- "sp-core",
- "sp-rpc",
- "sp-runtime",
- "sp-std",
- "sp-version",
- "thiserror",
- "ws",
-]
-
-[[package]]
-name = "substrate-api-client"
-version = "0.6.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
-dependencies = [
- "ac-compose-macros 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
- "ac-node-api 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
- "ac-primitives 0.1.0 (git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1)",
+ "ac-compose-macros",
+ "ac-node-api",
+ "ac-primitives",
  "frame-metadata 14.1.0",
  "frame-support",
  "frame-system",

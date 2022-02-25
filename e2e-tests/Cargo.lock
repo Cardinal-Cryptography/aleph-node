@@ -102,6 +102,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-balances",
  "pallet-staking",
  "parity-scale-codec",
  "primitives",

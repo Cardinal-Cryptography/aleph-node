@@ -1,6 +1,7 @@
 use crate::rpc::get_author_rotate_keys;
 use crate::session::{get_current_session, session_set_keys, wait_for_session};
 use crate::staking::{nominate, wait_for_full_era_completion};
+use crate::transfer::locks;
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds, keypair_from_string},
     config::Config,
@@ -58,7 +59,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
     batch_endow_account_balances(&connection, &stashes_accounts, VALIDATOR_STAKE);
 
     validator_accounts.par_iter().for_each(|account| {
-        bond(node, VALIDATOR_STAKE, &account.clone(), account);
+        bond(node, VALIDATOR_STAKE, &account, &account);
     });
 
     validator_accounts
@@ -67,7 +68,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
 
     stashes_accounts
         .par_iter()
-        .for_each(|nominator| bond(node, NOMINATOR_STAKE, &nominator.clone(), nominator));
+        .for_each(|nominator| bond(node, NOMINATOR_STAKE, &nominator, &nominator));
 
     stashes_accounts
         .par_iter()
@@ -120,6 +121,8 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     let (_, mut validator_accounts) = get_key_pairs();
     let node = &config.node;
     let sender = validator_accounts.remove(0);
+    // skigner of this connection is sudothe same node which in this test is used as the new one
+    // it's essential since keys from rotate_keys() needs to be run against that node
     let connection = create_connection(node).set_signer(sender);
 
     send_change_members(
@@ -189,6 +192,36 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         current_era - 1
     );
 
-    payout_stakers(node, stash, current_era - 1);
+    let locked_stash_balance_before_payout = locks(&connection, &stash);
+    assert!(
+        locked_stash_balance_before_payout.is_some(),
+        "Expected non-empty locked balances for account {}!",
+        stash_account
+    );
+    let locked_stash_balance_before_payout = locked_stash_balance_before_payout.unwrap();
+    assert_eq!(
+        locked_stash_balance_before_payout.len(),
+        1,
+        "Expected locked balances for account {} to have exactly one entry!",
+        stash_account
+    );
+    payout_stakers(node, stash.clone(), current_era - 1);
+    let locked_stash_balance_after_payout = locks(&connection, &stash);
+    assert!(
+        locked_stash_balance_after_payout.is_some(),
+        "Expected non-empty locked balances for account {}!",
+        stash_account
+    );
+    let locked_stash_balance_after_payout = locked_stash_balance_after_payout.unwrap();
+    assert_eq!(
+        locked_stash_balance_after_payout.len(),
+        1,
+        "Expected non-empty locked balances for account to have exactly one entry {}!",
+        stash_account
+    );
+    assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
+            "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
+    stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
+
     Ok(())
 }

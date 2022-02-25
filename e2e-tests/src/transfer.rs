@@ -4,6 +4,7 @@ use crate::{send_xt, Connection, KeyPair, TransferTransaction};
 use codec::Compact;
 use common::create_connection;
 use log::info;
+use primitives::Balance;
 use sp_core::Pair;
 use sp_runtime::AccountId32;
 use substrate_api_client::{compose_call, compose_extrinsic, GenericAddress};
@@ -65,4 +66,14 @@ pub fn batch_endow_account_balances(
         "batch of endow balances",
         XtStatus::InBlock,
     );
+}
+
+pub fn locks(
+    connection: &Connection,
+    account: &KeyPair,
+) -> Option<Vec<pallet_balances::BalanceLock<Balance>>> {
+    let account_id = AccountId::from(account.public());
+    connection
+        .get_storage_map("Balances", "Locks", account_id, None)
+        .unwrap()
 }

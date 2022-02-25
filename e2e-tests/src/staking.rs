@@ -80,6 +80,9 @@ pub fn get_current_era(connection: &Connection) -> u32 {
 pub fn wait_for_full_era_completion(connection: &Connection) -> anyhow::Result<BlockNumber> {
     let current_era: u32 = get_current_era(connection);
     info!("Current era is {}", current_era);
+    // staking works in such a way, that when we request a controller to be a validator in era N,
+    // then the changes are applied in the era N+1 (so the new validator is receiving points in N+1),
+    // so that we need N+1 to finish in order to claim the reward in era N+2 for the N+1 era
     wait_for_era_completion(connection, current_era + 2)
 }
 
