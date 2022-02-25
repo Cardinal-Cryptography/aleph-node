@@ -57,12 +57,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # changes runtime constants and uploads new binaries
-      - name: Set test constants
-        run: ./scripts/change_consts.sh 1000 30 3
-
       - name: Build test binary
-        run: cargo build --release -p aleph-node
+        run: cargo build --release -p aleph-node --features "short_session"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

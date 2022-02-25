@@ -36,9 +36,7 @@ clear
 
 
 if $BUILD_ALEPH_NODE ; then
-  ./scripts/change_consts.sh 1000 40 3
-  cargo build --release -p aleph-node
-  ./scripts/change_consts.sh 1000 900 96
+  cargo build --release -p aleph-node --features "short_session"
 fi
 
 account_ids=(

@@ -3,8 +3,7 @@
 set -e
 
 # build release binary
-./scripts/change_consts.sh 1000 40 3
-cargo build --release -p aleph-node
+cargo build --release -p aleph-node --features "short_session"
 # build docker image
 docker build --tag aleph-node:latest -f ./docker/Dockerfile .
 
