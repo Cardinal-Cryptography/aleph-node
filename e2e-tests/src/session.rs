@@ -1,5 +1,4 @@
-use crate::waiting::wait_for_event;
-use crate::{send_xt, AccountId, BlockNumber, Connection, KeyPair};
+use crate::{wait_for_event, send_xt, AccountId, BlockNumber, Connection, KeyPair};
 use codec::{Decode, Encode};
 use common::create_connection;
 use log::info;

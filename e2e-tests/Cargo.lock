@@ -375,8 +375,10 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
  "mio",
+ "parity-scale-codec",
  "serde_json",
  "sp-core",
  "substrate-api-client",

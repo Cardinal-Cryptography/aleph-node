@@ -1,9 +1,8 @@
 use codec::Compact;
 use log::info;
-use sp_core::sr25519;
 use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress};
-use substrate_api_client::rpc::WsRpcClient;
-use substrate_api_client::{AccountId, Api, UncheckedExtrinsicV4, XtStatus};
+use substrate_api_client::{AccountId, UncheckedExtrinsicV4, XtStatus};
+use common::{KeyPair, Connection, wait_for_event};
 
 mod accounts;
 pub mod config;
@@ -17,8 +16,6 @@ mod waiting;
 
 type BlockNumber = u32;
 type Header = generic::Header<BlockNumber, BlakeTwo256>;
-type KeyPair = sr25519::Pair;
-type Connection = Api<KeyPair, WsRpcClient>;
 type TransferTransaction =
     UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>)>;
 

@@ -1,10 +1,14 @@
-mod ws_rpc_client;
-
 use log::warn;
 use sp_core::sr25519;
 use std::{thread::sleep, time::Duration};
 use substrate_api_client::{Api, RpcClient};
+use substrate_api_client::rpc::ws_client::WsRpcClient as SubstrateWsRpcClient;
+
+mod ws_rpc_client;
+mod waiting;
+
 pub use ws_rpc_client::WsRpcClient;
+pub use waiting::wait_for_event;
 
 pub trait FromStr: Sized {
     type Err;
@@ -28,7 +32,8 @@ impl FromStr for WsRpcClient {
     }
 }
 
-pub type Connection = Api<sr25519::Pair, substrate_api_client::rpc::ws_client::WsRpcClient>;
+pub type KeyPair = sr25519::Pair;
+pub type Connection = Api<KeyPair, SubstrateWsRpcClient>;
 
 pub fn create_connection(address: &str) -> Connection {
     create_custom_connection(address).expect("connection should be created")
