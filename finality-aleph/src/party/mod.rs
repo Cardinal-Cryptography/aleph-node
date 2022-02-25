@@ -274,7 +274,6 @@ where
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
-const NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD: Duration = Duration::from_secs(30);
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
@@ -464,8 +463,12 @@ where
             None
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
-        let mut start_next_session_network =
-            Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+        let next_session_id = SessionId(session_id.0 + 1);
+        let mut start_next_session_network = Some(
+            self.session_authorities
+                .subscribe_to_insertion(next_session_id)
+                .await,
+        );
         loop {
             tokio::select! {
                 _ = &mut check_session_status => {
@@ -478,14 +481,17 @@ where
                 },
                 Some(_) = async {
                     match &mut start_next_session_network {
-                        Some(start_next_session_network) => {
-                            start_next_session_network.await;
+                        Some(notification) => {
+                            if let Err(e) = notification.await {
+                                error!(target: "aleph-party", "Error with subscription {:?}", e);
+                                start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id).await);
+                                return None;
+                            }
                             Some(())
                         },
                         None => None,
                     }
                 } => {
-                    let next_session_id = SessionId(session_id.0 + 1);
                     if let Some(next_session_authorities) = self.session_authorities.get(next_session_id).await
                     {
                         let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
@@ -521,7 +527,8 @@ where
                         }
                         start_next_session_network = None;
                     } else {
-                        start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+                        // should not happen
+                        start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id).await);
                     }
                 },
                 Some(_) = async {
