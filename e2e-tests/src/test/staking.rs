@@ -8,8 +8,7 @@ use crate::{
     session::send_change_members,
     staking::{bond, bonded, ledger, payout_stakers, validate},
     transfer::batch_endow_account_balances,
-    waiting::wait_for_finalized_block,
-    Header, KeyPair,
+    BlockNumber, Connection, KeyPair,
 };
 use common::create_connection;
 use log::info;
@@ -83,22 +82,9 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         current_era - 1
     );
 
-    validator_accounts
-        .into_par_iter()
-        .for_each(|account| payout_stakers(node, account, current_era - 1));
-
-    // Sanity check
-    let block_number = connection
-        .get_header::<Header>(None)
-        .unwrap()
-        .unwrap()
-        .number;
-    info!(
-        "Current block number is {}, waiting till it finalizes",
-        block_number,
-    );
-
-    wait_for_finalized_block(&connection, block_number)?;
+    validator_accounts.into_par_iter().for_each(|key_pair| {
+        check_non_zero_payouts_for_era(node, &key_pair, &connection, current_era)
+    });
 
     Ok(())
 }
@@ -192,6 +178,18 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         current_era - 1
     );
 
+    check_non_zero_payouts_for_era(node, &stash, &connection, current_era);
+
+    Ok(())
+}
+
+fn check_non_zero_payouts_for_era(
+    node: &String,
+    stash: &KeyPair,
+    connection: &Connection,
+    era: BlockNumber,
+) {
+    let stash_account = AccountId::from(stash.public());
     let locked_stash_balance_before_payout = locks(&connection, &stash);
     assert!(
         locked_stash_balance_before_payout.is_some(),
@@ -205,7 +203,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         "Expected locked balances for account {} to have exactly one entry!",
         stash_account
     );
-    payout_stakers(node, stash.clone(), current_era - 1);
+    payout_stakers(node, stash.clone(), era - 1);
     let locked_stash_balance_after_payout = locks(&connection, &stash);
     assert!(
         locked_stash_balance_after_payout.is_some(),
@@ -221,7 +219,5 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     );
     assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
             "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
-    stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
-
-    Ok(())
+            stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
 }

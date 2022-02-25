@@ -57,9 +57,9 @@ pub fn nominate(address: &str, nominator_key_pair: &KeyPair, nominee_key_pair: &
     send_xt(&connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
 }
 
-pub fn payout_stakers(address: &str, validator: KeyPair, era_number: BlockNumber) {
-    let account = AccountId::from(validator.public());
-    let connection = create_connection(address).set_signer(validator);
+pub fn payout_stakers(address: &str, stash: KeyPair, era_number: BlockNumber) {
+    let account = AccountId::from(stash.public());
+    let connection = create_connection(address).set_signer(stash);
     let xt = compose_extrinsic!(connection, "Staking", "payout_stakers", account, era_number);
 
     send_xt(
