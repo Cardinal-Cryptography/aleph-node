@@ -8,29 +8,19 @@ let
     });
 
   # pinned version of nix packages
+  # main reason for not using here the newest available version at the time or writing is that this way we depend on glibc version 2.31 (Ubuntu 20.04 LTS)
   nixpkgs = import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/21.05.tar.gz";
-    sha256 = "1ckzhh24mgz6jd1xhfgx0i9mijk6xjqxwsshnvq789xsavrmsc36";
+    url = "https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz";
+    sha256 = "08k7jy14rlpbb885x8dyds5pxr2h64mggfgil23vgyw6f1cn9kz6";
   }) { overlays = [ rustOverlay ]; };
 
-  # rustToolchain = nixpkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
   rustToolchain = with nixpkgs; ((rustChannelOf { rustToolchain = ./rust-toolchain; }).rust.override {
     targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
   });
 
-  # rust toolchain requires a newer version of the linker than the one declared by nixpkgs
-  binutils-unwrapped' = nixpkgs.binutils-unwrapped.overrideAttrs (old: {
-    name = "binutils-2.36.1";
-    src = nixpkgs.fetchurl {
-      url = "https://ftp.gnu.org/gnu/binutils/binutils-2.36.1.tar.xz";
-      sha256 = "e81d9edf373f193af428a0f256674aea62a9d74dfe93f65192d4eae030b0f3b0";
-    };
-    patches = [];
-  });
-
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
-  customRocksdb = nixpkgs.rocksdb.overrideAttrs ( _: {
+  customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
 
     src = builtins.fetchGit {
       url = "https://github.com/facebook/rocksdb.git";
@@ -38,6 +28,8 @@ let
     };
 
     version = "${rocksDBVersion}";
+
+    patches = [];
 
     cmakeFlags = [
        "-DPORTABLE=0"
@@ -57,20 +49,15 @@ let
     ];
 
     propagatedBuildInputs = [];
-  } );
+
+    buildInputs = [];
+  });
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
-  llvm = nixpkgs.llvmPackages_12;
+  llvm = nixpkgs.llvmPackages_11;
   env = llvm.stdenv;
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
-  cc = nixpkgs.wrapCCWith rec {
-    cc = env.cc;
-    bintools = nixpkgs.wrapBintoolsWith {
-      bintools = binutils-unwrapped';
-    };
-  };
-  customEnv = nixpkgs.overrideCC env cc;
 
   # allows to skip files listed by .gitignore
   # otherwise `nix-build` copies everything, including the target directory
@@ -82,14 +69,13 @@ let
   };
   inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
 in
-with nixpkgs; customEnv.mkDerivation rec {
+with nixpkgs; env.mkDerivation rec {
   name = "aleph-node";
   src = gitignoreSource ./.;
 
   buildInputs = [
     rustToolchain
     llvm.clang
-    binutils-unwrapped'
     openssl.dev
     protobuf
     customRocksdb
