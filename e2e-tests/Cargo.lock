@@ -15,7 +15,7 @@ dependencies = [
 [[package]]
 name = "ac-compose-macros"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
  "ac-primitives",
  "log",
@@ -27,7 +27,7 @@ dependencies = [
 [[package]]
 name = "ac-node-api"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
  "ac-primitives",
  "frame-metadata 14.1.0",
@@ -47,7 +47,7 @@ dependencies = [
 [[package]]
 name = "ac-primitives"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
  "hex",
  "parity-scale-codec",
@@ -2780,7 +2780,7 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "substrate-api-client"
 version = "0.6.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?branch=update_v1#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
+source = "git+https://github.com/Cardinal-Cryptography/substrate-api-client.git?tag=polkadot-v0.9.13.b2bfc0c3#22c19dccaa2cbb010fd3d984bfe1c5719c4c8b7d"
 dependencies = [
  "ac-compose-macros",
  "ac-node-api",
