@@ -5,10 +5,11 @@ use common::create_connection;
 use log::info;
 use sp_core::crypto::Ss58Codec;
 use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
+use substrate_api_client::AccountId;
 
 use crate::accounts::{accounts_from_seeds, get_sudo};
 use crate::config::Config;
+use crate::session::send_change_members;
 use crate::waiting::wait_for_event;
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
@@ -35,24 +36,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         ))
         .collect();
 
-    info!("[+] New members {:#?}", new_members);
-
-    let call = compose_call!(
-        connection.metadata,
-        "Elections",
-        "change_members",
-        new_members.clone()
-    );
-
-    let tx = compose_extrinsic!(connection, "Sudo", "sudo_unchecked_weight", call, 0_u64);
-
-    // send and watch extrinsic until finalized
-    let tx_hash = connection
-        .send_extrinsic(tx.hex_encode(), XtStatus::InBlock)
-        .expect("Could not send extrinsc")
-        .expect("Could not get tx hash");
-
-    info!("[+] change_members transaction hash: {}", tx_hash);
+    send_change_members(&connection, new_members.clone());
 
     #[derive(Debug, Decode, Clone)]
     struct NewMembersEvent {

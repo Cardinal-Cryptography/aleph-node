@@ -19,7 +19,12 @@ fn main() -> anyhow::Result<()> {
     run(test::channeling_fee, "channeling fee", &config)?;
     run(test::treasury_access, "treasury access", &config)?;
     run(test::batch_transactions, "batch_transactions", &config)?;
-    run(test::staking_test, "staking_test", &config)?;
+    run(test::staking_era_payouts, "staking_era_payouts", &config)?;
+    run(
+        test::staking_new_validator,
+        "staking_new_validator",
+        &config,
+    )?;
 
     Ok(())
 }
