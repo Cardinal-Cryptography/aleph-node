@@ -13,7 +13,6 @@ fn main() -> anyhow::Result<()> {
     let config: Config = Config::parse();
 
     run(test::finalization, "finalization", &config)?;
-    run(test::change_validators, "validators change", &config)?;
     run(test::fee_calculation, "fee calculation", &config)?;
     run(test::token_transfer, "token transfer", &config)?;
     run(test::channeling_fee, "channeling fee", &config)?;
@@ -25,6 +24,7 @@ fn main() -> anyhow::Result<()> {
         "staking_new_validator",
         &config,
     )?;
+    run(test::change_validators, "validators change", &config)?;
 
     Ok(())
 }
