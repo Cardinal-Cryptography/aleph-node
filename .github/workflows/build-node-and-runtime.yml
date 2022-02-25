@@ -35,10 +35,13 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: Build release binary
+      - name: Build binary and runtime
         run: cargo build --release -p aleph-node
 
-      - name: Upload release binary
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
+
+      - name: Upload binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node
