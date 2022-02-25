@@ -22,7 +22,7 @@ Binary will be stored at `$(pwd)/aleph-node`.
 ## Build with Nix
 ### Requirements
 1. [nix][nix]
-2. glibc in version ≥ 2.32
+2. glibc in version ≥ 2.31
 
 The docker approach described above is based on the `nix` package manager.
 We can spawn a shell instance within that docker container that includes references to all build dependencies of `aleph-node`.
@@ -48,25 +48,26 @@ aleph-node>`.
 These are build dependencies we use in our linux images for `aleph-node`:
 ```
 rust-nightly-2021-10-24
-glibc-2.32
+bash-4.4
+glibc-2.31
 binutils-2.36,1
-clang-12.0.0
-protobuf-3.16.0
-openssl-1.1.1k
-git-2.31.1
-nss-cacert-3.63
+clang-11.0.0rc2
+protobuf-3.13.0
+openssl-1.1.1g
+git-2.28.0
+nss-cacert-3.56
 pkg-config-0.29.2
-pkg-config 0.29.2
+rocksdb-6.29.3
 ```
 
 Version of the rust toolchain is specified by the [rust-toolchain][rust-toolchain] file within this repository. You can use [rustup][rustup] to install a specific
 version of rust, including its custom compilation targets. Using `rustup`, it should set a proper toolchain automatically while
 you call `rustup show` within project's root directory. Naturally, we can try to use different versions of these dependencies,
-i.e. delivered by system's default package manager (we provide a short guide below). Notice, that the `nix` based process
+i.e. delivered by system's default package manager (we provide a short guide below). Notice, that the `nix` based approach
 is not referencing any of the `gcc` compiler tools, where for example ubuntu's package `build-essential` already includes `gcc`.
 It might influence some of the build scripts of our build dependencies and it might be necessary to carefully craft some of
 the environment flags related with the build process, like `CXXFLAGS` etc.
-Example building session using Ubuntu 20.04 LTS:
+Example build procedure using Ubuntu 20.04 LTS and bash shell:
 ```
 sudo apt install build-essential curl git clang libclang-dev pkg-config libssl-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
