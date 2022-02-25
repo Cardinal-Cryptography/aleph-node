@@ -10,28 +10,21 @@
 ### Requirements
 1. [docker][docker]
 
-In order to build a binary for `aleph-node` using docker we first need to install docker itself, i.e. in case of the Ubuntu linux
+In order to build a binary for `aleph-node` using docker we first need to install docker itself, i.e. in case of the Ubuntu Linux
 distribution, by executing `sudo apt install docker.io` (please consult your distribution's manual describing docker
-installation procedure). Next step is to prepare our docker-image that handles the build process, by invoking:
+installation procedure). Build procedure can be invoked by running:
 ```
 sudo docker build -t aleph-node/build -f docker/Dockerfile_build .
 sudo docker run -ti --volume=$(pwd):/node/build aleph-node/build
 ```
 Binary will be stored at `$(pwd)/aleph-node`.
 
-Another way to interact with this docker image is to allow it to create for us only a single `aleph-node` binary artifact,
-i.e. each time we call its build process it will start it from scratch in a isolated environment.
-```
-# outputs the `aleph-node` binary in current dir
-docker run -ti --volume=$(pwd):/node/build aleph-node/build
-```
-
 ## Build with Nix
 ### Requirements
 1. [nix][nix]
 2. glibc in version ≥ 2.32
 
-The docker approach described above is actually based on the `nix` package manager.
+The docker approach described above is based on the `nix` package manager.
 We can spawn a shell instance within that docker container that includes references to all build dependencies of `aleph-node`.
 Within it we can call `cargo build`.
 This way, our docker instance maintains all build artifacts inside of project's root directory, which allows to speed up
@@ -45,11 +38,11 @@ cargo build --release -p aleph-node
 patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 target/x86_64-unknown-linux-gnu/release/aleph-node
 ```
 
-If you have `nix` installed locally, you can simply call `nix-shell` (use `--pure` if you don't want to interfere with your
-system packages, i.e. `gcc`, `clang`). It should spawn a shell containing all build dependencies. Within it, you can call `cargo
-build --release -p aleph-node`. Keep in mind that a binary created this way will depend on `glibc` referenced by `nix` and not
-the default one used by your system. In order to fix it, assuming that your loader is stored at `/lib64/ld-linux-x86-64.so.2`,
-you can execute `patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 <path to aleph-node>`.
+If you have `nix` installed locally, you can simply call `nix-shell --pure`. It should spawn a shell containing all build
+dependencies. Within it, you can call `cargo build --release -p aleph-node`. Keep in mind that a binary created this way will
+depend on loader referenced by `nix` and not the default one used by your system. In order to fix it, assuming that your loader
+is stored at `/lib64/ld-linux-x86-64.so.2`, you can execute `patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 <path to
+aleph-node>`.
 
 ## Manual
 These are build dependencies we use in our linux images for `aleph-node`:
@@ -67,7 +60,7 @@ pkg-config 0.29.2
 ```
 
 Version of the rust toolchain is specified by the [rust-toolchain][rust-toolchain] file within this repository. You can use [rustup][rustup] to install a specific
-version of rust, including its custom compilation targets. Using `rustup` it should set a proper toolchain automatically while
+version of rust, including its custom compilation targets. Using `rustup`, it should set a proper toolchain automatically while
 you call `rustup show` within project's root directory. Naturally, we can try to use different versions of these dependencies,
 i.e. delivered by system's default package manager (we provide a short guide below). Notice, that the `nix` based process
 is not referencing any of the `gcc` compiler tools, where for example ubuntu's package `build-essential` already includes `gcc`.
