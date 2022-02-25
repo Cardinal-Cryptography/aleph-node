@@ -50,9 +50,9 @@ impl SubstrateCli for Cli {
         let chainspec = match id {
             "mainnet" => chain_spec::mainnet_config(),
             "testnet" => chain_spec::testnet_config(),
-            _ => Err("invalid chain id"),
+            _ => chain_spec::ChainSpec::from_json_file(id.into()),
         };
-        chainspec.map(Box::new)
+        Ok(Box::new(chainspec?))
     }
 
     fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
