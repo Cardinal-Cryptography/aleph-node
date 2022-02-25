@@ -1,8 +1,8 @@
 # Building
 
 ## Table of Contents
-1. [Build with Docker](#Build-with-Docker)
-2. [Build with nix](#Build-with-Nix)
+1. [Build with Docker](#Build-with-Docker) (choose this if not sure)
+2. [Build with Nix](#Build-with-Nix)
 3. [Manual](#Manual)
 
 ## Build with Docker
@@ -20,6 +20,7 @@ sudo docker run -ti --volume=$(pwd):/node/build aleph-node/build
 Binary will be stored at `$(pwd)/aleph-node`.
 
 ## Build with Nix
+
 ### Requirements
 1. [nix][nix]
 2. glibc in version ≥ 2.31
