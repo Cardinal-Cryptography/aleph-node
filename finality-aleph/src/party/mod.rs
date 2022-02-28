@@ -1,9 +1,8 @@
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
-    data_io::{reduce_header_to_num, AlephData, DataProvider, DataStore, FinalizationHandler},
+    data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     default_aleph_config,
     finalization::{AlephFinalizer, BlockFinalizer},
-    first_block_of_session,
     justification::{
         AlephJustification, JustificationHandler, JustificationNotification,
         JustificationRequestScheduler, JustificationRequestSchedulerImpl, SessionInfo,
@@ -15,13 +14,17 @@ use crate::{
         RequestBlocks, RmcNetworkData, Service as NetworkService, SessionManager, SessionNetwork,
         Split, IO as NetworkIO,
     },
-    session_id_from_block_num, AuthorityId, Metrics, NodeIndex, SessionId, SessionMap,
-    SessionPeriod, UnitCreationDelay,
+    session_id_from_block_num,
+    session_map::{
+        AuthorityProviderImpl, FinalityNotificatorImpl, ReadOnlySessionMap, SessionMapUpdater,
+    },
+    AuthorityId, Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod,
+    UnitCreationDelay,
 };
 use sp_keystore::CryptoStore;
 
 use aleph_bft::{DelayConfig, SpawnHandle};
-use aleph_primitives::{AlephSessionApi, KEY_TYPE};
+use aleph_primitives::KEY_TYPE;
 use futures_timer::Delay;
 
 use futures::channel::mpsc;
@@ -30,28 +33,18 @@ use log::{debug, error, info, trace, warn};
 use codec::Encode;
 use sc_client_api::{Backend, HeaderBackend};
 use sc_network::ExHashT;
-use sp_api::{BlockId, NumberFor};
+use sp_api::NumberFor;
 use sp_consensus::SelectChain;
-use sp_runtime::{
-    traits::{Block, Header},
-    SaturatedConversion,
-};
-use std::{
-    collections::{HashMap, HashSet},
-    default::Default,
-    marker::PhantomData,
-    sync::Arc,
-    time::Duration,
-};
-use tokio::sync::Mutex;
+use sp_runtime::traits::{Block, Header};
+use std::{collections::HashSet, default::Default, marker::PhantomData, sync::Arc, time::Duration};
 
 mod task;
 use task::{Handle, Task};
 mod aggregator;
 mod authority;
+mod chain_tracker;
 mod data_store;
 mod member;
-mod refresher;
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
@@ -73,15 +66,12 @@ impl<B: Block> Verifier<B> for AuthorityVerifier {
 }
 
 struct SessionInfoProviderImpl {
-    session_authorities: Arc<Mutex<HashMap<SessionId, Vec<AuthorityId>>>>,
+    session_authorities: ReadOnlySessionMap,
     session_period: SessionPeriod,
 }
 
 impl SessionInfoProviderImpl {
-    fn new(
-        session_authorities: Arc<Mutex<HashMap<SessionId, Vec<AuthorityId>>>>,
-        session_period: SessionPeriod,
-    ) -> Self {
+    fn new(session_authorities: ReadOnlySessionMap, session_period: SessionPeriod) -> Self {
         Self {
             session_authorities,
             session_period,
@@ -96,10 +86,9 @@ impl<B: Block> SessionInfoProvider<B, AuthorityVerifier> for SessionInfoProvider
         let last_block_height = last_block_of_session::<B>(current_session, self.session_period);
         let verifier = self
             .session_authorities
-            .lock()
+            .get(current_session)
             .await
-            .get(&current_session)
-            .map(|sa: &Vec<AuthorityId>| AuthorityVerifier::new(sa.to_vec()));
+            .map(AuthorityVerifier::new);
 
         SessionInfo {
             current_session,
@@ -138,7 +127,16 @@ where
             },
     } = aleph_params;
 
-    let session_authorities = Arc::new(Mutex::new(HashMap::new()));
+    let map_updater = SessionMapUpdater::<_, _, B>::new(
+        AuthorityProviderImpl::new(client.clone()),
+        FinalityNotificatorImpl::new(client.clone()),
+    );
+    let session_authorities = map_updater.readonly_session_map();
+    spawn_handle.spawn("aleph/updater", None, async move {
+        debug!(target: "aleph-party", "SessionMapUpdater has started.");
+        map_updater.run(session_period).await
+    });
+
     let block_requester = network.clone();
 
     let justification_handler_config = Default::default();
@@ -262,7 +260,7 @@ where
     RB: RequestBlocks<B> + 'static,
 {
     session_manager: SessionManager<SplitData<B>>,
-    session_authorities: Arc<Mutex<SessionMap>>,
+    session_authorities: ReadOnlySessionMap,
     session_period: SessionPeriod,
     spawn_handle: crate::SpawnHandle,
     client: Arc<C>,
@@ -277,35 +275,6 @@ where
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
 const NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD: Duration = Duration::from_secs(30);
-
-fn get_authorities_for_session<B, C>(
-    runtime_api: sp_api::ApiRef<C::Api>,
-    session_id: SessionId,
-    first_block: NumberFor<B>,
-) -> Vec<AuthorityId>
-where
-    B: Block,
-    C: sp_api::ProvideRuntimeApi<B>,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
-{
-    if session_id == SessionId(0) {
-        runtime_api
-            .authorities(&BlockId::Number(<NumberFor<B>>::saturated_from(0u32)))
-            .expect("Authorities for the session 0 must be available from the beginning")
-    } else {
-        runtime_api
-            .next_session_authorities(&BlockId::Number(first_block))
-            .unwrap_or_else(|_| {
-                panic!(
-                    "We didn't get the authorities for the session {:?}",
-                    session_id
-                )
-            })
-            .expect(
-                "Authorities for next session must be available at first block of current session",
-            )
-    }
-}
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
@@ -326,8 +295,8 @@ where
         exit_rx: futures::channel::oneshot::Receiver<()>,
     ) -> AuthoritySubtasks {
         debug!(target: "afa", "Authority task {:?}", session_id);
-        let last_block = last_block_of_session::<B>(session_id, self.session_period);
-        let (ordered_units_for_aggregator, ordered_units_from_aleph) = mpsc::unbounded();
+        let session_boundaries = SessionBoundaries::new(session_id, self.session_period);
+        let (blocks_for_aggregator, blocks_from_interpreter) = mpsc::unbounded();
 
         let consensus_config = create_aleph_config(
             authorities.len(),
@@ -336,36 +305,31 @@ where
             self.unit_creation_delay,
         );
 
-        let best_header = self
-            .select_chain
-            .best_chain()
-            .await
-            .expect("No best chain.");
-        let reduced_header = reduce_header_to_num(self.client.clone(), best_header, last_block);
-        let proposed_block = Arc::new(Mutex::new(AlephData::new(
-            reduced_header.hash(),
-            *reduced_header.number(),
-        )));
-        let data_provider = DataProvider::<B> {
-            proposed_block: proposed_block.clone(),
-            metrics: self.metrics.clone(),
-        };
+        let (chain_tracker, data_provider) = ChainTracker::new(
+            self.select_chain.clone(),
+            self.client.clone(),
+            session_boundaries.clone(),
+            self.metrics.clone(),
+        );
 
-        let finalization_handler = FinalizationHandler::<B> {
-            ordered_units_tx: ordered_units_for_aggregator,
-        };
+        let ordered_data_interpreter = OrderedDataInterpreter::<B, C>::new(
+            blocks_for_aggregator,
+            self.client.clone(),
+            session_boundaries.clone(),
+        );
 
         let subtask_common = AuthoritySubtaskCommon {
             spawn_handle: self.spawn_handle.clone(),
             session_id: session_id.0,
         };
         let aggregator_io = aggregator::IO {
-            ordered_units_from_aleph,
+            blocks_from_interpreter,
             justifications_for_chain: self.authority_justification_tx.clone(),
         };
 
         let (unfiltered_aleph_network, rmc_network) = split(data_network);
         let (data_store, aleph_network) = DataStore::new(
+            session_boundaries.clone(),
             self.client.clone(),
             self.block_requester.clone(),
             Default::default(),
@@ -380,24 +344,18 @@ where
                 consensus_config,
                 aleph_network.into(),
                 data_provider,
-                finalization_handler,
+                ordered_data_interpreter,
             ),
             aggregator::task(
                 subtask_common.clone(),
                 self.client.clone(),
                 aggregator_io,
-                last_block,
+                session_boundaries,
                 self.metrics.clone(),
-                multikeychain.clone(),
+                multikeychain,
                 rmc_network,
             ),
-            refresher::task(
-                subtask_common.clone(),
-                self.select_chain.clone(),
-                self.client.clone(),
-                proposed_block,
-                last_block,
-            ),
+            chain_tracker::task(subtask_common.clone(), chain_tracker),
             data_store::task(subtask_common, data_store),
         )
     }
@@ -445,43 +403,7 @@ where
         )
     }
 
-    /// Returns authorities for a given session or None if the first block of this session is
-    /// higher than the highest finalized block
-    async fn updated_authorities_for_session(
-        &mut self,
-        session_id: SessionId,
-    ) -> Option<Vec<AuthorityId>> {
-        let last_finalized_number = self.client.info().finalized_number;
-        let previous_session = match session_id {
-            SessionId(0) => SessionId(0),
-            SessionId(sid) => SessionId(sid - 1),
-        };
-        let first_block = first_block_of_session::<B>(previous_session, self.session_period);
-        if last_finalized_number < first_block {
-            return None;
-        }
-
-        Some(
-            self.session_authorities
-                .lock()
-                .await
-                .entry(session_id)
-                .or_insert_with(|| {
-                    get_authorities_for_session::<_, C>(
-                        self.client.runtime_api(),
-                        session_id,
-                        first_block,
-                    )
-                })
-                .clone(),
-        )
-    }
-
     async fn run_session(&mut self, session_id: SessionId) {
-        let authorities = self
-            .updated_authorities_for_session(session_id)
-            .await
-            .expect("We should know authorities for the session we are starting");
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
@@ -501,6 +423,27 @@ where
                 }
             }
         }
+
+        // We need to wait until session-authorities are available for current session.
+        // This should only be needed for the first ever session as all other session are known
+        // at least one session earlier.
+        if let Err(e) = self
+            .session_authorities
+            .subscribe_to_insertion(session_id)
+            .await
+            .await
+        {
+            panic!(
+                "Error while receiving the notification about current session {:?}",
+                e
+            );
+        }
+
+        let authorities = self
+            .session_authorities
+            .get(session_id)
+            .await
+            .expect("We should know authorities for the session we are starting");
         trace!(target: "afa", "Authorities for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
             get_node_index(&authorities, self.keystore.clone()).await
@@ -512,6 +455,12 @@ where
             )
         } else {
             debug!(target: "afa", "Running session {:?} as non-authority", session_id);
+            if let Err(e) = self
+                .session_manager
+                .start_nonvalidator_session(session_id, AuthorityVerifier::new(authorities.clone()))
+            {
+                warn!(target: "aleph-party", "Failed to start nonvalidator session{:?}:{:?}", session_id, e);
+            }
             None
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
@@ -537,11 +486,10 @@ where
                     }
                 } => {
                     let next_session_id = SessionId(session_id.0 + 1);
-                    if let Some(next_session_authorities) =
-                        self.updated_authorities_for_session(next_session_id).await
+                    if let Some(next_session_authorities) = self.session_authorities.get(next_session_id).await
                     {
                         let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
-                        match get_node_index(&authorities, self.keystore.clone()).await {
+                        match get_node_index(&next_session_authorities, self.keystore.clone()).await {
                             Some(node_id) => {
                                 let authority_pen = AuthorityPen::new(
                                     next_session_authorities[node_id.0].clone(),
@@ -595,16 +543,6 @@ where
         }
     }
 
-    async fn prune_session_data(&self, prune_below: SessionId) {
-        // In this method we make sure that the amount of data we keep in RAM in finality-aleph
-        // does not grow with the size of the blockchain.
-        debug!(target: "afa", "Pruning session data below {:?}.", prune_below);
-        self.session_authorities
-            .lock()
-            .await
-            .retain(|&s, _| s >= prune_below);
-    }
-
     async fn run(mut self) {
         let last_finalized_number = self.client.info().finalized_number;
         let starting_session =
@@ -612,9 +550,6 @@ where
         for curr_id in starting_session.0.. {
             info!(target: "afa", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
-            if curr_id >= 10 && curr_id % 10 == 0 {
-                self.prune_session_data(SessionId(curr_id - 10)).await;
-            }
         }
     }
 }
