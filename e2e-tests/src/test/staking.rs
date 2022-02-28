@@ -107,7 +107,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     let (_, mut validator_accounts) = get_key_pairs();
     let node = &config.node;
     let sender = validator_accounts.remove(0);
-    // skigner of this connection is sudothe same node which in this test is used as the new one
+    // signer of this connection is sudo, the same node which in this test is used as the new one
     // it's essential since keys from rotate_keys() needs to be run against that node
     let connection = create_connection(node).set_signer(sender);
 
