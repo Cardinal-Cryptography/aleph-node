@@ -46,7 +46,7 @@ fn test_current_authorities() {
 
         Aleph::update_authorities(to_authorities(&[1, 2, 3]).as_slice());
 
-        assert_eq!(Aleph::authorities(), to_authorities(&[1, 2, 3]),);
+        assert_eq!(Aleph::authorities(), to_authorities(&[1, 2, 3]));
     })
 }
 

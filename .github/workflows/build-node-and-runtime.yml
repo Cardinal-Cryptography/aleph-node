@@ -38,10 +38,7 @@ jobs:
       - name: Build binary and runtime
         run: cargo build --release -p aleph-node
 
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
-
-      - name: Upload binary
+      - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node

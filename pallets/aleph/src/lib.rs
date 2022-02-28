@@ -86,13 +86,15 @@ pub mod pallet {
             Self::initialize_authorities(authorities.as_slice());
         }
 
-        fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, _queued_validators: I)
+        fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I)
         where
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
-            let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-            Self::update_authorities(authorities.as_slice());
+            if changed {
+                let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
+                Self::update_authorities(authorities.as_slice());
+            }
         }
 
         fn on_disabled(_validator_index: u32) {}
