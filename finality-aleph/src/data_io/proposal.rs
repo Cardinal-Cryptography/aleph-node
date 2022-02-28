@@ -1,4 +1,4 @@
-use crate::{BlockHashNum, SessionBoundaries};
+use crate::{data_io::MAX_DATA_BRANCH_LEN, BlockHashNum, SessionBoundaries};
 use codec::{Decode, Encode};
 use sp_runtime::traits::{Block as BlockT, NumberFor};
 use sp_runtime::SaturatedConversion;
@@ -6,9 +6,6 @@ use std::{
     hash::{Hash, Hasher},
     ops::Index,
 };
-
-// Maximum number of blocks above the last finalized allowed in an AlephBFT proposal.
-pub(crate) const MAX_DATA_BRANCH_LEN: u32 = 7;
 
 /// Represents a proposal we obtain from another node. Note that since the proposal might come from
 /// a malicious node there is no guarantee that the block hashes in the proposal correspond to real blocks
@@ -117,6 +114,10 @@ impl<B: BlockT> Index<usize> for AlephProposal<B> {
 }
 
 impl<B: BlockT> AlephProposal<B> {
+    pub fn new(branch: Vec<B::Hash>, number: NumberFor<B>) -> Self {
+        AlephProposal { branch, number }
+    }
+
     /// Outputs the length the branch.
     pub fn len(&self) -> usize {
         self.branch.len()
