@@ -7,4 +7,4 @@ mod rpc;
 mod service;
 
 pub use cli::{Cli, Subcommand};
-pub use service::{new_full, new_partial};
+pub use service::{new_full, new_nonvalidator, new_partial};

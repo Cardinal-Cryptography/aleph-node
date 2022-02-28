@@ -1,7 +1,7 @@
 use sc_cli::SubstrateCli;
 use sc_service::PartialComponents;
 
-use aleph_node::{new_full, new_partial, Cli, Subcommand};
+use aleph_node::{new_full, new_nonvalidator, new_partial, Cli, Subcommand};
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
@@ -75,9 +75,16 @@ fn main() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&cli.run)?;
             let aleph_cli_config = cli.aleph;
-            runner.run_node_until_exit(|config| async move {
-                new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
-            })
+            match aleph_cli_config.node_type() {
+                finality_aleph::NodeType::Validator => {
+                    runner.run_node_until_exit(|config| async move {
+                        new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                    })
+                }
+                _ => runner.run_node_until_exit(|config| async move {
+                    new_nonvalidator(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                }),
+            }
         }
     }
 }

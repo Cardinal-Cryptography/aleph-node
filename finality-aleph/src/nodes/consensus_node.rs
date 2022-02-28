@@ -1,0 +1,124 @@
+use crate::party::ConsensusPartyParams;
+use crate::{
+    mpsc,
+    network::{
+        ConnectionIO, ConnectionManager, ConnectionManagerConfig, Service as NetworkService,
+        SessionManager, IO as NetworkIO,
+    },
+    nodes::{setup_justification_handler, AlephParams, JustificationParams},
+    party::ConsensusParty,
+    session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
+};
+use log::{debug, error};
+use sc_client_api::Backend;
+use sc_network::ExHashT;
+use sp_consensus::SelectChain;
+use sp_runtime::traits::Block;
+
+pub async fn run_consensus_node<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
+where
+    B: Block,
+    H: ExHashT,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B>,
+    BE: Backend<B> + 'static,
+    SC: SelectChain<B> + 'static,
+{
+    let AlephParams {
+        config:
+            crate::AlephConfig {
+                network,
+                client,
+                select_chain,
+                spawn_handle,
+                keystore,
+                metrics,
+                unit_creation_delay,
+                session_period,
+                millisecs_per_block,
+                justification_rx,
+                ..
+            },
+    } = aleph_params;
+
+    let block_requester = network.clone();
+    let map_updater = SessionMapUpdater::<_, _, B>::new(
+        AuthorityProviderImpl::new(client.clone()),
+        FinalityNotificatorImpl::new(client.clone()),
+    );
+    let session_authorities = map_updater.readonly_session_map();
+    spawn_handle.spawn("aleph/updater", None, async move {
+        debug!(target: "afa", "SessionMapUpdater has started.");
+        map_updater.run(session_period).await
+    });
+
+    let (authority_justification_tx, handler_task) =
+        setup_justification_handler(JustificationParams {
+            justification_rx,
+            network: network.clone(),
+            client: client.clone(),
+            metrics: metrics.clone(),
+            session_period,
+            millisecs_per_block,
+            session_map: session_authorities.clone(),
+        });
+
+    // Prepare and start the network
+    let (commands_for_network, commands_from_io) = mpsc::unbounded();
+    let (messages_for_network, messages_from_user) = mpsc::unbounded();
+    let (commands_for_service, commands_from_user) = mpsc::unbounded();
+    let (messages_for_service, commands_from_manager) = mpsc::unbounded();
+    let (messages_for_user, messages_from_network) = mpsc::unbounded();
+
+    let connection_io = ConnectionIO::new(
+        commands_for_network,
+        messages_for_network,
+        commands_from_user,
+        commands_from_manager,
+        messages_from_network,
+    );
+    let connection_manager = ConnectionManager::new(
+        network.clone(),
+        ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
+    );
+    let session_manager = SessionManager::new(commands_for_service, messages_for_service);
+    let network = NetworkService::new(
+        network.clone(),
+        spawn_handle.clone(),
+        NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
+    );
+
+    let network_manager_task = async move {
+        connection_io
+            .run(connection_manager)
+            .await
+            .expect("Failed to run new network manager")
+    };
+
+    let network_task = async move { network.run().await };
+
+    spawn_handle.spawn("aleph/justification_handler", None, handler_task);
+    debug!(target: "afa", "JustificationHandler has started.");
+
+    spawn_handle.spawn("aleph/network_manager", None, network_manager_task);
+    spawn_handle.spawn("aleph/network", None, network_task);
+    debug!(target: "afa", "Network has started.");
+
+    let party = ConsensusParty::new(ConsensusPartyParams {
+        session_manager,
+        session_authorities,
+        session_period,
+        spawn_handle: spawn_handle.into(),
+        client,
+        select_chain,
+        keystore,
+        block_requester,
+        metrics,
+        authority_justification_tx,
+        unit_creation_delay,
+    });
+
+    debug!(target: "afa", "Consensus party has started.");
+    party.run().await;
+    error!(target: "afa", "Consensus party has finished unexpectedly.");
+}
