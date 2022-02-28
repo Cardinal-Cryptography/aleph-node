@@ -1,6 +1,5 @@
-use codec::Decode;
 use log::info;
-use common::{change_members, create_connection, wait_for_event, KeyPair};
+use common::{change_members, create_connection, KeyPair};
 use substrate_api_client::{AccountId, XtStatus};
 use sp_core::crypto::Ss58Codec;
 
@@ -14,16 +13,5 @@ pub fn change(validators: Vec<String>, node: String, key: KeyPair) {
 
     change_members(&connection, validators, XtStatus::Finalized);
 
-    info!("Validator change request sent, waiting for confirmation...");
-
-    #[derive(Debug, Decode, Clone)]
-    struct NewMembersEvent {
-        _members: Vec<AccountId>,
-    }
-    wait_for_event(
-        &connection,
-        ("Elections", "ChangeMembers"),
-        |_: ()| true,
-    ).expect("The event should occur");
     info!("Validators changed")
 }
