@@ -1,9 +1,9 @@
 use crate::{
-    crypto::{tests::generate_keys, AuthorityPen, AuthorityVerifier},
+    crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         testing::{
-            Authentication, DiscoveryMessage, MockNetwork, MockNetworkIdentity, NetworkData,
-            SessionHandler,
+            crypto_basics, Authentication, DiscoveryMessage, MockNetwork, MockNetworkIdentity,
+            NetworkData, SessionHandler,
         },
         ConnectionIO, ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity,
         PeerId, Protocol, Service as NetworkService, SessionManager, SessionNetwork,
@@ -25,6 +25,7 @@ use std::{
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+const NODES_N: usize = 3;
 type MockData = Vec<u8>;
 
 #[derive(Clone)]
@@ -68,14 +69,10 @@ struct TestData {
 
 async fn prepare_one_session_test_data() -> TestData {
     let task_manager = TaskManager::new(Handle::current(), None).unwrap();
-    let authority_names: Vec<_> = ["//Alice", "//Bob", "//Charlie"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    let (authority_pens, authority_verifier) = generate_keys(&authority_names).await;
+    let (authority_pens, authority_verifier) = crypto_basics(NODES_N).await;
     let authorities: Vec<_> = authority_pens
         .into_iter()
-        .map(|p| {
+        .map(|(_, p)| {
             let identity = MockNetworkIdentity::new().identity();
             Authority {
                 pen: p,
@@ -221,7 +218,7 @@ impl TestData {
 
     async fn check_sends_authentication(&mut self, authentication: Authentication) {
         let mut sent_auth = HashMap::new();
-        while sent_auth.len() < self.authorities.len() - 1 {
+        while sent_auth.len() < NODES_N - 1 {
             if let Some((
                 NetworkData::Meta(DiscoveryMessage::Authentication(auth_data)),
                 peer_id,
@@ -429,7 +426,7 @@ async fn test_forwards_authentication_broadcast() {
     );
     let mut sent_authentication = HashMap::new();
 
-    while sent_authentication.len() < test_data.authorities.len() - 1 {
+    while sent_authentication.len() < NODES_N - 1 {
         if let Some((
             NetworkData::Meta(DiscoveryMessage::AuthenticationBroadcast(auth_data)),
             peer_id,
@@ -588,7 +585,7 @@ async fn test_sends_data_to_correct_session() {
     let mut data_network_42 = test_data.start_session(42).await;
     let mut data_network_43 = test_data.start_session(43).await;
 
-    let other_nodes_n = test_data.authorities.len() - 1;
+    let other_nodes_n = NODES_N - 1;
     for i in 0..2 * other_nodes_n {
         data_network_42
             .send(
@@ -657,7 +654,7 @@ async fn test_broadcasts_data_to_correct_session() {
         .expect("Should send");
 
     let mut sent_data = HashSet::new();
-    while sent_data.len() < 2 * (test_data.authorities.len() - 1) {
+    while sent_data.len() < 2 * (NODES_N - 1) {
         if let Some((NetworkData::Data(data, session_id), peer_id, protocol)) =
             timeout(DEFAULT_TIMEOUT, test_data.network.send_message.next())
                 .await

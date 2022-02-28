@@ -192,11 +192,11 @@ impl From<SignatureV1> for Signature {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use sp_keystore::{testing::KeyStore, CryptoStore};
 
-    pub(crate) async fn generate_keys(names: &[String]) -> (Vec<AuthorityPen>, AuthorityVerifier) {
+    async fn generate_keys(names: &[String]) -> (Vec<AuthorityPen>, AuthorityVerifier) {
         let key_store = Arc::new(KeyStore::new());
         let mut authority_ids = Vec::with_capacity(names.len());
         for name in names {

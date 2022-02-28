@@ -35,8 +35,8 @@ pub use split::{split, Split};
 pub mod testing {
     pub use super::{
         manager::{
-            testing::MockNetworkIdentity, Authentication, DiscoveryMessage, NetworkData,
-            SessionHandler,
+            testing::{crypto_basics, MockNetworkIdentity},
+            Authentication, DiscoveryMessage, NetworkData, SessionHandler,
         },
         mock::MockNetwork,
     };
