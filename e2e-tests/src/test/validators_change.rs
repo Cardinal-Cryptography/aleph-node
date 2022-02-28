@@ -6,9 +6,9 @@ use substrate_api_client::AccountId;
 
 use crate::accounts::{accounts_from_seeds, get_sudo};
 use crate::config::Config;
-use crate::Header;
 use crate::session::send_change_members;
 use crate::waiting::{wait_for_event, wait_for_finalized_block};
+use crate::Header;
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let Config {
@@ -26,11 +26,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     info!("[+] members before tx: {:#?}", members_before);
 
-    let _ = accounts.
-    let new_members: Vec<AccountId> = accounts
-        .iter()
-        .map(|pair| pair.public().into())
-        .collect();
+    accounts.remove(0);
+    let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
     send_change_members(&connection, new_members.clone());
 
     #[derive(Debug, Decode, Clone)]
