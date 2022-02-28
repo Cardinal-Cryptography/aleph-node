@@ -21,36 +21,31 @@ use crate::{
     AuthorityId, Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod,
     UnitCreationDelay,
 };
-use sp_keystore::CryptoStore;
-
 use aleph_bft::{DelayConfig, SpawnHandle};
 use aleph_primitives::KEY_TYPE;
-use futures_timer::Delay;
-
-use futures::channel::mpsc;
-use log::{debug, error, info, trace, warn};
-
 use codec::Encode;
+use futures::channel::mpsc;
+use futures_timer::Delay;
+use log::{debug, error, info, trace, warn};
 use sc_client_api::{Backend, HeaderBackend};
 use sc_network::ExHashT;
 use sp_api::NumberFor;
 use sp_consensus::SelectChain;
+use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
 use std::{collections::HashSet, default::Default, marker::PhantomData, sync::Arc, time::Duration};
-
-mod task;
-
-use task::{Handle, Task};
 
 mod aggregator;
 mod authority;
 mod chain_tracker;
 mod data_store;
 mod member;
+mod task;
 
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
+use task::{Handle, Task};
 
 type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
