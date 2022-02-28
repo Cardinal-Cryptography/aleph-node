@@ -1,18 +1,16 @@
 use codec::Encode;
-use log::info;
 use sp_core::Pair;
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_runtime::traits::One;
-use substrate_api_client::{AccountId, compose_extrinsic, GenericAddress, UncheckedExtrinsicV4, XtStatus};
+use substrate_api_client::{AccountId, compose_extrinsic, GenericAddress, UncheckedExtrinsicV4};
 
-use crate::{Connection, send_extrinsic, send_extrinsic_no_wait, TransferTransaction};
-use crate::accounts::get_free_balance;
+use crate::{Connection, TransferTransaction};
 use crate::config::Config;
 use crate::fee::{FeeInfo, get_next_fee_multiplier, get_tx_fee_info};
-use crate::transfer::{setup_for_transfer, transfer};
+use crate::transfer::setup_for_transfer;
 
-pub fn fee_calculation(config: Config) -> anyhow::Result<()> {
-    let (connection, from, to) = setup_for_transfer(config);
+pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
+    let (connection, _from, _to) = setup_for_transfer(config);
 
     // An example transaction for which we will query fee details at different traffic level.
     let tx = prepare_transaction(&connection);

@@ -263,7 +263,9 @@ impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
 parameter_types! {
     // We expect that on average 25% of the normal capacity will be occupied with normal txs.
     pub TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
-    // During 20 blocks the fee may not change more than by 100%.
+    // During 20 blocks the fee may not change more than by 100%. This, together with the
+    // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
+    // formulas please refer to Substrate code at `frame/transaction-payment/src/lib.rs`.
     pub FeeVariability: Multiplier = Multiplier::saturating_from_rational(67, 1000);
     // Fee should never be lower than the computational cost.
     pub MinimumMultiplier: Multiplier = Multiplier::one();

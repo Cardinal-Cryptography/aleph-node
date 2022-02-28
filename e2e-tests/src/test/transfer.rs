@@ -5,7 +5,7 @@ use crate::accounts::get_free_balance;
 use crate::config::Config;
 use crate::transfer::{setup_for_transfer, transfer};
 
-pub fn token_transfer(config: Config) -> anyhow::Result<()> {
+pub fn token_transfer(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
 
     let balance_before = get_free_balance(&to, &connection);
