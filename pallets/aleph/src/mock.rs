@@ -19,8 +19,7 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-
-// Based on grandpa mock
+pub(crate) type AccountId = u64;
 
 construct_runtime!(
     pub enum Test where
@@ -62,7 +61,7 @@ impl frame_system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = sp_runtime::traits::BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;
