@@ -15,7 +15,7 @@ use sc_network::ExHashT;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
 
-pub async fn run_consensus_node<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
+pub async fn run_validator_node<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
 where
     B: Block,
     H: ExHashT,

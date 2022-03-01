@@ -42,7 +42,7 @@ pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 pub use import::AlephBlockImport;
 pub use justification::JustificationNotification;
 pub use network::Protocol;
-pub use nodes::{run_consensus_node, run_nonvalidator_node};
+pub use nodes::{run_validator_node, run_nonvalidator_node};
 pub use session::SessionPeriod;
 
 #[derive(Clone, Debug, Encode, Decode)]
@@ -192,7 +192,7 @@ where
     SC: SelectChain<B> + 'static,
 {
     match config.node_type {
-        NodeType::Validator => run_consensus_node(AlephParams { config }).boxed(),
+        NodeType::Validator => run_validator_node(AlephParams { config }).boxed(),
         NodeType::NonValidator => run_nonvalidator_node(AlephParams { config }).boxed(),
     }
 }
