@@ -114,6 +114,7 @@ with nixpkgs; env.mkDerivation rec {
   buildPhase = ''
     ${shellHook}
     export CARGO_HOME="$out/cargo"
+    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
 
     cargo build --locked --release -p aleph-node
   '';
