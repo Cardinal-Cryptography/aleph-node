@@ -39,7 +39,7 @@ cargo clean
 # build `aleph-node` and store it at the root of the aleph-node's source directory
 cargo build --release -p aleph-node
 # set the proper loader (nix related)
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 target/x86_64-unknown-linux-gnu/release/aleph-node
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 target/release/aleph-node
 ```
 
 If you have `nix` installed locally, you can simply call `nix-shell --pure`. It should spawn a shell containing all build
