@@ -1,5 +1,7 @@
-use crate::nodes::{setup_justification_handler, AlephParams, JustificationParams};
-use crate::session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater};
+use crate::{
+    nodes::{setup_justification_handler, AlephParams, JustificationParams},
+    session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
+};
 use log::{debug, error};
 use sc_client_api::Backend;
 use sc_network::ExHashT;
@@ -34,7 +36,7 @@ where
     );
     let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
-        debug!(target: "afa", "SessionMapUpdater has started.");
+        debug!(target: "aleph-party", "SessionMapUpdater has started.");
         map_updater.run(session_period).await
     });
     let (_, handler_task) = setup_justification_handler(JustificationParams {
@@ -47,7 +49,7 @@ where
         session_map: session_authorities,
     });
 
-    debug!(target: "afa", "JustificationHandler has started.");
+    debug!(target: "aleph-party", "JustificationHandler has started.");
     handler_task.await;
-    error!(target: "afa", "JustificationHandler finished.");
+    error!(target: "aleph-party", "JustificationHandler finished.");
 }

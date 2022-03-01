@@ -4,31 +4,31 @@ mod nonvalidator_node;
 pub use consensus_node::run_consensus_node;
 pub use nonvalidator_node::run_nonvalidator_node;
 
-use crate::crypto::AuthorityVerifier;
-use crate::finalization::AlephFinalizer;
-use crate::justification::{
-    JustificationHandler, JustificationRequestSchedulerImpl, SessionInfo, SessionInfoProvider,
-};
-use crate::mpsc::UnboundedSender;
-use crate::session_map::ReadOnlySessionMap;
 use crate::{
-    last_block_of_session, mpsc, session_id_from_block_num, JustificationNotification, Metrics,
-    MillisecsPerBlock, SessionPeriod,
+    crypto::AuthorityVerifier,
+    finalization::AlephFinalizer,
+    justification::{
+        JustificationHandler, JustificationRequestSchedulerImpl, SessionInfo, SessionInfoProvider,
+    },
+    last_block_of_session, mpsc,
+    mpsc::UnboundedSender,
+    session_id_from_block_num,
+    session_map::ReadOnlySessionMap,
+    AlephConfig, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use sc_client_api::Backend;
 use sc_network::{ExHashT, NetworkService};
 use sp_runtime::traits::{Block, Header, NumberFor};
-use std::future::Future;
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
 
 pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
-    pub config: crate::AlephConfig<B, H, C, SC>,
+    pub config: AlephConfig<B, H, C, SC>,
 }
 
-pub struct JustificationParams<B: Block, H: ExHashT, C> {
+struct JustificationParams<B: Block, H: ExHashT, C> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
@@ -71,7 +71,7 @@ impl<B: Block> SessionInfoProvider<B, AuthorityVerifier> for SessionInfoProvider
     }
 }
 
-pub fn setup_justification_handler<B, H, C, BE>(
+fn setup_justification_handler<B, H, C, BE>(
     just_params: JustificationParams<B, H, C>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,

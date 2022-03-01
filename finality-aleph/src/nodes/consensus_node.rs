@@ -1,4 +1,3 @@
-use crate::party::ConsensusPartyParams;
 use crate::{
     mpsc,
     network::{
@@ -7,6 +6,7 @@ use crate::{
     },
     nodes::{setup_justification_handler, AlephParams, JustificationParams},
     party::ConsensusParty,
+    party::ConsensusPartyParams,
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
 };
 use log::{debug, error};
@@ -48,7 +48,7 @@ where
     );
     let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
-        debug!(target: "afa", "SessionMapUpdater has started.");
+        debug!(target: "aleph-party", "SessionMapUpdater has started.");
         map_updater.run(session_period).await
     });
 
@@ -98,11 +98,11 @@ where
     let network_task = async move { network.run().await };
 
     spawn_handle.spawn("aleph/justification_handler", None, handler_task);
-    debug!(target: "afa", "JustificationHandler has started.");
+    debug!(target: "aleph-party", "JustificationHandler has started.");
 
     spawn_handle.spawn("aleph/network_manager", None, network_manager_task);
     spawn_handle.spawn("aleph/network", None, network_task);
-    debug!(target: "afa", "Network has started.");
+    debug!(target: "aleph-party", "Network has started.");
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_manager,
@@ -118,7 +118,7 @@ where
         unit_creation_delay,
     });
 
-    debug!(target: "afa", "Consensus party has started.");
+    debug!(target: "aleph-party", "Consensus party has started.");
     party.run().await;
-    error!(target: "afa", "Consensus party has finished unexpectedly.");
+    error!(target: "aleph-party", "Consensus party has finished unexpectedly.");
 }
