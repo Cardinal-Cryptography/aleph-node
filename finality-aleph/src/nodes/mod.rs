@@ -1,8 +1,8 @@
-mod consensus_node;
 mod nonvalidator_node;
+mod validator_node;
 
-pub use consensus_node::run_consensus_node;
 pub use nonvalidator_node::run_nonvalidator_node;
+pub use validator_node::run_consensus_node;
 
 use crate::{
     crypto::AuthorityVerifier,
