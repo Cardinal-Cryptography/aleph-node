@@ -23,6 +23,8 @@ use std::{
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+const SESSION_PERIOD: SessionPeriod = SessionPeriod(10);
+const MILLISECS_PER_BLOCK: MillisecsPerBlock = MillisecsPerBlock(1000);
 const NODES_N: usize = 3;
 type MockData = Vec<u8>;
 
@@ -62,6 +64,7 @@ struct TestData {
     network_service_exit_tx: oneshot::Sender<()>,
     network_manager_handle: JoinHandle<()>,
     network_service_handle: JoinHandle<()>,
+    // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
     _task_manager: TaskManager,
 }
 
@@ -101,7 +104,7 @@ async fn prepare_one_session_test_data() -> TestData {
     );
     let connection_manager = ConnectionManager::<Authority, MockData>::new(
         authorities[0].clone(),
-        ConnectionManagerConfig::with_session_period(&SessionPeriod(10), &MillisecsPerBlock(1000)),
+        ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
     let session_manager = SessionManager::new(commands_for_service, messages_for_service);
     let network_service = NetworkService::new(
@@ -301,13 +304,18 @@ impl TestData {
 
 #[tokio::test]
 async fn test_connects_to_others() {
+    let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let mut data_network = test_data.start_session(43).await;
+    let mut data_network = test_data.start_session(session_id).await;
 
-    test_data.emit_notifications_received(1, vec![NetworkData::Data(vec![1, 2, 3], SessionId(43))]);
+    let data = vec![1, 2, 3];
+    test_data.emit_notifications_received(
+        1,
+        vec![NetworkData::Data(data.clone(), SessionId(session_id))],
+    );
     assert_eq!(
         timeout(DEFAULT_TIMEOUT, data_network.next()).await,
-        Ok(Some(vec![1, 2, 3]))
+        Ok(Some(data))
     );
 
     test_data.cleanup().await;
