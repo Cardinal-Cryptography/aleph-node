@@ -9,7 +9,7 @@ use cliain::{change_validators, prepare_keys};
 #[clap(version = "1.0")]
 struct Config {
     /// WS endpoint address of the node to connect to
-    #[clap(long, default_value = "127.0.0.1:9943")]
+    #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
 
     /// The seed of the key to use for signing calls
