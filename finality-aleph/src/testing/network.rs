@@ -297,3 +297,18 @@ impl TestData {
         self.network.close_channels().await;
     }
 }
+
+#[tokio::test]
+async fn test_connects_to_others() {
+    let mut test_data = prepare_one_session_test_data().await;
+    let mut data_network = test_data.start_session(43).await;
+
+    test_data.emit_notifications_received(1, vec![NetworkData::Data(vec![1, 2, 3], SessionId(43))]);
+    assert_eq!(
+        timeout(DEFAULT_TIMEOUT, data_network.next()).await,
+        Ok(Some(vec![1, 2, 3]))
+    );
+
+    test_data.cleanup().await;
+    assert_eq!(data_network.next().await, None);
+}
