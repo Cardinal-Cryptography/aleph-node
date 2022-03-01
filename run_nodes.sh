@@ -2,23 +2,25 @@
 
 function usage(){
   echo "Usage:
-      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-b false] [-p BASE_PATH] [ALEPH_NODE_ARG]...
+      ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-b false] [-p BASE_PATH] [-l N_LISTENERES] [ALEPH_NODE_ARG]...
   where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS <= 10
-  (by default, N_VALIDATORS=4, N_NON_VALIDATORS=0 and BASE_PATH=/tmp)"
+  (by default, N_VALIDATORS=4, N_NON_VALIDATORS=0, N_LISTENERES=0 and BASE_PATH=/tmp)"
 }
 
 N_VALIDATORS=4
 N_NON_VALIDATORS=0
+N_LISTENERES=0
 BUILD_ALEPH_NODE='true'
 BASE_PATH='/tmp'
 
-while getopts "v:n:b:p:" flag
+while getopts "v:n:b:p:l:" flag
 do
   case "${flag}" in
     v) N_VALIDATORS=${OPTARG};;
     n) N_NON_VALIDATORS=${OPTARG};;
     b) BUILD_ALEPH_NODE=${OPTARG};;
     p) BASE_PATH=${OPTARG};;
+    l) N_LISTENERES=${OPTARG};;
     *)
       usage
       exit
@@ -85,6 +87,35 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     --chain $BASE_PATH/chainspec.json \
     --base-path $BASE_PATH/$account_id \
     --name $auth \
+    --rpc-port $((9933 + i)) \
+    --ws-port $((9944 + i)) \
+    --port $((30334 + i)) \
+    --bootnodes $bootnodes \
+    --node-key-file $BASE_PATH/$account_id/p2p_secret \
+    --unit-creation-delay 500 \
+    --execution Native \
+    --rpc-cors=all \
+    --no-mdns \
+    -laleph-party=debug \
+    -laleph-network=debug \
+    -laleph-finality=debug \
+    -laleph-justification=debug \
+    -laleph-data-store=debug \
+    -laleph-metrics=debug \
+    "$@" \
+    2> $auth.log > /dev/null & \
+done
+
+for i in $(seq "$(( N_VALIDATORS + N_NON_VALIDATORS))" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 + N_LISTENERES))"); do
+  auth=node-$i
+  account_id=${account_ids[$i]}
+  ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
+  ./target/release/aleph-node \
+    --validator \
+    --chain $BASE_PATH/chainspec.json \
+    --base-path $BASE_PATH/$account_id \
+    --name $auth \
+    --node-type nonvalidator \
     --rpc-port $((9933 + i)) \
     --ws-port $((9944 + i)) \
     --port $((30334 + i)) \

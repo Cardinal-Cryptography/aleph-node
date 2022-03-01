@@ -81,9 +81,11 @@ fn main() -> sc_cli::Result<()> {
                         new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
                     })
                 }
-                _ => runner.run_node_until_exit(|config| async move {
-                    new_nonvalidator(config, aleph_cli_config).map_err(sc_cli::Error::Service)
-                }),
+                finality_aleph::NodeType::NonValidator => {
+                    runner.run_node_until_exit(|config| async move {
+                        new_nonvalidator(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                    })
+                }
             }
         }
     }
