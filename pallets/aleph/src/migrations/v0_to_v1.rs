@@ -1,7 +1,8 @@
 use crate::Config;
+use frame_support::traits::PalletInfoAccess;
 use frame_support::{generate_storage_alias, log};
 use frame_support::{
-    traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
+    traits::{Get, StorageVersion},
     weights::Weight,
 };
 use sp_std::vec::Vec;
@@ -14,62 +15,48 @@ generate_storage_alias!(
     Aleph, Validators<T: Config> => Value<Vec<T::AccountId>>
 );
 
-pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> Weight {
-    let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
-    let current_storage_version = <P as GetStorageVersion>::current_storage_version();
+pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
+    log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
 
-    if on_chain_storage_version == StorageVersion::default() && current_storage_version == 1 {
-        log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 0 to 1");
+    let mut writes = 0;
 
-        let mut writes = 0;
+    match SessionForValidatorsChange::translate(|old: Option<Option<u32>>| -> Option<u32> {
+        log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
+        match old {
+            Some(Some(x)) => Some(x),
+            _ => None,
+        }
+    }) {
+        Ok(_) => {
+            writes += 1;
+            log::info!(target: "pallet_aleph", "Succesfully migrated storage for SessionForValidatorsChange");
+        }
+        Err(why) => {
+            log::error!(target: "pallet_aleph", "Something went wrong during the migration of SessionForValidatorsChange {:?}", why);
+        }
+    };
 
-        match SessionForValidatorsChange::translate(|old: Option<Option<u32>>| -> Option<u32> {
-            log::info!(target: "pallet_aleph", "Current storage value for SessionForValidatorsChange {:?}", old);
+    match Validators::<T>::translate(
+        |old: Option<Option<Vec<T::AccountId>>>| -> Option<Vec<T::AccountId>> {
+            log::info!(target: "pallet_aleph", "Current storage value for Validators {:?}", old);
             match old {
                 Some(Some(x)) => Some(x),
                 _ => None,
             }
-        }) {
-            Ok(_) => {
-                writes += 1;
-                log::info!(target: "pallet_aleph", "Succesfully migrated storage for SessionForValidatorsChange");
-            }
-            Err(why) => {
-                log::error!(target: "pallet_aleph", "Something went wrong during the migration of SessionForValidatorsChange {:?}", why);
-            }
-        };
+        },
+    ) {
+        Ok(_) => {
+            writes += 1;
+            log::info!(target: "pallet_aleph", "Succesfully migrated storage for Validators");
+        }
+        Err(why) => {
+            log::error!(target: "pallet_aleph", "Something went wrong during the migration of Validators storage {:?}", why);
+        }
+    };
 
-        match Validators::<T>::translate(
-            |old: Option<Option<Vec<T::AccountId>>>| -> Option<Vec<T::AccountId>> {
-                log::info!(target: "pallet_aleph", "Current storage value for Validators {:?}", old);
-                match old {
-                    Some(Some(x)) => Some(x),
-                    _ => None,
-                }
-            },
-        ) {
-            Ok(_) => {
-                writes += 1;
-                log::info!(target: "pallet_aleph", "Succesfully migrated storage for Validators");
-            }
-            Err(why) => {
-                log::error!(target: "pallet_aleph", "Something went wrong during the migration of Validators storage {:?}", why);
-            }
-        };
+    // store new version
+    StorageVersion::new(1).put::<P>();
+    writes += 1;
 
-        // store new version
-        StorageVersion::new(1).put::<P>();
-        writes += 1;
-
-        T::DbWeight::get().reads(3) + T::DbWeight::get().writes(writes)
-    } else {
-        log::warn!(
-            target: "pallet_aleph",
-            "Not applying any storage migration because on-chain storage version is {:?} and the version declared in the aleph pallet is {:?}",
-            on_chain_storage_version,
-            current_storage_version
-        );
-        // I have only read the version
-        T::DbWeight::get().reads(1)
-    }
+    T::DbWeight::get().reads(2) + T::DbWeight::get().writes(writes)
 }

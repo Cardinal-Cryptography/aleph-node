@@ -15,6 +15,7 @@ mod migrations;
 use sp_std::prelude::*;
 
 use frame_support::{
+    log,
     sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
     Parameter,
@@ -46,7 +47,27 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            migrations::v0_to_v1::migrate::<T, Self>() + migrations::v1_to_v2::migrate::<T, Self>()
+            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
+            let current = 2;
+            let prev = 1;
+            let genesis = 0;
+            T::DbWeight::get().reads(1)
+                + match on_chain {
+                    _ if on_chain == current => 0,
+                    _ if on_chain == prev => migrations::v0_to_v1::migrate::<T, Self>(),
+                    _ if on_chain == genesis => {
+                        migrations::v0_to_v1::migrate::<T, Self>()
+                            + migrations::v1_to_v2::migrate::<T, Self>()
+                    }
+                    _ => {
+                        log::warn!(
+                            target: "pallet_aleph",
+                            "On chain storage version of pallet aleph is {:?} but it should not be bigger than 2",
+                            on_chain
+                        );
+                        0
+                    }
+                }
         }
     }
 

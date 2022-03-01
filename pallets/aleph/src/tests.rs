@@ -1,9 +1,11 @@
 #![cfg(test)]
 
+use std::collections::HashMap;
+
 use crate::{migrations, mock::*, pallet, Config};
 use frame_support::generate_storage_alias;
-use frame_support::traits::OneSessionHandler;
-use frame_support::traits::{GetStorageVersion, StorageVersion};
+use frame_support::storage::migration::{get_storage_value, put_storage_value};
+use frame_support::traits::{GetStorageVersion, OneSessionHandler, StorageVersion};
 
 generate_storage_alias!(
     Aleph, SessionForValidatorsChange => Value<u32>
@@ -15,18 +17,9 @@ generate_storage_alias!(
 #[test]
 fn migration_from_v0_to_v1_works() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
-        frame_support::migration::put_storage_value(
-            b"Aleph",
-            b"SessionForValidatorsChange",
-            &[],
-            Some(7u32),
-        );
+        put_storage_value(b"Aleph", b"SessionForValidatorsChange", &[], Some(7u32));
 
-        let before = frame_support::migration::get_storage_value::<Option<u32>>(
-            b"Aleph",
-            b"SessionForValidatorsChange",
-            &[],
-        );
+        let before = get_storage_value::<Option<u32>>(b"Aleph", b"SessionForValidatorsChange", &[]);
 
         assert_eq!(
             before,
@@ -34,7 +27,7 @@ fn migration_from_v0_to_v1_works() {
             "Storage before migration has type Option<u32>"
         );
 
-        frame_support::migration::put_storage_value(
+        put_storage_value(
             b"Aleph",
             b"Validators",
             &[],
@@ -46,7 +39,7 @@ fn migration_from_v0_to_v1_works() {
         assert_eq!(
             v0,
             StorageVersion::default(),
-            "Storage version before applying migration should be default"
+            "Storage version before applying migration should be default",
         );
 
         let _weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
@@ -70,13 +63,43 @@ fn migration_from_v0_to_v1_works() {
             Some(vec![AccountId::default()]),
             "Migration should preserve ongoing session change with respect to the validators set"
         );
+    })
+}
 
-        let noop_weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
+#[test]
+fn migration_from_v1_to_v2_works() {
+    new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
+        let map = [
+            "SessionForValidatorsChange",
+            "Validators",
+            "MillisecsPerBlock",
+            "SessionPeriod",
+        ]
+        .iter()
+        .zip(0..4)
+        .collect::<HashMap<_, _>>();
+
+        map.iter().for_each(|(item, value)| {
+            put_storage_value(b"Aleph", item.as_bytes(), &[], value);
+        });
+
+        let _weight = migrations::v1_to_v2::migrate::<Test, Aleph>();
+
+        let v2 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
+
         assert_eq!(
-            noop_weight,
-            TestDbWeight::get().reads(1),
-            "Migration cannot be run twice"
+            v2,
+            StorageVersion::new(2),
+            "Storage version after applying migration should be incremented"
         );
+
+        for item in map.keys() {
+            assert!(
+                get_storage_value::<i32>(b"Aleph", item.as_bytes(), &[]).is_none(),
+                "Storage item {} should be killed",
+                item
+            );
+        }
     })
 }
 
