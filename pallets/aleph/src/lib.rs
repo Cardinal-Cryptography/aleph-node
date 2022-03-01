@@ -48,14 +48,13 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            let current = 2;
-            let prev = 1;
-            let genesis = 0;
             T::DbWeight::get().reads(1)
                 + match on_chain {
-                    _ if on_chain == current => 0,
-                    _ if on_chain == prev => migrations::v0_to_v1::migrate::<T, Self>(),
-                    _ if on_chain == genesis => {
+                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == StorageVersion::new(1) => {
+                        migrations::v1_to_v2::migrate::<T, Self>()
+                    }
+                    _ if on_chain == StorageVersion::new(0) => {
                         migrations::v0_to_v1::migrate::<T, Self>()
                             + migrations::v1_to_v2::migrate::<T, Self>()
                     }
