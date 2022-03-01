@@ -14,13 +14,16 @@ Aleph node is based on a Substrate node where the default finality gadget (GRAND
 
 ### Installation
 
-1. Install the Substrate framework as described [here][substrate-installation], using the `nightly-2021-10-24` version of the rust toolchain (see the instruction at the bottom of the page)
-2. Clone this repository to your machine
-3. Run `cargo build --release -p aleph-node`
+1. Install `rustup` as described [here][rustup-instalation].
+2. Clone this repository to your machine and go to the top-level directory.
+3. This project is tied to a specific version of the rust toolchain defined in the `rust-toolchain` file. All `rustup` commands, including `cargo`, will respect this setting unless you tell them to do otherwise, so make sure that you have **not** set any [overrides][rustup-overrides] with higher priority.
+4. Run `rustup show` to install the toolchain.
+5. Run `rustup target add wasm32-unknown-unknown`. This step is required by the Substrate library, see the [installation][substrate-installation] page for details.
+3. Run `cargo build --release -p aleph-node`.
 
 ### Running
 
-To experiment with Aleph Node you can locally run a small blockchain network using the `run_nodes.sh` script from the root of this repository.  Please consult the script or the output of `run_nodes.sh -help` for additional parameters (like the number of nodes etc.). The script starts multiple instances of Aleph Node on your local machine, so please adjust the number of nodes carefully with performance of your system in mind. By default 4 nodes are started. 
+To experiment with Aleph Node you can locally run a small blockchain network using the `run_nodes.sh` script from the root of this repository.  Please consult the script or the output of `run_nodes.sh -help` for additional parameters (like the number of nodes etc.). The script starts multiple instances of Aleph Node on your local machine, so please adjust the number of nodes carefully with performance of your system in mind. By default 4 nodes are started.
 
 You can interact with your locally running nodes using RPC (use port 9933 for node0, 9934 for node1 and so on). A more convenient alternative is to attach to it with a polkadot.js wallet app. We recommend using our fork of that app which can be found [here][aleph-polkadot-link].
 
@@ -41,6 +44,8 @@ The code in this repository is licensed under the terms of the the Apache Licens
 [substrate-homepage]: https://substrate.io
 [substrate-installation]: https://docs.substrate.io/v3/getting-started/installation
 [rust-installation]: https://www.rust-lang.org/tools/install
+[rustup-instalation]: https://rustup.rs/
+[rustup-overrides]: https://rust-lang.github.io/rustup/overrides.html
 
 [unit-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml
 [unit-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml/badge.svg
