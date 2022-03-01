@@ -168,6 +168,7 @@ impl TestData {
             .expect("Failed to start validator session!")
     }
 
+    #[allow(dead_code)]
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
         self.session_manager
             .early_start_validator_session(
