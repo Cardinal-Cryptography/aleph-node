@@ -44,11 +44,17 @@ impl SubstrateCli for Cli {
     }
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        #[cfg(not(feature = "mainnet"))]
+        let default_chain = "testnet";
+        #[cfg(feature = "mainnet")]
+        let default_chain = "mainnet";
         let id = id.trim();
-        let id = if id.is_empty() { "mainnet" } else { id };
+        let id = if id.is_empty() { default_chain } else { id };
 
         let chainspec = match id {
+            #[cfg(feature = "mainnet")]
             "mainnet" => chain_spec::mainnet_config(),
+
             "testnet" => chain_spec::testnet_config(),
             _ => chain_spec::ChainSpec::from_json_file(id.into()),
         };

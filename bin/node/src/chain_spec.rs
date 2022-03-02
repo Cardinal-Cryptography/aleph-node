@@ -356,6 +356,7 @@ fn generate_genesis_config(
     }
 }
 
+#[cfg(feature = "mainnet")]
 pub fn mainnet_config() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(crate::resources::mainnet_chainspec())
 }

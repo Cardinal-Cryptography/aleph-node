@@ -1,3 +1,4 @@
+#[cfg(feature = "mainnet")]
 pub(crate) fn mainnet_chainspec() -> &'static [u8] {
     include_bytes!("mainnet_chainspec.json")
 }
