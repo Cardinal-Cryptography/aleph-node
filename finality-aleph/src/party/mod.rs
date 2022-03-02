@@ -21,33 +21,31 @@ use crate::{
     AuthorityId, Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod,
     UnitCreationDelay,
 };
-use sp_keystore::CryptoStore;
-
 use aleph_bft::{DelayConfig, SpawnHandle};
 use aleph_primitives::KEY_TYPE;
-use futures_timer::Delay;
-
-use futures::channel::mpsc;
-use log::{debug, error, info, trace, warn};
-
 use codec::Encode;
+use futures::channel::mpsc;
+use futures_timer::Delay;
+use log::{debug, error, info, trace, warn};
 use sc_client_api::{Backend, HeaderBackend};
 use sc_network::ExHashT;
 use sp_api::NumberFor;
 use sp_consensus::SelectChain;
+use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
 use std::{collections::HashSet, default::Default, marker::PhantomData, sync::Arc, time::Duration};
 
-mod task;
-use task::{Handle, Task};
 mod aggregator;
 mod authority;
 mod chain_tracker;
 mod data_store;
 mod member;
+mod task;
+
 use authority::{
     SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks, Task as AuthorityTask,
 };
+use task::{Handle, Task};
 
 type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
@@ -58,7 +56,7 @@ pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
 impl<B: Block> Verifier<B> for AuthorityVerifier {
     fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
         if !self.is_complete(&hash.encode()[..], &justification.signature) {
-            warn!(target: "afa", "Bad justification for block hash #{:?} {:?}", hash, justification);
+            warn!(target: "aleph-justification", "Bad justification for block hash #{:?} {:?}", hash, justification);
             return false;
         }
         true
@@ -189,7 +187,7 @@ where
     let network_task = async move { network.run().await };
     spawn_handle.spawn("aleph/network", None, network_task);
 
-    debug!(target: "afa", "Consensus network has started.");
+    debug!(target: "aleph-party", "Consensus network has started.");
 
     let party = ConsensusParty {
         session_manager,
@@ -206,9 +204,9 @@ where
         unit_creation_delay,
     };
 
-    debug!(target: "afa", "Consensus party has started.");
+    debug!(target: "aleph-party", "Consensus party has started.");
     party.run().await;
-    error!(target: "afa", "Consensus party has finished unexpectedly.");
+    error!(target: "aleph-party", "Consensus party has finished unexpectedly.");
 }
 
 async fn get_node_index(
@@ -217,7 +215,7 @@ async fn get_node_index(
 ) -> Option<NodeIndex> {
     let our_consensus_keys: HashSet<_> =
         keystore.keys(KEY_TYPE).await.unwrap().into_iter().collect();
-    trace!(target: "afa", "Found {:?} consensus keys in our local keystore {:?}", our_consensus_keys.len(), our_consensus_keys);
+    trace!(target: "aleph-data-store", "Found {:?} consensus keys in our local keystore {:?}", our_consensus_keys.len(), our_consensus_keys);
     authorities
         .iter()
         .position(|pkey| our_consensus_keys.contains(&pkey.into()))
@@ -240,7 +238,7 @@ where
 {
     let (authority_justification_tx, authority_justification_rx) = mpsc::unbounded();
 
-    debug!(target: "afa", "JustificationHandler started");
+    debug!(target: "aleph-justification", "JustificationHandler started");
     spawn_handle.spawn("aleph/justification_handler", async move {
         handler
             .run(authority_justification_rx, import_justification_rx)
@@ -274,7 +272,6 @@ where
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
-const NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD: Duration = Duration::from_secs(30);
 
 impl<B, C, BE, SC, RB> ConsensusParty<B, C, BE, SC, RB>
 where
@@ -418,7 +415,7 @@ where
                 }
                 let last_finalized_number = self.client.info().finalized_number;
                 if last_finalized_number >= last_block {
-                    debug!(target: "afa", "Skipping session {:?} early because block {:?} is already finalized", session_id, last_finalized_number);
+                    debug!(target: "aleph-party", "Skipping session {:?} early because block {:?} is already finalized", session_id, last_finalized_number);
                     return;
                 }
             }
@@ -427,28 +424,24 @@ where
         // We need to wait until session-authorities are available for current session.
         // This should only be needed for the first ever session as all other session are known
         // at least one session earlier.
-        if let Err(e) = self
+        let authorities = match self
             .session_authorities
             .subscribe_to_insertion(session_id)
             .await
             .await
         {
-            panic!(
+            Err(e) => panic!(
                 "Error while receiving the notification about current session {:?}",
                 e
-            );
-        }
+            ),
+            Ok(authorities) => authorities,
+        };
 
-        let authorities = self
-            .session_authorities
-            .get(session_id)
-            .await
-            .expect("We should know authorities for the session we are starting");
         trace!(target: "afa", "Authorities for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
             get_node_index(&authorities, self.keystore.clone()).await
         {
-            debug!(target: "afa", "Running session {:?} as authority id {:?}", session_id, node_id);
+            debug!(target: "aleph-party", "Running session {:?} as authority id {:?}", session_id, node_id);
             Some(
                 self.spawn_authority_task(session_id, node_id, authorities.clone())
                     .await,
@@ -464,8 +457,12 @@ where
             None
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
-        let mut start_next_session_network =
-            Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+        let next_session_id = SessionId(session_id.0 + 1);
+        let mut start_next_session_network = Some(
+            self.session_authorities
+                .subscribe_to_insertion(next_session_id)
+                .await,
+        );
         loop {
             tokio::select! {
                 _ = &mut check_session_status => {
@@ -476,53 +473,55 @@ where
                     }
                     check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
                 },
-                Some(_) = async {
+                Some(next_session_authorities) = async {
                     match &mut start_next_session_network {
-                        Some(start_next_session_network) => {
-                            start_next_session_network.await;
-                            Some(())
+                        Some(notification) => {
+                            match notification.await {
+                                Err(e) => {
+                                    warn!(target: "aleph-party", "Error with subscription {:?}", e);
+                                    start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id).await);
+                                    None
+                                },
+                                Ok(next_session_authorities) => {
+                                    Some(next_session_authorities)
+                                }
+                            }
                         },
                         None => None,
                     }
                 } => {
-                    let next_session_id = SessionId(session_id.0 + 1);
-                    if let Some(next_session_authorities) = self.session_authorities.get(next_session_id).await
-                    {
-                        let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
-                        match get_node_index(&next_session_authorities, self.keystore.clone()).await {
-                            Some(node_id) => {
-                                let authority_pen = AuthorityPen::new(
-                                    next_session_authorities[node_id.0].clone(),
-                                    self.keystore.clone(),
-                                )
-                                .await
-                                .expect("The keys should sign successfully");
+                    let authority_verifier = AuthorityVerifier::new(next_session_authorities.clone());
+                    match get_node_index(&next_session_authorities, self.keystore.clone()).await {
+                        Some(node_id) => {
+                            let authority_pen = AuthorityPen::new(
+                                next_session_authorities[node_id.0].clone(),
+                                self.keystore.clone(),
+                            )
+                            .await
+                            .expect("The keys should sign successfully");
 
-                                if let Err(e) = self
-                                    .session_manager
-                                    .early_start_validator_session(
-                                        next_session_id,
-                                        authority_verifier,
-                                        node_id,
-                                        authority_pen,
-                                    )
-                                {
-                                    warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
-                                }
-                            }
-                            None => {
-                                if let Err(e) = self
-                                    .session_manager
-                                    .start_nonvalidator_session(next_session_id, authority_verifier)
-                                {
-                                    warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
-                                }
+                            if let Err(e) = self
+                                .session_manager
+                                .early_start_validator_session(
+                                    next_session_id,
+                                    authority_verifier,
+                                    node_id,
+                                    authority_pen,
+                                )
+                            {
+                                warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
                             }
                         }
-                        start_next_session_network = None;
-                    } else {
-                        start_next_session_network = Some(Delay::new(NEXT_SESSION_NETWORK_START_ATTEMPT_PERIOD));
+                        None => {
+                            if let Err(e) = self
+                                .session_manager
+                                .start_nonvalidator_session(next_session_id, authority_verifier)
+                            {
+                                warn!(target: "aleph-party", "Failed to early start nonvalidator session{:?}:{:?}", next_session_id, e);
+                            }
+                        }
                     }
+                    start_next_session_network = None;
                 },
                 Some(_) = async {
                     match maybe_authority_task.as_mut() {
@@ -548,7 +547,7 @@ where
         let starting_session =
             session_id_from_block_num::<B>(last_finalized_number, self.session_period);
         for curr_id in starting_session.0.. {
-            info!(target: "afa", "Running session {:?}.", curr_id);
+            info!(target: "aleph-party", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
         }
     }
