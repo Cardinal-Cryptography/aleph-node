@@ -14,5 +14,6 @@ exclude = [
   "e2e-tests",
   "common",
   "local-tests/send-runtime",
-  "fork-off"
+  "fork-off",
+  "benches/payout-stakers",
 ]
