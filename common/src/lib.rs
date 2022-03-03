@@ -1,28 +1,19 @@
-use std::{thread::sleep, time::Duration};
-use log::{warn, info};
+use log::{info, warn};
 use sp_core::sr25519;
-use sp_runtime::{
-    generic::Header as GenericHeader,
-    traits::BlakeTwo256,
-};
-use substrate_api_client::{
-    Api, RpcClient, XtStatus,
-    rpc::ws_client::WsRpcClient,
-};
+use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
+use std::{thread::sleep, time::Duration};
+use substrate_api_client::{rpc::ws_client::WsRpcClient, Api, RpcClient, XtStatus};
 
-mod waiting;
 mod rpc;
 mod session;
+mod waiting;
 
-pub use waiting::wait_for_event;
 pub use rpc::rotate_keys;
 pub use session::{
-    set_keys,
+    change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
     Keys as SessionKeys,
-    get_current as get_current_session,
-    wait_for as wait_for_session,
-    change_members,
 };
+pub use waiting::wait_for_event;
 
 pub trait FromStr: Sized {
     type Err;

@@ -1,9 +1,8 @@
-use codec::{Encode, Decode};
-use crate::{wait_for_event, send_xt, BlockNumber, Connection};
+use crate::{send_xt, wait_for_event, BlockNumber, Connection};
+use codec::{Decode, Encode};
 use log::info;
 use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
-
 
 // Using custom struct and rely on default Encode trait from Parity's codec
 // it works since byte arrays are encoded in a straight forward way, it as-is
@@ -40,20 +39,16 @@ pub fn change_members(sudo_connection: &Connection, new_members: Vec<AccountId>,
         0_u64
     );
     send_xt(
-        &sudo_connection,
+        sudo_connection,
         xt.hex_encode(),
         "sudo_unchecked_weight",
         status,
     );
 }
 
-pub fn set_keys(
-    connection: &Connection,
-    new_keys: Keys,
-    status: XtStatus,
-) {
+pub fn set_keys(connection: &Connection, new_keys: Keys, status: XtStatus) {
     let xt = compose_extrinsic!(connection, "Session", "set_keys", new_keys, 0u8);
-    send_xt(&connection, xt.hex_encode(), "set_keys", status);
+    send_xt(connection, xt.hex_encode(), "set_keys", status);
 }
 
 pub fn get_current(connection: &Connection) -> u32 {
@@ -63,10 +58,7 @@ pub fn get_current(connection: &Connection) -> u32 {
         .unwrap()
 }
 
-pub fn wait_for(
-    connection: &Connection,
-    session_index: u32,
-) -> anyhow::Result<BlockNumber> {
+pub fn wait_for(connection: &Connection, session_index: u32) -> anyhow::Result<BlockNumber> {
     info!("Waiting for the session {}", session_index);
 
     #[derive(Debug, Decode, Clone)]

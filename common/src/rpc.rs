@@ -1,4 +1,4 @@
-use crate::{SessionKeys, Connection};
+use crate::{Connection, SessionKeys};
 use serde_json::{json, Value};
 use substrate_api_client::{ApiResult, FromHexString};
 
