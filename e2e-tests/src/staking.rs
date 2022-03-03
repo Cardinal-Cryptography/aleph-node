@@ -1,23 +1,11 @@
 use aleph_client::{wait_for_session, create_connection, send_xt, BlockNumber, Connection, KeyPair};
 use log::info;
-use pallet_staking::{RewardDestination, ValidatorPrefs};
+use pallet_staking::ValidatorPrefs;
 use primitives::Balance;
 use sp_core::crypto::AccountId32;
 use sp_core::Pair;
 use sp_runtime::Perbill;
 use substrate_api_client::{compose_extrinsic, AccountId, GenericAddress, XtStatus};
-
-pub fn bond(address: &str, initial_stake: u128, stash: &KeyPair, controller: &KeyPair) {
-    let connection = create_connection(address).set_signer(stash.clone());
-    let controller_account_id = GenericAddress::Id(AccountId::from(controller.public()));
-
-    let xt = connection.staking_bond(
-        controller_account_id,
-        initial_stake,
-        RewardDestination::Staked,
-    );
-    send_xt(&connection, xt.hex_encode(), "bond", XtStatus::InBlock);
-}
 
 pub fn bonded(connection: &Connection, stash: &KeyPair) -> Option<AccountId> {
     let account_id = AccountId::from(stash.public());

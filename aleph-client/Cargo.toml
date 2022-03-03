@@ -12,6 +12,7 @@ tag = "polkadot-v0.9.13.b2bfc0c3"
 # Substrate dependencies
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.13", default-features = false }
 
 # other dependencies
 log = "0.4"
