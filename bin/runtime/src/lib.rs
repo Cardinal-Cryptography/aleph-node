@@ -25,7 +25,6 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::Perquintill;
 use frame_support::traits::EqualPrivilegeOnly;
 use frame_support::traits::SortedMembers;
@@ -45,16 +44,19 @@ pub use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
-use primitives::{ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_SESSIONS_PER_ERA};
+use primitives::{
+    ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+};
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-use pallet_transaction_payment::{CurrencyAdapter, Multiplier, MultiplierUpdate};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use sp_consensus_aura::SlotDuration;
-use sp_runtime::traits::{One, Zero};
+use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -104,11 +106,13 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 8,
+    spec_version: 10,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
 };
+
+pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
 
 pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
 pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
@@ -116,7 +120,7 @@ pub const MILLISECS_PER_DAY: u64 = MILLISECS_PER_HOUR * 24;
 
 /// Get the number of blocks produced in the period given by `hours`
 pub fn hours_as_block_num(hours: u64) -> BlockNumber {
-    (MILLISECS_PER_HOUR * hours / Aleph::millisecs_per_block()) as BlockNumber
+    (MILLISECS_PER_HOUR * hours / MILLISECS_PER_BLOCK) as BlockNumber
 }
 
 /// The version information used to identify this runtime when compiled natively.
@@ -246,31 +250,10 @@ parameter_types! {
     pub const OperationalFeeMultiplier: u8 = 5;
 }
 
-pub struct ConstantFeeMultiplierUpdate;
-
-impl Convert<Multiplier, Multiplier> for ConstantFeeMultiplierUpdate {
-    fn convert(m: Multiplier) -> Multiplier {
-        m
-    }
-}
-
-impl MultiplierUpdate for ConstantFeeMultiplierUpdate {
-    fn min() -> Multiplier {
-        Multiplier::one()
-    }
-
-    fn target() -> Perquintill {
-        Default::default()
-    }
-
-    fn variability() -> Multiplier {
-        Multiplier::zero()
-    }
-}
-
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct EverythingToTheTreasury;
+
 impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
@@ -282,11 +265,23 @@ impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
     }
 }
 
+parameter_types! {
+    // We expect that on average 25% of the normal capacity will be occupied with normal txs.
+    pub TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
+    // During 20 blocks the fee may not change more than by 100%. This, together with the
+    // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
+    // formulas please refer to Substrate code at `frame/transaction-payment/src/lib.rs`.
+    pub FeeVariability: Multiplier = Multiplier::saturating_from_rational(67, 1000);
+    // Fee should never be lower than the computational cost.
+    pub MinimumMultiplier: Multiplier = Multiplier::one();
+}
+
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
@@ -313,7 +308,6 @@ impl pallet_sudo::Config for Runtime {
 }
 
 impl pallet_aleph::Config for Runtime {
-    type Event = Event;
     type AuthorityId = AlephId;
 }
 
@@ -324,32 +318,8 @@ impl_opaque_keys! {
     }
 }
 
-pub struct MillisecsPerBlock;
-
-impl MillisecsPerBlock {
-    pub fn get() -> u64 {
-        Aleph::millisecs_per_block()
-    }
-}
-
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
-    fn get() -> I {
-        I::from(Self::get())
-    }
-}
-
-pub struct SessionPeriod;
-
-impl SessionPeriod {
-    pub fn get() -> u32 {
-        Aleph::session_period()
-    }
-}
-
-impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -395,7 +365,7 @@ pub struct UniformEraPayout {}
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
     fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
         let miliseconds_per_era =
-            MillisecsPerBlock::get() * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
+            MILLISECS_PER_BLOCK * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
         primitives::staking::era_payout(miliseconds_per_era)
     }
 }
@@ -425,16 +395,8 @@ impl pallet_staking::Config for Runtime {
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
-pub struct MinimumPeriod;
-impl MinimumPeriod {
-    pub fn get() -> u64 {
-        Aleph::millisecs_per_block() / 2
-    }
-}
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const MinimumPeriod: u64 = MILLISECS_PER_BLOCK / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -570,7 +532,7 @@ construct_runtime!(
         Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
         History: pallet_session::historical::{Pallet} = 9,
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Aleph: pallet_aleph::{Pallet, Storage, Event<T>, Config<T>} = 11,
+        Aleph: pallet_aleph::{Pallet, Storage} = 11,
         Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
@@ -720,11 +682,11 @@ impl_runtime_apis! {
         }
 
         fn millisecs_per_block() -> u64 {
-            Aleph::millisecs_per_block()
+            MILLISECS_PER_BLOCK
         }
 
         fn session_period() -> u32 {
-            Aleph::session_period()
+            SessionPeriod::get()
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {

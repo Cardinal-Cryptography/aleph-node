@@ -12,14 +12,9 @@ Aleph Zero is an open-source layer 1 blockchain focused on privacy, scalability 
 Aleph node is based on a Substrate node where the default finality gadget (GRANDPA) has been replaced with AlephBFT. Block authoring is realized with Substrate's Aura. The chain is run in periodic sesssions (900 blocks each) utilizing the Session pallet. The authorities in each session serve for both Aura and AlephBFT authorities, and on top of that are responsible for running the Aggregator protocol producing multisignatures of finalized blocks.
 
 
-### Installation
+### Building
 
-1. Install `rustup` as described [here][rustup-instalation].
-2. Clone this repository to your machine and go to the top-level directory.
-3. This project is tied to a specific version of the rust toolchain defined in the `rust-toolchain` file. All `rustup` commands, including `cargo`, will respect this setting unless you tell them to do otherwise, so make sure that you have **not** set any [overrides][rustup-overrides] with higher priority.
-4. Run `rustup show` to install the toolchain.
-5. Run `rustup target add wasm32-unknown-unknown`. This step is required by the Substrate library, see the [installation][substrate-installation] page for details.
-3. Run `cargo build --release -p aleph-node`.
+Please consult the [BUILD][BUILD] guide.
 
 ### Running
 
@@ -42,14 +37,10 @@ The code in this repository is licensed under the terms of the the Apache Licens
 [aleph-bft-paper]: https://arxiv.org/abs/1908.05156
 [aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
 [substrate-homepage]: https://substrate.io
-[substrate-installation]: https://docs.substrate.io/v3/getting-started/installation
-[rust-installation]: https://www.rust-lang.org/tools/install
-[rustup-instalation]: https://rustup.rs/
-[rustup-overrides]: https://rust-lang.github.io/rustup/overrides.html
-
 [unit-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml
 [unit-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml/badge.svg
 [e2e-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/e2e-tests-main-devnet.yml
 [e2e-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/e2e-tests-main-devnet.yml/badge.svg
 [license-image]: https://img.shields.io/badge/license-Apache2.0-blue.svg
 [license-link]: https://github.com/Cardinal-Cryptography/aleph-node/blob/main/LICENSE
+[BUILD]: ./BUILD.md
