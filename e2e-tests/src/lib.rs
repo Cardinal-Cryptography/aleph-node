@@ -5,7 +5,6 @@ use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
 mod accounts;
 pub mod config;
 mod fee;
-pub mod session;
 mod staking;
 pub mod test;
 mod transfer;

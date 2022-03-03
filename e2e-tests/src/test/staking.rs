@@ -1,11 +1,10 @@
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds, keypair_from_string},
     config::Config,
-    session::{get_current_session, session_set_keys, wait_for_session, send_change_members},
     staking::{nominate, bond, bonded, ledger, payout_stakers, validate, wait_for_full_era_completion},
     transfer::{locks, batch_endow_account_balances},
 };
-use common::{rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
+use common::{wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
 use log::info;
 use pallet_staking::StakingLedger;
 use primitives::TOKEN_DECIMALS;
@@ -106,9 +105,10 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     // it's essential since keys from rotate_keys() needs to be run against that node
     let connection = create_connection(node).set_signer(sender);
 
-    send_change_members(
+    change_members(
         &connection,
         convert_authorities_to_account_id(validator_accounts.clone()),
+        XtStatus::InBlock,
     );
 
     let current_session = get_current_session(&connection);
@@ -134,7 +134,8 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     );
 
     let validator_keys = rotate_keys(&connection).unwrap().unwrap();
-    session_set_keys(node, &controller, validator_keys, XtStatus::InBlock);
+    let controller_connection = create_connection(node).set_signer(controller.clone());
+    set_keys(&controller_connection, validator_keys, XtStatus::InBlock);
 
     // to be elected in next era instead of expected validator_account_id
     validate(node, &controller, XtStatus::InBlock);
@@ -159,9 +160,10 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     );
 
     validator_accounts.push(stash.clone());
-    send_change_members(
+    change_members(
         &connection,
         convert_authorities_to_account_id(validator_accounts.clone()),
+        XtStatus::InBlock,
     );
     let current_session = get_current_session(&connection);
     let _ = wait_for_session(&connection, current_session + 2)?;

@@ -1,12 +1,11 @@
 use codec::Decode;
 use log::info;
 use sp_core::Pair;
-use substrate_api_client::AccountId;
-use common::{create_connection, wait_for_event, Header};
+use substrate_api_client::{AccountId, XtStatus};
+use common::{change_members, create_connection, wait_for_event, Header};
 use crate::{
     accounts::{accounts_from_seeds, get_sudo},
     config::Config,
-    session::send_change_members,
     waiting::wait_for_finalized_block,
 };
 
@@ -28,7 +27,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     accounts.remove(0);
     let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
-    send_change_members(&connection, new_members.clone());
+    change_members(&connection, new_members.clone(), XtStatus::InBlock);
 
     #[derive(Debug, Decode, Clone)]
     struct NewMembersEvent {

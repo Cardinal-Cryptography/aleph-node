@@ -1,11 +1,30 @@
-use crate::AccountId;
-use codec::Decode;
-use common::{SessionKeys, wait_for_event, send_xt, BlockNumber, Connection, KeyPair, create_connection};
+use codec::{Encode, Decode};
+use crate::{wait_for_event, send_xt, BlockNumber, Connection};
 use log::info;
 use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
-pub fn send_change_members(sudo_connection: &Connection, new_members: Vec<AccountId>) {
+
+// Using custom struct and rely on default Encode trait from Parity's codec
+// it works since byte arrays are encoded in a straight forward way, it as-is
+#[derive(Debug, Encode, Clone)]
+pub struct Keys {
+    pub aura: [u8; 32],
+    pub aleph: [u8; 32],
+}
+
+// Manually implementing decoding
+impl From<Vec<u8>> for Keys {
+    fn from(bytes: Vec<u8>) -> Self {
+        assert_eq!(bytes.len(), 64);
+        Self {
+            aura: bytes[0..32].try_into().unwrap(),
+            aleph: bytes[32..64].try_into().unwrap(),
+        }
+    }
+}
+
+pub fn change_members(sudo_connection: &Connection, new_members: Vec<AccountId>, status: XtStatus) {
     info!("New members {:#?}", new_members);
     let call = compose_call!(
         sudo_connection.metadata,
@@ -24,29 +43,27 @@ pub fn send_change_members(sudo_connection: &Connection, new_members: Vec<Accoun
         &sudo_connection,
         xt.hex_encode(),
         "sudo_unchecked_weight",
-        XtStatus::InBlock,
+        status,
     );
 }
 
-pub fn session_set_keys(
-    address: &str,
-    signer: &KeyPair,
-    new_keys: SessionKeys,
-    tx_status: XtStatus,
+pub fn set_keys(
+    connection: &Connection,
+    new_keys: Keys,
+    status: XtStatus,
 ) {
-    let connection = create_connection(address).set_signer(signer.clone());
     let xt = compose_extrinsic!(connection, "Session", "set_keys", new_keys, 0u8);
-    send_xt(&connection, xt.hex_encode(), "set_keys", tx_status);
+    send_xt(&connection, xt.hex_encode(), "set_keys", status);
 }
 
-pub fn get_current_session(connection: &Connection) -> u32 {
+pub fn get_current(connection: &Connection) -> u32 {
     connection
         .get_storage_value("Session", "CurrentIndex", None)
         .unwrap()
         .unwrap()
 }
 
-pub fn wait_for_session(
+pub fn wait_for(
     connection: &Connection,
     session_index: u32,
 ) -> anyhow::Result<BlockNumber> {

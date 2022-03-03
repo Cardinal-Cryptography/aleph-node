@@ -1,6 +1,5 @@
 use std::{thread::sleep, time::Duration};
 use log::{warn, info};
-use codec::Encode;
 use sp_core::sr25519;
 use sp_runtime::{
     generic::Header as GenericHeader,
@@ -13,9 +12,17 @@ use substrate_api_client::{
 
 mod waiting;
 mod rpc;
+mod session;
 
 pub use waiting::wait_for_event;
 pub use rpc::rotate_keys;
+pub use session::{
+    set_keys,
+    Keys as SessionKeys,
+    get_current as get_current_session,
+    wait_for as wait_for_session,
+    change_members,
+};
 
 pub trait FromStr: Sized {
     type Err;
@@ -71,23 +78,4 @@ pub fn send_xt(connection: &Connection, xt: String, xt_name: &'static str, tx_st
         "Transaction {} was included in block {}.",
         xt_name, block_number
     );
-}
-
-// Using custom struct and rely on default Encode trait from Parity's codec
-// it works since byte arrays are encoded in a straight forward way, it as-is
-#[derive(Debug, Encode, Clone)]
-pub struct SessionKeys {
-    pub aura: [u8; 32],
-    pub aleph: [u8; 32],
-}
-
-// Manually implementing decoding
-impl From<Vec<u8>> for SessionKeys {
-    fn from(bytes: Vec<u8>) -> Self {
-        assert_eq!(bytes.len(), 64);
-        Self {
-            aura: bytes[0..32].try_into().unwrap(),
-            aleph: bytes[32..64].try_into().unwrap(),
-        }
-    }
 }
