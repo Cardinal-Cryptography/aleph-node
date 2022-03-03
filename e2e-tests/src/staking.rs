@@ -1,6 +1,5 @@
 use crate::session::wait_for_session;
-use crate::{send_xt, BlockNumber, Connection, KeyPair};
-use common::create_connection;
+use common::{create_connection, send_xt, BlockNumber, Connection, KeyPair};
 use log::info;
 use pallet_staking::{RewardDestination, ValidatorPrefs};
 use primitives::Balance;

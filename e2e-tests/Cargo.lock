@@ -381,6 +381,7 @@ dependencies = [
  "parity-scale-codec",
  "serde_json",
  "sp-core",
+ "sp-runtime",
  "substrate-api-client",
  "ws",
 ]

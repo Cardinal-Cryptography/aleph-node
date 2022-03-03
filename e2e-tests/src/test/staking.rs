@@ -1,16 +1,11 @@
-use crate::rpc::get_author_rotate_keys;
-use crate::session::{get_current_session, session_set_keys, wait_for_session};
-use crate::staking::{nominate, wait_for_full_era_completion};
-use crate::transfer::locks;
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds, keypair_from_string},
     config::Config,
-    session::send_change_members,
-    staking::{bond, bonded, ledger, payout_stakers, validate},
-    transfer::batch_endow_account_balances,
-    BlockNumber, Connection, KeyPair,
+    session::{get_current_session, session_set_keys, wait_for_session, send_change_members},
+    staking::{nominate, bond, bonded, ledger, payout_stakers, validate, wait_for_full_era_completion},
+    transfer::{locks, batch_endow_account_balances},
 };
-use common::create_connection;
+use common::{rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
 use log::info;
 use pallet_staking::StakingLedger;
 use primitives::TOKEN_DECIMALS;
@@ -138,7 +133,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = get_author_rotate_keys(&connection).unwrap().unwrap();
+    let validator_keys = rotate_keys(&connection).unwrap().unwrap();
     session_set_keys(node, &controller, validator_keys, XtStatus::InBlock);
 
     // to be elected in next era instead of expected validator_account_id

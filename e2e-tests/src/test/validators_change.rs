@@ -1,14 +1,14 @@
 use codec::Decode;
-use common::create_connection;
 use log::info;
 use sp_core::Pair;
 use substrate_api_client::AccountId;
-
-use crate::accounts::{accounts_from_seeds, get_sudo};
-use crate::config::Config;
-use crate::session::send_change_members;
-use crate::waiting::wait_for_finalized_block;
-use crate::{wait_for_event, Header};
+use common::{create_connection, wait_for_event, Header};
+use crate::{
+    accounts::{accounts_from_seeds, get_sudo},
+    config::Config,
+    session::send_change_members,
+    waiting::wait_for_finalized_block,
+};
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let Config {

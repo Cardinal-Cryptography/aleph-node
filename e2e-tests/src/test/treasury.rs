@@ -3,10 +3,9 @@ use crate::{
     config::Config,
     fee::get_tx_fee_info,
     transfer::{setup_for_transfer, transfer},
-    wait_for_event, Connection,
 };
 use codec::{Compact, Decode};
-use common::create_connection;
+use common::{create_connection, wait_for_event, Connection};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;

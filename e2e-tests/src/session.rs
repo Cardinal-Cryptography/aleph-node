@@ -1,28 +1,9 @@
-use crate::{wait_for_event, send_xt, AccountId, BlockNumber, Connection, KeyPair};
-use codec::{Decode, Encode};
-use common::create_connection;
+use crate::AccountId;
+use codec::Decode;
+use common::{SessionKeys, wait_for_event, send_xt, BlockNumber, Connection, KeyPair, create_connection};
 use log::info;
 use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
-
-// Using custom struct and rely on default Encode trait from Parity's codec
-// it works since byte arrays are encoded in a straight forward way, it as-is
-#[derive(Debug, Encode, Clone)]
-pub struct TestSessionKeys {
-    pub aura: [u8; 32],
-    pub aleph: [u8; 32],
-}
-
-// Manually implementing decoding
-impl From<Vec<u8>> for TestSessionKeys {
-    fn from(bytes: Vec<u8>) -> Self {
-        assert_eq!(bytes.len(), 64);
-        Self {
-            aura: bytes[0..32].try_into().unwrap(),
-            aleph: bytes[32..64].try_into().unwrap(),
-        }
-    }
-}
 
 pub fn send_change_members(sudo_connection: &Connection, new_members: Vec<AccountId>) {
     info!("New members {:#?}", new_members);
@@ -50,7 +31,7 @@ pub fn send_change_members(sudo_connection: &Connection, new_members: Vec<Accoun
 pub fn session_set_keys(
     address: &str,
     signer: &KeyPair,
-    new_keys: TestSessionKeys,
+    new_keys: SessionKeys,
     tx_status: XtStatus,
 ) {
     let connection = create_connection(address).set_signer(signer.clone());
