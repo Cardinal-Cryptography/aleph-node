@@ -205,8 +205,11 @@ pub fn devnet_config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let stakers = to_account_ids(&authorities).collect();
-    generate_chain_spec_config(chain_params, authorities, stakers)
+    // TODO fix it properly so there's a default configuration for distinct stash and controller
+    // accounts, and linked controller accounts with validators
+    // for now it's better to leave it as empty not to imply (not advised) initial staking configuration
+    // in which stash == controller == validator
+    generate_chain_spec_config(chain_params, authorities, vec![])
 }
 
 pub fn config(
