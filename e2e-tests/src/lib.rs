@@ -10,9 +10,9 @@ pub mod config;
 mod fee;
 pub mod rpc;
 pub mod session;
-mod staking;
+pub mod staking;
 pub mod test;
-mod transfer;
+pub mod transfer;
 mod waiting;
 
 type BlockNumber = u32;

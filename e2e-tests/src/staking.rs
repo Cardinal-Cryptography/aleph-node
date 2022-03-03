@@ -1,8 +1,10 @@
 use crate::session::wait_for_session;
+use crate::transfer::locks;
 use crate::{send_xt, BlockNumber, Connection, KeyPair};
 use common::create_connection;
 use log::info;
-use pallet_staking::{RewardDestination, ValidatorPrefs};
+pub use pallet_staking::RewardDestination;
+use pallet_staking::ValidatorPrefs;
 use primitives::Balance;
 use sp_core::crypto::AccountId32;
 use sp_core::Pair;
@@ -96,4 +98,43 @@ pub fn wait_for_era_completion(
     let first_session_in_next_era = next_era_index * sessions_per_era;
     wait_for_session(connection, first_session_in_next_era)?;
     Ok(next_era_index)
+}
+
+pub fn check_non_zero_payouts_for_era(
+    node: &String,
+    stash: &KeyPair,
+    connection: &Connection,
+    era: BlockNumber,
+) {
+    let stash_account = AccountId::from(stash.public());
+    let locked_stash_balance_before_payout = locks(&connection, &stash);
+    assert!(
+        locked_stash_balance_before_payout.is_some(),
+        "Expected non-empty locked balances for account {}!",
+        stash_account
+    );
+    let locked_stash_balance_before_payout = locked_stash_balance_before_payout.unwrap();
+    assert_eq!(
+        locked_stash_balance_before_payout.len(),
+        1,
+        "Expected locked balances for account {} to have exactly one entry!",
+        stash_account
+    );
+    payout_stakers(node, stash.clone(), era - 1);
+    let locked_stash_balance_after_payout = locks(&connection, &stash);
+    assert!(
+        locked_stash_balance_after_payout.is_some(),
+        "Expected non-empty locked balances for account {}!",
+        stash_account
+    );
+    let locked_stash_balance_after_payout = locked_stash_balance_after_payout.unwrap();
+    assert_eq!(
+        locked_stash_balance_after_payout.len(),
+        1,
+        "Expected non-empty locked balances for account to have exactly one entry {}!",
+        stash_account
+    );
+    assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
+            "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
+            stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
 }

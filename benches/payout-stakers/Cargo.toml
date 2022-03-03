@@ -10,18 +10,15 @@ git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git"
 tag = "polkadot-v0.9.13.b2bfc0c3"
 
 [dependencies]
-# Substrate dependencies
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-
-# other dependencies
-zip = "0.5"
-anyhow = "^1.0"
-clap = {version = "3.0.0-beta.5", features = ["derive"]}
-codec = { package = 'parity-scale-codec', version = "2.0.0", features = ['derive']}
 common = {path = "../../common" }
+e2e = {path = "../../e2e-tests", package = "aleph-e2e-client"}
+primitives = {path = "../../primitives"}
+
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
+sp-keyring = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+codec = { package = 'parity-scale-codec', version = "2.0.0", features = ['derive']}
+
+anyhow = "^1.0"
 env_logger = "0.8"
-futures = { version = "0.3", features = ["alloc"] }
-hdrhistogram = "7.3.0"
 log = "0.4"
 rayon = "1.5.1"

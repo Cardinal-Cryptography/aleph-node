@@ -135,8 +135,8 @@ pub fn native_version() -> NativeVersion {
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
-const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
-// We agreed to 5MB as the block size limit.
+const MAX_BLOCK_WEIGHT: Weight = 2 * 400 * WEIGHT_PER_MILLIS; // NOTE: tmp increase
+                                                              // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 parameter_types! {
@@ -354,7 +354,7 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
-    pub const MaxNominatorRewardedPerValidator: u32 = 512;
+    pub const MaxNominatorRewardedPerValidator: u32 = 2*512; // NOTE: tmp increase
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;

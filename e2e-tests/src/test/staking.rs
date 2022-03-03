@@ -1,14 +1,13 @@
 use crate::rpc::get_author_rotate_keys;
 use crate::session::{get_current_session, session_set_keys, wait_for_session};
-use crate::staking::{nominate, wait_for_full_era_completion};
-use crate::transfer::locks;
+use crate::staking::{check_non_zero_payouts_for_era, nominate, wait_for_full_era_completion};
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds, keypair_from_string},
     config::Config,
     session::send_change_members,
-    staking::{bond, bonded, ledger, payout_stakers, validate},
+    staking::{bond, bonded, ledger, validate},
     transfer::batch_endow_account_balances,
-    BlockNumber, Connection, KeyPair,
+    KeyPair,
 };
 use common::create_connection;
 use log::info;
@@ -181,43 +180,4 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     check_non_zero_payouts_for_era(node, &stash, &connection, current_era);
 
     Ok(())
-}
-
-fn check_non_zero_payouts_for_era(
-    node: &String,
-    stash: &KeyPair,
-    connection: &Connection,
-    era: BlockNumber,
-) {
-    let stash_account = AccountId::from(stash.public());
-    let locked_stash_balance_before_payout = locks(&connection, &stash);
-    assert!(
-        locked_stash_balance_before_payout.is_some(),
-        "Expected non-empty locked balances for account {}!",
-        stash_account
-    );
-    let locked_stash_balance_before_payout = locked_stash_balance_before_payout.unwrap();
-    assert_eq!(
-        locked_stash_balance_before_payout.len(),
-        1,
-        "Expected locked balances for account {} to have exactly one entry!",
-        stash_account
-    );
-    payout_stakers(node, stash.clone(), era - 1);
-    let locked_stash_balance_after_payout = locks(&connection, &stash);
-    assert!(
-        locked_stash_balance_after_payout.is_some(),
-        "Expected non-empty locked balances for account {}!",
-        stash_account
-    );
-    let locked_stash_balance_after_payout = locked_stash_balance_after_payout.unwrap();
-    assert_eq!(
-        locked_stash_balance_after_payout.len(),
-        1,
-        "Expected non-empty locked balances for account to have exactly one entry {}!",
-        stash_account
-    );
-    assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
-            "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
-            stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
 }
