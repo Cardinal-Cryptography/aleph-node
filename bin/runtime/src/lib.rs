@@ -311,6 +311,10 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
 }
 
+impl pallet_tendermint_light_client::Config for Runtime {
+    type Event = Event;
+}
+
 impl_opaque_keys! {
     pub struct SessionKeys {
         pub aura: Aura,
@@ -539,6 +543,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        TendermintLightClient: pallet_tendermint_light_client::{Pallet, Storage, Event<T>} = 18,
     }
 );
 
