@@ -8,14 +8,12 @@ use sp_runtime::{
 };
 use substrate_api_client::{
     Api, RpcClient, XtStatus,
-    rpc::ws_client::WsRpcClient as SubstrateWsRpcClient,
+    rpc::ws_client::WsRpcClient,
 };
 
-mod ws_rpc_client;
 mod waiting;
 mod rpc;
 
-pub use ws_rpc_client::WsRpcClient;
 pub use waiting::wait_for_event;
 pub use rpc::rotate_keys;
 
@@ -25,26 +23,18 @@ pub trait FromStr: Sized {
     fn from_str(s: &str) -> Result<Self, Self::Err>;
 }
 
-impl FromStr for substrate_api_client::rpc::ws_client::WsRpcClient {
+impl FromStr for WsRpcClient {
     type Err = ();
 
     fn from_str(url: &str) -> Result<Self, Self::Err> {
-        Ok(substrate_api_client::rpc::ws_client::WsRpcClient::new(url))
-    }
-}
-
-impl FromStr for WsRpcClient {
-    type Err = String;
-
-    fn from_str(url: &str) -> Result<Self, Self::Err> {
-        WsRpcClient::new(url)
+        Ok(WsRpcClient::new(url))
     }
 }
 
 pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
-pub type Connection = Api<KeyPair, SubstrateWsRpcClient>;
+pub type Connection = Api<KeyPair, WsRpcClient>;
 
 pub fn create_connection(address: &str) -> Connection {
     create_custom_connection(address).expect("connection should be created")

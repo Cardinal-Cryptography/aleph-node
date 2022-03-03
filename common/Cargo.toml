@@ -15,8 +15,6 @@ sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "po
 
 # other dependencies
 log = "0.4"
-mio = { version = "0.6.14" }
 serde_json = { version = "1.0" }
-ws = { version = "0.9.1", features = ["ssl"] }
 anyhow = "1.0"
 codec = { package = 'parity-scale-codec', version = "2.0.0", default-features = false,  features = ['derive']}

@@ -15,6 +15,9 @@ sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polka
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
 # other dependencies
+serde_json = { version = "1.0" }
+ws = { version = "0.9.1", features = ["ssl"] }
+mio = { version = "0.6.14" }
 zip = "0.5"
 anyhow = "^1.0"
 clap = {version = "3.0.0-beta.5", features = ["derive"]}
