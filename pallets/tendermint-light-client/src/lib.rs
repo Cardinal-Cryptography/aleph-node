@@ -3,12 +3,21 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
+use scale_info::TypeInfo;
+
+// #[cfg(feature = "std")]
+// use serde::{Deserialize, Serialize};
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
+// #[derive(Clone, Copy, TypeInfo)]
+// pub enum TrustThresholdFraction {
+//     ONE_THIRD,
+//     TWO_THIRDS,
+// }
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -22,11 +31,16 @@ pub mod pallet {
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
-    use tendermint_light_client_verifier::types::LightBlock;
+    use tendermint_light_client_verifier::{
+        types::{LightBlock, TrustThreshold},
+        ProdVerifier,
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        // #[pallet::constant]
+        // type ValidatorSetTrustThreshold: Get<TrustThresholdFraction>;
     }
 
     #[pallet::pallet]
@@ -64,8 +78,11 @@ pub mod pallet {
     #[pallet::getter(fn is_halted)]
     pub type IsHalted<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-    // TODO : calls
+    // #[pallet::storage]
+    // #[pallet::getter(fn trusted_state)]
+    // pub type <T: Config> = StorageValue<_, bool, ValueQuery>;
 
+    // TODO : calls
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         // TODO : adjust weight
@@ -79,9 +96,12 @@ pub mod pallet {
         }
 
         // TODO : adjust weight
+        /// Verify a block header against a known state.        
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         pub fn submit_finality_proof(origin: OriginFor<T>) -> DispatchResult {
             ensure_not_halted::<T>()?;
+
+            let verifier = ProdVerifier::default();
 
             // TODO : types for justification and header
 
@@ -92,7 +112,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Halt or resume all operations.
+        /// Halt or resume all light client operations
         ///
         /// Can only be called by root
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
@@ -112,7 +132,7 @@ pub mod pallet {
         }
     }
 
-    /// Ensure that the bridge is not in a halted state
+    /// Ensure that the light client is not in a halted state
     fn ensure_not_halted<T: Config>() -> Result<(), Error<T>> {
         if <IsHalted<T>>::get() {
             Err(<Error<T>>::Halted)
