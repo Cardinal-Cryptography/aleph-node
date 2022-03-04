@@ -3,7 +3,7 @@
 function usage(){
   echo "Usage:
       ./run_nodes.sh [-v N_VALIDATORS] [-n N_NON_VALIDATORS] [-b false] [-p BASE_PATH] [-l N_LISTENERES] [ALEPH_NODE_ARG]...
-  where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS <= 10
+  where 2 <= N_VALIDATORS <= N_VALIDATORS + N_NON_VALIDATORS + N_LISTENERES <= 10
   (by default, N_VALIDATORS=4, N_NON_VALIDATORS=0, N_LISTENERES=0 and BASE_PATH=/tmp)"
 }
 
@@ -79,12 +79,17 @@ for i in 0 1; do
     bootnodes+=${addresses[i]}
 done
 
-for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
+run_node() {
+  i=$1
+  is_validator=$2
   auth=node-$i
   account_id=${account_ids[$i]}
+
+  [[ $is_validator = true ]] && validator=--validator || validator=""
+
   ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
   ./target/release/aleph-node \
-    --validator \
+    $validator \
     --chain $BASE_PATH/chainspec.json \
     --base-path $BASE_PATH/$account_id \
     --name $auth \
@@ -103,35 +108,13 @@ for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
     -laleph-justification=debug \
     -laleph-data-store=debug \
     -laleph-metrics=debug \
-    "$@" \
     2> $auth.log > /dev/null & \
+}
+
+for i in $(seq 0 "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
+  run_node "$i" true
 done
 
 for i in $(seq "$(( N_VALIDATORS + N_NON_VALIDATORS))" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 + N_LISTENERES))"); do
-  auth=node-$i
-  account_id=${account_ids[$i]}
-  ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
-  ./target/release/aleph-node \
-    --validator \
-    --chain $BASE_PATH/chainspec.json \
-    --base-path $BASE_PATH/$account_id \
-    --name $auth \
-    --node-type nonvalidator \
-    --rpc-port $((9933 + i)) \
-    --ws-port $((9944 + i)) \
-    --port $((30334 + i)) \
-    --bootnodes $bootnodes \
-    --node-key-file $BASE_PATH/$account_id/p2p_secret \
-    --unit-creation-delay 500 \
-    --execution Native \
-    --rpc-cors=all \
-    --no-mdns \
-    -laleph-party=debug \
-    -laleph-network=debug \
-    -laleph-finality=debug \
-    -laleph-justification=debug \
-    -laleph-data-store=debug \
-    -laleph-metrics=debug \
-    "$@" \
-    2> $auth.log > /dev/null & \
+  run_node "$i" false
 done

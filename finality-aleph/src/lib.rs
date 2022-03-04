@@ -1,6 +1,5 @@
 use crate::{
     network::{AlephNetworkData, RmcNetworkData, Split},
-    nodes::AlephParams,
     session::{
         first_block_of_session, last_block_of_session, session_id_from_block_num,
         SessionBoundaries, SessionId,
@@ -8,14 +7,13 @@ use crate::{
 };
 use aleph_bft::{NodeIndex, TaskHandle};
 use codec::{Decode, Encode};
-use futures::{channel::mpsc, channel::oneshot, Future, FutureExt, TryFutureExt};
+use futures::{channel::mpsc, channel::oneshot, Future, TryFutureExt};
 use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
 use sc_network::{ExHashT, NetworkService};
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use std::{fmt::Debug, sync::Arc};
@@ -42,17 +40,12 @@ pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 pub use import::AlephBlockImport;
 pub use justification::JustificationNotification;
 pub use network::Protocol;
-pub use nodes::{run_validator_node, run_nonvalidator_node};
+pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
 
 #[derive(Clone, Debug, Encode, Decode)]
 enum Error {
     SendData,
-}
-
-pub enum NodeType {
-    Validator,
-    NonValidator,
 }
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
@@ -179,20 +172,4 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
-    pub node_type: NodeType,
-}
-
-pub fn run_aleph_consensus<B: Block, BE, C, H: ExHashT, SC>(
-    config: AlephConfig<B, H, C, SC>,
-) -> impl Future<Output = ()>
-where
-    BE: Backend<B> + 'static,
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
-    SC: SelectChain<B> + 'static,
-{
-    match config.node_type {
-        NodeType::Validator => run_validator_node(AlephParams { config }).boxed(),
-        NodeType::NonValidator => run_nonvalidator_node(AlephParams { config }).boxed(),
-    }
 }

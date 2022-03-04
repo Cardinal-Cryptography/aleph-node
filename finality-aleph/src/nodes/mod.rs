@@ -14,7 +14,7 @@ use crate::{
     mpsc::UnboundedSender,
     session_id_from_block_num,
     session_map::ReadOnlySessionMap,
-    AlephConfig, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
+    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 use sc_client_api::Backend;
 use sc_network::{ExHashT, NetworkService};
@@ -23,10 +23,6 @@ use std::{future::Future, sync::Arc};
 
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
-
-pub struct AlephParams<B: Block, H: ExHashT, C, SC> {
-    pub config: AlephConfig<B, H, C, SC>,
-}
 
 struct JustificationParams<B: Block, H: ExHashT, C> {
     pub network: Arc<NetworkService<B, H>>,

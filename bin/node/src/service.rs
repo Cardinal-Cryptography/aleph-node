@@ -5,8 +5,8 @@ use crate::executor::AlephExecutor;
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
-    run_aleph_consensus, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, NodeType, Protocol, SessionPeriod,
+    run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
+    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -320,12 +320,11 @@ pub fn new_full(
         justification_rx,
         metrics,
         unit_creation_delay,
-        node_type: NodeType::Validator,
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
         None,
-        run_aleph_consensus(aleph_config),
+        run_validator_node(aleph_config),
     );
 
     network_starter.start_network();
@@ -385,13 +384,12 @@ pub fn new_nonvalidator(
         justification_rx,
         metrics,
         unit_creation_delay,
-        node_type: NodeType::NonValidator,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
         None,
-        run_aleph_consensus(aleph_config),
+        run_nonvalidator_node(aleph_config),
     );
 
     network_starter.start_network();

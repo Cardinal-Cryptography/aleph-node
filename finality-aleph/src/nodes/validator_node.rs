@@ -4,10 +4,11 @@ use crate::{
         ConnectionIO, ConnectionManager, ConnectionManagerConfig, Service as NetworkService,
         SessionManager, IO as NetworkIO,
     },
-    nodes::{setup_justification_handler, AlephParams, JustificationParams},
+    nodes::{setup_justification_handler, JustificationParams},
     party::ConsensusParty,
     party::ConsensusPartyParams,
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
+    AlephConfig,
 };
 use log::{debug, error};
 use sc_client_api::Backend;
@@ -15,7 +16,7 @@ use sc_network::ExHashT;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
 
-pub async fn run_validator_node<B, H, C, BE, SC>(aleph_params: AlephParams<B, H, C, SC>)
+pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
 where
     B: Block,
     H: ExHashT,
@@ -24,22 +25,19 @@ where
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
-    let AlephParams {
-        config:
-            crate::AlephConfig {
-                network,
-                client,
-                select_chain,
-                spawn_handle,
-                keystore,
-                metrics,
-                unit_creation_delay,
-                session_period,
-                millisecs_per_block,
-                justification_rx,
-                ..
-            },
-    } = aleph_params;
+    let AlephConfig {
+        network,
+        client,
+        select_chain,
+        spawn_handle,
+        keystore,
+        metrics,
+        unit_creation_delay,
+        session_period,
+        millisecs_per_block,
+        justification_rx,
+        ..
+    } = aleph_config;
 
     let block_requester = network.clone();
     let map_updater = SessionMapUpdater::<_, _, B>::new(
