@@ -82,7 +82,11 @@ pub mod pallet {
         pub fn submit_finality_proof(origin: OriginFor<T>) -> DispatchResult {
             ensure_not_halted::<T>()?;
 
-            // TODO
+            // TODO : types for justification and header
+
+            // TODO : verify against known state
+
+            // TODO : udpate storage
 
             Ok(())
         }
