@@ -23,8 +23,8 @@ const NOMINATOR_COUNT: u64 = 1024;
 const VALIDATOR_COUNT: u64 = 4;
 
 // we need to schedule batches for limited call count, otherwise we'll exhaust a block
-const BOND_CALL_BATCH_LIMIT: usize = 512;
-const NOMINATE_CALL_BATCH_LIMIT: usize = 256;
+const BOND_CALL_BATCH_LIMIT: usize = 256;
+const NOMINATE_CALL_BATCH_LIMIT: usize = 128;
 
 // 1. Generate 1024 accounts
 // 2. set validators status to Validate
