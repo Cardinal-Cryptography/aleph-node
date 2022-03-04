@@ -211,7 +211,7 @@ fn setup(
 }
 
 /// Builds a new service for a full client.
-pub fn new_full(
+pub fn new_authority(
     mut config: Configuration,
     aleph_config: AlephCli,
 ) -> Result<TaskManager, ServiceError> {
@@ -331,7 +331,7 @@ pub fn new_full(
     Ok(task_manager)
 }
 
-pub fn new_nonvalidator(
+pub fn new_full(
     config: Configuration,
     aleph_config: AlephCli,
 ) -> Result<TaskManager, ServiceError> {

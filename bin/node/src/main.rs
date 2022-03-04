@@ -2,7 +2,7 @@ use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
 
-use aleph_node::{new_full, new_nonvalidator, new_partial, Cli, Subcommand};
+use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
@@ -79,10 +79,10 @@ fn main() -> sc_cli::Result<()> {
             runner.run_node_until_exit(|config| async move {
                 match config.role {
                     Role::Authority => {
-                        new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                        new_authority(config, aleph_cli_config).map_err(sc_cli::Error::Service)
                     }
                     Role::Full => {
-                        new_nonvalidator(config, aleph_cli_config).map_err(sc_cli::Error::Service)
+                        new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
                     }
                     // TODO: introduce apprioprate error here (no error in the sc_cli::Error is good here)
                     Role::Light => panic!("no light client yet"),
