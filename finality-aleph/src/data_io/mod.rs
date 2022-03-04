@@ -19,7 +19,7 @@ pub use data_store::{DataStore, DataStoreConfig};
 pub use proposal::{AlephProposal, UnvalidatedAlephProposal};
 
 // Maximum number of blocks above the last finalized allowed in an AlephBFT proposal.
-pub const MAX_DATA_BRANCH_LEN: u32 = 7;
+pub const MAX_DATA_BRANCH_LEN: usize = 7;
 
 /// The data ordered by the Aleph consensus.
 #[derive(Clone, Debug, Encode, Decode)]

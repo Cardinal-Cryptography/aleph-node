@@ -114,10 +114,6 @@ impl<B: BlockT> Index<usize> for AlephProposal<B> {
 }
 
 impl<B: BlockT> AlephProposal<B> {
-    pub fn new(branch: Vec<B::Hash>, number: NumberFor<B>) -> Self {
-        AlephProposal { branch, number }
-    }
-
     /// Outputs the length the branch.
     pub fn len(&self) -> usize {
         self.branch.len()
