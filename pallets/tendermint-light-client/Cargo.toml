@@ -10,7 +10,7 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 serde = "1.0"
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-io = { default-features = false, features = ["disable_oom", "disable_panic_handler"], git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 primitives = { path = "../../primitives", default-features = false}
 tendermint-light-client-verifier = { version = "0.24.0-pre.1", default-features = false }

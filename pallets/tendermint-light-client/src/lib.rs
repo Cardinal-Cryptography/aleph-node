@@ -22,6 +22,7 @@ pub mod pallet {
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
+    use tendermint_light_client_verifier::types::LightBlock;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
