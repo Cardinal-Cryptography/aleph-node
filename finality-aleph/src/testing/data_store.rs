@@ -1,11 +1,13 @@
-use crate::data_io::{
-    AlephData, AlephNetworkMessage, DataStore, DataStoreConfig,
-    UnvalidatedAlephProposal, MAX_DATA_BRANCH_LEN,
+use crate::{
+    data_io::{
+        AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, UnvalidatedAlephProposal,
+        MAX_DATA_BRANCH_LEN,
+    },
+    network::{DataNetwork, RequestBlocks, SimpleNetwork},
+    session::{SessionBoundaries, SessionId, SessionPeriod},
+    testing::client_chain_builder::ChainBuilder,
+    BlockHashNum,
 };
-use crate::network::{DataNetwork, RequestBlocks, SimpleNetwork};
-use crate::session::{SessionBoundaries, SessionId, SessionPeriod};
-
-use crate::BlockHashNum;
 use futures::{
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -13,23 +15,16 @@ use futures::{
     },
     StreamExt,
 };
-use sc_block_builder::BlockBuilderProvider;
-use sc_client_api::HeaderBackend;
-use sp_api::BlockId;
 use sp_api::NumberFor;
-use sp_consensus::BlockOrigin;
 pub use sp_core::hash::H256;
 use sp_runtime::traits::Block as BlockT;
-use sp_runtime::Digest;
-use std::{default::Default, future::Future, sync::Arc, time::Duration};
+use std::{future::Future, sync::Arc, time::Duration};
 use substrate_test_runtime_client::{
     runtime::{Block, Header},
-    ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt, TestClient,
-    TestClientBuilder, TestClientBuilderExt,
+    DefaultTestClientBuilderExt, TestClient, TestClientBuilder, TestClientBuilderExt,
 };
 
 use tokio::time::timeout;
-
 
 fn unvalidated_proposal_from_headers(blocks: Vec<Header>) -> UnvalidatedAlephProposal<Block> {
     let num = blocks.last().unwrap().number;
@@ -100,92 +95,39 @@ impl AlephNetworkMessage<Block> for TestData {
 }
 
 struct TestHandler {
-    client: Arc<TestClient>,
-    // We need to have a second client, for the purpose of creating blocks only
-    client_builder: Arc<TestClient>,
+    chain_builder: ChainBuilder,
     block_requests_rx: UnboundedReceiver<BlockHashNum<Block>>,
     network_tx: UnboundedSender<TestData>,
     exit_data_store_tx: oneshot::Sender<()>,
-    unique_seed: u32,
     network: Box<dyn DataNetwork<TestData>>,
-    //<TestData , UnboundedReceiver<TestData>, UnboundedSender<TestData>>,
 }
 
 impl TestHandler {
-    /// Import block in test client
-    async fn import_block(&mut self, block: Block, finalize: bool) {
-        if finalize {
-            self.client.import_as_final(BlockOrigin::Own, block.clone())
-        } else {
-            self.client.import(BlockOrigin::Own, block.clone())
-        }
-        .await
-        .unwrap();
-    }
-
     /// Finalize block with given hash without providing justification.
     fn finalize_block(&self, hash: &H256) {
-        self.client
-            .finalize_block(BlockId::Hash(*hash), None)
-            .unwrap();
+        self.chain_builder.finalize_block(hash);
     }
 
     fn genesis_hash(&mut self) -> H256 {
-        assert_eq!(
-            self.client.info().genesis_hash,
-            self.client_builder.info().genesis_hash
-        );
-        self.client.info().genesis_hash
-    }
-
-    fn get_unique_bytes(&mut self) -> Vec<u8> {
-        self.unique_seed += 1;
-        self.unique_seed.to_be_bytes().to_vec()
+        self.chain_builder.genesis_hash()
     }
 
     fn get_header_at(&self, num: u64) -> Header {
-        self.client_builder
-            .header(&BlockId::Number(num))
-            .unwrap()
-            .unwrap()
+        self.chain_builder.get_header_at(num)
     }
 
     async fn build_block_at_hash(&mut self, hash: &H256) -> Block {
-        let unique_bytes: Vec<u8> = self.get_unique_bytes();
-        let mut digest = Digest::default();
-        digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
-        let block = self
-            .client_builder
-            .new_block_at(&BlockId::Hash(hash.clone()), digest, false)
-            .unwrap()
-            .build()
-            .unwrap()
-            .block;
-
-        self.client_builder
-            .import(BlockOrigin::Own, block.clone())
-            .await
-            .unwrap();
-        block
+        self.chain_builder.build_block_at_hash(hash).await
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
     async fn build_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
-        let mut blocks = Vec::new();
-        let mut prev_hash = *hash;
-        for _i in 0..len {
-            let block = self.build_block_at_hash(&prev_hash).await;
-            prev_hash = block.hash();
-            blocks.push(block);
-        }
-        blocks
+        self.chain_builder.build_branch_upon(hash, len).await
     }
 
     /// imports a sequence of blocks, should be in correct order
     async fn import_branch(&mut self, blocks: Vec<Block>, finalize: bool) {
-        for block in blocks {
-            self.import_block(block.clone(), finalize).await;
-        }
+        self.chain_builder.import_branch(blocks, finalize).await;
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len` and imports them
@@ -195,9 +137,9 @@ impl TestHandler {
         len: usize,
         finalize: bool,
     ) -> Vec<Block> {
-        let blocks = self.build_branch_upon(hash, len).await;
-        self.import_branch(blocks.clone(), finalize).await;
-        blocks
+        self.chain_builder
+            .build_and_import_branch_upon(hash, len, finalize)
+            .await
     }
 
     /// Sends data to Data Store
@@ -218,29 +160,21 @@ impl TestHandler {
     async fn assert_no_message_out(&mut self, err_message: &'static str) {
         assert!(
             timeout(TIMEOUT_FAIL, self.network.next()).await.is_err(),
-            "{}", err_message
+            "{}",
+            err_message
         );
     }
 
     async fn assert_message_out(&mut self, err_message: &'static str) -> TestData {
-
         timeout(TIMEOUT_SUCC, self.network.next())
             .await
             .expect(err_message)
             .expect(err_message)
     }
-
 }
 
-
-
-
-fn prepare_data_store() -> (
-    impl Future<Output = ()>,
-    TestHandler,
-) {
+fn prepare_data_store() -> (impl Future<Output = ()>, TestHandler) {
     let client = Arc::new(TestClientBuilder::new().build());
-    let client_builder = Arc::new(TestClientBuilder::new().build());
 
     let (block_requester, block_requests_rx, _justification_requests_rx) =
         TestBlockRequester::new();
@@ -256,17 +190,9 @@ fn prepare_data_store() -> (
         request_block_after: Duration::from_millis(30),
     };
 
-    // fn new<N: ComponentNetwork<Message, R = R>>(
-    //         session_boundaries: SessionBoundaries<B>,
-    //         client: Arc<C>,
-    //         block_requester: RB,
-    //         config: DataStoreConfig,
-    //         component_network: N,
-    //     )
     let session_period: SessionPeriod = SessionPeriod(50);
     let session_id = SessionId(0);
     let session_boundaries = SessionBoundaries::new(session_id, session_period);
-    //DataStore<B, C, RB, Message, R>
     let (mut data_store, network) = DataStore::<
         Block,
         TestClient,
@@ -280,6 +206,8 @@ fn prepare_data_store() -> (
         data_store_config,
         test_network,
     );
+
+    let chain_builder = ChainBuilder::new(client, Arc::new(TestClientBuilder::new().build()));
     let (exit_data_store_tx, exit_data_store_rx) = oneshot::channel();
 
     (
@@ -287,14 +215,12 @@ fn prepare_data_store() -> (
             data_store.run(exit_data_store_rx).await;
         },
         TestHandler {
-            client,
-            client_builder,
+            chain_builder,
             block_requests_rx,
             network_tx,
             exit_data_store_tx,
-            unique_seed: 0,
             network: Box::new(network),
-        }
+        },
     )
 }
 
@@ -325,7 +251,9 @@ async fn correct_messages_go_through() {
         let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
         test_handler.send_data(test_data.clone());
 
-        let message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+        let message = test_handler
+            .assert_message_out("Did not receive message from Data Store")
+            .await;
         assert_eq!(message.included_data(), test_data);
     }
 
@@ -348,7 +276,9 @@ async fn too_long_branch_message_does_not_go_through() {
     let blocks_branch = blocks[0..((MAX_DATA_BRANCH_LEN + 1) as usize)].to_vec();
     let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
     test_handler.send_data(test_data.clone());
-    test_handler.assert_no_message_out("Data Store let through a too long message").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a too long message")
+        .await;
 
     test_handler.exit();
     data_store_handle.await.unwrap();
@@ -368,11 +298,15 @@ async fn branch_with_not_finalized_ancestor_correctly_handled() {
     let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
     test_handler.send_data(test_data.clone());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not finalized ancestor").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not finalized ancestor")
+        .await;
 
     // After the block gets finalized the message should be let through
     test_handler.finalize_block(&blocks[0].hash());
-    let message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    let message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
     assert_eq!(message.included_data(), test_data);
     test_handler.exit();
     data_store_handle.await.unwrap();
@@ -393,13 +327,16 @@ async fn correct_messages_go_through_with_late_import() {
         test_handler.send_data(test_data.clone());
     }
 
-
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
     test_handler.import_branch(blocks, false).await;
 
     for _ in 1..=MAX_DATA_BRANCH_LEN {
-        let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+        let _message = test_handler
+            .assert_message_out("Did not receive message from Data Store")
+            .await;
     }
 
     test_handler.exit();
@@ -422,16 +359,22 @@ async fn message_with_multiple_data_gets_through_when_it_should() {
     }
     test_handler.send_data(test_data.clone());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not finalized ancestor").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not finalized ancestor")
+        .await;
 
     test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN + 7].hash());
     // This should not be enough yet (ancestor not finalized for some data items)
 
-    test_handler.assert_no_message_out("Data Store let through a message with not finalized ancestor").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not finalized ancestor")
+        .await;
 
     test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN + 8].hash());
 
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    let _message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
     test_handler.exit();
     data_store_handle.await.unwrap();
 }
@@ -449,7 +392,9 @@ async fn sends_block_request_on_missing_block() {
     let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
     test_handler.send_data(test_data.clone());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not finalized ancestor").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not finalized ancestor")
+        .await;
 
     let requested_block = timeout(TIMEOUT_SUCC, test_handler.next_block_request())
         .await
@@ -458,7 +403,9 @@ async fn sends_block_request_on_missing_block() {
 
     test_handler.import_branch(blocks, false).await;
 
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    let _message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
 
     test_handler.exit();
     data_store_handle.await.unwrap();
@@ -480,7 +427,9 @@ async fn does_not_send_requests_when_no_block_missing() {
         test_handler.send_data(test_data.clone());
     }
     assert!(
-        timeout(TIMEOUT_FAIL, test_handler.next_block_request()).await.is_err(),
+        timeout(TIMEOUT_FAIL, test_handler.next_block_request())
+            .await
+            .is_err(),
         "Data Store is sending block requests without reason"
     );
 
@@ -501,13 +450,13 @@ async fn message_with_genesis_block_does_not_get_through() {
     let test_data: TestData = vec![aleph_data_from_headers(vec![test_handler.get_header_at(0)])];
     test_handler.send_data(test_data.clone());
 
-    test_handler.assert_no_message_out("Data Store let through a message with genesis block proposal").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with genesis block proposal")
+        .await;
 
     test_handler.exit();
     data_store_handle.await.unwrap();
 }
-
-
 
 #[tokio::test]
 async fn unimported_hopeless_forks_go_through() {
@@ -518,9 +467,9 @@ async fn unimported_hopeless_forks_go_through() {
     let blocks = test_handler
         .build_branch_upon(&genesis_hash, MAX_DATA_BRANCH_LEN * 10)
         .await;
-    let forking_block = &blocks[MAX_DATA_BRANCH_LEN+2];
+    let forking_block = &blocks[MAX_DATA_BRANCH_LEN + 2];
     let forks = test_handler
-        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN*10)
+        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
         .await;
 
     for i in 1..=MAX_DATA_BRANCH_LEN {
@@ -529,26 +478,33 @@ async fn unimported_hopeless_forks_go_through() {
         test_handler.send_data(test_data.clone());
     }
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
     test_handler.import_branch(blocks.clone(), false).await;
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN+1].hash());
+    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN + 1].hash());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN*2+1].hash());
+    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN * 2 + 1].hash());
 
     for _ in 1..=MAX_DATA_BRANCH_LEN {
-        let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+        let _message = test_handler
+            .assert_message_out("Did not receive message from Data Store")
+            .await;
     }
 
     test_handler.exit();
     data_store_handle.await.unwrap();
 }
-
 
 #[tokio::test]
 async fn imported_hopeless_forks_go_through() {
@@ -559,9 +515,9 @@ async fn imported_hopeless_forks_go_through() {
     let blocks = test_handler
         .build_branch_upon(&genesis_hash, MAX_DATA_BRANCH_LEN * 10)
         .await;
-    let forking_block = &blocks[MAX_DATA_BRANCH_LEN+2];
+    let forking_block = &blocks[MAX_DATA_BRANCH_LEN + 2];
     let forks = test_handler
-        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN*10)
+        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
         .await;
 
     test_handler.import_branch(blocks.clone(), false).await;
@@ -573,16 +529,22 @@ async fn imported_hopeless_forks_go_through() {
         test_handler.send_data(test_data.clone());
     }
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN+1].hash());
+    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN + 1].hash());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN*2+1].hash());
+    test_handler.finalize_block(&blocks[MAX_DATA_BRANCH_LEN * 2 + 1].hash());
 
     for _ in 1..=MAX_DATA_BRANCH_LEN {
-        let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+        let _message = test_handler
+            .assert_message_out("Did not receive message from Data Store")
+            .await;
     }
 
     test_handler.exit();
@@ -598,53 +560,86 @@ async fn hopeless_fork_at_the_boundary_goes_through() {
     let blocks = test_handler
         .build_branch_upon(&genesis_hash, MAX_DATA_BRANCH_LEN * 10)
         .await;
-    let fork_num = MAX_DATA_BRANCH_LEN+2;
+    let fork_num = MAX_DATA_BRANCH_LEN + 2;
     let forking_block = &blocks[fork_num];
     let forks = test_handler
-        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN*10)
+        .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
         .await;
 
     test_handler.import_branch(blocks.clone(), false).await;
 
-    // the latter skips one block
-    let honest_hopeless_fork = vec![blocks[fork_num-2].clone(), blocks[fork_num-1].clone(), blocks[fork_num].clone(), forks[0].clone()];
-    let honest_hopeless_fork2 = vec![blocks[fork_num-2].clone(), blocks[fork_num-1].clone(), blocks[fork_num].clone(), forks[0].clone(), forks[1].clone()];
-    let malicious_hopeless_fork = vec![blocks[fork_num-2].clone(), blocks[fork_num-1].clone(), blocks[fork_num].clone(), forks[1].clone()];
-    let malicious_hopeless_fork2 = vec![blocks[fork_num-2].clone(), blocks[fork_num-1].clone(), blocks[fork_num].clone(),blocks[fork_num+1].clone(), forks[1].clone()];
-    let honest_data = vec![aleph_data_from_blocks(honest_hopeless_fork )];
-    let honest_data2 = vec![aleph_data_from_blocks(honest_hopeless_fork2 )];
-    let malicious_data = vec![aleph_data_from_blocks(malicious_hopeless_fork )];
-    let malicious_data2 = vec![aleph_data_from_blocks(malicious_hopeless_fork2 )];
+    let honest_hopeless_fork = vec![
+        blocks[fork_num - 2].clone(),
+        blocks[fork_num - 1].clone(),
+        blocks[fork_num].clone(),
+        forks[0].clone(),
+    ];
+    let honest_hopeless_fork2 = vec![
+        blocks[fork_num - 2].clone(),
+        blocks[fork_num - 1].clone(),
+        blocks[fork_num].clone(),
+        forks[0].clone(),
+        forks[1].clone(),
+    ];
+    let malicious_hopeless_fork = vec![
+        blocks[fork_num - 2].clone(),
+        blocks[fork_num - 1].clone(),
+        blocks[fork_num].clone(),
+        forks[1].clone(),
+    ];
+    let malicious_hopeless_fork2 = vec![
+        blocks[fork_num - 2].clone(),
+        blocks[fork_num - 1].clone(),
+        blocks[fork_num].clone(),
+        blocks[fork_num + 1].clone(),
+        forks[1].clone(),
+    ];
+    let honest_data = vec![aleph_data_from_blocks(honest_hopeless_fork)];
+    let honest_data2 = vec![aleph_data_from_blocks(honest_hopeless_fork2)];
+    let malicious_data = vec![aleph_data_from_blocks(malicious_hopeless_fork)];
+    let malicious_data2 = vec![aleph_data_from_blocks(malicious_hopeless_fork2)];
 
-    test_handler.send_data(honest_data);
-    test_handler.send_data(honest_data2);
-    test_handler.send_data(malicious_data);
-    test_handler.send_data(malicious_data2);
+    test_handler.send_data(honest_data.clone());
+    test_handler.send_data(honest_data2.clone());
+    test_handler.send_data(malicious_data.clone());
+    test_handler.send_data(malicious_data2.clone());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
     test_handler.finalize_block(&blocks[fork_num].hash());
 
-    // the malicious_data should come here
+    let message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
+    assert_eq!(message, malicious_data);
 
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
+    test_handler.finalize_block(&blocks[fork_num + 1].hash());
 
-    test_handler.finalize_block(&blocks[fork_num+1].hash());
+    let _message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
 
+    let _message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
 
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    test_handler
+        .assert_no_message_out("Data Store let through a message with not yet imported blocks")
+        .await;
 
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    test_handler.finalize_block(&blocks[fork_num + 2].hash());
 
-    test_handler.assert_no_message_out("Data Store let through a message with not yet imported blocks").await;
-
-        test_handler.finalize_block(&blocks[fork_num+2].hash());
-
-    let _message = test_handler.assert_message_out("Did not receive message from Data Store").await;
+    let message = test_handler
+        .assert_message_out("Did not receive message from Data Store")
+        .await;
+    assert_eq!(message, malicious_data2);
 
     test_handler.exit();
     data_store_handle.await.unwrap();
 }
-

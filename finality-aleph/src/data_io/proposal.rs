@@ -119,6 +119,10 @@ impl<B: BlockT> AlephProposal<B> {
         self.branch.len()
     }
 
+    pub fn new(branch: Vec<B::Hash>, number: NumberFor<B>) -> Self {
+        AlephProposal { branch, number }
+    }
+
     /// Outputs the highest block in the branch.
     pub fn top_block(&self) -> BlockHashNum<B> {
         (
