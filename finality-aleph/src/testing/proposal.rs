@@ -4,9 +4,10 @@ use crate::{
         CachedChainInfoProvider, ChainInfoCacheConfig,
         PendingProposalStatus::*,
         ProposalStatus::{self, *},
-        MAX_DATA_BRANCH_LEN,
+        UnvalidatedAlephProposal, MAX_DATA_BRANCH_LEN,
     },
     testing::client_chain_builder::ChainBuilder,
+    SessionBoundaries, SessionId, SessionPeriod,
 };
 
 pub use sp_core::hash::H256;
@@ -20,7 +21,9 @@ use substrate_test_runtime_client::{
 fn proposal_from_headers(headers: Vec<Header>) -> AlephProposal<Block> {
     let num = headers.last().unwrap().number;
     let hashes = headers.into_iter().map(|header| header.hash()).collect();
-    AlephProposal::new(hashes, num)
+    let unvalidated = UnvalidatedAlephProposal::new(hashes, num);
+    let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(10000));
+    unvalidated.validate_bounds(&session_boundaries).unwrap()
 }
 
 fn proposal_from_blocks(blocks: Vec<Block>) -> AlephProposal<Block> {
