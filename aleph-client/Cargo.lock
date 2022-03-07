@@ -2554,6 +2554,7 @@ dependencies = [
  "hex",
  "log",
  "pallet-balances",
+ "pallet-staking",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitive-types",
