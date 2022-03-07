@@ -41,19 +41,7 @@ pub mod pallet {
         types::{LightBlock, TrustThreshold},
         ProdVerifier,
     };
-
-    // #[derive(Encode, Decode, Clone)]
-    // pub struct LightClientOptions(Options);
-
-    // impl Default for LightClientOptions {
-    //     fn default() -> LightClientOptions {
-    //         Self(Options {
-    //             trust_threshold: TrustThreshold::ONE_THIRD,
-    //             trusting_period: Duration::new(1210000, 0), // 2 weeks
-    //             clock_drift: Duration::new(5, 0),
-    //         })
-    //     }
-    // }
+    use types::LightClientOptionsStorage;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -96,9 +84,9 @@ pub mod pallet {
     #[pallet::getter(fn is_halted)]
     pub type IsHalted<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-    // #[pallet::storage]
-    // #[pallet::getter(fn get_options)]
-    // pub type ClientOptions<T: Config> = StorageValue<_, Options, ValueQuery>;
+    #[pallet::storage]
+    #[pallet::getter(fn get_options)]
+    pub type LightClientOptions<T: Config> = StorageValue<_, LightClientOptionsStorage, ValueQuery>;
 
     // TODO : calls
     #[pallet::call]
@@ -108,13 +96,14 @@ pub mod pallet {
         pub fn initialize_client(origin: OriginFor<T>, options_payload: Vec<u8>) -> DispatchResult {
             ensure_root(origin)?;
 
-            let options: Options = serde_json::from_slice(&options_payload[..]).map_err(|e| {
+            let options: LightClientOptionsStorage = serde_json::from_slice(&options_payload[..])
+                .map_err(|e| {
                 log::error!("Error when deserializing options: {}", e);
                 Error::<T>::DeserializeError
             })?;
 
             // TODO: persist
-            // <ClientOptions<T>>::put(options);
+            <LightClientOptions<T>>::put(options);
 
             <IsHalted<T>>::put(false);
 

@@ -18,17 +18,17 @@ use tendermint_light_client_verifier::{
     ProdVerifier,
 };
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
     pub numerator: u64,
     pub denominator: u64,
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct LightClientOptionsStorage {
     pub trust_threshold: TrustThresholdStorage,
-    pub trusting_period: Duration,
-    pub clock_drift: Duration,
+    pub trusting_period: u64,
+    pub clock_drift: u64,
 }
 
 impl Default for LightClientOptionsStorage {
@@ -38,8 +38,8 @@ impl Default for LightClientOptionsStorage {
                 numerator: 1,
                 denominator: 3,
             },
-            trusting_period: Duration::new(1210000, 0), // 2 weeks
-            clock_drift: Duration::new(5, 0),
+            trusting_period: 1210000, // 2 weeks
+            clock_drift: 5,
         }
     }
 }
@@ -50,9 +50,10 @@ impl Into<Options> for LightClientOptionsStorage {
             trust_threshold: TrustThreshold::new(
                 self.trust_threshold.numerator,
                 self.trust_threshold.denominator,
-            ).expect("Can't create TrustThreshold"),
-            trusting_period: self.trusting_period,
-            clock_drift: self.clock_drift,
+            )
+            .expect("Can't create TrustThreshold"),
+            trusting_period: Duration::from_secs(self.trusting_period),
+            clock_drift: Duration::from_secs(self.clock_drift),
         }
     }
 }
