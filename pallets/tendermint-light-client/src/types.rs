@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint_light_client_verifier::{
     options::Options,
-    types::{LightBlock, TrustThreshold},
+    types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
     ProdVerifier,
 };
 
@@ -44,6 +44,7 @@ impl Default for LightClientOptionsStorage {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Options> for LightClientOptionsStorage {
     fn into(self) -> Options {
         Options {
@@ -56,4 +57,84 @@ impl Into<Options> for LightClientOptionsStorage {
             clock_drift: Duration::from_secs(self.clock_drift),
         }
     }
+}
+
+// impl From<Options> for LightClientOptionsStorage {
+//     fn from(opts: Options) -> Self {
+//         Self {
+//             trust_threshold: TrustThresholdStorage {
+//                 denominator: opts.trust_threshold.denominator(),
+//                 numerator: opts.trust_threshold.numerator(),
+//             },
+//             trusting_period: opts.trusting_period.as_secs(),
+//             clock_drift: opts.clock_drift.as_secs(),
+//         }
+//     }
+// }
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct VersionStorage {
+    /// Block version
+    pub block: u64,
+
+    /// App version
+    pub app: u64,
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct HeaderStorage {
+    /// Header version
+    pub version: VersionStorage,
+    // /// Chain ID
+    // pub chain_id: chain::Id,
+
+    // /// Current block height
+    // pub height: block::Height,
+
+    // /// Current timestamp
+    // pub time: Time,
+
+    // /// Previous block info
+    // pub last_block_id: Option<block::Id>,
+
+    // /// Commit from validators from the last block
+    // pub last_commit_hash: Option<Hash>,
+
+    // /// Merkle root of transaction hashes
+    // pub data_hash: Option<Hash>,
+
+    // /// Validators for the current block
+    // pub validators_hash: Hash,
+
+    // /// Validators for the next block
+    // pub next_validators_hash: Hash,
+
+    // /// Consensus params for the current block
+    // pub consensus_hash: Hash,
+
+    // /// State after txs from the previous block
+    // pub app_hash: AppHash,
+
+    // /// Root hash of all results from the txs from the previous block
+    // pub last_results_hash: Option<Hash>,
+
+    // /// Hash of evidence included in the block
+    // pub evidence_hash: Option<Hash>,
+
+    // /// Original proposer of the block
+    // pub proposer_address: account::Id,
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct SignedHeaderStorage {
+    pub header: HeaderStorage,
+    // pub commit: Commit,
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct LightBlockStorage {
+    pub signed_header: SignedHeaderStorage,
+    // pub validators: ValidatorSet,
+    // pub next_validators: ValidatorSet,
+    // pub provider: PeerId,
 }

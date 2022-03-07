@@ -77,8 +77,6 @@ pub mod pallet {
         Halted,
     }
 
-    // TODO : storage
-
     /// If true, stop the world
     #[pallet::storage]
     #[pallet::getter(fn is_halted)]
@@ -88,7 +86,6 @@ pub mod pallet {
     #[pallet::getter(fn get_options)]
     pub type LightClientOptions<T: Config> = StorageValue<_, LightClientOptionsStorage, ValueQuery>;
 
-    // TODO : calls
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         // TODO : adjust weight
@@ -102,11 +99,8 @@ pub mod pallet {
                 Error::<T>::DeserializeError
             })?;
 
-            // TODO: persist
             <LightClientOptions<T>>::put(options);
-
             <IsHalted<T>>::put(false);
-
             log::info!(target: "runtime::tendermint-lc", "Light client initialized");
             Self::deposit_event(Event::LightClientInitialized);
 
@@ -122,14 +116,11 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
 
-            let options = Options {
-                trust_threshold: TrustThreshold::ONE_THIRD,
-                trusting_period: Duration::new(1210000, 0), // 2 weeks
-                clock_drift: Duration::new(5, 0),
-            };
+            let options: Options = <LightClientOptions<T>>::get().into();
 
             let verifier = ProdVerifier::default();
 
+            // TODO : storage type for Light Block
             let light_block: LightBlock = serde_json::from_slice(&light_block_payload[..])
                 .map_err(|e| {
                     log::error!("Error when deserializing light block: {}", e);
@@ -140,7 +131,7 @@ pub mod pallet {
 
             // TODO : verify against known state
 
-            // TODO : udpate storage
+            // TODO : update storage
 
             Ok(())
         }
@@ -157,7 +148,7 @@ pub mod pallet {
                 log::info!(target: "runtime::tendermint-lc", "Halting light client operations");
                 Self::deposit_event(Event::LightClientHalted);
             } else {
-                log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations.");
+                log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
                 Self::deposit_event(Event::LightClientResumed);
             }
 
