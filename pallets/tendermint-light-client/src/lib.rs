@@ -5,8 +5,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
-use scale_info::TypeInfo;
-use tendermint_light_client_verifier::{options::Options, types::TrustThreshold};
+
+mod types;
 
 // #[cfg(feature = "std")]
 // use serde::{Deserialize, Serialize};
@@ -22,22 +22,38 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
-    use sp_std::{time::Duration, vec::Vec};
-
     use super::*;
     use frame_support::{
         log,
-        pallet_prelude::{DispatchClass, DispatchResult, IsType, StorageValue, ValueQuery},
+        pallet_prelude::{
+            Decode, DispatchClass, DispatchResult, Encode, IsType, StorageValue, ValueQuery,
+        },
         traits::Get,
     };
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
+    use scale_info::TypeInfo;
+    use sp_std::{time::Duration, vec::Vec};
     use tendermint_light_client_verifier::{
+        options::Options,
         types::{LightBlock, TrustThreshold},
         ProdVerifier,
     };
+
+    // #[derive(Encode, Decode, Clone)]
+    // pub struct LightClientOptions(Options);
+
+    // impl Default for LightClientOptions {
+    //     fn default() -> LightClientOptions {
+    //         Self(Options {
+    //             trust_threshold: TrustThreshold::ONE_THIRD,
+    //             trusting_period: Duration::new(1210000, 0), // 2 weeks
+    //             clock_drift: Duration::new(5, 0),
+    //         })
+    //     }
+    // }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -50,8 +66,6 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
-    // TODO events
-
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -60,10 +74,8 @@ pub mod pallet {
         /// Pallet operations are resumed        
         LightClientResumed,
         /// light client is initialized
-        ClientInitialized(u32),
+        LightClientInitialized,
     }
-
-    // TODO : errors
 
     #[pallet::error]
     pub enum Error<T> {
@@ -85,8 +97,8 @@ pub mod pallet {
     pub type IsHalted<T: Config> = StorageValue<_, bool, ValueQuery>;
 
     // #[pallet::storage]
-    // #[pallet::getter(fn trusted_state)]
-    // pub type <T: Config> = StorageValue<_, bool, ValueQuery>;
+    // #[pallet::getter(fn get_options)]
+    // pub type ClientOptions<T: Config> = StorageValue<_, Options, ValueQuery>;
 
     // TODO : calls
     #[pallet::call]
@@ -102,6 +114,12 @@ pub mod pallet {
             })?;
 
             // TODO: persist
+            // <ClientOptions<T>>::put(options);
+
+            <IsHalted<T>>::put(false);
+
+            log::info!(target: "runtime::tendermint-lc", "Light client initialized");
+            Self::deposit_event(Event::LightClientInitialized);
 
             Ok(())
         }
