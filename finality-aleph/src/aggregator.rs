@@ -15,7 +15,7 @@ use std::{
 };
 
 /// A wrapper allowing block hashes to be signed.
-#[derive(PartialEq, Eq, Hash, Clone, Debug, Encode, Decode)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Encode, Decode)]
 pub struct SignableHash<H: Codec + Send + Sync> {
     pub hash: H,
 }
@@ -41,7 +41,7 @@ pub(crate) struct BlockSignatureAggregator<
     D: Clone + Codec + Debug + Send + Sync + 'static, // type of data passed through the data network below
     N: DataNetwork<D>,
     MK: MultiKeychain, // multi-keychain
-    RMC: Multicast<SignableHash<H>>,
+    RMC: Multicast<H>,
 > {
     messages_for_rmc: mpsc::UnboundedSender<D>,
     messages_from_rmc: mpsc::UnboundedReceiver<D>,
@@ -61,10 +61,10 @@ impl<
         D: Clone + Codec + Debug + Send + Sync,
         N: DataNetwork<D>,
         MK: MultiKeychain,
-        RMC: Multicast<SignableHash<H>>,
+        RMC: Multicast<H>,
     > BlockSignatureAggregator<'a, H, D, N, MK, RMC>
 where
-    RMC::Signed: Multisigned<'a, SignableHash<H>, MK>,
+    RMC::Signed: Multisigned<'a, H, MK>,
 {
     pub(crate) fn new(
         network: N,
@@ -192,42 +192,49 @@ mod tests {
     use aleph_primitives::{AuthorityId, KEY_TYPE};
     use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
     use sp_keystore::{testing::KeyStore, CryptoStore};
-    use std::sync::Arc;
     use sp_runtime::traits::Block;
+    use std::sync::Arc;
     use substrate_test_runtime_client::runtime::Block as TBlock;
 
     use super::*;
 
-    pub struct TestMultisigned<H: Hash> {
-        hash: H,
+    pub type TestHash = <TBlock as Block>::Hash;
+
+    pub struct TestMultisigned {
+        hash: SignableHash<TestHash>,
     }
 
-    impl<'a, H: AsRef<[u8]> + Clone + Codec + Debug + Eq + Hash + Send + Sync> Multisigned<'a, H, KeyBox> for TestMultisigned<H> {
-        fn as_signable(&self) -> &H {
+    impl<'a> Multisigned<'a, TestHash, KeyBox> for TestMultisigned {
+        fn as_signable(&self) -> &SignableHash<TestHash> {
             &self.hash
         }
 
-        fn into_unchecked(self) -> UncheckedSigned<H, <KeyBox as MultiKeychain>::PartialMultisignature> {
+        fn into_unchecked(
+            self,
+        ) -> UncheckedSigned<SignableHash<TestHash>, <KeyBox as MultiKeychain>::PartialMultisignature>
+        {
             todo!()
         }
     }
 
-    struct TestMulticast<H> {
-        hash: H,
+    struct TestMulticast {
+        hash: SignableHash<TestHash>,
     }
 
     #[async_trait::async_trait]
-    impl<H: AsRef<[u8]> + Clone + Codec + Debug + Eq + Hash + Send + Sync> Multicast<H> for TestMulticast<H> {
-        type Signed = TestMultisigned<H>;
+    impl Multicast<TestHash> for TestMulticast {
+        type Signed = TestMultisigned;
 
-        async fn start_rmc(&mut self, hash: H) { }
+        async fn start_rmc(&mut self, hash: SignableHash<TestHash>) {}
 
-        fn get_multisigned(&self, hash: &H) -> Option<Self::Signed> {
+        fn get_multisigned(&self, hash: &SignableHash<TestHash>) -> Option<Self::Signed> {
             Some(TestMultisigned { hash: hash.clone() })
         }
 
         async fn next_multisigned_hash(&mut self) -> Self::Signed {
-            TestMultisigned { hash: self.hash.clone() }
+            TestMultisigned {
+                hash: self.hash.clone(),
+            }
         }
     }
 
@@ -261,21 +268,24 @@ mod tests {
         let verifier = AuthorityVerifier::new(authority_ids.clone());
         let key_box = KeyBox::new(NodeIndex(0), verifier, pens[0].clone());
         // let key_box = TestKeyBox {};
-        let rmc = TestMulticast { hash: Default::default() };
+        let rmc = TestMulticast {
+            hash: Default::default(),
+        };
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
-        let aggregator = BlockSignatureAggregator::<
-            <TBlock as Block>::Hash,
-            RmcNetworkData<TBlock>,
-            SimpleNetwork<
+        let aggregator =
+            BlockSignatureAggregator::<
+                TestHash,
                 RmcNetworkData<TBlock>,
-                UnboundedReceiver<RmcNetworkData<TBlock>>,
-                UnboundedSender<RmcNetworkData<TBlock>>,
-            >,
-            KeyBox,
-            TestMulticast<SignableHash<<TBlock as Block>::Hash>>,
-        >::new(test_network, rmc, messages_for_rmc, messages_from_rmc, &key_box, None);
-        //
+                SimpleNetwork<
+                    RmcNetworkData<TBlock>,
+                    UnboundedReceiver<RmcNetworkData<TBlock>>,
+                    UnboundedSender<RmcNetworkData<TBlock>>,
+                >,
+                KeyBox,
+                TestMulticast,
+            >::new(test_network, rmc, messages_for_rmc, messages_from_rmc, None);
+
         // let sig = pens[0].sign(b"test").await;
         // let sig2 = Signed::sign(key_box, &key_box).await;
         // let msg = Message::SignedHash(sig2.into());

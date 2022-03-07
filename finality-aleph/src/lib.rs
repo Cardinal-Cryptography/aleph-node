@@ -1,3 +1,5 @@
+extern crate core;
+
 use codec::{Decode, Encode};
 
 pub use aleph_bft::default_config as default_aleph_config;
