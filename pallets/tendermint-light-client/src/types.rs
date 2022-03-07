@@ -45,14 +45,14 @@ impl Default for LightClientOptionsStorage {
 }
 
 impl Into<Options> for LightClientOptionsStorage {
-    fn into(opts: LightClientOptionsStorage) -> Options {
+    fn into(self) -> Options {
         Options {
-            trust_threshold: TrustThreshold {
-                numerator : opts.trust_threshold.numerator,
-                denominator: opts.trust_threshold.denominator
-            },
-            trusting_period: opts.trusting_period,
-            clock_drift: opts.clock_drift
-        }                
+            trust_threshold: TrustThreshold::new(
+                self.trust_threshold.numerator,
+                self.trust_threshold.denominator,
+            ).expect("Can't create TrustThreshold"),
+            trusting_period: self.trusting_period,
+            clock_drift: self.clock_drift,
+        }
     }
 }
