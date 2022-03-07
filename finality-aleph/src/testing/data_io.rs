@@ -21,13 +21,13 @@ use substrate_test_runtime_client::{
 use tokio::time::timeout;
 
 #[derive(Clone)]
-struct TestBlockRequester<B: BlockT> {
+pub struct TestBlockRequester<B: BlockT> {
     blocks: UnboundedSender<AlephDataFor<B>>,
     justifications: UnboundedSender<AlephDataFor<B>>,
 }
 
 impl<B: BlockT> TestBlockRequester<B> {
-    fn new() -> (
+    pub fn new() -> (
         Self,
         UnboundedReceiver<AlephDataFor<B>>,
         UnboundedReceiver<AlephDataFor<B>>,
@@ -74,7 +74,7 @@ impl AlephNetworkMessage<Block> for TestData {
     }
 }
 
-struct TestHandler {
+pub struct TestHandler {
     client: Arc<TestClient>,
     block_requests_rx: UnboundedReceiver<AlephDataFor<Block>>,
     network_tx: UnboundedSender<TestData>,
@@ -138,7 +138,7 @@ impl TestHandler {
     }
 
     /// Exits Data Store
-    fn exit(self) {
+    pub fn exit(self) {
         self.exit_data_store_tx.send(()).unwrap();
     }
 
@@ -148,7 +148,7 @@ impl TestHandler {
     }
 }
 
-fn prepare_data_store() -> (
+pub fn prepare_data_store() -> (
     impl Future<Output = ()>,
     TestHandler,
     impl DataNetwork<TestData>,
@@ -157,7 +157,7 @@ fn prepare_data_store() -> (
 
     let (block_requester, block_requests_rx, _justification_requests_rx) =
         TestBlockRequester::new();
-    let (sender_tx, _sender_rx) = mpsc::unbounded();
+    let (sender_tx, _sender_rx) = mpsc::unbounded::<TestData>();
     let (network_tx, network_rx) = mpsc::unbounded();
     let test_network = SimpleNetwork::new(network_rx, sender_tx);
     let data_store_config = DataStoreConfig {
