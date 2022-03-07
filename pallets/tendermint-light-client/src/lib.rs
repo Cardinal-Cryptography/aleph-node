@@ -6,6 +6,7 @@
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
 use scale_info::TypeInfo;
+use tendermint_light_client_verifier::{options::Options, types::TrustThreshold};
 
 // #[cfg(feature = "std")]
 // use serde::{Deserialize, Serialize};
@@ -21,6 +22,8 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
+    use sp_std::{time::Duration, vec::Vec};
+
     use super::*;
     use frame_support::{
         log,
@@ -64,6 +67,9 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
+        /// Unable to deserialize extrinsic
+        DeserializeError,
+        /// light client has not been initialized        
         NotInitialized,
         /// light client has already been initialized
         AlreadyInitialized,
@@ -87,10 +93,15 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         // TODO : adjust weight
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
-        pub fn initialize_client(origin: OriginFor<T>) -> DispatchResult {
+        pub fn initialize_client(origin: OriginFor<T>, options_payload: Vec<u8>) -> DispatchResult {
             ensure_root(origin)?;
 
-            // TODO
+            let options: Options = serde_json::from_slice(&options_payload[..]).map_err(|e| {
+                log::error!("Error when deserializing options: {}", e);
+                Error::<T>::DeserializeError
+            })?;
+
+            // TODO: persist
 
             Ok(())
         }
@@ -98,10 +109,25 @@ pub mod pallet {
         // TODO : adjust weight
         /// Verify a block header against a known state.        
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
-        pub fn submit_finality_proof(origin: OriginFor<T>) -> DispatchResult {
+        pub fn submit_finality_proof(
+            origin: OriginFor<T>,
+            light_block_payload: Vec<u8>,
+        ) -> DispatchResult {
             ensure_not_halted::<T>()?;
 
+            let options = Options {
+                trust_threshold: TrustThreshold::ONE_THIRD,
+                trusting_period: Duration::new(1210000, 0), // 2 weeks
+                clock_drift: Duration::new(5, 0),
+            };
+
             let verifier = ProdVerifier::default();
+
+            let light_block: LightBlock = serde_json::from_slice(&light_block_payload[..])
+                .map_err(|e| {
+                    log::error!("Error when deserializing light block: {}", e);
+                    Error::<T>::DeserializeError
+                })?;
 
             // TODO : types for justification and header
 

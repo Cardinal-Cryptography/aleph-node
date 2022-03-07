@@ -4680,6 +4680,7 @@ dependencies = [
  "primitives",
  "scale-info",
  "serde",
+ "serde_json",
  "sp-core",
  "sp-io",
  "sp-runtime",
