@@ -141,7 +141,7 @@ pub enum CommitSignatureStorage {
     /// voted for the Commit.BlockID.
     BlockIdFlagCommit {
         /// Validator address
-        validator_address: [u8; 20],
+        validator_address: TendermintAccountId,
         /// Timestamp of vote
         timestamp: u32,
         /// Signature of vote
@@ -150,7 +150,7 @@ pub enum CommitSignatureStorage {
     /// voted for nil.
     BlockIdFlagNil {
         /// Validator address
-        validator_address: [u8; 20],
+        validator_address: TendermintAccountId,
         /// Timestamp of vote
         timestamp: u32,
         /// Signature of vote
@@ -176,10 +176,36 @@ pub struct SignedHeaderStorage {
     pub commit: CommitStorage,
 }
 
+pub type TndermintPublicKey = Vec<u8>;
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct ValidatorInfoStorage {
+    /// Validator account address
+    pub address: TendermintAccountId,
+    /// Validator public key
+    pub pub_key: TndermintPublicKey,
+    /// Validator voting power
+    // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
+    #[serde(alias = "voting_power", alias = "total_voting_power")]
+    pub power: u64,
+    /// Validator name
+    pub name: Option<Vec<u8>>,
+    /// Validator proposer priority
+    #[serde(skip)]
+    pub proposer_priority: i64,
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct ValidatorSetStorage {
+    pub validators: Vec<ValidatorInfoStorage>,
+    // pub proposer: Option<ValidatorInfoStorage>,
+    // pub total_voting_power: vote::Power,
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct LightBlockStorage {
     pub signed_header: SignedHeaderStorage,
-    // pub validators: ValidatorSet,
+    pub validators: ValidatorSetStorage,
     // pub next_validators: ValidatorSet,
     // pub provider: PeerId,
 }

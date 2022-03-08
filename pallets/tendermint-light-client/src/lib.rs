@@ -14,12 +14,6 @@ mod types;
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
-// #[derive(Clone, Copy, TypeInfo)]
-// pub enum TrustThresholdFraction {
-//     ONE_THIRD,
-//     TWO_THIRDS,
-// }
-
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
