@@ -1,8 +1,6 @@
-use crate::aggregator::SignableHash;
-use crate::crypto::Signature;
 use crate::{
     aggregator::BlockSignatureAggregator,
-    crypto::KeyBox,
+    crypto::{KeyBox, Signature},
     data_io,
     data_io::AlephDataFor,
     finalization::should_finalize,
@@ -130,8 +128,8 @@ async fn run_aggregator<'a, B, C, N, BE>(
         mut ordered_units_from_aleph,
         justifications_for_chain,
     } = io;
-    let mut last_finalized = client.info().finalized_hash;
-    let mut last_block_seen = false;
+    let last_finalized = client.info().finalized_hash;
+    let last_block_seen = false;
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {

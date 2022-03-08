@@ -31,16 +31,16 @@ impl<H: AsRef<[u8]> + Hash + Clone + Codec + Send + Sync> Signable for SignableH
 pub enum NetworkResult {
     NetworkChannelClosed,
     SignatureInserted,
-    Noop,
+    Noop, // nothing needs to be done
 }
 
-/// A wrapper around an RMC returning the signed hashes in the order of the [`ReliableMulticast::start_rmc`] calls.
+/// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
 pub(crate) struct BlockSignatureAggregator<
     'a,
-    H: Copy + Codec + Debug + Eq + Hash + Send + Sync + AsRef<[u8]>, // the hash type
-    D: Clone + Codec + Debug + Send + Sync + 'static, // type of data passed through the data network below
+    H: crate::network::Hash + Copy,
+    D: Clone + Codec + Debug + Send + Sync + 'static,
     N: DataNetwork<D>,
-    MK: MultiKeychain, // multi-keychain
+    MK: MultiKeychain,
     RMC: Multicast<H>,
 > {
     messages_for_rmc: mpsc::UnboundedSender<D>,
@@ -73,16 +73,6 @@ where
         messages_from_rmc: mpsc::UnboundedReceiver<D>,
         metrics: Option<Metrics<H>>,
     ) -> Self {
-        // let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
-        // let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
-        // let scheduler = DoublingDelayScheduler::new(Duration::from_millis(500));
-        // let rmc = ReliableMulticast::new(
-        //     messages_from_network,
-        //     messages_for_network,
-        //     keychain,
-        //     keychain.node_count(),
-        //     scheduler,
-        // );
         BlockSignatureAggregator {
             messages_for_rmc,
             messages_from_rmc,
@@ -107,7 +97,7 @@ where
             metrics.report_block(hash, std::time::Instant::now(), Checkpoint::Aggregating);
         }
         self.hash_queue.push_back(hash);
-        self.rmc.start_rmc(SignableHash { hash }).await;
+        self.rmc.start_multicast(SignableHash { hash }).await;
     }
 
     pub(crate) fn notify_last_hash(&mut self) {
@@ -180,117 +170,5 @@ where
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::crypto::{AuthorityPen, AuthorityVerifier, KeyBox};
-    use crate::network::RmcNetworkData;
-    use crate::network::SimpleNetwork;
-    use aleph_bft::{NodeIndex, UncheckedSigned};
-    use aleph_primitives::{AuthorityId, KEY_TYPE};
-    use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-    use sp_keystore::{testing::KeyStore, CryptoStore};
-    use sp_runtime::traits::Block;
-    use std::sync::Arc;
-    use substrate_test_runtime_client::runtime::Block as TBlock;
-
-    use super::*;
-
-    pub type TestHash = <TBlock as Block>::Hash;
-
-    pub struct TestMultisigned {
-        hash: SignableHash<TestHash>,
-    }
-
-    impl<'a> Multisigned<'a, TestHash, KeyBox> for TestMultisigned {
-        fn as_signable(&self) -> &SignableHash<TestHash> {
-            &self.hash
-        }
-
-        fn into_unchecked(
-            self,
-        ) -> UncheckedSigned<SignableHash<TestHash>, <KeyBox as MultiKeychain>::PartialMultisignature>
-        {
-            todo!()
-        }
-    }
-
-    struct TestMulticast {
-        hash: SignableHash<TestHash>,
-    }
-
-    #[async_trait::async_trait]
-    impl Multicast<TestHash> for TestMulticast {
-        type Signed = TestMultisigned;
-
-        async fn start_rmc(&mut self, hash: SignableHash<TestHash>) {}
-
-        fn get_multisigned(&self, hash: &SignableHash<TestHash>) -> Option<Self::Signed> {
-            Some(TestMultisigned { hash: hash.clone() })
-        }
-
-        async fn next_multisigned_hash(&mut self) -> Self::Signed {
-            TestMultisigned {
-                hash: self.hash.clone(),
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn should_test_something() {
-        let (sender_tx, _sender_rx) = mpsc::unbounded::<RmcNetworkData<TBlock>>();
-        let (network_tx, network_rx) = mpsc::unbounded::<RmcNetworkData<TBlock>>();
-        let test_network = SimpleNetwork::new(network_rx, sender_tx);
-
-        let names = vec![String::from("//Alice"), String::from("//Bob")];
-        let key_store = Arc::new(KeyStore::new());
-
-        let mut authority_ids = Vec::with_capacity(names.len());
-        for name in &names {
-            let pk = key_store
-                .ed25519_generate_new(KEY_TYPE, Some(name))
-                .await
-                .expect("Failed to generate the key");
-            authority_ids.push(AuthorityId::from(pk));
-        }
-
-        let mut pens = Vec::with_capacity(names.len());
-        for authority_id in authority_ids.clone() {
-            pens.push(
-                AuthorityPen::new(authority_id, key_store.clone())
-                    .await
-                    .expect("The keys should sign successfully"),
-            );
-        }
-
-        let verifier = AuthorityVerifier::new(authority_ids.clone());
-        let key_box = KeyBox::new(NodeIndex(0), verifier, pens[0].clone());
-        // let key_box = TestKeyBox {};
-        let rmc = TestMulticast {
-            hash: Default::default(),
-        };
-        let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
-        let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
-        let aggregator =
-            BlockSignatureAggregator::<
-                TestHash,
-                RmcNetworkData<TBlock>,
-                SimpleNetwork<
-                    RmcNetworkData<TBlock>,
-                    UnboundedReceiver<RmcNetworkData<TBlock>>,
-                    UnboundedSender<RmcNetworkData<TBlock>>,
-                >,
-                KeyBox,
-                TestMulticast,
-            >::new(test_network, rmc, messages_for_rmc, messages_from_rmc, None);
-
-        // let sig = pens[0].sign(b"test").await;
-        // let sig2 = Signed::sign(key_box, &key_box).await;
-        // let msg = Message::SignedHash(sig2.into());
-        // network_tx.unbounded_send();
-
-        assert_eq!(1, 1);
     }
 }
