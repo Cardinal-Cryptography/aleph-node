@@ -14,11 +14,16 @@ where
     B: BlockT,
     CIP: ChainInfoProvider<B>,
 {
+    use crate::data_io::proposal::IgnoredProposalReason::*;
     use crate::data_io::proposal::PendingProposalStatus::*;
     use crate::data_io::proposal::ProposalStatus::*;
 
+    if chain_info_provider.get_highest().finalized.num >= proposal.number_top_block() {
+        return Ignore(TooLow);
+    }
+
     if is_hopeless_fork(chain_info_provider, proposal) {
-        return Ignore;
+        return Ignore(HopelessFork);
     }
 
     let old_status = match old_status {

@@ -4,7 +4,7 @@ use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_api::BlockId;
 use sp_consensus::BlockOrigin;
-pub use sp_core::hash::H256;
+use sp_core::hash::H256;
 use sp_runtime::traits::Block as BlockT;
 use sp_runtime::Digest;
 use std::{default::Default, sync::Arc};
@@ -14,15 +14,18 @@ use substrate_test_runtime_client::{
 };
 
 // A helper struct that allows to build blocks without importing/finalizing them right away.
-pub struct ChainBuilder {
+pub struct ClientChainBuilder {
     pub client: Arc<TestClient>,
+    // client_builder is used for the purpose of creating blocks only. It is necessary as we cannot create a block
+    // in the "main" client without importing it.
     pub client_builder: Arc<TestClient>,
     pub unique_seed: u32,
 }
 
-impl ChainBuilder {
+impl ClientChainBuilder {
     pub fn new(client: Arc<TestClient>, client_builder: Arc<TestClient>) -> Self {
-        ChainBuilder {
+        assert_eq!(client.info(), client_builder.info());
+        ClientChainBuilder {
             client,
             client_builder,
             unique_seed: 0,
@@ -30,14 +33,11 @@ impl ChainBuilder {
     }
 
     /// Import block in test client
-    pub async fn import_block(&mut self, block: Block, finalize: bool) {
-        if finalize {
-            self.client.import_as_final(BlockOrigin::Own, block.clone())
-        } else {
-            self.client.import(BlockOrigin::Own, block.clone())
-        }
-        .await
-        .unwrap();
+    pub async fn import_block(&mut self, block: Block) {
+        self.client
+            .import(BlockOrigin::Own, block.clone())
+            .await
+            .unwrap();
     }
 
     /// Finalize block with given hash without providing justification.
@@ -48,10 +48,6 @@ impl ChainBuilder {
     }
 
     pub fn genesis_hash_num(&self) -> BlockHashNum<Block> {
-        assert_eq!(
-            self.client.info().genesis_hash,
-            self.client_builder.info().genesis_hash
-        );
         BlockHashNum::<Block>::new(self.client.info().genesis_hash, 0u64)
     }
 
@@ -64,13 +60,13 @@ impl ChainBuilder {
         self.unique_seed.to_be_bytes().to_vec()
     }
 
-    pub async fn build_block_at_hash(&mut self, hash: &H256) -> Block {
+    pub async fn build_block_above(&mut self, parent: &H256) -> Block {
         let unique_bytes: Vec<u8> = self.get_unique_bytes();
         let mut digest = Digest::default();
         digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
         let block = self
             .client_builder
-            .new_block_at(&BlockId::Hash(*hash), digest, false)
+            .new_block_at(&BlockId::Hash(*parent), digest, false)
             .unwrap()
             .build()
             .unwrap()
@@ -87,8 +83,8 @@ impl ChainBuilder {
     pub async fn build_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
         let mut blocks = Vec::new();
         let mut prev_hash = *hash;
-        for _i in 0..len {
-            let block = self.build_block_at_hash(&prev_hash).await;
+        for _ in 0..len {
+            let block = self.build_block_above(&prev_hash).await;
             prev_hash = block.hash();
             blocks.push(block);
         }
@@ -96,21 +92,16 @@ impl ChainBuilder {
     }
 
     /// imports a sequence of blocks, should be in correct order
-    pub async fn import_branch(&mut self, blocks: Vec<Block>, finalize: bool) {
+    pub async fn import_branch(&mut self, blocks: Vec<Block>) {
         for block in blocks {
-            self.import_block(block.clone(), finalize).await;
+            self.import_block(block.clone()).await;
         }
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len` and imports them
-    pub async fn build_and_import_branch_upon(
-        &mut self,
-        hash: &H256,
-        len: usize,
-        finalize: bool,
-    ) -> Vec<Block> {
+    pub async fn build_and_import_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
         let blocks = self.build_branch_upon(hash, len).await;
-        self.import_branch(blocks.clone(), finalize).await;
+        self.import_branch(blocks.clone()).await;
         blocks
     }
 

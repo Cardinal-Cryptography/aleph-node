@@ -19,7 +19,8 @@ pub use data_interpreter::OrderedDataInterpreter;
 pub use data_provider::ChainTracker;
 pub use data_store::{DataStore, DataStoreConfig};
 pub use proposal::{
-    AlephProposal, PendingProposalStatus, ProposalStatus, UnvalidatedAlephProposal,
+    AlephProposal, IgnoredProposalReason, PendingProposalStatus, ProposalStatus,
+    UnvalidatedAlephProposal,
 };
 pub use status_provider::get_proposal_status;
 

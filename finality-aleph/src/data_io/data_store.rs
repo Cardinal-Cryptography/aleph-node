@@ -134,7 +134,7 @@ impl Default for DataStoreConfig {
 //    with correct number and the ancestry is correct) AND the parent of the bottom block in the branch is finalized.
 // 2) (Hopeless Fork) There exists a hash h_i on the branch, corresponding to height `num` in the chain, such that
 //    some block `b` of number `num` is finalized and `hash(b) != h`. This is simply a situation in which the proposal
-//    no matter whether honest or not, cannot be possibly be applied, as a conflicting block was already finalized.
+//    no matter whether honest or not, cannot possibly be applied, as a conflicting block was already finalized.
 // It is possible that both 1) and 2) might be true for some proposals, but that's fine.
 //
 // The way DataStore works internally, is roughly as follows:
@@ -422,7 +422,7 @@ where
                 self.register_next_finality_trigger(proposal);
                 false
             }
-            Finalize(_) | Ignore => {
+            Finalize(_) | Ignore(_) => {
                 self.on_proposal_available(proposal);
                 true
             }
@@ -440,7 +440,7 @@ where
         }
         let status = get_proposal_status(&mut self.chain_info_provider, proposal, old_status);
         match status {
-            ProposalStatus::Finalize(_) | ProposalStatus::Ignore => {
+            ProposalStatus::Finalize(_) | ProposalStatus::Ignore(_) => {
                 // We can cache only if the proposal is available. If it is pending, its
                 // status might change and we should not recover it from the cache.
                 self.available_proposals_cache
@@ -488,7 +488,7 @@ where
                     self.register_next_finality_trigger(proposal);
                 }
 
-                Finalize(_) | Ignore => {
+                Finalize(_) | Ignore(_) => {
                     // Proposal available, no need to register any dependencies
                     return;
                 }
