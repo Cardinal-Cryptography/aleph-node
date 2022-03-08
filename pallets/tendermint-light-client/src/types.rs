@@ -17,6 +17,7 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
     ProdVerifier,
 };
+use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
@@ -26,8 +27,17 @@ pub struct TrustThresholdStorage {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct LightClientOptionsStorage {
+    /// Defines what fraction of the total voting power of a known
+    /// and trusted validator set is sufficient for a commit to be
+    /// accepted going forward.    
     pub trust_threshold: TrustThresholdStorage,
+    /// How long a validator set is trusted for (must be shorter than the chain's
+    /// unbonding period)    
     pub trusting_period: u64,
+    /// Correction parameter dealing with only approximately synchronized clocks.
+    /// The local clock should always be ahead of timestamps from the blockchain; this
+    /// is the maximum amount that the local clock may drift behind a timestamp from the
+    /// blockchain.    
     pub clock_drift: u64,
 }
 
@@ -59,38 +69,31 @@ impl Into<Options> for LightClientOptionsStorage {
     }
 }
 
-// impl From<Options> for LightClientOptionsStorage {
-//     fn from(opts: Options) -> Self {
-//         Self {
-//             trust_threshold: TrustThresholdStorage {
-//                 denominator: opts.trust_threshold.denominator(),
-//                 numerator: opts.trust_threshold.numerator(),
-//             },
-//             trusting_period: opts.trusting_period.as_secs(),
-//             clock_drift: opts.clock_drift.as_secs(),
-//         }
-//     }
-// }
-
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct VersionStorage {
     /// Block version
     pub block: u64,
-
     /// App version
     pub app: u64,
 }
+
+// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+// pub struct ChainIdStorage(String);
+
+// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+// pub struct HeightStorage(u64);
+
+// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+// pub struct Time(PrimitiveDateTime);
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct HeaderStorage {
     /// Header version
     pub version: VersionStorage,
-    // /// Chain ID
-    // pub chain_id: chain::Id,
-
-    // /// Current block height
-    // pub height: block::Height,
-
+    /// Chain identifier (e.g. 'gaia-9000')    
+    pub chain_id: Vec<u8>, // String::from_utf8,
+    /// Current block height
+    pub height: u64,
     // /// Current timestamp
     // pub time: Time,
 
@@ -137,4 +140,11 @@ pub struct LightBlockStorage {
     // pub validators: ValidatorSet,
     // pub next_validators: ValidatorSet,
     // pub provider: PeerId,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<LightBlock> for LightBlockStorage {
+    fn into(self) -> LightBlock {
+        unimplemented!()
+    }
 }
