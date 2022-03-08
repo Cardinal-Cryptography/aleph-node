@@ -95,7 +95,7 @@ pub struct BlockIdStorage {
     pub part_set_header: PartSetHeaderStorage,
 }
 
-pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 620?
+pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct HeaderStorage {
@@ -198,16 +198,18 @@ pub struct ValidatorInfoStorage {
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct ValidatorSetStorage {
     pub validators: Vec<ValidatorInfoStorage>,
-    // pub proposer: Option<ValidatorInfoStorage>,
-    // pub total_voting_power: vote::Power,
+    pub proposer: Option<ValidatorInfoStorage>,
+    pub total_voting_power: u64,
 }
+
+pub type TendermintNodeId = Vec<u8>; // TODO type enforce length 20?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct LightBlockStorage {
     pub signed_header: SignedHeaderStorage,
     pub validators: ValidatorSetStorage,
-    // pub next_validators: ValidatorSet,
-    // pub provider: PeerId,
+    pub next_validators: ValidatorSetStorage,
+    pub provider: TendermintNodeId,
 }
 
 #[allow(clippy::from_over_into)]
