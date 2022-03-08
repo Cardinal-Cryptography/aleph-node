@@ -3,6 +3,7 @@
 use codec::{Decode, Encode};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
+pub use sp_staking::SessionIndex;
 use sp_std::vec::Vec;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
@@ -16,7 +17,6 @@ mod app {
     use sp_application_crypto::{app_crypto, ed25519};
     app_crypto!(ed25519, crate::KEY_TYPE);
 }
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 sp_application_crypto::with_pair! {
     pub type AuthorityPair = app::Pair;
@@ -24,8 +24,21 @@ sp_application_crypto::with_pair! {
 pub type AuthoritySignature = app::Signature;
 pub type AuthorityId = app::Public;
 
-pub const DEFAULT_SESSION_PERIOD: u32 = 900;
+pub type Balance = u128;
+
 pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
+
+// Quick sessions for testing purposes
+#[cfg(feature = "short_session")]
+pub const DEFAULT_SESSION_PERIOD: u32 = 30;
+#[cfg(feature = "short_session")]
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 3;
+
+// Default values outside testing
+#[cfg(not(feature = "short_session"))]
+pub const DEFAULT_SESSION_PERIOD: u32 = 900;
+#[cfg(not(feature = "short_session"))]
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 96;
 
 pub const TOKEN_DECIMALS: u32 = 12;
 pub const ADDRESSES_ENCODING: u32 = 42;
@@ -43,5 +56,23 @@ sp_api::decl_runtime_apis! {
         fn authorities() -> Vec<AuthorityId>;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
+    }
+}
+
+pub mod staking {
+    use super::{Balance, TOKEN_DECIMALS};
+    use sp_runtime::Perbill;
+
+    pub fn era_payout(miliseconds_per_era: u64) -> (Balance, Balance) {
+        const YEARLY_INFLATION: Balance = 30_000_000 * 10u128.pow(TOKEN_DECIMALS);
+        // Milliseconds per year for the Julian year (365.25 days).
+        const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
+
+        let portion = Perbill::from_rational(miliseconds_per_era, MILLISECONDS_PER_YEAR);
+        let total_payout = portion * YEARLY_INFLATION;
+        let validators_payout = Perbill::from_percent(90) * total_payout;
+        let rest = total_payout - validators_payout;
+
+        (validators_payout, rest)
     }
 }

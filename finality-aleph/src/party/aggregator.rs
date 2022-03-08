@@ -2,13 +2,12 @@ use crate::{
     aggregator::BlockSignatureAggregator,
     crypto::{KeyBox, Signature},
     data_io,
-    data_io::AlephDataFor,
     finalization::should_finalize,
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
     network::{DataNetwork, RMCWrapper, RmcNetworkData},
     party::{AuthoritySubtaskCommon, Task},
-    Metrics,
+    BlockHashNum, Metrics, SessionBoundaries,
 };
 use aleph_bft::rmc::{DoublingDelayScheduler, ReliableMulticast};
 use aleph_bft::{KeyBox as BftKeyBox, SignatureSet, SpawnHandle};
@@ -17,18 +16,17 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, trace};
-use sc_client_api::Backend;
-use sp_api::NumberFor;
+use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 use std::sync::Arc;
 
 /// IO channels used by the aggregator task.
 pub struct IO<B: Block> {
-    pub ordered_units_from_aleph: mpsc::UnboundedReceiver<AlephDataFor<B>>,
+    pub blocks_from_interpreter: mpsc::UnboundedReceiver<BlockHashNum<B>>,
     pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<B>>,
 }
 
-async fn process_new_block_data<'a, B, C, N, BE>(
+async fn process_new_block_data<'a, B, N, BE>(
     aggregator: &mut BlockSignatureAggregator<
         'a,
         B::Hash,
@@ -37,56 +35,37 @@ async fn process_new_block_data<'a, B, C, N, BE>(
         KeyBox,
         RMCWrapper<'a, B::Hash, KeyBox>,
     >,
-    new_block_data: data_io::AlephData<B::Hash, NumberFor<B>>,
-    client: &Arc<C>,
-    last_block_in_session: NumberFor<B>,
-    mut last_block_seen: bool,
-    mut last_finalized: B::Hash,
+    block: BlockHashNum<B>,
+    session_boundaries: SessionBoundaries<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
 ) where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
     N: DataNetwork<RmcNetworkData<B>>,
-    BE: Backend<B> + 'static,
     <B as Block>::Hash: AsRef<[u8]>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", new_block_data);
-    if last_block_seen {
-        return;
-    }
     if let Some(metrics) = &metrics {
         metrics.report_block(
-            new_block_data.hash,
+            block.hash,
             std::time::Instant::now(),
             Checkpoint::Ordered,
         );
     }
-    if let Some(data) = should_finalize(
-        last_finalized,
-        new_block_data,
-        client.as_ref(),
-        last_block_in_session,
-    ) {
-        aggregator.start_aggregation(data.hash).await;
-        last_finalized = data.hash;
-        if data.number == last_block_in_session {
-            aggregator.notify_last_hash();
-            last_block_seen = true;
-        }
+
+    aggregator.start_aggregation(block.hash).await;
+    if block.num == session_boundaries.last_block() {
+        aggregator.notify_last_hash();
     }
 }
 
-fn process_hash<B, C, BE>(
+fn process_hash<B, C>(
     hash: B::Hash,
     multisignature: SignatureSet<Signature>,
     justifications_for_chain: &mpsc::UnboundedSender<JustificationNotification<B>>,
     client: &Arc<C>,
 ) where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
-    BE: Backend<B> + 'static,
+    C: HeaderBackend<B> + Send + Sync + 'static,
 {
     let number = client.number(hash).unwrap().unwrap();
     // The unwrap might actually fail if data availability is not implemented correctly.
@@ -102,7 +81,7 @@ fn process_hash<B, C, BE>(
     }
 }
 
-async fn run_aggregator<'a, B, C, N, BE>(
+async fn run_aggregator<'a, B, C, N>(
     mut aggregator: BlockSignatureAggregator<
         'a,
         B::Hash,
@@ -113,39 +92,32 @@ async fn run_aggregator<'a, B, C, N, BE>(
     >,
     io: IO<B>,
     client: Arc<C>,
-    last_block_in_session: NumberFor<B>,
+    session_boundaries: SessionBoundaries<B>,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     mut exit_rx: oneshot::Receiver<()>,
 ) where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C: HeaderBackend<B> + Send + Sync + 'static,
     N: DataNetwork<RmcNetworkData<B>>,
-    BE: Backend<B> + 'static,
     <B as Block>::Hash: AsRef<[u8]>,
 {
     let IO {
-        mut ordered_units_from_aleph,
+        mut blocks_from_interpreter,
         justifications_for_chain,
     } = io;
-    let last_finalized = client.info().finalized_hash;
-    let last_block_seen = false;
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
-            maybe_unit = ordered_units_from_aleph.next() => {
-                if let Some(new_block_data) = maybe_unit {
+            maybe_unit = blocks_from_interpreter.next() => {
+                if let Some(block) = maybe_block {
                     process_new_block_data(
                         &mut aggregator,
-                        new_block_data,
-                        &client,
-                        last_block_in_session,
-                        last_block_seen,
-                        last_finalized,
+                        block,
+                        session_boundaries,
                         &metrics
                     ).await;
                 } else {
-                    debug!(target: "aleph-party", "Units ended in aggregator. Terminating.");
+                    debug!(target: "aleph-party", "Blocks ended in aggregator. Terminating.");
                     break;
                 }
             }
@@ -170,21 +142,19 @@ async fn run_aggregator<'a, B, C, N, BE>(
 }
 
 /// Runs the justification signature aggregator within a single session.
-pub fn task<B, C, N, BE>(
+pub fn task<B, C, N>(
     subtask_common: AuthoritySubtaskCommon,
     client: Arc<C>,
     io: IO<B>,
-    last_block: NumberFor<B>,
+    session_boundaries: SessionBoundaries<B>,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     multikeychain: KeyBox,
     rmc_network: N,
 ) -> Task
 where
     B: Block,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C: HeaderBackend<B> + Send + Sync + 'static,
     N: DataNetwork<RmcNetworkData<B>> + 'static,
-    BE: Backend<B> + 'static,
 {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -211,7 +181,7 @@ where
                 metrics.clone(),
             );
             debug!(target: "aleph-party", "Running the aggregator task for {:?}", session_id);
-            run_aggregator(aggregator, io, client, last_block, metrics, exit).await;
+            run_aggregator(aggregator, io, client, session_boundaries, metrics, exit).await;
             debug!(target: "aleph-party", "Aggregator task stopped for {:?}", session_id);
         }
     };

@@ -1,3 +1,3 @@
-pub mod data_io;
 mod justification;
-pub mod mocks;
+pub(crate) mod mocks;
+mod network;

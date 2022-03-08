@@ -1,23 +1,23 @@
-extern crate core;
-
-use codec::{Decode, Encode};
-
-pub use aleph_bft::default_config as default_aleph_config;
+use crate::{
+    network::{AlephNetworkData, RmcNetworkData, Split},
+    session::{
+        first_block_of_session, last_block_of_session, session_id_from_block_num,
+        SessionBoundaries, SessionId,
+    },
+};
 use aleph_bft::{NodeIndex, TaskHandle};
-use futures::{channel::oneshot, Future, TryFutureExt};
+use codec::{Decode, Encode};
+use futures::{channel::mpsc, channel::oneshot, Future, TryFutureExt};
 use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
 use sc_network::{ExHashT, NetworkService};
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::{
-    traits::{BlakeTwo256, Block},
-    SaturatedConversion,
-};
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use sp_runtime::traits::{BlakeTwo256, Block, Header};
+use std::{fmt::Debug, sync::Arc};
+
 mod aggregator;
 mod crypto;
 mod data_io;
@@ -27,19 +27,26 @@ mod import;
 mod justification;
 pub mod metrics;
 mod network;
+mod nodes;
 mod party;
+mod session;
+mod session_map;
 #[cfg(test)]
 pub mod testing;
 
+pub use crate::metrics::Metrics;
+pub use aleph_bft::default_config as default_aleph_config;
+pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 pub use import::AlephBlockImport;
 pub use justification::JustificationNotification;
+pub use network::Protocol;
+pub use nodes::{run_nonvalidator_node, run_validator_node};
+pub use session::SessionPeriod;
 
 #[derive(Clone, Debug, Encode, Decode)]
 enum Error {
     SendData,
 }
-
-pub use network::Protocol;
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSetConfig {
@@ -68,22 +75,12 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct SessionId(pub u32);
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
-pub struct SessionPeriod(pub u32);
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
 
-pub use crate::metrics::Metrics;
-use crate::party::{run_consensus_party, AlephParams};
-pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
-use futures::channel::mpsc;
-use sp_runtime::traits::Header;
+pub(crate) type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
 pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>
@@ -144,25 +141,25 @@ impl aleph_bft::SpawnHandle for SpawnHandle {
     }
 }
 
-pub type SessionMap = HashMap<SessionId, Vec<AuthorityId>>;
-
-pub fn first_block_of_session<B: Block>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> NumberFor<B> {
-    (session_id.0 * period.0).into()
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+pub struct HashNum<H, N> {
+    hash: H,
+    num: N,
 }
 
-pub fn last_block_of_session<B: Block>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> NumberFor<B> {
-    ((session_id.0 + 1) * period.0 - 1).into()
+impl<H, N> HashNum<H, N> {
+    fn new(hash: H, num: N) -> Self {
+        HashNum { hash, num }
+    }
 }
 
-pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId {
-    SessionId(num.saturated_into::<u32>() / period.0)
+impl<H, N> From<(H, N)> for HashNum<H, N> {
+    fn from(pair: (H, N)) -> Self {
+        HashNum::new(pair.0, pair.1)
+    }
 }
+
+pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
 pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub network: Arc<NetworkService<B, H>>,
@@ -175,16 +172,4 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
-}
-
-pub fn run_aleph_consensus<B: Block, BE, C, H: ExHashT, SC>(
-    config: AlephConfig<B, H, C, SC>,
-) -> impl Future<Output = ()>
-where
-    BE: Backend<B> + 'static,
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
-    SC: SelectChain<B> + 'static,
-{
-    run_consensus_party(AlephParams { config })
 }
