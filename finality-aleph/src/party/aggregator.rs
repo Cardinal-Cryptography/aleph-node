@@ -24,6 +24,8 @@ pub struct IO<B: Block> {
     pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<B>>,
 }
 
+type Rmc<'a, B> = RMCWrapper<'a, <B as Block>::Hash, KeyBox>;
+
 async fn process_new_block_data<'a, B, N>(
     aggregator: &mut BlockSignatureAggregator<
         'a,
@@ -31,7 +33,7 @@ async fn process_new_block_data<'a, B, N>(
         RmcNetworkData<B>,
         N,
         KeyBox,
-        RMCWrapper<'a, B::Hash, KeyBox>,
+        Rmc<'a, B>,
     >,
     block: BlockHashNum<B>,
     session_boundaries: &SessionBoundaries<B>,
@@ -76,14 +78,7 @@ fn process_hash<B, C>(
 }
 
 async fn run_aggregator<'a, B, C, N>(
-    mut aggregator: BlockSignatureAggregator<
-        'a,
-        B::Hash,
-        RmcNetworkData<B>,
-        N,
-        KeyBox,
-        RMCWrapper<'a, B::Hash, KeyBox>,
-    >,
+    mut aggregator: BlockSignatureAggregator<'a, B::Hash, RmcNetworkData<B>, N, KeyBox, Rmc<'a, B>>,
     io: IO<B>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries<B>,
@@ -107,7 +102,7 @@ async fn run_aggregator<'a, B, C, N>(
                     process_new_block_data(
                         &mut aggregator,
                         block,
-                        &session_boundaries,
+                        session_boundaries,
                         &metrics
                     ).await;
                 } else {
