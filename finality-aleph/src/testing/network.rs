@@ -602,7 +602,10 @@ async fn test_stops_session() {
         ))
     );
 
-    // This assert should be before cleanup
+    // This assert should be before cleanup. We want to check whether `session_manager.stop_session(...)`
+    // drops the sender. After cleanup all network tasks end and senders will be dropped.
+    // If assert was after cleanup we wouldn't know whether data_network receiver is droopped
+    // because of `session_manager.stop_session(...)` or because of cleanup.
     assert_eq!(
         timeout(DEFAULT_TIMEOUT, data_network.next()).await,
         Ok(None)
