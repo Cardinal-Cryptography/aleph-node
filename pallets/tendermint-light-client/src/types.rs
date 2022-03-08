@@ -17,7 +17,6 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
     ProdVerifier,
 };
-use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
@@ -77,14 +76,26 @@ pub struct VersionStorage {
     pub app: u64,
 }
 
-// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
-// pub struct ChainIdStorage(String);
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct PartSetHeaderStorage {
+    /// Number of parts in this block
+    pub total: u32,
+    /// SHA256 Hash of the parts set header,
+    pub hash: Vec<u8>,
+}
 
-// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
-// pub struct HeightStorage(u64);
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct BlockIdStorage {
+    /// The block's main hash is the Merkle root of all the fields in the
+    /// block header.
+    pub hash: Vec<u8>,
+    /// Parts header (if available) is used for secure gossipping of the block
+    /// during consensus. It is the Merkle root of the complete serialized block
+    /// cut into parts.
+    pub part_set_header: PartSetHeaderStorage,
+}
 
-// #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
-// pub struct Time(PrimitiveDateTime);
+pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 620?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct HeaderStorage {
@@ -94,44 +105,75 @@ pub struct HeaderStorage {
     pub chain_id: Vec<u8>, // String::from_utf8,
     /// Current block height
     pub height: u64,
-    // /// Current timestamp
-    // pub time: Time,
+    /// Current timestamp in nanoseconds
+    pub time: u32,
+    /// Previous block info
+    pub last_block_id: Option<BlockIdStorage>,
+    /// Commit from validators from the last block
+    pub last_commit_hash: Option<Vec<u8>>,
+    /// Merkle root of transaction hashes
+    pub data_hash: Option<Vec<u8>>,
+    /// Validators for the current block
+    pub validators_hash: Vec<u8>,
+    /// Validators for the next block
+    pub next_validators_hash: Vec<u8>,
+    /// Consensus params for the current block
+    pub consensus_hash: Vec<u8>,
+    /// State after txs from the previous block
+    /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data    
+    pub app_hash: Vec<u8>,
+    /// Root hash of all results from the txs from the previous block
+    pub last_results_hash: Option<Vec<u8>>,
+    /// Hash of evidence included in the block
+    pub evidence_hash: Option<Vec<u8>>,
+    /// Original proposer of the block
+    pub proposer_address: TendermintAccountId,
+}
 
-    // /// Previous block info
-    // pub last_block_id: Option<block::Id>,
+pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 
-    // /// Commit from validators from the last block
-    // pub last_commit_hash: Option<Hash>,
+/// CommitSig represents a signature of a validator.
+/// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub enum CommitSignatureStorage {
+    /// no vote was received from a validator.
+    BlockIdFlagAbsent,
+    /// voted for the Commit.BlockID.
+    BlockIdFlagCommit {
+        /// Validator address
+        validator_address: [u8; 20],
+        /// Timestamp of vote
+        timestamp: u32,
+        /// Signature of vote
+        signature: Option<SignatureStorage>,
+    },
+    /// voted for nil.
+    BlockIdFlagNil {
+        /// Validator address
+        validator_address: [u8; 20],
+        /// Timestamp of vote
+        timestamp: u32,
+        /// Signature of vote
+        signature: Option<SignatureStorage>,
+    },
+}
 
-    // /// Merkle root of transaction hashes
-    // pub data_hash: Option<Hash>,
-
-    // /// Validators for the current block
-    // pub validators_hash: Hash,
-
-    // /// Validators for the next block
-    // pub next_validators_hash: Hash,
-
-    // /// Consensus params for the current block
-    // pub consensus_hash: Hash,
-
-    // /// State after txs from the previous block
-    // pub app_hash: AppHash,
-
-    // /// Root hash of all results from the txs from the previous block
-    // pub last_results_hash: Option<Hash>,
-
-    // /// Hash of evidence included in the block
-    // pub evidence_hash: Option<Hash>,
-
-    // /// Original proposer of the block
-    // pub proposer_address: account::Id,
+#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+pub struct CommitStorage {
+    /// Block height
+    pub height: u64,
+    /// Round
+    pub round: u32,
+    /// Block ID
+    pub block_id: BlockIdStorage,
+    /// Signatures
+    pub signatures: Vec<CommitSignatureStorage>,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct SignedHeaderStorage {
     pub header: HeaderStorage,
-    // pub commit: Commit,
+    pub commit: CommitStorage,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
