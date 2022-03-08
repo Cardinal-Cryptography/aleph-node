@@ -66,7 +66,7 @@ pub mod staking {
     use sp_runtime::Perbill;
 
     pub const MIN_VALIDATOR_BOND: u128 = 25_000u128 * 10u128.pow(TOKEN_DECIMALS);
-    pub const MIN_NOMINATOR_BOND: u128 = 1_000u128 * 10u128.pow(TOKEN_DECIMALS);
+    pub const MIN_NOMINATOR_BOND: u128 = 100u128 * 10u128.pow(TOKEN_DECIMALS);
 
     pub fn era_payout(miliseconds_per_era: u64) -> (Balance, Balance) {
         const YEARLY_INFLATION: Balance = 30_000_000 * 10u128.pow(TOKEN_DECIMALS);
