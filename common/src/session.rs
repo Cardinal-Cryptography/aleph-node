@@ -24,7 +24,7 @@ impl From<Vec<u8>> for Keys {
 }
 
 pub fn change_members(sudo_connection: &Connection, new_members: Vec<AccountId>, status: XtStatus) {
-    info!("New members {:#?}", new_members);
+    info!(target: "aleph-common", "New members {:#?}", new_members);
     let call = compose_call!(
         sudo_connection.metadata,
         "Elections",
@@ -59,7 +59,7 @@ pub fn get_current(connection: &Connection) -> u32 {
 }
 
 pub fn wait_for(connection: &Connection, session_index: u32) -> anyhow::Result<BlockNumber> {
-    info!("Waiting for the session {}", session_index);
+    info!(target: "aleph-common", "Waiting for the session {}", session_index);
 
     #[derive(Debug, Decode, Clone)]
     struct NewSessionEvent {
@@ -69,7 +69,7 @@ pub fn wait_for(connection: &Connection, session_index: u32) -> anyhow::Result<B
         connection,
         ("Session", "NewSession"),
         |e: NewSessionEvent| {
-            info!("[+] new session {}", e.session_index);
+            info!(target: "aleph-common", "New session {}", e.session_index);
 
             e.session_index == session_index
         },

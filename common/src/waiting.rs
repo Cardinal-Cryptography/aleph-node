@@ -12,7 +12,7 @@ pub fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
     predicate: P,
 ) -> anyhow::Result<E> {
     let (module, variant) = event;
-    info!("[+] Creating event subscription {}/{}", module, variant);
+    info!(target: "aleph-common", "Creating event subscription {}/{}", module, variant);
 
     let (events_in, events_out) = channel();
     connection.subscribe_events(events_in)?;
@@ -22,7 +22,7 @@ pub fn wait_for_event<E: Decode + Clone, P: Fn(E) -> bool>(
         match args {
             Ok(event) if predicate(event.clone()) => return Ok(event),
             Ok(_) => (),
-            Err(why) => error!("Error {:?}", why),
+            Err(why) => error!(target: "aleph-common", "Error {:?}", why),
         }
     }
 }
