@@ -12,6 +12,7 @@ use frame_system::{
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
+use tendermint::validator::Info;
 use tendermint_light_client_verifier::{
     options::Options,
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
@@ -195,11 +196,25 @@ pub struct ValidatorInfoStorage {
     pub proposer_priority: i64,
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<Info> for ValidatorInfoStorage {
+    fn into(self) -> Info {
+        unimplemented!()
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct ValidatorSetStorage {
     pub validators: Vec<ValidatorInfoStorage>,
     pub proposer: Option<ValidatorInfoStorage>,
     pub total_voting_power: u64,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<ValidatorSet> for ValidatorSetStorage {
+    fn into(self) -> ValidatorSet {
+        unimplemented!()
+    }
 }
 
 pub type TendermintNodeId = Vec<u8>; // TODO type enforce length 20?
