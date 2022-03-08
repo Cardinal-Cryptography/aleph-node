@@ -12,7 +12,11 @@ use frame_system::{
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
-use tendermint::validator::Info;
+use tendermint::{
+    block::{Commit, CommitSig, Header},
+    chain::{self, Id},
+    validator::Info,
+};
 use tendermint_light_client_verifier::{
     options::Options,
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
@@ -85,6 +89,13 @@ pub struct PartSetHeaderStorage {
     pub hash: Vec<u8>,
 }
 
+// #[allow(clippy::from_over_into)]
+// impl Into<> for PartSetHeaderStorage {
+//     fn into(self) ->  {
+//         unimplemented!()
+//     }
+// }
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct BlockIdStorage {
     /// The block's main hash is the Merkle root of all the fields in the
@@ -94,6 +105,13 @@ pub struct BlockIdStorage {
     /// during consensus. It is the Merkle root of the complete serialized block
     /// cut into parts.
     pub part_set_header: PartSetHeaderStorage,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<chain::Id> for BlockIdStorage {
+    fn into(self) -> chain::Id {
+        unimplemented!()
+    }
 }
 
 pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
@@ -159,6 +177,13 @@ pub enum CommitSignatureStorage {
     },
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<CommitSig> for CommitSignatureStorage {
+    fn into(self) -> CommitSig {
+        unimplemented!()
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct CommitStorage {
     /// Block height
@@ -171,10 +196,31 @@ pub struct CommitStorage {
     pub signatures: Vec<CommitSignatureStorage>,
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<Commit> for CommitStorage {
+    fn into(self) -> Commit {
+        unimplemented!()
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Header> for HeaderStorage {
+    fn into(self) -> Header {
+        unimplemented!()
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct SignedHeaderStorage {
     pub header: HeaderStorage,
     pub commit: CommitStorage,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<SignedHeader> for SignedHeaderStorage {
+    fn into(self) -> SignedHeader {
+        unimplemented!()
+    }
 }
 
 pub type TndermintPublicKey = Vec<u8>;
