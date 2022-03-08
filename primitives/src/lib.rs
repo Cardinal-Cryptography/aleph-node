@@ -75,4 +75,13 @@ pub mod staking {
 
         (validators_payout, rest)
     }
+
+    #[macro_export]
+    macro_rules! wrap_method {
+        ($wrapped_method:ident( $($arg_name:ident: $argument_type:ty), *), $wrapped_class:ty, $return_type:ty) => {
+            fn $wrapped_method($($arg_name: $argument_type), *) -> $return_type {
+                <$wrapped_class>::$wrapped_method($($arg_name), *)
+            }
+        };
+    }
 }
