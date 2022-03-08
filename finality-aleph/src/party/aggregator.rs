@@ -1,8 +1,6 @@
 use crate::{
     aggregator::BlockSignatureAggregator,
     crypto::{KeyBox, Signature},
-    data_io,
-    finalization::should_finalize,
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
     network::{DataNetwork, RMCWrapper, RmcNetworkData},
@@ -26,7 +24,7 @@ pub struct IO<B: Block> {
     pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<B>>,
 }
 
-async fn process_new_block_data<'a, B, N, BE>(
+async fn process_new_block_data<'a, B, N>(
     aggregator: &mut BlockSignatureAggregator<
         'a,
         B::Hash,
@@ -36,20 +34,16 @@ async fn process_new_block_data<'a, B, N, BE>(
         RMCWrapper<'a, B::Hash, KeyBox>,
     >,
     block: BlockHashNum<B>,
-    session_boundaries: SessionBoundaries<B>,
+    session_boundaries: &SessionBoundaries<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
 ) where
     B: Block,
     N: DataNetwork<RmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
 {
-    trace!(target: "aleph-party", "Received unit {:?} in aggregator.", new_block_data);
+    trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
     if let Some(metrics) = &metrics {
-        metrics.report_block(
-            block.hash,
-            std::time::Instant::now(),
-            Checkpoint::Ordered,
-        );
+        metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
     }
 
     aggregator.start_aggregation(block.hash).await;
@@ -92,7 +86,7 @@ async fn run_aggregator<'a, B, C, N>(
     >,
     io: IO<B>,
     client: Arc<C>,
-    session_boundaries: SessionBoundaries<B>,
+    session_boundaries: &SessionBoundaries<B>,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     mut exit_rx: oneshot::Receiver<()>,
 ) where
@@ -108,12 +102,12 @@ async fn run_aggregator<'a, B, C, N>(
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
-            maybe_unit = blocks_from_interpreter.next() => {
+            maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
                     process_new_block_data(
                         &mut aggregator,
                         block,
-                        session_boundaries,
+                        &session_boundaries,
                         &metrics
                     ).await;
                 } else {
@@ -181,7 +175,7 @@ where
                 metrics.clone(),
             );
             debug!(target: "aleph-party", "Running the aggregator task for {:?}", session_id);
-            run_aggregator(aggregator, io, client, session_boundaries, metrics, exit).await;
+            run_aggregator(aggregator, io, client, &session_boundaries, metrics, exit).await;
             debug!(target: "aleph-party", "Aggregator task stopped for {:?}", session_id);
         }
     };
