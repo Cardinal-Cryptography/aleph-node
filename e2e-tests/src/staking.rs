@@ -1,6 +1,7 @@
 use crate::session::wait_for_session;
 use crate::transfer::locks;
 use crate::{send_xt, BlockNumber, Connection, KeyPair};
+use codec::Compact;
 use common::create_connection;
 use log::info;
 pub use pallet_staking::RewardDestination;
@@ -9,7 +10,7 @@ use primitives::Balance;
 use sp_core::crypto::AccountId32;
 use sp_core::Pair;
 use sp_runtime::Perbill;
-use substrate_api_client::{compose_extrinsic, AccountId, GenericAddress, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, GenericAddress, XtStatus};
 
 pub fn bond(address: &str, initial_stake: u128, stash: &KeyPair, controller: &KeyPair) {
     let connection = create_connection(address).set_signer(stash.clone());
@@ -137,4 +138,69 @@ pub fn check_non_zero_payouts_for_era(
     assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
             "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
             stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
+}
+
+pub fn batch_bond(
+    connection: &Connection,
+    stash_controller_key_pairs: &[(&KeyPair, &KeyPair)],
+    bond_value: u128,
+    reward_destination: RewardDestination<GenericAddress>,
+) {
+    let batch_bond_calls: Vec<_> = stash_controller_key_pairs
+        .iter()
+        .map(|(stash_key, controller_key)| {
+            let bond_call = compose_call!(
+                connection.metadata,
+                "Staking",
+                "bond",
+                GenericAddress::Id(AccountId::from(controller_key.public())),
+                Compact(bond_value),
+                reward_destination.clone()
+            );
+            compose_call!(
+                connection.metadata,
+                "Sudo",
+                "sudo_as",
+                GenericAddress::Id(AccountId::from(stash_key.public())),
+                bond_call
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let xt = compose_extrinsic!(connection, "Utility", "batch", batch_bond_calls);
+    send_xt(
+        connection,
+        xt.hex_encode(),
+        "batch of bond calls",
+        XtStatus::InBlock,
+    );
+}
+
+pub fn batch_nominate(connection: &Connection, nominator_nominee_pairs: &[(&KeyPair, &KeyPair)]) {
+    let batch_nominate_calls: Vec<_> = nominator_nominee_pairs
+        .iter()
+        .map(|(nominator, nominee)| {
+            let nominate_call = compose_call!(
+                connection.metadata,
+                "Staking",
+                "nominate",
+                vec![GenericAddress::Id(AccountId::from(nominee.public()))]
+            );
+            compose_call!(
+                connection.metadata,
+                "Sudo",
+                "sudo_as",
+                GenericAddress::Id(AccountId::from(nominator.public())),
+                nominate_call
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let xt = compose_extrinsic!(connection, "Utility", "batch", batch_nominate_calls);
+    send_xt(
+        connection,
+        xt.hex_encode(),
+        "batch of nominate calls",
+        XtStatus::InBlock,
+    );
 }

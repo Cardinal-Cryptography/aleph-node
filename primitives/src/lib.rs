@@ -41,6 +41,8 @@ pub const DEFAULT_SESSION_PERIOD: u32 = 900;
 pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 96;
 
 pub const TOKEN_DECIMALS: u32 = 12;
+pub const TOKEN: u128 = 10u128.pow(TOKEN_DECIMALS);
+
 pub const ADDRESSES_ENCODING: u32 = 42;
 pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
@@ -62,6 +64,9 @@ sp_api::decl_runtime_apis! {
 pub mod staking {
     use super::{Balance, TOKEN_DECIMALS};
     use sp_runtime::Perbill;
+
+    pub const MIN_VALIDATOR_BOND: u128 = 25_000u128 * 10u128.pow(TOKEN_DECIMALS);
+    pub const MIN_NOMINATOR_BOND: u128 = 1_000u128 * 10u128.pow(TOKEN_DECIMALS);
 
     pub fn era_payout(miliseconds_per_era: u64) -> (Balance, Balance) {
         const YEARLY_INFLATION: Balance = 30_000_000 * 10u128.pow(TOKEN_DECIMALS);

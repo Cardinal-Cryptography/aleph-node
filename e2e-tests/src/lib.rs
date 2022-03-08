@@ -5,7 +5,7 @@ use sp_runtime::{generic, traits::BlakeTwo256, MultiAddress};
 use substrate_api_client::rpc::WsRpcClient;
 use substrate_api_client::{AccountId, Api, UncheckedExtrinsicV4, XtStatus};
 
-mod accounts;
+pub mod accounts;
 pub mod config;
 mod fee;
 pub mod rpc;
