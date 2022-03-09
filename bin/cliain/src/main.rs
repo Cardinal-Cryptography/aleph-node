@@ -1,6 +1,6 @@
 use std::env;
 use clap::{Parser, Subcommand};
-use common::KeyPair;
+use aleph_client::KeyPair;
 use sp_core::Pair;
 
 use cliain::{change_validators, prepare_keys};

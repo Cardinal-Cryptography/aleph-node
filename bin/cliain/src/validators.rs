@@ -1,5 +1,5 @@
 use log::info;
-use common::{change_members, create_connection, KeyPair};
+use aleph_client::{change_members, create_connection, KeyPair};
 use substrate_api_client::{AccountId, XtStatus};
 use sp_core::crypto::Ss58Codec;
 

@@ -1,4 +1,4 @@
-use common::{staking_bond, set_keys, rotate_keys, create_connection, KeyPair};
+use aleph_client::{staking_bond, set_keys, rotate_keys, create_connection, KeyPair};
 use primitives::TOKEN_DECIMALS;
 use substrate_api_client::XtStatus;
 
