@@ -8,8 +8,10 @@ use e2e::{
     transfer::batch_endow_account_balances,
 };
 use log::info;
-use primitives::staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND};
-use primitives::TOKEN;
+use primitives::{
+    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
+    TOKEN,
+};
 use rayon::prelude::*;
 use sp_keyring::AccountKeyring;
 use std::iter;

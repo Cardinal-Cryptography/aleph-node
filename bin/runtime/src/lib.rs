@@ -45,7 +45,7 @@ pub use frame_support::{
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
-    wrap_method, ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
+    wrap_methods, ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
     DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
 };
 
@@ -376,57 +376,59 @@ type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>
 
 pub struct PayoutStakersDecreasedWeightInfo(pallet_staking::weights::SubstrateWeight<Runtime>);
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
-    wrap_method!(bond(), SubstrateStakingWeights, Weight);
-    wrap_method!(bond_extra(), SubstrateStakingWeights, Weight);
-    wrap_method!(unbond(), SubstrateStakingWeights, Weight);
-    wrap_method!(
-        withdraw_unbonded_update(s: u32),
-        SubstrateStakingWeights,
-        Weight
-    );
-    wrap_method!(
-        withdraw_unbonded_kill(s: u32),
-        SubstrateStakingWeights,
-        Weight
-    );
-    wrap_method!(validate(), SubstrateStakingWeights, Weight);
-    wrap_method!(kick(k: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(nominate(n: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(chill(), SubstrateStakingWeights, Weight);
-    wrap_method!(set_payee(), SubstrateStakingWeights, Weight);
-    wrap_method!(set_controller(), SubstrateStakingWeights, Weight);
-    wrap_method!(set_validator_count(), SubstrateStakingWeights, Weight);
-    wrap_method!(force_no_eras(), SubstrateStakingWeights, Weight);
-    wrap_method!(force_new_era(), SubstrateStakingWeights, Weight);
-    wrap_method!(force_new_era_always(), SubstrateStakingWeights, Weight);
-    wrap_method!(set_invulnerables(v: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(force_unstake(s: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(
-        cancel_deferred_slash(s: u32),
-        SubstrateStakingWeights,
-        Weight
-    );
-    wrap_method!(
-        payout_stakers_dead_controller(n: u32),
-        SubstrateStakingWeights,
-        Weight
-    );
     // To make possible 1024 nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {
         SubstrateStakingWeights::payout_stakers_alive_staked(n) / 2
     }
-    wrap_method!(rebond(l: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(set_history_depth(e: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(reap_stash(s: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(new_era(v: u32, n: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(
-        get_npos_voters(v: u32, n: u32, s: u32),
-        SubstrateStakingWeights,
-        Weight
+    wrap_methods!(
+        (bond(), SubstrateStakingWeights, Weight),
+        (bond_extra(), SubstrateStakingWeights, Weight),
+        (unbond(), SubstrateStakingWeights, Weight),
+        (
+            withdraw_unbonded_update(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            withdraw_unbonded_kill(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (validate(), SubstrateStakingWeights, Weight),
+        (kick(k: u32), SubstrateStakingWeights, Weight),
+        (nominate(n: u32), SubstrateStakingWeights, Weight),
+        (chill(), SubstrateStakingWeights, Weight),
+        (set_payee(), SubstrateStakingWeights, Weight),
+        (set_controller(), SubstrateStakingWeights, Weight),
+        (set_validator_count(), SubstrateStakingWeights, Weight),
+        (force_no_eras(), SubstrateStakingWeights, Weight),
+        (force_new_era(), SubstrateStakingWeights, Weight),
+        (force_new_era_always(), SubstrateStakingWeights, Weight),
+        (set_invulnerables(v: u32), SubstrateStakingWeights, Weight),
+        (force_unstake(s: u32), SubstrateStakingWeights, Weight),
+        (
+            cancel_deferred_slash(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            payout_stakers_dead_controller(n: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (rebond(l: u32), SubstrateStakingWeights, Weight),
+        (set_history_depth(e: u32), SubstrateStakingWeights, Weight),
+        (reap_stash(s: u32), SubstrateStakingWeights, Weight),
+        (new_era(v: u32, n: u32), SubstrateStakingWeights, Weight),
+        (
+            get_npos_voters(v: u32, n: u32, s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
+        (set_staking_limits(), SubstrateStakingWeights, Weight),
+        (chill_other(), SubstrateStakingWeights, Weight)
     );
-    wrap_method!(get_npos_targets(v: u32), SubstrateStakingWeights, Weight);
-    wrap_method!(set_staking_limits(), SubstrateStakingWeights, Weight);
-    wrap_method!(chill_other(), SubstrateStakingWeights, Weight);
 }
 
 impl pallet_staking::Config for Runtime {
