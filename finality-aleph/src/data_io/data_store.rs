@@ -422,7 +422,7 @@ where
                 self.register_next_finality_trigger(proposal);
                 false
             }
-            Finalize(_) | Ignore(_) => {
+            Finalize(_) | Ignore => {
                 self.on_proposal_available(proposal);
                 true
             }
@@ -440,7 +440,7 @@ where
         }
         let status = get_proposal_status(&mut self.chain_info_provider, proposal, old_status);
         match status {
-            ProposalStatus::Finalize(_) | ProposalStatus::Ignore(_) => {
+            ProposalStatus::Finalize(_) | ProposalStatus::Ignore => {
                 // We can cache only if the proposal is available. If it is pending, its
                 // status might change and we should not recover it from the cache.
                 self.available_proposals_cache
@@ -488,7 +488,7 @@ where
                     self.register_next_finality_trigger(proposal);
                 }
 
-                Finalize(_) | Ignore(_) => {
+                Finalize(_) | Ignore => {
                     // Proposal available, no need to register any dependencies
                     return;
                 }

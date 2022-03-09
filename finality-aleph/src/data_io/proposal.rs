@@ -180,15 +180,9 @@ pub enum PendingProposalStatus {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum IgnoredProposalReason {
-    HopelessFork,
-    TooLow,
-}
-
-#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ProposalStatus<B: BlockT> {
     Finalize(BlockHashNum<B>),
-    Ignore(IgnoredProposalReason),
+    Ignore,
     Pending(PendingProposalStatus),
 }
 

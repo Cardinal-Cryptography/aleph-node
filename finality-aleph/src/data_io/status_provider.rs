@@ -2,6 +2,7 @@ use crate::data_io::{
     chain_info::ChainInfoProvider,
     proposal::{AlephProposal, ProposalStatus},
 };
+use log::debug;
 use sp_runtime::traits::{Block as BlockT, NumberFor};
 use sp_runtime::SaturatedConversion;
 
@@ -14,16 +15,16 @@ where
     B: BlockT,
     CIP: ChainInfoProvider<B>,
 {
-    use crate::data_io::proposal::IgnoredProposalReason::*;
     use crate::data_io::proposal::PendingProposalStatus::*;
     use crate::data_io::proposal::ProposalStatus::*;
 
     if chain_info_provider.get_highest().finalized.num >= proposal.number_top_block() {
-        return Ignore(TooLow);
+        return Ignore;
     }
 
     if is_hopeless_fork(chain_info_provider, proposal) {
-        return Ignore(HopelessFork);
+        debug!(target: "aleph-finality", "Encountered a hopeless fork proposal {:?}.", proposal);
+        return Ignore;
     }
 
     let old_status = match old_status {
@@ -143,7 +144,7 @@ mod tests {
         data_io::{
             chain_info::{AuxFinalizationChainInfoProvider, CachedChainInfoProvider},
             get_proposal_status,
-            proposal::{IgnoredProposalReason::*, PendingProposalStatus::*},
+            proposal::PendingProposalStatus::*,
             AlephProposal, ChainInfoCacheConfig,
             ProposalStatus::{self, *},
             UnvalidatedAlephProposal, MAX_DATA_BRANCH_LEN,
@@ -314,7 +315,7 @@ mod tests {
         );
 
         chain_builder.finalize_block(&blocks[10].header.hash());
-        verify_proposal_status(&mut cached_cip, &mut aux_cip, &proposal, Ignore(TooLow));
+        verify_proposal_status(&mut cached_cip, &mut aux_cip, &proposal, Ignore);
     }
 
     #[tokio::test]
@@ -379,20 +380,14 @@ mod tests {
         for len in 1..=MAX_DATA_BRANCH_LEN {
             let fork_branch = fork[0..len].to_vec();
             let proposal = proposal_from_blocks(fork_branch);
-            let expected_reason = if len == 1 { TooLow } else { HopelessFork };
-            verify_proposal_status(
-                &mut cached_cip,
-                &mut aux_cip,
-                &proposal,
-                Ignore(expected_reason),
-            );
+            verify_proposal_status(&mut cached_cip, &mut aux_cip, &proposal, Ignore);
         }
         // Proposal below finalized should be ignored
         verify_proposal_status(
             &mut cached_cip,
             &mut aux_cip,
             &proposal_from_blocks(blocks[0..4].to_vec()),
-            Ignore(TooLow),
+            Ignore,
         );
 
         // New proposals above finalized should be finalizable.

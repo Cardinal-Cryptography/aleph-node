@@ -86,8 +86,8 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
                 let status = get_proposal_status(&mut self.chain_info_provider, &proposal, None);
                 match status {
                     Finalize(block) => Some(block),
-                    Ignore(reason) => {
-                        debug!(target: "aleph-finality", "Ignoring proposal {:?} because of {:?} in interpreter.", proposal, reason);
+                    Ignore => {
+                        debug!(target: "aleph-finality", "Ignoring proposal {:?} in interpreter.", proposal);
                         None
                     }
                     Pending(pending_status) => {
