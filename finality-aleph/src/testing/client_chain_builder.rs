@@ -18,13 +18,25 @@ pub struct ClientChainBuilder {
     pub client: Arc<TestClient>,
     // client_builder is used for the purpose of creating blocks only. It is necessary as we cannot create a block
     // in the "main" client without importing it.
+    // We keep the invariant that all blocks are first created and imported by `client_builder` and only afterwards
+    // can be possibly imported by `client`.
     pub client_builder: Arc<TestClient>,
     pub unique_seed: u32,
 }
 
+fn assert_no_blocks_except_genesis(client: &TestClient) {
+    assert!(
+        client.header(&BlockId::Number(1)).unwrap().is_none(),
+        "Client is aware of some blocks beyond genesis"
+    );
+}
+
 impl ClientChainBuilder {
     pub fn new(client: Arc<TestClient>, client_builder: Arc<TestClient>) -> Self {
+        // Below we enforce that both clients are "empty" and agree with each other.
         assert_eq!(client.info(), client_builder.info());
+        assert_no_blocks_except_genesis(&*client);
+        assert_no_blocks_except_genesis(&*client_builder);
         ClientChainBuilder {
             client,
             client_builder,
