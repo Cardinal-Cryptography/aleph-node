@@ -55,18 +55,6 @@ fn prepare_proposal_test() -> (ClientChainBuilder, TestCachedChainInfo, TestAuxC
     )
 }
 
-async fn initialize_single_branch(chain_builder: &mut ClientChainBuilder) -> Vec<Block> {
-    chain_builder
-        .build_branch_upon(&chain_builder.genesis_hash(), MAX_DATA_BRANCH_LEN * 10)
-        .await
-}
-
-async fn initialize_single_branch_and_import(chain_builder: &mut ClientChainBuilder) -> Vec<Block> {
-    chain_builder
-        .build_and_import_branch_upon(&chain_builder.genesis_hash(), MAX_DATA_BRANCH_LEN * 10)
-        .await
-}
-
 fn verify_proposal_status(
     cached_cip: &mut TestCachedChainInfo,
     aux_cip: &mut TestAuxChainInfo,
@@ -107,7 +95,9 @@ fn verify_proposal_of_all_lens_finalizable(
 #[tokio::test]
 async fn correct_proposals_are_finalizable_even_with_forks() {
     let (mut chain_builder, mut cached_cip, mut aux_cip) = prepare_proposal_test();
-    let blocks = initialize_single_branch_and_import(&mut chain_builder).await;
+    let blocks = chain_builder
+        .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN * 10)
+        .await;
 
     verify_proposal_of_all_lens_finalizable(blocks.clone(), &mut cached_cip, &mut aux_cip);
 
@@ -121,7 +111,9 @@ async fn correct_proposals_are_finalizable_even_with_forks() {
 #[tokio::test]
 async fn not_finalized_ancestors_handled_correctly() {
     let (mut chain_builder, mut cached_cip, mut aux_cip) = prepare_proposal_test();
-    let blocks = initialize_single_branch_and_import(&mut chain_builder).await;
+    let blocks = chain_builder
+        .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN * 10)
+        .await;
 
     let fork = chain_builder
         .build_and_import_branch_upon(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
@@ -150,7 +142,9 @@ async fn not_finalized_ancestors_handled_correctly() {
 #[tokio::test]
 async fn incorrect_branch_handled_correctly() {
     let (mut chain_builder, mut cached_cip, mut aux_cip) = prepare_proposal_test();
-    let blocks = initialize_single_branch_and_import(&mut chain_builder).await;
+    let blocks = chain_builder
+        .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN * 10)
+        .await;
 
     let incorrect_branch = vec![
         blocks[0].clone(),
@@ -181,7 +175,9 @@ async fn incorrect_branch_handled_correctly() {
 #[tokio::test]
 async fn pending_top_block_handled_correctly() {
     let (mut chain_builder, mut cached_cip, mut aux_cip) = prepare_proposal_test();
-    let blocks = initialize_single_branch(&mut chain_builder).await;
+    let blocks = chain_builder
+        .initialize_single_branch(MAX_DATA_BRANCH_LEN * 10)
+        .await;
 
     for len in 1..=MAX_DATA_BRANCH_LEN {
         let blocks_branch = blocks[0..len].to_vec();
@@ -201,7 +197,9 @@ async fn pending_top_block_handled_correctly() {
 #[tokio::test]
 async fn hopeless_forks_handled_correctly() {
     let (mut chain_builder, mut cached_cip, mut aux_cip) = prepare_proposal_test();
-    let blocks = initialize_single_branch_and_import(&mut chain_builder).await;
+    let blocks = chain_builder
+        .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN * 10)
+        .await;
 
     let fork = chain_builder
         .build_branch_upon(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)

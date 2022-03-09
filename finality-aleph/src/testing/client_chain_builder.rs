@@ -111,4 +111,15 @@ impl ClientChainBuilder {
             .unwrap()
             .unwrap()
     }
+
+    /// Builds a sequence of blocks extending from genesis of length `len`
+    pub async fn initialize_single_branch(&mut self, len: usize) -> Vec<Block> {
+        self.build_branch_upon(&self.genesis_hash(), len).await
+    }
+
+    /// Builds and imports a sequence of blocks extending from genesis of length `len`
+    pub async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<Block> {
+        self.build_and_import_branch_upon(&self.genesis_hash(), len)
+            .await
+    }
 }
