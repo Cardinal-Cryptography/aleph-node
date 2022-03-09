@@ -143,11 +143,14 @@ mod tests {
     use crate::{
         data_io::{
             chain_info::{AuxFinalizationChainInfoProvider, CachedChainInfoProvider},
-            get_proposal_status,
-            proposal::PendingProposalStatus::*,
-            AlephProposal, ChainInfoCacheConfig,
-            ProposalStatus::{self, *},
-            UnvalidatedAlephProposal, MAX_DATA_BRANCH_LEN,
+            proposal::{
+                AlephProposal,
+                PendingProposalStatus::*,
+                ProposalStatus::{self, *},
+                UnvalidatedAlephProposal,
+            },
+            status_provider::get_proposal_status,
+            ChainInfoCacheConfig, MAX_DATA_BRANCH_LEN,
         },
         testing::client_chain_builder::ClientChainBuilder,
         SessionBoundaries, SessionId, SessionPeriod,
