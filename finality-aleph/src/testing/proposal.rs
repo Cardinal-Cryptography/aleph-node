@@ -18,11 +18,14 @@ use substrate_test_runtime_client::{
     DefaultTestClientBuilderExt, TestClient, TestClientBuilder, TestClientBuilderExt,
 };
 
+// A large number only for the purpose of creating `AlephProposal`s
+const DUMMY_SESSION_LEN: u32 = 1_000_000;
+
 fn proposal_from_headers(headers: Vec<Header>) -> AlephProposal<Block> {
     let num = headers.last().unwrap().number;
     let hashes = headers.into_iter().map(|header| header.hash()).collect();
     let unvalidated = UnvalidatedAlephProposal::new(hashes, num);
-    let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(10000));
+    let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(DUMMY_SESSION_LEN));
     unvalidated.validate_bounds(&session_boundaries).unwrap()
 }
 
