@@ -367,6 +367,14 @@ async fn branch_with_not_finalized_ancestor_correctly_handled() {
     .await;
 }
 
+fn send_proposals_of_each_len(blocks: Vec<Block>, test_handler: &mut TestHandler) {
+    for i in 1..=MAX_DATA_BRANCH_LEN {
+        let blocks_branch = blocks[0..(i as usize)].to_vec();
+        let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
+        test_handler.send_data(test_data.clone());
+    }
+}
+
 #[tokio::test]
 async fn correct_messages_go_through_with_late_import() {
     run_test(|mut test_handler| async move {
@@ -374,11 +382,7 @@ async fn correct_messages_go_through_with_late_import() {
             .initialize_single_branch(MAX_DATA_BRANCH_LEN * 10)
             .await;
 
-        for i in 1..=MAX_DATA_BRANCH_LEN {
-            let blocks_branch = blocks[0..(i as usize)].to_vec();
-            let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
-            test_handler.send_data(test_data.clone());
-        }
+        send_proposals_of_each_len(blocks.clone(), &mut test_handler);
 
         test_handler
             .assert_no_message_out("Data Store let through a message with not yet imported blocks")
@@ -464,11 +468,8 @@ async fn does_not_send_requests_when_no_block_missing() {
             .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN * 10)
             .await;
 
-        for i in 1..=MAX_DATA_BRANCH_LEN {
-            let blocks_branch = blocks[0..(i as usize)].to_vec();
-            let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
-            test_handler.send_data(test_data.clone());
-        }
+        send_proposals_of_each_len(blocks, &mut test_handler);
+
         assert!(
             timeout(TIMEOUT_FAIL, test_handler.next_block_request())
                 .await
@@ -515,11 +516,7 @@ async fn unimported_hopeless_forks_go_through() {
             .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
-        for i in 1..=MAX_DATA_BRANCH_LEN {
-            let blocks_branch = fork[0..(i as usize)].to_vec();
-            let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
-            test_handler.send_data(test_data.clone());
-        }
+        send_proposals_of_each_len(fork.clone(), &mut test_handler);
 
         test_handler
             .assert_no_message_out("Data Store let through a message with not yet imported blocks")
@@ -561,11 +558,7 @@ async fn imported_hopeless_forks_go_through() {
         test_handler.import_branch(blocks.clone()).await;
         test_handler.import_branch(fork.clone()).await;
 
-        for i in 1..=MAX_DATA_BRANCH_LEN {
-            let blocks_branch = fork[0..(i as usize)].to_vec();
-            let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
-            test_handler.send_data(test_data.clone());
-        }
+        send_proposals_of_each_len(fork.clone(), &mut test_handler);
 
         test_handler
             .assert_no_message_out(
