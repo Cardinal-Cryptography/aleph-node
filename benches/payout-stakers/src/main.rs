@@ -1,9 +1,9 @@
 use common::create_connection;
 use e2e::{
     accounts::derive_user_account,
-    staking::{batch_bond, batch_nominate, bond, wait_for_era_completion},
     staking::{
-        check_non_zero_payouts_for_era, validate, wait_for_full_era_completion, RewardDestination,
+        batch_bond, batch_nominate, bond, check_non_zero_payouts_for_era, validate,
+        wait_for_era_completion, wait_for_full_era_completion, RewardDestination,
     },
     transfer::batch_endow_account_balances,
 };

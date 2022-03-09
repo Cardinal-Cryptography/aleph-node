@@ -1,6 +1,6 @@
-use crate::session::wait_for_session;
-use crate::transfer::locks;
-use crate::{send_xt, BlockNumber, Connection, KeyPair};
+use crate::{
+    send_xt, session::wait_for_session, transfer::locks, BlockNumber, Connection, KeyPair,
+};
 use codec::Compact;
 use common::create_connection;
 use log::info;
