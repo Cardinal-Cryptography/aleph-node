@@ -12,16 +12,11 @@ mod data_store;
 mod proposal;
 mod status_provider;
 
-pub use chain_info::{
-    AuxFinalizationChainInfoProvider, CachedChainInfoProvider, ChainInfoProvider,
-};
+pub use chain_info::ChainInfoProvider;
 pub use data_interpreter::OrderedDataInterpreter;
 pub use data_provider::ChainTracker;
 pub use data_store::{DataStore, DataStoreConfig};
-pub use proposal::{
-    AlephProposal, IgnoredProposalReason, PendingProposalStatus, ProposalStatus,
-    UnvalidatedAlephProposal,
-};
+pub use proposal::{AlephProposal, ProposalStatus, UnvalidatedAlephProposal};
 pub use status_provider::get_proposal_status;
 
 // Maximum number of blocks above the last finalized allowed in an AlephBFT proposal.
