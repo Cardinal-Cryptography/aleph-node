@@ -27,8 +27,8 @@ pub fn bond(address: &str, initial_stake: u128, stash: &KeyPair, controller: &Ke
 pub fn bonded(connection: &Connection, stash: &KeyPair) -> Option<AccountId> {
     let account_id = AccountId::from(stash.public());
     connection
-        .get_storage_map("Staking", "Bonded", account_id, None)
-        .unwrap()
+        .get_storage_map("Staking", "Bonded", &account_id, None)
+        .expect(&format!("Failed to obtain Bonded for account id {}", account_id)[..])
 }
 
 pub fn ledger(
@@ -37,8 +37,8 @@ pub fn ledger(
 ) -> Option<pallet_staking::StakingLedger<AccountId32, Balance>> {
     let account_id = AccountId::from(controller.public());
     connection
-        .get_storage_map("Staking", "Ledger", account_id, None)
-        .unwrap()
+        .get_storage_map("Staking", "Ledger", &account_id, None)
+        .expect(&format!("Failed to obtain Ledger for account id {}", account_id)[..])
 }
 
 pub fn validate(address: &str, controller: &KeyPair, tx_status: XtStatus) {
@@ -76,8 +76,8 @@ pub fn payout_stakers(address: &str, stash: KeyPair, era_number: BlockNumber) {
 pub fn get_current_era(connection: &Connection) -> u32 {
     connection
         .get_storage_value("Staking", "ActiveEra", None)
-        .unwrap()
-        .unwrap()
+        .expect("Failed to decode ActiveEra extrinsic!")
+        .expect("ActiveEra is empty in the storage!")
 }
 
 pub fn wait_for_full_era_completion(connection: &Connection) -> anyhow::Result<BlockNumber> {
@@ -95,7 +95,7 @@ pub fn wait_for_era_completion(
 ) -> anyhow::Result<BlockNumber> {
     let sessions_per_era: u32 = connection
         .get_constant("Staking", "SessionsPerEra")
-        .unwrap();
+        .expect("Failed to decode SessionsPerEra extrinsic!");
     let first_session_in_next_era = next_era_index * sessions_per_era;
     wait_for_session(connection, first_session_in_next_era)?;
     Ok(next_era_index)
@@ -114,7 +114,8 @@ pub fn check_non_zero_payouts_for_era(
         "Expected non-empty locked balances for account {}!",
         stash_account
     );
-    let locked_stash_balance_before_payout = locked_stash_balance_before_payout.unwrap();
+    let locked_stash_balance_before_payout =
+        locked_stash_balance_before_payout.expect("Failed to obtain BalanceLock object!");
     assert_eq!(
         locked_stash_balance_before_payout.len(),
         1,
@@ -128,7 +129,8 @@ pub fn check_non_zero_payouts_for_era(
         "Expected non-empty locked balances for account {}!",
         stash_account
     );
-    let locked_stash_balance_after_payout = locked_stash_balance_after_payout.unwrap();
+    let locked_stash_balance_after_payout =
+        locked_stash_balance_after_payout.expect("Failed to obtain BalanceLock object!");
     assert_eq!(
         locked_stash_balance_after_payout.len(),
         1,
@@ -136,7 +138,7 @@ pub fn check_non_zero_payouts_for_era(
         stash_account
     );
     assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
-            "Expected payout to be non zero in locked balance for account {}. Balance before: {}, balance after: {}",
+            "Expected payout to be non positive in locked balance for account {}. Balance before: {}, balance after: {}",
             stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
 }
 
@@ -146,7 +148,7 @@ pub fn batch_bond(
     bond_value: u128,
     reward_destination: RewardDestination<GenericAddress>,
 ) {
-    let batch_bond_calls: Vec<_> = stash_controller_key_pairs
+    let batch_bond_calls = stash_controller_key_pairs
         .iter()
         .map(|(stash_key, controller_key)| {
             let bond_call = compose_call!(
@@ -177,7 +179,7 @@ pub fn batch_bond(
 }
 
 pub fn batch_nominate(connection: &Connection, nominator_nominee_pairs: &[(&KeyPair, &KeyPair)]) {
-    let batch_nominate_calls: Vec<_> = nominator_nominee_pairs
+    let batch_nominate_calls = nominator_nominee_pairs
         .iter()
         .map(|(nominator, nominee)| {
             let nominate_call = compose_call!(

@@ -374,7 +374,7 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
 
 type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>;
 
-pub struct PayoutStakersDecreasedWeightInfo(pallet_staking::weights::SubstrateWeight<Runtime>);
+pub struct PayoutStakersDecreasedWeightInfo;
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
     // To make possible 1024 nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {

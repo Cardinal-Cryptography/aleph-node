@@ -53,7 +53,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
     let sender = validator_accounts[0].clone();
     let connection = create_connection(node).set_signer(sender);
 
-    batch_endow_account_balances(&connection, &stashes_accounts, MIN_VALIDATOR_BOND);
+    batch_endow_account_balances(&connection, &stashes_accounts, MIN_VALIDATOR_BOND + TOKEN);
 
     validator_accounts.par_iter().for_each(|account| {
         bond(node, MIN_VALIDATOR_BOND, &account, &account);
