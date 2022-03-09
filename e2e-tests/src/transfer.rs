@@ -4,7 +4,7 @@ use crate::{
     config::Config,
 };
 use codec::Compact;
-use common::{create_connection, send_xt, Connection, KeyPair};
+use aleph_client::{create_connection, send_xt, Connection, KeyPair};
 use log::info;
 use primitives::Balance;
 use sp_core::Pair;

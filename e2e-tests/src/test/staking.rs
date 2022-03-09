@@ -4,7 +4,7 @@ use crate::{
     staking::{nominate, bond, bonded, ledger, payout_stakers, validate, wait_for_full_era_completion},
     transfer::{locks, batch_endow_account_balances},
 };
-use common::{wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
+use aleph_client::{wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
 use log::info;
 use pallet_staking::StakingLedger;
 use primitives::TOKEN_DECIMALS;

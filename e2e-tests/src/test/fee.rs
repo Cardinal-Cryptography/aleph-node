@@ -5,7 +5,7 @@ use sp_runtime::{
     traits::One,
 };
 use substrate_api_client::{AccountId, compose_extrinsic, GenericAddress, UncheckedExtrinsicV4};
-use common::Connection;
+use aleph_client::Connection;
 
 use crate::{
     TransferTransaction,

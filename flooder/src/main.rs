@@ -3,7 +3,7 @@ mod ws_rpc_client;
 
 use clap::Parser;
 use codec::{Compact, Decode, Encode};
-use common::create_custom_connection;
+use aleph_client::create_custom_connection;
 use config::Config;
 use ws_rpc_client::WsRpcClient;
 use hdrhistogram::Histogram as HdrHistogram;

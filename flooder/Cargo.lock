@@ -92,6 +92,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph_client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-core",
+ "sp-runtime",
+ "substrate-api-client",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -371,19 +384,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "log",
- "parity-scale-codec",
- "serde_json",
- "sp-core",
- "sp-runtime",
- "substrate-api-client",
-]
-
-[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -655,9 +655,9 @@ dependencies = [
 name = "flooder"
 version = "0.1.0"
 dependencies = [
+ "aleph_client",
  "anyhow",
  "clap",
- "common",
  "env_logger",
  "futures",
  "hdrhistogram",

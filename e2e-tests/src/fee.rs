@@ -1,6 +1,6 @@
 use codec::Encode;
 use substrate_api_client::Balance;
-use common::Connection;
+use aleph_client::Connection;
 
 use crate::UncheckedExtrinsicV4;
 

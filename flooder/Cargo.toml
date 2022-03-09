@@ -22,7 +22,7 @@ zip = "0.5"
 anyhow = "^1.0"
 clap = {version = "3.0.0-beta.5", features = ["derive"]}
 codec = { package = 'parity-scale-codec', version = "2.0.0", features = ['derive']}
-common = {path = "../common" }
+aleph_client = {path = "../aleph-client" }
 env_logger = "0.8"
 futures = { version = "0.3", features = ["alloc"] }
 hdrhistogram = "7.3.0"

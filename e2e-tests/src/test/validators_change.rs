@@ -2,7 +2,7 @@ use codec::Decode;
 use log::info;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
-use common::{change_members, create_connection, wait_for_event, Header};
+use aleph_client::{change_members, create_connection, wait_for_event, Header};
 use crate::{
     accounts::{accounts_from_seeds, get_sudo},
     config::Config,

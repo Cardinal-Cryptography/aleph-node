@@ -1,7 +1,7 @@
 use log::info;
 use serde_json::Value;
 use sp_core::H256 as Hash;
-use common::FromStr;
+use aleph_client::FromStr;
 use std::{
     sync::{mpsc::channel, Arc, Mutex},
     thread,

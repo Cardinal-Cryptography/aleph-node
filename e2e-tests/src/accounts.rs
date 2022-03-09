@@ -1,7 +1,7 @@
 use sp_core::Pair;
 use sp_runtime::AccountId32;
 use substrate_api_client::Balance;
-use common::{Connection, KeyPair};
+use aleph_client::{Connection, KeyPair};
 
 use crate::config::Config;
 

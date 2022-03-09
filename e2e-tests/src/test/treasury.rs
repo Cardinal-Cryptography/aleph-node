@@ -5,7 +5,7 @@ use crate::{
     transfer::{setup_for_transfer, transfer},
 };
 use codec::{Compact, Decode};
-use common::{create_connection, wait_for_event, Connection};
+use aleph_client::{create_connection, wait_for_event, Connection};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
