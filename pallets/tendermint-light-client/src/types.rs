@@ -13,7 +13,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
-    block::{Commit, CommitSig, Header},
+    block::{parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain::{self, Id},
     validator::Info,
 };
@@ -89,12 +89,12 @@ pub struct PartSetHeaderStorage {
     pub hash: Vec<u8>,
 }
 
-// #[allow(clippy::from_over_into)]
-// impl Into<> for PartSetHeaderStorage {
-//     fn into(self) ->  {
-//         unimplemented!()
-//     }
-// }
+#[allow(clippy::from_over_into)]
+impl Into<PartSetHeader> for PartSetHeaderStorage {
+    fn into(self) -> PartSetHeader {
+        unimplemented!()
+    }
+}
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct BlockIdStorage {
