@@ -9,8 +9,9 @@ use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain::{self},
     hash::{self, Hash},
-    signature, time,
-    validator::{self, Info},
+    public_key, signature, time,
+    validator::{self, Info, ProposerPriority},
+    vote,
 };
 use tendermint_light_client_verifier::{
     options::Options,
@@ -386,10 +387,14 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
 
         Ok(Self {
             address: account_id_from_bytes(address),
-            pub_key: (),
-            power: (),
-            name: (),
-            proposer_priority: (),
+            pub_key: public_key::PublicKey::from_raw_ed25519(&pub_key)
+                .expect("Cannot create PublicKey"),
+            power: vote::Power::try_from(power).expect("Cannot create Power"),
+            name: match name {
+                Some(name) => String::from_utf8(name).ok(),
+                None => None,
+            },
+            proposer_priority: ProposerPriority::from(proposer_priority),
         })
     }
 }
@@ -401,9 +406,26 @@ pub struct ValidatorSetStorage {
     pub total_voting_power: u64,
 }
 
-impl From<ValidatorSetStorage> for ValidatorSet {
-    fn from(val: ValidatorSetStorage) -> Self {
-        unimplemented!()
+impl TryFrom<ValidatorSetStorage> for ValidatorSet {
+    type Error = &'static str;
+
+    fn try_from(value: ValidatorSetStorage) -> Result<Self, Self::Error> {
+        let ValidatorSetStorage {
+            validators,
+            proposer,
+            ..
+        } = value;
+
+        Ok(Self::new(
+            validators
+                .into_iter()
+                .map(|elem| elem.try_into().expect("Cannot create ValidatorInfo"))
+                .collect(),
+            match proposer {
+                Some(proposer) => proposer.try_into().ok(),
+                None => None,
+            },
+        ))
     }
 }
 
