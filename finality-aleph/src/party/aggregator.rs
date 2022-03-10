@@ -1,10 +1,10 @@
 use crate::aggregator::SignableHash;
 use crate::{
-    aggregator::BlockSignatureAggregator,
+    aggregator::{BlockSignatureAggregator, RmcNetworkData},
     crypto::{KeyBox, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
-    network::{DataNetwork, RmcNetworkData},
+    network::DataNetwork,
     party::{AuthoritySubtaskCommon, Task},
     BlockHashNum, Metrics, SessionBoundaries,
 };

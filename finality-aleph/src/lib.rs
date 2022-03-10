@@ -1,5 +1,6 @@
 use crate::{
-    network::{AlephNetworkData, RmcNetworkData, Split},
+    aggregator::RmcNetworkData,
+    network::{AlephNetworkData, Split},
     session::{
         first_block_of_session, last_block_of_session, session_id_from_block_num,
         SessionBoundaries, SessionId,

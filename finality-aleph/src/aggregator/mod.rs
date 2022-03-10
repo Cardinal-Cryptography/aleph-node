@@ -1,31 +1,17 @@
-use crate::{
-    metrics::Checkpoint,
-    network::{DataNetwork, Multicast, Multisigned},
-    Metrics,
-};
+use crate::{metrics::Checkpoint, network::DataNetwork, Metrics};
 use aleph_bft::{MultiKeychain, Recipient, Signable};
-use codec::{Codec, Decode, Encode};
+use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, trace, warn};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
-    hash::Hash,
     marker::PhantomData,
 };
 
-/// A wrapper allowing block hashes to be signed.
-#[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Encode, Decode)]
-pub struct SignableHash<H: Codec + Send + Sync> {
-    hash: H,
-}
+mod multicast;
 
-impl<H: AsRef<[u8]> + Hash + Clone + Codec + Send + Sync> Signable for SignableHash<H> {
-    type Hash = H;
-    fn hash(&self) -> Self::Hash {
-        self.hash.clone()
-    }
-}
+pub use multicast::{Hash, Multicast, Multisigned, NetworkData as RmcNetworkData, SignableHash};
 
 /// A type encapsulating three different results of the `process_network_messages` method
 pub(crate) enum AggregatorError {
@@ -35,7 +21,7 @@ pub(crate) enum AggregatorError {
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
 pub(crate) struct BlockSignatureAggregator<
     'a,
-    H: crate::network::Hash + Copy,
+    H: Hash + Copy,
     D: Clone + Codec + Debug + Send + Sync + 'static,
     N: DataNetwork<D>,
     MK: MultiKeychain,
@@ -46,7 +32,7 @@ pub(crate) struct BlockSignatureAggregator<
     signatures: HashMap<H, MK::PartialMultisignature>,
     hash_queue: VecDeque<H>,
     network: N,
-    rmc: RMC,
+    multicast: RMC,
     last_hash_placed: bool,
     started_hashes: HashSet<H>,
     metrics: Option<Metrics<H>>,
@@ -55,7 +41,7 @@ pub(crate) struct BlockSignatureAggregator<
 
 impl<
         'a,
-        H: Copy + Codec + Debug + Eq + Hash + Send + Sync + AsRef<[u8]>,
+        H: Copy + Hash,
         D: Clone + Codec + Debug + Send + Sync,
         N: DataNetwork<D>,
         MK: MultiKeychain,
@@ -77,7 +63,7 @@ where
             signatures: HashMap::new(),
             hash_queue: VecDeque::new(),
             network,
-            rmc,
+            multicast: rmc,
             last_hash_placed: false,
             started_hashes: HashSet::new(),
             metrics,
@@ -95,7 +81,9 @@ where
             metrics.report_block(hash, std::time::Instant::now(), Checkpoint::Aggregating);
         }
         self.hash_queue.push_back(hash);
-        self.rmc.start_multicast(SignableHash { hash }).await;
+        self.multicast
+            .start_multicast(SignableHash::new(hash))
+            .await;
     }
 
     pub(crate) fn notify_last_hash(&mut self) {
@@ -105,8 +93,8 @@ where
     pub(crate) async fn wait_for_next_signature(&mut self) -> Result<(), AggregatorError> {
         loop {
             tokio::select! {
-                multisigned_hash = self.rmc.next_multisigned_hash() => {
-                    let hash = multisigned_hash.as_signable().hash;
+                multisigned_hash = self.multicast.next_multisigned_hash() => {
+                    let hash = multisigned_hash.as_signable().hash();
                     let unchecked = multisigned_hash.into_unchecked().signature();
                     debug!(target: "aleph-aggregator", "New multisigned_hash {:?}.", unchecked);
                     self.signatures.insert(hash, unchecked);
