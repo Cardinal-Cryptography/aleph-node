@@ -26,8 +26,7 @@ pub use component::{
     SimpleNetwork,
 };
 pub use manager::{get_peer_id, ConnectionIO, ConnectionManager, ConnectionManagerConfig};
-pub use rmc::NetworkData as RmcNetworkData;
-pub use rmc::{Hash, Multicast, Multisigned, RMCWrapper};
+pub use rmc::{Hash, Multicast, Multisigned, NetworkData as RmcNetworkData};
 pub use service::{Service, IO};
 pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
 pub use split::{split, Split};

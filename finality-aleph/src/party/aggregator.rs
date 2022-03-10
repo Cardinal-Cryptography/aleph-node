@@ -1,9 +1,10 @@
+use crate::aggregator::SignableHash;
 use crate::{
     aggregator::BlockSignatureAggregator,
     crypto::{KeyBox, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
-    network::{DataNetwork, RMCWrapper, RmcNetworkData},
+    network::{DataNetwork, RmcNetworkData},
     party::{AuthoritySubtaskCommon, Task},
     BlockHashNum, Metrics, SessionBoundaries,
 };
@@ -24,7 +25,7 @@ pub struct IO<B: Block> {
     pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<B>>,
 }
 
-type Rmc<'a, B> = RMCWrapper<'a, <B as Block>::Hash, KeyBox>;
+type Rmc<'a, B> = ReliableMulticast<'a, SignableHash<<B as Block>::Hash>, KeyBox>;
 
 async fn process_new_block_data<'a, B, N>(
     aggregator: &mut BlockSignatureAggregator<
@@ -164,7 +165,7 @@ where
             );
             let aggregator = BlockSignatureAggregator::new(
                 rmc_network,
-                RMCWrapper::wrap(rmc),
+                rmc,
                 messages_for_rmc,
                 messages_from_rmc,
                 metrics.clone(),

@@ -42,13 +42,6 @@ impl<D: Data> Sender<D> for mpsc::UnboundedSender<(D, Recipient)> {
 }
 
 #[async_trait::async_trait]
-impl<D: Data> Sender<D> for mpsc::UnboundedSender<D> {
-    fn send(&self, data: D, _recipient: Recipient) -> Result<(), SendError> {
-        self.unbounded_send(data).map_err(|_| SendError::SendFailed)
-    }
-}
-
-#[async_trait::async_trait]
 impl<D: Data> Receiver<D> for mpsc::UnboundedReceiver<D> {
     async fn next(&mut self) -> Option<D> {
         StreamExt::next(self).await

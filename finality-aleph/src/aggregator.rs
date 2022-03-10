@@ -7,17 +7,17 @@ use aleph_bft::{MultiKeychain, Recipient, Signable};
 use codec::{Codec, Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, trace, warn};
-use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
+    fmt::Debug,
     hash::Hash,
+    marker::PhantomData,
 };
 
 /// A wrapper allowing block hashes to be signed.
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Encode, Decode)]
 pub struct SignableHash<H: Codec + Send + Sync> {
-    pub hash: H,
+    hash: H,
 }
 
 impl<H: AsRef<[u8]> + Hash + Clone + Codec + Send + Sync> Signable for SignableHash<H> {
@@ -28,10 +28,8 @@ impl<H: AsRef<[u8]> + Hash + Clone + Codec + Send + Sync> Signable for SignableH
 }
 
 /// A type encapsulating three different results of the `process_network_messages` method
-pub enum NetworkResult {
+pub(crate) enum AggregatorError {
     NetworkChannelClosed,
-    SignatureInserted,
-    Noop, // nothing needs to be done
 }
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
@@ -88,9 +86,9 @@ where
     }
 
     pub(crate) async fn start_aggregation(&mut self, hash: H) {
-        debug!(target: "aleph-party", "Started aggregation for block hash {:?}", hash);
+        debug!(target: "aleph-aggregator", "Started aggregation for block hash {:?}", hash);
         if !self.started_hashes.insert(hash) {
-            debug!(target: "afa", "Aggregation already started for block hash {:?}, exiting.", hash);
+            debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, exiting.", hash);
             return;
         }
         if let Some(metrics) = &self.metrics {
@@ -104,40 +102,41 @@ where
         self.last_hash_placed = true;
     }
 
-    pub(crate) async fn process_network_messages(&mut self) -> NetworkResult {
-        tokio::select! {
-            multisigned_hash = self.rmc.next_multisigned_hash() => {
-                let hash = multisigned_hash.as_signable().hash;
-                let unchecked = multisigned_hash.into_unchecked().signature();
-                debug!(target: "aleph-party", "New multisigned_hash {:?}.", unchecked);
-                self.signatures.insert(hash, unchecked);
-                return NetworkResult::SignatureInserted;
-            }
-            message_from_rmc = self.messages_from_rmc.next() => {
-                trace!(target: "aleph-party", "Our rmc message {:?}.", message_from_rmc);
-                if let Some(message_from_rmc) = message_from_rmc {
-                    self.network.send(message_from_rmc, Recipient::Everyone).expect("sending message from rmc failed")
-                } else {
-                    warn!(target: "aleph-party", "the channel of messages from rmc closed");
+    pub(crate) async fn wait_for_next_signature(&mut self) -> Result<(), AggregatorError> {
+        loop {
+            tokio::select! {
+                multisigned_hash = self.rmc.next_multisigned_hash() => {
+                    let hash = multisigned_hash.as_signable().hash;
+                    let unchecked = multisigned_hash.into_unchecked().signature();
+                    debug!(target: "aleph-aggregator", "New multisigned_hash {:?}.", unchecked);
+                    self.signatures.insert(hash, unchecked);
+                    return Ok(());
                 }
-            }
-            message_from_network = self.network.next() => {
-                if let Some(message_from_network) = message_from_network {
-                    trace!(target: "aleph-party", "Received message for rmc: {:?}", message_from_network);
-                    self.messages_for_rmc.unbounded_send(message_from_network).expect("sending message to rmc failed");
-                } else {
-                    warn!(target: "aleph-party", "the network channel closed");
-                    // In case the network is down we can terminate (?).
-                    return NetworkResult::NetworkChannelClosed;
+                message_from_rmc = self.messages_from_rmc.next() => {
+                    trace!(target: "aleph-aggregator", "Our rmc message {:?}.", message_from_rmc);
+                    if let Some(message_from_rmc) = message_from_rmc {
+                        self.network.send(message_from_rmc, Recipient::Everyone).expect("sending message from rmc failed")
+                    } else {
+                        warn!(target: "aleph-aggregator", "the channel of messages from rmc closed");
+                    }
+                }
+                message_from_network = self.network.next() => {
+                    if let Some(message_from_network) = message_from_network {
+                        trace!(target: "aleph-aggregator", "Received message for rmc: {:?}", message_from_network);
+                        self.messages_for_rmc.unbounded_send(message_from_network).expect("sending message to rmc failed");
+                    } else {
+                        warn!(target: "aleph-aggregator", "the network channel closed");
+                        // In case the network is down we can terminate (?).
+                        return Err(AggregatorError::NetworkChannelClosed);
+                    }
                 }
             }
         }
-        NetworkResult::Noop
     }
 
     pub(crate) async fn next_multisigned_hash(&mut self) -> Option<(H, MK::PartialMultisignature)> {
         loop {
-            trace!(target: "aleph-party", "Entering next_multisigned_hash loop.");
+            trace!(target: "aleph-aggregator", "Entering next_multisigned_hash loop.");
             match self.hash_queue.front() {
                 Some(hash) => {
                     if let Some(multisignature) = self.signatures.remove(hash) {
@@ -150,24 +149,13 @@ where
                 }
                 None => {
                     if self.last_hash_placed {
-                        debug!(target: "aleph-party", "Terminating next_multisigned_hash because the last hash has been signed.");
+                        debug!(target: "aleph-aggregator", "Terminating next_multisigned_hash because the last hash has been signed.");
                         return None;
                     }
                 }
             }
-            loop {
-                let res = self.process_network_messages().await;
-                match res {
-                    NetworkResult::NetworkChannelClosed => {
-                        return None;
-                    }
-                    NetworkResult::SignatureInserted => {
-                        break;
-                    }
-                    NetworkResult::Noop => {
-                        continue;
-                    }
-                }
+            if let Err(_e) = self.wait_for_next_signature().await {
+                return None;
             }
         }
     }
