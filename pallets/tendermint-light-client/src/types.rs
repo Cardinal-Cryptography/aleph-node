@@ -5,9 +5,11 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
+    account,
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain::{self, Id},
+    chain::{self},
     hash::{self, Hash},
+    signature, time,
     validator::Info,
 };
 use tendermint_light_client_verifier::{
@@ -50,18 +52,22 @@ impl Default for LightClientOptionsStorage {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<Options> for LightClientOptionsStorage {
-    fn into(self) -> Options {
-        Options {
+// TODOs:
+// * From -> TryFrom everywhere (as the conversion can fail in some instances)
+
+impl TryFrom<LightClientOptionsStorage> for Options {
+    type Error = &'static str;
+
+    fn try_from(val: LightClientOptionsStorage) -> Result<Self, Self::Error> {
+        Ok(Options {
             trust_threshold: TrustThreshold::new(
-                self.trust_threshold.numerator,
-                self.trust_threshold.denominator,
+                val.trust_threshold.numerator,
+                val.trust_threshold.denominator,
             )
             .expect("Can't create TrustThreshold"),
-            trusting_period: Duration::from_secs(self.trusting_period),
-            clock_drift: Duration::from_secs(self.clock_drift),
-        }
+            trusting_period: Duration::from_secs(val.trusting_period),
+            clock_drift: Duration::from_secs(val.clock_drift),
+        })
     }
 }
 
@@ -73,12 +79,11 @@ pub struct VersionStorage {
     pub app: u64,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<Version> for VersionStorage {
-    fn into(self) -> Version {
+impl From<VersionStorage> for Version {
+    fn from(val: VersionStorage) -> Self {
         Version {
-            block: self.block,
-            app: self.app,
+            block: val.block,
+            app: val.app,
         }
     }
 }
@@ -91,11 +96,13 @@ pub struct PartSetHeaderStorage {
     pub hash: Vec<u8>,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<PartSetHeader> for PartSetHeaderStorage {
-    fn into(self) -> PartSetHeader {
-        PartSetHeader::new(self.total, sha256_from_bytes(&self.hash))
-            .expect("Can't create PartSetHeader")
+impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
+    type Error = &'static str;
+    fn try_from(value: PartSetHeaderStorage) -> Result<Self, Self::Error> {
+        Ok(
+            PartSetHeader::new(value.total, sha256_from_bytes(&value.hash))
+                .expect("Can't create PartSetHeader"),
+        )
     }
 }
 
@@ -110,13 +117,16 @@ pub struct BlockIdStorage {
     pub part_set_header: PartSetHeaderStorage,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<block::Id> for BlockIdStorage {
-    fn into(self) -> block::Id {
-        block::Id {
-            hash: sha256_from_bytes(&self.hash),
-            part_set_header: self.part_set_header.into(),
-        }
+impl TryFrom<BlockIdStorage> for block::Id {
+    type Error = &'static str;
+    fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
+        Ok(block::Id {
+            hash: sha256_from_bytes(&value.hash),
+            part_set_header: value
+                .part_set_header
+                .try_into()
+                .expect("Cannot create block Id"),
+        })
     }
 }
 
@@ -183,10 +193,60 @@ pub enum CommitSignatureStorage {
     },
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<CommitSig> for CommitSignatureStorage {
-    fn into(self) -> CommitSig {
-        unimplemented!()
+impl CommitSignatureStorage {
+    fn validator_address(validator_address: Vec<u8>) -> account::Id {
+        account::Id::try_from(validator_address).expect("Cannot create account Id")
+    }
+
+    fn timestamp(timestamp: u32) -> time::Time {
+        time::Time::from_unix_timestamp(0, timestamp).expect("Cannot parse timestamp")
+    }
+
+    fn signature(signature: Option<SignatureStorage>) -> Option<signature::Signature> {
+        match signature {
+            None => None,
+            Some(sig) => signature::Signature::try_from(sig.as_slice()).ok(),
+        }
+    }
+}
+
+impl From<CommitSignatureStorage> for CommitSig {
+    fn from(val: CommitSignatureStorage) -> Self {
+        match val {
+            CommitSignatureStorage::BlockIdFlagAbsent => CommitSig::BlockIdFlagAbsent,
+            CommitSignatureStorage::BlockIdFlagCommit {
+                validator_address,
+                timestamp,
+                signature,
+            } => {
+                let validator_address =
+                    CommitSignatureStorage::validator_address(validator_address);
+                let timestamp = CommitSignatureStorage::timestamp(timestamp);
+                let signature = CommitSignatureStorage::signature(signature);
+
+                CommitSig::BlockIdFlagCommit {
+                    validator_address,
+                    timestamp,
+                    signature,
+                }
+            }
+            CommitSignatureStorage::BlockIdFlagNil {
+                validator_address,
+                timestamp,
+                signature,
+            } => {
+                let validator_address =
+                    CommitSignatureStorage::validator_address(validator_address);
+                let timestamp = CommitSignatureStorage::timestamp(timestamp);
+                let signature = CommitSignatureStorage::signature(signature);
+
+                CommitSig::BlockIdFlagNil {
+                    validator_address,
+                    timestamp,
+                    signature,
+                }
+            }
+        }
     }
 }
 
@@ -209,9 +269,9 @@ impl Into<Commit> for CommitStorage {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<Header> for HeaderStorage {
-    fn into(self) -> Header {
+// #[allow(clippy::from_over_into)]
+impl From<HeaderStorage> for Header {
+    fn from(val: HeaderStorage) -> Self {
         unimplemented!()
     }
 }
@@ -222,9 +282,9 @@ pub struct SignedHeaderStorage {
     pub commit: CommitStorage,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<SignedHeader> for SignedHeaderStorage {
-    fn into(self) -> SignedHeader {
+// #[allow(clippy::from_over_into)]
+impl From<SignedHeaderStorage> for SignedHeader {
+    fn from(val: SignedHeaderStorage) -> Self {
         unimplemented!()
     }
 }
@@ -248,9 +308,9 @@ pub struct ValidatorInfoStorage {
     pub proposer_priority: i64,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<Info> for ValidatorInfoStorage {
-    fn into(self) -> Info {
+// #[allow(clippy::from_over_into)]
+impl From<ValidatorInfoStorage> for Info {
+    fn from(val: ValidatorInfoStorage) -> Self {
         unimplemented!()
     }
 }
@@ -262,9 +322,9 @@ pub struct ValidatorSetStorage {
     pub total_voting_power: u64,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<ValidatorSet> for ValidatorSetStorage {
-    fn into(self) -> ValidatorSet {
+// #[allow(clippy::from_over_into)]
+impl From<ValidatorSetStorage> for ValidatorSet {
+    fn from(val: ValidatorSetStorage) -> Self {
         unimplemented!()
     }
 }
@@ -279,9 +339,9 @@ pub struct LightBlockStorage {
     pub provider: TendermintNodeId,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<LightBlock> for LightBlockStorage {
-    fn into(self) -> LightBlock {
+// #[allow(clippy::from_over_into)]
+impl From<LightBlockStorage> for LightBlock {
+    fn from(val: LightBlockStorage) -> Self {
         unimplemented!()
     }
 }

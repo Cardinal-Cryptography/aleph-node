@@ -111,7 +111,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
 
-            let options: Options = <LightClientOptions<T>>::get().into();
+            let options: Options = <LightClientOptions<T>>::get().try_into()?;
 
             let verifier = ProdVerifier::default();
 
