@@ -108,14 +108,12 @@ pub fn check_non_zero_payouts_for_era(
     era: BlockNumber,
 ) {
     let stash_account = AccountId::from(stash.public());
-    let locked_stash_balance_before_payout = locks(&connection, &stash);
-    assert!(
-        locked_stash_balance_before_payout.is_some(),
-        "Expected non-empty locked balances for account {}!",
-        stash_account
+    let locked_stash_balance_before_payout = locks(&connection, &stash).expect(
+        &format!(
+            "Expected non-empty locked balances for account {}!",
+            stash_account
+        )[..],
     );
-    let locked_stash_balance_before_payout =
-        locked_stash_balance_before_payout.expect("Failed to obtain BalanceLock object!");
     assert_eq!(
         locked_stash_balance_before_payout.len(),
         1,
@@ -123,14 +121,12 @@ pub fn check_non_zero_payouts_for_era(
         stash_account
     );
     payout_stakers(node, stash.clone(), era - 1);
-    let locked_stash_balance_after_payout = locks(&connection, &stash);
-    assert!(
-        locked_stash_balance_after_payout.is_some(),
-        "Expected non-empty locked balances for account {}!",
-        stash_account
+    let locked_stash_balance_after_payout = locks(&connection, &stash).expect(
+        &format!(
+            "Expected non-empty locked balances for account {}!",
+            stash_account
+        )[..],
     );
-    let locked_stash_balance_after_payout =
-        locked_stash_balance_after_payout.expect("Failed to obtain BalanceLock object!");
     assert_eq!(
         locked_stash_balance_after_payout.len(),
         1,
@@ -138,7 +134,7 @@ pub fn check_non_zero_payouts_for_era(
         stash_account
     );
     assert!(locked_stash_balance_after_payout[0].amount > locked_stash_balance_before_payout[0].amount,
-            "Expected payout to be non positive in locked balance for account {}. Balance before: {}, balance after: {}",
+            "Expected payout to be positive in locked balance for account {}. Balance before: {}, balance after: {}",
             stash_account, locked_stash_balance_before_payout[0].amount, locked_stash_balance_after_payout[0].amount);
 }
 
