@@ -2,5 +2,8 @@
 
 This is a performance, e2e test for checking rewards for upper bound limit of nominators.
 
-Run by `RUST_LOG=aleph_e2e_client=info cargo run --release`. It needs local nodes to be run
-(via `scripts/run_nodes.sh` for example.)
+Run by 
+``` 
+RUST_LOG=aleph_e2e_client=info,aleph-client=info,aleph_client=info,payout_stakers=info cargo run --release
+``` 
+It needs local nodes to be run (via `scripts/run_nodes.sh` for example.)

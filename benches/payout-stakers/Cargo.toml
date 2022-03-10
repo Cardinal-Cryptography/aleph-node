@@ -5,7 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-common = { path = "../../common" }
+aleph_client = { path = "../../aleph-client" }
 e2e = { path = "../../e2e-tests", package = "aleph-e2e-client" }
 primitives = { path = "../../primitives" }
 

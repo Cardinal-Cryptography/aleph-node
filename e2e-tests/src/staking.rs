@@ -1,8 +1,8 @@
-use crate::{
-    send_xt, session::wait_for_session, transfer::locks, BlockNumber, Connection, KeyPair,
+use crate::transfer::locks;
+use aleph_client::{
+    create_connection, send_xt, wait_for_session, BlockNumber, Connection, KeyPair,
 };
 use codec::Compact;
-use common::create_connection;
 use log::info;
 pub use pallet_staking::RewardDestination;
 use pallet_staking::ValidatorPrefs;
@@ -28,7 +28,10 @@ pub fn bonded(connection: &Connection, stash: &KeyPair) -> Option<AccountId> {
     let account_id = AccountId::from(stash.public());
     connection
         .get_storage_map("Staking", "Bonded", &account_id, None)
-        .expect(&format!("Failed to obtain Bonded for account id {}", account_id)[..])
+        .expect(&format!(
+            "Failed to obtain Bonded for account id {}",
+            account_id
+        ))
 }
 
 pub fn ledger(
@@ -38,7 +41,10 @@ pub fn ledger(
     let account_id = AccountId::from(controller.public());
     connection
         .get_storage_map("Staking", "Ledger", &account_id, None)
-        .expect(&format!("Failed to obtain Ledger for account id {}", account_id)[..])
+        .expect(&format!(
+            "Failed to obtain Ledger for account id {}",
+            account_id
+        ))
 }
 
 pub fn validate(address: &str, controller: &KeyPair, tx_status: XtStatus) {

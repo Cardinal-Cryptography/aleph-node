@@ -1,4 +1,4 @@
-use common::create_connection;
+use aleph_client::create_connection;
 use e2e::{
     accounts::derive_user_account,
     staking::{
