@@ -92,9 +92,9 @@ impl ClientChainBuilder {
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    pub async fn build_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
+    pub async fn build_branch_upon(&mut self, parent: &H256, len: usize) -> Vec<Block> {
         let mut blocks = Vec::new();
-        let mut prev_hash = *hash;
+        let mut prev_hash = *parent;
         for _ in 0..len {
             let block = self.build_block_above(&prev_hash).await;
             prev_hash = block.hash();
@@ -111,8 +111,8 @@ impl ClientChainBuilder {
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len` and imports them
-    pub async fn build_and_import_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
-        let blocks = self.build_branch_upon(hash, len).await;
+    pub async fn build_and_import_branch_upon(&mut self, parent: &H256, len: usize) -> Vec<Block> {
+        let blocks = self.build_branch_upon(parent, len).await;
         self.import_branch(blocks.clone()).await;
         blocks
     }

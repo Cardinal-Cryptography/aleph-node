@@ -115,13 +115,13 @@ impl TestHandler {
         self.chain_builder.get_header_at(num)
     }
 
-    async fn build_block_above(&mut self, hash: &H256) -> Block {
-        self.chain_builder.build_block_above(hash).await
+    async fn build_block_above(&mut self, parent: &H256) -> Block {
+        self.chain_builder.build_block_above(parent).await
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    async fn build_branch_upon(&mut self, hash: &H256, len: usize) -> Vec<Block> {
-        self.chain_builder.build_branch_upon(hash, len).await
+    async fn build_branch_upon(&mut self, parent: &H256, len: usize) -> Vec<Block> {
+        self.chain_builder.build_branch_upon(parent, len).await
     }
 
     /// imports a sequence of blocks, should be in correct order
