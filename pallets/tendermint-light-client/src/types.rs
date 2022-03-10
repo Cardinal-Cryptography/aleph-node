@@ -1,7 +1,7 @@
-use crate::utils::sha256_from_bytes;
+use crate::utils::{account_id_from_bytes, sha256_from_bytes, timestamp_from_nanos};
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
-use scale_info::TypeInfo;
+use scale_info::{prelude::string::String, TypeInfo};
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
@@ -16,6 +16,11 @@ use tendermint_light_client_verifier::{
     options::Options,
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
 };
+
+pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
+pub type AppHashStorage = Vec<u8>; // TODO type enforce length 64?
+pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
+pub type TendermintNodeId = Vec<u8>; // TODO type enforce length 20?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
@@ -51,9 +56,6 @@ impl Default for LightClientOptionsStorage {
         }
     }
 }
-
-// TODOs:
-// * From -> TryFrom everywhere (as the conversion can fail in some instances)
 
 impl TryFrom<LightClientOptionsStorage> for Options {
     type Error = &'static str;
@@ -130,8 +132,6 @@ impl TryFrom<BlockIdStorage> for block::Id {
     }
 }
 
-pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
-
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct HeaderStorage {
     /// Header version
@@ -156,7 +156,7 @@ pub struct HeaderStorage {
     pub consensus_hash: Vec<u8>,
     /// State after txs from the previous block
     /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data    
-    pub app_hash: Vec<u8>,
+    pub app_hash: AppHashStorage,
     /// Root hash of all results from the txs from the previous block
     pub last_results_hash: Option<Vec<u8>>,
     /// Hash of evidence included in the block
@@ -164,8 +164,6 @@ pub struct HeaderStorage {
     /// Original proposer of the block
     pub proposer_address: TendermintAccountId,
 }
-
-pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
@@ -193,23 +191,6 @@ pub enum CommitSignatureStorage {
     },
 }
 
-impl CommitSignatureStorage {
-    fn validator_address(validator_address: Vec<u8>) -> account::Id {
-        account::Id::try_from(validator_address).expect("Cannot create account Id")
-    }
-
-    fn timestamp(timestamp: u32) -> time::Time {
-        time::Time::from_unix_timestamp(0, timestamp).expect("Cannot parse timestamp")
-    }
-
-    fn signature(signature: Option<SignatureStorage>) -> Option<signature::Signature> {
-        match signature {
-            None => None,
-            Some(sig) => signature::Signature::try_from(sig.as_slice()).ok(),
-        }
-    }
-}
-
 impl TryFrom<CommitSignatureStorage> for CommitSig {
     type Error = &'static str;
 
@@ -221,9 +202,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 timestamp,
                 signature,
             } => {
-                let validator_address =
-                    CommitSignatureStorage::validator_address(validator_address);
-                let timestamp = CommitSignatureStorage::timestamp(timestamp);
+                let validator_address = account_id_from_bytes(validator_address);
+                let timestamp = timestamp_from_nanos(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
                 CommitSig::BlockIdFlagCommit {
@@ -237,9 +217,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 timestamp,
                 signature,
             } => {
-                let validator_address =
-                    CommitSignatureStorage::validator_address(validator_address);
-                let timestamp = CommitSignatureStorage::timestamp(timestamp);
+                let validator_address = account_id_from_bytes(validator_address);
+                let timestamp = timestamp_from_nanos(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
                 CommitSig::BlockIdFlagNil {
@@ -262,6 +241,15 @@ pub struct CommitStorage {
     pub block_id: BlockIdStorage,
     /// Signatures
     pub signatures: Vec<CommitSignatureStorage>,
+}
+
+impl CommitSignatureStorage {
+    fn signature(signature: Option<Vec<u8>>) -> Option<tendermint::Signature> {
+        match signature {
+            None => None,
+            Some(sig) => signature::Signature::try_from(sig.as_slice()).ok(),
+        }
+    }
 }
 
 impl TryFrom<CommitStorage> for Commit {
@@ -287,9 +275,61 @@ impl TryFrom<CommitStorage> for Commit {
     }
 }
 
-impl From<HeaderStorage> for Header {
-    fn from(val: HeaderStorage) -> Self {
-        unimplemented!()
+impl TryFrom<HeaderStorage> for Header {
+    type Error = &'static str;
+
+    fn try_from(value: HeaderStorage) -> Result<Self, Self::Error> {
+        let HeaderStorage {
+            version,
+            chain_id,
+            height,
+            time,
+            last_block_id,
+            last_commit_hash,
+            data_hash,
+            validators_hash,
+            next_validators_hash,
+            consensus_hash,
+            app_hash,
+            last_results_hash,
+            evidence_hash,
+            proposer_address,
+        } = value;
+
+        Ok(Self {
+            version: version.try_into().expect("Cannot create Version"),
+            chain_id: String::from_utf8(chain_id)
+                .expect("Not a UTF8 string encoding")
+                .parse::<chain::Id>()
+                .expect("Cannot parse as Chain Id"),
+            height: block::Height::try_from(height).expect("Cannot create Height"),
+            time: timestamp_from_nanos(time),
+            last_block_id: match last_block_id {
+                Some(id) => id.try_into().ok(),
+                None => None,
+            },
+            last_commit_hash: match last_commit_hash {
+                Some(hash) => Some(sha256_from_bytes(&hash)),
+                None => None,
+            },
+            data_hash: match data_hash {
+                Some(hash) => Some(sha256_from_bytes(&hash)),
+                None => None,
+            },
+            validators_hash: sha256_from_bytes(&validators_hash),
+            next_validators_hash: sha256_from_bytes(&next_validators_hash),
+            consensus_hash: sha256_from_bytes(&consensus_hash),
+            app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            last_results_hash: match last_results_hash {
+                Some(hash) => Some(sha256_from_bytes(&hash)),
+                None => None,
+            },
+            evidence_hash: match evidence_hash {
+                Some(hash) => Some(sha256_from_bytes(&hash)),
+                None => None,
+            },
+            proposer_address: account_id_from_bytes(proposer_address),
+        })
     }
 }
 
@@ -342,8 +382,6 @@ impl From<ValidatorSetStorage> for ValidatorSet {
         unimplemented!()
     }
 }
-
-pub type TendermintNodeId = Vec<u8>; // TODO type enforce length 20?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct LightBlockStorage {
