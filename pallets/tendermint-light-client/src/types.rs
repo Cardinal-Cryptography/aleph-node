@@ -1,26 +1,18 @@
-use codec::{Decode, Encode, WrapperTypeDecode};
-use frame_support::{
-    log,
-    pallet_prelude::{DispatchClass, DispatchResult, IsType, StorageValue, ValueQuery},
-    traits::Get,
-    RuntimeDebug,
-};
-use frame_system::{
-    ensure_root,
-    pallet_prelude::{BlockNumberFor, OriginFor},
-};
+use crate::utils::sha256_from_bytes;
+use codec::{Decode, Encode};
+use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
-    block::{parts::Header as PartSetHeader, Commit, CommitSig, Header},
+    block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain::{self, Id},
+    hash::{self, Hash},
     validator::Info,
 };
 use tendermint_light_client_verifier::{
     options::Options,
     types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
-    ProdVerifier,
 };
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
@@ -81,6 +73,16 @@ pub struct VersionStorage {
     pub app: u64,
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<Version> for VersionStorage {
+    fn into(self) -> Version {
+        Version {
+            block: self.block,
+            app: self.app,
+        }
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct PartSetHeaderStorage {
     /// Number of parts in this block
@@ -92,7 +94,8 @@ pub struct PartSetHeaderStorage {
 #[allow(clippy::from_over_into)]
 impl Into<PartSetHeader> for PartSetHeaderStorage {
     fn into(self) -> PartSetHeader {
-        unimplemented!()
+        PartSetHeader::new(self.total, sha256_from_bytes(&self.hash))
+            .expect("Can't create PartSetHeader")
     }
 }
 
@@ -108,9 +111,12 @@ pub struct BlockIdStorage {
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<chain::Id> for BlockIdStorage {
-    fn into(self) -> chain::Id {
-        unimplemented!()
+impl Into<block::Id> for BlockIdStorage {
+    fn into(self) -> block::Id {
+        block::Id {
+            hash: sha256_from_bytes(&self.hash),
+            part_set_header: self.part_set_header.into(),
+        }
     }
 }
 

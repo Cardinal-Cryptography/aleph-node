@@ -7,6 +7,7 @@ use frame_support::traits::StorageVersion;
 pub use pallet::*;
 
 mod types;
+mod utils;
 
 // #[cfg(feature = "std")]
 // use serde::{Deserialize, Serialize};
