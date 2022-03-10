@@ -116,17 +116,15 @@ where
     CIP: ChainInfoProvider<B>,
 {
     fn is_block_imported(&mut self, block: &BlockHashNum<B>) -> bool {
-        if self.highest.imported.num < block.num {
-            // We are lazy about updating highest blocks as this requires copying quite a bit of data
-            // from the client and requires a read lock.
-            self.update_highest_blocks();
-            if self.highest.imported.num < block.num {
-                return false;
-            }
-        }
         if self.available_blocks_cache.contains(block) {
             return true;
         }
+
+        self.update_highest_blocks();
+        if self.highest.imported.num < block.num {
+            return false;
+        }
+
         if self.chain_info_provider.is_block_imported(block) {
             self.available_blocks_cache.put(block.clone(), ());
             return true;
@@ -135,17 +133,15 @@ where
     }
 
     fn get_finalized_at(&mut self, num: NumberFor<B>) -> Result<BlockHashNum<B>, ()> {
-        if self.highest.finalized.num < num {
-            // We are lazy about updating highest blocks as this requires copying quite a bit of data
-            // from the client and requires a read lock.
-            self.update_highest_blocks();
-            if self.highest.finalized.num < num {
-                return Err(());
-            }
-        }
         if let Some(hash) = self.finalized_cache.get(&num) {
             return Ok((*hash, num).into());
         }
+
+        self.update_highest_blocks();
+        if self.highest.finalized.num < num {
+            return Err(());
+        }
+
         if let Ok(block) = self.chain_info_provider.get_finalized_at(num) {
             self.finalized_cache.put(num, block.hash);
             return Ok(block);
@@ -154,17 +150,15 @@ where
     }
 
     fn get_parent_hash(&mut self, block: &BlockHashNum<B>) -> Result<B::Hash, ()> {
-        if self.highest.imported.num < block.num {
-            // We are lazy about updating highest blocks as this requires copying quite a bit of data
-            // from the client and requires a read lock.
-            self.update_highest_blocks();
-            if self.highest.imported.num < block.num {
-                return Err(());
-            }
-        }
         if let Some(parent) = self.available_block_with_parent_cache.get(block) {
             return Ok(*parent);
         }
+
+        self.update_highest_blocks();
+        if self.highest.imported.num < block.num {
+                return Err(());
+            }
+
         if let Ok(parent) = self.chain_info_provider.get_parent_hash(block) {
             self.available_block_with_parent_cache
                 .put(block.clone(), parent);
