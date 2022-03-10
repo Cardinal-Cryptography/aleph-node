@@ -251,7 +251,7 @@ mod tests {
         verify_proposal_of_all_lens_finalizable(blocks.clone(), &mut cached_cip, &mut aux_cip);
 
         let _fork = chain_builder
-            .build_and_import_branch_upon(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_and_import_branch_above(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         verify_proposal_of_all_lens_finalizable(blocks.clone(), &mut cached_cip, &mut aux_cip);
@@ -265,7 +265,7 @@ mod tests {
             .await;
 
         let fork = chain_builder
-            .build_and_import_branch_upon(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_and_import_branch_above(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         for len in 1..=MAX_DATA_BRANCH_LEN {
@@ -351,7 +351,7 @@ mod tests {
             .await;
 
         let fork = chain_builder
-            .build_branch_upon(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_branch_above(&blocks[2].header.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         for len in 1..=MAX_DATA_BRANCH_LEN {

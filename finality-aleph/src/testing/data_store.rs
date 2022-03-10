@@ -120,8 +120,8 @@ impl TestHandler {
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    async fn build_branch_upon(&mut self, parent: &H256, len: usize) -> Vec<Block> {
-        self.chain_builder.build_branch_upon(parent, len).await
+    async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<Block> {
+        self.chain_builder.build_branch_above(parent, len).await
     }
 
     /// imports a sequence of blocks, should be in correct order
@@ -513,7 +513,7 @@ async fn unimported_hopeless_forks_go_through() {
 
         let forking_block = &blocks[MAX_DATA_BRANCH_LEN + 2];
         let fork = test_handler
-            .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_branch_above(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         send_proposals_of_each_len(fork.clone(), &mut test_handler);
@@ -552,7 +552,7 @@ async fn imported_hopeless_forks_go_through() {
 
         let forking_block = &blocks[MAX_DATA_BRANCH_LEN + 2];
         let fork = test_handler
-            .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_branch_above(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         test_handler.import_branch(blocks.clone()).await;
@@ -594,7 +594,7 @@ async fn hopeless_fork_at_the_boundary_goes_through() {
         let fork_num = MAX_DATA_BRANCH_LEN + 2;
         let forking_block = &blocks[fork_num];
         let fork = test_handler
-            .build_branch_upon(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
+            .build_branch_above(&forking_block.hash(), MAX_DATA_BRANCH_LEN * 10)
             .await;
 
         test_handler.import_branch(blocks.clone()).await;
