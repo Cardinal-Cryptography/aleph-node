@@ -10,7 +10,7 @@ use tendermint::{
     chain::{self},
     hash::{self, Hash},
     signature, time,
-    validator::Info,
+    validator::{self, Info},
 };
 use tendermint_light_client_verifier::{
     options::Options,
@@ -46,7 +46,7 @@ pub struct LightClientOptionsStorage {
 
 impl Default for LightClientOptionsStorage {
     fn default() -> Self {
-        LightClientOptionsStorage {
+        Self {
             trust_threshold: TrustThresholdStorage {
                 numerator: 1,
                 denominator: 3,
@@ -61,7 +61,7 @@ impl TryFrom<LightClientOptionsStorage> for Options {
     type Error = &'static str;
 
     fn try_from(val: LightClientOptionsStorage) -> Result<Self, Self::Error> {
-        Ok(Options {
+        Ok(Self {
             trust_threshold: TrustThreshold::new(
                 val.trust_threshold.numerator,
                 val.trust_threshold.denominator,
@@ -122,7 +122,7 @@ pub struct BlockIdStorage {
 impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
-        Ok(block::Id {
+        Ok(Self {
             hash: sha256_from_bytes(&value.hash),
             part_set_header: value
                 .part_set_header
@@ -196,7 +196,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
 
     fn try_from(value: CommitSignatureStorage) -> Result<Self, Self::Error> {
         Ok(match value {
-            CommitSignatureStorage::BlockIdFlagAbsent => CommitSig::BlockIdFlagAbsent,
+            CommitSignatureStorage::BlockIdFlagAbsent => Self::BlockIdFlagAbsent,
             CommitSignatureStorage::BlockIdFlagCommit {
                 validator_address,
                 timestamp,
@@ -206,7 +206,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let timestamp = timestamp_from_nanos(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
-                CommitSig::BlockIdFlagCommit {
+                Self::BlockIdFlagCommit {
                     validator_address,
                     timestamp,
                     signature,
@@ -221,7 +221,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let timestamp = timestamp_from_nanos(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
-                CommitSig::BlockIdFlagNil {
+                Self::BlockIdFlagNil {
                     validator_address,
                     timestamp,
                     signature,
@@ -339,9 +339,17 @@ pub struct SignedHeaderStorage {
     pub commit: CommitStorage,
 }
 
-impl From<SignedHeaderStorage> for SignedHeader {
-    fn from(val: SignedHeaderStorage) -> Self {
-        unimplemented!()
+impl TryFrom<SignedHeaderStorage> for SignedHeader {
+    type Error = &'static str;
+
+    fn try_from(value: SignedHeaderStorage) -> Result<Self, Self::Error> {
+        let SignedHeaderStorage { header, commit } = value;
+
+        Ok(Self::new(
+            header.try_into().expect("Cannot create Header"),
+            commit.try_into().expect("Cannot create Commit"),
+        )
+        .expect("Cannot create SignedHeader"))
     }
 }
 
@@ -364,9 +372,25 @@ pub struct ValidatorInfoStorage {
     pub proposer_priority: i64,
 }
 
-impl From<ValidatorInfoStorage> for Info {
-    fn from(val: ValidatorInfoStorage) -> Self {
-        unimplemented!()
+impl TryFrom<ValidatorInfoStorage> for validator::Info {
+    type Error = &'static str;
+
+    fn try_from(value: ValidatorInfoStorage) -> Result<Self, Self::Error> {
+        let ValidatorInfoStorage {
+            address,
+            pub_key,
+            power,
+            name,
+            proposer_priority,
+        } = value;
+
+        Ok(Self {
+            address: account_id_from_bytes(address),
+            pub_key: (),
+            power: (),
+            name: (),
+            proposer_priority: (),
+        })
     }
 }
 
