@@ -5,42 +5,36 @@
 //! - `Multicast`: mimicking the interface of `aleph_bft::ReliableMulticast`
 //! - `Multisigned`: abstracting away the `aleph_bft::Multisigned` capabilities as a trait.
 
-use crate::crypto::Signature;
-use aleph_bft::rmc::ReliableMulticast;
 use aleph_bft::{
-    rmc::Message, MultiKeychain, Multisigned as MultisignedStruct, Signable, SignatureSet,
+    rmc::ReliableMulticast, MultiKeychain, Multisigned as MultisignedStruct, Signable,
     UncheckedSigned,
 };
 use codec::{Codec, Decode, Encode};
-use sp_runtime::traits::Block;
 use std::{fmt::Debug, hash::Hash as StdHash};
-
-/// A wrapper allowing block hashes to be signed.
-#[derive(PartialEq, Eq, StdHash, Clone, Debug, Default, Encode, Decode)]
-pub struct SignableHash<H: Codec + Send + Sync> {
-    hash: H,
-}
-
-impl<H: Codec + Send + Sync> SignableHash<H> {
-    pub fn new(hash: H) -> Self {
-        Self { hash }
-    }
-}
-
-impl<H: AsRef<[u8]> + StdHash + Clone + Codec + Send + Sync> Signable for SignableHash<H> {
-    type Hash = H;
-    fn hash(&self) -> Self::Hash {
-        self.hash.clone()
-    }
-}
 
 /// A convenience trait for gathering all of the desired hash characteristics.
 pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync {}
 
 impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync> Hash for T {}
 
-pub type NetworkData<B> =
-    Message<SignableHash<<B as Block>::Hash>, Signature, SignatureSet<Signature>>;
+/// A wrapper allowing block hashes to be signed.
+#[derive(PartialEq, Eq, StdHash, Clone, Debug, Default, Encode, Decode)]
+pub struct SignableHash<H: Hash> {
+    hash: H,
+}
+
+impl<H: Hash> SignableHash<H> {
+    pub fn new(hash: H) -> Self {
+        Self { hash }
+    }
+}
+
+impl<H: Hash> Signable for SignableHash<H> {
+    type Hash = H;
+    fn hash(&self) -> Self::Hash {
+        self.hash.clone()
+    }
+}
 
 /// Anything that exposes the same interface as `aleph_bft::Multisigned` struct.
 pub trait Multisigned<'a, H: Hash, MK: MultiKeychain> {

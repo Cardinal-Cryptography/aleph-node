@@ -1,3 +1,4 @@
+use crate::aggregation::{Hash, Multicast, Multisigned, SignableHash};
 use crate::{metrics::Checkpoint, network::DataNetwork, Metrics};
 use aleph_bft::{MultiKeychain, Recipient, Signable};
 use codec::Codec;
@@ -9,17 +10,12 @@ use std::{
     marker::PhantomData,
 };
 
-mod multicast;
-
-pub use multicast::{Hash, Multicast, Multisigned, NetworkData as RmcNetworkData, SignableHash};
-
-/// A type encapsulating three different results of the `process_network_messages` method
 pub(crate) enum AggregatorError {
     NetworkChannelClosed,
 }
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
-pub(crate) struct BlockSignatureAggregator<
+pub struct BlockSignatureAggregator<
     'a,
     H: Hash + Copy,
     D: Clone + Codec + Debug + Send + Sync + 'static,
@@ -90,7 +86,7 @@ where
         self.last_hash_placed = true;
     }
 
-    pub(crate) async fn wait_for_next_signature(&mut self) -> Result<(), AggregatorError> {
+    async fn wait_for_next_signature(&mut self) -> Result<(), AggregatorError> {
         loop {
             tokio::select! {
                 multisigned_hash = self.multicast.next_multisigned_hash() => {

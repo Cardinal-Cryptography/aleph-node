@@ -1,6 +1,6 @@
-use crate::aggregator::SignableHash;
+use crate::aggregation::SignableHash;
 use crate::{
-    aggregator::{BlockSignatureAggregator, RmcNetworkData},
+    aggregation::{BlockSignatureAggregator, RmcNetworkData},
     crypto::{KeyBox, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
