@@ -5,23 +5,20 @@ use scale_info::{prelude::string::String, TypeInfo};
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
-    account,
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain::{self},
-    hash::{self, Hash},
-    public_key, signature, time,
-    validator::{self, Info, ProposerPriority},
+    chain, hash, node, public_key, signature,
+    validator::{self, ProposerPriority},
     vote,
 };
 use tendermint_light_client_verifier::{
     options::Options,
-    types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
+    types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 
 pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 pub type AppHashStorage = Vec<u8>; // TODO type enforce length 64?
 pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
-pub type TendermintNodeId = Vec<u8>; // TODO type enforce length 20?
+pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
@@ -434,11 +431,31 @@ pub struct LightBlockStorage {
     pub signed_header: SignedHeaderStorage,
     pub validators: ValidatorSetStorage,
     pub next_validators: ValidatorSetStorage,
-    pub provider: TendermintNodeId,
+    pub provider: TendermintPeerId,
 }
 
-impl From<LightBlockStorage> for LightBlock {
-    fn from(val: LightBlockStorage) -> Self {
-        unimplemented!()
+impl TryFrom<LightBlockStorage> for LightBlock {
+    type Error = &'static str;
+
+    fn try_from(value: LightBlockStorage) -> Result<Self, Self::Error> {
+        let LightBlockStorage {
+            signed_header,
+            validators,
+            next_validators,
+            provider,
+        } = value;
+
+        let bytes: [u8; 20] = provider.try_into().expect("Not a 20 byte array");
+
+        Ok(Self {
+            signed_header: signed_header
+                .try_into()
+                .expect("Cannot create SignedHeader"),
+            validators: validators.try_into().expect("Cannot create ValidatorSet"),
+            next_validators: next_validators
+                .try_into()
+                .expect("Cannot create next ValidatorSet"),
+            provider: node::Id::new(bytes),
+        })
     }
 }
