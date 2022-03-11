@@ -16,10 +16,14 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use crate::types::{BridgedBlockHash, LightBlockStorage};
     use frame_support::{
         log,
-        pallet_prelude::{DispatchClass, DispatchResult, IsType, StorageValue, ValueQuery},
+        pallet_prelude::{
+            DispatchClass, DispatchResult, IsType, StorageMap, StorageValue, ValueQuery,
+        },
         traits::Get,
+        Identity,
     };
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use sp_std::vec::Vec;
@@ -64,6 +68,25 @@ pub mod pallet {
     // - header storage should be a ring buffer (i.e. we keep n last headers, ordered by the insertion time)
     // - we keep a pointer to the last finalized header (to avoid deserializing the whole buffer)
     // - insertion moves the pointer and updates the buffer
+
+    /// Hash of the best finalized header from the bridged chain
+    #[pallet::storage]
+    pub type BestFinalized<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
+
+    /// A buffer of imported hashes ordered by their insertion time
+    #[pallet::storage]
+    pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
+
+    /// Current ring buffer position
+    #[pallet::storage]
+    pub(super) type ImportedHashesPointer<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+    /// Bridged chain Headers which have been imported by the client
+    #[pallet::storage]
+    pub(super) type ImportedHeaders<T: Config> =
+        StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage>;
+
+    // END: TODO
 
     /// If true, stop the world
     #[pallet::storage]

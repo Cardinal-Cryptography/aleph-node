@@ -20,6 +20,7 @@ pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 pub type AppHashStorage = Vec<u8>; // TODO type enforce length 64?
 pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
 pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
+pub type BridgedBlockHash = Vec<u8>;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
 pub struct TrustThresholdStorage {
@@ -111,7 +112,7 @@ impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
 pub struct BlockIdStorage {
     /// The block's main hash is the Merkle root of all the fields in the
     /// block header.
-    pub hash: Vec<u8>,
+    pub hash: BridgedBlockHash,
     /// Parts header (if available) is used for secure gossipping of the block
     /// during consensus. It is the Merkle root of the complete serialized block
     /// cut into parts.
