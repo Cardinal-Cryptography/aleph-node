@@ -112,7 +112,7 @@ where
                         }
                     }
                 }
-                message_from_network = self.network.next() => {
+                message_from_network = self.network.next() =>
                     match message_from_network {
                         Some(message_from_network) => {
                             trace!(target: "aleph-aggregator", "Received message for rmc: {:?}", message_from_network);
@@ -124,7 +124,6 @@ where
                             return Err(AggregatorError::NetworkChannelClosed);
                         }
                     }
-                }
             }
         }
     }

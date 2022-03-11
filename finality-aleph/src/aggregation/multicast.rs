@@ -61,7 +61,7 @@ impl<'a, H: Hash, MK: MultiKeychain> Multisigned<'a, SignableHash<H>, MK>
 #[async_trait::async_trait]
 pub trait Multicast<H: Hash, S: Signable>: Send + Sync {
     type Signed;
-    async fn start_multicast(&mut self, hash: S);
+    async fn start_multicast(&mut self, signable: S);
     fn get_multisigned(&self, signable: &S) -> Option<Self::Signed>;
     async fn next_multisigned_hash(&mut self) -> Self::Signed;
 }
