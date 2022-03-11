@@ -1,6 +1,6 @@
 use crate::{Connection, SessionKeys};
 use serde_json::{json, Value};
-use substrate_api_client::{ApiResult, FromHexString};
+use substrate_api_client::ApiResult;
 
 fn json_req(method: &str, params: Value, id: u32) -> Value {
     json!({
@@ -16,11 +16,13 @@ pub fn author_rotate_keys() -> Value {
 }
 
 pub fn rotate_keys(connection: &Connection) -> ApiResult<Option<SessionKeys>> {
-    let jsonreq = author_rotate_keys();
-    let p = connection.get_request(jsonreq)?;
-    Ok(p.map(|keys| {
-        let bytes: Vec<u8> =
-            FromHexString::from_hex(keys).expect("String hex-encoded session cannot be decoded");
-        SessionKeys::from(bytes)
-    }))
+    Ok(connection
+        .get_request(author_rotate_keys())?
+        .map(|keys| SessionKeys::from(keys)))
+}
+
+pub fn rotate_keys_raw(connection: &Connection) -> ApiResult<Option<String>> {
+    Ok(connection
+        .get_request(author_rotate_keys())?
+        .map(|keys| keys.trim_matches('\"').to_string()))
 }

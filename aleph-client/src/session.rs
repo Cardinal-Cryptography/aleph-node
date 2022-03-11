@@ -1,8 +1,9 @@
-use crate::{send_xt, wait_for_event, BlockNumber, Connection};
+use crate::waiting::wait_for_event;
+use crate::{send_xt, BlockNumber, Connection};
 use codec::{Decode, Encode};
 use log::info;
 use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, FromHexString, XtStatus};
 
 // Using custom struct and rely on default Encode trait from Parity's codec
 // it works since byte arrays are encoded in a straight forward way, it as-is
@@ -20,6 +21,14 @@ impl From<Vec<u8>> for Keys {
             aura: bytes[0..32].try_into().unwrap(),
             aleph: bytes[32..64].try_into().unwrap(),
         }
+    }
+}
+
+impl From<String> for Keys {
+    fn from(keys: String) -> Self {
+        let bytes: Vec<u8> =
+            FromHexString::from_hex(keys).expect("String hex-encoded session cannot be decoded");
+        Keys::from(bytes)
     }
 }
 
