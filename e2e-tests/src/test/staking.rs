@@ -7,7 +7,7 @@ use crate::{
     },
     transfer::batch_endow_account_balances,
 };
-use aleph_client::{staking_bond, wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, BlockNumber, Connection, KeyPair};
+use aleph_client::{staking_bond, wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, KeyPair};
 use log::info;
 use pallet_staking::StakingLedger;
 use primitives::{
