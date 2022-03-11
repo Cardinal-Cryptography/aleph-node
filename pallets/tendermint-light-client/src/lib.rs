@@ -83,7 +83,7 @@ pub mod pallet {
 
     /// Bridged chain Headers which have been imported by the client
     #[pallet::storage]
-    pub(super) type ImportedHeaders<T: Config> =
+    pub(super) type ImportedBlocks<T: Config> =
         StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage>;
 
     // END: TODO
@@ -101,8 +101,13 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         // TODO : adjust weight
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
-        pub fn initialize_client(origin: OriginFor<T>, options_payload: Vec<u8>) -> DispatchResult {
+        pub fn initialize_client(
+            origin: OriginFor<T>,
+            options_payload: Vec<u8>,
+            initial_block_payload: Vec<u8>,
+        ) -> DispatchResult {
             ensure_root(origin)?;
+            // TODO : ensure not already initialized
 
             let options: LightClientOptionsStorage = serde_json::from_slice(&options_payload[..])
                 .map_err(|e| {
@@ -111,6 +116,21 @@ pub mod pallet {
             })?;
 
             <LightClientOptions<T>>::put(options);
+
+            let light_block: LightBlockStorage = serde_json::from_slice(&initial_block_payload[..])
+                .map_err(|e| {
+                    log::error!("Error when deserializing initial light block: {}", e);
+                    Error::<T>::DeserializeError
+                })?;
+
+            let hash = light_block.signed_header.commit.block_id.hash.clone();
+            insert_light_block::<T>(hash, light_block.clone());
+
+            // TODO : update block storage
+            // <BestFinalized<T>>::put(hash);
+            <ImportedHashesPointer<T>>::put(0);
+
+            // update status
             <IsHalted<T>>::put(false);
             log::info!(target: "runtime::tendermint-lc", "Light client initialized");
             Self::deposit_event(Event::LightClientInitialized);
@@ -163,6 +183,18 @@ pub mod pallet {
 
             Ok(())
         }
+    }
+
+    // TODO
+    /// update light client storage
+    /// should only be called by a trusted origin, *after* performing a verification
+    fn insert_light_block<T: Config>(hash: Vec<u8>, light_block: LightBlockStorage) {
+        let index = <ImportedHashesPointer<T>>::get();
+        <BestFinalized<T>>::put(hash.clone());
+        <ImportedBlocks<T>>::insert(hash.clone(), light_block);
+        <ImportedHashes<T>>::insert(index, hash.clone());
+
+        // TODO: prune light blocks
     }
 
     /// Ensure that the light client is not in a halted state
