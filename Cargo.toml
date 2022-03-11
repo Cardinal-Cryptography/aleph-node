@@ -15,5 +15,6 @@ exclude = [
   "aleph-client",
   "local-tests/send-runtime",
   "fork-off",
+  "benches/payout-stakers",
   "bin/cliain",
 ]
