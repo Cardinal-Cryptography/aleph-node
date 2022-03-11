@@ -1,5 +1,9 @@
-use crate::aggregation::{Hash, Multicast, Multisigned, SignableHash};
-use crate::{metrics::Checkpoint, network::DataNetwork, Metrics};
+use crate::{
+    aggregation::multicast::{Hash, Multicast, Multisigned, SignableHash},
+    metrics::Checkpoint,
+    network::DataNetwork,
+    Metrics,
+};
 use aleph_bft::{MultiKeychain, Recipient, Signable};
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
@@ -21,7 +25,7 @@ pub struct BlockSignatureAggregator<
     D: Clone + Codec + Debug + Send + Sync + 'static,
     N: DataNetwork<D>,
     MK: MultiKeychain,
-    RMC: Multicast<H>,
+    RMC: Multicast<H, SignableHash<H>>,
 > {
     messages_for_rmc: mpsc::UnboundedSender<D>,
     messages_from_rmc: mpsc::UnboundedReceiver<D>,
@@ -41,10 +45,10 @@ impl<
         D: Clone + Codec + Debug + Send + Sync,
         N: DataNetwork<D>,
         MK: MultiKeychain,
-        RMC: Multicast<H>,
+        RMC: Multicast<H, SignableHash<H>>,
     > BlockSignatureAggregator<'a, H, D, N, MK, RMC>
 where
-    RMC::Signed: Multisigned<'a, H, MK>,
+    RMC::Signed: Multisigned<'a, SignableHash<H>, MK>,
 {
     pub(crate) fn new(
         network: N,
@@ -98,20 +102,27 @@ where
                 }
                 message_from_rmc = self.messages_from_rmc.next() => {
                     trace!(target: "aleph-aggregator", "Our rmc message {:?}.", message_from_rmc);
-                    if let Some(message_from_rmc) = message_from_rmc {
-                        self.network.send(message_from_rmc, Recipient::Everyone).expect("sending message from rmc failed")
-                    } else {
-                        warn!(target: "aleph-aggregator", "the channel of messages from rmc closed");
+                    match message_from_rmc {
+                        Some(message_from_rmc) => {
+                            self.network.send(message_from_rmc, Recipient::Everyone)
+                                        .expect("sending message from rmc failed");
+                        },
+                        None => {
+                            warn!(target: "aleph-aggregator", "the channel of messages from rmc closed");
+                        }
                     }
                 }
                 message_from_network = self.network.next() => {
-                    if let Some(message_from_network) = message_from_network {
-                        trace!(target: "aleph-aggregator", "Received message for rmc: {:?}", message_from_network);
-                        self.messages_for_rmc.unbounded_send(message_from_network).expect("sending message to rmc failed");
-                    } else {
-                        warn!(target: "aleph-aggregator", "the network channel closed");
-                        // In case the network is down we can terminate (?).
-                        return Err(AggregatorError::NetworkChannelClosed);
+                    match message_from_network {
+                        Some(message_from_network) => {
+                            trace!(target: "aleph-aggregator", "Received message for rmc: {:?}", message_from_network);
+                            self.messages_for_rmc.unbounded_send(message_from_network)
+                                                 .expect("sending message to rmc failed");
+                        },
+                        None => {
+                            // In case the network is down we can terminate (?).
+                            return Err(AggregatorError::NetworkChannelClosed);
+                        }
                     }
                 }
             }
@@ -138,7 +149,8 @@ where
                     }
                 }
             }
-            if let Err(_e) = self.wait_for_next_signature().await {
+            if self.wait_for_next_signature().await.is_err() {
+                warn!(target: "aleph-aggregator", "the network channel closed");
                 return None;
             }
         }

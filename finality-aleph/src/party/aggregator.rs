@@ -1,6 +1,5 @@
-use crate::aggregation::SignableHash;
 use crate::{
-    aggregation::{BlockSignatureAggregator, RmcNetworkData},
+    aggregation::{BlockSignatureAggregator, RmcNetworkData, SignableHash},
     crypto::{KeyBox, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
@@ -8,8 +7,10 @@ use crate::{
     party::{AuthoritySubtaskCommon, Task},
     BlockHashNum, Metrics, SessionBoundaries,
 };
-use aleph_bft::rmc::{DoublingDelayScheduler, ReliableMulticast};
-use aleph_bft::{KeyBox as BftKeyBox, SignatureSet, SpawnHandle};
+use aleph_bft::{
+    rmc::{DoublingDelayScheduler, ReliableMulticast},
+    KeyBox as BftKeyBox, SignatureSet, SpawnHandle,
+};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,

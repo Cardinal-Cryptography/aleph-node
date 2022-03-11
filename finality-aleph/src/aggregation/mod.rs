@@ -6,7 +6,7 @@ mod aggregator;
 mod multicast;
 
 pub use aggregator::BlockSignatureAggregator;
-pub use multicast::{Hash, Multicast, Multisigned, SignableHash};
+pub use multicast::SignableHash;
 
 pub type RmcNetworkData<B> =
     Message<SignableHash<<B as Block>::Hash>, Signature, SignatureSet<Signature>>;

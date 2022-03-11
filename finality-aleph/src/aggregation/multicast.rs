@@ -37,12 +37,12 @@ impl<H: Hash> Signable for SignableHash<H> {
 }
 
 /// Anything that exposes the same interface as `aleph_bft::Multisigned` struct.
-pub trait Multisigned<'a, H: Hash, MK: MultiKeychain> {
-    fn as_signable(&self) -> &SignableHash<H>;
-    fn into_unchecked(self) -> UncheckedSigned<SignableHash<H>, MK::PartialMultisignature>;
+pub trait Multisigned<'a, S: Signable, MK: MultiKeychain> {
+    fn as_signable(&self) -> &S;
+    fn into_unchecked(self) -> UncheckedSigned<S, MK::PartialMultisignature>;
 }
 
-impl<'a, H: Hash, MK: MultiKeychain> Multisigned<'a, H, MK>
+impl<'a, H: Hash, MK: MultiKeychain> Multisigned<'a, SignableHash<H>, MK>
     for MultisignedStruct<'a, SignableHash<H>, MK>
 {
     fn as_signable(&self) -> &SignableHash<H> {
@@ -59,15 +59,17 @@ impl<'a, H: Hash, MK: MultiKeychain> Multisigned<'a, H, MK>
 /// The trait defines an associated type: `Signed`. For `ReliableMulticast`, this is simply
 /// `aleph_bft::Multisigned` but the mocks are free to use the simplest matching implementation.
 #[async_trait::async_trait]
-pub trait Multicast<H: Hash>: Send + Sync {
+pub trait Multicast<H: Hash, S: Signable>: Send + Sync {
     type Signed;
-    async fn start_multicast(&mut self, hash: SignableHash<H>);
-    fn get_multisigned(&self, hash: &SignableHash<H>) -> Option<Self::Signed>;
+    async fn start_multicast(&mut self, hash: S);
+    fn get_multisigned(&self, hash: &S) -> Option<Self::Signed>;
     async fn next_multisigned_hash(&mut self) -> Self::Signed;
 }
 
 #[async_trait::async_trait]
-impl<'a, H: Hash, MK: MultiKeychain> Multicast<H> for ReliableMulticast<'a, SignableHash<H>, MK> {
+impl<'a, H: Hash, MK: MultiKeychain> Multicast<H, SignableHash<H>>
+    for ReliableMulticast<'a, SignableHash<H>, MK>
+{
     type Signed = MultisignedStruct<'a, SignableHash<H>, MK>;
 
     async fn start_multicast(&mut self, hash: SignableHash<H>) {
