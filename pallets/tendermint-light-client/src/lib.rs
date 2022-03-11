@@ -3,14 +3,12 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 
 #![cfg_attr(not(feature = "std"), no_std)]
-use frame_support::traits::StorageVersion;
-pub use pallet::*;
 
 mod types;
 mod utils;
 
-// #[cfg(feature = "std")]
-// use serde::{Deserialize, Serialize};
+use frame_support::traits::StorageVersion;
+pub use pallet::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -20,22 +18,12 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         log,
-        pallet_prelude::{
-            Decode, DispatchClass, DispatchResult, Encode, IsType, StorageValue, ValueQuery,
-        },
+        pallet_prelude::{DispatchClass, DispatchResult, IsType, StorageValue, ValueQuery},
         traits::Get,
     };
-    use frame_system::{
-        ensure_root,
-        pallet_prelude::{BlockNumberFor, OriginFor},
-    };
-    use scale_info::TypeInfo;
-    use sp_std::{time::Duration, vec::Vec};
-    use tendermint_light_client_verifier::{
-        options::Options,
-        types::{LightBlock, TrustThreshold},
-        ProdVerifier,
-    };
+    use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use sp_std::vec::Vec;
+    use tendermint_light_client_verifier::{options::Options, types::LightBlock, ProdVerifier};
     use types::LightClientOptionsStorage;
 
     #[pallet::config]
@@ -72,6 +60,11 @@ pub mod pallet {
         Halted,
     }
 
+    // TODOs for storage:
+    // - header storage should be a ring buffer (i.e. we keep n last headers, ordered by the insertion time)
+    // - we keep a pointer to the last finalized header (to avoid deserializing the whole buffer)
+    // - insertion moves the pointer and updates the buffer
+
     /// If true, stop the world
     #[pallet::storage]
     #[pallet::getter(fn is_halted)]
@@ -107,7 +100,7 @@ pub mod pallet {
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         pub fn submit_finality_proof(
             origin: OriginFor<T>,
-            light_block_payload: Vec<u8>,
+            untrusted_block_payload: Vec<u8>,
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
 
@@ -116,13 +109,11 @@ pub mod pallet {
             let verifier = ProdVerifier::default();
 
             // TODO : storage type for Light Block
-            let light_block: LightBlock = serde_json::from_slice(&light_block_payload[..])
+            let untrusted_state: LightBlock = serde_json::from_slice(&untrusted_block_payload[..])
                 .map_err(|e| {
                     log::error!("Error when deserializing light block: {}", e);
                     Error::<T>::DeserializeError
                 })?;
-
-            // TODO : types for justification and header
 
             // TODO : verify against known state
 

@@ -2,6 +2,7 @@ use crate::utils::{account_id_from_bytes, sha256_from_bytes, timestamp_from_nano
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
+// #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
