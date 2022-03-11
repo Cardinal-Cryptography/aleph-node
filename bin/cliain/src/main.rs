@@ -29,6 +29,7 @@ enum Command {
         #[clap(long, value_delimiter = ',')]
         validators: Vec<String>,
     },
+    /// Associate the node with a specific staking account.
     PrepareKeys,
 }
 
