@@ -68,6 +68,7 @@ pub fn send_xt(connection: &Connection, xt: String, xt_name: &'static str, tx_st
         .expect("Block exists; qed")
         .number;
     info!(
+        target: "aleph-client",
         "Transaction {} was included in block {}.",
         xt_name, block_number
     );
