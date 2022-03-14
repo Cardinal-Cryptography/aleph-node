@@ -311,8 +311,13 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
 }
 
+parameter_types! {
+    pub const HeadersToKeep: u32 = 10000;
+}
+
 impl pallet_tendermint_light_client::Config for Runtime {
     type Event = Event;
+    type HeadersToKeep = HeadersToKeep;
 }
 
 impl_opaque_keys! {

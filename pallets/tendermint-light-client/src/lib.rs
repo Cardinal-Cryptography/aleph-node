@@ -27,14 +27,20 @@ pub mod pallet {
     };
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use sp_std::vec::Vec;
-    use tendermint_light_client_verifier::{options::Options, types::LightBlock, ProdVerifier};
+    use tendermint_light_client_verifier::{
+        options::Options, types::LightBlock, ProdVerifier, Verifier,
+    };
     use types::LightClientOptionsStorage;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        /// ubiquitous event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        // #[pallet::constant]
-        // type ValidatorSetTrustThreshold: Get<TrustThresholdFraction>;
+
+        /// Maximal number of finalized headers to keep in the storage.
+        /// last in first out
+        #[pallet::constant]
+        type HeadersToKeep: Get<u32>;
     }
 
     #[pallet::pallet]
@@ -86,7 +92,7 @@ pub mod pallet {
     pub(super) type ImportedBlocks<T: Config> =
         StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage>;
 
-    // END: TODO
+    // END: TODOs
 
     /// If true, stop the world
     #[pallet::storage]
@@ -124,11 +130,9 @@ pub mod pallet {
                 })?;
 
             let hash = light_block.signed_header.commit.block_id.hash.clone();
-            insert_light_block::<T>(hash, light_block.clone());
-
-            // TODO : update block storage
-            // <BestFinalized<T>>::put(hash);
             <ImportedHashesPointer<T>>::put(0);
+            // TODO : update block storage
+            insert_light_block::<T>(hash, light_block.clone());
 
             // update status
             <IsHalted<T>>::put(false);
@@ -152,13 +156,15 @@ pub mod pallet {
             let verifier = ProdVerifier::default();
 
             // TODO : storage type for Light Block
-            let untrusted_state: LightBlock = serde_json::from_slice(&untrusted_block_payload[..])
+            let untrusted_block: LightBlock = serde_json::from_slice(&untrusted_block_payload[..])
                 .map_err(|e| {
                     log::error!("Error when deserializing light block: {}", e);
                     Error::<T>::DeserializeError
                 })?;
 
             // TODO : verify against known state
+            // let verdict =
+            //     verifier.verify(&untrusted_block, most_recent_trusted_block, &options, now);
 
             // TODO : update storage
 
@@ -185,16 +191,23 @@ pub mod pallet {
         }
     }
 
-    // TODO
+    // TODO: test
     /// update light client storage
     /// should only be called by a trusted origin, *after* performing a verification
     fn insert_light_block<T: Config>(hash: Vec<u8>, light_block: LightBlockStorage) {
         let index = <ImportedHashesPointer<T>>::get();
+        let pruning = <ImportedHashes<T>>::try_get(index);
+
         <BestFinalized<T>>::put(hash.clone());
         <ImportedBlocks<T>>::insert(hash.clone(), light_block);
         <ImportedHashes<T>>::insert(index, hash.clone());
+        <ImportedHashesPointer<T>>::put((index + 1) % T::HeadersToKeep::get());
 
-        // TODO: prune light blocks
+        // prune light block
+        if let Ok(hash) = pruning {
+            log::warn!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
+            <ImportedBlocks<T>>::remove(hash);
+        }
     }
 
     /// Ensure that the light client is not in a halted state
