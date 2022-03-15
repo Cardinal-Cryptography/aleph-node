@@ -41,8 +41,7 @@ pub mod pallet {
         /// ubiquitous event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        /// Maximal number of finalized headers to keep in the storage.
-        /// last in first out
+        /// Maximal number of finalized headers to keep in the storage, last-in first-out
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
 
@@ -92,7 +91,7 @@ pub mod pallet {
     #[pallet::storage]
     pub type BestFinalized<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
 
-    /// A buffer of imported hashes ordered by their insertion time
+    /// A ring buffer of imported hashes ordered by their insertion time
     #[pallet::storage]
     pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
 
@@ -101,6 +100,7 @@ pub mod pallet {
     pub(super) type ImportedHashesPointer<T: Config> = StorageValue<_, u32, ValueQuery>;
 
     /// Bridged chain Headers which have been imported by the client
+    /// Client keeps HeadersToKeep number of these at any time
     #[pallet::storage]
     pub(super) type ImportedBlocks<T: Config> =
         StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage, OptionQuery>;
@@ -240,7 +240,7 @@ pub mod pallet {
             <IsHalted<T>>::put(halted);
 
             if halted {
-                log::info!(target: "runtime::tendermint-lc", "Halting light client operations");
+                log::warn!(target: "runtime::tendermint-lc", "Halting light client operations");
                 Self::deposit_event(Event::LightClientHalted);
             } else {
                 log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
@@ -251,7 +251,6 @@ pub mod pallet {
         }
     }
 
-    // TODO: test
     /// update light client storage
     /// should only be called by a trusted origin, *after* performing a verification
     fn insert_light_block<T: Config>(hash: Vec<u8>, light_block: LightBlockStorage) {
@@ -265,7 +264,7 @@ pub mod pallet {
 
         // prune light block
         if let Ok(hash) = pruning {
-            log::warn!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
+            log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
             <ImportedBlocks<T>>::remove(hash);
         }
     }

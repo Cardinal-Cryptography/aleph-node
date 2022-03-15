@@ -1,15 +1,8 @@
 use sp_std::vec::Vec;
 use tendermint::{
     account,
-    block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain::{self, Id},
     hash::{self, Hash},
-    signature, time,
-    validator::Info,
-};
-use tendermint_light_client_verifier::{
-    options::Options,
-    types::{LightBlock, PeerId, SignedHeader, TrustThreshold, ValidatorSet},
+    time,
 };
 
 pub fn sha256_from_bytes(hash: &[u8]) -> Hash {
