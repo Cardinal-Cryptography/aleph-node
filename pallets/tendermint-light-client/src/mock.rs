@@ -24,8 +24,8 @@ pub const TRUSTED_BLOCK: &str = r#"{
                 "app": 0
             },
             "chain_id": "test-chain",
-            "height": "3",
-            "time": "1970-01-01T00:00:03Z",
+            "height": 3,
+            "time": 3597,
             "last_block_id": null,
             "last_commit_hash": null,
             "data_hash": null,

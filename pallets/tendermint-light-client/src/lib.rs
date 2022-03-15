@@ -22,7 +22,7 @@ pub mod pallet {
     use super::*;
     use crate::{
         types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage},
-        utils::timestamp_from_nanos,
+        utils::from_unix_timestamp,
     };
     use frame_support::{
         ensure, fail, log,
@@ -201,7 +201,7 @@ pub mod pallet {
             };
 
             let now = T::TimeProvider::now();
-            let time_now: Time = timestamp_from_nanos(now.as_nanos());
+            let time_now: Time = from_unix_timestamp(now.as_secs().try_into().unwrap());
 
             let untrusted_block: LightBlock = untrusted_block_storage
                 .clone()

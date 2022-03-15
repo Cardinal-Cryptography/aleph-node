@@ -1,4 +1,4 @@
-use crate::utils::{account_id_from_bytes, sha256_from_bytes, timestamp_from_nanos};
+use crate::utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes};
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
@@ -143,11 +143,11 @@ pub struct HeaderStorage {
     /// Header version
     pub version: VersionStorage,
     /// Chain identifier (e.g. 'gaia-9000')    
-    pub chain_id: Vec<u8>, // String::from_utf8,
+    pub chain_id: String, //Vec<u8>, // String::from_utf8,
     /// Current block height
     pub height: u64,
-    /// Current timestamp in nanoseconds
-    pub time: u128,
+    /// Epoch Unix timestamp in seconds
+    pub timestamp: i64,
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
@@ -183,7 +183,7 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: u128,
+        timestamp: i64,
         /// Signature of vote
         signature: Option<SignatureStorage>,
     },
@@ -192,7 +192,7 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: u128,
+        timestamp: i64,
         /// Signature of vote
         signature: Option<SignatureStorage>,
     },
@@ -210,7 +210,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 signature,
             } => {
                 let validator_address = account_id_from_bytes(validator_address);
-                let timestamp = timestamp_from_nanos(timestamp);
+                let timestamp = from_unix_timestamp(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagCommit {
@@ -225,7 +225,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 signature,
             } => {
                 let validator_address = account_id_from_bytes(validator_address);
-                let timestamp = timestamp_from_nanos(timestamp);
+                let timestamp = from_unix_timestamp(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagNil {
@@ -291,7 +291,7 @@ impl TryFrom<HeaderStorage> for Header {
             version,
             chain_id,
             height,
-            time,
+            timestamp,
             last_block_id,
             last_commit_hash,
             data_hash,
@@ -306,12 +306,15 @@ impl TryFrom<HeaderStorage> for Header {
 
         Ok(Self {
             version: version.try_into().expect("Cannot create Version"),
-            chain_id: String::from_utf8(chain_id)
-                .expect("Not a UTF8 string encoding")
+            chain_id: chain_id
                 .parse::<chain::Id>()
                 .expect("Cannot parse as Chain Id"),
+            // String::from_utf8(chain_id)
+            //     .expect("Not a UTF8 string encoding")
+            //     .parse::<chain::Id>()
+            //     .expect("Cannot parse as Chain Id"),
             height: block::Height::try_from(height).expect("Cannot create Height"),
-            time: timestamp_from_nanos(time),
+            time: from_unix_timestamp(timestamp),
             last_block_id: match last_block_id {
                 Some(id) => id.try_into().ok(),
                 None => None,
