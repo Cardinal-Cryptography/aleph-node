@@ -16,7 +16,7 @@ use futures::{
     StreamExt,
 };
 use sp_api::NumberFor;
-pub use sp_core::hash::H256;
+use sp_core::hash::H256;
 use sp_runtime::traits::Block as BlockT;
 use std::{future::Future, sync::Arc, time::Duration};
 use substrate_test_runtime_client::{

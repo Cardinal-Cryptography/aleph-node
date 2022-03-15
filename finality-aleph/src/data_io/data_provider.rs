@@ -317,7 +317,7 @@ mod tests {
             data_provider::{ChainTracker, ChainTrackerConfig},
             AlephData, MAX_DATA_BRANCH_LEN,
         },
-        testing::client_chain_builder::ClientChainBuilder,
+        testing::{client_chain_builder::ClientChainBuilder, mocks::aleph_data_from_blocks},
         SessionBoundaries, SessionId, SessionPeriod,
     };
     use futures::channel::oneshot;
@@ -328,9 +328,10 @@ mod tests {
     };
     use tokio::time::sleep;
 
-    // A large number only for the purpose of creating `AlephProposal`s
     const SESSION_LEN: u32 = 100;
-    const REFRESH_INTERVAL: u64 = 4;
+    // The lower the interval the less time the tests take, however setting this too low might cause
+    // the tests to fail. Even though 1ms works with no issues, we set it to 5ms for safety.
+    const REFRESH_INTERVAL_MILLIS: u64 = 5;
 
     fn prepare_chain_tracker_test() -> (
         impl Future<Output = ()>,
@@ -346,14 +347,13 @@ mod tests {
         let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(SESSION_LEN));
 
         let config = ChainTrackerConfig {
-            refresh_interval: Duration::from_millis(REFRESH_INTERVAL),
+            refresh_interval: Duration::from_millis(REFRESH_INTERVAL_MILLIS),
         };
 
         let (chain_tracker, data_provider) =
             ChainTracker::new(select_chain, client, session_boundaries, config, None);
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
-
         (
             async move {
                 chain_tracker.run(exit_chain_tracker_rx).await;
@@ -362,6 +362,11 @@ mod tests {
             chain_builder,
             data_provider,
         )
+    }
+
+    // Sleep enough time so that the internal refreshing in ChainTracker has time to finish.
+    async fn sleep_enough() {
+        sleep(Duration::from_millis(2 * REFRESH_INTERVAL_MILLIS)).await;
     }
 
     async fn run_test<F, S>(scenario: S)
@@ -378,29 +383,51 @@ mod tests {
         chain_tracker_handle.await.unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn proposes_empty_and_nonempty_when_expected() {
         run_test(|mut chain_builder, mut data_provider| async move {
-            sleep(Duration::from_millis(2 * REFRESH_INTERVAL)).await;
+            sleep_enough().await;
 
-            let data = data_provider.get_data().await;
-            assert_eq!(data, AlephData::Empty, "Expected empty proposal");
+            assert_eq!(
+                data_provider.get_data().await,
+                AlephData::Empty,
+                "Expected empty proposal"
+            );
 
-            let _blocks = chain_builder
-                .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN)
+            let blocks = chain_builder
+                .initialize_single_branch_and_import(2 * MAX_DATA_BRANCH_LEN)
                 .await;
 
-            sleep(Duration::from_millis(2 * REFRESH_INTERVAL)).await;
+            sleep_enough().await;
 
             let data = data_provider.get_data().await;
-            match data {
-                AlephData::HeadProposal(proposal) => {
-                    assert_eq!(proposal.branch.len(), MAX_DATA_BRANCH_LEN);
-                }
-                AlephData::Empty => {
-                    panic!("Expected non-empty proposal");
-                }
+            let expected_data = aleph_data_from_blocks(blocks[..MAX_DATA_BRANCH_LEN].to_vec());
+            assert_eq!(data, expected_data);
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn proposal_changes_with_finalization() {
+        run_test(|mut chain_builder, mut data_provider| async move {
+            let blocks = chain_builder
+                .initialize_single_branch_and_import(3 * MAX_DATA_BRANCH_LEN)
+                .await;
+            for height in 1..MAX_DATA_BRANCH_LEN {
+                chain_builder.finalize_block(&blocks[height - 1].header.hash());
+                sleep_enough().await;
+                let data = data_provider.get_data().await;
+                let expected_data =
+                    aleph_data_from_blocks(blocks[height..(MAX_DATA_BRANCH_LEN + height)].to_vec());
+                assert_eq!(data, expected_data);
             }
+            chain_builder.finalize_block(&blocks.last().unwrap().header.hash());
+            sleep_enough().await;
+            assert_eq!(
+                data_provider.get_data().await,
+                AlephData::Empty,
+                "Expected empty proposal"
+            );
         })
         .await;
     }
