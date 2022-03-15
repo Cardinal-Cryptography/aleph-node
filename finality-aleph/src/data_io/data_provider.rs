@@ -163,7 +163,15 @@ where
         // of `data_to_propose` unaffected.
 
         let client_info = self.client.info();
-        let finalized_block = (client_info.finalized_hash, client_info.finalized_number).into();
+        let finalized_block: BlockHashNum<B> =
+            (client_info.finalized_hash, client_info.finalized_number).into();
+
+        if finalized_block.num >= self.session_boundaries.last_block() {
+            // This session is already finished, but this instance of ChainTracker has not been terminated yet.
+            // We go with the default -- empty proposal, this does not have any significance.
+            *self.data_to_propose.lock().await = AlephData::Empty;
+            return;
+        }
 
         if let Some(prev) = &self.prev_chain_info {
             if prev.best_block_in_session == *best_block_in_session
