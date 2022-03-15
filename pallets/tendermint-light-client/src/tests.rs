@@ -1,19 +1,23 @@
 use super::*;
-use crate::mock::*;
+use crate::{
+    mock::*,
+    types::{LightBlockStorage, LightClientOptionsStorage},
+};
 
 #[test]
-fn test_elect() {
-    new_test_ext(vec![1, 2]).execute_with(|| {
+fn successful_verification() {
+    new_test_ext(|| {
+        // TODO: initial trusted block
+
+        let origin = Origin::root();
+        let options = LightClientOptionsStorage::default();
+
+        let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+        println!("initial data {:?}", initial_block);
+
+        // let call = Pallet::<TestRuntime>::initialize_client(Origin::root(), options, initial_block);
+
         assert!(true);
-
-        // let elected = <Elections as ElectionProvider<AccountId, u64>>::elect();
-        // assert!(elected.is_ok());
-
-        // let supp = Support {
-        //     total: 0,
-        //     voters: Vec::new(),
-        // };
-
-        // assert_eq!(elected.unwrap(), &[(1, supp.clone()), (2, supp)]);
     });
 }

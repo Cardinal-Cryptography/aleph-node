@@ -22,13 +22,15 @@ pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
 pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
 pub type BridgedBlockHash = Vec<u8>;
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TrustThresholdStorage {
     pub numerator: u64,
     pub denominator: u64,
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LightClientOptionsStorage {
     /// Defines what fraction of the total voting power of a known
     /// and trusted validator set is sufficient for a commit to be
@@ -73,7 +75,8 @@ impl TryFrom<LightClientOptionsStorage> for Options {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VersionStorage {
     /// Block version
     pub block: u64,
@@ -90,7 +93,8 @@ impl From<VersionStorage> for Version {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PartSetHeaderStorage {
     /// Number of parts in this block
     pub total: u32,
@@ -108,7 +112,8 @@ impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct BlockIdStorage {
     /// The block's main hash is the Merkle root of all the fields in the
     /// block header.
@@ -132,7 +137,8 @@ impl TryFrom<BlockIdStorage> for block::Id {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HeaderStorage {
     /// Header version
     pub version: VersionStorage,
@@ -167,7 +173,8 @@ pub struct HeaderStorage {
 
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CommitSignatureStorage {
     /// no vote was received from a validator.
     BlockIdFlagAbsent,
@@ -231,7 +238,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitStorage {
     /// Block height
     pub height: u64,
@@ -333,7 +341,8 @@ impl TryFrom<HeaderStorage> for Header {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct SignedHeaderStorage {
     pub header: HeaderStorage,
     pub commit: CommitStorage,
@@ -355,7 +364,8 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 
 pub type TndermintPublicKey = Vec<u8>;
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
@@ -398,7 +408,8 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ValidatorSetStorage {
     pub validators: Vec<ValidatorInfoStorage>,
     pub proposer: Option<ValidatorInfoStorage>,
@@ -428,7 +439,8 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
     }
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Serialize, Deserialize, TypeInfo)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LightBlockStorage {
     pub signed_header: SignedHeaderStorage,
     pub validators: ValidatorSetStorage,
