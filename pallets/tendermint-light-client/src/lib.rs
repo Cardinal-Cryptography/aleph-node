@@ -4,6 +4,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 mod types;
 mod utils;
 
@@ -21,7 +25,7 @@ pub mod pallet {
         utils::timestamp_from_nanos,
     };
     use frame_support::{
-        fail, log,
+        ensure, fail, log,
         pallet_prelude::{
             DispatchClass, DispatchResult, IsType, OptionQuery, StorageMap, StorageValue,
             ValueQuery,
@@ -68,11 +72,11 @@ pub mod pallet {
     pub enum Error<T> {
         /// Unable to deserialize extrinsic
         DeserializeError,
-        /// light client has not been initialized        
+        /// Light client has not been initialized        
         NotInitialized,
-        /// light client has already been initialized
+        /// Light client has already been initialized
         AlreadyInitialized,
-        /// light client is halted
+        /// Light client is currently halted
         Halted,
         /// The minimum voting power threshold is not reached, the block cannot be trusted yet
         NotEnoughTrust,
@@ -126,7 +130,10 @@ pub mod pallet {
             initial_block_payload: Vec<u8>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            // TODO : ensure not already initialized
+
+            // ensure client is not already initialized
+            let can_initialize = !<BestFinalized<T>>::exists();
+            ensure!(can_initialize, <Error<T>>::AlreadyInitialized);
 
             let options: LightClientOptionsStorage = serde_json::from_slice(&options_payload[..])
                 .map_err(|e| {
