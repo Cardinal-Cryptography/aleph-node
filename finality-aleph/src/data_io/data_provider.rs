@@ -88,7 +88,17 @@ where
     }
 }
 
-const REFRESH_INTERVAL: u64 = 100;
+pub struct ChainTrackerConfig {
+    pub refresh_interval: Duration,
+}
+
+impl Default for ChainTrackerConfig {
+    fn default() -> ChainTrackerConfig {
+        ChainTrackerConfig {
+            refresh_interval: Duration::from_millis(100),
+        }
+    }
+}
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 struct ChainInfo<B: BlockT> {
@@ -111,6 +121,7 @@ where
     data_to_propose: Arc<Mutex<AlephData<B>>>,
     session_boundaries: SessionBoundaries<B>,
     prev_chain_info: Option<ChainInfo<B>>,
+    config: ChainTrackerConfig,
 }
 
 impl<B, SC, C> ChainTracker<B, SC, C>
@@ -123,6 +134,7 @@ where
         select_chain: SC,
         client: Arc<C>,
         session_boundaries: SessionBoundaries<B>,
+        config: ChainTrackerConfig,
         metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
     ) -> (Self, impl aleph_bft::DataProvider<AlephData<B>>) {
         let data_to_propose = Arc::new(Mutex::new(AlephData::Empty));
@@ -133,6 +145,7 @@ where
                 data_to_propose: data_to_propose.clone(),
                 session_boundaries,
                 prev_chain_info: None,
+                config,
             },
             DataProvider {
                 data_to_propose,
@@ -185,7 +198,7 @@ where
         }
     }
 
-    pub async fn get_best_header(&self) -> B::Header {
+    async fn get_best_header(&self) -> B::Header {
         self.select_chain.best_chain().await.expect("No best chain")
     }
 
@@ -245,7 +258,7 @@ where
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut best_block_in_session: Option<BlockHashNum<B>> = None;
         loop {
-            let delay = futures_timer::Delay::new(Duration::from_millis(REFRESH_INTERVAL));
+            let delay = futures_timer::Delay::new(self.config.refresh_interval);
             tokio::select! {
                 _ = delay => {
                     best_block_in_session = self.get_best_block_in_session(best_block_in_session).await;
@@ -294,5 +307,101 @@ impl<B: BlockT> aleph_bft::DataProvider<AlephData<B>> for DataProvider<B> {
         }
         debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        data_io::{
+            data_provider::{ChainTracker, ChainTrackerConfig},
+            AlephData, MAX_DATA_BRANCH_LEN,
+        },
+        testing::client_chain_builder::ClientChainBuilder,
+        SessionBoundaries, SessionId, SessionPeriod,
+    };
+    use futures::channel::oneshot;
+    use std::future::Future;
+    use std::{sync::Arc, time::Duration};
+    use substrate_test_runtime_client::{
+        runtime::Block, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
+    };
+    use tokio::time::sleep;
+
+    // A large number only for the purpose of creating `AlephProposal`s
+    const SESSION_LEN: u32 = 100;
+    const REFRESH_INTERVAL: u64 = 4;
+
+    fn prepare_chain_tracker_test() -> (
+        impl Future<Output = ()>,
+        oneshot::Sender<()>,
+        ClientChainBuilder,
+        impl aleph_bft::DataProvider<AlephData<Block>>,
+    ) {
+        let (client, select_chain) = TestClientBuilder::new().build_with_longest_chain();
+        let client = Arc::new(client);
+
+        let chain_builder =
+            ClientChainBuilder::new(client.clone(), Arc::new(TestClientBuilder::new().build()));
+        let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(SESSION_LEN));
+
+        let config = ChainTrackerConfig {
+            refresh_interval: Duration::from_millis(REFRESH_INTERVAL),
+        };
+
+        let (chain_tracker, data_provider) =
+            ChainTracker::new(select_chain, client, session_boundaries, config, None);
+
+        let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
+
+        (
+            async move {
+                chain_tracker.run(exit_chain_tracker_rx).await;
+            },
+            exit_chain_tracker_tx,
+            chain_builder,
+            data_provider,
+        )
+    }
+
+    async fn run_test<F, S>(scenario: S)
+    where
+        F: Future,
+        S: FnOnce(ClientChainBuilder, Box<dyn aleph_bft::DataProvider<AlephData<Block>>>) -> F,
+    {
+        let (task_handle, exit, chain_builder, data_provider) = prepare_chain_tracker_test();
+        let chain_tracker_handle = tokio::spawn(task_handle);
+
+        scenario(chain_builder, Box::new(data_provider)).await;
+
+        exit.send(()).unwrap();
+        chain_tracker_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn proposes_empty_and_nonempty_when_expected() {
+        run_test(|mut chain_builder, mut data_provider| async move {
+            sleep(Duration::from_millis(2 * REFRESH_INTERVAL)).await;
+
+            let data = data_provider.get_data().await;
+            assert_eq!(data, AlephData::Empty, "Expected empty proposal");
+
+            let _blocks = chain_builder
+                .initialize_single_branch_and_import(MAX_DATA_BRANCH_LEN)
+                .await;
+
+            sleep(Duration::from_millis(2 * REFRESH_INTERVAL)).await;
+
+            let data = data_provider.get_data().await;
+            match data {
+                AlephData::HeadProposal(proposal) => {
+                    assert_eq!(proposal.branch.len(), MAX_DATA_BRANCH_LEN);
+                }
+                AlephData::Empty => {
+                    panic!("Expected non-empty proposal");
+                }
+            }
+        })
+        .await;
     }
 }
