@@ -141,7 +141,7 @@ pub struct HeaderStorage {
     /// Current block height
     pub height: u64,
     /// Current timestamp in nanoseconds
-    pub time: u32,
+    pub time: u128,
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
@@ -176,7 +176,7 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: u32,
+        timestamp: u128,
         /// Signature of vote
         signature: Option<SignatureStorage>,
     },
@@ -185,7 +185,7 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: u32,
+        timestamp: u128,
         /// Signature of vote
         signature: Option<SignatureStorage>,
     },

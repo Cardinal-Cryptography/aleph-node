@@ -17,8 +17,9 @@ pub fn sha256_from_bytes(hash: &[u8]) -> Hash {
     Hash::from_bytes(hash::Algorithm::Sha256, hash).expect("Can't produce hash from bytes")
 }
 
-pub fn timestamp_from_nanos(timestamp: u32) -> time::Time {
-    time::Time::from_unix_timestamp(0, timestamp).expect("Cannot parse timestamp")
+pub fn timestamp_from_nanos(timestamp: u128) -> time::Time {
+    time::Time::from_unix_timestamp(0, timestamp.try_into().unwrap())
+        .expect("Cannot parse timestamp")
 }
 
 pub fn account_id_from_bytes(validator_address: Vec<u8>) -> account::Id {

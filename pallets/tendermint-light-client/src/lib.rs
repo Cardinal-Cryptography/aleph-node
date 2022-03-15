@@ -16,7 +16,10 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage};
+    use crate::{
+        types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage},
+        utils::timestamp_from_nanos,
+    };
     use frame_support::{
         fail, log,
         pallet_prelude::{
@@ -26,8 +29,9 @@ pub mod pallet {
         traits::{Get, UnixTime},
         Identity,
     };
-    use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
     use sp_std::vec::Vec;
+    use tendermint::Time;
     use tendermint_light_client_verifier::{
         options::Options, types::LightBlock, ProdVerifier, Verifier,
     };
@@ -71,6 +75,10 @@ pub mod pallet {
         AlreadyInitialized,
         /// light client is halted
         Halted,
+        /// The minimum voting power threshold is not reached, the block cannot be trusted yet
+        NotEnoughTrust,
+        /// Verification failed, the block is invalid.        
+        InvalidBlock,
     }
 
     // TODOs for storage:
@@ -130,13 +138,13 @@ pub mod pallet {
 
             let light_block: LightBlockStorage = serde_json::from_slice(&initial_block_payload[..])
                 .map_err(|e| {
-                    log::error!("Error when deserializing initial light block: {}", e);
+                    log::error!(target: "runtime::tendermint-lc","Error when deserializing initial light block: {}", e);
                     Error::<T>::DeserializeError
                 })?;
 
             let hash = light_block.signed_header.commit.block_id.hash.clone();
             <ImportedHashesPointer<T>>::put(0);
-            // TODO : update block storage
+            // update block storage
             insert_light_block::<T>(hash, light_block.clone());
 
             // update status
@@ -155,47 +163,72 @@ pub mod pallet {
             untrusted_block_payload: Vec<u8>,
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
+            let _ = ensure_signed(origin)?;
 
             let options: Options = <LightClientOptions<T>>::get().try_into()?;
 
             let verifier = ProdVerifier::default();
 
-            // TODO : storage type for Light Block
-            let untrusted_block: LightBlock = serde_json::from_slice(&untrusted_block_payload[..])
+            let untrusted_block_storage: LightBlockStorage = serde_json::from_slice(&untrusted_block_payload[..])
                 .map_err(|e| {
-                    log::error!("Error when deserializing light block: {}", e);
+                    log::error!(target: "runtime::tendermint-lc", "Error when deserializing light block: {}", e);
                     Error::<T>::DeserializeError
                 })?;
+
+            log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:?}", &untrusted_block_storage);
 
             let most_recent_trusted_block: LightBlock = match <ImportedBlocks<T>>::get(
                 <BestFinalized<T>>::get(),
             ) {
-                Some(best_finalized) => best_finalized
-                    .try_into()
-                    .expect("Unexpected failure when casting as LightBlock"),
+                Some(best_finalized) => best_finalized.try_into().expect(
+                    "Unexpected failure when casting most recent trusted block as a LightBlock",
+                ),
                 None => {
                     log::error!(
                         target: "runtime::tendermint-lc",
                         "Cannot finalize light block {:?} because Light Client is not yet initialized",
-                        &untrusted_block,
+                        &untrusted_block_storage,
                     );
                     fail!(<Error<T>>::NotInitialized);
                 }
             };
 
             let now = T::TimeProvider::now();
+            let time_now: Time = timestamp_from_nanos(now.as_nanos());
 
-            // TODO : verify against known state
-            // let verdict = verifier.verify(
-            //     untrusted_block.as_untrusted_state(),
-            //     most_recent_trusted_block.as_trusted_state(),
-            //     &options,
-            //     now,
-            // );
+            let untrusted_block: LightBlock = untrusted_block_storage
+                .clone()
+                .try_into()
+                .expect("Unexpected failure when casting unstrusted block as a LightBlock");
 
-            // TODO : update storage
+            // verify against known state
+            let verdict = verifier.verify(
+                untrusted_block.as_untrusted_state(),
+                most_recent_trusted_block.as_trusted_state(),
+                &options,
+                time_now,
+            );
 
-            Ok(())
+            match verdict {
+                tendermint_light_client_verifier::Verdict::Success => {
+                    // update storage
+                    let hash = untrusted_block_storage
+                        .signed_header
+                        .commit
+                        .block_id
+                        .hash
+                        .clone();
+                    insert_light_block::<T>(hash, untrusted_block_storage);
+
+                    Ok(())
+                }
+                tendermint_light_client_verifier::Verdict::NotEnoughTrust(_) => {
+                    fail!(<Error<T>>::NotEnoughTrust)
+                }
+                tendermint_light_client_verifier::Verdict::Invalid(_) => {
+                    fail!(<Error<T>>::InvalidBlock)
+                }
+            }
         }
 
         /// Halt or resume all light client operations
