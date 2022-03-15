@@ -318,6 +318,7 @@ parameter_types! {
 impl pallet_tendermint_light_client::Config for Runtime {
     type Event = Event;
     type HeadersToKeep = HeadersToKeep;
+    type TimeProvider = Timestamp;
 }
 
 impl_opaque_keys! {

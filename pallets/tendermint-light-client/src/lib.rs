@@ -23,7 +23,7 @@ pub mod pallet {
             DispatchClass, DispatchResult, IsType, OptionQuery, StorageMap, StorageValue,
             ValueQuery,
         },
-        traits::Get,
+        traits::{Get, UnixTime},
         Identity,
     };
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
@@ -31,7 +31,6 @@ pub mod pallet {
     use tendermint_light_client_verifier::{
         options::Options, types::LightBlock, ProdVerifier, Verifier,
     };
-    // use types::LightClientOptionsStorage;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -42,6 +41,9 @@ pub mod pallet {
         /// last in first out
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
+
+        /// time provider type, used to gauge whther blocks are within the trusting period
+        type TimeProvider: UnixTime;
     }
 
     #[pallet::pallet]
@@ -180,6 +182,8 @@ pub mod pallet {
                     fail!(<Error<T>>::NotInitialized);
                 }
             };
+
+            let now = T::TimeProvider::now();
 
             // TODO : verify against known state
             // let verdict = verifier.verify(
