@@ -126,8 +126,8 @@ pub mod pallet {
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         pub fn initialize_client(
             origin: OriginFor<T>,
-            options_payload: Vec<u8>,
-            initial_block_payload: Vec<u8>,
+            options: LightClientOptionsStorage,
+            initial_block: LightBlockStorage,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
@@ -135,24 +135,24 @@ pub mod pallet {
             let can_initialize = !<BestFinalized<T>>::exists();
             ensure!(can_initialize, <Error<T>>::AlreadyInitialized);
 
-            let options: LightClientOptionsStorage = serde_json::from_slice(&options_payload[..])
-                .map_err(|e| {
-                log::error!("Error when deserializing options: {}", e);
-                Error::<T>::DeserializeError
-            })?;
+            // let options: LightClientOptionsStorage = serde_json::from_slice(&options_payload[..])
+            //     .map_err(|e| {
+            //     log::error!("Error when deserializing options: {}", e);
+            //     Error::<T>::DeserializeError
+            // })?;
 
             <LightClientOptions<T>>::put(options);
 
-            let light_block: LightBlockStorage = serde_json::from_slice(&initial_block_payload[..])
-                .map_err(|e| {
-                    log::error!(target: "runtime::tendermint-lc","Error when deserializing initial light block: {}", e);
-                    Error::<T>::DeserializeError
-                })?;
+            // let light_block: LightBlockStorage = serde_json::from_slice(&initial_block_payload[..])
+            //     .map_err(|e| {
+            //         log::error!(target: "runtime::tendermint-lc","Error when deserializing initial light block: {}", e);
+            //         Error::<T>::DeserializeError
+            //     })?;
 
-            let hash = light_block.signed_header.commit.block_id.hash.clone();
+            let hash = initial_block.signed_header.commit.block_id.hash.clone();
             <ImportedHashesPointer<T>>::put(0);
             // update block storage
-            insert_light_block::<T>(hash, light_block.clone());
+            insert_light_block::<T>(hash, initial_block.clone());
 
             // update status
             <IsHalted<T>>::put(false);
