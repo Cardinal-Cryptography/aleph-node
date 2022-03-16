@@ -260,7 +260,7 @@ pub mod pallet {
 
     /// update light client storage
     /// should only be called by a trusted origin, *after* performing a verification
-    fn insert_light_block<T: Config>(hash: Vec<u8>, light_block: LightBlockStorage) {
+    fn insert_light_block<T: Config>(hash: BridgedBlockHash, light_block: LightBlockStorage) {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
 

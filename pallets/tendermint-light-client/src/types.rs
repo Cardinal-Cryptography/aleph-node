@@ -18,12 +18,12 @@ use tendermint_light_client_verifier::{
 };
 
 pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
-pub type AppHashStorage = Vec<u8>; // TODO type enforce length 64?
-pub type TendermintAccountId = H160;
 pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
-pub type BridgedBlockHash = Vec<u8>;
 
+pub type AppHashStorage = String; // TODO this is fuzzy
+pub type TendermintAccountId = H160;
 pub type Hash = H256;
+pub type BridgedBlockHash = Hash;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -131,7 +131,7 @@ impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
         Ok(Self {
-            hash: sha256_from_bytes(&value.hash),
+            hash: sha256_from_bytes(value.hash.as_bytes()),
             part_set_header: value
                 .part_set_header
                 .try_into()
@@ -150,6 +150,7 @@ pub struct HeaderStorage {
     /// Current block height
     pub height: u64,
     /// Epoch Unix timestamp in seconds
+    #[serde(alias = "time", alias = "timestamp")]
     pub timestamp: i64,
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
@@ -335,7 +336,8 @@ impl TryFrom<HeaderStorage> for Header {
             validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
             next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
             consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
-            app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            app_hash: hash::AppHash::from_hex_upper(&app_hash).expect("Cannot create AppHash"),
+            //hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
             last_results_hash: match last_results_hash {
                 Some(hash) => Some(sha256_from_bytes(&hash.as_bytes())),
                 None => None,

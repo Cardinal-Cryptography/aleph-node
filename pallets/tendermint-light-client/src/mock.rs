@@ -38,7 +38,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
             "proposer_address": "6AE5C701F508EB5B63343858E068C5843F28105F"
         },
         "commit": {
-            "height": "3",
+            "height": 3,
             "round": 1,
             "block_id": {
                 "hash": "AAB1B09D5FADAAE7CDF3451961A63F810DB73BF3214A7B74DBA36C52EDF1A793",
