@@ -139,21 +139,17 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     batch_endow_account_balances(&connection, &[controller.clone()], TOKEN);
 
     let stash_connection = create_connection(node).set_signer(stash.clone());
-    let controller_account_id = AccountId::from(stash.public());
 
     staking_bond(
         &stash_connection,
         MIN_VALIDATOR_BOND,
-        &controller_account_id,
+        &controller_account,
         XtStatus::InBlock,
     );
-    let bonded_controller_account = bonded(&connection, &stash);
-    assert!(
-        bonded_controller_account.is_some(),
+    let bonded_controller_account = bonded(&connection, &stash).expect(&format!(
         "Expected that stash account {} is bonded to some controller!",
         &stash_account
-    );
-    let bonded_controller_account = bonded_controller_account.unwrap();
+    ));
     assert_eq!(
         bonded_controller_account, controller_account,
         "Expected that stash account {} is bonded to the controller account {}, got {} instead!",
