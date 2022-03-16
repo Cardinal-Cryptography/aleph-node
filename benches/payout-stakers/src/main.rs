@@ -9,10 +9,7 @@ use e2e::{
     transfer::batch_endow_account_balances,
 };
 use log::info;
-use primitives::{
-    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    TOKEN,
-};
+use primitives::staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND};
 use rayon::prelude::*;
 use sp_core::sr25519::Pair as KeyPair;
 use sp_core::Pair;
@@ -79,7 +76,7 @@ fn nominate_validator_0<'a>(
             batch_bond(
                 &connection,
                 chunk,
-                MIN_NOMINATOR_BOND + TOKEN / 100000,
+                MIN_NOMINATOR_BOND,
                 RewardDestination::Staked,
             )
         });
@@ -102,7 +99,7 @@ fn set_validators(address: &str) -> Vec<KeyPair> {
         let controller_account_id = AccountId::from(account.public());
         staking_bond(
             &connection,
-            MIN_VALIDATOR_BOND + TOKEN / 1000000,
+            MIN_VALIDATOR_BOND,
             &controller_account_id,
             XtStatus::InBlock,
         );
@@ -118,6 +115,6 @@ fn generate_1024_accounts(connection: &Api<KeyPair, WsRpcClient>) -> Vec<KeyPair
     let accounts = (VALIDATOR_COUNT..NOMINATOR_COUNT + VALIDATOR_COUNT)
         .map(derive_user_account)
         .collect::<Vec<_>>();
-    batch_endow_account_balances(&connection, &accounts, TOKEN + MIN_NOMINATOR_BOND);
+    batch_endow_account_balances(&connection, &accounts, MIN_NOMINATOR_BOND);
     accounts
 }
