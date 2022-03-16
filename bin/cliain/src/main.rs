@@ -1,6 +1,6 @@
 use aleph_client::KeyPair;
 use clap::{Parser, Subcommand};
-use log::error;
+use log::{error, info};
 use sp_core::Pair;
 use std::env;
 
@@ -21,7 +21,7 @@ struct Config {
     #[clap(long)]
     pub seed: Option<String>,
 
-    /// Specific command to execute
+    /// Specific command that executes either a signed transaction or is an auxiliary command
     #[clap(subcommand)]
     pub command: Command,
 }
@@ -71,6 +71,13 @@ enum Command {
         controller_seed: String,
     },
 
+    /// Command to convert given seed to SS58 Account id
+    SeedToSS58 {
+        /// Seed of the account to convert to SS58 public key to
+        #[clap(long)]
+        seed: String,
+    },
+
     /// Sets lower bound for nominator and validator. Requires root account.
     SetStakingLimits {
         /// Nominator lower bound
@@ -109,15 +116,19 @@ enum Command {
     },
 }
 
-fn main() {
-    init_env();
+fn handle_auxiliary_command(auxiliary_command: Command) {
+    match auxiliary_command {
+        Command::SeedToSS58 { seed } => {
+            let key = KeyPair::from_string(&format!("//{}", &seed), None)
+                .expect("Can't create pair from seed value");
+            info!("SS58 Address: {}", key.public().to_string());
+        }
+        // signed tx commands handled by handle_signed_tx_command
+        _ => {}
+    }
+}
 
-    let Config {
-        node,
-        seed,
-        command,
-    } = Config::parse();
-
+fn handle_signed_tx_command(node: String, seed: Option<String>, command: Command) {
     let seed = match seed {
         Some(seed) => seed,
         None => match prompt_password_hidden("Provide seed for root account:") {
@@ -157,6 +168,24 @@ fn main() {
             minimal_validator_stake,
         } => set_staking_limits(node, key, minimal_nominator_stake, minimal_validator_stake),
         Command::ForceNewEra => force_new_era(node, key),
+        // rest are auxiliary commands handled by handle_auxiliary_command
+        _ => {}
+    }
+}
+
+fn main() {
+    init_env();
+
+    let Config {
+        node,
+        seed,
+        command,
+    } = Config::parse();
+
+    if matches!(command, Command::SeedToSS58 { .. }) {
+        handle_auxiliary_command(command);
+    } else {
+        handle_signed_tx_command(node, seed, command);
     }
 }
 
