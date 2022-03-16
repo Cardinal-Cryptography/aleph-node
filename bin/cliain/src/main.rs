@@ -38,7 +38,7 @@ enum Command {
         #[clap(long)]
         controller_account: String,
 
-        /// a stake to bond (in tokens)
+        /// a Stake to bond (in tokens)
         #[clap(long)]
         initial_stake_tokens: u32,
     },
@@ -56,17 +56,17 @@ enum Command {
     /// Associate the node with a specific staking account.
     PrepareKeys,
 
-    /// call rotate_keys() RPC call and prints them to stdout
+    /// Call rotate_keys() RPC call and prints them to stdout
     RotateKeys,
 
     /// Sets given keys for origin controller
     SetKeys {
-        /// a 64 byte hex encoded string in form 0xaabbcc..
+        /// 64 byte hex encoded string in form 0xaabbcc..
         /// where aabbcc...  must be exactly 128 characters long
         #[clap(long)]
         new_keys: String,
 
-        /// seed for a controller account which signes set_keys tx
+        /// Seed for a controller account which signes set_keys tx
         #[clap(long)]
         controller_seed: String,
     },
@@ -97,9 +97,9 @@ enum Command {
         to_account: String,
     },
 
-    /// call staking validate call for a given controller
+    /// Call staking validate call for a given controller
     Validate {
-        /// seed for a controller account to intent being validator to
+        /// Seed for a controller account to intent being validator to
         #[clap(long)]
         controller_seed: String,
 

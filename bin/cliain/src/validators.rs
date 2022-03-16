@@ -14,4 +14,5 @@ pub fn change(validators: Vec<String>, node: String, sudo_key: KeyPair) {
     change_members(&connection, validators, XtStatus::Finalized);
     // TODO we need to check state here whether change members actually succeed
     // not only here, but for all cliain commands
+    // see https://cardinal-cryptography.atlassian.net/browse/AZ-699
 }
