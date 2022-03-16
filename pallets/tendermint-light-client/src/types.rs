@@ -2,8 +2,9 @@ use crate::utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
-// #[cfg(feature = "std")]
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_core::{H160, H256};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
@@ -18,9 +19,11 @@ use tendermint_light_client_verifier::{
 
 pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 pub type AppHashStorage = Vec<u8>; // TODO type enforce length 64?
-pub type TendermintAccountId = Vec<u8>; // TODO type enforce length 20?
+pub type TendermintAccountId = H160;
 pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
 pub type BridgedBlockHash = Vec<u8>;
+
+pub type Hash = H256;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -143,7 +146,7 @@ pub struct HeaderStorage {
     /// Header version
     pub version: VersionStorage,
     /// Chain identifier (e.g. 'gaia-9000')    
-    pub chain_id: String, //Vec<u8>, // String::from_utf8,
+    pub chain_id: String, // Vec<u8>, // String::from_utf8,
     /// Current block height
     pub height: u64,
     /// Epoch Unix timestamp in seconds
@@ -151,22 +154,22 @@ pub struct HeaderStorage {
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
-    pub last_commit_hash: Option<Vec<u8>>,
+    pub last_commit_hash: Option<Hash>,
     /// Merkle root of transaction hashes
-    pub data_hash: Option<Vec<u8>>,
+    pub data_hash: Option<Hash>,
     /// Validators for the current block
-    pub validators_hash: Vec<u8>,
+    pub validators_hash: Hash, //Vec<u8>,
     /// Validators for the next block
-    pub next_validators_hash: Vec<u8>,
+    pub next_validators_hash: Hash,
     /// Consensus params for the current block
-    pub consensus_hash: Vec<u8>,
+    pub consensus_hash: Hash,
     /// State after txs from the previous block
     /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data    
     pub app_hash: AppHashStorage,
     /// Root hash of all results from the txs from the previous block
-    pub last_results_hash: Option<Vec<u8>>,
+    pub last_results_hash: Option<Hash>,
     /// Hash of evidence included in the block
-    pub evidence_hash: Option<Vec<u8>>,
+    pub evidence_hash: Option<Hash>,
     /// Original proposer of the block
     pub proposer_address: TendermintAccountId,
 }
@@ -209,7 +212,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 timestamp,
                 signature,
             } => {
-                let validator_address = account_id_from_bytes(validator_address);
+                let validator_address =
+                    account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
@@ -224,7 +228,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 timestamp,
                 signature,
             } => {
-                let validator_address = account_id_from_bytes(validator_address);
+                let validator_address =
+                    account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
                 let signature = CommitSignatureStorage::signature(signature);
 
@@ -320,26 +325,26 @@ impl TryFrom<HeaderStorage> for Header {
                 None => None,
             },
             last_commit_hash: match last_commit_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash)),
+                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
                 None => None,
             },
             data_hash: match data_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash)),
+                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
                 None => None,
             },
-            validators_hash: sha256_from_bytes(&validators_hash),
-            next_validators_hash: sha256_from_bytes(&next_validators_hash),
-            consensus_hash: sha256_from_bytes(&consensus_hash),
+            validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
+            next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
+            consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
             app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
             last_results_hash: match last_results_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash)),
+                Some(hash) => Some(sha256_from_bytes(&hash.as_bytes())),
                 None => None,
             },
             evidence_hash: match evidence_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash)),
+                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
                 None => None,
             },
-            proposer_address: account_id_from_bytes(proposer_address),
+            proposer_address: account_id_from_bytes(proposer_address.as_fixed_bytes().to_owned()),
         })
     }
 }
@@ -398,7 +403,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
         } = value;
 
         Ok(Self {
-            address: account_id_from_bytes(address),
+            address: account_id_from_bytes(address.as_fixed_bytes().to_owned()),
             pub_key: public_key::PublicKey::from_raw_ed25519(&pub_key)
                 .expect("Cannot create PublicKey"),
             power: vote::Power::try_from(power).expect("Cannot create Power"),
