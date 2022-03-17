@@ -1,11 +1,10 @@
 mod config;
 mod ws_rpc_client;
 
+use aleph_client::create_custom_connection;
 use clap::Parser;
 use codec::{Compact, Decode, Encode};
-use aleph_client::create_custom_connection;
 use config::Config;
-use ws_rpc_client::WsRpcClient;
 use hdrhistogram::Histogram as HdrHistogram;
 use log::{debug, info};
 use rayon::prelude::*;
@@ -24,6 +23,7 @@ use substrate_api_client::{
     compose_call, compose_extrinsic_offline, AccountId, Api, GenericAddress, UncheckedExtrinsicV4,
     XtStatus,
 };
+use ws_rpc_client::WsRpcClient;
 
 type TransferTransaction =
     UncheckedExtrinsicV4<([u8; 2], MultiAddress<AccountId, ()>, codec::Compact<u128>)>;
@@ -505,7 +505,8 @@ fn create_connection_pool(
         .map(|urls| {
             urls.iter()
                 .map(|url| {
-                    create_custom_connection(url).expect("it should return initialized connection")
+                    create_custom_connection(url, false)
+                        .expect("it should return initialized connection")
                 })
                 .collect()
         })
@@ -564,7 +565,7 @@ mod tests {
             interval_secs: None,
             transactions_in_interval: None,
         };
-        let conn = create_custom_connection(&url).unwrap();
+        let conn = create_custom_connection(&url, false).unwrap();
 
         let txs_gen = prepare_txs(&config, &conn);
 

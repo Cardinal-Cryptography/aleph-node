@@ -4,8 +4,8 @@ use crate::{
     fee::get_tx_fee_info,
     transfer::{setup_for_transfer, transfer},
 };
-use codec::{Compact, Decode};
 use aleph_client::{create_connection, wait_for_event, Connection};
+use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
@@ -121,12 +121,15 @@ fn check_treasury_balance(
 
 pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let Config {
-        ref node, seeds, ..
+        ref node,
+        seeds,
+        ssl,
+        ..
     } = config;
 
     let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = create_connection(node).set_signer(proposer);
+    let connection = create_connection(node, ssl).set_signer(proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);

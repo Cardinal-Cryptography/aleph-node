@@ -35,8 +35,8 @@ pub fn ledger(
         ))
 }
 
-pub fn validate(address: &str, controller: &KeyPair, tx_status: XtStatus) {
-    let connection = create_connection(address).set_signer(controller.clone());
+pub fn validate(address: &str, ssl: bool, controller: &KeyPair, tx_status: XtStatus) {
+    let connection = create_connection(address, ssl).set_signer(controller.clone());
     let prefs = ValidatorPrefs {
         blocked: false,
         commission: Perbill::from_percent(10),
@@ -46,17 +46,22 @@ pub fn validate(address: &str, controller: &KeyPair, tx_status: XtStatus) {
     send_xt(&connection, xt.hex_encode(), "validate", tx_status);
 }
 
-pub fn nominate(address: &str, nominator_key_pair: &KeyPair, nominee_key_pair: &KeyPair) {
+pub fn nominate(
+    address: &str,
+    ssl: bool,
+    nominator_key_pair: &KeyPair,
+    nominee_key_pair: &KeyPair,
+) {
     let nominee_account_id = AccountId::from(nominee_key_pair.public());
-    let connection = create_connection(address).set_signer(nominator_key_pair.clone());
+    let connection = create_connection(address, ssl).set_signer(nominator_key_pair.clone());
 
     let xt = connection.staking_nominate(vec![GenericAddress::Id(nominee_account_id)]);
     send_xt(&connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
 }
 
-pub fn payout_stakers(address: &str, stash: KeyPair, era_number: BlockNumber) {
+pub fn payout_stakers(address: &str, ssl: bool, stash: KeyPair, era_number: BlockNumber) {
     let account = AccountId::from(stash.public());
-    let connection = create_connection(address).set_signer(stash);
+    let connection = create_connection(address, ssl).set_signer(stash);
     let xt = compose_extrinsic!(connection, "Staking", "payout_stakers", account, era_number);
 
     send_xt(
@@ -97,6 +102,7 @@ pub fn wait_for_era_completion(
 
 pub fn check_non_zero_payouts_for_era(
     node: &String,
+    ssl: bool,
     stash: &KeyPair,
     connection: &Connection,
     era: BlockNumber,
@@ -112,7 +118,7 @@ pub fn check_non_zero_payouts_for_era(
         "Expected locked balances for account {} to have exactly one entry!",
         stash_account
     );
-    payout_stakers(node, stash.clone(), era - 1);
+    payout_stakers(node, ssl, stash.clone(), era - 1);
     let locked_stash_balance_after_payout = locks(&connection, &stash).expect(&format!(
         "Expected non-empty locked balances for account {}!",
         stash_account

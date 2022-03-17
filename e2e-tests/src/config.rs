@@ -7,6 +7,10 @@ pub struct Config {
     #[clap(long, default_value = "127.0.0.1:9943")]
     pub node: String,
 
+    /// Whether to use `ws` or `wss` protocol
+    #[clap(long, default_value = false)]
+    pub ssl: bool,
+
     /// seed values to create accounts
     #[clap(long)]
     pub seeds: Option<Vec<String>>,
