@@ -43,16 +43,17 @@ pub fn create_connection(address: &str) -> Connection {
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
     address: &str,
 ) -> Result<Api<sr25519::Pair, Client>, <Client as FromStr>::Err> {
-    let client = Client::from_str(&format!("ws://{}", address))?;
-    match Api::<sr25519::Pair, _>::new(client) {
-        Ok(api) => Ok(api),
-        Err(why) => {
-            warn!(
-                "[+] Can't create_connection because {:?}, will try again in 1s",
-                why
-            );
-            sleep(Duration::from_millis(1000));
-            create_custom_connection(address)
+    loop {
+        let client = Client::from_str(&format!("ws://{}", address))?;
+        match Api::<sr25519::Pair, _>::new(client) {
+            Ok(api) => return Ok(api),
+            Err(why) => {
+                warn!(
+                    "[+] Can't create_connection because {:?}, will try again in 1s",
+                    why
+                );
+                sleep(Duration::from_millis(1000));
+            }
         }
     }
 }
