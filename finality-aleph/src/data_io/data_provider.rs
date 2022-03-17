@@ -88,6 +88,8 @@ where
     }
 }
 
+const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_millis(100);
+
 pub struct ChainTrackerConfig {
     pub refresh_interval: Duration,
 }
@@ -95,7 +97,7 @@ pub struct ChainTrackerConfig {
 impl Default for ChainTrackerConfig {
     fn default() -> ChainTrackerConfig {
         ChainTrackerConfig {
-            refresh_interval: Duration::from_millis(100),
+            refresh_interval: DEFAULT_REFRESH_INTERVAL,
         }
     }
 }
@@ -321,8 +323,7 @@ mod tests {
         SessionBoundaries, SessionId, SessionPeriod,
     };
     use futures::channel::oneshot;
-    use std::future::Future;
-    use std::{sync::Arc, time::Duration};
+    use std::{future::Future, sync::Arc, time::Duration};
     use substrate_test_runtime_client::{
         runtime::Block, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
     };
@@ -331,7 +332,7 @@ mod tests {
     const SESSION_LEN: u32 = 100;
     // The lower the interval the less time the tests take, however setting this too low might cause
     // the tests to fail. Even though 1ms works with no issues, we set it to 5ms for safety.
-    const REFRESH_INTERVAL_MILLIS: u64 = 5;
+    const REFRESH_INTERVAL: Duration = Duration::from_millis(5);
 
     fn prepare_chain_tracker_test() -> (
         impl Future<Output = ()>,
@@ -347,7 +348,7 @@ mod tests {
         let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(SESSION_LEN));
 
         let config = ChainTrackerConfig {
-            refresh_interval: Duration::from_millis(REFRESH_INTERVAL_MILLIS),
+            refresh_interval: REFRESH_INTERVAL,
         };
 
         let (chain_tracker, data_provider) =
@@ -366,7 +367,7 @@ mod tests {
 
     // Sleep enough time so that the internal refreshing in ChainTracker has time to finish.
     async fn sleep_enough() {
-        sleep(Duration::from_millis(2 * REFRESH_INTERVAL_MILLIS)).await;
+        sleep(REFRESH_INTERVAL + REFRESH_INTERVAL).await;
     }
 
     async fn run_test<F, S>(scenario: S)
@@ -380,7 +381,9 @@ mod tests {
         scenario(chain_builder, Box::new(data_provider)).await;
 
         exit.send(()).unwrap();
-        chain_tracker_handle.await.unwrap();
+        chain_tracker_handle
+            .await
+            .expect("Chain tracker did not terminate cleanly.");
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -413,7 +416,7 @@ mod tests {
             let blocks = chain_builder
                 .initialize_single_branch_and_import(3 * MAX_DATA_BRANCH_LEN)
                 .await;
-            for height in 1..MAX_DATA_BRANCH_LEN {
+            for height in 1..(2 * MAX_DATA_BRANCH_LEN) {
                 chain_builder.finalize_block(&blocks[height - 1].header.hash());
                 sleep_enough().await;
                 let data = data_provider.get_data().await;

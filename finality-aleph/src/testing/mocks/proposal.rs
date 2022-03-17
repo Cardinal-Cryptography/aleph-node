@@ -2,9 +2,9 @@ use crate::data_io::{AlephData, UnvalidatedAlephProposal};
 use sp_runtime::traits::Block as BlockT;
 use substrate_test_runtime_client::runtime::{Block, Header};
 
-pub fn unvalidated_proposal_from_headers(blocks: Vec<Header>) -> UnvalidatedAlephProposal<Block> {
-    let num = blocks.last().unwrap().number;
-    let hashes = blocks.into_iter().map(|block| block.hash()).collect();
+pub fn unvalidated_proposal_from_headers(headers: Vec<Header>) -> UnvalidatedAlephProposal<Block> {
+    let num = headers.last().unwrap().number;
+    let hashes = headers.into_iter().map(|header| header.hash()).collect();
     UnvalidatedAlephProposal::new(hashes, num)
 }
 
