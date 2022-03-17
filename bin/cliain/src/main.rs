@@ -1,7 +1,7 @@
-use std::env;
-use clap::{Parser, Subcommand};
 use aleph_client::KeyPair;
+use clap::{Parser, Subcommand};
 use sp_core::Pair;
+use std::env;
 
 use cliain::{change_validators, prepare_keys};
 
@@ -11,6 +11,10 @@ struct Config {
     /// WS endpoint address of the node to connect to
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
+
+    /// Whether to use `ws` or `wss` protocol
+    #[clap(long, default_value = false)]
+    pub ssl: bool,
 
     /// The seed of the key to use for signing calls
     #[clap(long)]
@@ -36,15 +40,16 @@ enum Command {
 fn main() {
     init_env();
 
-    let Config{
+    let Config {
         node,
+        ssl,
         seed,
         command,
     } = Config::parse();
     let key = KeyPair::from_string(&seed, None).expect("Can't create pair from seed value");
     match command {
-        Command::ChangeValidators{validators} => change_validators(validators, node, key),
-        Command::PrepareKeys => prepare_keys(node, key),
+        Command::ChangeValidators { validators } => change_validators(validators, node, ssl, key),
+        Command::PrepareKeys => prepare_keys(node, ssl, key),
     }
 }
 
