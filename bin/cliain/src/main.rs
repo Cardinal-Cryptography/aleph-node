@@ -13,7 +13,7 @@ struct Config {
     pub node: String,
 
     /// Whether to use `ws` or `wss` protocol
-    #[clap(long, default_value = false)]
+    #[clap(long)]
     pub ssl: bool,
 
     /// The seed of the key to use for signing calls
