@@ -1,10 +1,16 @@
-use crate::utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes};
+use crate::{
+    utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes},
+    Error,
+};
 use codec::{Decode, Encode};
-use frame_support::RuntimeDebug;
+use frame_support::{
+    sp_runtime::{AnySignature, MultiSignature},
+    RuntimeDebug,
+};
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::{H160, H256};
+use sp_core::{H160, H256, H512};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
@@ -17,9 +23,9 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 
-pub type SignatureStorage = Vec<u8>; // TODO type enforce length 64?
 pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
 
+pub type TendermintVoteSignature = String; // TODO base64 encoded
 pub type AppHashStorage = String; // TODO this is fuzzy
 pub type TendermintAccountId = H160;
 pub type Hash = H256;
@@ -102,14 +108,14 @@ pub struct PartSetHeaderStorage {
     /// Number of parts in this block
     pub total: u32,
     /// SHA256 Hash of the parts set header,
-    pub hash: Vec<u8>,
+    pub hash: Hash,
 }
 
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
     type Error = &'static str;
     fn try_from(value: PartSetHeaderStorage) -> Result<Self, Self::Error> {
         Ok(
-            PartSetHeader::new(value.total, sha256_from_bytes(&value.hash))
+            PartSetHeader::new(value.total, sha256_from_bytes(value.hash.as_bytes()))
                 .expect("Can't create PartSetHeader"),
         )
     }
@@ -179,6 +185,7 @@ pub struct HeaderStorage {
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[serde(tag = "block_id_flag")]
 pub enum CommitSignatureStorage {
     /// no vote was received from a validator.
     BlockIdFlagAbsent,
@@ -189,7 +196,7 @@ pub enum CommitSignatureStorage {
         /// Timestamp of vote
         timestamp: i64,
         /// Signature of vote
-        signature: Option<SignatureStorage>,
+        signature: Option<TendermintVoteSignature>,
     },
     /// voted for nil.
     BlockIdFlagNil {
@@ -198,7 +205,7 @@ pub enum CommitSignatureStorage {
         /// Timestamp of vote
         timestamp: i64,
         /// Signature of vote
-        signature: Option<SignatureStorage>,
+        signature: Option<TendermintVoteSignature>,
     },
 }
 
@@ -216,6 +223,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
+
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagCommit {
@@ -232,6 +240,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
+
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagNil {
@@ -258,10 +267,13 @@ pub struct CommitStorage {
 }
 
 impl CommitSignatureStorage {
-    fn signature(signature: Option<Vec<u8>>) -> Option<tendermint::Signature> {
+    fn signature(signature: Option<TendermintVoteSignature>) -> Option<tendermint::Signature> {
         match signature {
             None => None,
-            Some(sig) => signature::Signature::try_from(sig.as_slice()).ok(),
+            Some(base64) => {
+                let bytes = base64::decode(base64).expect("Not base64 encoded");
+                tendermint::Signature::try_from(bytes).ok()
+            }
         }
     }
 }

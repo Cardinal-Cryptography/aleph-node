@@ -49,9 +49,9 @@ pub const TRUSTED_BLOCK: &str = r#"{
             },
             "signatures": [
                 {
-                    "block_id_flag": 2,
+                    "block_id_flag": "BlockIdFlagCommit",
                     "validator_address": "6AE5C701F508EB5B63343858E068C5843F28105F",
-                    "timestamp": "1970-01-01T00:00:03Z",
+                    "timestamp": 3597,
                     "signature": "xn0eSsHYIsqUbmfAiJq1R0hqZbfuIjs5Na1c88EC1iPTuQAesKg9I7nXG4pk8d6U5fU4GysNLk5I4f7aoefOBA=="
                 }
             ]
