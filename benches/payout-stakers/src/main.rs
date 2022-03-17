@@ -1,5 +1,4 @@
-use aleph_client::staking_bond;
-use aleph_client::{create_connection, staking_validate};
+use aleph_client::{create_connection, staking_bond, staking_validate};
 use e2e::{
     accounts::derive_user_account,
     staking::{
@@ -11,12 +10,13 @@ use e2e::{
 use log::info;
 use primitives::staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND};
 use rayon::prelude::*;
-use sp_core::sr25519::Pair as KeyPair;
-use sp_core::Pair;
+use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
 use std::iter;
-use substrate_api_client::extrinsic::staking::RewardDestination;
-use substrate_api_client::{rpc::WsRpcClient, AccountId, Api, XtStatus};
+use substrate_api_client::{
+    extrinsic::staking::RewardDestination,
+    {rpc::WsRpcClient, AccountId, Api, XtStatus},
+};
 
 // testcase parameters
 const NOMINATOR_COUNT: u64 = 1024;

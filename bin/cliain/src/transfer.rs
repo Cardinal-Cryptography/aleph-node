@@ -10,8 +10,8 @@ pub fn transfer_command(
     amount_in_tokens: u64,
     to_account: String,
 ) {
-    let sender_key =
-        KeyPair::from_string(&sender_seed, None).expect("Can't create pair from seed value");
+    let sender_key = KeyPair::from_string(&format!("//{}", sender_seed), None)
+        .expect("Can't create pair from seed value");
     let connection = create_connection(&node).set_signer(sender_key);
     let to_account = AccountId::from_ss58check(&to_account).expect("Address is valid");
     balances_transfer(

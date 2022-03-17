@@ -17,7 +17,7 @@ struct Config {
     pub node: String,
 
     /// The seed of the key to use for signing calls
-    /// If not given, the root account is assumed and user is prompted to provide root seed
+    /// If not given, an user is prompted to provide seed
     #[clap(long)]
     pub seed: Option<String>,
 
@@ -72,11 +72,7 @@ enum Command {
     },
 
     /// Command to convert given seed to SS58 Account id
-    SeedToSS58 {
-        /// Seed of the account to convert to SS58 public key to
-        #[clap(long)]
-        seed: String,
-    },
+    SeedToSS58,
 
     /// Sets lower bound for nominator and validator. Requires root account.
     SetStakingLimits {
@@ -116,22 +112,18 @@ enum Command {
     },
 }
 
-fn handle_auxiliary_command(auxiliary_command: Command) {
-    match auxiliary_command {
-        Command::SeedToSS58 { seed } => {
-            let key = KeyPair::from_string(&format!("//{}", &seed), None)
-                .expect("Can't create pair from seed value");
-            info!("SS58 Address: {}", key.public().to_string());
-        }
-        // signed tx commands handled by handle_signed_tx_command
-        _ => {}
-    }
-}
+fn main() {
+    init_env();
 
-fn handle_signed_tx_command(node: String, seed: Option<String>, command: Command) {
+    let Config {
+        node,
+        seed,
+        command,
+    } = Config::parse();
+
     let seed = match seed {
         Some(seed) => seed,
-        None => match prompt_password_hidden("Provide seed for root account:") {
+        None => match prompt_password_hidden("Provide seed for the signer account:") {
             Ok(seed) => seed,
             Err(e) => {
                 error!("Failed to parse prompt with error {:?}! Exiting.", e);
@@ -141,6 +133,7 @@ fn handle_signed_tx_command(node: String, seed: Option<String>, command: Command
     };
     let key = KeyPair::from_string(&format!("//{}", &seed), None)
         .expect("Can't create pair from seed value");
+
     match command {
         Command::ChangeValidators { validators } => change_validators(validators, node, key),
         Command::PrepareKeys => prepare_keys(node, key),
@@ -168,24 +161,7 @@ fn handle_signed_tx_command(node: String, seed: Option<String>, command: Command
             minimal_validator_stake,
         } => set_staking_limits(node, key, minimal_nominator_stake, minimal_validator_stake),
         Command::ForceNewEra => force_new_era(node, key),
-        // rest are auxiliary commands handled by handle_auxiliary_command
-        _ => {}
-    }
-}
-
-fn main() {
-    init_env();
-
-    let Config {
-        node,
-        seed,
-        command,
-    } = Config::parse();
-
-    if matches!(command, Command::SeedToSS58 { .. }) {
-        handle_auxiliary_command(command);
-    } else {
-        handle_signed_tx_command(node, seed, command);
+        Command::SeedToSS58 => info!("SS58 Address: {}", key.public().to_string()),
     }
 }
 

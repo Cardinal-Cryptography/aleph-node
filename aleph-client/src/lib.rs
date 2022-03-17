@@ -10,18 +10,16 @@ mod staking;
 mod transfer;
 mod waiting;
 
-pub use rpc::rotate_keys;
-pub use rpc::rotate_keys_raw;
+pub use rpc::{rotate_keys, rotate_keys_raw_result};
 pub use session::{
     change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
     Keys as SessionKeys,
 };
-pub use staking::bond as staking_bond;
-pub use staking::force_new_era as staking_force_new_era;
-pub use staking::set_staking_limit as staking_set_staking_limits;
-pub use staking::validate as staking_validate;
-pub use transfer::transfer as balances_transfer;
-pub use transfer::TransferTransaction;
+pub use staking::{
+    bond as staking_bond, force_new_era as staking_force_new_era,
+    set_staking_limit as staking_set_staking_limits, validate as staking_validate,
+};
+pub use transfer::{transfer as balances_transfer, TransferTransaction};
 pub use waiting::wait_for_event;
 
 pub trait FromStr: Sized {
@@ -54,7 +52,7 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
     match Api::<sr25519::Pair, _>::new(client) {
         Ok(api) => Ok(api),
         Err(why) => {
-            warn!(
+            warn!(target: "aleph-client",
                 "[+] Can't create_connection because {:?}, will try again in 1s",
                 why
             );

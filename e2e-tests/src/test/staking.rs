@@ -156,7 +156,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = rotate_keys(&connection).unwrap().unwrap();
+    let validator_keys = rotate_keys(&connection).expect("Failed to retrieve keys from chain");
     let controller_connection = create_connection(node).set_signer(controller.clone());
     set_keys(&controller_connection, validator_keys, XtStatus::InBlock);
 

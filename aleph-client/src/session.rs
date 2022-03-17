@@ -1,5 +1,4 @@
-use crate::waiting::wait_for_event;
-use crate::{send_xt, BlockNumber, Connection};
+use crate::{send_xt, waiting::wait_for_event, BlockNumber, Connection};
 use codec::{Decode, Encode};
 use log::info;
 use sp_core::Pair;
@@ -24,11 +23,15 @@ impl From<Vec<u8>> for Keys {
     }
 }
 
-impl From<String> for Keys {
-    fn from(keys: String) -> Self {
-        let bytes: Vec<u8> =
-            FromHexString::from_hex(keys).expect("String hex-encoded session cannot be decoded");
-        Keys::from(bytes)
+impl TryFrom<String> for Keys {
+    type Error = ();
+
+    fn try_from(keys: String) -> Result<Self, Self::Error> {
+        let bytes: Vec<u8> = match FromHexString::from_hex(keys) {
+            Ok(bytes) => bytes,
+            Err(_) => return Err(()),
+        };
+        Ok(Keys::from(bytes))
     }
 }
 
