@@ -58,7 +58,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
         }
     },
     "validator_set": {
-        "total_voting_power": "0",
+        "total_voting_power": 0,
         "validators": [
             {
                 "address": "6AE5C701F508EB5B63343858E068C5843F28105F",
@@ -66,13 +66,13 @@ pub const TRUSTED_BLOCK: &str = r#"{
                     "type": "tendermint/PubKeyEd25519",
                     "value": "GQEC/HB4sDBAVhHtUzyv4yct9ZGnudaP209QQBSTfSQ="
                 },
-                "voting_power": "50",
+                "voting_power": 50,
                 "proposer_priority": null
             }
         ]
     },
     "next_validator_set": {
-        "total_voting_power": "0",
+        "total_voting_power": 0,
         "validators": [
             {
                 "address": "6AE5C701F508EB5B63343858E068C5843F28105F",
@@ -80,7 +80,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
                     "type": "tendermint/PubKeyEd25519",
                     "value": "GQEC/HB4sDBAVhHtUzyv4yct9ZGnudaP209QQBSTfSQ="
                 },
-                "voting_power": "50",
+                "voting_power": 50,
                 "proposer_priority": null
             }
         ]

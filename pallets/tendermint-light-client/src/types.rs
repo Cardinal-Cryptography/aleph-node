@@ -14,7 +14,9 @@ use sp_core::{H160, H256, H512};
 use sp_std::{time::Duration, vec::Vec};
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain, hash, node, public_key, signature,
+    chain, hash, node, public_key,
+    serializers::bytes,
+    signature,
     validator::{self, ProposerPriority},
     vote,
 };
@@ -23,10 +25,9 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 
-pub type TendermintPeerId = Vec<u8>; // TODO type enforce length 20?
-
 pub type TendermintVoteSignature = String; // TODO base64 encoded
 pub type AppHashStorage = String; // TODO this is fuzzy
+pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
 pub type Hash = H256;
 pub type BridgedBlockHash = Hash;
@@ -384,7 +385,15 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
     }
 }
 
-pub type TndermintPublicKey = Vec<u8>;
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[serde(tag = "type", content = "value")]
+pub enum TendermintPublicKey {
+    #[serde(rename = "tendermint/PubKeyEd25519")]
+    Ed25519(String),
+    #[serde(rename = "tendermint/PubKeySecp256k1")]
+    Secp256k1(String),
+}
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -392,7 +401,7 @@ pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
     /// Validator public key
-    pub pub_key: TndermintPublicKey,
+    pub pub_key: TendermintPublicKey,
     /// Validator voting power
     // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
     #[serde(alias = "voting_power", alias = "total_voting_power")]
@@ -418,8 +427,21 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
 
         Ok(Self {
             address: account_id_from_bytes(address.as_fixed_bytes().to_owned()),
-            pub_key: public_key::PublicKey::from_raw_ed25519(&pub_key)
-                .expect("Cannot create PublicKey"),
+            pub_key: match pub_key {
+                TendermintPublicKey::Ed25519(base64) => {
+                    // let bytes = base64::decode(base64).expect("Not base64 encoded");
+                    // tendermint::PublicKey::from_raw_ed25519(&bytes).expect("Not ed25519 public key")
+
+                    unimplemented!()
+                }
+                TendermintPublicKey::Secp256k1(base64) => {
+                    // let bytes = base64::decode(base64).expect("Not base64 encoded");
+                    // tendermint::PublicKey::from_raw_secp256k1(&bytes)
+                    //     .expect("Not secp256k1 public key")
+
+                    unimplemented!()
+                }
+            },
             power: vote::Power::try_from(power).expect("Cannot create Power"),
             name: match name {
                 Some(name) => String::from_utf8(name).ok(),
@@ -464,9 +486,15 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LightBlockStorage {
+    /// Header and commit of this block    
     pub signed_header: SignedHeaderStorage,
+    /// Validator set at the block height
+    #[serde(rename = "validator_set")]
     pub validators: ValidatorSetStorage,
+    /// Validator set at the next block height
+    #[serde(rename = "next_validator_set")]
     pub next_validators: ValidatorSetStorage,
+    /// The peer (noide) ID of the node that provided this block    
     pub provider: TendermintPeerId,
 }
 

@@ -14,6 +14,5 @@ pub fn from_unix_timestamp(seconds: i64) -> time::Time {
 }
 
 pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
-    // account::Id::try_from(bytes).expect("Cannot create account Id")
-    account::Id::new(bytes) //.expect("Cannot create account Id")
+    account::Id::new(bytes)
 }

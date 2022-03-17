@@ -5,7 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-base64 = "0.13.0"
+base64 = { default-features = false, version = "0.13.0" }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
@@ -17,7 +17,7 @@ serde_json = {version = '1', default-features = false, features = ['alloc'] }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 sp-io = { default-features = false, features = ["disable_oom", "disable_panic_handler"], git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-tendermint = { version = "0.24.0-pre.1", default-features = false }
+tendermint = { version = "0.24.0-pre.1", default-features = false, features = ["secp256k1"] }
 tendermint-light-client-verifier = { version = "0.24.0-pre.1", default-features = false }
 
 [dev-dependencies]
@@ -26,6 +26,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 [features]
 default = ["std"]
 std = [
+    "base64/std",    
     "codec/std",
     "frame-support/std",
     "frame-system/std",
