@@ -119,7 +119,7 @@ pub struct IO<
     messages_from_rmc: mpsc::UnboundedReceiver<D>,
     network: N,
     multicast: RMC,
-    aggregator: BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+    marker: PhantomData<&'a (H, MK)>,
 }
 
 impl<
@@ -138,20 +138,23 @@ where
         messages_from_rmc: mpsc::UnboundedReceiver<D>,
         network: N,
         multicast: RMC,
-        aggregator: BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
     ) -> Self {
         IO {
             messages_for_rmc,
             messages_from_rmc,
             network,
             multicast,
-            aggregator,
+            marker: PhantomData,
         }
     }
 
-    pub(crate) async fn start_aggregation(&mut self, hash: H) {
+    pub(crate) async fn start_aggregation(
+        &mut self,
+        aggregator: &mut BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+        hash: H,
+    ) {
         debug!(target: "aleph-aggregator", "Started aggregation for block hash {:?}", hash);
-        if let Err(AggregatorError::DuplicateHash) = self.aggregator.on_start(hash) {
+        if let Err(AggregatorError::DuplicateHash) = aggregator.on_start(hash) {
             debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, exiting.", hash);
             return;
         }
@@ -160,15 +163,14 @@ where
             .await;
     }
 
-    pub fn notify_last_hash(&mut self) {
-        self.aggregator.notify_last_hash()
-    }
-
-    async fn wait_for_next_signature(&mut self) -> IOResult {
+    async fn wait_for_next_signature(
+        &mut self,
+        aggregator: &mut BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+    ) -> IOResult {
         loop {
             tokio::select! {
                 multisigned_hash = self.multicast.next_multisigned_hash() => {
-                    return self.aggregator.on_multisigned_hash(multisigned_hash)
+                    return aggregator.on_multisigned_hash(multisigned_hash)
                                           .map_err(IOError::AggregatorError);
                 }
                 message_from_rmc = self.messages_from_rmc.next() => {
@@ -199,10 +201,13 @@ where
         }
     }
 
-    pub(crate) async fn next_multisigned_hash(&mut self) -> Option<(H, MK::PartialMultisignature)> {
+    pub(crate) async fn next_multisigned_hash(
+        &mut self,
+        aggregator: &mut BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+    ) -> Option<(H, MK::PartialMultisignature)> {
         loop {
             trace!(target: "aleph-aggregator", "Entering next_multisigned_hash loop.");
-            match self.aggregator.try_pop_hash() {
+            match aggregator.try_pop_hash() {
                 Ok(res) => {
                     return Some(res);
                 }
@@ -216,7 +221,7 @@ where
                 Err(_) => {}
             }
 
-            if self.wait_for_next_signature().await.is_err() {
+            if self.wait_for_next_signature(aggregator).await.is_err() {
                 warn!(target: "aleph-aggregator", "the network channel closed");
                 return None;
             }
