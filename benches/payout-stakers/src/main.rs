@@ -1,5 +1,4 @@
-use aleph_client::staking_bond;
-use aleph_client::{create_connection, Protocol};
+use aleph_client::{create_connection, staking_bond, Protocol};
 use e2e::{
     accounts::derive_user_account,
     staking::{
