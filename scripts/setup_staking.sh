@@ -10,6 +10,8 @@ Usage:
         validator's pod name, e.g. aleph-node-validator-0
     --namespace n
        namespace to use, e.g. devnet
+    [--copy-cliain-to-pod]
+       copies cliain binary to --validator-pod-name:/tmp/cliain
      [--help]
         displays this info
      [--interactive]
@@ -93,6 +95,10 @@ while [[ $# -gt 0 ]]; do
     --validator-pod-name)
       VALIDATOR_POD_NAME="$2"
       shift;shift
+      ;;
+    --copy-cliain-to-pod)
+      COPY_CLIAIN_TO_POD="YES"
+      shift
       ;;
      --force-new-era)
       FORCE_NEW_ERA="YES"
@@ -297,6 +303,15 @@ function force_new_era() {
   prompt_if_interactive_mode "Press enter to continue"
 }
 
+function copy_cliain_to_pod() {
+  cliain_path="$1"
+  validator_pod_name="$2"
+  namespace="$3"
+  info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+	kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
+	  error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+	prompt_if_interactive_mode "Press enter to continue"
+}
 
 function run_validator_setup() {
   staking_config_file="$1"
@@ -321,11 +336,6 @@ function run_validator_setup() {
   info "Validator's minimal stake: ${minimal_validator_bond}"
   info "Validator's commission: ${validator_commission}"
   prompt_if_interactive_mode "Press enter to continue"
-
-  info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-	kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
-	  error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-	prompt_if_interactive_mode "Press enter to continue"
 
   # one token more to cover tx fees
   stash_tokens=$((minimal_validator_bond + 1))
@@ -372,6 +382,10 @@ fi
 # path on which binary will be copied to on validator's pod
 CLIAIN_PATH_ON_POD="/tmp/cliain"
 
+if  [ -n "${COPY_CLIAIN_TO_POD}" ]; then
+  did_something="true"
+  copy_cliain_to_pod "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
+fi
 if  [ -n "${STAKING_CONFIG_FILE}" ]; then
   did_something="true"
   run_validator_setup "${STAKING_CONFIG_FILE}" "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
