@@ -34,7 +34,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
+        type DataProvider: ElectionDataProvider;
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
     }
@@ -47,6 +47,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     #[pallet::call]
@@ -89,7 +90,9 @@ pub mod pallet {
         DataProvider(&'static str),
     }
 
-    impl<T: Config> ElectionProvider<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+    impl<T: Config> ElectionProvider for Pallet<T> {
+        type AccountId = T::AccountId;
+        type BlockNumber = T::BlockNumber;
         type Error = Error;
         type DataProvider = T::DataProvider;
 
