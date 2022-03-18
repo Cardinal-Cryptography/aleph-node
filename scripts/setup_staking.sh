@@ -23,9 +23,9 @@ Usage:
            minimal_validator_bond
            validator's commission
         Example:
-           0
-           Stash0
-           Controller0
+           //0
+           //Stash0
+           //Controller0
            25000
            10
     [--set-staking-limits "minimal_nominator_bond,minimal_validator_bond"]
