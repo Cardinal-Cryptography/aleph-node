@@ -1,3 +1,7 @@
+#[cfg(feature = "std")]
+use crate::utils::{
+    deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_string_as_bytes,
+};
 use crate::{
     utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes},
     Error,
@@ -22,8 +26,7 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 
-pub type TendermintVoteSignature = String; // TODO base64 encoded
-pub type AppHashStorage = String; // TODO this is fuzzy
+pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
 pub type Hash = H256;
@@ -41,15 +44,15 @@ pub struct TrustThresholdStorage {
 pub struct LightClientOptionsStorage {
     /// Defines what fraction of the total voting power of a known
     /// and trusted validator set is sufficient for a commit to be
-    /// accepted going forward.    
+    /// accepted going forward.
     pub trust_threshold: TrustThresholdStorage,
     /// How long a validator set is trusted for (must be shorter than the chain's
-    /// unbonding period)    
+    /// unbonding period)
     pub trusting_period: u64,
     /// Correction parameter dealing with only approximately synchronized clocks.
     /// The local clock should always be ahead of timestamps from the blockchain; this
     /// is the maximum amount that the local clock may drift behind a timestamp from the
-    /// blockchain.    
+    /// blockchain.
     pub clock_drift: u64,
 }
 
@@ -149,8 +152,12 @@ impl TryFrom<BlockIdStorage> for block::Id {
 pub struct HeaderStorage {
     /// Header version
     pub version: VersionStorage,
-    /// Chain identifier (e.g. 'gaia-9000')    
-    pub chain_id: String, // Vec<u8>, // String::from_utf8,
+    /// Chain identifier (e.g. 'gaia-9000')
+    #[cfg_attr(
+        feature = "std",
+        serde(deserialize_with = "deserialize_string_as_bytes")
+    )]
+    pub chain_id: Vec<u8>,
     /// Current block height
     pub height: u64,
     /// Epoch Unix timestamp in seconds
@@ -163,14 +170,18 @@ pub struct HeaderStorage {
     /// Merkle root of transaction hashes
     pub data_hash: Option<Hash>,
     /// Validators for the current block
-    pub validators_hash: Hash, //Vec<u8>,
+    pub validators_hash: Hash,
     /// Validators for the next block
     pub next_validators_hash: Hash,
     /// Consensus params for the current block
     pub consensus_hash: Hash,
     /// State after txs from the previous block
-    /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data    
-    pub app_hash: AppHashStorage,
+    /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data
+    #[cfg_attr(
+        feature = "std",
+        serde(deserialize_with = "deserialize_string_as_bytes")
+    )]
+    pub app_hash: Vec<u8>,
     /// Root hash of all results from the txs from the previous block
     pub last_results_hash: Option<Hash>,
     /// Hash of evidence included in the block
@@ -194,7 +205,11 @@ pub enum CommitSignatureStorage {
         /// Timestamp of vote
         timestamp: i64,
         /// Signature of vote
-        signature: Option<TendermintVoteSignature>,
+        #[cfg_attr(
+            feature = "std",
+            serde(deserialize_with = "deserialize_base64string_as_h512")
+        )]
+        signature: TendermintVoteSignature,
     },
     /// voted for nil.
     BlockIdFlagNil {
@@ -203,7 +218,11 @@ pub enum CommitSignatureStorage {
         /// Timestamp of vote
         timestamp: i64,
         /// Signature of vote
-        signature: Option<TendermintVoteSignature>,
+        #[cfg_attr(
+            feature = "std",
+            serde(deserialize_with = "deserialize_base64string_as_h512")
+        )]
+        signature: TendermintVoteSignature,
     },
 }
 
@@ -222,7 +241,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
 
-                let signature = CommitSignatureStorage::signature(signature);
+                let signature = todo!(""); // CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagCommit {
                     validator_address,
@@ -239,7 +258,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
 
-                let signature = CommitSignatureStorage::signature(signature);
+                let signature = todo!(""); //CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagNil {
                     validator_address,
@@ -269,8 +288,10 @@ impl CommitSignatureStorage {
         match signature {
             None => None,
             Some(base64) => {
-                let bytes = base64::decode(base64).expect("Not base64 encoded");
-                tendermint::Signature::try_from(bytes).ok()
+                // let bytes = base64::decode(base64).expect("Not base64 encoded");
+                // tendermint::Signature::try_from(bytes).ok()
+
+                unimplemented!()
             }
         }
     }
@@ -322,13 +343,14 @@ impl TryFrom<HeaderStorage> for Header {
 
         Ok(Self {
             version: version.try_into().expect("Cannot create Version"),
-            chain_id: chain_id
-                .parse::<chain::Id>()
-                .expect("Cannot parse as Chain Id"),
-            // String::from_utf8(chain_id)
-            //     .expect("Not a UTF8 string encoding")
+            chain_id:
+            // chain_id
             //     .parse::<chain::Id>()
             //     .expect("Cannot parse as Chain Id"),
+            String::from_utf8(chain_id)
+                .expect("Not a UTF8 string encoding")
+                .parse::<chain::Id>()
+                .expect("Cannot parse as Chain Id"),
             height: block::Height::try_from(height).expect("Cannot create Height"),
             time: from_unix_timestamp(timestamp),
             last_block_id: match last_block_id {
@@ -346,8 +368,9 @@ impl TryFrom<HeaderStorage> for Header {
             validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
             next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
             consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
-            app_hash: hash::AppHash::from_hex_upper(&app_hash).expect("Cannot create AppHash"),
-            //hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            app_hash:
+            // hash::AppHash::from_hex_upper(&app_hash).expect("Cannot create AppHash"),
+            hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
             last_results_hash: match last_results_hash {
                 Some(hash) => Some(sha256_from_bytes(&hash.as_bytes())),
                 None => None,
@@ -386,10 +409,22 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(tag = "type", content = "value"))]
 pub enum TendermintPublicKey {
-    #[cfg_attr(feature = "std", serde(rename = "tendermint/PubKeyEd25519"))]
-    Ed25519(String),
-    #[cfg_attr(feature = "std", serde(rename = "tendermint/PubKeySecp256k1"))]
-    Secp256k1(String),
+    #[cfg_attr(
+        feature = "std",
+        serde(
+            rename = "tendermint/PubKeyEd25519",
+            deserialize_with = "deserialize_base64string_as_h256"
+        )
+    )]
+    Ed25519(H256),
+    #[cfg_attr(
+        feature = "std",
+        serde(
+            rename = "tendermint/PubKeySecp256k1",
+            deserialize_with = "deserialize_base64string_as_h256"
+        )
+    )]
+    Secp256k1(H256),
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
@@ -486,7 +521,7 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LightBlockStorage {
-    /// Header and commit of this block    
+    /// Header and commit of this block
     pub signed_header: SignedHeaderStorage,
     /// Validator set at the block height
     #[cfg_attr(feature = "std", serde(rename = "validator_set"))]
@@ -494,7 +529,7 @@ pub struct LightBlockStorage {
     /// Validator set at the next block height
     #[cfg_attr(feature = "std", serde(rename = "next_validator_set"))]
     pub next_validators: ValidatorSetStorage,
-    /// The peer (noide) ID of the node that provided this block    
+    /// The peer (noide) ID of the node that provided this block
     pub provider: TendermintPeerId,
 }
 

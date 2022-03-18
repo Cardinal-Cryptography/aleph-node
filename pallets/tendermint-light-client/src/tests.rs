@@ -15,6 +15,8 @@ fn successful_verification() {
 
         let call = Pallet::<TestRuntime>::initialize_client(Origin::root(), options, initial_block);
 
+        // let a = String::from("0x0");
+
         // print!()
 
         assert!(false);
