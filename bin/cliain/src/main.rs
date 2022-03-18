@@ -131,8 +131,7 @@ fn main() {
             }
         },
     };
-    let key = KeyPair::from_string(&format!("//{}", &seed), None)
-        .expect("Can't create pair from seed value");
+    let key = KeyPair::from_string(&seed, None).expect("Can't create pair from seed value");
 
     match command {
         Command::ChangeValidators { validators } => change_validators(validators, node, key),

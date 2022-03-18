@@ -15,8 +15,8 @@ pub fn bond_command(
 ) {
     let controller_account =
         AccountId::from_ss58check(&controller_account).expect("Address is valid");
-    let stash_key = KeyPair::from_string(&format!("//{}", stash_seed), None)
-        .expect("Can't create pair from seed value");
+    let stash_key =
+        KeyPair::from_string(&stash_seed, None).expect("Can't create pair from seed value");
 
     let connection = create_connection(&node).set_signer(stash_key);
 
@@ -30,8 +30,8 @@ pub fn bond_command(
 }
 
 pub fn validate_command(node: String, controller_seed: String, commission_percentage: u8) {
-    let controller_key = KeyPair::from_string(&format!("//{}", controller_seed), None)
-        .expect("Can't create pair from seed value");
+    let controller_key =
+        KeyPair::from_string(&controller_seed, None).expect("Can't create pair from seed value");
     let connection = create_connection(&node).set_signer(controller_key);
     staking_validate(&connection, commission_percentage, XtStatus::Finalized);
 }

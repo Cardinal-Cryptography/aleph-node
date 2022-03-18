@@ -21,8 +21,8 @@ pub fn prepare(node: String, key: KeyPair) {
 }
 
 pub fn set_keys_command(node: String, new_keys: String, controller_seed: String) {
-    let controller_key = KeyPair::from_string(&format!("//{}", controller_seed), None)
-        .expect("Can't create pair from seed value");
+    let controller_key =
+        KeyPair::from_string(&controller_seed, None).expect("Can't create pair from seed value");
     let connection = create_connection(&node).set_signer(controller_key);
     set_keys(
         &connection,
