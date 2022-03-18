@@ -33,7 +33,6 @@ pub fn ledger(
 }
 
 pub fn validate(controller_connection: &Connection, tx_status: XtStatus) {
-    // let connection = create_connection(address, ssl).set_signer(controller.clone());
     let prefs = ValidatorPrefs {
         blocked: false,
         commission: Perbill::from_percent(10),
@@ -50,7 +49,6 @@ pub fn validate(controller_connection: &Connection, tx_status: XtStatus) {
 
 pub fn nominate(connection: &Connection, nominee_key_pair: &KeyPair) {
     let nominee_account_id = AccountId::from(nominee_key_pair.public());
-    // let connection = create_connection(address, ssl).set_signer(nominator_key_pair.clone());
 
     let xt = connection.staking_nominate(vec![GenericAddress::Id(nominee_account_id)]);
     send_xt(&connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
@@ -58,7 +56,6 @@ pub fn nominate(connection: &Connection, nominee_key_pair: &KeyPair) {
 
 pub fn payout_stakers(stash_connection: &Connection, stash: KeyPair, era_number: BlockNumber) {
     let account = AccountId::from(stash.public());
-    // let connection = create_connection(address, ssl).set_signer(stash);
     let xt = compose_extrinsic!(
         stash_connection,
         "Staking",
