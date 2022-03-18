@@ -1,6 +1,6 @@
 // A minimal tool for sending a setCode extrinsic to some node.
 
-use aleph_client::{create_connection, Protocol};
+use aleph_client::{create_connection, from as parse_to_protocol, Protocol};
 use sp_core::{sr25519, Pair};
 use std::fs;
 use structopt::StructOpt;
@@ -25,7 +25,7 @@ struct Args {
     runtime: String,
 
     /// Protocol to be used for connecting to node (`ws` or `wss`)
-    #[structopt(name = "use_ssl", parse(from_flag = from))]
+    #[structopt(name = "use_ssl", parse(from_flag = parse_to_protocol))]
     protocol: Protocol,
 }
 
