@@ -3,15 +3,12 @@ use crate::{
     Error,
 };
 use codec::{Decode, Encode};
-use frame_support::{
-    sp_runtime::{AnySignature, MultiSignature},
-    RuntimeDebug,
-};
+use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::{H160, H256, H512};
-use sp_std::{time::Duration, vec::Vec};
+use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node, public_key,
@@ -157,7 +154,7 @@ pub struct HeaderStorage {
     /// Current block height
     pub height: u64,
     /// Epoch Unix timestamp in seconds
-    #[serde(alias = "time", alias = "timestamp")]
+    #[cfg_attr(feature = "std", serde(alias = "time", alias = "timestamp"))]
     pub timestamp: i64,
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
@@ -186,7 +183,7 @@ pub struct HeaderStorage {
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[serde(tag = "block_id_flag")]
+#[cfg_attr(feature = "std", serde(tag = "block_id_flag"))]
 pub enum CommitSignatureStorage {
     /// no vote was received from a validator.
     BlockIdFlagAbsent,
@@ -387,11 +384,11 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[serde(tag = "type", content = "value")]
+#[cfg_attr(feature = "std", serde(tag = "type", content = "value"))]
 pub enum TendermintPublicKey {
-    #[serde(rename = "tendermint/PubKeyEd25519")]
+    #[cfg_attr(feature = "std", serde(rename = "tendermint/PubKeyEd25519"))]
     Ed25519(String),
-    #[serde(rename = "tendermint/PubKeySecp256k1")]
+    #[cfg_attr(feature = "std", serde(rename = "tendermint/PubKeySecp256k1"))]
     Secp256k1(String),
 }
 
@@ -404,12 +401,15 @@ pub struct ValidatorInfoStorage {
     pub pub_key: TendermintPublicKey,
     /// Validator voting power
     // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
-    #[serde(alias = "voting_power", alias = "total_voting_power")]
+    #[cfg_attr(
+        feature = "std",
+        serde(alias = "voting_power", alias = "total_voting_power")
+    )]
     pub power: u64,
     /// Validator name
     pub name: Option<Vec<u8>>,
     /// Validator proposer priority
-    #[serde(skip)]
+    #[cfg_attr(feature = "std", serde(skip))]
     pub proposer_priority: i64,
 }
 
@@ -489,10 +489,10 @@ pub struct LightBlockStorage {
     /// Header and commit of this block    
     pub signed_header: SignedHeaderStorage,
     /// Validator set at the block height
-    #[serde(rename = "validator_set")]
+    #[cfg_attr(feature = "std", serde(rename = "validator_set"))]
     pub validators: ValidatorSetStorage,
     /// Validator set at the next block height
-    #[serde(rename = "next_validator_set")]
+    #[cfg_attr(feature = "std", serde(rename = "next_validator_set"))]
     pub next_validators: ValidatorSetStorage,
     /// The peer (noide) ID of the node that provided this block    
     pub provider: TendermintPeerId,
