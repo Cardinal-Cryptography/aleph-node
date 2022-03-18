@@ -11,14 +11,14 @@ pub fn setup_for_transfer(config: &Config) -> (Connection, AccountId32, AccountI
     let Config {
         ref node,
         seeds,
-        ssl,
+        protocol,
         ..
     } = config;
 
     let accounts = accounts_from_seeds(seeds);
     let (from, to) = (accounts[0].clone(), accounts[1].clone());
 
-    let connection = create_connection(node, *ssl).set_signer(from.clone());
+    let connection = create_connection(node, *protocol).set_signer(from.clone());
     let from = AccountId::from(from.public());
     let to = AccountId::from(to.public());
     (connection, from, to)

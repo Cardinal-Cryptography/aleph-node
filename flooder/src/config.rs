@@ -1,3 +1,4 @@
+use aleph_client::Protocol;
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
@@ -7,6 +8,10 @@ pub struct Config {
     /// URL address(es) of the nodes to send transactions to
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub nodes: Vec<String>,
+
+    /// Protocol to be used for connecting to node (`ws` or `wss`)
+    #[clap(name = "use_ssl", parse(from_flag = parse_to_protocol))]
+    pub protocol: Protocol,
 
     /// how many transactions to send
     #[clap(long, default_value = "10000")]
@@ -67,5 +72,12 @@ pub fn read_phrase(phrase: String) -> String {
         fs::read_to_string(phrase).unwrap().trim_end().to_owned()
     } else {
         phrase
+    }
+}
+
+fn parse_to_protocol(use_ssl: bool) -> Protocol {
+    match use_ssl {
+        true => Protocol::WSS,
+        false => Protocol::WS,
     }
 }

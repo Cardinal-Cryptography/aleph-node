@@ -9,14 +9,10 @@ use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::AccountId32;
-use sp_runtime::MultiAddress;
-use std::thread;
-use std::thread::sleep;
+use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
 use std::time::Duration;
-use substrate_api_client::{AccountId, Balance, UncheckedExtrinsicV4};
-use substrate_api_client::{GenericAddress, XtStatus};
+use std::{thread, thread::sleep};
+use substrate_api_client::{AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus};
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
     let sessions_per_era = connection
@@ -123,13 +119,13 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let Config {
         ref node,
         seeds,
-        ssl,
+        protocol,
         ..
     } = config;
 
     let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = create_connection(node, *ssl).set_signer(proposer);
+    let connection = create_connection(node, *protocol).set_signer(proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);

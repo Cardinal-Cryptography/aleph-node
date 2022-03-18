@@ -1,14 +1,11 @@
 use crate::transfer::locks;
-use aleph_client::{
-    create_connection, send_xt, wait_for_session, BlockNumber, Connection, KeyPair,
-};
+use aleph_client::{send_xt, wait_for_session, BlockNumber, Connection, KeyPair};
 use codec::Compact;
 use log::info;
 pub use pallet_staking::RewardDestination;
 use pallet_staking::ValidatorPrefs;
 use primitives::Balance;
-use sp_core::crypto::AccountId32;
-use sp_core::Pair;
+use sp_core::{crypto::AccountId32, Pair};
 use sp_runtime::Perbill;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, GenericAddress, XtStatus};
 
@@ -35,37 +32,43 @@ pub fn ledger(
         ))
 }
 
-pub fn validate(address: &str, ssl: bool, controller: &KeyPair, tx_status: XtStatus) {
-    let connection = create_connection(address, ssl).set_signer(controller.clone());
+pub fn validate(controller_connection: &Connection, tx_status: XtStatus) {
+    // let connection = create_connection(address, ssl).set_signer(controller.clone());
     let prefs = ValidatorPrefs {
         blocked: false,
         commission: Perbill::from_percent(10),
     };
 
-    let xt = compose_extrinsic!(connection, "Staking", "validate", prefs);
-    send_xt(&connection, xt.hex_encode(), "validate", tx_status);
+    let xt = compose_extrinsic!(controller_connection, "Staking", "validate", prefs);
+    send_xt(
+        &controller_connection,
+        xt.hex_encode(),
+        "validate",
+        tx_status,
+    );
 }
 
-pub fn nominate(
-    address: &str,
-    ssl: bool,
-    nominator_key_pair: &KeyPair,
-    nominee_key_pair: &KeyPair,
-) {
+pub fn nominate(connection: &Connection, nominee_key_pair: &KeyPair) {
     let nominee_account_id = AccountId::from(nominee_key_pair.public());
-    let connection = create_connection(address, ssl).set_signer(nominator_key_pair.clone());
+    // let connection = create_connection(address, ssl).set_signer(nominator_key_pair.clone());
 
     let xt = connection.staking_nominate(vec![GenericAddress::Id(nominee_account_id)]);
     send_xt(&connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
 }
 
-pub fn payout_stakers(address: &str, ssl: bool, stash: KeyPair, era_number: BlockNumber) {
+pub fn payout_stakers(stash_connection: &Connection, stash: KeyPair, era_number: BlockNumber) {
     let account = AccountId::from(stash.public());
-    let connection = create_connection(address, ssl).set_signer(stash);
-    let xt = compose_extrinsic!(connection, "Staking", "payout_stakers", account, era_number);
+    // let connection = create_connection(address, ssl).set_signer(stash);
+    let xt = compose_extrinsic!(
+        stash_connection,
+        "Staking",
+        "payout_stakers",
+        account,
+        era_number
+    );
 
     send_xt(
-        &connection,
+        &stash_connection,
         xt.hex_encode(),
         "payout_stakers",
         XtStatus::InBlock,
@@ -101,8 +104,7 @@ pub fn wait_for_era_completion(
 }
 
 pub fn check_non_zero_payouts_for_era(
-    node: &String,
-    ssl: bool,
+    stash_connection: &Connection,
     stash: &KeyPair,
     connection: &Connection,
     era: BlockNumber,
@@ -118,7 +120,7 @@ pub fn check_non_zero_payouts_for_era(
         "Expected locked balances for account {} to have exactly one entry!",
         stash_account
     );
-    payout_stakers(node, ssl, stash.clone(), era - 1);
+    payout_stakers(stash_connection, stash.clone(), era - 1);
     let locked_stash_balance_after_payout = locks(&connection, &stash).expect(&format!(
         "Expected non-empty locked balances for account {}!",
         stash_account

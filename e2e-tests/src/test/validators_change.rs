@@ -15,14 +15,14 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let Config {
         ref node,
         seeds,
-        ssl,
+        protocol,
         ..
     } = config;
 
     let mut accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
-    let connection = create_connection(node, *ssl).set_signer(sudo);
+    let connection = create_connection(node, *protocol).set_signer(sudo);
 
     let members_before: Vec<AccountId> = connection
         .get_storage_value("Elections", "Members", None)?

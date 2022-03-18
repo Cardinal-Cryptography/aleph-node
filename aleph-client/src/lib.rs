@@ -36,15 +36,30 @@ pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient>;
 
-pub fn create_connection(address: &str, ssl: bool) -> Connection {
-    create_custom_connection(address, ssl).expect("connection should be created")
+#[derive(Copy, Clone, Debug)]
+pub enum Protocol {
+    WS,
+    WSS,
+}
+
+impl Default for Protocol {
+    fn default() -> Self {
+        Protocol::WS
+    }
+}
+
+pub fn create_connection(address: &str, protocol: Protocol) -> Connection {
+    create_custom_connection(address, protocol).expect("connection should be created")
 }
 
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
     address: &str,
-    ssl: bool,
+    protocol: Protocol,
 ) -> Result<Api<sr25519::Pair, Client>, <Client as FromStr>::Err> {
-    let protocol = if ssl { "wss" } else { "ws" };
+    let protocol = match protocol {
+        Protocol::WS => "ws",
+        Protocol::WSS => "wss",
+    };
     loop {
         let client = Client::from_str(&format!("{}://{}", protocol, address))?;
         match Api::<sr25519::Pair, _>::new(client) {
