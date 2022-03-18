@@ -1,4 +1,4 @@
-use aleph_client::Protocol;
+use aleph_client::{from as parse_to_protocol, Protocol};
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
@@ -72,12 +72,5 @@ pub fn read_phrase(phrase: String) -> String {
         fs::read_to_string(phrase).unwrap().trim_end().to_owned()
     } else {
         phrase
-    }
-}
-
-fn parse_to_protocol(use_ssl: bool) -> Protocol {
-    match use_ssl {
-        true => Protocol::WSS,
-        false => Protocol::WS,
     }
 }

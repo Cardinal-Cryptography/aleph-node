@@ -1,13 +1,6 @@
 use clap::Parser;
 
-use aleph_client::Protocol;
-
-fn parse_to_protocol(use_ssl: bool) -> Protocol {
-    match use_ssl {
-        true => Protocol::WSS,
-        false => Protocol::WS,
-    }
-}
+use aleph_client::{from as parse_to_protocol, Protocol};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]

@@ -1,4 +1,4 @@
-use aleph_client::{create_connection, KeyPair, Protocol};
+use aleph_client::{create_connection, from as parse_to_protocol, KeyPair, Protocol};
 use clap::{Parser, Subcommand};
 use sp_core::Pair;
 use std::env;
@@ -23,13 +23,6 @@ struct Config {
     /// Specific command to execute
     #[clap(subcommand)]
     pub command: Command,
-}
-
-fn parse_to_protocol(use_ssl: bool) -> Protocol {
-    match use_ssl {
-        true => Protocol::WSS,
-        false => Protocol::WS,
-    }
 }
 
 #[derive(Debug, Clone, Subcommand)]

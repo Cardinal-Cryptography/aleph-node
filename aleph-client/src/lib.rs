@@ -48,6 +48,13 @@ impl Default for Protocol {
     }
 }
 
+pub fn from(use_ssl: bool) -> Protocol {
+    match use_ssl {
+        true => Protocol::WSS,
+        false => Protocol::WS,
+    }
+}
+
 pub fn create_connection(address: &str, protocol: Protocol) -> Connection {
     create_custom_connection(address, protocol).expect("connection should be created")
 }

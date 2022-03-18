@@ -25,15 +25,8 @@ struct Args {
     runtime: String,
 
     /// Protocol to be used for connecting to node (`ws` or `wss`)
-    #[structopt(name = "use_ssl", parse(from_flag = parse_to_protocol))]
+    #[structopt(name = "use_ssl", parse(from_flag = from))]
     protocol: Protocol,
-}
-
-fn parse_to_protocol(use_ssl: bool) -> Protocol {
-    match use_ssl {
-        true => Protocol::WSS,
-        false => Protocol::WS,
-    }
 }
 
 fn main() {
