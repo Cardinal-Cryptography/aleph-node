@@ -1,5 +1,3 @@
-extern crate core;
-
 use crate::{
     aggregation::RmcNetworkData,
     network::{AlephNetworkData, Split},
