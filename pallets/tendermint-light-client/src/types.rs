@@ -1,10 +1,7 @@
+use crate::utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes};
 #[cfg(feature = "std")]
 use crate::utils::{
     deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_string_as_bytes,
-};
-use crate::{
-    utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes},
-    Error,
 };
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
@@ -15,9 +12,7 @@ use sp_core::{H160, H256, H512};
 use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain, hash, node, public_key,
-    serializers::bytes,
-    signature,
+    chain, hash, node,
     validator::{self, ProposerPriority},
     vote,
 };
@@ -240,8 +235,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
-
-                let signature = todo!(""); // CommitSignatureStorage::signature(signature);
+                let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagCommit {
                     validator_address,
@@ -257,8 +251,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = from_unix_timestamp(timestamp);
-
-                let signature = todo!(""); //CommitSignatureStorage::signature(signature);
+                let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagNil {
                     validator_address,
@@ -284,16 +277,8 @@ pub struct CommitStorage {
 }
 
 impl CommitSignatureStorage {
-    fn signature(signature: Option<TendermintVoteSignature>) -> Option<tendermint::Signature> {
-        match signature {
-            None => None,
-            Some(base64) => {
-                // let bytes = base64::decode(base64).expect("Not base64 encoded");
-                // tendermint::Signature::try_from(bytes).ok()
-
-                unimplemented!()
-            }
-        }
+    fn signature(signature: TendermintVoteSignature) -> Option<tendermint::Signature> {
+        tendermint::Signature::try_from(signature.as_bytes()).ok()
     }
 }
 
@@ -463,18 +448,13 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
         Ok(Self {
             address: account_id_from_bytes(address.as_fixed_bytes().to_owned()),
             pub_key: match pub_key {
-                TendermintPublicKey::Ed25519(base64) => {
-                    // let bytes = base64::decode(base64).expect("Not base64 encoded");
-                    // tendermint::PublicKey::from_raw_ed25519(&bytes).expect("Not ed25519 public key")
-
-                    unimplemented!()
+                TendermintPublicKey::Ed25519(hash) => {
+                    tendermint::PublicKey::from_raw_ed25519(hash.as_bytes())
+                        .expect("Not a ed25519 public key")
                 }
-                TendermintPublicKey::Secp256k1(base64) => {
-                    // let bytes = base64::decode(base64).expect("Not base64 encoded");
-                    // tendermint::PublicKey::from_raw_secp256k1(&bytes)
-                    //     .expect("Not secp256k1 public key")
-
-                    unimplemented!()
+                TendermintPublicKey::Secp256k1(hash) => {
+                    tendermint::PublicKey::from_raw_secp256k1(&hash.as_bytes())
+                        .expect("Not a secp256k1 public key")
                 }
             },
             power: vote::Power::try_from(power).expect("Cannot create Power"),
