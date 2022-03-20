@@ -1,8 +1,7 @@
-{ rocksDBVersion ? "6.29.3"
-, versions ? import ./versions.nix
+{ versions ? import ./versions.nix {}
 , nixpkgs ? versions.nixpkgs
 , gitignoreSource ? versions.gitignoreSource
-, customRocksdb ? versions.customRocksdb rocksDBVersion
+, customRocksdb ? versions.customRocksdb
 }:
 let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
@@ -30,7 +29,7 @@ let
           };
       in rec {
         librocksdb-sys = _: {
-          buildInputs = [ customRocksdb ];
+          buildInputs = [customRocksdb];
           LIBCLANG_PATH="${llvm.libclang.lib}/lib";
           ROCKSDB_LIB_DIR="${customRocksdb}/lib";
           # forces librocksdb-sys to statically compile with our customRocksdb
@@ -46,6 +45,8 @@ let
         libp2p-rendezvous = protobufFix;
         libp2p-noise = protobufFix;
         sc-network = protobufFix;
+        substrate-test-runtime = attrs:
+          builtins.removeAttrs (aleph-runtime attrs) [ "src" "workspace_member" ];
         prost-build = protobufFix;
         aleph-runtime = _:
           # this is a bit tricky - aleph-runtime's build.rs calls Cargo, so we need to provide it a populated
@@ -59,7 +60,7 @@ let
                exec ${pkgs.cargo}/bin/cargo "$@"
             '';
           in
-          rec {
+          {
             inherit src CARGO_HOME;
             # otherwise it has no access to other dependencies in our workspace
             workspace_member = "bin/runtime";

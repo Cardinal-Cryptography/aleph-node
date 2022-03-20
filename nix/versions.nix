@@ -1,4 +1,5 @@
 # declares all pinned versions of packages we are using during the build
+{ rocksDBVersion ? "6.29.3" }:
 rec {
   fetchImportCargoLock = builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/be872a7453a176df625c12190b8a6c10f6b21647.tar.gz";
@@ -72,16 +73,16 @@ rec {
 
   gitignoreSource = (import fetchGitignoreSource { inherit (nixpkgs) lib; }).gitignoreSource;
 
-  fetchRocksdb = rocksDBVersion: builtins.fetchGit {
+  fetchRocksdb = builtins.fetchGit {
     url = "https://github.com/facebook/rocksdb.git";
     ref = "refs/tags/v${rocksDBVersion}";
   };
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
-  customRocksdb = rocksDBVersion: nixpkgs.rocksdb.overrideAttrs (_: {
+  customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
 
-    src = fetchRocksdb rocksDBVersion;
+    src = fetchRocksdb;
 
     version = "${rocksDBVersion}";
 

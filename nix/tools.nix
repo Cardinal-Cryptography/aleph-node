@@ -4,7 +4,7 @@
    Later, provides all git dependencies for other derivations (cargo is unable to access internet
    while in sanbox mode).
 */
-{ versions ? import ./versions.nix
+{ versions ? import ./versions.nix {}
 , pkgs ? versions.nixpkgs
 , lib ? pkgs.lib
 , stdenv ? pkgs.stdenv
