@@ -15,4 +15,4 @@ in
 if allCrates then
   allWorkspaceMembers
 else
-  workspaceMembers."aleph-node".build
+  workspaceMembers."aleph-node"
