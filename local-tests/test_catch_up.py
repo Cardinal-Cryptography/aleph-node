@@ -58,7 +58,7 @@ sleep(30 * 4)
 print('restarting nodes')
 chain.start('aleph', nodes=[3, 4])
 check_finalized(chain)
-sleep(10)
+sleep(30)
 finalized = check_finalized(chain)
 
 nonvalidator_diff = finalized[5] - finalized[4]
