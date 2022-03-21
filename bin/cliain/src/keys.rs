@@ -1,16 +1,11 @@
-use crate::ConnectionConfig;
 use aleph_client::{
     rotate_keys, rotate_keys_raw_result, set_keys, staking_bond, Connection, SessionKeys,
 };
 use log::info;
 use primitives::staking::MIN_VALIDATOR_BOND;
-use sp_core::crypto::Ss58Codec;
 use substrate_api_client::{AccountId, XtStatus};
 
-pub fn prepare(connection_config: ConnectionConfig) {
-    let controller_account_id =
-        AccountId::from_ss58check(&connection_config.signer_seed).expect("Address is valid");
-    let connection: Connection = connection_config.into();
+pub fn prepare(connection: Connection, controller_account_id: AccountId) {
     staking_bond(
         &connection,
         MIN_VALIDATOR_BOND,

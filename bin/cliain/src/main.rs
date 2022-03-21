@@ -1,8 +1,9 @@
-use aleph_client::{from as parse_to_protocol, KeyPair, Protocol};
+use aleph_client::{from as parse_to_protocol, Connection, KeyPair, Protocol};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
 use std::env;
+use substrate_api_client::AccountId;
 
 use cliain::{
     bond, change_validators, force_new_era, prepare_keys, prompt_password_hidden, rotate_keys,
@@ -34,10 +35,6 @@ struct Config {
 enum Command {
     /// Staking call to bond stash with controller
     Bond {
-        /// Seed for a stash account
-        #[clap(long)]
-        stash_seed: String,
-
         /// SS58 id of the controller account
         #[clap(long)]
         controller_account: String,
@@ -69,10 +66,6 @@ enum Command {
         /// where aabbcc...  must be exactly 128 characters long
         #[clap(long)]
         new_keys: String,
-
-        /// Seed for a controller account which signes set_keys tx
-        #[clap(long)]
-        controller_seed: String,
     },
 
     /// Command to convert given seed to SS58 Account id
@@ -91,10 +84,6 @@ enum Command {
 
     /// Transfer funds via balances pallet
     Transfer {
-        /// Seed of signing account
-        #[clap(long)]
-        from_seed: String,
-
         /// Number of tokens to send,
         #[clap(long)]
         amount_in_tokens: u64,
@@ -106,10 +95,6 @@ enum Command {
 
     /// Call staking validate call for a given controller
     Validate {
-        /// Seed for a controller account to intent being validator to
-        #[clap(long)]
-        controller_seed: String,
-
         /// Validator commission percentage
         #[clap(long)]
         commission_percentage: u8,
@@ -126,7 +111,7 @@ fn main() {
         command,
     } = Config::parse();
 
-    let command_line_input_seed = match seed {
+    let seed = match seed {
         Some(seed) => seed,
         None => match prompt_password_hidden("Provide seed for the signer account:") {
             Ok(seed) => seed,
@@ -136,63 +121,38 @@ fn main() {
             }
         },
     };
+    let cfg = ConnectionConfig::new(node, seed.clone(), protocol);
+    let connection: Connection = cfg.into();
     match command {
-        Command::ChangeValidators { validators } => change_validators(
-            ConnectionConfig::new(node, command_line_input_seed, protocol).into(),
-            validators,
-        ),
+        Command::ChangeValidators { validators } => change_validators(connection, validators),
         Command::PrepareKeys => {
-            prepare_keys(ConnectionConfig::new(node, command_line_input_seed, protocol).into())
+            let key = KeyPair::from_string(&seed, None).expect("Can't create pair from seed value");
+            let controller_account_id = AccountId::from(key.public());
+            prepare_keys(connection, controller_account_id);
         }
         Command::Bond {
-            stash_seed,
             controller_account,
             initial_stake_tokens,
-        } => bond(
-            ConnectionConfig::new(node, stash_seed, protocol).into(),
-            initial_stake_tokens,
-            controller_account,
-        ),
-        Command::SetKeys {
-            new_keys,
-            controller_seed,
-        } => set_keys(
-            ConnectionConfig::new(node, controller_seed, protocol).into(),
-            new_keys,
-        ),
+        } => bond(connection, initial_stake_tokens, controller_account),
+        Command::SetKeys { new_keys } => set_keys(connection, new_keys),
         Command::Validate {
-            controller_seed,
             commission_percentage,
-        } => validate(
-            ConnectionConfig::new(node, controller_seed, protocol).into(),
-            commission_percentage,
-        ),
+        } => validate(connection, commission_percentage),
         Command::Transfer {
             amount_in_tokens,
-            from_seed,
             to_account,
-        } => transfer(
-            ConnectionConfig::new(node, from_seed, protocol).into(),
-            amount_in_tokens,
-            to_account,
-        ),
-        Command::RotateKeys => {
-            rotate_keys(ConnectionConfig::new(node, command_line_input_seed, protocol).into())
-        }
+        } => transfer(connection, amount_in_tokens, to_account),
+        Command::RotateKeys => rotate_keys(connection),
         Command::SetStakingLimits {
             minimal_nominator_stake,
             minimal_validator_stake,
-        } => set_staking_limits(
-            ConnectionConfig::new(node, command_line_input_seed, protocol).into(),
-            minimal_nominator_stake,
-            minimal_validator_stake,
-        ),
+        } => set_staking_limits(connection, minimal_nominator_stake, minimal_validator_stake),
         Command::ForceNewEra => {
-            force_new_era(ConnectionConfig::new(node, command_line_input_seed, protocol).into());
+            force_new_era(connection);
         }
         Command::SeedToSS58 => info!(
             "SS58 Address: {}",
-            KeyPair::from_string(&command_line_input_seed, None)
+            KeyPair::from_string(&seed, None)
                 .expect("Can't create pair from seed value")
                 .public()
                 .to_string()
