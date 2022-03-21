@@ -22,10 +22,41 @@ let
   customBuildRustCrateForPkgs = pkgs: pkgs.buildRustCrate.override {
     stdenv = env;
     defaultCrateOverrides = pkgs.defaultCrateOverrides // (
-      let protobufFix = _: {
+      let
+        protobufFix = _: {
             # provides env variables necessary to use protobuf during compilation
             buildInputs = [ pkgs.protobuf ];
             PROTOC="${pkgs.protobuf}/bin/protoc";
+        };
+        # downloads and configures CARGO_HOME to use all dependencies described by ${crateDir}/Cargo.lock
+        buildVendoredCargo = crateDir:
+          let
+            vendoredCargo = vendoredCargoLock "${crateDir}" "Cargo.lock";
+            CARGO_HOME="$out/.cargo";
+            # this way Cargo called by build.rs can see our vendored CARGO_HOME
+            wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
+               export CARGO_HOME="${CARGO_HOME}"
+               exec ${pkgs.cargo}/bin/cargo "$@"
+            '';
+          in
+          {
+            inherit CARGO_HOME;
+            buildInputs = [pkgs.git pkgs.cacert];
+            # we force it to use our wrapped version of Cargo
+            CARGO = "${wrappedCargo}/bin/cargo";
+            # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
+            preConfigure = ''
+              # populate vendored CARGO_HOME
+              mkdir -p $out
+              ln -s ${vendoredCargo}/.cargo ${CARGO_HOME}
+              ln -s ${vendoredCargo} $out/cargo-vendor-dir
+              ln -s ${vendoredCargo}/Cargo.lock $out/Cargo.lock
+            '';
+            postBuild = ''
+              # we need to clean after ourselves
+              # buildRustCrate derivation will populate it with necessary artifacts
+              rm -rf $out
+            '';
           };
       in rec {
         librocksdb-sys = _: {
@@ -45,73 +76,24 @@ let
         libp2p-rendezvous = protobufFix;
         libp2p-noise = protobufFix;
         sc-network = protobufFix;
-        substrate-test-runtime = attrs:
-          let
-            substrateSrc = attrs.src;
-            # we need to merge these two vendored CARGO_HOMEs
-            vendoredSubstrateCargo = vendoredCargoLock "${substrateSrc}" "Cargo.lock";
-            vendoredCargo = vendoredCargoLock "${src}" "Cargo.lock";
-            CARGO_HOME="$out/.cargo";
-            wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
-               export CARGO_HOME="${CARGO_HOME}"
-               exec ${pkgs.cargo}/bin/cargo "$@"
-            '';
-          in
-          {
-            inherit CARGO_HOME;
-            buildInputs = [pkgs.git pkgs.cacert];
-            CARGO = "${wrappedCargo}/bin/cargo";
-            preConfigure = ''
-              # populate vendored CARGO_HOME
-              mkdir -p $out
-              mkdir -p $out/cargo-vendor-dir
-              for d in ${vendoredCargo}/*/ ; do
-                ln -sf $d $out/cargo-vendor-dir/
-              done
-              for d in ${vendoredSubstrateCargo}/*/ ; do
-                ln -sf $d $out/cargo-vendor-dir/
-              done
-              ln -s ${vendoredSubstrateCargo}/.cargo ${CARGO_HOME}
-            '';
-            postBuild = ''
-              # we need to clean after ourselves
-              # buildRustCrate derivation will populate it with necessary artifacts
-              rm -rf $out
-            '';
-          };
-        prost-build = protobufFix;
         aleph-runtime = _:
           # this is a bit tricky - aleph-runtime's build.rs calls Cargo, so we need to provide it a populated
           # CARGO_HOME, otherwise it tries to download crates (it doesn't work with sandboxed nix-build)
-          let
-            vendoredCargo = vendoredCargoLock "${src}" "Cargo.lock";
-            CARGO_HOME="$out/.cargo";
-            # this way Cargo called by build.rs can see our vendored CARGO_HOME
-            wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
-               export CARGO_HOME="${CARGO_HOME}"
-               exec ${pkgs.cargo}/bin/cargo "$@"
-            '';
-          in
-          {
-            inherit src CARGO_HOME;
+          buildVendoredCargo src // {
+            # we need to set `src` and workspace_member manually,
             # otherwise it has no access to other dependencies in our workspace
+            inherit src;
             workspace_member = "bin/runtime";
-            buildInputs = [pkgs.git pkgs.cacert];
-            CARGO = "${wrappedCargo}/bin/cargo";
-            # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
-            preConfigure = ''
-              # populate vendored CARGO_HOME
-              mkdir -p $out
-              ln -s ${vendoredCargo}/.cargo ${CARGO_HOME}
-              ln -s ${vendoredCargo} $out/cargo-vendor-dir
-              ln -s ${vendoredCargo}/Cargo.lock $out/Cargo.lock
-            '';
-            postBuild = ''
-              # we need to clean after ourselves
-              # buildRustCrate derivation will populate it with necessary artifacts
-              rm -rf $out
-            '';
           };
+        substrate-test-runtime = attrs:
+          # build.rs internal to substrate-test-runtime attempts at building
+          # a substrate's node-template using Cargo. It uses its own Cargo.lock,
+          # so we need to populate all of its dependencies manually.
+          let
+            substrateSrc = attrs.src;
+          in
+          buildVendoredCargo substrateSrc;
+        prost-build = protobufFix;
     }
     );
   };
