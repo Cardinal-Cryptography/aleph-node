@@ -9,7 +9,7 @@ use crate::{
 };
 use aleph_bft::{
     rmc::{DoublingDelayScheduler, ReliableMulticast},
-    KeyBox as BftKeyBox, Multisigned, SignatureSet, SpawnHandle,
+    KeyBox as BftKeyBox, SignatureSet, SpawnHandle,
 };
 use futures::{
     channel::{mpsc, oneshot},
@@ -28,16 +28,9 @@ pub struct IO<B: Block> {
 
 type SignableBlockHash<B> = SignableHash<<B as Block>::Hash>;
 type Rmc<'a, B> = ReliableMulticast<'a, SignableBlockHash<B>, KeyBox>;
-type Aggregator<'a, B> = BlockSignatureAggregator<
-    'a,
-    <B as Block>::Hash,
-    KeyBox,
-    Multisigned<'a, SignableBlockHash<B>, KeyBox>,
->;
 
 async fn process_new_block_data<'a, B, N>(
-    aggregator_io: &mut AggregatorIO<'a, B::Hash, RmcNetworkData<B>, N, KeyBox, Rmc<'a, B>>,
-    aggregator: &mut Aggregator<'a, B>,
+    aggregator: &mut AggregatorIO<'a, B::Hash, RmcNetworkData<B>, N, KeyBox, Rmc<'a, B>>,
     block: BlockHashNum<B>,
     session_boundaries: &SessionBoundaries<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
@@ -51,9 +44,7 @@ async fn process_new_block_data<'a, B, N>(
         metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
     }
 
-    aggregator_io
-        .start_aggregation(aggregator, block.hash)
-        .await;
+    aggregator.start_aggregation(block.hash).await;
     if block.num == session_boundaries.last_block() {
         aggregator.notify_last_hash();
     }
@@ -83,8 +74,7 @@ fn process_hash<B, C>(
 }
 
 async fn run_aggregator<'a, B, C, N>(
-    mut aggregator_io: AggregatorIO<'a, B::Hash, RmcNetworkData<B>, N, KeyBox, Rmc<'a, B>>,
-    mut aggregator: Aggregator<'a, B>,
+    mut aggregator: AggregatorIO<'a, B::Hash, RmcNetworkData<B>, N, KeyBox, Rmc<'a, B>>,
     io: IO<B>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries<B>,
@@ -106,7 +96,6 @@ async fn run_aggregator<'a, B, C, N>(
             maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
                     process_new_block_data(
-                        &mut aggregator_io,
                         &mut aggregator,
                         block,
                         session_boundaries,
@@ -117,7 +106,7 @@ async fn run_aggregator<'a, B, C, N>(
                     break;
                 }
             }
-            multisigned_hash = aggregator_io.next_multisigned_hash(&mut aggregator) => {
+            multisigned_hash = aggregator.next_multisigned_hash() => {
                 if let Some((hash, multisignature)) = multisigned_hash {
                     process_hash(hash, multisignature, &justifications_for_chain, &client);
                 } else {
@@ -170,12 +159,16 @@ where
                 scheduler,
             );
             let aggregator = BlockSignatureAggregator::new(metrics.clone());
-            let aggregator_io =
-                AggregatorIO::new(messages_for_rmc, messages_from_rmc, rmc_network, rmc);
+            let aggregator_io = AggregatorIO::new(
+                messages_for_rmc,
+                messages_from_rmc,
+                rmc_network,
+                rmc,
+                aggregator,
+            );
             debug!(target: "aleph-party", "Running the aggregator task for {:?}", session_id);
             run_aggregator(
                 aggregator_io,
-                aggregator,
                 io,
                 client,
                 &session_boundaries,
