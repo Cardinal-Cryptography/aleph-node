@@ -293,6 +293,9 @@ jobs:
           NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
 
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
+
   test-catch-up:
     name: Test catching up
     runs-on: ubuntu-latest
@@ -320,10 +323,6 @@ jobs:
           # Relative to local-tests/ directory
           BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
-
 
   remove-old-artifacts:
     name: Remove old node and runtime artifacts
