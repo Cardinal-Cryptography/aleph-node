@@ -1,4 +1,4 @@
-use aleph_client::KeyPair;
+use aleph_client::{from as parse_to_protocol, KeyPair, Protocol};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
@@ -6,7 +6,7 @@ use std::env;
 
 use cliain::{
     bond, change_validators, force_new_era, prepare_keys, prompt_password_hidden, rotate_keys,
-    set_keys, set_staking_limits, transfer, validate,
+    set_keys, set_staking_limits, transfer, validate, ConnectionConfig,
 };
 
 #[derive(Debug, Parser, Clone)]
@@ -15,6 +15,10 @@ struct Config {
     /// WS endpoint address of the node to connect to
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
+
+    /// Protocol to be used for connecting to node (`ws` or `wss`)
+    #[clap(name = "use_ssl", parse(from_flag = parse_to_protocol))]
+    pub protocol: Protocol,
 
     /// The seed of the key to use for signing calls
     /// If not given, an user is prompted to provide seed
@@ -117,11 +121,12 @@ fn main() {
 
     let Config {
         node,
+        protocol,
         seed,
         command,
     } = Config::parse();
 
-    let seed = match seed {
+    let command_line_input_seed = match seed {
         Some(seed) => seed,
         None => match prompt_password_hidden("Provide seed for the signer account:") {
             Ok(seed) => seed,
@@ -131,36 +136,67 @@ fn main() {
             }
         },
     };
-    let key = KeyPair::from_string(&seed, None).expect("Can't create pair from seed value");
-
     match command {
-        Command::ChangeValidators { validators } => change_validators(validators, node, key),
-        Command::PrepareKeys => prepare_keys(node, key),
+        Command::ChangeValidators { validators } => change_validators(
+            ConnectionConfig::new(node, command_line_input_seed, protocol).into(),
+            validators,
+        ),
+        Command::PrepareKeys => {
+            prepare_keys(ConnectionConfig::new(node, command_line_input_seed, protocol).into())
+        }
         Command::Bond {
             stash_seed,
             controller_account,
             initial_stake_tokens,
-        } => bond(node, initial_stake_tokens, controller_account, stash_seed),
+        } => bond(
+            ConnectionConfig::new(node, stash_seed, protocol).into(),
+            initial_stake_tokens,
+            controller_account,
+        ),
         Command::SetKeys {
             new_keys,
             controller_seed,
-        } => set_keys(node, new_keys, controller_seed),
+        } => set_keys(
+            ConnectionConfig::new(node, controller_seed, protocol).into(),
+            new_keys,
+        ),
         Command::Validate {
             controller_seed,
             commission_percentage,
-        } => validate(node, controller_seed, commission_percentage),
+        } => validate(
+            ConnectionConfig::new(node, controller_seed, protocol).into(),
+            commission_percentage,
+        ),
         Command::Transfer {
             amount_in_tokens,
             from_seed,
             to_account,
-        } => transfer(node, from_seed, amount_in_tokens, to_account),
-        Command::RotateKeys => rotate_keys(node, key),
+        } => transfer(
+            ConnectionConfig::new(node, from_seed, protocol).into(),
+            amount_in_tokens,
+            to_account,
+        ),
+        Command::RotateKeys => {
+            rotate_keys(ConnectionConfig::new(node, command_line_input_seed, protocol).into())
+        }
         Command::SetStakingLimits {
             minimal_nominator_stake,
             minimal_validator_stake,
-        } => set_staking_limits(node, key, minimal_nominator_stake, minimal_validator_stake),
-        Command::ForceNewEra => force_new_era(node, key),
-        Command::SeedToSS58 => info!("SS58 Address: {}", key.public().to_string()),
+        } => set_staking_limits(
+            ConnectionConfig::new(node, command_line_input_seed, protocol).into(),
+            minimal_nominator_stake,
+            minimal_validator_stake,
+        ),
+        Command::ForceNewEra => {
+            force_new_era(ConnectionConfig::new(node, command_line_input_seed, protocol).into());
+        }
+        Command::SeedToSS58 => info!(
+            "SS58 Address: {}",
+            KeyPair::from_string(&command_line_input_seed, None)
+                .expect("Can't create pair from seed value")
+                .public()
+                .to_string()
+        ),
     }
 }
 

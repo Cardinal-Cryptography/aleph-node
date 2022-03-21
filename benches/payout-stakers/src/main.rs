@@ -1,4 +1,4 @@
-use aleph_client::{create_connection, staking_bond, staking_validate};
+use aleph_client::{create_connection, staking_bond, staking_validate, Protocol};
 use e2e::{
     accounts::derive_user_account,
     staking::{
@@ -29,23 +29,25 @@ const NOMINATE_CALL_BATCH_LIMIT: usize = 128;
 
 fn main() -> Result<(), anyhow::Error> {
     let address = "127.0.0.1:9944";
+    let protocol = Protocol::WS;
     let sudoer = AccountKeyring::Alice.pair();
 
     env_logger::init();
     info!("Starting benchmark with config ");
 
-    let connection = create_connection(address).set_signer(sudoer);
+    let connection = create_connection(address, protocol).set_signer(sudoer);
 
     let accounts = generate_1024_accounts(&connection);
-    let validators = set_validators(address);
+    let validators = set_validators(address, protocol);
     let nominee = nominate_validator_0(&connection, accounts, &validators);
-    wait_for_10_eras(address, &connection, nominee)?;
+    wait_for_10_eras(address, protocol, &connection, nominee)?;
 
     Ok(())
 }
 
 fn wait_for_10_eras(
     address: &str,
+    protocol: Protocol,
     connection: &Api<KeyPair, WsRpcClient>,
     nominee: &KeyPair,
 ) -> Result<(), anyhow::Error> {
@@ -56,7 +58,8 @@ fn wait_for_10_eras(
             current_era,
             current_era - 1
         );
-        check_non_zero_payouts_for_era(&address.to_owned(), nominee, &connection, current_era);
+        let stash_connection = create_connection(address, protocol).set_signer(nominee.clone());
+        check_non_zero_payouts_for_era(&stash_connection, nominee, &connection, current_era);
         current_era = wait_for_era_completion(&connection, current_era + 1)?;
     }
     Ok(())
@@ -90,12 +93,12 @@ fn nominate_validator_0<'a>(
     nominee
 }
 
-fn set_validators(address: &str) -> Vec<KeyPair> {
+fn set_validators(address: &str, protocol: Protocol) -> Vec<KeyPair> {
     let validators = (0..VALIDATOR_COUNT)
         .map(derive_user_account)
         .collect::<Vec<_>>();
     validators.par_iter().for_each(|account| {
-        let connection = create_connection(address).set_signer(account.clone());
+        let connection = create_connection(address, protocol).set_signer(account.clone());
         let controller_account_id = AccountId::from(account.public());
         staking_bond(
             &connection,
@@ -105,7 +108,7 @@ fn set_validators(address: &str) -> Vec<KeyPair> {
         );
     });
     validators.par_iter().for_each(|account| {
-        let connection = create_connection(address).set_signer(account.clone());
+        let connection = create_connection(address, protocol).set_signer(account.clone());
         staking_validate(&connection, 10, XtStatus::InBlock);
     });
     validators

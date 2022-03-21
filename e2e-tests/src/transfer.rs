@@ -7,13 +7,16 @@ use substrate_api_client::{compose_call, compose_extrinsic, AccountId, GenericAd
 
 pub fn setup_for_transfer(config: &Config) -> (Connection, KeyPair, AccountId) {
     let Config {
-        ref node, seeds, ..
+        ref node,
+        seeds,
+        protocol,
+        ..
     } = config;
 
     let accounts = accounts_from_seeds(seeds);
     let (from, to) = (accounts[0].clone(), accounts[1].clone());
+    let connection = create_connection(node, *protocol).set_signer(from.clone());
     let to = AccountId::from(to.public());
-    let connection = create_connection(node).set_signer(from.clone());
     (connection, from, to)
 }
 

@@ -1,15 +1,16 @@
+use crate::ConnectionConfig;
 use aleph_client::{
-    create_connection, rotate_keys, rotate_keys_raw_result, set_keys, staking_bond, KeyPair,
-    SessionKeys,
+    rotate_keys, rotate_keys_raw_result, set_keys, staking_bond, Connection, SessionKeys,
 };
 use log::info;
 use primitives::staking::MIN_VALIDATOR_BOND;
-use sp_core::Pair;
+use sp_core::crypto::Ss58Codec;
 use substrate_api_client::{AccountId, XtStatus};
 
-pub fn prepare(node: String, key: KeyPair) {
-    let connection = create_connection(&node).set_signer(key.clone());
-    let controller_account_id = AccountId::from(key.public());
+pub fn prepare(connection_config: ConnectionConfig) {
+    let controller_account_id =
+        AccountId::from_ss58check(&connection_config.signer_seed).expect("Address is valid");
+    let connection: Connection = connection_config.into();
     staking_bond(
         &connection,
         MIN_VALIDATOR_BOND,
@@ -20,10 +21,7 @@ pub fn prepare(node: String, key: KeyPair) {
     set_keys(&connection, new_keys, XtStatus::Finalized);
 }
 
-pub fn set_keys_command(node: String, new_keys: String, controller_seed: String) {
-    let controller_key =
-        KeyPair::from_string(&controller_seed, None).expect("Can't create pair from seed value");
-    let connection = create_connection(&node).set_signer(controller_key);
+pub fn set_keys_command(connection: Connection, new_keys: String) {
     set_keys(
         &connection,
         SessionKeys::try_from(new_keys).expect("Failed to parse keys"),
@@ -31,8 +29,7 @@ pub fn set_keys_command(node: String, new_keys: String, controller_seed: String)
     );
 }
 
-pub fn rotate_keys_command(node: String, key: KeyPair) {
-    let connection = create_connection(&node).set_signer(key.clone());
+pub fn rotate_keys_command(connection: Connection) {
     let new_keys = rotate_keys_raw_result(&connection).expect("Failed to retrieve keys");
     info!("Rotated keys: {:?}", new_keys);
 }
