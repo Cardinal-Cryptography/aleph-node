@@ -10,13 +10,13 @@ Usage:
         validator's pod name, e.g. aleph-node-validator-0
     --namespace n
        namespace to use, e.g. devnet
-    [--copy-cliain-to-pod]
-       copies cliain binary to --validator-pod-name:/tmp/cliain
-     [--help]
-        displays this info
-     [--interactive]
-         interactive mode, by default disabled. It makes user to press any key in significant phases to confirm state.
-     [--staking-config-file file]
+    [--cliain-no-copy]
+       by default script copies cliain binary to --validator-pod-name:/tmp/cliain; this flag prevents it
+    [--help]
+       displays this info
+    [--interactive]
+        interactive mode, by default disabled. It makes user to press any key in significant phases to confirm state.
+    [--staking-config-file file]
         Optional param.
         path to validator's staking config file, which have following format:
            validator's seed
@@ -30,6 +30,9 @@ Usage:
            //Controller0
            25000
            10
+    [--key-rotation file]
+       Optional param.
+       Runs rotateKeys() and setKeys() for a given validator. file is a config like in --staking-config-file argument.
     [--set-staking-limits "minimal_nominator_bond,minimal_validator_bond"]
        Optional param.
        Command parameter is comma-separated tuple which is an argument to SetStakingLimits call (requires sudo account).
@@ -84,6 +87,10 @@ while [[ $# -gt 0 ]]; do
       STAKING_CONFIG_FILE="$2"
       shift;shift
       ;;
+   --key-rotation)
+      KEY_ROTATION="$2"
+      shift;shift
+      ;;
     --set-staking-limits)
       SET_STAKING_LIMITS="$2"
       shift;shift
@@ -96,8 +103,8 @@ while [[ $# -gt 0 ]]; do
       VALIDATOR_POD_NAME="$2"
       shift;shift
       ;;
-    --copy-cliain-to-pod)
-      COPY_CLIAIN_TO_POD="YES"
+    --cliain-no-copy)
+      CLIAIN_NO_COPY="YES"
       shift
       ;;
      --force-new-era)
@@ -307,10 +314,33 @@ function copy_cliain_to_pod() {
   cliain_path="$1"
   validator_pod_name="$2"
   namespace="$3"
-  info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-	kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
-	  error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-	prompt_if_interactive_mode "Press enter to continue"
+
+  if  [ -z "${CLIAIN_NO_COPY}" ]; then
+    did_something="true"
+    info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+    kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
+      error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+    prompt_if_interactive_mode "Press enter to continue"
+  fi
+}
+
+function run_key_rotation() {
+  staking_config_file="$1"
+  cliain_path="$2"
+  namespace="$3"
+  validator_pod_name="$4"
+
+  validator_seed=$(sed '1q;d' "${staking_config_file}")
+  validator_controller_seed=$(sed '3q;d' "${staking_config_file}")
+
+  controller_public_key=$(get_ss58_address_from_seed "${validator_controller_seed}" "${cliain_path}")
+
+  prompt_if_interactive_mode "Press enter to continue"
+  rotate_keys "${validator_seed}" "${namespace}" "${validator_pod_name}"
+
+  info "Setting keys on controller account ${controller_public_key}"
+  prompt_if_interactive_mode "Press enter to continue"
+  set_keys "${validator_seed}" "${new_keys}" "${validator_controller_seed}" "${namespace}" "${validator_pod_name}"
 }
 
 function run_validator_setup() {
@@ -353,12 +383,7 @@ function run_validator_setup() {
   bond "${validator_seed}" "${validator_stash_seed}" "${controller_public_key}" "${minimal_validator_bond}" "${namespace}" "${validator_pod_name}"
 
   info "Rotating keys for validator ${validator_public_key}"
-  prompt_if_interactive_mode "Press enter to continue"
-  rotate_keys "${validator_seed}" "${namespace}" "${validator_pod_name}"
-
-  info "Setting keys on controller account ${controller_public_key}"
-  prompt_if_interactive_mode "Press enter to continue"
-  set_keys "${validator_seed}" "${new_keys}" "${validator_controller_seed}" "${namespace}" "${validator_pod_name}"
+  run_key_rotation "${staking_config_file}" "${cliain_path}" "${namespace}" "${validator_pod_name}"
 
 	info "Calling validate on controller account ${controller_public_key}"
 	prompt_if_interactive_mode "Press enter to continue"
@@ -382,13 +407,14 @@ fi
 # path on which binary will be copied to on validator's pod
 CLIAIN_PATH_ON_POD="/tmp/cliain"
 
-if  [ -n "${COPY_CLIAIN_TO_POD}" ]; then
-  did_something="true"
-  copy_cliain_to_pod "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
-fi
+copy_cliain_to_pod "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
 if  [ -n "${STAKING_CONFIG_FILE}" ]; then
   did_something="true"
   run_validator_setup "${STAKING_CONFIG_FILE}" "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
+fi
+if  [ -n "${KEY_ROTATION}" ]; then
+  did_something="true"
+  run_key_rotation "${KEY_ROTATION}" "${NAMESPACE}" "${VALIDATOR_POD_NAME}"
 fi
 if  [ -n "${SET_STAKING_LIMITS}" ]; then
   did_something="true"
