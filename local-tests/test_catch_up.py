@@ -1,5 +1,6 @@
 #!/bin/env python
 import os
+import sys
 from os.path import abspath, join
 from time import sleep
 
@@ -8,7 +9,7 @@ from chainrunner import Chain, Seq, generate_keys
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important use short-session feature):
-bin = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
+binary = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
 
 
 
@@ -23,13 +24,13 @@ def check_finalized(nodes):
 
 
 phrases = [f'//{i}' for i in range(6)]
-keys = generate_keys(bin, phrases)
-all = list(keys.values())
+keys = generate_keys(binary, phrases)
+all_accounts = list(keys.values())
 chain = Chain(workdir)
 print('Bootstraping the chain with old binary')
-chain.bootstrap(bin,
-                all[:4],
-                accounts=all[4:],
+chain.bootstrap(binary,
+                all_accounts[:4],
+                accounts=all_accounts[4:],
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local')
 
@@ -59,16 +60,16 @@ print('restarting nodes')
 chain.start('aleph', nodes=[3, 4])
 check_finalized(chain)
 sleep(30)
-finalized = check_finalized(chain)
+finalized_per_node = check_finalized(chain)
 
-nonvalidator_diff = finalized[5] - finalized[4]
-validator_diff = finalized[2] - finalized[3]
+nonvalidator_diff = finalized_per_node[5] - finalized_per_node[4]
+validator_diff = finalized_per_node[2] - finalized_per_node[3]
 ALLOWED_DELTA = 5
 
 if nonvalidator_diff > ALLOWED_DELTA:
     print(f"too big difference for nonvalidators: {nonvalidator_diff}")
-    exit(1)
+    sys.exit(1)
 
 if validator_diff > ALLOWED_DELTA:
     print(f"too big difference for nonvalidators: {validator_diff}")
-    exit(1)
+    sys.exit(1)
