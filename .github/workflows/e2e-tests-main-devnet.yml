@@ -293,6 +293,27 @@ jobs:
           NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
 
+  test-catch-up:
+    name: Test catching up
+    runs-on: ubuntu-latest
+    needs: build-new-node
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
       - name: Test catch up
         timeout-minutes: 6
         env:
