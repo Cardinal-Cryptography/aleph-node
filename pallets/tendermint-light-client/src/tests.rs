@@ -1,3 +1,5 @@
+use frame_support::assert_ok;
+
 use super::*;
 use crate::{
     mock::*,
@@ -13,12 +15,15 @@ fn successful_verification() {
 
         println!("initial data {:#?}", initial_block);
 
-        let call = Pallet::<TestRuntime>::initialize_client(Origin::root(), options, initial_block);
+        assert_ok!(Pallet::<TestRuntime>::initialize_client(
+            origin,
+            options.clone(),
+            initial_block
+        ));
 
-        // let a = String::from("0x0");
+        //  assert storage updated
+        assert_eq!(Pallet::<TestRuntime>::get_options(), options.clone());
 
-        // print!()
-
-        assert!(false);
+        // assert!(false);
     });
 }
