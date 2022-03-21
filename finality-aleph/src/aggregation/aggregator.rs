@@ -22,10 +22,9 @@ pub enum AggregatorError {
 
 pub enum IOError {
     NetworkChannelClosed,
-    AggregatorError(AggregatorError),
 }
 
-pub type AggregatorResult = Result<(), AggregatorError>;
+pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
@@ -57,7 +56,7 @@ impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>,
         }
     }
 
-    fn on_start(&mut self, hash: H) -> AggregatorResult {
+    fn on_start(&mut self, hash: H) -> AggregatorResult<()> {
         if !self.started_hashes.insert(hash) {
             return Err(AggregatorError::DuplicateHash);
         }
@@ -73,24 +72,20 @@ impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>,
         self.last_hash_placed = true;
     }
 
-    fn on_multisigned_hash(&mut self, multisigned_hash: MS) -> AggregatorResult {
+    fn on_multisigned_hash(&mut self, multisigned_hash: MS) {
         let hash = multisigned_hash.as_signable().hash();
-        let unchecked = multisigned_hash.into_unchecked().signature();
+        let unchecked = multisigned_hash.into_unchecked();
         debug!(target: "aleph-aggregator", "New multisigned_hash {:?}.", unchecked);
-        self.signatures.insert(hash, unchecked);
-        Ok(())
+        self.signatures.insert(hash, unchecked.signature());
     }
 
-    fn try_pop_hash(&mut self) -> Result<(H, MK::PartialMultisignature), AggregatorError> {
-        match self.hash_queue.front() {
+    fn try_pop_hash(&mut self) -> AggregatorResult<(H, MK::PartialMultisignature)> {
+        match self.hash_queue.pop_front() {
             Some(hash) => {
-                if let Some(multisignature) = self.signatures.remove(hash) {
-                    let hash = self
-                        .hash_queue
-                        .pop_front()
-                        .expect("VecDeque::front() returned Some(_), qed.");
+                if let Some(multisignature) = self.signatures.remove(&hash) {
                     Ok((hash, multisignature))
                 } else {
+                    self.hash_queue.push_front(hash);
                     Err(AggregatorError::NoHashFound)
                 }
             }
@@ -152,7 +147,7 @@ where
     pub(crate) async fn start_aggregation(&mut self, hash: H) {
         debug!(target: "aleph-aggregator", "Started aggregation for block hash {:?}", hash);
         if let Err(AggregatorError::DuplicateHash) = self.aggregator.on_start(hash) {
-            debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, exiting.", hash);
+            debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, ignoring.", hash);
             return;
         }
         self.multicast
@@ -168,8 +163,8 @@ where
         loop {
             tokio::select! {
                 multisigned_hash = self.multicast.next_multisigned_hash() => {
-                    return self.aggregator.on_multisigned_hash(multisigned_hash)
-                                          .map_err(IOError::AggregatorError);
+                    self.aggregator.on_multisigned_hash(multisigned_hash);
+                    return Ok(());
                 }
                 message_from_rmc = self.messages_from_rmc.next() => {
                     trace!(target: "aleph-aggregator", "Our rmc message {:?}.", message_from_rmc);
@@ -213,7 +208,13 @@ where
                     );
                     return None;
                 }
-                Err(_) => {}
+                Err(AggregatorError::NoHashFound) => { /* ignored */ }
+                Err(AggregatorError::DuplicateHash) => {
+                    warn!(
+                        target: "aleph-aggregator",
+                        "Unexpected aggregator exception in IO: DuplicateHash",
+                    )
+                }
             }
 
             if self.wait_for_next_signature().await.is_err() {
