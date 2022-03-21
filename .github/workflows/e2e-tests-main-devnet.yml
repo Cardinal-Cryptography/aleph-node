@@ -293,6 +293,13 @@ jobs:
           NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
 
+      - name: Test catch up
+        timeout-minutes: 6
+        env:
+          # Relative to local-tests/ directory
+          BINARY: aleph-test-node/aleph-node
+        run: ./.github/scripts/test_catch_up.sh
+
       - name: Stop cache
         uses: ./.github/actions/post-cache
 

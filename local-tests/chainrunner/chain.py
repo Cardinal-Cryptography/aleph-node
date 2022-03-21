@@ -2,6 +2,7 @@ import os
 import os.path as op
 import subprocess
 
+from itertools import chain
 from .node import Node
 from .utils import flags_from_dict, check_file
 
@@ -28,14 +29,15 @@ class Chain:
     def __iter__(self):
         return iter(self.nodes)
 
-    def bootstrap(self, binary, accounts, **kwargs):
-        """Bootstrap the chain. `accounts` should be a list of strings.
+    def bootstrap(self, binary, validator_accounts, accounts=None, **kwargs):
+        """Bootstrap the chain. `validator_accounts` should be a list of strings.
         Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
+        accounts = accounts or []
         cmd = [check_file(binary),
                'bootstrap-chain',
                '--base-path', self.path,
-               '--account-ids', ','.join(accounts), '--raw']
+               '--account-ids', ','.join(validator_accounts), '--raw']
         cmd += flags_from_dict(kwargs)
 
         chainspec = op.join(self.path, 'chainspec.json')
@@ -43,24 +45,25 @@ class Chain:
             subprocess.run(cmd, stdout=f, check=True)
 
         self.nodes = []
-        for a in accounts:
+        for a in chain(validator_accounts, accounts):
             n = Node(binary, chainspec, op.join(self.path, a), self.path)
             n.flags['node-key-file'] = op.join(self.path, a, 'p2p_secret')
             self.nodes.append(n)
 
-    def set_flags(self, *args, **kwargs):
-        """Set common flags for all nodes.
+    def set_flags(self, *args, predicate=lambda n, i: True, **kwargs):
+        """Set common flags for all nodes that pass the predicate.
         Positional arguments are used as binary flags and should be strings.
         Keyword arguments are translated to valued flags: `my_arg=some_val` results in
         `--my-arg some_val` in the binary call.
         Seq (type alias for int) can be used to specify numerical values that should be different
         for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
         on."""
+        nodes = (n for i, n in enumerate(self.nodes) if predicate(n, i))
         for k in args:
-            for n in self.nodes:
+            for n in nodes:
                 n.flags[k] = True
         for k, v in kwargs.items():
-            for i, n in enumerate(self.nodes):
+            for i, n in enumerate(nodes):
                 n.flags[k] = v + i if isinstance(v, Seq) else v
 
     def set_binary(self, binary, nodes=None):
