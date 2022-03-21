@@ -64,8 +64,10 @@ pub mod pallet {
         LightClientHalted,
         /// Pallet operations are resumed        
         LightClientResumed,
-        /// light client is initialized
+        /// Light client is initialized
         LightClientInitialized,
+        /// New block has been verified and imported into storage \[relayer_address, imported_block_hash\]
+        ImportedLightBlock(T::AccountId, BridgedBlockHash),
     }
 
     #[pallet::error]
@@ -160,7 +162,7 @@ pub mod pallet {
             untrusted_block: LightBlockStorage,
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
-            let _ = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
 
             log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &untrusted_block);
 
@@ -194,8 +196,9 @@ pub mod pallet {
                 tendermint_light_client_verifier::Verdict::Success => {
                     // update storage
                     let hash = untrusted_block.signed_header.commit.block_id.hash.clone();
-                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block with a hash {:#?}", &hash);
                     insert_light_block::<T>(hash, untrusted_block);
+                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block with a hash {:#?}", &hash);
+                    Self::deposit_event(Event::ImportedLightBlock(who, hash));
                     Ok(())
                 }
                 tendermint_light_client_verifier::Verdict::NotEnoughTrust(_) => {
