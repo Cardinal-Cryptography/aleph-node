@@ -11,8 +11,6 @@ workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important use short-session feature):
 binary = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
 
-
-
 def check_finalized(nodes):
     results = [node.highest_block() for node in nodes]
     highest, finalized = zip(*results)
