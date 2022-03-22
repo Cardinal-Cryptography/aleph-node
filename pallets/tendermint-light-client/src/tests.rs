@@ -2,27 +2,26 @@ use super::*;
 use crate::{
     mock::*,
     types::{LightBlockStorage, LightClientOptionsStorage},
-    utils::header_hash,
 };
 use frame_support::assert_ok;
-use tendermint::block::{signed_header::SignedHeader, Header};
+use tendermint::block::signed_header::SignedHeader;
 use tendermint_light_client_verifier::{
     operations::{ProdVotingPowerCalculator, VotingPowerCalculator},
     types::{LightBlock, TrustThreshold, ValidatorSet},
 };
 
-#[test]
-fn type_casting() {
-    let light_block: LightBlock = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+// #[test]
+// fn type_casting() {
+//     let light_block: LightBlock = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
-    println!("block {:#?}", light_block);
+//     println!("block {:#?}", light_block);
 
-    let light_block_storage: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+//     let light_block_storage: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
-    println!("block {:#?}", light_block_storage);
+//     println!("block {:#?}", light_block_storage);
 
-    assert_eq!(light_block, light_block_storage.try_into().unwrap());
-}
+//     assert_eq!(light_block, light_block_storage.try_into().unwrap());
+// }
 
 #[test]
 fn successful_verification() {

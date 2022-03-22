@@ -1,10 +1,8 @@
-use crate::utils::{
-    account_id_from_bytes, base64string_as_h512, sha256_from_bytes, timestamp_from_rfc3339,
-};
+use crate::utils::{account_id_from_bytes, sha256_from_bytes};
 #[cfg(feature = "std")]
 use crate::utils::{
-    deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_from_str,
-    deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339,
+    base64string_as_h512, deserialize_base64string_as_h256, deserialize_from_str,
+    deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
@@ -276,6 +274,7 @@ pub enum CommitSignatureStorage {
     },
 }
 
+#[cfg(feature = "std")]
 impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let value = Value::deserialize(d)?;
@@ -311,15 +310,6 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
                 other_ => panic!("unsupported block_id_flag {:?}", other_),
             },
         )
-    }
-
-    fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // Default implementation just delegates to `deserialize` impl.
-        *place = Deserialize::deserialize(deserializer)?;
-        Ok(())
     }
 }
 

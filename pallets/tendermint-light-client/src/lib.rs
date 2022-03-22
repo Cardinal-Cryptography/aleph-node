@@ -214,8 +214,6 @@ pub mod pallet {
                 tendermint_light_client_verifier::Verdict::Invalid(why) => {
                     log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
 
-                    println!("why {:#?}", &why);
-
                     fail!(<Error<T>>::InvalidBlock)
                 }
             }

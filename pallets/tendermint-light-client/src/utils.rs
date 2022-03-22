@@ -1,4 +1,4 @@
-use crate::types::{LightBlockStorage, TimestampStorage};
+use crate::types::TimestampStorage;
 use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer};
@@ -9,9 +9,9 @@ use std::{fmt::Display, str::FromStr};
 use tendermint::{
     account,
     hash::{self, Hash},
-    time,
 };
-use tendermint_light_client_verifier::types::LightBlock;
+// use tendermint_light_client_verifier::types::LightBlock;
+// use crate::types::{LightBlockStorage, TimestampStorage};
 
 pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
     Hash::from_bytes(hash::Algorithm::Sha256, bytes).expect("Can't produce Hash from raw bytes")
@@ -24,18 +24,6 @@ pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
 pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
     account::Id::new(bytes)
 }
-
-// /// Deserialize
-// #[cfg(feature = "std")]
-// pub fn deserialize_timestamp_from_rfc3339<'de, D>(
-//     deserializer: D,
-// ) -> Result<TimestampStorage, D::Error>
-// where
-//     D: Deserializer<'de>,
-// {
-//     let s = String::deserialize(deserializer)?;
-
-// }
 
 /// Deserialize unix timestamp from rfc3339 formatted string
 #[cfg(feature = "std")]
@@ -93,16 +81,16 @@ pub fn base64string_as_h512(s: &str) -> Result<H512, &str> {
     }
 }
 
-/// Deserialize base64string into H512
-#[cfg(feature = "std")]
-pub fn deserialize_base64string_as_h512<'de, D>(deserializer: D) -> Result<H512, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let string = String::deserialize(deserializer)?;
-    let bytes = base64::decode(&string).map_err(serde::de::Error::custom)?;
-    Ok(H512::from_slice(&bytes))
-}
+// /// Deserialize base64string into H512
+// #[cfg(feature = "std")]
+// pub fn deserialize_base64string_as_h512<'de, D>(deserializer: D) -> Result<H512, D::Error>
+// where
+//     D: Deserializer<'de>,
+// {
+//     let string = String::deserialize(deserializer)?;
+//     let bytes = base64::decode(&string).map_err(serde::de::Error::custom)?;
+//     Ok(H512::from_slice(&bytes))
+// }
 
 /// Deserialize base64string into H256
 #[cfg(feature = "std")]
@@ -115,8 +103,8 @@ where
     Ok(H256::from_slice(&bytes))
 }
 
-pub fn header_hash(block: LightBlockStorage) -> Hash {
-    let b: LightBlock = block.try_into().unwrap();
-    let h = b.signed_header.header;
-    h.hash()
-}
+// pub fn header_hash(block: LightBlockStorage) -> Hash {
+//     let b: LightBlock = block.try_into().unwrap();
+//     let h = b.signed_header.header;
+//     h.hash()
+// }
