@@ -307,13 +307,10 @@ function copy_cliain_to_pod() {
   validator_pod_name="$2"
   namespace="$3"
 
-  if  [ -z "${CLIAIN_NO_COPY}" ]; then
-    did_something="true"
-    info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-    kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
-      error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
-    prompt_if_interactive_mode "Press enter to continue"
-  fi
+  info "Copying binary to validator's pod ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+  kubectl cp -n "${namespace}" "${cliain_path}" "${validator_pod_name}":"${CLIAIN_PATH_ON_POD}" || \
+    error "Failed to copy cliain binary to ${validator_pod_name}:${CLIAIN_PATH_ON_POD}"
+  prompt_if_interactive_mode "Press enter to continue"
 }
 
 function run_key_rotation() {
@@ -399,7 +396,10 @@ fi
 # path on which binary will be copied to on validator's pod
 CLIAIN_PATH_ON_POD="/tmp/cliain"
 
-copy_cliain_to_pod "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
+if  [ -z "${CLIAIN_NO_COPY}" ]; then
+  did_something="true"
+  copy_cliain_to_pod "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
+fi
 if  [ -n "${STAKING_CONFIG_FILE}" ]; then
   did_something="true"
   run_validator_setup "${STAKING_CONFIG_FILE}" "${CLIAIN_PATH}" "${VALIDATOR_POD_NAME}" "${NAMESPACE}"
