@@ -304,9 +304,6 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
-
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
