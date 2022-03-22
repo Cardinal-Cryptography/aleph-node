@@ -9,7 +9,7 @@ from chainrunner import Chain, Seq, generate_keys
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important use short-session feature):
-binary = abspath(os.getenv('BINARY', join(workdir, 'aleph-node')))
+binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
 
 
 def check_finalized(nodes):
@@ -26,7 +26,7 @@ phrases = [f'//{i}' for i in range(6)]
 keys = generate_keys(binary, phrases)
 all_accounts = list(keys.values())
 chain = Chain(workdir)
-print('Bootstraping the chain with old binary')
+print('Bootstraping the chain with binary')
 chain.bootstrap(binary,
                 all_accounts[:4],
                 accounts=all_accounts[4:],

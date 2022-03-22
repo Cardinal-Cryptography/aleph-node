@@ -318,7 +318,7 @@ jobs:
         timeout-minutes: 6
         env:
           # Relative to local-tests/ directory
-          BINARY: aleph-test-node/aleph-node
+          ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh
 
   remove-old-artifacts:
