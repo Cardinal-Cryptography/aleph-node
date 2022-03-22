@@ -1,4 +1,6 @@
-use crate::utils::{account_id_from_bytes, sha256_from_bytes};
+use crate::utils::{
+    account_id_from_bytes, base64string_as_h512, sha256_from_bytes, timestamp_from_rfc3339,
+};
 #[cfg(feature = "std")]
 use crate::utils::{
     deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_from_str,
@@ -9,8 +11,12 @@ use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use serde_json::Value;
 use sp_core::{H160, H256, H512};
 use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
+#[cfg(feature = "std")]
+use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
@@ -203,7 +209,6 @@ pub struct HeaderStorage {
     pub proposer_address: TendermintAccountId,
 }
 
-// TODO : serde from deserializer
 /// Represents  UTC time since Unix epoch
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -223,45 +228,99 @@ impl TryFrom<TimestampStorage> for Time {
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(tag = "block_id_flag"))]
+// #[cfg_attr(
+//     feature = "std",
+//     derive(Serialize, Deserialize),
+//     serde(tag = "block_id_flag")
+// )]
+#[cfg_attr(feature = "std", derive(Serialize))]
 pub enum CommitSignatureStorage {
     /// no vote was received from a validator.
+    // #[cfg_attr(feature = "std", serde(rename = 1))]
     BlockIdFlagAbsent,
     /// voted for the Commit.BlockID.
+    // #[cfg_attr(feature = "std", serde(rename = 2))]
     BlockIdFlagCommit {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        #[cfg_attr(
-            feature = "std",
-            serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
-        )]
+        // #[cfg_attr(
+        //     feature = "std",
+        //     serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
+        // )]
         timestamp: TimestampStorage,
         /// Signature of vote
-        #[cfg_attr(
-            feature = "std",
-            serde(deserialize_with = "deserialize_base64string_as_h512")
-        )]
+        // #[cfg_attr(
+        //     feature = "std",
+        //     serde(deserialize_with = "deserialize_base64string_as_h512")
+        // )]
         signature: TendermintVoteSignature,
     },
     /// voted for nil.
+    // #[cfg_attr(feature = "std", serde(rename = 3))]
     BlockIdFlagNil {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        #[cfg_attr(
-            feature = "std",
-            serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
-        )]
+        // #[cfg_attr(
+        //     feature = "std",
+        //     serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
+        // )]
         timestamp: TimestampStorage,
         /// Signature of vote
-        #[cfg_attr(
-            feature = "std",
-            serde(deserialize_with = "deserialize_base64string_as_h512")
-        )]
+        // #[cfg_attr(
+        //     feature = "std",
+        //     serde(deserialize_with = "deserialize_base64string_as_h512")
+        // )]
         signature: TendermintVoteSignature,
     },
+}
+
+impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let value = Value::deserialize(d)?;
+
+        Ok(
+            match value.get("block_id_flag").and_then(Value::as_u64).unwrap() {
+                1 => todo!(),
+                2 => {
+                    let s = value
+                        .get("validator_address")
+                        .and_then(Value::as_str)
+                        .unwrap();
+                    let bytes = hex::decode_upper(s).or_else(|_| hex::decode(s)).unwrap();
+                    let validator_address = TendermintAccountId::from_slice(&bytes);
+
+                    let timestamp = timestamp_from_rfc3339(
+                        value.get("timestamp").and_then(Value::as_str).unwrap(),
+                    )
+                    .unwrap();
+
+                    let signature = base64string_as_h512(
+                        value.get("signature").and_then(Value::as_str).unwrap(),
+                    )
+                    .unwrap();
+
+                    CommitSignatureStorage::BlockIdFlagCommit {
+                        validator_address,
+                        timestamp,
+                        signature,
+                    }
+                }
+                3 => todo!(),
+                other_ => panic!("unsupported block_id_flag {:?}", other_),
+            },
+        )
+    }
+
+    fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Default implementation just delegates to `deserialize` impl.
+        *place = Deserialize::deserialize(deserializer)?;
+        Ok(())
+    }
 }
 
 impl TryFrom<CommitSignatureStorage> for CommitSig {
@@ -310,6 +369,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitStorage {
     /// Block height
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub height: u64,
     /// Round
     pub round: u32,
@@ -466,7 +526,11 @@ pub struct ValidatorInfoStorage {
     // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
     #[cfg_attr(
         feature = "std",
-        serde(alias = "voting_power", alias = "total_voting_power")
+        serde(
+            alias = "voting_power",
+            alias = "total_voting_power",
+            deserialize_with = "deserialize_from_str"
+        )
     )]
     pub power: u64,
     /// Validator name
@@ -515,6 +579,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
 pub struct ValidatorSetStorage {
     pub validators: Vec<ValidatorInfoStorage>,
     pub proposer: Option<ValidatorInfoStorage>,
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub total_voting_power: u64,
 }
 

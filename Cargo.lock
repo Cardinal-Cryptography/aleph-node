@@ -4784,6 +4784,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "subtle-encoding",
  "tendermint",
  "tendermint-light-client-verifier",
  "time 0.3.7",

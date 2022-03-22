@@ -20,6 +20,7 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 tendermint = { version = "0.24.0-pre.1", default-features = false, features = ["secp256k1"] }
 tendermint-light-client-verifier = { version = "0.24.0-pre.1", default-features = false }
 time = {version = "0.3.5", default-features = false, features = [ "parsing"]}
+subtle-encoding = {version = "0.5", default-features = false, features = ["bech32-preview"]}
 
 [dev-dependencies]
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }

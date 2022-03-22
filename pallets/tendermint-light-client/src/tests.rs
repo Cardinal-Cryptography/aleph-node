@@ -13,13 +13,14 @@ use tendermint_light_client_verifier::{
 
 #[test]
 fn type_casting() {
-    let light_block_storage: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
     let light_block: LightBlock = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
-    assert_eq!(light_block, light_block_storage.try_into().unwrap());
 
-    let light_block_storage: LightBlockStorage =
-        serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
-    let light_block: LightBlock = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+    println!("block {:#?}", light_block);
+
+    let light_block_storage: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+    println!("block {:#?}", light_block_storage);
+
     assert_eq!(light_block, light_block_storage.try_into().unwrap());
 }
 

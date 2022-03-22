@@ -25,6 +25,31 @@ pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
     account::Id::new(bytes)
 }
 
+// /// Deserialize
+// #[cfg(feature = "std")]
+// pub fn deserialize_timestamp_from_rfc3339<'de, D>(
+//     deserializer: D,
+// ) -> Result<TimestampStorage, D::Error>
+// where
+//     D: Deserializer<'de>,
+// {
+//     let s = String::deserialize(deserializer)?;
+
+// }
+
+/// Deserialize unix timestamp from rfc3339 formatted string
+#[cfg(feature = "std")]
+pub fn timestamp_from_rfc3339(s: &str) -> Result<TimestampStorage, &str> {
+    match OffsetDateTime::parse(&s, &Rfc3339) {
+        Ok(datetime) => {
+            let seconds = datetime.unix_timestamp();
+            let nanos = datetime.nanosecond();
+            Ok(TimestampStorage { seconds, nanos })
+        }
+        Err(_) => Err("Not in rfc3339 format"),
+    }
+}
+
 /// Deserialize unix timestamp from rfc3339 formatted string
 #[cfg(feature = "std")]
 pub fn deserialize_timestamp_from_rfc3339<'de, D>(
@@ -34,11 +59,7 @@ where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    let t = OffsetDateTime::parse(&s, &Rfc3339).map_err(serde::de::Error::custom)?;
-
-    let seconds = t.unix_timestamp();
-    let nanos = t.nanosecond();
-    Ok(TimestampStorage { seconds, nanos })
+    timestamp_from_rfc3339(&s).map_err(serde::de::Error::custom)
 }
 
 /// Deserialize from string if type allows it
@@ -61,6 +82,15 @@ where
 {
     let string = String::deserialize(deserializer)?;
     Ok(string.as_bytes().to_vec())
+}
+
+/// Deserialize base64string into H512
+#[cfg(feature = "std")]
+pub fn base64string_as_h512(s: &str) -> Result<H512, &str> {
+    match base64::decode(&s) {
+        Ok(bytes) => Ok(H512::from_slice(&bytes)),
+        Err(_) => Err("Not base64 encoded string"),
+    }
 }
 
 /// Deserialize base64string into H512
