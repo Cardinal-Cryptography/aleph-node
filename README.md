@@ -20,11 +20,11 @@ Please consult the [BUILD][BUILD] guide.
 
 #### Connect to Aleph Zero Mainnet
 
-You can connect to global Aleph Zero Mainnet network by running `aleph-node` without arguments, i.e. `./aleph-node`.
+You can connect to global Aleph Zero Mainnet network by running `aleph-node --chain=mainnet`.
 
 #### Connect to Aleph Zero Testnet
 
-You can connect to global Aleph Zero Testnet network by running `./aleph-node --chain=testnet`.
+You can connect to global Aleph Zero Testnet network by running `aleph-node --chain=testnet`.
 
 #### Local Network
 
