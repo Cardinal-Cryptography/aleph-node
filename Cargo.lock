@@ -4786,6 +4786,7 @@ dependencies = [
  "sp-std",
  "tendermint",
  "tendermint-light-client-verifier",
+ "time 0.3.7",
 ]
 
 [[package]]

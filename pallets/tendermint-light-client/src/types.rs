@@ -1,7 +1,8 @@
-use crate::utils::{account_id_from_bytes, from_unix_timestamp, sha256_from_bytes};
+use crate::utils::{account_id_from_bytes, sha256_from_bytes};
 #[cfg(feature = "std")]
 use crate::utils::{
-    deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_string_as_bytes,
+    deserialize_base64string_as_h256, deserialize_base64string_as_h512, deserialize_from_str,
+    deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
 use frame_support::RuntimeDebug;
@@ -14,7 +15,7 @@ use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
     validator::{self, ProposerPriority},
-    vote,
+    vote, Time,
 };
 use tendermint_light_client_verifier::{
     options::Options,
@@ -90,9 +91,11 @@ impl TryFrom<LightClientOptionsStorage> for Options {
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VersionStorage {
-    /// Block version
+    /// Block version    
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub block: u64,
     /// App version
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub app: u64,
 }
 
@@ -161,10 +164,18 @@ pub struct HeaderStorage {
     )]
     pub chain_id: Vec<u8>,
     /// Current block height
+    #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub height: u64,
     /// Epoch Unix timestamp in seconds
-    #[cfg_attr(feature = "std", serde(alias = "time", alias = "timestamp"))]
-    pub timestamp: i64,
+    #[cfg_attr(
+        feature = "std",
+        serde(
+            alias = "time",
+            alias = "timestamp",
+            deserialize_with = "deserialize_timestamp_from_rfc3339"
+        )
+    )]
+    pub timestamp: TimestampStorage,
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
@@ -192,6 +203,23 @@ pub struct HeaderStorage {
     pub proposer_address: TendermintAccountId,
 }
 
+// TODO : serde from deserializer
+/// Represents  UTC time since Unix epoch
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct TimestampStorage {
+    pub seconds: i64,
+    pub nanos: u32,
+}
+
+impl TryFrom<TimestampStorage> for Time {
+    type Error = tendermint::Error;
+
+    fn try_from(value: TimestampStorage) -> Result<Self, Self::Error> {
+        Time::from_unix_timestamp(value.seconds, value.nanos)
+    }
+}
+
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
@@ -205,7 +233,11 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: i64,
+        #[cfg_attr(
+            feature = "std",
+            serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
+        )]
+        timestamp: TimestampStorage,
         /// Signature of vote
         #[cfg_attr(
             feature = "std",
@@ -218,7 +250,11 @@ pub enum CommitSignatureStorage {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        timestamp: i64,
+        #[cfg_attr(
+            feature = "std",
+            serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
+        )]
+        timestamp: TimestampStorage,
         /// Signature of vote
         #[cfg_attr(
             feature = "std",
@@ -241,7 +277,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
             } => {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
-                let timestamp = from_unix_timestamp(timestamp);
+                let timestamp = timestamp.try_into().unwrap();
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagCommit {
@@ -257,7 +293,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
             } => {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
-                let timestamp = from_unix_timestamp(timestamp);
+                let timestamp = timestamp.try_into().unwrap();
                 let signature = CommitSignatureStorage::signature(signature);
 
                 Self::BlockIdFlagNil {
@@ -344,7 +380,7 @@ impl TryFrom<HeaderStorage> for Header {
                 .parse::<chain::Id>()
                 .expect("Cannot parse as Chain Id"),
             height: block::Height::try_from(height).expect("Cannot create Height"),
-            time: from_unix_timestamp(timestamp),
+            time: timestamp.try_into().unwrap(),
             last_block_id: match last_block_id {
                 Some(id) => id.try_into().ok(),
                 None => None,

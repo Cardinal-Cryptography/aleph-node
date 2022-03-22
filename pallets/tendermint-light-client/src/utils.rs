@@ -1,7 +1,11 @@
+use crate::types::{LightBlockStorage, TimestampStorage};
+use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer};
 use sp_core::{H256, H512};
 use sp_std::vec::Vec;
+#[cfg(feature = "std")]
+use std::{fmt::Display, str::FromStr};
 use tendermint::{
     account,
     hash::{self, Hash},
@@ -9,18 +13,44 @@ use tendermint::{
 };
 use tendermint_light_client_verifier::types::LightBlock;
 
-use crate::types::LightBlockStorage;
-
 pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
     Hash::from_bytes(hash::Algorithm::Sha256, bytes).expect("Can't produce Hash from raw bytes")
 }
 
-pub fn from_unix_timestamp(seconds: i64) -> time::Time {
-    time::Time::from_unix_timestamp(seconds, 0).expect("Cannot parse as Time")
-}
+// pub fn from_unix_timestamp(seconds: i64) -> time::Time {
+//     time::Time::from_unix_timestamp(seconds, 0).expect("Cannot parse as Time")
+// }
 
 pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
     account::Id::new(bytes)
+}
+
+/// Deserialize unix timestamp from rfc3339 formatted string
+#[cfg(feature = "std")]
+pub fn deserialize_timestamp_from_rfc3339<'de, D>(
+    deserializer: D,
+) -> Result<TimestampStorage, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    let t = OffsetDateTime::parse(&s, &Rfc3339).map_err(serde::de::Error::custom)?;
+
+    let seconds = t.unix_timestamp();
+    let nanos = t.nanosecond();
+    Ok(TimestampStorage { seconds, nanos })
+}
+
+/// Deserialize from string if type allows it
+#[cfg(feature = "std")]
+pub fn deserialize_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: FromStr,
+    T::Err: Display,
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    T::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 /// Deserialize string into Vec<u8>
@@ -44,6 +74,7 @@ where
     Ok(H512::from_slice(&bytes))
 }
 
+/// Deserialize base64string into H256
 #[cfg(feature = "std")]
 pub fn deserialize_base64string_as_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
 where

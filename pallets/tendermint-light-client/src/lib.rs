@@ -26,10 +26,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::{
-        types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage},
-        utils::from_unix_timestamp,
-    };
+    use crate::types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage};
     use frame_support::{
         ensure, fail, log,
         pallet_prelude::{
@@ -188,7 +185,9 @@ pub mod pallet {
             };
 
             let now = T::TimeProvider::now();
-            let now: Time = from_unix_timestamp(now.as_secs().try_into().unwrap());
+            // Time::unix_epoch();
+            // let now: Time = from_unix_timestamp(now.as_secs().try_into().unwrap());
+            let now = Time::from_unix_timestamp(now.as_secs().try_into().unwrap(), 0).unwrap();
 
             let verdict = verify_light_block(
                 verifier,
