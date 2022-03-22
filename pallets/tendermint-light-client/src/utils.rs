@@ -7,6 +7,9 @@ use tendermint::{
     hash::{self, Hash},
     time,
 };
+use tendermint_light_client_verifier::types::LightBlock;
+
+use crate::types::LightBlockStorage;
 
 pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
     Hash::from_bytes(hash::Algorithm::Sha256, bytes).expect("Can't produce Hash from raw bytes")
@@ -49,4 +52,10 @@ where
     let string = String::deserialize(deserializer)?;
     let bytes = base64::decode(&string).map_err(serde::de::Error::custom)?;
     Ok(H256::from_slice(&bytes))
+}
+
+pub fn header_hash(block: LightBlockStorage) -> Hash {
+    let b: LightBlock = block.try_into().unwrap();
+    let h = b.signed_header.header;
+    h.hash()
 }

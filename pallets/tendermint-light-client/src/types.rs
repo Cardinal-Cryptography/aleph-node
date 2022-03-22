@@ -34,6 +34,14 @@ pub struct TrustThresholdStorage {
     pub denominator: u64,
 }
 
+impl TryFrom<TrustThresholdStorage> for TrustThreshold {
+    type Error = tendermint::Error;
+
+    fn try_from(value: TrustThresholdStorage) -> Result<Self, Self::Error> {
+        Self::new(value.numerator, value.denominator)
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LightClientOptionsStorage {
@@ -67,15 +75,14 @@ impl Default for LightClientOptionsStorage {
 impl TryFrom<LightClientOptionsStorage> for Options {
     type Error = &'static str;
 
-    fn try_from(val: LightClientOptionsStorage) -> Result<Self, Self::Error> {
+    fn try_from(value: LightClientOptionsStorage) -> Result<Self, Self::Error> {
         Ok(Self {
-            trust_threshold: TrustThreshold::new(
-                val.trust_threshold.numerator,
-                val.trust_threshold.denominator,
-            )
-            .expect("Can't create TrustThreshold"),
-            trusting_period: Duration::from_secs(val.trusting_period),
-            clock_drift: Duration::from_secs(val.clock_drift),
+            trust_threshold: value
+                .trust_threshold
+                .try_into()
+                .expect("Can't create TrustThreshold"),
+            trusting_period: Duration::from_secs(value.trusting_period),
+            clock_drift: Duration::from_secs(value.clock_drift),
         })
     }
 }
@@ -104,7 +111,7 @@ pub struct PartSetHeaderStorage {
     /// Number of parts in this block
     pub total: u32,
     /// SHA256 Hash of the parts set header,
-    pub hash: Hash,
+    pub hash: BridgedBlockHash,
 }
 
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {

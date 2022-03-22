@@ -1,15 +1,11 @@
-#![cfg(test)]
-use super::*;
 use crate as tendermint_light_client;
 use frame_support::{
-    construct_runtime, parameter_types, sp_io,
-    traits::{Everything, GenesisBuild},
-    weights::RuntimeDbWeight,
+    construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
 use sp_core::H256;
 use sp_io::TestExternalities;
 use sp_runtime::{
-    testing::{Header, TestXt},
+    testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
 
@@ -41,10 +37,10 @@ pub const TRUSTED_BLOCK: &str = r#"{
             "height": 3,
             "round": 1,
             "block_id": {
-                "hash": "AAB1B09D5FADAAE7CDF3451961A63F810DB73BF3214A7B74DBA36C52EDF1A793",
+                "hash": "6504B5BAD53011CAED9A60E6D0FF519CD1EA7D561766D2C5E0C778096205D5C4",
                 "part_set_header": {
                     "total": 1,
-                    "hash": "AAB1B09D5FADAAE7CDF3451961A63F810DB73BF3214A7B74DBA36C52EDF1A793"
+                    "hash": "6504B5BAD53011CAED9A60E6D0FF519CD1EA7D561766D2C5E0C778096205D5C4"
                 }
             },
             "signatures": [
@@ -113,10 +109,10 @@ pub const UNTRUSTED_BLOCK: &str = r#"{
             "height": 4,
             "round": 1,
             "block_id": {
-                "hash": "D0E7B0C678E290DA835BB26EE826472D66B6A306801E5FE0803C5320C554610A",
+                "hash": "05918D179E5C8BF14B652D54E4401DFF222B162C80965B5E4DBE8A4E36A6D5C0",
                 "part_set_header": {
                     "total": 1,
-                    "hash": "D0E7B0C678E290DA835BB26EE826472D66B6A306801E5FE0803C5320C554610A"
+                    "hash": "05918D179E5C8BF14B652D54E4401DFF222B162C80965B5E4DBE8A4E36A6D5C0"
                 }
             },
             "signatures": [

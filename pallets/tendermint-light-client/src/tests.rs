@@ -2,13 +2,25 @@ use super::*;
 use crate::{
     mock::*,
     types::{LightBlockStorage, LightClientOptionsStorage},
+    utils::header_hash,
 };
 use frame_support::assert_ok;
+use tendermint::block::{signed_header::SignedHeader, Header};
+use tendermint_light_client_verifier::types::{LightBlock, TrustThreshold, ValidatorSet};
 
 #[test]
 fn successful_verification() {
     new_test_ext(|| {
         System::set_block_number(1);
+
+        // System::initialize(
+        //     &1,
+        //     &System::parent_hash(),
+        //     &Default::default(),
+        //     Default::default(),
+        // );
+
+        Timestamp::set_timestamp(3599 * 1000);
 
         let origin = Origin::root();
         let options = LightClientOptionsStorage::default();
@@ -19,7 +31,7 @@ fn successful_verification() {
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
             origin,
             options.clone(),
-            initial_block
+            initial_block.clone()
         ));
 
         // assert storage updated
@@ -35,15 +47,21 @@ fn successful_verification() {
         let untrusted_block: LightBlockStorage =
             serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
 
+        // let now = Timestamp::now();
+        // println!("now {:#?}", now);
+        // println!("header hash {:#?}", header_hash(initial_block.clone()));
+
         // println!("verifying block {:#?}", untrusted_block);
 
-        let origin = Origin::signed(100);
+        let signed_header: SignedHeader = untrusted_block.signed_header.try_into().unwrap();
+        let validator_set: ValidatorSet = untrusted_block.validators.try_into().unwrap();
+        let trust_threshold: TrustThreshold = options.trust_threshold.try_into().unwrap();
 
-        // TODO : adjust now time
+        // let origin = Origin::signed(100);
 
-        assert_ok!(Pallet::<TestRuntime>::submit_finality_proof(
-            origin,
-            untrusted_block
-        ));
+        // assert_ok!(Pallet::<TestRuntime>::submit_finality_proof(
+        //     origin,
+        //     untrusted_block.clone()
+        // ));
     });
 }

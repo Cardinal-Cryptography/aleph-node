@@ -8,6 +8,12 @@
 mod mock;
 #[cfg(test)]
 mod tests;
+
+#[cfg(std)]
+mod mock;
+#[cfg(std)]
+mod tests;
+
 mod types;
 mod utils;
 
@@ -34,7 +40,6 @@ pub mod pallet {
         Identity,
     };
     use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
-    use sp_std::vec::Vec;
     use tendermint::Time;
     use tendermint_light_client_verifier::{
         options::Options, types::LightBlock, ProdVerifier, Verifier,
@@ -49,7 +54,7 @@ pub mod pallet {
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
 
-        /// time provider type, used to gauge whther blocks are within the trusting period
+        /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;
     }
 
@@ -163,8 +168,9 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
             let who = ensure_signed(origin)?;
+            let hash = untrusted_block.signed_header.commit.block_id.hash.clone();
 
-            log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &untrusted_block);
+            log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &hash);
 
             let options: Options = <LightClientOptions<T>>::get().try_into()?;
             let verifier = ProdVerifier::default();
@@ -192,19 +198,25 @@ pub mod pallet {
                 now,
             );
 
+            // print!("{:?}", verdict);
+
             match verdict {
                 tendermint_light_client_verifier::Verdict::Success => {
                     // update storage
-                    let hash = untrusted_block.signed_header.commit.block_id.hash.clone();
                     insert_light_block::<T>(hash, untrusted_block);
-                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block with a hash {:#?}", &hash);
+                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
                     Self::deposit_event(Event::ImportedLightBlock(who, hash));
                     Ok(())
                 }
-                tendermint_light_client_verifier::Verdict::NotEnoughTrust(_) => {
+                tendermint_light_client_verifier::Verdict::NotEnoughTrust(voting_power_tally) => {
+                    log::warn!(target: "runtime::tendermint-lc", "Not enough voting power to accept the light block {:#?}, vote tally  {}", &hash, &voting_power_tally);
                     fail!(<Error<T>>::NotEnoughTrust)
                 }
-                tendermint_light_client_verifier::Verdict::Invalid(_) => {
+                tendermint_light_client_verifier::Verdict::Invalid(why) => {
+                    log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
+
+                    println!("why {:#?}", &why);
+
                     fail!(<Error<T>>::InvalidBlock)
                 }
             }
