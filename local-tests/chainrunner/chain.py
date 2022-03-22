@@ -51,7 +51,6 @@ class Chain:
             n.flags['node-key-file'] = op.join(self.path, account, 'p2p_secret')
             return n
 
-
         self.validator_nodes = [account_to_node(a) for a in validator_accounts]
         self.nonvalidator_nodes = [account_to_node(a) for a in accounts]
 
