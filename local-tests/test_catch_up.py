@@ -39,7 +39,7 @@ chain.set_flags(port=Seq(30334),
                 unit_creation_delay=200,
                 execution='Native')
 
-chain.set_flags('validator', predicate=lambda n, i: i < 4)
+chain.set_flags_validator('validator')
 
 print('Starting the chain')
 chain.start('aleph')

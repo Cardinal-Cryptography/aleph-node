@@ -22,6 +22,8 @@ class Chain:
         os.makedirs(workdir, exist_ok=True)
         self.path = op.abspath(workdir)
         self.nodes = []
+        self.validator_nodes = []
+        self.nonvalidator_nodes = []
 
     def __getitem__(self, i):
         return self.nodes[i]
@@ -44,27 +46,55 @@ class Chain:
         with open(chainspec, 'w', encoding='utf-8') as f:
             subprocess.run(cmd, stdout=f, check=True)
 
-        self.nodes = []
-        for a in chain(validator_accounts, accounts):
-            n = Node(binary, chainspec, op.join(self.path, a), self.path)
-            n.flags['node-key-file'] = op.join(self.path, a, 'p2p_secret')
-            self.nodes.append(n)
+        def account_to_node(account):
+            n = Node(binary, chainspec, op.join(self.path, account), self.path)
+            n.flags['node-key-file'] = op.join(self.path, account, 'p2p_secret')
+            return n
 
-    def set_flags(self, *args, predicate=lambda n, i: True, **kwargs):
-        """Set common flags for all nodes that pass the predicate.
-        Positional arguments are used as binary flags and should be strings.
-        Keyword arguments are translated to valued flags: `my_arg=some_val` results in
-        `--my-arg some_val` in the binary call.
-        Seq (type alias for int) can be used to specify numerical values that should be different
-        for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
-        on."""
-        nodes = (n for i, n in enumerate(self.nodes) if predicate(n, i))
+
+        self.validator_nodes = [account_to_node(a) for a in validator_accounts]
+        self.nonvalidator_nodes = [account_to_node(a) for a in accounts]
+
+        self.nodes = list(chain(self.nonvalidator_nodes, self.validator_nodes))
+
+    @staticmethod
+    def _set_flags(nodes, *args, **kwargs):
         for k in args:
             for n in nodes:
                 n.flags[k] = True
         for k, v in kwargs.items():
             for i, n in enumerate(nodes):
                 n.flags[k] = v + i if isinstance(v, Seq) else v
+
+    def set_flags(self, *args, **kwargs):
+        """Set common flags for all nodes.
+        Positional arguments are used as binary flags and should be strings.
+        Keyword arguments are translated to valued flags: `my_arg=some_val` results in
+        `--my-arg some_val` in the binary call.
+        Seq (type alias for int) can be used to specify numerical values that should be different
+        for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
+        on."""
+        Chain._set_flags(self.nodes, *args, **kwargs)
+
+    def set_flags_validator(self, *args, **kwargs):
+        """Set common flags for all validator nodes.
+        Positional arguments are used as binary flags and should be strings.
+        Keyword arguments are translated to valued flags: `my_arg=some_val` results in
+        `--my-arg some_val` in the binary call.
+        Seq (type alias for int) can be used to specify numerical values that should be different
+        for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
+        on."""
+        Chain._set_flags(self.validator_nodes, *args, **kwargs)
+
+    def set_flags_nonvalidator(self, *args, **kwargs):
+        """Set common flags for all nonvalidator nodes.
+        Positional arguments are used as binary flags and should be strings.
+        Keyword arguments are translated to valued flags: `my_arg=some_val` results in
+        `--my-arg some_val` in the binary call.
+        Seq (type alias for int) can be used to specify numerical values that should be different
+        for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
+        on."""
+        Chain._set_flags(self.nonvalidator_nodes, *args, **kwargs)
 
     def set_binary(self, binary, nodes=None):
         """Replace nodes' binary with `binary`. Optional `nodes` argument can be used to specify
