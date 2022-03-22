@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 function usage(){
   cat << EOF
 Usage:
@@ -145,18 +147,16 @@ function prompt_if_interactive_mode() {
 
 function transfer_tokens() {
   signer_account_seed="$1"
-  from_seed="$2"
-  to_account="$3"
-  tokens="$4"
-  namespace="$5"
-  validator_pod_name="$6"
+  to_account="$2"
+  tokens="$3"
+  namespace="$4"
+  validator_pod_name="$5"
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
      --node 127.0.0.1:9943
      --seed "${signer_account_seed}"
       transfer
-        --from-seed "${from_seed}"
         --amount-in-tokens "${tokens}"
         --to-account "${to_account}"
   )
@@ -167,18 +167,16 @@ function transfer_tokens() {
 
 function bond() {
   signer_account_seed="$1"
-  stash_seed="$2"
-  controller_account="$3"
-  stake_tokens="$4"
-  namespace="$5"
-  validator_pod_name="$6"
+  controller_account="$2"
+  stake_tokens="$3"
+  namespace="$4"
+  validator_pod_name="$5"
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
       --node 127.0.0.1:9943
       --seed "${signer_account_seed}"
         bond
-          --stash-seed "${stash_seed}"
           --controller-account "${controller_account}"
           --initial-stake-tokens "${stake_tokens}"
   )
@@ -208,9 +206,8 @@ function rotate_keys() {
 function set_keys() {
   validator_seed="$1"
   new_keys="$2"
-  validator_controller_seed="$3"
-  namespace="$4"
-  validator_pod_name="$5"
+  namespace="$3"
+  validator_pod_name="$4"
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
@@ -218,7 +215,6 @@ function set_keys() {
       --seed "${validator_seed}"
         set-keys
           --new-keys "${new_keys}"
-          --controller-seed "${validator_controller_seed}"
   )
   kubectl exec --stdin --tty -n "${namespace}" "${validator_pod_name}" -- "${cmd_on_pod[@]}" || \
     error "Failed to run command on pod ${cmd_on_pod[@]}"
@@ -226,18 +222,16 @@ function set_keys() {
 }
 
 function validate() {
-  validator_seed="$1"
+  validator_controller_seed="$1"
   commission="$2"
-  validator_controller_seed="$3"
-  namespace="$4"
-  validator_pod_name="$5"
+  namespace="$3"
+  validator_pod_name="$4"
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
       --node 127.0.0.1:9943
-       --seed "${validator_seed}"
+       --seed "${validator_controller_seed}"
         validate
-          --controller-seed "${validator_controller_seed}"
            --commission-percentage "${commission}"
   )
   kubectl exec --stdin --tty -n "${namespace}" "${validator_pod_name}" -- "${cmd_on_pod[@]}" || \
@@ -340,7 +334,7 @@ function run_key_rotation() {
 
   info "Setting keys on controller account ${controller_public_key}"
   prompt_if_interactive_mode "Press enter to continue"
-  set_keys "${validator_seed}" "${new_keys}" "${validator_controller_seed}" "${namespace}" "${validator_pod_name}"
+  set_keys "${validator_controller_seed}" "${new_keys}" "${namespace}" "${validator_pod_name}"
 }
 
 function run_validator_setup() {
@@ -371,23 +365,23 @@ function run_validator_setup() {
   stash_tokens=$((minimal_validator_bond + 1))
   info "Transferring ${stash_tokens} tokens from validator's account ${validator_public_key} to ${stash_public_key}"
   prompt_if_interactive_mode "Press enter to continue"
-  transfer_tokens "${validator_seed}" "${validator_seed}" "${stash_public_key}" "${stash_tokens}" "${namespace}" "${validator_pod_name}"
+  transfer_tokens "${validator_seed}" "${stash_public_key}" "${stash_tokens}" "${namespace}" "${validator_pod_name}"
 
   controller_tokens="1"
 	info "Transferring ${controller_tokens} tokens from validator's account ${validator_public_key} to ${controller_public_key}"
 	prompt_if_interactive_mode "Press enter to continue"
-  transfer_tokens "${validator_seed}" "${validator_seed}" "${controller_public_key}" "${controller_tokens}" "${namespace}" "${validator_pod_name}"
+  transfer_tokens "${validator_seed}" "${controller_public_key}" "${controller_tokens}" "${namespace}" "${validator_pod_name}"
 
   info "Bonding stash account ${stash_public_key} with controller account ${controller_public_key}"
   prompt_if_interactive_mode "Press enter to continue"
-  bond "${validator_seed}" "${validator_stash_seed}" "${controller_public_key}" "${minimal_validator_bond}" "${namespace}" "${validator_pod_name}"
+  bond "${validator_stash_seed}" "${controller_public_key}" "${minimal_validator_bond}" "${namespace}" "${validator_pod_name}"
 
   info "Rotating keys for validator ${validator_public_key}"
   run_key_rotation "${staking_config_file}" "${cliain_path}" "${namespace}" "${validator_pod_name}"
 
 	info "Calling validate on controller account ${controller_public_key}"
 	prompt_if_interactive_mode "Press enter to continue"
-	validate "${validator_seed}" "${validator_commission}" "${validator_controller_seed}" "${namespace}" "${validator_pod_name}"
+	validate "${validator_controller_seed}" "${validator_commission}" "${namespace}" "${validator_pod_name}"
 }
 
 if [ -z "${CLIAIN_PATH}" ]; then
