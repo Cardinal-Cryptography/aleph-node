@@ -28,6 +28,6 @@ else
     nix-build $SHELL_NIX_FILE
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
-    patchelf --set-interpreter $DYNAMIC_LINKER_PATH ./result/bin/aleph-node
-    mv ./result/bin/aleph-node ./
+    cp ./result/bin/aleph-node ./
+    patchelf --set-interpreter $DYNAMIC_LINKER_PATH ./aleph-node
 fi
