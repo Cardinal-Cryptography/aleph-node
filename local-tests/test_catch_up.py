@@ -58,11 +58,12 @@ sleep(30 * 4)
 print('restarting nodes')
 chain.start('aleph', nodes=[3, 4])
 check_finalized(chain)
-sleep(30)
+print('waiting 45s for catch up')
+sleep(45)
 finalized_per_node = check_finalized(chain)
 
-nonvalidator_diff = finalized_per_node[5] - finalized_per_node[4]
-validator_diff = finalized_per_node[2] - finalized_per_node[3]
+nonvalidator_diff = abs(finalized_per_node[5] - finalized_per_node[4])
+validator_diff = abs(finalized_per_node[2] - finalized_per_node[3])
 ALLOWED_DELTA = 5
 
 if nonvalidator_diff > ALLOWED_DELTA:
