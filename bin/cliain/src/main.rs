@@ -1,4 +1,4 @@
-use aleph_client::{from as parse_to_protocol, Connection, KeyPair, Protocol};
+use aleph_client::{from as parse_to_protocol, KeyPair, Protocol};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
@@ -122,33 +122,32 @@ fn main() {
         },
     };
     let cfg = ConnectionConfig::new(node, seed.clone(), protocol);
-    let connection: Connection = cfg.into();
     match command {
-        Command::ChangeValidators { validators } => change_validators(connection, validators),
+        Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
         Command::PrepareKeys => {
             let key = KeyPair::from_string(&seed, None).expect("Can't create pair from seed value");
             let controller_account_id = AccountId::from(key.public());
-            prepare_keys(connection, controller_account_id);
+            prepare_keys(cfg.into(), controller_account_id);
         }
         Command::Bond {
             controller_account,
             initial_stake_tokens,
-        } => bond(connection, initial_stake_tokens, controller_account),
-        Command::SetKeys { new_keys } => set_keys(connection, new_keys),
+        } => bond(cfg.into(), initial_stake_tokens, controller_account),
+        Command::SetKeys { new_keys } => set_keys(cfg.into(), new_keys),
         Command::Validate {
             commission_percentage,
-        } => validate(connection, commission_percentage),
+        } => validate(cfg.into(), commission_percentage),
         Command::Transfer {
             amount_in_tokens,
             to_account,
-        } => transfer(connection, amount_in_tokens, to_account),
-        Command::RotateKeys => rotate_keys(connection),
+        } => transfer(cfg.into(), amount_in_tokens, to_account),
+        Command::RotateKeys => rotate_keys(cfg.into()),
         Command::SetStakingLimits {
             minimal_nominator_stake,
             minimal_validator_stake,
-        } => set_staking_limits(connection, minimal_nominator_stake, minimal_validator_stake),
+        } => set_staking_limits(cfg.into(), minimal_nominator_stake, minimal_validator_stake),
         Command::ForceNewEra => {
-            force_new_era(connection);
+            force_new_era(cfg.into());
         }
         Command::SeedToSS58 => info!(
             "SS58 Address: {}",
