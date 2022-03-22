@@ -23,13 +23,13 @@ let
     stdenv = env;
     defaultCrateOverrides = pkgs.defaultCrateOverrides // (
       let
-        protobufFix = _: {
+        protobufFix = attrs: {
             # provides env variables necessary to use protobuf during compilation
-            buildInputs = [ pkgs.protobuf ];
+            buildInputs = [ pkgs.protobuf ] ++ (attrs.buildInputs or []);
             PROTOC="${pkgs.protobuf}/bin/protoc";
         };
         # downloads and configures CARGO_HOME to use all dependencies described by ${crateDir}/Cargo.lock
-        buildVendoredCargo = crateDir:
+        buildVendoredCargo = crateDir: attrs:
           let
             vendoredCargo = vendoredCargoLock "${crateDir}" "Cargo.lock";
             CARGO_HOME="$out/.cargo";
@@ -41,7 +41,7 @@ let
           in
           {
             inherit CARGO_HOME;
-            buildInputs = [pkgs.git pkgs.cacert];
+            buildInputs = [pkgs.git pkgs.cacert] ++ (attrs.buildInputs or []);
             # we force it to use our wrapped version of Cargo
             CARGO = "${wrappedCargo}/bin/cargo";
             # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
@@ -59,8 +59,8 @@ let
             '';
           };
       in rec {
-        librocksdb-sys = _: {
-          buildInputs = [customRocksdb];
+        librocksdb-sys = attrs: {
+          buildInputs = [ customRocksdb ] ++ (attrs.buildInputs or []);
           LIBCLANG_PATH="${llvm.libclang.lib}/lib";
           ROCKSDB_LIB_DIR="${customRocksdb}/lib";
           # forces librocksdb-sys to statically compile with our customRocksdb
@@ -76,10 +76,10 @@ let
         libp2p-rendezvous = protobufFix;
         libp2p-noise = protobufFix;
         sc-network = protobufFix;
-        aleph-runtime = _:
+        aleph-runtime = attrs:
           # this is a bit tricky - aleph-runtime's build.rs calls Cargo, so we need to provide it a populated
           # CARGO_HOME, otherwise it tries to download crates (it doesn't work with sandboxed nix-build)
-          buildVendoredCargo src // {
+          (buildVendoredCargo src attrs) // {
             # we need to set `src` and workspace_member manually,
             # otherwise it has no access to other dependencies in our workspace
             inherit src;
@@ -92,7 +92,7 @@ let
           let
             substrateSrc = attrs.src;
           in
-          buildVendoredCargo substrateSrc;
+          buildVendoredCargo substrateSrc attrs;
         prost-build = protobufFix;
     }
     );
