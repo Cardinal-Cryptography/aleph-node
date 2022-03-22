@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 function usage(){
   cat << EOF
 Usage:
@@ -408,7 +406,7 @@ if  [ -n "${STAKING_CONFIG_FILE}" ]; then
 fi
 if  [ -n "${KEY_ROTATION}" ]; then
   did_something="true"
-  run_key_rotation "${KEY_ROTATION}" "${NAMESPACE}" "${VALIDATOR_POD_NAME}"
+  run_key_rotation "${KEY_ROTATION}" "${CLIAIN_PATH}" "${NAMESPACE}" "${VALIDATOR_POD_NAME}"
 fi
 if  [ -n "${SET_STAKING_LIMITS}" ]; then
   did_something="true"
