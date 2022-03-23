@@ -3,7 +3,7 @@ use crate::{
     mock::*,
     types::{LightBlockStorage, LightClientOptionsStorage},
 };
-use frame_support::assert_ok;
+use frame_support::{assert_err, assert_ok};
 use tendermint_light_client_verifier::types::LightBlock;
 
 #[test]
@@ -70,11 +70,38 @@ fn successful_verification() {
 
         let last_imported_block = Pallet::<TestRuntime>::get_last_imported_block().unwrap();
         assert_eq!(untrusted_block, last_imported_block);
-
-        // assert!(false);
     });
 }
 
-// TODO : failed_verification_outside_trusting_period
+#[test]
+fn failed_verification() {
+    new_test_ext(|| {
+        System::set_block_number(1);
+
+        let options = LightClientOptionsStorage::default();
+
+        // 1970-01-01T00:00:03Z + trusting period + clock_drift
+        Timestamp::set_timestamp(3000 + (options.trusting_period + options.clock_drift) * 1000);
+
+        let origin = Origin::root();
+        let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+        assert_ok!(Pallet::<TestRuntime>::initialize_client(
+            origin,
+            options.clone(),
+            initial_block.clone()
+        ));
+
+        let untrusted_block: LightBlockStorage =
+            serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+
+        let origin = Origin::signed(100);
+
+        assert_err!(
+            Pallet::<TestRuntime>::submit_finality_proof(origin, untrusted_block.clone()),
+            super::Error::<TestRuntime>::InvalidBlock
+        );
+    });
+}
 
 // TODO : round_robin_storage test

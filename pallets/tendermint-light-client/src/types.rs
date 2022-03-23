@@ -55,7 +55,7 @@ pub struct LightClientOptionsStorage {
     /// accepted going forward.
     pub trust_threshold: TrustThresholdStorage,
     /// How long a validator set is trusted for (must be shorter than the chain's
-    /// unbonding period)
+    /// unbonding period) in secs
     pub trusting_period: u64,
     /// Correction parameter dealing with only approximately synchronized clocks.
     /// The local clock should always be ahead of timestamps from the blockchain; this
