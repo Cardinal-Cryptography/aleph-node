@@ -18,7 +18,7 @@ chain = Chain(workdir)
 print('Bootstraping the chain with binary')
 chain.bootstrap(binary,
                 all_accounts[:4],
-                accounts=all_accounts[4:],
+                nonvalidators=all_accounts[4:],
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local')
 
