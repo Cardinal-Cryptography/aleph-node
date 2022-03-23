@@ -14,7 +14,7 @@ mod mock;
 #[cfg(std)]
 mod tests;
 
-mod types;
+pub mod types;
 mod utils;
 
 use frame_support::traits::StorageVersion;
