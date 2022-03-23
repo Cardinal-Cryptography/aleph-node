@@ -73,4 +73,3 @@ short_session = [
     "aleph-runtime/short_session",
     "aleph-primitives/short_session"
 ]
-mainnet = []

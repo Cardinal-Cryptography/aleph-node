@@ -1,4 +1,3 @@
-#[cfg(feature = "mainnet")]
 pub fn mainnet_chainspec() -> &'static [u8] {
     include_bytes!("mainnet_chainspec.json")
 }
