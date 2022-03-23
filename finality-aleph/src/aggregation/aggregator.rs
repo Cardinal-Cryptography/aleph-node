@@ -1,16 +1,15 @@
 use crate::{
-    aggregation::multicast::{HasSignature, Hash, Multicast, Multisigned, SignableHash},
+    aggregation::multicast::{Hash, Multicast, SignableHash},
     metrics::{Checkpoint, Metrics},
     network::DataNetwork,
 };
-use aleph_bft::{MultiKeychain, Recipient, Signable};
+use aleph_bft::{PartialMultisignature, Recipient};
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, trace, warn};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
-    marker::PhantomData,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,23 +27,15 @@ pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
-pub struct BlockSignatureAggregator<
-    'a,
-    H: Hash + Copy,
-    MK: MultiKeychain,
-    MS: Multisigned<'a, SignableHash<H>, MK>,
-> {
-    signatures: HashMap<H, MK::PartialMultisignature>,
+pub struct BlockSignatureAggregator<H: Hash + Copy, PMS: PartialMultisignature> {
+    signatures: HashMap<H, PMS>,
     hash_queue: VecDeque<H>,
     last_hash_placed: bool,
     started_hashes: HashSet<H>,
     metrics: Option<Metrics<H>>,
-    marker: PhantomData<&'a MS>,
 }
 
-impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>, MK>>
-    BlockSignatureAggregator<'a, H, MK, MS>
-{
+impl<H: Copy + Hash, PMS: PartialMultisignature> BlockSignatureAggregator<H, PMS> {
     pub(crate) fn new(metrics: Option<Metrics<H>>) -> Self {
         BlockSignatureAggregator {
             signatures: HashMap::new(),
@@ -52,7 +43,6 @@ impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>,
             last_hash_placed: false,
             started_hashes: HashSet::new(),
             metrics,
-            marker: PhantomData,
         }
     }
 
@@ -72,14 +62,12 @@ impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>,
         self.last_hash_placed = true;
     }
 
-    fn on_multisigned_hash(&mut self, multisigned_hash: MS) {
-        let hash = multisigned_hash.as_signable().hash();
-        let unchecked = multisigned_hash.into_unchecked();
-        debug!(target: "aleph-aggregator", "New multisigned_hash {:?}.", unchecked);
-        self.signatures.insert(hash, unchecked.signature());
+    fn on_multisigned_hash(&mut self, hash: H, signature: PMS) {
+        debug!(target: "aleph-aggregator", "New multisigned_hash {:?}.", hash);
+        self.signatures.insert(hash, signature);
     }
 
-    fn try_pop_hash(&mut self) -> AggregatorResult<(H, MK::PartialMultisignature)> {
+    fn try_pop_hash(&mut self) -> AggregatorResult<(H, PMS)> {
         match self.hash_queue.pop_front() {
             Some(hash) => {
                 if let Some(multisignature) = self.signatures.remove(&hash) {
@@ -101,39 +89,33 @@ impl<'a, H: Copy + Hash, MK: MultiKeychain, MS: Multisigned<'a, SignableHash<H>,
 }
 
 pub struct IO<
-    'a,
     H: Hash + Copy,
     D: Clone + Codec + Debug + Send + Sync + 'static,
     N: DataNetwork<D>,
-    MK: MultiKeychain,
-    RMC: Multicast<H, SignableHash<H>>,
-> where
-    RMC::Signed: Multisigned<'a, SignableHash<H>, MK>,
-{
+    PMS: PartialMultisignature,
+    RMC: Multicast<H, PMS>,
+> {
     messages_for_rmc: mpsc::UnboundedSender<D>,
     messages_from_rmc: mpsc::UnboundedReceiver<D>,
     network: N,
     multicast: RMC,
-    aggregator: BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+    aggregator: BlockSignatureAggregator<H, PMS>,
 }
 
 impl<
-        'a,
         H: Copy + Hash,
         D: Clone + Codec + Debug + Send + Sync,
         N: DataNetwork<D>,
-        MK: MultiKeychain,
-        RMC: Multicast<H, SignableHash<H>>,
-    > IO<'a, H, D, N, MK, RMC>
-where
-    RMC::Signed: Multisigned<'a, SignableHash<H>, MK>,
+        PMS: PartialMultisignature,
+        RMC: Multicast<H, PMS>,
+    > IO<H, D, N, PMS, RMC>
 {
     pub(crate) fn new(
         messages_for_rmc: mpsc::UnboundedSender<D>,
         messages_from_rmc: mpsc::UnboundedReceiver<D>,
         network: N,
         multicast: RMC,
-        aggregator: BlockSignatureAggregator<'a, H, MK, RMC::Signed>,
+        aggregator: BlockSignatureAggregator<H, PMS>,
     ) -> Self {
         IO {
             messages_for_rmc,
@@ -162,8 +144,8 @@ where
     async fn wait_for_next_signature(&mut self) -> IOResult {
         loop {
             tokio::select! {
-                multisigned_hash = self.multicast.next_multisigned_hash() => {
-                    self.aggregator.on_multisigned_hash(multisigned_hash);
+                (hash, signature) = self.multicast.next_signed_pair() => {
+                    self.aggregator.on_multisigned_hash(hash, signature);
                     return Ok(());
                 }
                 message_from_rmc = self.messages_from_rmc.next() => {
@@ -194,7 +176,7 @@ where
         }
     }
 
-    pub(crate) async fn next_multisigned_hash(&mut self) -> Option<(H, MK::PartialMultisignature)> {
+    pub(crate) async fn next_multisigned_hash(&mut self) -> Option<(H, PMS)> {
         loop {
             trace!(target: "aleph-aggregator", "Entering next_multisigned_hash loop.");
             match self.aggregator.try_pop_hash() {
@@ -230,51 +212,19 @@ mod tests {
     use crate::{
         aggregation::{
             aggregator::{AggregatorError, BlockSignatureAggregator},
-            mock::{TestMultiKeychain, TestMultisigned},
+            mock::TestMultisignature,
         },
         testing::mocks::THash,
     };
 
-    fn build_aggregator(
-    ) -> BlockSignatureAggregator<'static, THash, TestMultiKeychain, TestMultisigned> {
+    fn build_aggregator() -> BlockSignatureAggregator<THash, TestMultisignature> {
         BlockSignatureAggregator::new(None)
     }
 
     fn build_hash(b0: u8) -> THash {
-        THash::from([
-            b0, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8,
-            2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8,
-        ])
-    }
-
-    #[test]
-    fn adds_hashes_on_start() {
-        let mut aggregator = build_aggregator();
-        assert!(aggregator.started_hashes.is_empty());
-        assert!(aggregator.hash_queue.is_empty());
-
-        let res = aggregator.on_start(build_hash(0));
-
-        assert!(res.is_ok());
-        assert_eq!(aggregator.started_hashes.len(), 1);
-        assert_eq!(aggregator.hash_queue.len(), 1);
-    }
-
-    #[test]
-    fn not_started_doesnt_return() {
-        let mut aggregator = build_aggregator();
-        let res = aggregator.try_pop_hash();
-        assert_eq!(res, Err(AggregatorError::NoHashFound));
-    }
-
-    #[test]
-    fn doesnt_return_without_multisigned_hash() {
-        let mut aggregator = build_aggregator();
-        let res = aggregator.on_start(build_hash(0));
-        assert!(res.is_ok());
-
-        let res = aggregator.try_pop_hash();
-        assert_eq!(res, Err(AggregatorError::NoHashFound));
+        let mut bytes = [0u8; 32];
+        bytes[0] = b0;
+        THash::from(bytes)
     }
 
     #[test]
@@ -283,7 +233,7 @@ mod tests {
         let res = aggregator.on_start(build_hash(0));
         assert!(res.is_ok());
 
-        aggregator.on_multisigned_hash(TestMultisigned::new(build_hash(0)));
+        aggregator.on_multisigned_hash(build_hash(0), TestMultisignature::generate());
 
         let res = aggregator.try_pop_hash();
         assert!(res.is_ok());
@@ -295,7 +245,7 @@ mod tests {
         let res = aggregator.on_start(build_hash(0));
         assert!(res.is_ok());
 
-        aggregator.on_multisigned_hash(TestMultisigned::new(build_hash(1)));
+        aggregator.on_multisigned_hash(build_hash(1), TestMultisignature::generate());
 
         let res = aggregator.try_pop_hash();
         assert_eq!(res, Err(AggregatorError::NoHashFound));
