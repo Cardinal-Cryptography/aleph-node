@@ -4,23 +4,12 @@ import sys
 from os.path import abspath, join
 from time import sleep
 
-from chainrunner import Chain, Seq, generate_keys
+from chainrunner import Chain, Seq, generate_keys, check_finalized
 
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important use short-session feature):
 binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
-
-
-def check_finalized(nodes):
-    results = [node.highest_block() for node in nodes]
-    highest, finalized = zip(*results)
-    print('Blocks seen by nodes:')
-    print('  Highest:   ', *highest)
-    print('  Finalized: ', *finalized)
-
-    return finalized
-
 
 phrases = [f'//{i}' for i in range(6)]
 keys = generate_keys(binary, phrases)

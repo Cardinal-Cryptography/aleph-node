@@ -31,15 +31,15 @@ class Chain:
     def __iter__(self):
         return iter(self.nodes)
 
-    def bootstrap(self, binary, validator_accounts, accounts=None, **kwargs):
+    def bootstrap(self, binary, validators, nonvalidators=None, **kwargs):
         """Bootstrap the chain. `validator_accounts` should be a list of strings.
         Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
-        accounts = accounts or []
+        nonvalidators = nonvalidators or []
         cmd = [check_file(binary),
                'bootstrap-chain',
                '--base-path', self.path,
-               '--account-ids', ','.join(validator_accounts), '--raw']
+               '--account-ids', ','.join(validators), '--raw']
         cmd += flags_from_dict(kwargs)
 
         chainspec = op.join(self.path, 'chainspec.json')
@@ -51,10 +51,10 @@ class Chain:
             n.flags['node-key-file'] = op.join(self.path, account, 'p2p_secret')
             return n
 
-        self.validator_nodes = [account_to_node(a) for a in validator_accounts]
-        self.nonvalidator_nodes = [account_to_node(a) for a in accounts]
+        self.validator_nodes = [account_to_node(a) for a in validators]
+        self.nonvalidator_nodes = [account_to_node(a) for a in nonvalidators]
 
-        self.nodes = list(chain(self.nonvalidator_nodes, self.validator_nodes))
+        self.nodes = self.nonvalidator_nodes + self.validator_nodes
 
     @staticmethod
     def _set_flags(nodes, *args, **kwargs):
