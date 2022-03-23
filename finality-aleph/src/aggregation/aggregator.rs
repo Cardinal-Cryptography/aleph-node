@@ -1,8 +1,7 @@
 use crate::{
-    aggregation::multicast::{Hash, Multicast, Multisigned, SignableHash},
-    metrics::Checkpoint,
+    aggregation::multicast::{HasSignature, Hash, Multicast, Multisigned, SignableHash},
+    metrics::{Checkpoint, Metrics},
     network::DataNetwork,
-    Metrics,
 };
 use aleph_bft::{MultiKeychain, Recipient, Signable};
 use codec::Codec;
@@ -14,6 +13,7 @@ use std::{
     marker::PhantomData,
 };
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum AggregatorError {
     LastHashPlaced,
     NoHashFound,
@@ -222,5 +222,90 @@ where
                 return None;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        aggregation::{
+            aggregator::{AggregatorError, BlockSignatureAggregator},
+            mock::{TestMultiKeychain, TestMultisigned},
+        },
+        testing::mocks::THash,
+    };
+
+    fn build_aggregator(
+    ) -> BlockSignatureAggregator<'static, THash, TestMultiKeychain, TestMultisigned> {
+        BlockSignatureAggregator::new(None)
+    }
+
+    fn build_hash(b0: u8) -> THash {
+        THash::from([
+            b0, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8,
+            2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8,
+        ])
+    }
+
+    #[test]
+    fn adds_hashes_on_start() {
+        let mut aggregator = build_aggregator();
+        assert!(aggregator.started_hashes.is_empty());
+        assert!(aggregator.hash_queue.is_empty());
+
+        let res = aggregator.on_start(build_hash(0));
+
+        assert!(res.is_ok());
+        assert_eq!(aggregator.started_hashes.len(), 1);
+        assert_eq!(aggregator.hash_queue.len(), 1);
+    }
+
+    #[test]
+    fn not_started_doesnt_return() {
+        let mut aggregator = build_aggregator();
+        let res = aggregator.try_pop_hash();
+        assert_eq!(res, Err(AggregatorError::NoHashFound));
+    }
+
+    #[test]
+    fn doesnt_return_without_multisigned_hash() {
+        let mut aggregator = build_aggregator();
+        let res = aggregator.on_start(build_hash(0));
+        assert!(res.is_ok());
+
+        let res = aggregator.try_pop_hash();
+        assert_eq!(res, Err(AggregatorError::NoHashFound));
+    }
+
+    #[test]
+    fn returns_with_matching_multisigned_hash() {
+        let mut aggregator = build_aggregator();
+        let res = aggregator.on_start(build_hash(0));
+        assert!(res.is_ok());
+
+        aggregator.on_multisigned_hash(TestMultisigned::new(build_hash(0)));
+
+        let res = aggregator.try_pop_hash();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn doesnt_return_without_matching_multisigned_hash() {
+        let mut aggregator = build_aggregator();
+        let res = aggregator.on_start(build_hash(0));
+        assert!(res.is_ok());
+
+        aggregator.on_multisigned_hash(TestMultisigned::new(build_hash(1)));
+
+        let res = aggregator.try_pop_hash();
+        assert_eq!(res, Err(AggregatorError::NoHashFound));
+    }
+
+    #[test]
+    fn is_aware_of_last_hash() {
+        let mut aggregator = build_aggregator();
+        aggregator.notify_last_hash();
+        let res = aggregator.try_pop_hash();
+        assert_eq!(res, Err(AggregatorError::LastHashPlaced));
     }
 }

@@ -4,6 +4,7 @@
 //! We expose the following traits:
 //! - `Multicast`: mimicking the interface of `aleph_bft::ReliableMulticast`
 //! - `Multisigned`: abstracting away the `aleph_bft::Multisigned` capabilities as a trait.
+//! - `HasSignature`: abstracting away the relevant `aleph_bft::UncheckedSigned` capabilities.
 
 use aleph_bft::{
     rmc::ReliableMulticast, MultiKeychain, Multisigned as MultisignedStruct, Signable,
@@ -36,15 +37,29 @@ impl<H: Hash> Signable for SignableHash<H> {
     }
 }
 
+pub trait HasSignature<MK: MultiKeychain> {
+    fn signature(&self) -> MK::PartialMultisignature;
+}
+
+impl<H: Hash, MK: MultiKeychain> HasSignature<MK>
+    for UncheckedSigned<SignableHash<H>, MK::PartialMultisignature>
+{
+    fn signature(&self) -> MK::PartialMultisignature {
+        self.signature()
+    }
+}
+
 /// Anything that exposes the same interface as `aleph_bft::Multisigned` struct.
 pub trait Multisigned<'a, S: Signable, MK: MultiKeychain> {
+    type Result: HasSignature<MK> + Debug;
     fn as_signable(&self) -> &S;
-    fn into_unchecked(self) -> UncheckedSigned<S, MK::PartialMultisignature>;
+    fn into_unchecked(self) -> Self::Result;
 }
 
 impl<'a, H: Hash, MK: MultiKeychain> Multisigned<'a, SignableHash<H>, MK>
     for MultisignedStruct<'a, SignableHash<H>, MK>
 {
+    type Result = UncheckedSigned<SignableHash<H>, MK::PartialMultisignature>;
     fn as_signable(&self) -> &SignableHash<H> {
         self.as_signable()
     }

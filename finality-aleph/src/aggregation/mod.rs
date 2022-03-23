@@ -5,6 +5,9 @@ use sp_runtime::traits::Block;
 mod aggregator;
 mod multicast;
 
+#[cfg(test)]
+mod mock;
+
 pub use aggregator::{BlockSignatureAggregator, IO};
 pub use multicast::SignableHash;
 
