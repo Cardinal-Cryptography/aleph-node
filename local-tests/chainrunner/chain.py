@@ -2,7 +2,6 @@ import os
 import os.path as op
 import subprocess
 
-from itertools import chain
 from .node import Node
 from .utils import flags_from_dict, check_file
 
