@@ -97,7 +97,8 @@ pub mod pallet {
 
     /// Hash of the best finalized header from the bridged chain
     #[pallet::storage]
-    pub type BestFinalized<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
+    #[pallet::getter(fn get_last_imported_hash)]
+    pub type LastImportedHash<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
 
     /// A ring buffer of imported hashes ordered by their insertion time
     #[pallet::storage]
@@ -113,6 +114,20 @@ pub mod pallet {
     pub(super) type ImportedBlocks<T: Config> =
         StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage, OptionQuery>;
 
+    // TODO : expose in runtime API and nodes RPC
+    impl<T: Config> Pallet<T> {
+        pub fn get_last_imported_block() -> Option<LightBlockStorage> {
+            let ptr = ImportedHashesPointer::<T>::get()
+                .checked_sub(1)
+                .expect("unexpected failure when subtracting");
+
+            match ImportedHashes::<T>::get(ptr) {
+                Some(key) => ImportedBlocks::<T>::get(key),
+                None => None,
+            }
+        }
+    }
+
     // END: TODOs
 
     /// If true, stop the world
@@ -126,7 +141,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // TODO :  benchmark & adjust weights
+        // TODO : benchmark & adjust weights
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         pub fn initialize_client(
             origin: OriginFor<T>,
@@ -138,7 +153,7 @@ pub mod pallet {
             log::debug!(target: "runtime::tendermint-lc", "Initializing Light Client light:\n options: {:?}\n initial block {:#?}", &options, &initial_block);
 
             // ensure client is not already initialized
-            let can_initialize = !<BestFinalized<T>>::exists();
+            let can_initialize = !<LastImportedHash<T>>::exists();
             ensure!(can_initialize, <Error<T>>::AlreadyInitialized);
 
             <LightClientOptions<T>>::put(options);
@@ -171,8 +186,9 @@ pub mod pallet {
 
             let options: Options = <LightClientOptions<T>>::get().try_into()?;
             let verifier = ProdVerifier::default();
-            let most_recent_trusted_block = match <ImportedBlocks<T>>::get(<BestFinalized<T>>::get())
-            {
+            let most_recent_trusted_block = match <ImportedBlocks<T>>::get(
+                <LastImportedHash<T>>::get(),
+            ) {
                 Some(best_finalized) => best_finalized,
                 None => {
                     log::error!(
@@ -185,9 +201,9 @@ pub mod pallet {
             };
 
             let now = T::TimeProvider::now();
-            // Time::unix_epoch();
-            // let now: Time = from_unix_timestamp(now.as_secs().try_into().unwrap());
             let now = Time::from_unix_timestamp(now.as_secs().try_into().unwrap(), 0).unwrap();
+
+            // println!("@ now {:?}", now);
 
             let verdict = verify_light_block(
                 verifier,
@@ -196,8 +212,6 @@ pub mod pallet {
                 &options,
                 now,
             );
-
-            // print!("{:?}", verdict);
 
             match verdict {
                 tendermint_light_client_verifier::Verdict::Success => {
@@ -271,7 +285,7 @@ pub mod pallet {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
 
-        <BestFinalized<T>>::put(hash.clone());
+        <LastImportedHash<T>>::put(hash.clone());
         <ImportedBlocks<T>>::insert(hash.clone(), light_block);
         <ImportedHashes<T>>::insert(index, hash.clone());
         <ImportedHashesPointer<T>>::put((index + 1) % T::HeadersToKeep::get());

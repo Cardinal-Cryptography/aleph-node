@@ -54,7 +54,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
         }
     },
     "validator_set": {
-        "total_voting_power": "0",
+        "total_voting_power": "50",
         "validators": [
             {
                 "address": "6AE5C701F508EB5B63343858E068C5843F28105F",
@@ -68,7 +68,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
         ]
     },
     "next_validator_set": {
-        "total_voting_power": "0",
+        "total_voting_power": "50",
         "validators": [
             {
                 "address": "6AE5C701F508EB5B63343858E068C5843F28105F",

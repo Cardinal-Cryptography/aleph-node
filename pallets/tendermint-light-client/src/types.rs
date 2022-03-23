@@ -518,7 +518,7 @@ pub struct ValidatorInfoStorage {
         feature = "std",
         serde(
             alias = "voting_power",
-            alias = "total_voting_power",
+            // alias = "total_voting_power",
             deserialize_with = "deserialize_from_str"
         )
     )]
@@ -583,6 +583,7 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
             ..
         } = value;
 
+        // NOTE: constructor will sum up voting powers
         Ok(Self::new(
             validators
                 .into_iter()
