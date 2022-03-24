@@ -1,5 +1,4 @@
-use crate::transfer::locks;
-use aleph_client::{send_xt, BlockNumber, Connection, KeyPair};
+use aleph_client::{locks, send_xt, BlockNumber, Connection, KeyPair};
 use codec::Compact;
 use pallet_balances::BalanceLock;
 pub use pallet_staking::RewardDestination;

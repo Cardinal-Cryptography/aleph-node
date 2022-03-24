@@ -9,13 +9,13 @@ pub fn token_transfer(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
 
     let to = AccountId::from(to);
-    let balance_before = get_free_balance(&to, &connection);
+    let balance_before = get_free_balance(&connection, &to);
     info!("[+] Account {} balance before tx: {}", to, balance_before);
 
     let transfer_value = 1000u128;
     balances_transfer(&connection, &to, transfer_value, XtStatus::Finalized);
 
-    let balance_after = get_free_balance(&to, &connection);
+    let balance_after = get_free_balance(&connection, &to);
     info!("[+] Account {} balance after tx: {}", to, balance_after);
 
     assert_eq!(

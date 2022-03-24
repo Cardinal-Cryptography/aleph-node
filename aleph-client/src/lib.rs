@@ -12,7 +12,7 @@ mod staking;
 mod transfer;
 mod waiting;
 
-pub use account::get_free_balance;
+pub use account::{get_free_balance, locks};
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use rpc::{rotate_keys, rotate_keys_raw_result};
 pub use session::{

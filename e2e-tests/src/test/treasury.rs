@@ -44,7 +44,7 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let treasury = get_treasury_account(&connection);
 
     let possibly_treasury_gain_from_staking = calculate_staking_treasury_addition(&connection);
-    let treasury_balance_before = get_free_balance(&treasury, &connection);
+    let treasury_balance_before = get_free_balance(&connection, &treasury);
     let issuance_before = get_total_issuance(&connection);
     info!(
         "[+] Treasury balance before tx: {}. Total issuance: {}.",
@@ -52,7 +52,7 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     );
 
     let tx = balances_transfer(&connection, &to, 1000u128, XtStatus::Finalized);
-    let treasury_balance_after = get_free_balance(&treasury, &connection);
+    let treasury_balance_after = get_free_balance(&connection, &treasury);
     let issuance_after = get_total_issuance(&connection);
     check_treasury_issuance(
         possibly_treasury_gain_from_staking,
