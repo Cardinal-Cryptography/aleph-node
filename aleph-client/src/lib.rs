@@ -28,7 +28,7 @@ pub use staking::{
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
 };
-pub use waiting::wait_for_event;
+pub use waiting::{wait_for_event, wait_for_finalized_block};
 
 pub trait FromStr: Sized {
     type Err;
