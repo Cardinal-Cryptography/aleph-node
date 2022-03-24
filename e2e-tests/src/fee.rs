@@ -1,8 +1,6 @@
-use codec::Encode;
-use substrate_api_client::Balance;
 use aleph_client::Connection;
-
-use crate::UncheckedExtrinsicV4;
+use codec::Encode;
+use substrate_api_client::{Balance, UncheckedExtrinsicV4};
 
 #[derive(Debug)]
 pub struct FeeInfo {
