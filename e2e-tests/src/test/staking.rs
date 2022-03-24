@@ -22,10 +22,7 @@ use substrate_api_client::{AccountId, XtStatus};
 
 fn get_key_pairs() -> (Vec<KeyPair>, Vec<KeyPair>) {
     let validators = default_account_seeds();
-    let validator_stashes: Vec<_> = validators
-        .iter()
-        .map(|v| String::from(v) + "//stash")
-        .collect();
+    let validator_stashes = validators.iter().map(|v| format!("{}//stash", v)).collect();
     let validator_accounts_key_pairs = accounts_from_seeds(&Some(validators));
     let stashes_accounts_key_pairs = accounts_from_seeds(&Some(validator_stashes));
 

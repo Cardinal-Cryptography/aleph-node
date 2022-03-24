@@ -1,10 +1,12 @@
 use crate::{
-    accounts::{accounts_from_seeds, get_free_balance, get_sudo},
+    accounts::{accounts_from_seeds, get_sudo},
     config::Config,
     fee::get_tx_fee_info,
     transfer::setup_for_transfer,
 };
-use aleph_client::{balances_transfer, create_connection, send_xt, wait_for_event, Connection};
+use aleph_client::{
+    balances_transfer, create_connection, get_free_balance, send_xt, wait_for_event, Connection,
+};
 use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
@@ -25,8 +27,8 @@ fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
     let millisecs_per_block = 2 * connection
         .get_constant::<u64>("Timestamp", "MinimumPeriod")
         .unwrap();
-    let miliseconds_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
-    let treasury_era_payout_from_staking = primitives::staking::era_payout(miliseconds_per_era).1;
+    let millisecs_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
+    let treasury_era_payout_from_staking = primitives::staking::era_payout(millisecs_per_era).1;
     info!(
         "[+] Possible treasury gain from staking is {}",
         treasury_era_payout_from_staking
