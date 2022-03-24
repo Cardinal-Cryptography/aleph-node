@@ -1,20 +1,23 @@
-use crate::{
-    accounts::{accounts_from_seeds, get_sudo},
-    config::Config,
-    fee::get_tx_fee_info,
-    transfer::setup_for_transfer,
-};
-use aleph_client::{
-    balances_transfer, create_connection, get_free_balance, send_xt, wait_for_event, Connection,
-};
+use std::{thread, thread::sleep, time::Duration};
+
 use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
-use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{
     compose_extrinsic, AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus,
+};
+
+use aleph_client::{
+    balances_transfer, create_connection, get_free_balance, get_tx_fee_info, send_xt,
+    wait_for_event, Connection,
+};
+
+use crate::{
+    accounts::{accounts_from_seeds, get_sudo},
+    config::Config,
+    transfer::setup_for_transfer,
 };
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {

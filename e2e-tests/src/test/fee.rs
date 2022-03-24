@@ -5,13 +5,11 @@ use substrate_api_client::{
     compose_extrinsic, AccountId, GenericAddress, UncheckedExtrinsicV4, XtStatus,
 };
 
-use aleph_client::{send_xt, Connection, TransferTransaction};
-
-use crate::{
-    config::Config,
-    fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo},
-    transfer::setup_for_transfer,
+use aleph_client::{
+    get_next_fee_multiplier, get_tx_fee_info, send_xt, Connection, FeeInfo, TransferTransaction,
 };
+
+use crate::{config::Config, transfer::setup_for_transfer};
 
 pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
     let (connection, _from, _to) = setup_for_transfer(config);
