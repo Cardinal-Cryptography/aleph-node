@@ -1,11 +1,9 @@
-use std::env;
-use std::time::Instant;
+use std::{env, time::Instant};
 
 use clap::Parser;
-
-use aleph_e2e_client::config::Config;
-use aleph_e2e_client::test;
 use log::info;
+
+use aleph_e2e_client::{config::Config, test};
 
 fn main() -> anyhow::Result<()> {
     init_env();

@@ -1,5 +1,5 @@
 use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
-
+// TODO remove `pub`
 pub mod accounts;
 pub mod config;
 mod fee;
@@ -7,35 +7,6 @@ pub mod staking;
 pub mod test;
 pub mod transfer;
 mod waiting;
-
-#[macro_export]
-macro_rules! send_extrinsic {
-	($connection: expr,
-	$module: expr,
-	$call: expr,
-    $exit_on: expr,
-    $hash_log: expr
-	$(, $args: expr) *) => {
-		{
-            use substrate_api_client::{compose_extrinsic, UncheckedExtrinsicV4};
-
-            let tx: UncheckedExtrinsicV4<_> = compose_extrinsic!(
-                $connection,
-                $module,
-                $call
-                $(, ($args)) *
-            );
-
-            let tx_hash = $connection
-                .send_extrinsic(tx.hex_encode(), $exit_on)
-                .expect("Could not send extrinsic")
-                .expect("Could not get tx hash");
-            $hash_log(tx_hash);
-
-            tx
-		}
-    };
-}
 
 #[macro_export]
 macro_rules! send_extrinsic_no_wait {

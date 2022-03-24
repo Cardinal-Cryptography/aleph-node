@@ -4,15 +4,16 @@ use crate::{
     fee::get_tx_fee_info,
     transfer::setup_for_transfer,
 };
-use aleph_client::{balances_transfer, create_connection, wait_for_event, Connection};
+use aleph_client::{balances_transfer, create_connection, send_xt, wait_for_event, Connection};
 use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
-use std::time::Duration;
-use std::{thread, thread::sleep};
-use substrate_api_client::{AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus};
+use std::{thread, thread::sleep, time::Duration};
+use substrate_api_client::{
+    compose_extrinsic, AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus,
+};
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
     let sessions_per_era = connection
@@ -159,15 +160,20 @@ fn propose_treasury_spend(
     beneficiary: &AccountId32,
     connection: &Connection,
 ) -> ProposalTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "propose_spend",
-        XtStatus::Finalized,
-        |tx_hash| info!("[+] Treasury spend transaction hash: {}", tx_hash),
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
-    )
+    );
+    send_xt(
+        connection,
+        xt.hex_encode(),
+        "treasury spend",
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn get_proposals_counter(connection: &Connection) -> u32 {
@@ -178,15 +184,21 @@ fn get_proposals_counter(connection: &Connection) -> u32 {
 }
 
 type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
+
 fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "approve_proposal",
-        XtStatus::Finalized,
-        |tx_hash| info!("[+] Treasury approval transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    )
+    );
+    send_xt(
+        connection,
+        xt.hex_encode(),
+        "treasury approval",
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
@@ -195,14 +207,19 @@ fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result
 }
 
 fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "reject_proposal",
-        XtStatus::Finalized,
-        |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    )
+    );
+    send_xt(
+        connection,
+        xt.hex_encode(),
+        "treasury rejection",
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn treasury_reject(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
