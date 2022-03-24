@@ -56,7 +56,7 @@ fn wait_for_10_eras(
 ) -> Result<(), anyhow::Error> {
     // we wait at least two full eras plus this era, to have thousands of nominators to settle up
     // correctly
-    // staking_wait_for_next_era(&connection)?;
+    staking_wait_for_next_era(&connection)?;
     let mut current_era = staking_wait_for_full_era_completion(&connection)?;
     for _ in 0..ERAS_TO_WAIT {
         info!(
