@@ -4,12 +4,14 @@ use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use std::{thread::sleep, time::Duration};
 use substrate_api_client::{rpc::ws_client::WsRpcClient, Api, RpcClient, XtStatus};
 
+mod debug;
 mod rpc;
 mod session;
 mod staking;
 mod transfer;
 mod waiting;
 
+pub use debug::print_storages;
 pub use rpc::{rotate_keys, rotate_keys_raw_result};
 pub use session::{
     change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,

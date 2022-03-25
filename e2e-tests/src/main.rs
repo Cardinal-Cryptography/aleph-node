@@ -1,10 +1,17 @@
-use std::env;
-use std::time::Instant;
+use std::{
+    env,
+    time::Instant
+};
 
 use clap::Parser;
 
-use aleph_e2e_client::config::Config;
-use aleph_e2e_client::test;
+use aleph_e2e_client::{
+    config::Config,
+    test
+};
+use aleph_client::{
+                       create_connection,
+                       print_storages};
 use log::info;
 
 fn main() -> anyhow::Result<()> {
@@ -12,6 +19,18 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
+    if config.storage_debug {
+        let connection = create_connection(&config.node, config.protocol);
+        print_storages(&connection);
+        return Ok(());
+    }
+
+    Err(anyhow::anyhow!("fail"))
+    // run_tests(config)
+}
+
+
+fn run_tests(config: Config) -> anyhow::Result<()> {
     run(test::finalization, "finalization", &config)?;
     run(test::token_transfer, "token transfer", &config)?;
     run(test::channeling_fee, "channeling fee", &config)?;
