@@ -33,8 +33,8 @@ chain.set_flags_validator('validator')
 print('Starting the chain')
 chain.start('aleph')
 
-print('Waiting 30s')
-sleep(30)
+print('Waiting 90s')
+sleep(90)
 
 check_finalized(chain)
 print('Killing one validator and one nonvalidator')
