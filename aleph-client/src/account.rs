@@ -1,4 +1,5 @@
 use crate::Connection;
+use pallet_balances::BalanceLock;
 use substrate_api_client::{AccountId, Balance};
 
 pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance {
@@ -19,4 +20,21 @@ pub fn locks(
     connection
         .get_storage_map("Balances", "Locks", account, None)
         .expect("Key `Locks` should be present in storage")
+}
+
+pub fn get_locked_balance(
+    stash_account: &AccountId,
+    connection: &Connection,
+) -> Vec<BalanceLock<Balance>> {
+    let locked_stash_balance = locks(&connection, stash_account).expect(&format!(
+        "Expected non-empty locked balances for account {}!",
+        stash_account
+    ));
+    assert_eq!(
+        locked_stash_balance.len(),
+        1,
+        "Expected locked balances for account {} to have exactly one entry!",
+        stash_account
+    );
+    locked_stash_balance
 }

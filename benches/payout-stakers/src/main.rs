@@ -1,18 +1,20 @@
-use aleph_client::{
-    balances_batch_transfer, create_connection, keypair_from_string, staking_bond,
-    staking_validate, staking_wait_for_full_era_completion, staking_wait_for_next_era, Protocol,
-};
-use e2e::staking::{batch_bond, batch_nominate, check_non_zero_payouts_for_era};
+use std::iter;
+
 use log::info;
-use primitives::staking::{
-    MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
-};
 use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
-use std::iter;
 use substrate_api_client::{
     extrinsic::staking::RewardDestination, rpc::WsRpcClient, AccountId, Api, XtStatus,
+};
+
+use aleph_client::{
+    balances_batch_transfer, create_connection, keypair_from_string, staking_batch_bond,
+    staking_batch_nominate, staking_bond, staking_check_non_zero_payouts_for_era, staking_validate,
+    staking_wait_for_full_era_completion, staking_wait_for_next_era, Protocol,
+};
+use primitives::staking::{
+    MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
 };
 
 // testcase parameters
@@ -66,7 +68,7 @@ fn wait_for_10_eras(
         );
         let stash_connection = create_connection(address, protocol).set_signer(nominee.clone());
         let stash_account = AccountId::from(nominee.public());
-        check_non_zero_payouts_for_era(
+        staking_check_non_zero_payouts_for_era(
             &stash_connection,
             &nominators[..],
             &stash_account,
@@ -90,7 +92,7 @@ fn nominate_validator_0<'a>(
     stash_validators_accounts
         .chunks(BOND_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            batch_bond(
+            staking_batch_bond(
                 &connection,
                 chunk,
                 MIN_NOMINATOR_BOND,
@@ -104,7 +106,7 @@ fn nominate_validator_0<'a>(
         .collect::<Vec<_>>();
     nominator_nominee_accounts
         .chunks(NOMINATE_CALL_BATCH_LIMIT)
-        .for_each(|chunk| batch_nominate(&connection, chunk));
+        .for_each(|chunk| staking_batch_nominate(&connection, chunk));
     nominee
 }
 

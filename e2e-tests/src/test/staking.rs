@@ -1,11 +1,11 @@
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds},
     config::Config,
-    staking::{bonded, check_non_zero_payouts_for_era, ledger, nominate},
 };
 use aleph_client::{
     balances_batch_transfer, change_members, create_connection, get_current_session,
-    keypair_from_string, rotate_keys, set_keys, staking_bond, staking_validate,
+    keypair_from_string, rotate_keys, set_keys, staking_bond, staking_bonded,
+    staking_check_non_zero_payouts_for_era, staking_ledger, staking_nominate, staking_validate,
     staking_wait_for_full_era_completion, wait_for_session, KeyPair,
 };
 use log::info;
@@ -86,10 +86,10 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         .zip(validator_accounts.par_iter())
         .for_each(|(nominator, nominee)| {
             let connection = create_connection(node, config.protocol).set_signer(nominator.clone());
-            nominate(&connection, nominee)
+            staking_nominate(&connection, nominee)
         });
 
-    // All the above calls influace the next era, so we need to wait that it passes.
+    // All the above calls influence the next era, so we need to wait that it passes.
     let current_era = staking_wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
@@ -101,7 +101,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         let stash_connection =
             create_connection(node, config.protocol).set_signer(key_pair.clone());
         let stash_account = AccountId::from(key_pair.public());
-        check_non_zero_payouts_for_era(
+        staking_check_non_zero_payouts_for_era(
             &stash_connection,
             &[stash_account.clone()],
             &stash_account,
@@ -117,7 +117,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
 // 3. bond controller account to the stash account, stash != controller and set controller to StakerStatus::Validate
 // 4. call bonded, double check bonding
 // 5. set keys for controller account from validator's rotate_keys()
-// 6. set controller to StakerStatus::Validate, call ledger to double check storage state
+// 6. set controller to StakerStatus::Validate, call ledger to double-check storage state
 // 7. add 4th validator which is the new stash account
 // 8. wait for next era
 // 9. claim rewards for the stash account
@@ -160,7 +160,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &controller_account,
         XtStatus::InBlock,
     );
-    let bonded_controller_account = bonded(&connection, &stash).expect(&format!(
+    let bonded_controller_account = staking_bonded(&connection, &stash).expect(&format!(
         "Expected that stash account {} is bonded to some controller!",
         &stash_account
     ));
@@ -178,7 +178,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     // to be elected in next era instead of expected validator_account_id
     staking_validate(&controller_connection, 10, XtStatus::InBlock);
 
-    let ledger = ledger(&connection, &controller);
+    let ledger = staking_ledger(&connection, &controller);
     assert!(
         ledger.is_some(),
         "Expected controller {} configuration to be non empty",
@@ -213,7 +213,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         current_era - 1
     );
 
-    check_non_zero_payouts_for_era(
+    staking_check_non_zero_payouts_for_era(
         &stash_connection,
         &[stash_account.clone()],
         &stash_account,
