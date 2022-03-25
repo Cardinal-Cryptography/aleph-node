@@ -160,10 +160,12 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &controller_account,
         XtStatus::InBlock,
     );
-    let bonded_controller_account = staking_bonded(&connection, &stash).expect(&format!(
-        "Expected that stash account {} is bonded to some controller!",
-        &stash_account
-    ));
+    let bonded_controller_account = staking_bonded(&connection, &stash).unwrap_or_else(|| {
+        panic!(
+            "Expected that stash account {} is bonded to some controller!",
+            &stash_account
+        )
+    });
     assert_eq!(
         bonded_controller_account, controller_account,
         "Expected that stash account {} is bonded to the controller account {}, got {} instead!",
@@ -197,7 +199,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         }
     );
 
-    validator_accounts.push(stash.clone());
+    validator_accounts.push(stash);
     change_members(
         &connection,
         convert_authorities_to_account_id(validator_accounts.clone()),

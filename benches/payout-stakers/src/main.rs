@@ -4,14 +4,12 @@ use log::info;
 use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
-use substrate_api_client::{
-    extrinsic::staking::RewardDestination, rpc::WsRpcClient, AccountId, Api, XtStatus,
-};
+use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
     balances_batch_transfer, create_connection, keypair_from_string, staking_batch_bond,
     staking_batch_nominate, staking_bond, staking_check_non_zero_payouts_for_era, staking_validate,
-    staking_wait_for_full_era_completion, staking_wait_for_next_era, Protocol,
+    staking_wait_for_full_era_completion, staking_wait_for_next_era, Connection, Protocol,
 };
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
@@ -52,14 +50,14 @@ pub fn derive_user_account(seed: u64) -> KeyPair {
 fn wait_for_10_eras(
     address: &str,
     protocol: Protocol,
-    connection: &Api<KeyPair, WsRpcClient>,
+    connection: &Connection,
     nominee: &KeyPair,
     nominators: Vec<AccountId>,
 ) -> Result<(), anyhow::Error> {
     // we wait at least two full eras plus this era, to have thousands of nominators to settle up
     // correctly
-    staking_wait_for_next_era(&connection)?;
-    let mut current_era = staking_wait_for_full_era_completion(&connection)?;
+    staking_wait_for_next_era(connection)?;
+    let mut current_era = staking_wait_for_full_era_completion(connection)?;
     for _ in 0..ERAS_TO_WAIT {
         info!(
             "Era {} started, claiming rewards for era {}",
@@ -74,15 +72,15 @@ fn wait_for_10_eras(
             &stash_account,
             current_era,
         );
-        current_era = staking_wait_for_next_era(&connection)?;
+        current_era = staking_wait_for_next_era(connection)?;
     }
     Ok(())
 }
 
 fn nominate_validator_0<'a>(
-    connection: &Api<KeyPair, WsRpcClient>,
+    connection: &Connection,
     nominator_accounts: Vec<AccountId>,
-    validators: &'a Vec<KeyPair>,
+    validators: &'a [KeyPair],
 ) -> &'a KeyPair {
     let nominee = &validators[0];
     let stash_validators_accounts = nominator_accounts
@@ -93,7 +91,7 @@ fn nominate_validator_0<'a>(
         .chunks(BOND_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
             staking_batch_bond(
-                &connection,
+                connection,
                 chunk,
                 MIN_NOMINATOR_BOND,
                 RewardDestination::Staked,
@@ -106,7 +104,7 @@ fn nominate_validator_0<'a>(
         .collect::<Vec<_>>();
     nominator_nominee_accounts
         .chunks(NOMINATE_CALL_BATCH_LIMIT)
-        .for_each(|chunk| staking_batch_nominate(&connection, chunk));
+        .for_each(|chunk| staking_batch_nominate(connection, chunk));
     nominee
 }
 
@@ -131,9 +129,7 @@ fn set_validators(address: &str, protocol: Protocol) -> Vec<KeyPair> {
     validators
 }
 
-fn generate_nominator_accounts_with_minimal_bond(
-    connection: &Api<KeyPair, WsRpcClient>,
-) -> Vec<AccountId> {
+fn generate_nominator_accounts_with_minimal_bond(connection: &Connection) -> Vec<AccountId> {
     let accounts = (VALIDATOR_COUNT..NOMINATOR_COUNT + VALIDATOR_COUNT)
         .map(derive_user_account)
         .map(|key_pair| AccountId::from(key_pair.public()))
@@ -141,11 +137,7 @@ fn generate_nominator_accounts_with_minimal_bond(
     accounts
         .chunks(TRANSFER_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            balances_batch_transfer(
-                &connection,
-                chunk.into_iter().cloned().collect(),
-                MIN_NOMINATOR_BOND,
-            );
+            balances_batch_transfer(connection, chunk.to_vec(), MIN_NOMINATOR_BOND);
         });
     accounts
 }

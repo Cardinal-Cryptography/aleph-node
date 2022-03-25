@@ -84,7 +84,7 @@ fn check_current_fees<Call: Encode>(
 ) -> (FixedU128, FeeInfo) {
     // The storage query will return an u128 value which is the 'inner' representation
     // i.e. scaled up by 10^18 (see `implement_fixed!` for `FixedU128).
-    let actual_multiplier = FixedU128::from_inner(get_next_fee_multiplier(&connection));
+    let actual_multiplier = FixedU128::from_inner(get_next_fee_multiplier(connection));
     let fee_info = get_tx_fee_info(connection, tx);
     (actual_multiplier, fee_info)
 }
