@@ -209,13 +209,11 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        aggregation::{
-            aggregator::{AggregatorError, BlockSignatureAggregator},
-            mock::TestMultisignature,
-        },
-        testing::mocks::THash,
-    };
+    use crate::aggregation::aggregator::{AggregatorError, BlockSignatureAggregator};
+    use substrate_test_runtime::Hash as THash;
+
+    type TestMultisignature = usize;
+    const TEST_SIGNATURE: TestMultisignature = 42;
 
     fn build_aggregator() -> BlockSignatureAggregator<THash, TestMultisignature> {
         BlockSignatureAggregator::new(None)
@@ -233,7 +231,7 @@ mod tests {
         let res = aggregator.on_start(build_hash(0));
         assert!(res.is_ok());
 
-        aggregator.on_multisigned_hash(build_hash(0), TestMultisignature::generate());
+        aggregator.on_multisigned_hash(build_hash(0), TEST_SIGNATURE);
 
         let res = aggregator.try_pop_hash();
         assert!(res.is_ok());
@@ -245,7 +243,7 @@ mod tests {
         let res = aggregator.on_start(build_hash(0));
         assert!(res.is_ok());
 
-        aggregator.on_multisigned_hash(build_hash(1), TestMultisignature::generate());
+        aggregator.on_multisigned_hash(build_hash(1), TEST_SIGNATURE);
 
         let res = aggregator.try_pop_hash();
         assert_eq!(res, Err(AggregatorError::NoHashFound));
