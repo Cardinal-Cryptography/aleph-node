@@ -3,7 +3,7 @@ use crate::{
     metrics::{Checkpoint, Metrics},
     network::DataNetwork,
 };
-use aleph_bft::{PartialMultisignature, Recipient};
+use aleph_bft::Recipient;
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, trace, warn};
@@ -27,7 +27,7 @@ pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
-pub struct BlockSignatureAggregator<H: Hash + Copy, PMS: PartialMultisignature> {
+pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
     signatures: HashMap<H, PMS>,
     hash_queue: VecDeque<H>,
     last_hash_placed: bool,
@@ -35,7 +35,7 @@ pub struct BlockSignatureAggregator<H: Hash + Copy, PMS: PartialMultisignature> 
     metrics: Option<Metrics<H>>,
 }
 
-impl<H: Copy + Hash, PMS: PartialMultisignature> BlockSignatureAggregator<H, PMS> {
+impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
     pub(crate) fn new(metrics: Option<Metrics<H>>) -> Self {
         BlockSignatureAggregator {
             signatures: HashMap::new(),
@@ -92,7 +92,7 @@ pub struct IO<
     H: Hash + Copy,
     D: Clone + Codec + Debug + Send + Sync + 'static,
     N: DataNetwork<D>,
-    PMS: PartialMultisignature,
+    PMS,
     RMC: Multicast<H, PMS>,
 > {
     messages_for_rmc: mpsc::UnboundedSender<D>,
@@ -106,7 +106,7 @@ impl<
         H: Copy + Hash,
         D: Clone + Codec + Debug + Send + Sync,
         N: DataNetwork<D>,
-        PMS: PartialMultisignature,
+        PMS,
         RMC: Multicast<H, PMS>,
     > IO<H, D, N, PMS, RMC>
 {

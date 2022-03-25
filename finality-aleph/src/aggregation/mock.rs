@@ -3,7 +3,6 @@
 //! actually do anything, as the aggregator doesn't really rely on any of their
 //! properties (they are used inside `aleph_bft`).
 
-use aleph_bft::{NodeIndex, PartialMultisignature};
 use codec::{Decode, Encode};
 use std::{fmt::Debug, hash::Hash as StdHash};
 pub use substrate_test_runtime::Hash as THash;
@@ -20,13 +19,5 @@ pub struct TestMultisignature(Vec<TestSignature>);
 impl TestMultisignature {
     pub fn generate() -> Self {
         TestMultisignature(vec![TestSignature(MAGIC_NUMBER)])
-    }
-}
-
-impl PartialMultisignature for TestMultisignature {
-    type Signature = TestSignature;
-
-    fn add_signature(self, _signature: &TestSignature, _index: NodeIndex) -> Self {
-        self // never used by the mocks
     }
 }

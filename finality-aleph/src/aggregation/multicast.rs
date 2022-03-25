@@ -4,7 +4,7 @@
 //! We expose the `Multicast` trait, mimicking the interface of `aleph_bft::ReliableMulticast`
 
 use crate::crypto::{KeyBox, Signature};
-use aleph_bft::{rmc::ReliableMulticast, PartialMultisignature, Signable, SignatureSet};
+use aleph_bft::{rmc::ReliableMulticast, Signable, SignatureSet};
 use codec::{Codec, Decode, Encode};
 use std::{fmt::Debug, hash::Hash as StdHash};
 
@@ -23,6 +23,10 @@ impl<H: Hash> SignableHash<H> {
     pub fn new(hash: H) -> Self {
         Self { hash }
     }
+
+    pub fn get_hash(&self) -> H {
+        self.hash.clone()
+    }
 }
 
 impl<H: Hash> Signable for SignableHash<H> {
@@ -37,7 +41,7 @@ impl<H: Hash> Signable for SignableHash<H> {
 /// The trait defines an associated type: `Signed`. For `ReliableMulticast`, this is simply
 /// `aleph_bft::Multisigned` but the mocks are free to use the simplest matching implementation.
 #[async_trait::async_trait]
-pub trait Multicast<H: Hash, PMS: PartialMultisignature>: Send + Sync {
+pub trait Multicast<H: Hash, PMS>: Send + Sync {
     async fn start_multicast(&mut self, signable: SignableHash<H>);
     async fn next_signed_pair(&mut self) -> (H, PMS);
 }
@@ -52,6 +56,6 @@ impl<'a, H: Hash> Multicast<H, SignatureSet<Signature>>
 
     async fn next_signed_pair(&mut self) -> (H, SignatureSet<Signature>) {
         let ms = self.next_multisigned_hash().await.into_unchecked();
-        (Signable::hash(ms.as_signable()), ms.signature())
+        (ms.as_signable().get_hash(), ms.signature())
     }
 }
