@@ -21,8 +21,8 @@ pub fn accounts_from_seeds(seeds: &Option<Vec<String>>) -> Vec<KeyPair> {
 }
 
 pub fn get_sudo(config: &Config) -> KeyPair {
-    match config.sudo {
-        Some(ref seed) => keypair_from_string(seed),
+    match &config.sudo {
+        Some(seed) => keypair_from_string(seed),
         None => keypair_from_string(&*default_account_seeds()[0]),
     }
 }
