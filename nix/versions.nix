@@ -90,6 +90,7 @@ rec {
 
     cmakeFlags = [
        "-DPORTABLE=0"
+       "-DWITH_JEMALLOC=1"
        "-DWITH_JNI=0"
        "-DWITH_BENCHMARK_TOOLS=0"
        "-DWITH_TESTS=0"
