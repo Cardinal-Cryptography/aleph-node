@@ -7,14 +7,19 @@ use substrate_api_client::{rpc::ws_client::WsRpcClient, Api, RpcClient, XtStatus
 mod rpc;
 mod session;
 mod staking;
+mod transfer;
 mod waiting;
 
-pub use rpc::rotate_keys;
+pub use rpc::{rotate_keys, rotate_keys_raw_result};
 pub use session::{
     change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
     Keys as SessionKeys,
 };
-pub use staking::bond as staking_bond;
+pub use staking::{
+    bond as staking_bond, force_new_era as staking_force_new_era,
+    set_staking_limit as staking_set_staking_limits, validate as staking_validate,
+};
+pub use transfer::{transfer as balances_transfer, TransferTransaction};
 pub use waiting::wait_for_event;
 
 pub trait FromStr: Sized {
@@ -36,23 +41,48 @@ pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient>;
 
-pub fn create_connection(address: &str) -> Connection {
-    create_custom_connection(address).expect("connection should be created")
+#[derive(Copy, Clone, Debug)]
+pub enum Protocol {
+    WS,
+    WSS,
+}
+
+impl Default for Protocol {
+    fn default() -> Self {
+        Protocol::WS
+    }
+}
+
+pub fn from(use_ssl: bool) -> Protocol {
+    match use_ssl {
+        true => Protocol::WSS,
+        false => Protocol::WS,
+    }
+}
+
+pub fn create_connection(address: &str, protocol: Protocol) -> Connection {
+    create_custom_connection(address, protocol).expect("connection should be created")
 }
 
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
     address: &str,
+    protocol: Protocol,
 ) -> Result<Api<sr25519::Pair, Client>, <Client as FromStr>::Err> {
-    let client = Client::from_str(&format!("ws://{}", address))?;
-    match Api::<sr25519::Pair, _>::new(client) {
-        Ok(api) => Ok(api),
-        Err(why) => {
-            warn!(
-                "[+] Can't create_connection because {:?}, will try again in 1s",
-                why
-            );
-            sleep(Duration::from_millis(1000));
-            create_custom_connection(address)
+    let protocol = match protocol {
+        Protocol::WS => "ws",
+        Protocol::WSS => "wss",
+    };
+    loop {
+        let client = Client::from_str(&format!("{}://{}", protocol, address))?;
+        match Api::<sr25519::Pair, _>::new(client) {
+            Ok(api) => return Ok(api),
+            Err(why) => {
+                warn!(
+                    "[+] Can't create_connection because {:?}, will try again in 1s",
+                    why
+                );
+                sleep(Duration::from_millis(1000));
+            }
         }
     }
 }

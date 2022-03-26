@@ -2,21 +2,17 @@ use crate::{
     accounts::{accounts_from_seeds, get_free_balance, get_sudo},
     config::Config,
     fee::get_tx_fee_info,
-    transfer::{setup_for_transfer, transfer},
+    transfer::setup_for_transfer,
 };
+use aleph_client::{balances_transfer, create_connection, wait_for_event, Connection};
 use codec::{Compact, Decode};
-use aleph_client::{create_connection, wait_for_event, Connection};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::AccountId32;
-use sp_runtime::MultiAddress;
-use std::thread;
-use std::thread::sleep;
+use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
 use std::time::Duration;
-use substrate_api_client::{AccountId, Balance, UncheckedExtrinsicV4};
-use substrate_api_client::{GenericAddress, XtStatus};
+use std::{thread, thread::sleep};
+use substrate_api_client::{AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus};
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
     let sessions_per_era = connection
@@ -49,7 +45,7 @@ pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
         treasury_balance_before, issuance_before
     );
 
-    let tx = transfer(&to, 1000u128, &connection, XtStatus::Finalized);
+    let tx = balances_transfer(&connection, &to, 1000u128, XtStatus::Finalized);
     let treasury_balance_after = get_free_balance(&treasury, &connection);
     let issuance_after = get_total_issuance(&connection);
     check_treasury_issuance(
@@ -121,12 +117,15 @@ fn check_treasury_balance(
 
 pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let Config {
-        ref node, seeds, ..
+        ref node,
+        seeds,
+        protocol,
+        ..
     } = config;
 
     let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = create_connection(node).set_signer(proposer);
+    let connection = create_connection(node, *protocol).set_signer(proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);
