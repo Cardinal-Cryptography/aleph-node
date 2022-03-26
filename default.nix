@@ -7,30 +7,21 @@
 }:
 let
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
-  alephNode = (import ./nix/aleph-node.nix { inherit versions; }).project;
+  alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures; }).project;
   workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
-  cratesFilter =
-    let
-      cratesAttrs = builtins.listToAttrs (builtins.map (member: { name = member; value = null; }) workspaceMembers);
-    in
-    n: builtins.hasAttr n cratesAttrs;
-  filteredWorkspaceMembers = nixpkgs.lib.filterAttrs (n: _: cratesFilter n) workspaceMembers;
-  workspaceMembersToBuild =
+  filteredWorkspaceMembers =
     if crates == [] then
-      nixpkgs.symlinkJoin {
-        name = "all-workspace-members";
-        paths = builtins.attrValues workspaceMembers;
-      }
+      workspaceMembers
     else
-      if builtins.length crates == 1 then
-        let
-          crateName = builtins.head crates;
-        in
-        workspaceMembers."${crateName}"
-      else
-        nixpkgs.symlinkJoin {
-          name = "filtered-workspace-members";
-          paths = builtins.attrValues filteredWorkspaceMembers;
-        };
+      builtins.map (crate: builtins.getAttr crate workspaceMembers) (nixpkgs.lib.unique crates);
+  build = builtins.attrValues filteredWorkspaceMembers;
+  workspaceMembersToBuild =
+    if builtins.length build == 1 then
+      builtins.head build
+    else
+      nixpkgs.symlinkJoin {
+        name = "filtered-workspace-members";
+        paths = build;
+      };
 in
 workspaceMembersToBuild
