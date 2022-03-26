@@ -2,10 +2,9 @@
 { versions ? import ../nix/versions.nix {}
 , nixpkgs ? versions.nixpkgs
 , nixpkgsForDocker ? versions.dockerNixpkgs
+, targetFeatures ? import ../nix/target-features.nix
 }:
 let
-    # default set of cpu features for x86-64-v3 (rustc --print=cfg -C target-cpu=x86-64-v3)
-  targetFeatures = [ "avx" "avx2" "bmi1" "bmi2" "fma" "fxsr" "lzcnt" "popcnt" "sse" "sse2" "sse3" "sse4.1" "sse4.2" "ssse3" "xsave" ];
   alephNodeDrv = import ../nix/aleph-node.nix { inherit targetFeatures; };
   alephNode = alephNodeDrv.project.workspaceMembers."aleph-node".build;
   # we include gziped src folder
