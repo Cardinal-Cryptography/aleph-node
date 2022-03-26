@@ -2,8 +2,7 @@
 , nixpkgs ? versions.nixpkgs
 , gitignoreSource ? versions.gitignoreSource
 , customRocksdb ? versions.customRocksdb
-  # default set of cpu features for x86-64-v3 (rustc --print=cfg -C target-cpu=x86-64-v3)
-, targetFeatures ? [ "avx" "avx2" "bmi1" "bmi2" "fma" "fxsr" "lzcnt" "popcnt" "sse" "sse2" "sse3" "sse4.1" "sse4.2" "ssse3" "xsave" ]
+, targetFeatures ? []
 }:
 let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
