@@ -80,7 +80,7 @@ rec {
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
-  customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
+  customRocksdb = nixpkgs.rocksdb.overrideAttrs (attrs: {
 
     src = fetchRocksdb;
 
@@ -108,7 +108,7 @@ rec {
 
     propagatedBuildInputs = [];
 
-    buildInputs = [ nixpkgs.git ];
+    buildInputs = [ nixpkgs.git nixpkgs.jemalloc ] ++ (attrs.buildInputs or []);
   });
 
 }
