@@ -11,17 +11,16 @@ let
   workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
   filteredWorkspaceMembers =
     if crates == [] then
-      workspaceMembers
+      builtins.attrValues workspaceMembers
     else
       builtins.map (crate: builtins.getAttr crate workspaceMembers) (nixpkgs.lib.unique crates);
-  build = builtins.attrValues filteredWorkspaceMembers;
   workspaceMembersToBuild =
-    if builtins.length build == 1 then
-      builtins.head build
+    if builtins.length filteredWorkspaceMembers == 1 then
+      builtins.head filteredWorkspaceMembers
     else
       nixpkgs.symlinkJoin {
         name = "filtered-workspace-members";
-        paths = build;
+        paths = filteredWorkspaceMembers;
       };
 in
 workspaceMembersToBuild
