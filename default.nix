@@ -6,7 +6,7 @@
 let
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
   alephNode = (import ./nix/aleph-node.nix { inherit versions; }).project;
-  workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; extraRustcOpts = "--target x86-64-v3"; }) alephNode.workspaceMembers;
+  workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
   cratesFilter =
     let
       cratesAttrs = builtins.listToAttrs (builtins.map (member: { name = member; value = null; }) workspaceMembers);
