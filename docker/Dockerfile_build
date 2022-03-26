@@ -1,4 +1,4 @@
-FROM nixos/nix:2.6.0
+FROM nixos/nix@sha256:f0c68f870c655d8d96658ca762a0704a30704de22d16b4956e762a2ddfbccb09
 
 COPY docker/nix-build.sh /node/
 COPY . /node/build
