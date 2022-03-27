@@ -37,6 +37,8 @@ pub mod pallet {
         type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
+        #[pallet::constant]
+        type MembersPerSession: Get<u32>;
     }
 
     #[pallet::event]

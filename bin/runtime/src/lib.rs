@@ -322,18 +322,62 @@ impl_opaque_keys! {
 
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+    pub const MembersPerSession: u32 = 4;
 }
 
 impl pallet_elections::Config for Runtime {
     type Event = Event;
     type DataProvider = Staking;
     type SessionPeriod = SessionPeriod;
+    type MembersPerSession = MembersPerSession;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
     pub const Offset: u32 = 0;
+}
+
+fn subsample() -> Option<Vec<AccountId>> {
+    let current_era = match Staking::active_era() {
+        Some(ae) if ae.index > 0 => ae.index,
+        _ => return None,
+    };
+    let all_validators: Vec<AccountId> =
+        pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
+    let n_all_validators = all_validators.len() as u32;
+    let current_session = Session::current_index();
+    let n_members = MembersPerSession::get();
+
+    let first_validator = current_session % n_all_validators * n_members;
+    Some(
+        (first_validator..first_validator + n_members)
+            .map(|i| all_validators[(i % n_all_validators) as usize].clone())
+            .collect(),
+    )
+}
+
+use primitives::SessionIndex;
+type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
+pub struct SubsampleSessionManager;
+
+impl pallet_session::SessionManager<AccountId> for SubsampleSessionManager {
+    fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
+        SM::new_session(new_index);
+        subsample()
+    }
+
+    fn end_session(end_index: SessionIndex) {
+        SM::end_session(end_index)
+    }
+
+    fn start_session(start_index: SessionIndex) {
+        SM::start_session(start_index)
+    }
+
+    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
+        SM::new_session_genesis(new_index)
+    }
 }
 
 impl pallet_session::Config for Runtime {
