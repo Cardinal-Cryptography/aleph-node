@@ -3,9 +3,7 @@ use aleph_client::balances_transfer;
 use log::info;
 use substrate_api_client::XtStatus;
 
-use crate::accounts::get_free_balance;
-use crate::config::Config;
-use crate::transfer::setup_for_transfer;
+use crate::{accounts::get_free_balance, config::Config, transfer::setup_for_transfer};
 
 pub fn token_transfer(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);

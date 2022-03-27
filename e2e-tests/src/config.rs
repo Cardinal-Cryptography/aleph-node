@@ -23,5 +23,5 @@ pub struct Config {
 
     /// whether to print debug storage info
     #[clap(long)]
-    pub storage_debug: bool
+    pub storage_debug: bool,
 }

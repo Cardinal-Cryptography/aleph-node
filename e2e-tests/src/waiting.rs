@@ -1,6 +1,6 @@
-use std::sync::mpsc::channel;
-use log::info;
 use aleph_client::{Connection, Header};
+use log::info;
+use std::sync::mpsc::channel;
 
 /// blocks the main thread waiting for a block with a number at least `block_number`
 pub fn wait_for_finalized_block(connection: &Connection, block_number: u32) -> anyhow::Result<u32> {

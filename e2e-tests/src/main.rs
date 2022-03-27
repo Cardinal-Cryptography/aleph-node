@@ -1,17 +1,9 @@
-use std::{
-    env,
-    time::Instant
-};
+use std::{env, time::Instant};
 
 use clap::Parser;
 
-use aleph_e2e_client::{
-    config::Config,
-    test
-};
-use aleph_client::{
-                       create_connection,
-                       print_storages};
+use aleph_client::{create_connection, print_storages};
+use aleph_e2e_client::{config::Config, test};
 use log::info;
 
 fn main() -> anyhow::Result<()> {
@@ -28,7 +20,6 @@ fn main() -> anyhow::Result<()> {
     Err(anyhow::anyhow!("fail"))
     // run_tests(config)
 }
-
 
 fn run_tests(config: Config) -> anyhow::Result<()> {
     run(test::finalization, "finalization", &config)?;

@@ -10,8 +10,7 @@ use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
-use std::time::Duration;
-use std::{thread, thread::sleep};
+use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus};
 
 fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
