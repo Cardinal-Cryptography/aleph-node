@@ -97,6 +97,9 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
@@ -157,10 +160,6 @@ jobs:
         shell: bash
         timeout-minutes: 15
         run: ./.github/scripts/run_e2e_tests.sh
-
-      - name: Print debug if failed
-        if: ${{ failure() }}
-        run: ./.github/scripts/debug_e2e_storage.sh
 
 
   push-image:
