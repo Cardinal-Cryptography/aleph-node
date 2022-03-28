@@ -16,7 +16,7 @@ oldbin = abspath(os.getenv('OLD_BINARY', join(workdir, 'aleph-node-old')))
 newbin = abspath(os.getenv('NEW_BINARY', join(workdir, 'aleph-node-new')))
 # Path to the post-update compiled runtime:
 runtime = abspath(os.getenv('NEW_RUNTIME', join(workdir, 'aleph_runtime.compact.wasm')))
-# Path to the send-runtime binary (which lives in aleph-node/local-tests/send-runtime):
+# Path to cliain:
 CLIAIN = abspath('../bin/cliain/target/release/cliain')
 
 
