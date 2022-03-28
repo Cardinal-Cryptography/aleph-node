@@ -378,9 +378,9 @@ type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>
 
 pub struct PayoutStakersDecreasedWeightInfo;
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
-    // To make possible 4096 nominators per validator we need to decrease weight for payout_stakers
+    // To make possible change nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {
-        SubstrateStakingWeights::payout_stakers_alive_staked(n) / 8
+        SubstrateStakingWeights::payout_stakers_alive_staked(n) / 2
     }
     wrap_methods!(
         (bond(), SubstrateStakingWeights, Weight),
