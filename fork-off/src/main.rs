@@ -48,7 +48,7 @@ pub struct Config {
         value_delimiter = ',',
         default_value = "Aura,Aleph,Sudo,Staking,Session,Elections"
     )]
-    pub pallets: Vec<String>,
+    pub pallets_keep_state: Vec<String>,
 }
 
 const KEYS_BATCH_SIZE: u32 = 1000;
@@ -125,21 +125,22 @@ impl StateFetcher {
         input: Arc<Mutex<Vec<StorageKey>>>,
         output: Arc<Mutex<Storage>>,
     ) {
+        const LOG_PROGRESS_FREQUENCY: usize = 500;
         let fetcher = StateFetcher::new(http_rpc_endpoint);
         loop {
-            let maybe_key: Option<StorageKey> = {
+            let maybe_key = {
                 let mut keys = input.lock();
                 keys.pop()
             };
-            if let Some(key) = maybe_key {
-                let value = fetcher.get_value(key.clone(), block.clone()).await;
-                let mut output_guard = output.lock();
-                output_guard.insert(key, value);
-                if output_guard.len() % 500 == 0 {
-                    info!("Fetched {} values", output_guard.len());
-                }
-            } else {
-                break;
+            let key = match maybe_key {
+                Some(key) => key,
+                None => break,
+            };
+            let value = fetcher.get_value(key.clone(), block.clone()).await;
+            let mut output_guard = output.lock();
+            output_guard.insert(key, value);
+            if output_guard.len() % LOG_PROGRESS_FREQUENCY == 0 {
+                info!("Fetched {} values", output_guard.len());
             }
         }
         info!("Worker {:?} finished", id);
@@ -184,9 +185,8 @@ impl StateFetcher {
             );
             if new_keys.len() < KEYS_BATCH_SIZE as usize {
                 break;
-            } else {
-                last_key_fetched = Some(new_keys.last().unwrap().clone());
             }
+            last_key_fetched = Some(new_keys.last().unwrap().clone());
         }
         all_keys
     }
@@ -223,10 +223,23 @@ impl StateFetcher {
         std::mem::take(&mut guard)
     }
 
-    pub async fn get_full_state(&self, num_workers: u32) -> Storage {
-        let best_block = self.get_most_recent_block().await;
-        let keys = self.get_all_keys(best_block.clone()).await;
-        self.get_values(keys, best_block, num_workers).await
+    pub async fn get_full_state_at(
+        &self,
+        num_workers: u32,
+        fetch_block: Option<BlockHash>,
+    ) -> Storage {
+        let block = if let Some(block) = fetch_block {
+            block
+        } else {
+            self.get_most_recent_block().await
+        };
+        info!("Fetching state at block {:?}", block);
+        let keys = self.get_all_keys(block.clone()).await;
+        self.get_values(keys, block, num_workers).await
+    }
+
+    pub async fn get_full_state_at_best_block(&self, num_workers: u32) -> Storage {
+        self.get_full_state_at(num_workers, None).await
     }
 }
 
@@ -260,18 +273,18 @@ fn combine_states(mut state: Storage, initial_state: Storage, pallets: Vec<Strin
             (pallet.clone(), hash)
         })
         .collect();
-    let mut cnt_removed_per_pallet: HashMap<String, usize> = pallets_prefixes
+    let mut removed_per_pallet_count: HashMap<String, usize> = pallets_prefixes
         .iter()
         .map(|(pallet, _)| (pallet.clone(), 0))
         .collect();
-    let mut cnt_added_per_pallet = cnt_removed_per_pallet.clone();
+    let mut added_per_pallet_cnt = removed_per_pallet_count.clone();
     state.retain(|k, _v| {
         match pallets_prefixes
             .iter()
             .find(|(_, prefix)| is_prefix_of(prefix, k))
         {
             Some((pallet, _)) => {
-                *cnt_removed_per_pallet.get_mut(pallet).unwrap() += 1;
+                *removed_per_pallet_count.get_mut(pallet).unwrap() += 1;
                 false
             }
             None => true,
@@ -282,14 +295,14 @@ fn combine_states(mut state: Storage, initial_state: Storage, pallets: Vec<Strin
             .iter()
             .find(|(_, prefix)| is_prefix_of(prefix, k))
         {
-            *cnt_added_per_pallet.get_mut(pallet).unwrap() += 1;
+            *added_per_pallet_cnt.get_mut(pallet).unwrap() += 1;
             state.insert(k.clone(), v.clone());
         }
     }
     for (pallet, prefix) in pallets_prefixes {
         info!(
             "For pallet {} (prefix {}) Replaced {} entries by {} entries from initial_spec",
-            pallet, prefix, cnt_removed_per_pallet[&pallet], cnt_added_per_pallet[&pallet]
+            pallet, prefix, removed_per_pallet_count[&pallet], added_per_pallet_cnt[&pallet]
         );
     }
     state
@@ -303,7 +316,7 @@ async fn main() -> anyhow::Result<()> {
         snapshot_path,
         combined_spec_path,
         use_snapshot_file,
-        pallets,
+        pallets_keep_state,
         num_workers,
     } = Config::parse();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -315,8 +328,8 @@ async fn main() -> anyhow::Result<()> {
         \tsnapshot_path: {}\n\
         \tcombined_spec_path: {}\n\
         \tuse_snapshot_file: {}\n\
-        \tpallets: {:?}",
-        &http_rpc_endpoint, &initial_spec_path, &snapshot_path, &combined_spec_path, &use_snapshot_file, &pallets
+        \tpallets_keep_state: {:?}",
+        &http_rpc_endpoint, &initial_spec_path, &snapshot_path, &combined_spec_path, &use_snapshot_file, &pallets_keep_state
     );
 
     let mut initial_spec: Value = serde_json::from_str(
@@ -330,9 +343,7 @@ async fn main() -> anyhow::Result<()> {
     );
     if !use_snapshot_file {
         let fetcher = StateFetcher::new(http_rpc_endpoint);
-        let block = fetcher.get_most_recent_block().await;
-        info!("Fetching state at block {:?}", block);
-        let state = fetcher.get_full_state(num_workers).await;
+        let state = fetcher.get_full_state_at_best_block(num_workers).await;
         save_snapshot_to_file(state, snapshot_path.clone());
     }
     let state = read_snapshot_from_file(snapshot_path);
@@ -340,7 +351,7 @@ async fn main() -> anyhow::Result<()> {
     let initial_state: Storage =
         serde_json::from_value(initial_spec["genesis"]["raw"]["top"].take())
             .expect("Deserialization of state from given chainspec file failed");
-    let state = combine_states(state, initial_state, pallets);
+    let state = combine_states(state, initial_state, pallets_keep_state);
     let json_state = serde_json::to_value(state).expect("Failed to convert a storage map to json");
     initial_spec["genesis"]["raw"]["top"] = json_state;
     let new_spec = serde_json::to_vec_pretty(&initial_spec)?;
