@@ -7,7 +7,7 @@ use log::info;
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
 };
-// use rayon::prelude::*;
+use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
 use std::iter;
