@@ -16,7 +16,7 @@ pub use session::{
     Keys as SessionKeys,
 };
 pub use staking::{
-    bond as staking_bond, force_new_era as staking_force_new_era, set_staking_limit,
+    bond as staking_bond, force_new_era as staking_force_new_era, set_staking_limits,
     validate as staking_validate, wait_for_full_era_completion, wait_for_next_era,
 };
 pub use transfer::{
