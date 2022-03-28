@@ -4,13 +4,13 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod benchmarks;
 #[cfg(test)]
+mod mock;
+#[cfg(std)]
 mod mock;
 #[cfg(test)]
 mod tests;
-
-#[cfg(std)]
-mod mock;
 #[cfg(std)]
 mod tests;
 
@@ -95,12 +95,12 @@ pub mod pallet {
     // or?
     // https://substrate.recipes/ringbuffer.html
 
-    /// Hash of the best finalized header from the bridged chain
+    /// Hash of the last imported header from the bridged chain
     #[pallet::storage]
     #[pallet::getter(fn get_last_imported_hash)]
     pub type LastImportedHash<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
 
-    /// A ring buffer of imported hashes ordered by their insertion time
+    /// A ring buffer of imported hashes "ordered" by their insertion time
     #[pallet::storage]
     pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
 

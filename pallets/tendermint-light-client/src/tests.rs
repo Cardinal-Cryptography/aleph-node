@@ -105,3 +105,5 @@ fn failed_verification() {
 }
 
 // TODO : round_robin_storage test
+
+// TODO : halted test
