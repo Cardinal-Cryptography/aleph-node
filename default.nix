@@ -2,12 +2,13 @@
 , rocksDBVersion ? "6.29.3"
 , runTests ? false
 , crates ? [ "aleph-node" ]
+, features ? [ "default" ]
 , targetFeatures ? import ./nix/target-features.nix
 }:
 let
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
   alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures; }).project;
-  workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
+  workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; inherit features; }) alephNode.workspaceMembers;
   filteredWorkspaceMembers =
     if crates == [] then
       builtins.attrValues workspaceMembers
