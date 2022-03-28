@@ -6,7 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use pallet_staking::EraIndex;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -426,14 +425,12 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
             Weight
         ),
         (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
-        (set_staking_limits(), SubstrateStakingWeights, Weight),
         (chill_other(), SubstrateStakingWeights, Weight)
     );
 }
 
 impl pallet_staking::Config for Runtime {
     // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
-    const MAX_NOMINATIONS: u32 = 1;
     type Currency = Balances;
     type UnixTime = Timestamp;
     type CurrencyToVote = U128CurrencyToVote;
@@ -633,7 +630,6 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
 >;
 
 impl_runtime_apis! {

@@ -6,14 +6,14 @@ edition = "2021"
 # client
 [dependencies.substrate-api-client]
 git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git"
-tag = "polkadot-v0.9.17.b2bfc0c3"
+tag = "polkadot-v0.9.18.b26ad4db"
 features = ["staking-xt"]
 
 [dependencies]
 # Substrate dependencies
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.17", features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.17", default-features = false }
-pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.17", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
+pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.18", default-features = false }
 
 # other dependencies
 log = "0.4"

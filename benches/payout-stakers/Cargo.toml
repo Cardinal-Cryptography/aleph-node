@@ -9,11 +9,11 @@ aleph_client = { path = "../../aleph-client" }
 e2e = { path = "../../e2e-tests", package = "aleph-e2e-client" }
 primitives = { path = "../../primitives" }
 
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.17", features = ["full_crypto"] }
-sp-keyring = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.17" }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", features = ["full_crypto"] }
+sp-keyring = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18" }
 codec = { package = 'parity-scale-codec', version = "2.0.0", features = ['derive'] }
 
-substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", tag = "polkadot-v0.9.17.b2bfc0c3" }
+substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", tag = "polkadot-v0.9.18.b26ad4db" }
 
 anyhow = "^1.0"
 env_logger = "0.8"
