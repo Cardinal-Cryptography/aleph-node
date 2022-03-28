@@ -6,7 +6,7 @@ use crate::{
 use aleph_client::{
     balances_batch_transfer, change_members, create_connection, get_current_session,
     keypair_from_string, rotate_keys, set_keys, staking_bond, staking_validate,
-    staking_wait_for_full_era_completion, wait_for_session, KeyPair,
+    wait_for_full_era_completion, wait_for_session, KeyPair,
 };
 use log::info;
 use pallet_staking::StakingLedger;
@@ -93,7 +93,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         });
 
     // All the above calls influace the next era, so we need to wait that it passes.
-    let current_era = staking_wait_for_full_era_completion(&connection)?;
+    let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
@@ -209,7 +209,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     let current_session = get_current_session(&connection);
     let _ = wait_for_session(&connection, current_session + 2)?;
 
-    let current_era = staking_wait_for_full_era_completion(&connection)?;
+    let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,

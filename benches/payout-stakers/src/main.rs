@@ -1,13 +1,13 @@
 use aleph_client::{
     balances_batch_transfer, create_connection, keypair_from_string, staking_bond,
-    staking_validate, staking_wait_for_full_era_completion, staking_wait_for_next_era, Protocol,
+    staking_validate, wait_for_full_era_completion, wait_for_next_era, Protocol,
 };
 use e2e::staking::{batch_bond, batch_nominate, check_non_zero_payouts_for_era};
 use log::info;
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
 };
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
 use std::iter;
@@ -56,8 +56,8 @@ fn wait_for_10_eras(
 ) -> Result<(), anyhow::Error> {
     // we wait at least two full eras plus this era, to have thousands of nominators to settle up
     // correctly
-    staking_wait_for_next_era(&connection)?;
-    let mut current_era = staking_wait_for_full_era_completion(&connection)?;
+    wait_for_next_era(&connection)?;
+    let mut current_era = wait_for_full_era_completion(&connection)?;
     for _ in 0..ERAS_TO_WAIT {
         info!(
             "Era {} started, claiming rewards for era {}",
@@ -72,7 +72,7 @@ fn wait_for_10_eras(
             &stash_account,
             current_era,
         );
-        current_era = staking_wait_for_next_era(&connection)?;
+        current_era = wait_for_next_era(&connection)?;
     }
     Ok(())
 }
