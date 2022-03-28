@@ -7,6 +7,7 @@ use substrate_api_client::{rpc::ws_client::WsRpcClient, Api, RpcClient, XtStatus
 mod rpc;
 mod session;
 mod staking;
+mod system;
 mod transfer;
 mod waiting;
 
@@ -19,6 +20,7 @@ pub use staking::{
     bond as staking_bond, force_new_era as staking_force_new_era, set_staking_limits,
     validate as staking_validate, wait_for_full_era_completion, wait_for_next_era,
 };
+pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
 };
