@@ -17,8 +17,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    Err(anyhow::anyhow!("fail"))
-    // run_tests(config)
+    run_tests(config)
 }
 
 fn run_tests(config: Config) -> anyhow::Result<()> {
