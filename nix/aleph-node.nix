@@ -85,10 +85,9 @@ let
             # otherwise it has no access to other dependencies in our workspace
             inherit src;
             workspace_member = "bin/runtime";
-            postBuild = ''
-              mkdir -p $out/lib/
-              find . -type f -name "*.wasm" -exec cp "{}" $out/lib/
-              target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+            postInstall = ''
+              mkdir -p $out/lib
+              find . -type f -name "*.wasm" -exec cp "{}" $out/lib/ \;
             '';
           };
         substrate-test-runtime = attrs:
