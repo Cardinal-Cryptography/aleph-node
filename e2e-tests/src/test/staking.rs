@@ -1,7 +1,7 @@
 use crate::{
     accounts::{accounts_from_seeds, default_account_seeds},
     config::Config,
-    staking::{bonded, check_non_zero_payouts_for_era, ledger, nominate},
+    staking::{bonded, ledger, nominate, payout_stakers_and_assert_locked_balance},
 };
 use aleph_client::{
     balances_batch_transfer, change_members, create_connection, get_current_session,
@@ -104,7 +104,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         let stash_connection =
             create_connection(node, config.protocol).set_signer(key_pair.clone());
         let stash_account = AccountId::from(key_pair.public());
-        check_non_zero_payouts_for_era(
+        payout_stakers_and_assert_locked_balance(
             &stash_connection,
             &[stash_account.clone()],
             &stash_account,
@@ -216,7 +216,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         current_era - 1
     );
 
-    check_non_zero_payouts_for_era(
+    payout_stakers_and_assert_locked_balance(
         &stash_connection,
         &[stash_account.clone()],
         &stash_account,

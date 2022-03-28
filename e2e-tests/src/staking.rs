@@ -58,7 +58,6 @@ pub fn payout_stakers(
     );
 }
 
-// TODO this function and all below needs to be moved to aleph-client
 pub fn get_locked_balance(
     stash_account: &AccountId,
     connection: &Connection,
@@ -76,7 +75,7 @@ pub fn get_locked_balance(
     locked_stash_balance
 }
 
-pub fn check_non_zero_payouts_for_era(
+pub fn payout_stakers_and_assert_locked_balance(
     stash_connection: &Connection,
     accounts_to_check_balance: &[AccountId],
     stash_account: &AccountId,
@@ -113,7 +112,7 @@ pub fn batch_bond(
                 connection.metadata,
                 "Staking",
                 "bond",
-                GenericAddress::Id(controller_account.clone().to_owned()),
+                GenericAddress::Id((*controller_account).clone()),
                 Compact(bond_value),
                 reward_destination.clone()
             );
@@ -121,7 +120,7 @@ pub fn batch_bond(
                 connection.metadata,
                 "Sudo",
                 "sudo_as",
-                GenericAddress::Id(stash_account.clone().to_owned()),
+                GenericAddress::Id((*stash_account).clone()),
                 bond_call
             )
         })
@@ -141,19 +140,19 @@ pub fn batch_nominate(
     nominator_nominee_pairs: &[(&AccountId, &AccountId)],
 ) {
     let batch_nominate_calls = nominator_nominee_pairs
-        .iter()
+        .into_iter()
         .map(|(nominator, nominee)| {
             let nominate_call = compose_call!(
                 connection.metadata,
                 "Staking",
                 "nominate",
-                vec![GenericAddress::Id(nominee.clone().to_owned())]
+                vec![GenericAddress::Id((*nominee).clone())]
             );
             compose_call!(
                 connection.metadata,
                 "Sudo",
                 "sudo_as",
-                GenericAddress::Id(nominator.clone().to_owned()),
+                GenericAddress::Id((*nominator).clone()),
                 nominate_call
             )
         })

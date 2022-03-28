@@ -2,7 +2,7 @@ use aleph_client::{
     balances_batch_transfer, create_connection, keypair_from_string, staking_bond,
     staking_validate, wait_for_full_era_completion, wait_for_next_era, Protocol,
 };
-use e2e::staking::{batch_bond, batch_nominate, check_non_zero_payouts_for_era};
+use e2e::staking::{batch_bond, batch_nominate, payout_stakers_and_assert_locked_balance};
 use log::info;
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
@@ -66,7 +66,7 @@ fn wait_for_10_eras(
         );
         let stash_connection = create_connection(address, protocol).set_signer(nominee.clone());
         let stash_account = AccountId::from(nominee.public());
-        check_non_zero_payouts_for_era(
+        payout_stakers_and_assert_locked_balance(
             &stash_connection,
             &nominators[..],
             &stash_account,
