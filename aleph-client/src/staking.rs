@@ -34,7 +34,7 @@ pub fn validate(connection: &Connection, validator_commission_percentage: u8, st
     send_xt(&connection, xt.hex_encode(), "validate", status);
 }
 
-pub fn set_staking_limit(
+pub fn set_staking_limits(
     root_connection: &Connection,
     minimal_nominator_stake: u128,
     minimal_validator_stake: u128,

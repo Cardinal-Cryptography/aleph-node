@@ -17,10 +17,10 @@ pub use staking::{
     bond as staking_bond, bonded as staking_bonded,
     check_non_zero_payouts_for_era as staking_check_non_zero_payouts_for_era,
     force_new_era as staking_force_new_era, ledger as staking_ledger, nominate as staking_nominate,
-    payout_stakers as staking_payout_stakers, set_staking_limit as staking_set_staking_limits,
+    payout_stakers as staking_payout_stakers, set_staking_limit,
     validate as staking_validate,
-    wait_for_full_era_completion as staking_wait_for_full_era_completion,
-    wait_for_next_era as staking_wait_for_next_era,
+    wait_for_full_era_completion,
+    wait_for_next_era,
 };
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,

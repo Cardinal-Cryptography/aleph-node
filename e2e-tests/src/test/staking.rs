@@ -90,7 +90,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         });
 
     // All the above calls influence the next era, so we need to wait that it passes.
-    let current_era = staking_wait_for_full_era_completion(&connection)?;
+    let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
@@ -101,7 +101,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         let stash_connection =
             create_connection(node, config.protocol).set_signer(key_pair.clone());
         let stash_account = AccountId::from(key_pair.public());
-        staking_check_non_zero_payouts_for_era(
+        payout_stakers_and_assert_locked_balance(
             &stash_connection,
             &[stash_account.clone()],
             &stash_account,
@@ -180,7 +180,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     // to be elected in next era instead of expected validator_account_id
     staking_validate(&controller_connection, 10, XtStatus::InBlock);
 
-    let ledger = staking_ledger(&connection, &controller);
+    let ledger = ledger(&connection, &controller);
     assert!(
         ledger.is_some(),
         "Expected controller {} configuration to be non empty",
@@ -208,14 +208,14 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     let current_session = get_current_session(&connection);
     let _ = wait_for_session(&connection, current_session + 2)?;
 
-    let current_era = staking_wait_for_full_era_completion(&connection)?;
+    let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
         current_era - 1
     );
 
-    staking_check_non_zero_payouts_for_era(
+    payout_stakers_and_assert_locked_balance(
         &stash_connection,
         &[stash_account.clone()],
         &stash_account,

@@ -56,8 +56,8 @@ fn wait_for_10_eras(
 ) -> Result<(), anyhow::Error> {
     // we wait at least two full eras plus this era, to have thousands of nominators to settle up
     // correctly
-    staking_wait_for_next_era(connection)?;
-    let mut current_era = staking_wait_for_full_era_completion(connection)?;
+    wait_for_next_era(&connection)?;
+    let mut current_era = wait_for_full_era_completion(&connection)?;
     for _ in 0..ERAS_TO_WAIT {
         info!(
             "Era {} started, claiming rewards for era {}",
@@ -66,13 +66,13 @@ fn wait_for_10_eras(
         );
         let stash_connection = create_connection(address, protocol).set_signer(nominee.clone());
         let stash_account = AccountId::from(nominee.public());
-        staking_check_non_zero_payouts_for_era(
+        payout_stakers_and_assert_locked_balance(
             &stash_connection,
             &nominators[..],
             &stash_account,
             current_era,
         );
-        current_era = staking_wait_for_next_era(connection)?;
+        current_era = wait_for_next_era(&connection)?;
     }
     Ok(())
 }
@@ -90,8 +90,8 @@ fn nominate_validator_0<'a>(
     stash_validators_accounts
         .chunks(BOND_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            staking_batch_bond(
-                connection,
+            batch_bond(
+                &connection,
                 chunk,
                 MIN_NOMINATOR_BOND,
                 RewardDestination::Staked,
@@ -104,7 +104,7 @@ fn nominate_validator_0<'a>(
         .collect::<Vec<_>>();
     nominator_nominee_accounts
         .chunks(NOMINATE_CALL_BATCH_LIMIT)
-        .for_each(|chunk| staking_batch_nominate(connection, chunk));
+        .for_each(|chunk| batch_nominate(&connection, chunk));
     nominee
 }
 
@@ -129,7 +129,9 @@ fn set_validators(address: &str, protocol: Protocol) -> Vec<KeyPair> {
     validators
 }
 
-fn generate_nominator_accounts_with_minimal_bond(connection: &Connection) -> Vec<AccountId> {
+fn generate_nominator_accounts_with_minimal_bond(
+    connection: &Connection,
+) -> Vec<AccountId> {
     let accounts = (VALIDATOR_COUNT..NOMINATOR_COUNT + VALIDATOR_COUNT)
         .map(derive_user_account)
         .map(|key_pair| AccountId::from(key_pair.public()))
@@ -137,7 +139,11 @@ fn generate_nominator_accounts_with_minimal_bond(connection: &Connection) -> Vec
     accounts
         .chunks(TRANSFER_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            balances_batch_transfer(connection, chunk.to_vec(), MIN_NOMINATOR_BOND);
+            balances_batch_transfer(
+                &connection,
+                chunk.to_vec(),
+                MIN_NOMINATOR_BOND,
+            );
         });
     accounts
 }
