@@ -499,11 +499,7 @@ impl TryFrom<HeaderStorage> for Header {
 
         Ok(Self {
             version: version.try_into().expect("Cannot create Version"),
-            chain_id:
-            // chain_id
-            //     .parse::<chain::Id>()
-            //     .expect("Cannot parse as Chain Id"),
-            String::from_utf8(chain_id)
+            chain_id: String::from_utf8(chain_id)
                 .expect("Not a UTF8 string encoding")
                 .parse::<chain::Id>()
                 .expect("Cannot parse as Chain Id"),
@@ -513,28 +509,14 @@ impl TryFrom<HeaderStorage> for Header {
                 Some(id) => id.try_into().ok(),
                 None => None,
             },
-            last_commit_hash: match last_commit_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
-            data_hash: match data_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
+            last_commit_hash: last_commit_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
+            data_hash: data_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
             next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
             consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
-            app_hash:
-            // hash::AppHash::from_hex_upper(&app_hash).expect("Cannot create AppHash"),
-            hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
-            last_results_hash: match last_results_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash.as_bytes())),
-                None => None,
-            },
-            evidence_hash: match evidence_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
+            app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            last_results_hash: last_results_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
+            evidence_hash: evidence_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             proposer_address: account_id_from_bytes(proposer_address.as_fixed_bytes().to_owned()),
         })
     }
@@ -652,7 +634,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
                         .expect("Not a ed25519 public key")
                 }
                 TendermintPublicKey::Secp256k1(hash) => {
-                    tendermint::PublicKey::from_raw_secp256k1(&hash.as_bytes())
+                    tendermint::PublicKey::from_raw_secp256k1(hash.as_bytes())
                         .expect("Not a secp256k1 public key")
                 }
             },
