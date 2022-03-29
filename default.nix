@@ -4,10 +4,11 @@
 , crates ? [ "aleph-node" ]
 , features ? [ "default" ]
 , targetFeatures ? import ./nix/target-features.nix
+, useCustomRocksdb ? false
 }:
 let
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
-  alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures; }).project;
+  alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures useCustomRocksdb; }).project;
   workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; inherit features; }) alephNode.workspaceMembers;
   filteredWorkspaceMembers =
     if crates == [] then

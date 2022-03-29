@@ -3,6 +3,7 @@
 , gitignoreSource ? versions.gitignoreSource
 , customRocksdb ? versions.customRocksdb
 , targetFeatures ? []
+, useCustomRocksdb ? false
 }:
 let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
@@ -60,13 +61,26 @@ let
             '';
           };
       in rec {
-        librocksdb-sys = attrs: {
-          buildInputs = [ customRocksdb ] ++ (attrs.buildInputs or []);
-          LIBCLANG_PATH="${llvm.libclang.lib}/lib";
-          ROCKSDB_LIB_DIR="${customRocksdb}/lib";
-          # forces librocksdb-sys to statically compile with our customRocksdb
-          ROCKSDB_STATIC=1;
-        };
+        librocksdb-sys = attrs:
+          let
+            targetFeaturesList = import ./target-features.nix;
+            targetFeatures = nixpkgs.lib.foldr (a: b: a + "," + b) "" targetFeaturesList;
+            overrides =
+              {
+                LIBCLANG_PATH="${llvm.libclang.lib}/lib";
+                CARGO_CFG_TARGET_FEATURE="${targetFeatures}";
+              };
+            customOverrides = overrides // {
+                buildInputs = [ customRocksdb ] ++ (attrs.buildInputs or []);
+                ROCKSDB_LIB_DIR="${customRocksdb}/lib";
+                # forces librocksdb-sys to statically compile with our customRocksdb
+                ROCKSDB_STATIC=1;
+            };
+          in
+          if useCustomRocksdb then
+            customOverrides
+          else
+            overrides;
         libp2p-core = protobufFix;
         libp2p-plaintext = protobufFix;
         libp2p-floodsub = protobufFix;

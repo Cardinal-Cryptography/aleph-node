@@ -1,5 +1,5 @@
 diff --git a/include/rocksdb/transaction_log.h b/include/rocksdb/transaction_log.h
-index 48d0e5c0b..be7852de2 100644
+index 2519f3a58..8bed507ef 100644
 --- a/include/rocksdb/transaction_log.h
 +++ b/include/rocksdb/transaction_log.h
 @@ -112,7 +112,7 @@ class TransactionLogIterator {
@@ -12,10 +12,10 @@ index 48d0e5c0b..be7852de2 100644
      explicit ReadOptions(bool verify_checksums)
          : verify_checksums_(verify_checksums) {}
 diff --git a/options/options.cc b/options/options.cc
-index 4faee64b4..1b9cc817a 100644
+index a64e1e7b9..8590efd3d 100644
 --- a/options/options.cc
 +++ b/options/options.cc
-@@ -629,7 +629,7 @@ ReadOptions::ReadOptions()
+@@ -652,7 +652,7 @@ ReadOptions::ReadOptions()
        readahead_size(0),
        max_skippable_internal_keys(0),
        read_tier(kReadAllTier),
