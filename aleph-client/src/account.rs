@@ -1,6 +1,7 @@
-use crate::Connection;
+use crate::{state_query_storage_at, Connection};
+use codec::Decode;
 use pallet_balances::BalanceLock;
-use substrate_api_client::{AccountId, Balance};
+use substrate_api_client::{utils::FromHexString, AccountId, Balance};
 
 pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance {
     match connection
@@ -13,30 +14,34 @@ pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance
     }
 }
 
-pub fn locks(
-    connection: &Connection,
-    account: &AccountId,
-) -> Option<Vec<pallet_balances::BalanceLock<Balance>>> {
-    connection
-        .get_storage_map("Balances", "Locks", account, None)
-        .expect("Key `Locks` should be present in storage")
-}
-
-pub fn get_locked_balance(
-    stash_account: &AccountId,
-    connection: &Connection,
-) -> Vec<BalanceLock<Balance>> {
-    let locked_stash_balance = locks(connection, stash_account).unwrap_or_else(|| {
-        panic!(
-            "Expected non-empty locked balances for account {}!",
-            stash_account
-        )
-    });
-    assert_eq!(
-        locked_stash_balance.len(),
-        1,
-        "Expected locked balances for account {} to have exactly one entry!",
-        stash_account
-    );
-    locked_stash_balance
+pub fn locks(connection: &Connection, accounts: &[AccountId]) -> Vec<Vec<BalanceLock<Balance>>> {
+    let storage_keys = accounts
+        .into_iter()
+        .map(|account| {
+            connection
+                .metadata
+                .storage_map_key("Balances", "Locks", account)
+                .expect(&format!(
+                    "Cannot create storage key for account {}!",
+                    account
+                ))
+        })
+        .collect::<Vec<_>>();
+    let storage_entries = match state_query_storage_at(&connection, storage_keys) {
+        Ok(storage_entries) => storage_entries
+            .into_iter()
+            .map(|storage_entry| {
+                let entry_bytes = Vec::from_hex(storage_entry.expect("Storage entry is null!"))
+                    .expect("Cannot parse hex string!");
+                let balance_lock: Vec<pallet_balances::BalanceLock<Balance>> =
+                    Decode::decode(&mut entry_bytes.as_slice())
+                        .expect("Failed to decode locked balances!");
+                balance_lock
+            })
+            .collect::<Vec<Vec<_>>>(),
+        Err(err) => {
+            panic!("Failed to query storage, details: {}", &err[..]);
+        }
+    };
+    storage_entries
 }

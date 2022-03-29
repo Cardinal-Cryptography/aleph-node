@@ -15,6 +15,7 @@ sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polka
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.13", default-features = false }
 pallet-balances = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.13", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 # other dependencies
 log = "0.4"

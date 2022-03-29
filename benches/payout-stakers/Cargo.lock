@@ -96,6 +96,7 @@ name = "aleph_client"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "hex",
  "log",
  "pallet-balances",
  "pallet-staking",
@@ -1695,6 +1696,7 @@ dependencies = [
  "aleph_client",
  "anyhow",
  "env_logger",
+ "hex",
  "log",
  "parity-scale-codec",
  "primitives",
