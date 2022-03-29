@@ -1,0 +1,26 @@
+diff --git a/include/rocksdb/transaction_log.h b/include/rocksdb/transaction_log.h
+index 48d0e5c0b..be7852de2 100644
+--- a/include/rocksdb/transaction_log.h
++++ b/include/rocksdb/transaction_log.h
+@@ -112,7 +112,7 @@ class TransactionLogIterator {
+     // Default: true
+     bool verify_checksums_;
+ 
+-    ReadOptions() : verify_checksums_(true) {}
++    ReadOptions() : verify_checksums_(false) {}
+ 
+     explicit ReadOptions(bool verify_checksums)
+         : verify_checksums_(verify_checksums) {}
+diff --git a/options/options.cc b/options/options.cc
+index 4faee64b4..1b9cc817a 100644
+--- a/options/options.cc
++++ b/options/options.cc
+@@ -629,7 +629,7 @@ ReadOptions::ReadOptions()
+       readahead_size(0),
+       max_skippable_internal_keys(0),
+       read_tier(kReadAllTier),
+-      verify_checksums(true),
++      verify_checksums(false),
+       fill_cache(true),
+       tailing(false),
+       managed(false),

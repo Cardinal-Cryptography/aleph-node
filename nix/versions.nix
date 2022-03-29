@@ -86,7 +86,7 @@ rec {
 
     version = "${rocksDBVersion}";
 
-    patches = [];
+    patches = [ ./rocksdb.patch ];
 
     cmakeFlags = [
        "-DPORTABLE=0"
