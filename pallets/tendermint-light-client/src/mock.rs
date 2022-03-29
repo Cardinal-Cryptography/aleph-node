@@ -241,6 +241,8 @@ fn random_bytes(size: i32) -> Vec<u8> {
     (0..size).map(|_| u8::default()).collect()
 }
 
+// TODO : temporary before its used in benchmarking the pallet
+#[allow(unused)]
 pub fn new_block(
     chain_id_length: i32,
     app_hash_length: i32,

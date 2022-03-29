@@ -288,7 +288,7 @@ jobs:
         timeout-minutes: 20
         env:
           # Relative to local-tests/ directory
-          OLD_BINARY: old-aleph-node/aleph-node
+          OLD_BINARY: old-aleph-release-node/aleph-node
           NEW_BINARY: aleph-test-node/aleph-node
           NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
         run: ./.github/scripts/test_update.sh
@@ -296,6 +296,30 @@ jobs:
       - name: Stop cache
         uses: ./.github/actions/post-cache
 
+  test-catch-up:
+    name: Test catching up
+    runs-on: ubuntu-latest
+    needs: build-new-node
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Test catch up
+        timeout-minutes: 6
+        env:
+          # Relative to local-tests/ directory
+          ALEPH_NODE_BINARY: aleph-test-node/aleph-node
+        run: ./.github/scripts/test_catch_up.sh
 
   remove-old-artifacts:
     name: Remove old node and runtime artifacts
@@ -307,5 +331,5 @@ jobs:
         with:
           failOnError: false
           name: |
-            old-aleph-node
+            old-aleph-release-node
             old-aleph-runtime
