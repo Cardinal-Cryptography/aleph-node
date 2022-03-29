@@ -4772,6 +4772,7 @@ name = "pallet-tendermint-light-client"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.0",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-timestamp",
