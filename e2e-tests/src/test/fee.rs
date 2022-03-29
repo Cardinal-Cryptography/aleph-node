@@ -1,13 +1,15 @@
 use codec::Encode;
 use sp_core::Pair;
-use sp_runtime::{FixedPointNumber, FixedU128};
-use sp_runtime::traits::One;
-use substrate_api_client::{AccountId, compose_extrinsic, GenericAddress, UncheckedExtrinsicV4};
+use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
+use substrate_api_client::{
+    compose_extrinsic, AccountId, GenericAddress, UncheckedExtrinsicV4, XtStatus,
+};
 
-use crate::{Connection, TransferTransaction};
-use crate::config::Config;
-use crate::fee::{FeeInfo, get_next_fee_multiplier, get_tx_fee_info};
-use crate::transfer::setup_for_transfer;
+use aleph_client::{
+    get_next_fee_multiplier, get_tx_fee_info, send_xt, Connection, FeeInfo, TransferTransaction,
+};
+
+use crate::{config::Config, transfer::setup_for_transfer};
 
 pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
     let (connection, _from, _to) = setup_for_transfer(config);
@@ -76,10 +78,13 @@ pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_current_fees<Call: Encode>(connection: &Connection, tx: &UncheckedExtrinsicV4<Call>) -> (FixedU128, FeeInfo) {
+fn check_current_fees<Call: Encode>(
+    connection: &Connection,
+    tx: &UncheckedExtrinsicV4<Call>,
+) -> (FixedU128, FeeInfo) {
     // The storage query will return an u128 value which is the 'inner' representation
     // i.e. scaled up by 10^18 (see `implement_fixed!` for `FixedU128).
-    let actual_multiplier = FixedU128::from_inner(get_next_fee_multiplier(&connection));
+    let actual_multiplier = FixedU128::from_inner(get_next_fee_multiplier(connection));
     let fee_info = get_tx_fee_info(connection, tx);
     (actual_multiplier, fee_info)
 }
@@ -94,19 +99,14 @@ fn assert_no_scaling(
     let minimum_multiplier = FixedU128::saturating_from_integer(1);
 
     assert_eq!(
-        minimum_multiplier,
-        actual_multiplier,
+        minimum_multiplier, actual_multiplier,
         "{} (actual multiplier: {})",
-        error_multiplier_msg,
-        actual_multiplier
+        error_multiplier_msg, actual_multiplier
     );
     assert_eq!(
-        fee_info.unadjusted_weight,
-        fee_info.adjusted_weight,
+        fee_info.unadjusted_weight, fee_info.adjusted_weight,
         "{} ({} was scaled to {})",
-        error_fee_msg,
-        fee_info.unadjusted_weight,
-        fee_info.adjusted_weight,
+        error_fee_msg, fee_info.unadjusted_weight, fee_info.adjusted_weight,
     );
 }
 
@@ -122,12 +122,12 @@ fn prepare_transaction(connection: &Connection) -> TransferTransaction {
 
 fn fill_blocks(target_ratio: u32, blocks: u32, connection: &Connection) {
     for _ in 0..blocks {
-        crate::send_extrinsic_no_wait!(
+        let xt = compose_extrinsic!(
             connection,
             "System",
             "fill_block",
-            // Ratio is of type Perbill: it will be scaled down by 10^9
             target_ratio * 10_000_000
         );
+        send_xt(connection, xt.hex_encode(), "fill block", XtStatus::InBlock);
     }
 }

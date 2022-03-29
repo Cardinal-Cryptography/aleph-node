@@ -1,21 +1,21 @@
-use aleph_primitives::{AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN_DECIMALS};
+use aleph_primitives::{
+    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
+    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN_DECIMALS,
+};
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
     SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
-use sc_service::config::BasePath;
-use sc_service::ChainType;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sc_service::{config::BasePath, ChainType};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use std::collections::HashSet;
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashSet, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
 pub const CHAINTYPE_DEV: &str = "dev";
@@ -205,8 +205,11 @@ pub fn devnet_config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let stakers = to_account_ids(&authorities).collect();
-    generate_chain_spec_config(chain_params, authorities, stakers)
+    // TODO fix it properly so there's a default configuration for distinct stash and controller
+    // accounts, and linked controller accounts with validators
+    // for now it's better to leave it as empty not to imply (not advised) initial staking configuration
+    // in which stash == controller == validator
+    generate_chain_spec_config(chain_params, authorities, vec![])
 }
 
 pub fn config(
@@ -286,9 +289,8 @@ fn generate_genesis_config(
             .collect(),
     );
 
-    const ENDOWMENT: u128 = 1_000_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
-    const MIN_VALIDATOR_BOND: u128 = 25_000u128 * 10u128.pow(TOKEN_DECIMALS);
-    const MIN_NOMINATOR_BOND: u128 = 1_000u128 * 10u128.pow(TOKEN_DECIMALS);
+    // to have total issuance 300M (for devnet/tests/local runs only)
+    const ENDOWMENT: u128 = 60_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
 
     GenesisConfig {
         system: SystemConfig {

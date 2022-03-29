@@ -13,7 +13,9 @@ members = [
 exclude = [
   "flooder",
   "e2e-tests",
-  "common",
+  "aleph-client",
   "local-tests/send-runtime",
-  "fork-off"
+  "fork-off",
+  "benches/payout-stakers",
+  "bin/cliain",
 ]
