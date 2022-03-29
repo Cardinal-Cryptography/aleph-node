@@ -1,5 +1,5 @@
 use super::*;
-use crate as tendermint_light_client;
+use crate::{self as tendermint_light_client, types::*};
 use frame_support::{
     construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
@@ -229,3 +229,24 @@ impl frame_system::Config for TestRuntime {
 pub fn new_test_ext<T>(test: impl FnOnce() -> T) -> T {
     TestExternalities::new(Default::default()).execute_with(test)
 }
+
+// pub fn new_block() -> LightBlockStorage {
+//     let signed_header = SignedHeaderStorage::new(header, commit);
+
+//     // let current_validators = ValidatorSetStorage::new(validators, proposer, total_voting_power);
+//     // let next_validators = ValidatorSetStorage::new(validators, proposer, total_voting_power);
+
+//     let provider = TendermintPeerId::default();
+
+//     // let validators: Vec<ValidatorInfoStorage>
+//     // let next_validators: Vec<ValidatorInfoStorage>,
+
+//     let initial_block = LightBlockStorage::new(
+//         signed_header,
+//         ValidatorSetStorage::new(validators, proposer, total_voting_power),
+//         ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
+//         provider,
+//     );
+
+//     unimplemented!()
+// }

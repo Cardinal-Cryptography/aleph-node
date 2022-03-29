@@ -3,7 +3,8 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg(feature = "runtime-benchmarks")]
+
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod mock;
@@ -13,7 +14,6 @@ mod mock;
 mod tests;
 #[cfg(std)]
 mod tests;
-
 pub mod types;
 mod utils;
 

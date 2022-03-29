@@ -39,6 +39,15 @@ pub struct TrustThresholdStorage {
     pub denominator: u64,
 }
 
+impl TrustThresholdStorage {
+    pub fn new(numerator: u64, denominator: u64) -> Self {
+        Self {
+            numerator,
+            denominator,
+        }
+    }
+}
+
 impl TryFrom<TrustThresholdStorage> for TrustThreshold {
     type Error = tendermint::Error;
 
@@ -62,6 +71,20 @@ pub struct LightClientOptionsStorage {
     /// is the maximum amount that the local clock may drift behind a timestamp from the
     /// blockchain.
     pub clock_drift: u64,
+}
+
+impl LightClientOptionsStorage {
+    pub fn new(
+        trust_threshold: TrustThresholdStorage,
+        trusting_period: u64,
+        clock_drift: u64,
+    ) -> Self {
+        Self {
+            trust_threshold,
+            trusting_period,
+            clock_drift,
+        }
+    }
 }
 
 impl Default for LightClientOptionsStorage {
@@ -103,6 +126,12 @@ pub struct VersionStorage {
     pub app: u64,
 }
 
+impl VersionStorage {
+    pub fn new(block: u64, app: u64) -> Self {
+        Self { block, app }
+    }
+}
+
 impl From<VersionStorage> for Version {
     fn from(val: VersionStorage) -> Self {
         Version {
@@ -119,6 +148,12 @@ pub struct PartSetHeaderStorage {
     pub total: u32,
     /// SHA256 Hash of the parts set header,
     pub hash: BridgedBlockHash,
+}
+
+impl PartSetHeaderStorage {
+    pub fn new(total: u32, hash: BridgedBlockHash) -> Self {
+        Self { total, hash }
+    }
 }
 
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
@@ -141,6 +176,15 @@ pub struct BlockIdStorage {
     /// during consensus. It is the Merkle root of the complete serialized block
     /// cut into parts.
     pub part_set_header: PartSetHeaderStorage,
+}
+
+impl BlockIdStorage {
+    pub fn new(hash: BridgedBlockHash, part_set_header: PartSetHeaderStorage) -> Self {
+        Self {
+            hash,
+            part_set_header,
+        }
+    }
 }
 
 impl TryFrom<BlockIdStorage> for block::Id {
@@ -207,12 +251,54 @@ pub struct HeaderStorage {
     pub proposer_address: TendermintAccountId,
 }
 
+impl HeaderStorage {
+    pub fn new(
+        version: VersionStorage,
+        chain_id: Vec<u8>,
+        height: u64,
+        timestamp: TimestampStorage,
+        last_block_id: Option<BlockIdStorage>,
+        last_commit_hash: Option<Hash>,
+        data_hash: Option<Hash>,
+        validators_hash: Hash,
+        next_validators_hash: Hash,
+        consensus_hash: Hash,
+        app_hash: Vec<u8>,
+        last_results_hash: Option<Hash>,
+        evidence_hash: Option<Hash>,
+        proposer_address: TendermintAccountId,
+    ) -> Self {
+        Self {
+            version,
+            chain_id,
+            height,
+            timestamp,
+            last_block_id,
+            last_commit_hash,
+            data_hash,
+            validators_hash,
+            next_validators_hash,
+            consensus_hash,
+            app_hash,
+            last_results_hash,
+            evidence_hash,
+            proposer_address,
+        }
+    }
+}
+
 /// Represents  UTC time since Unix epoch
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TimestampStorage {
     pub seconds: i64,
     pub nanos: u32,
+}
+
+impl TimestampStorage {
+    pub fn new(seconds: i64, nanos: u32) -> Self {
+        Self { seconds, nanos }
+    }
 }
 
 impl TryFrom<TimestampStorage> for Time {
@@ -226,52 +312,34 @@ impl TryFrom<TimestampStorage> for Time {
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
-// #[cfg_attr(
-//     feature = "std",
-//     derive(Serialize, Deserialize),
-//     serde(tag = "block_id_flag")
-// )]
 #[cfg_attr(feature = "std", derive(Serialize))]
 pub enum CommitSignatureStorage {
     /// no vote was received from a validator.
-    // #[cfg_attr(feature = "std", serde(rename = 1))]
     BlockIdFlagAbsent,
     /// voted for the Commit.BlockID.
-    // #[cfg_attr(feature = "std", serde(rename = 2))]
     BlockIdFlagCommit {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        // #[cfg_attr(
-        //     feature = "std",
-        //     serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
-        // )]
         timestamp: TimestampStorage,
         /// Signature of vote
-        // #[cfg_attr(
-        //     feature = "std",
-        //     serde(deserialize_with = "deserialize_base64string_as_h512")
-        // )]
         signature: TendermintVoteSignature,
     },
     /// voted for nil.
-    // #[cfg_attr(feature = "std", serde(rename = 3))]
     BlockIdFlagNil {
         /// Validator address
         validator_address: TendermintAccountId,
         /// Timestamp of vote
-        // #[cfg_attr(
-        //     feature = "std",
-        //     serde(deserialize_with = "deserialize_timestamp_from_rfc3339")
-        // )]
         timestamp: TimestampStorage,
         /// Signature of vote
-        // #[cfg_attr(
-        //     feature = "std",
-        //     serde(deserialize_with = "deserialize_base64string_as_h512")
-        // )]
         signature: TendermintVoteSignature,
     },
+}
+
+impl CommitSignatureStorage {
+    fn signature(signature: TendermintVoteSignature) -> Option<tendermint::Signature> {
+        tendermint::Signature::try_from(signature.as_bytes()).ok()
+    }
 }
 
 #[cfg(feature = "std")]
@@ -369,9 +437,19 @@ pub struct CommitStorage {
     pub signatures: Vec<CommitSignatureStorage>,
 }
 
-impl CommitSignatureStorage {
-    fn signature(signature: TendermintVoteSignature) -> Option<tendermint::Signature> {
-        tendermint::Signature::try_from(signature.as_bytes()).ok()
+impl CommitStorage {
+    pub fn new(
+        height: u64,
+        round: u32,
+        block_id: BlockIdStorage,
+        signatures: Vec<CommitSignatureStorage>,
+    ) -> Self {
+        Self {
+            height,
+            round,
+            block_id,
+            signatures,
+        }
     }
 }
 
@@ -469,6 +547,12 @@ pub struct SignedHeaderStorage {
     pub commit: CommitStorage,
 }
 
+impl SignedHeaderStorage {
+    pub fn new(header: HeaderStorage, commit: CommitStorage) -> Self {
+        Self { header, commit }
+    }
+}
+
 impl TryFrom<SignedHeaderStorage> for SignedHeader {
     type Error = &'static str;
 
@@ -530,6 +614,24 @@ pub struct ValidatorInfoStorage {
     pub proposer_priority: i64,
 }
 
+impl ValidatorInfoStorage {
+    pub fn new(
+        address: TendermintAccountId,
+        pub_key: TendermintPublicKey,
+        power: u64,
+        name: Option<Vec<u8>>,
+        proposer_priority: i64,
+    ) -> Self {
+        Self {
+            address,
+            pub_key,
+            power,
+            name,
+            proposer_priority,
+        }
+    }
+}
+
 impl TryFrom<ValidatorInfoStorage> for validator::Info {
     type Error = &'static str;
 
@@ -573,6 +675,20 @@ pub struct ValidatorSetStorage {
     pub total_voting_power: u64,
 }
 
+impl ValidatorSetStorage {
+    pub fn new(
+        validators: Vec<ValidatorInfoStorage>,
+        proposer: Option<ValidatorInfoStorage>,
+        total_voting_power: u64,
+    ) -> Self {
+        Self {
+            validators,
+            proposer,
+            total_voting_power,
+        }
+    }
+}
+
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {
     type Error = &'static str;
 
@@ -610,6 +726,22 @@ pub struct LightBlockStorage {
     pub next_validators: ValidatorSetStorage,
     /// The peer (noide) ID of the node that provided this block
     pub provider: TendermintPeerId,
+}
+
+impl LightBlockStorage {
+    pub fn new(
+        signed_header: SignedHeaderStorage,
+        validators: ValidatorSetStorage,
+        next_validators: ValidatorSetStorage,
+        provider: TendermintPeerId,
+    ) -> Self {
+        Self {
+            signed_header,
+            validators,
+            next_validators,
+            provider,
+        }
+    }
 }
 
 impl TryFrom<LightBlockStorage> for LightBlock {
