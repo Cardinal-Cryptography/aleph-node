@@ -7,9 +7,10 @@ use sp_keyring::AccountKeyring;
 use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
-    balances_batch_transfer, create_connection, keypair_from_string, staking_batch_bond,
-    staking_batch_nominate, staking_bond, staking_check_non_zero_payouts_for_era, staking_validate,
-    staking_wait_for_full_era_completion, staking_wait_for_next_era, Connection, Protocol,
+    balances_batch_transfer, create_connection, keypair_from_string,
+    payout_stakers_and_assert_locked_balance, staking_batch_bond, staking_batch_nominate,
+    staking_bond, staking_validate, wait_for_full_era_completion, wait_for_next_era, Connection,
+    Protocol,
 };
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
@@ -37,7 +38,8 @@ fn main() -> Result<(), anyhow::Error> {
 
     let nominator_accounts = generate_nominator_accounts_with_minimal_bond(&connection);
     let validators = set_validators(address, protocol);
-    let nominee = nominate_validator_0(&connection, nominator_accounts.clone(), &validators);
+    let nominee = &validators[0];
+    nominate_validator_0(&connection, nominator_accounts.clone(), nominee);
     wait_for_10_eras(address, protocol, &connection, nominee, nominator_accounts)?;
 
     Ok(())
@@ -56,8 +58,8 @@ fn wait_for_10_eras(
 ) -> Result<(), anyhow::Error> {
     // we wait at least two full eras plus this era, to have thousands of nominators to settle up
     // correctly
-    wait_for_next_era(&connection)?;
-    let mut current_era = wait_for_full_era_completion(&connection)?;
+    wait_for_next_era(connection)?;
+    let mut current_era = wait_for_full_era_completion(connection)?;
     for _ in 0..ERAS_TO_WAIT {
         info!(
             "Era {} started, claiming rewards for era {}",
@@ -72,17 +74,16 @@ fn wait_for_10_eras(
             &stash_account,
             current_era,
         );
-        current_era = wait_for_next_era(&connection)?;
+        current_era = wait_for_next_era(connection)?;
     }
     Ok(())
 }
 
-fn nominate_validator_0<'a>(
+fn nominate_validator_0(
     connection: &Connection,
     nominator_accounts: Vec<AccountId>,
-    validators: &'a [KeyPair],
-) -> &'a KeyPair {
-    let nominee = &validators[0];
+    nominee: &KeyPair,
+) {
     let stash_validators_accounts = nominator_accounts
         .iter()
         .zip(nominator_accounts.iter())
@@ -90,8 +91,8 @@ fn nominate_validator_0<'a>(
     stash_validators_accounts
         .chunks(BOND_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            batch_bond(
-                &connection,
+            staking_batch_bond(
+                connection,
                 chunk,
                 MIN_NOMINATOR_BOND,
                 RewardDestination::Staked,
@@ -104,8 +105,7 @@ fn nominate_validator_0<'a>(
         .collect::<Vec<_>>();
     nominator_nominee_accounts
         .chunks(NOMINATE_CALL_BATCH_LIMIT)
-        .for_each(|chunk| batch_nominate(&connection, chunk));
-    nominee
+        .for_each(|chunk| staking_batch_nominate(connection, chunk));
 }
 
 fn set_validators(address: &str, protocol: Protocol) -> Vec<KeyPair> {
@@ -129,9 +129,7 @@ fn set_validators(address: &str, protocol: Protocol) -> Vec<KeyPair> {
     validators
 }
 
-fn generate_nominator_accounts_with_minimal_bond(
-    connection: &Connection,
-) -> Vec<AccountId> {
+fn generate_nominator_accounts_with_minimal_bond(connection: &Connection) -> Vec<AccountId> {
     let accounts = (VALIDATOR_COUNT..NOMINATOR_COUNT + VALIDATOR_COUNT)
         .map(derive_user_account)
         .map(|key_pair| AccountId::from(key_pair.public()))
@@ -139,11 +137,7 @@ fn generate_nominator_accounts_with_minimal_bond(
     accounts
         .chunks(TRANSFER_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            balances_batch_transfer(
-                &connection,
-                chunk.to_vec(),
-                MIN_NOMINATOR_BOND,
-            );
+            balances_batch_transfer(connection, chunk.to_vec(), MIN_NOMINATOR_BOND);
         });
     accounts
 }

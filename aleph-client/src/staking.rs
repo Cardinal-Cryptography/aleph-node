@@ -22,7 +22,7 @@ pub fn bond(
         initial_stake,
         RewardDestination::Staked,
     );
-    send_xt(&connection, xt.hex_encode(), "bond", status);
+    send_xt(connection, xt.hex_encode(), "bond", status);
 }
 
 pub fn validate(connection: &Connection, validator_commission_percentage: u8, status: XtStatus) {
@@ -31,7 +31,7 @@ pub fn validate(connection: &Connection, validator_commission_percentage: u8, st
         commission: Perbill::from_percent(validator_commission_percentage as u32),
     };
     let xt = compose_extrinsic!(connection, "Staking", "validate", prefs);
-    send_xt(&connection, xt.hex_encode(), "validate", status);
+    send_xt(connection, xt.hex_encode(), "validate", status);
 }
 
 pub fn set_staking_limits(
@@ -46,13 +46,13 @@ pub fn set_staking_limits(
         "set_staking_limits",
         minimal_nominator_stake,
         minimal_validator_stake,
-        0 as u8,
-        0 as u8,
-        0 as u8
+        0_u8,
+        0_u8,
+        0_u8
     );
     let xt = compose_extrinsic!(root_connection, "Sudo", "sudo", set_staking_limits_call);
     send_xt(
-        &root_connection,
+        root_connection,
         xt.hex_encode(),
         "set_staking_limits",
         status,
@@ -62,7 +62,7 @@ pub fn set_staking_limits(
 pub fn force_new_era(root_connection: &Connection, status: XtStatus) {
     let force_new_era_call = compose_call!(root_connection.metadata, "Staking", "force_new_era");
     let xt = compose_extrinsic!(root_connection, "Sudo", "sudo", force_new_era_call);
-    send_xt(&root_connection, xt.hex_encode(), "force_new_era", status);
+    send_xt(root_connection, xt.hex_encode(), "force_new_era", status);
 }
 
 pub fn get_current_era(connection: &Connection) -> u32 {
@@ -111,14 +111,14 @@ pub fn payout_stakers(
     );
 
     send_xt(
-        &stash_connection,
+        stash_connection,
         xt.hex_encode(),
         "payout stakers",
         XtStatus::InBlock,
     );
 }
 
-pub fn check_non_zero_payouts_for_era(
+pub fn payout_stakers_and_assert_locked_balance(
     stash_connection: &Connection,
     accounts_to_check_balance: &[AccountId],
     stash_account: &AccountId,
@@ -126,15 +126,15 @@ pub fn check_non_zero_payouts_for_era(
 ) {
     let locked_stash_balance_before_payout = accounts_to_check_balance
         .iter()
-        .map(|account| get_locked_balance(account, stash_connection))
-        .collect::<Vec<_>>();
+        .map(|account| get_locked_balance(account, stash_connection));
     payout_stakers(stash_connection, stash_account, era - 1);
     let locked_stash_balance_after_payout = accounts_to_check_balance
         .iter()
-        .map(|account| get_locked_balance(account, stash_connection))
-        .collect::<Vec<_>>();
-    locked_stash_balance_before_payout.into_iter().zip(locked_stash_balance_after_payout.into_iter()).zip(accounts_to_check_balance.iter()).
-        for_each(|((balance_before, balance_after), account_id)| {
+        .map(|account| get_locked_balance(account, stash_connection));
+    locked_stash_balance_before_payout
+        .zip(locked_stash_balance_after_payout)
+        .zip(accounts_to_check_balance.iter())
+        .for_each(|((balance_before, balance_after), account_id)| {
             assert!(balance_after[0].amount > balance_before[0].amount,
                     "Expected payout to be positive in locked balance for account {}. Balance before: {}, balance after: {}",
                     account_id, balance_before[0].amount, balance_after[0].amount);
@@ -149,13 +149,14 @@ pub fn batch_bond(
     reward_destination: RewardDestination<GenericAddress>,
 ) {
     let batch_bond_calls = stash_controller_accounts
-        .into_iter()
+        .iter()
+        .cloned()
         .map(|(stash_account, controller_account)| {
             let bond_call = compose_call!(
                 connection.metadata,
                 "Staking",
                 "bond",
-                GenericAddress::Id(controller_account.clone().to_owned()),
+                GenericAddress::Id(controller_account.clone()),
                 Compact(bond_value),
                 reward_destination.clone()
             );
@@ -163,7 +164,7 @@ pub fn batch_bond(
                 connection.metadata,
                 "Sudo",
                 "sudo_as",
-                GenericAddress::Id(stash_account.clone().to_owned()),
+                GenericAddress::Id(stash_account.clone()),
                 bond_call
             )
         })
@@ -182,7 +183,7 @@ pub fn nominate(connection: &Connection, nominee_key_pair: &KeyPair) {
     let nominee_account_id = AccountId::from(nominee_key_pair.public());
 
     let xt = connection.staking_nominate(vec![GenericAddress::Id(nominee_account_id)]);
-    send_xt(&connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
+    send_xt(connection, xt.hex_encode(), "nominate", XtStatus::InBlock);
 }
 
 pub fn batch_nominate(
@@ -191,18 +192,19 @@ pub fn batch_nominate(
 ) {
     let batch_nominate_calls = nominator_nominee_pairs
         .iter()
+        .cloned()
         .map(|(nominator, nominee)| {
             let nominate_call = compose_call!(
                 connection.metadata,
                 "Staking",
                 "nominate",
-                vec![GenericAddress::Id(nominee.clone().to_owned())]
+                vec![GenericAddress::Id(nominee.clone())]
             );
             compose_call!(
                 connection.metadata,
                 "Sudo",
                 "sudo_as",
-                GenericAddress::Id(nominator.clone().to_owned()),
+                GenericAddress::Id(nominator.clone()),
                 nominate_call
             )
         })
@@ -221,10 +223,7 @@ pub fn bonded(connection: &Connection, stash: &KeyPair) -> Option<AccountId> {
     let account_id = AccountId::from(stash.public());
     connection
         .get_storage_map("Staking", "Bonded", &account_id, None)
-        .expect(&format!(
-            "Failed to obtain Bonded for account id {}",
-            account_id
-        ))
+        .unwrap_or_else(|_| panic!("Failed to obtain Bonded for account id {}", account_id))
 }
 
 pub fn ledger(
@@ -234,8 +233,5 @@ pub fn ledger(
     let account_id = AccountId::from(controller.public());
     connection
         .get_storage_map("Staking", "Ledger", &account_id, None)
-        .expect(&format!(
-            "Failed to obtain Ledger for account id {}",
-            account_id
-        ))
+        .unwrap_or_else(|_| panic!("Failed to obtain Ledger for account id {}", account_id))
 }

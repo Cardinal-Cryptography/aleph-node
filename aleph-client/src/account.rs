@@ -26,10 +26,12 @@ pub fn get_locked_balance(
     stash_account: &AccountId,
     connection: &Connection,
 ) -> Vec<BalanceLock<Balance>> {
-    let locked_stash_balance = locks(&connection, stash_account).expect(&format!(
-        "Expected non-empty locked balances for account {}!",
-        stash_account
-    ));
+    let locked_stash_balance = locks(connection, stash_account).unwrap_or_else(|| {
+        panic!(
+            "Expected non-empty locked balances for account {}!",
+            stash_account
+        )
+    });
     assert_eq!(
         locked_stash_balance.len(),
         1,

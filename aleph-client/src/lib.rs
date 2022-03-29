@@ -14,12 +14,9 @@ pub use session::{
 };
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
-    bond as staking_bond, bonded as staking_bonded,
-    check_non_zero_payouts_for_era as staking_check_non_zero_payouts_for_era,
-    force_new_era as staking_force_new_era, ledger as staking_ledger, nominate as staking_nominate,
-    payout_stakers as staking_payout_stakers, set_staking_limit,
-    validate as staking_validate,
-    wait_for_full_era_completion,
+    bond as staking_bond, bonded as staking_bonded, force_new_era, ledger as staking_ledger,
+    nominate as staking_nominate, payout_stakers, payout_stakers_and_assert_locked_balance,
+    set_staking_limits, validate as staking_validate, wait_for_full_era_completion,
     wait_for_next_era,
 };
 pub use transfer::{

@@ -15,7 +15,7 @@ pub fn accounts_from_seeds(seeds: &Option<Vec<String>>) -> Vec<KeyPair> {
         None => default_account_seeds(),
     }
     .iter()
-    .map(AsRef::as_ref)
+    .map(String::as_str)
     .map(keypair_from_string)
     .collect()
 }
