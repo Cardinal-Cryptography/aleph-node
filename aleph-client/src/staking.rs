@@ -126,13 +126,15 @@ pub fn payout_stakers_and_assert_locked_balance(
 ) {
     let locked_stash_balance_before_payout = accounts_to_check_balance
         .iter()
-        .map(|account| get_locked_balance(account, stash_connection));
+        .map(|account| get_locked_balance(account, stash_connection))
+        .collect::<Vec<_>>();
     payout_stakers(stash_connection, stash_account, era - 1);
     let locked_stash_balance_after_payout = accounts_to_check_balance
         .iter()
-        .map(|account| get_locked_balance(account, stash_connection));
-    locked_stash_balance_before_payout
-        .zip(locked_stash_balance_after_payout)
+        .map(|account| get_locked_balance(account, stash_connection))
+        .collect::<Vec<_>>();
+    locked_stash_balance_before_payout.iter()
+        .zip(locked_stash_balance_after_payout.iter())
         .zip(accounts_to_check_balance.iter())
         .for_each(|((balance_before, balance_after), account_id)| {
             assert!(balance_after[0].amount > balance_before[0].amount,
