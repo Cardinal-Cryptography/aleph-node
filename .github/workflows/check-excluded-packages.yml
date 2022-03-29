@@ -20,9 +20,6 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
         uses: SebRollen/toml-action@v1.0.0

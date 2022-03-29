@@ -97,9 +97,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:

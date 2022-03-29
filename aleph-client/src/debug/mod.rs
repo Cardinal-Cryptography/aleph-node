@@ -1,4 +1,4 @@
-use crate::{debug::treasury::print_storage, Connection};
+use crate::Connection;
 
 mod aleph;
 mod elections;
