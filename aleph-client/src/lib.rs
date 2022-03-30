@@ -51,39 +51,23 @@ pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient>;
 
-#[derive(Copy, Clone, Debug)]
-pub enum Protocol {
-    WS,
-    WSS,
+pub fn create_connection(address: &str) -> Connection {
+    create_custom_connection(address).expect("Connection should be created")
 }
 
-impl Default for Protocol {
-    fn default() -> Self {
-        Protocol::WS
+/// Unless `address` already contains protocol, we prepend to it `ws://`.
+fn ensure_protocol(address: &str) -> String {
+    if address.starts_with("ws://") || address.starts_with("wss://") {
+        return address.to_string();
     }
-}
-
-pub fn from(use_ssl: bool) -> Protocol {
-    match use_ssl {
-        true => Protocol::WSS,
-        false => Protocol::WS,
-    }
-}
-
-pub fn create_connection(address: &str, protocol: Protocol) -> Connection {
-    create_custom_connection(address, protocol).expect("connection should be created")
+    format!("ws://{}", address)
 }
 
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
     address: &str,
-    protocol: Protocol,
 ) -> Result<Api<sr25519::Pair, Client>, <Client as FromStr>::Err> {
-    let protocol = match protocol {
-        Protocol::WS => "ws",
-        Protocol::WSS => "wss",
-    };
     loop {
-        let client = Client::from_str(&format!("{}://{}", protocol, address))?;
+        let client = Client::from_str(&ensure_protocol(address))?;
         match Api::<sr25519::Pair, _>::new(client) {
             Ok(api) => return Ok(api),
             Err(why) => {
