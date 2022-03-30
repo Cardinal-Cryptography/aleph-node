@@ -55,12 +55,34 @@ pub fn create_connection(address: &str) -> Connection {
     create_custom_connection(address).expect("Connection should be created")
 }
 
+enum Protocol {
+    WS,
+    WSS,
+}
+
+impl Default for Protocol {
+    fn default() -> Self {
+        Protocol::WS
+    }
+}
+
+impl ToString for Protocol {
+    fn to_string(&self) -> String {
+        match self {
+            Protocol::WS => String::from("ws://"),
+            Protocol::WSS => String::from("wss://"),
+        }
+    }
+}
+
 /// Unless `address` already contains protocol, we prepend to it `ws://`.
 fn ensure_protocol(address: &str) -> String {
-    if address.starts_with("ws://") || address.starts_with("wss://") {
+    if address.starts_with(&Protocol::WS.to_string())
+        || address.starts_with(&Protocol::WSS.to_string())
+    {
         return address.to_string();
     }
-    format!("ws://{}", address)
+    format!("{}{}", Protocol::default().to_string(), address)
 }
 
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
