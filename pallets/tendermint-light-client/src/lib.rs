@@ -1,24 +1,24 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //! This pallet is an on-chain light-client for tendermint (Cosmos) based chains
 //! It verifies headers submitted to it via on-chain transactions, performed by a so-called relayer
 //! It is a part of the Aleph0 <-> Terra bridge
+pub use pallet::*;
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// #[cfg(any(test, feature = "runtime-benchmarks"))]
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
-#[cfg(std)]
-mod mock;
-#[cfg(test)]
-mod tests;
-#[cfg(std)]
-mod tests;
+
 pub mod types;
 mod utils;
 
 use frame_support::traits::StorageVersion;
-pub use pallet::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -88,7 +88,7 @@ pub mod pallet {
         InvalidBlock,
     }
 
-    // TODOs for storage:
+    // NOTE for storage:
     // - header storage should be a ring buffer (i.e. we keep n last headers, ordered by the insertion time)
     // - we keep a pointer to the last finalized header (to avoid deserializing the whole buffer)
     // - insertion moves the pointer and updates the buffer
@@ -128,8 +128,6 @@ pub mod pallet {
         }
     }
 
-    // END: TODOs
-
     /// If true, stop the world
     #[pallet::storage]
     #[pallet::getter(fn is_halted)]
@@ -158,10 +156,10 @@ pub mod pallet {
 
             <LightClientOptions<T>>::put(options);
 
-            let hash = initial_block.signed_header.commit.block_id.hash.clone();
+            let hash = initial_block.signed_header.commit.block_id.hash;
             <ImportedHashesPointer<T>>::put(0);
             // update block storage
-            insert_light_block::<T>(hash, initial_block.clone());
+            insert_light_block::<T>(hash, initial_block);
 
             // update status
             <IsHalted<T>>::put(false);
@@ -180,7 +178,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_not_halted::<T>()?;
             let who = ensure_signed(origin)?;
-            let hash = untrusted_block.signed_header.commit.block_id.hash.clone();
+            let hash = untrusted_block.signed_header.commit.block_id.hash;
 
             log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &hash);
 
@@ -202,8 +200,6 @@ pub mod pallet {
 
             let now = T::TimeProvider::now();
             let now = Time::from_unix_timestamp(now.as_secs().try_into().unwrap(), 0).unwrap();
-
-            // println!("@ now {:?}", now);
 
             let verdict = verify_light_block(
                 verifier,
@@ -261,12 +257,10 @@ pub mod pallet {
         now: Time,
     ) -> tendermint_light_client_verifier::Verdict {
         let untrusted_block: LightBlock = untrusted_block
-            .clone()
             .try_into()
             .expect("Unexpected failure when casting untrusted block as tendermint::LightBlock");
 
         let trusted_block: LightBlock = trusted_block
-            .clone()
             .try_into()
             .expect("Unexpected failure when casting trusted block as tendermint::LightBlock");
 
@@ -274,7 +268,7 @@ pub mod pallet {
         verifier.verify(
             untrusted_block.as_untrusted_state(),
             trusted_block.as_trusted_state(),
-            &options,
+            options,
             now,
         )
     }
@@ -285,9 +279,9 @@ pub mod pallet {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
 
-        <LastImportedHash<T>>::put(hash.clone());
-        <ImportedBlocks<T>>::insert(hash.clone(), light_block);
-        <ImportedHashes<T>>::insert(index, hash.clone());
+        <LastImportedHash<T>>::put(hash);
+        <ImportedBlocks<T>>::insert(hash, light_block);
+        <ImportedHashes<T>>::insert(index, hash);
         <ImportedHashesPointer<T>>::put((index + 1) % T::HeadersToKeep::get());
 
         // prune light block

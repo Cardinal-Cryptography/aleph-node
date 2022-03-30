@@ -1,5 +1,4 @@
-use super::*;
-use crate::{self as tendermint_light_client, types::*};
+use crate as tendermint_light_client;
 use frame_support::{
     construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
@@ -9,6 +8,7 @@ use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
+use sp_std::vec::Vec;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -230,23 +230,10 @@ pub fn new_test_ext<T>(test: impl FnOnce() -> T) -> T {
     TestExternalities::new(Default::default()).execute_with(test)
 }
 
-// pub fn new_block() -> LightBlockStorage {
-//     let signed_header = SignedHeaderStorage::new(header, commit);
-
-//     // let current_validators = ValidatorSetStorage::new(validators, proposer, total_voting_power);
-//     // let next_validators = ValidatorSetStorage::new(validators, proposer, total_voting_power);
-
-//     let provider = TendermintPeerId::default();
-
-//     // let validators: Vec<ValidatorInfoStorage>
-//     // let next_validators: Vec<ValidatorInfoStorage>,
-
-//     let initial_block = LightBlockStorage::new(
-//         signed_header,
-//         ValidatorSetStorage::new(validators, proposer, total_voting_power),
-//         ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
-//         provider,
-//     );
-
-//     unimplemented!()
-// }
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_genesis_storage() -> sp_io::TestExternalities {
+    frame_system::GenesisConfig::default()
+        .build_storage::<TestRuntime>()
+        .unwrap()
+        .into()
+}

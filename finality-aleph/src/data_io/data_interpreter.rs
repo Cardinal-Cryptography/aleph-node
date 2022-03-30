@@ -11,8 +11,7 @@ use futures::channel::mpsc;
 use log::{debug, error, warn};
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block as BlockT, NumberFor, One, Zero};
-use std::default::Default;
-use std::sync::Arc;
+use std::{default::Default, sync::Arc};
 
 type InterpretersChainInfoProvider<B, C> =
     CachedChainInfoProvider<B, AuxFinalizationChainInfoProvider<B, Arc<C>>>;
@@ -87,7 +86,7 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
                 match status {
                     Finalize(block) => Some(block),
                     Ignore => {
-                        debug!(target: "aleph-finality", "HopelessFork {:?} encountered in Data. Skipping.", proposal);
+                        debug!(target: "aleph-finality", "Ignoring proposal {:?} in interpreter.", proposal);
                         None
                     }
                     Pending(pending_status) => {

@@ -1,4 +1,4 @@
-use crate::utils::{account_id_from_bytes, sha256_from_bytes, tm_hash_to_hash};
+use crate::utils::{account_id_from_bytes, empty_bytes, sha256_from_bytes, tm_hash_to_hash};
 #[cfg(feature = "std")]
 use crate::utils::{
     base64string_as_h512, deserialize_base64string_as_h256, deserialize_from_str,
@@ -597,11 +597,7 @@ impl TryFrom<HeaderStorage> for Header {
 
         Ok(Self {
             version: version.try_into().expect("Cannot create Version"),
-            chain_id:
-            // chain_id
-            //     .parse::<chain::Id>()
-            //     .expect("Cannot parse as Chain Id"),
-            String::from_utf8(chain_id)
+            chain_id: String::from_utf8(chain_id)
                 .expect("Not a UTF8 string encoding")
                 .parse::<chain::Id>()
                 .expect("Cannot parse as Chain Id"),
@@ -611,28 +607,14 @@ impl TryFrom<HeaderStorage> for Header {
                 Some(id) => id.try_into().ok(),
                 None => None,
             },
-            last_commit_hash: match last_commit_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
-            data_hash: match data_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
+            last_commit_hash: last_commit_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
+            data_hash: data_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
             next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
             consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
-            app_hash:
-            // hash::AppHash::from_hex_upper(&app_hash).expect("Cannot create AppHash"),
-            hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
-            last_results_hash: match last_results_hash {
-                Some(hash) => Some(sha256_from_bytes(&hash.as_bytes())),
-                None => None,
-            },
-            evidence_hash: match evidence_hash {
-                Some(hash) => Some(sha256_from_bytes(hash.as_bytes())),
-                None => None,
-            },
+            app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            last_results_hash: last_results_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
+            evidence_hash: evidence_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             proposer_address: account_id_from_bytes(proposer_address.as_fixed_bytes().to_owned()),
         })
     }
@@ -797,7 +779,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
                         .expect("Not a ed25519 public key")
                 }
                 TendermintPublicKey::Secp256k1(hash) => {
-                    tendermint::PublicKey::from_raw_secp256k1(&hash.as_bytes())
+                    tendermint::PublicKey::from_raw_secp256k1(hash.as_bytes())
                         .expect("Not a secp256k1 public key")
                 }
             },
@@ -923,6 +905,101 @@ impl LightBlockStorage {
             next_validators,
             provider,
         }
+    }
+
+    pub fn create(
+        chain_id_length: i32,
+        app_hash_length: i32,
+        validators_count: i32,
+        validator_name_length: i32,
+    ) -> Self {
+        let version = VersionStorage::new(u64::default(), u64::default());
+        let chain_id = empty_bytes(chain_id_length);
+        let height = 3;
+        let timestamp = TimestampStorage::new(3, 0);
+        let last_block_id = None;
+        let last_commit_hash = None;
+        let data_hash = None;
+        let validators_hash = Hash::default();
+        let next_validators_hash = Hash::default();
+        let consensus_hash = Hash::default();
+        let app_hash = empty_bytes(app_hash_length);
+        let last_results_hash = None;
+        let evidence_hash = None;
+        let proposer_address = TendermintAccountId::default();
+
+        let header = HeaderStorage::new(
+            version,
+            chain_id,
+            height,
+            timestamp,
+            last_block_id,
+            last_commit_hash,
+            data_hash,
+            validators_hash,
+            next_validators_hash,
+            consensus_hash,
+            app_hash,
+            last_results_hash,
+            evidence_hash,
+            proposer_address,
+        );
+
+        let height = 3;
+        let round = 1;
+        let hash = BridgedBlockHash::default();
+        let total = u32::default();
+        let part_set_header = PartSetHeaderStorage::new(total, hash);
+        let block_id = BlockIdStorage::new(hash, part_set_header);
+
+        let signatures = (0..validators_count)
+            .map(|_| {
+                let validator_address = TendermintAccountId::default();
+                let timestamp = TimestampStorage::new(3, 0);
+                let signature = TendermintVoteSignature::default();
+                CommitSignatureStorage::BlockIdFlagCommit {
+                    validator_address,
+                    timestamp,
+                    signature: Some(signature),
+                }
+            })
+            .collect();
+
+        let commit = CommitStorage::new(height, round, block_id, signatures);
+        let signed_header = SignedHeaderStorage::new(header, commit);
+        let provider = TendermintPeerId::default();
+
+        let mut total_voting_power = u64::default();
+
+        let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
+            .map(|_| {
+                let address = TendermintAccountId::default();
+                let pub_key = TendermintPublicKey::Ed25519(H256::default());
+                let power = u64::default();
+                let name = Some(empty_bytes(validator_name_length));
+                let proposer_priority = i64::default();
+
+                total_voting_power += power;
+
+                ValidatorInfoStorage {
+                    address,
+                    pub_key,
+                    power,
+                    name,
+                    proposer_priority,
+                }
+            })
+            .collect();
+
+        let proposer = None;
+        let next_validators = validators.clone();
+
+        LightBlockStorage::new(
+            signed_header,
+            ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
+            ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
+            provider,
+        )
     }
 }
 

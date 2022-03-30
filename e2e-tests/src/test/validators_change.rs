@@ -1,24 +1,27 @@
+use crate::{
+    accounts::{accounts_from_seeds, get_sudo},
+    config::Config,
+};
+use aleph_client::{
+    change_members, create_connection, wait_for_event, wait_for_finalized_block, Header,
+};
 use codec::Decode;
-use common::create_connection;
 use log::info;
 use sp_core::Pair;
-use substrate_api_client::AccountId;
-
-use crate::accounts::{accounts_from_seeds, get_sudo};
-use crate::config::Config;
-use crate::session::send_change_members;
-use crate::waiting::{wait_for_event, wait_for_finalized_block};
-use crate::Header;
+use substrate_api_client::{AccountId, XtStatus};
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let Config {
-        ref node, seeds, ..
+        ref node,
+        seeds,
+        protocol,
+        ..
     } = config;
 
     let mut accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
-    let connection = create_connection(node).set_signer(sudo);
+    let connection = create_connection(node, *protocol).set_signer(sudo);
 
     let members_before: Vec<AccountId> = connection
         .get_storage_value("Elections", "Members", None)?
@@ -28,7 +31,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     accounts.remove(0);
     let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
-    send_change_members(&connection, new_members.clone());
+    change_members(&connection, new_members.clone(), XtStatus::InBlock);
 
     #[derive(Debug, Decode, Clone)]
     struct NewMembersEvent {
