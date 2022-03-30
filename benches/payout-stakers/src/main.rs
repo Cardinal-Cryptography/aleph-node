@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::{info, trace};
 use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
@@ -13,6 +13,7 @@ use aleph_client::{
 use primitives::staking::{
     MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND,
 };
+use sp_core::crypto::AccountId32;
 
 // testcase parameters
 const NOMINATOR_COUNT: u64 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR as u64;
@@ -33,25 +34,33 @@ fn main() -> Result<(), anyhow::Error> {
 
     let connection = create_connection(address).set_signer(sudoer);
     let validators = set_validators(address);
-    let mut validators_and_its_nominators = Vec::new();
-    validators
-        .iter()
-        .enumerate()
-        .for_each(|(validator_index, validator_pair)| {
-            let nominator_accounts =
-                generate_nominator_accounts_with_minimal_bond(&connection, validator_index as u64);
-            let nominee_account = AccountId::from(validator_pair.public());
-            info!("Nominating validator {}", nominee_account);
-            nominate_validator(&connection, nominator_accounts.clone(), nominee_account);
-            validators_and_its_nominators.push((validator_pair.clone(), nominator_accounts))
-        });
+    let validators_and_its_nominators =
+        create_test_validators_and_its_nominators(&connection, validators);
     wait_for_10_eras(address, &connection, validators_and_its_nominators)?;
 
     Ok(())
 }
 
+fn create_test_validators_and_its_nominators(
+    connection: &Connection,
+    validators: Vec<KeyPair>,
+) -> Vec<(KeyPair, Vec<AccountId32>)> {
+    validators
+        .iter()
+        .enumerate()
+        .map(|(validator_index, validator_pair)| {
+            let nominator_accounts =
+                generate_nominator_accounts_with_minimal_bond(&connection, validator_index as u64);
+            let nominee_account = AccountId::from(validator_pair.public());
+            info!("Nominating validator {}", nominee_account);
+            nominate_validator(&connection, nominator_accounts.clone(), nominee_account);
+            (validator_pair.clone(), nominator_accounts)
+        })
+        .collect()
+}
+
 pub fn derive_user_account(seed: u64) -> KeyPair {
-    debug!("Generating account from numeric seed {}", seed);
+    trace!("Generating account from numeric seed {}", seed);
     keypair_from_string(&format!("//{}", seed))
 }
 

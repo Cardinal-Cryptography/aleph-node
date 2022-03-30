@@ -1,6 +1,7 @@
 use crate::{state_query_storage_at, Connection};
 use codec::Decode;
 use pallet_balances::BalanceLock;
+use sp_core::{crypto::AccountId32, storage::StorageKey};
 use substrate_api_client::{utils::FromHexString, AccountId, Balance};
 
 pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance {
@@ -15,7 +16,15 @@ pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance
 }
 
 pub fn locks(connection: &Connection, accounts: &[AccountId]) -> Vec<Vec<BalanceLock<Balance>>> {
-    let storage_keys = accounts
+    let storage_keys = create_storage_keys_from_accounts(connection, accounts);
+    get_locked_balances_from_storage(&connection, storage_keys)
+}
+
+fn create_storage_keys_from_accounts(
+    connection: &Connection,
+    accounts: &[AccountId32],
+) -> Vec<StorageKey> {
+    accounts
         .into_iter()
         .map(|account| {
             connection
@@ -26,8 +35,14 @@ pub fn locks(connection: &Connection, accounts: &[AccountId]) -> Vec<Vec<Balance
                     account
                 ))
         })
-        .collect::<Vec<_>>();
-    let storage_entries = match state_query_storage_at(&connection, storage_keys) {
+        .collect()
+}
+
+fn get_locked_balances_from_storage(
+    connection: &&Connection,
+    storage_keys: Vec<StorageKey>,
+) -> Vec<Vec<BalanceLock<Balance>>> {
+    match state_query_storage_at(&connection, storage_keys) {
         Ok(storage_entries) => storage_entries
             .into_iter()
             .map(|storage_entry| {
@@ -38,10 +53,9 @@ pub fn locks(connection: &Connection, accounts: &[AccountId]) -> Vec<Vec<Balance
                         .expect("Failed to decode locked balances!");
                 balance_lock
             })
-            .collect::<Vec<Vec<_>>>(),
+            .collect(),
         Err(err) => {
             panic!("Failed to query storage, details: {}", &err[..]);
         }
-    };
-    storage_entries
+    }
 }
