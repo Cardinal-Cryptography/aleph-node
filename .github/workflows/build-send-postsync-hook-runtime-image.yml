@@ -3,6 +3,8 @@ name: Build, send and deploy postsync hook image.
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'bin/cliain/**'
       - 'docker-runtime-hook/**'
