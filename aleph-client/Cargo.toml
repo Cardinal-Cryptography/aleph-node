@@ -19,7 +19,7 @@ pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "
 log = "0.4"
 serde_json = { version = "1.0" }
 anyhow = "1.0"
-codec = { package = 'parity-scale-codec', version = "2.0.0", default-features = false,  features = ['derive']}
+codec = { package = 'parity-scale-codec', version = "3.0.0", default-features = false,  features = ['derive']}
 
 [features]
 default = ["std"]

@@ -3,30 +3,30 @@
 use aleph_client::create_connection;
 use sp_core::{sr25519, Pair};
 use std::fs;
-use structopt::StructOpt;
+use clap::Args;
 use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
 
-#[derive(Debug, StructOpt)]
-#[structopt(
+#[derive(Debug, Args)]
+#[clap(
     name = "send-runtime",
     about = "Send a setCode extrinsic from a Sudo account."
 )]
 struct Args {
     /// Seed phrase of the Sudo account
-    #[structopt(long, short, name = "PHRASE")]
+    #[clap(long, short, name = "PHRASE")]
     sudo_phrase: String,
 
     /// WS address of a node
-    #[structopt(long, short, name = "ADDRESS")]
+    #[clap(long, short, name = "ADDRESS")]
     url: String,
 
     /// Path to a file with WASM runtime.
-    #[structopt(name = "FILE")]
+    #[clap(name = "FILE")]
     runtime: String,
 }
 
 fn main() {
-    let args = Args::from_args();
+    let args = Args::parse();
 
     let runtime = fs::read(args.runtime).expect("File not found");
     let sudo = keypair_from_string(&args.sudo_phrase);

@@ -36,13 +36,13 @@ pub mod pallet {
         type AuthorityId: Member
             + Parameter
             + RuntimeAppPublic
-            + Default
+            // + Default
             + MaybeSerializeDeserialize;
     }
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
-	#[pallet::without_storage_info]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     #[pallet::hooks]

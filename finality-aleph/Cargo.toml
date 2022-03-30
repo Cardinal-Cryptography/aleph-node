@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 aleph-primitives = { package = "primitives", path = "../primitives" }
 tokio = { version = "1.17.0", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
-codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 hash-db = { version = "0.15.2", default-features = false }
 log = "0.4.16"
 lru = "0.7.3"
@@ -20,7 +20,7 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 sp-keystore = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sc-network = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
-aleph-bft = "0.8.4"
+aleph-bft = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", tag = "codec-3.0" }
 serde = "1.0.136"
 sc-service = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}

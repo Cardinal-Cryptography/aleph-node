@@ -4,18 +4,18 @@ use crate::{
     chain_spec,
     commands::{BootstrapChainCmd, ConvertChainspecToRawCmd},
 };
+use clap::{Parser, Subcommand as ClapSubcommand};
 use sc_cli::{ChainSpec, RunCmd, RuntimeVersion, SubstrateCli};
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Cli {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub subcommand: Option<Subcommand>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub aleph: AlephCli,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub run: RunCmd,
 }
 
@@ -55,9 +55,10 @@ impl SubstrateCli for Cli {
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, ClapSubcommand)]
 pub enum Subcommand {
     /// Key management cli utilities
+    #[clap(subcommand)]
     Key(sc_cli::KeySubcommand),
 
     // NOTE: similarly we could have a BootstrapNode command that takes a node-name parameter

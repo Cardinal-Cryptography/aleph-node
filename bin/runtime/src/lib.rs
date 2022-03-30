@@ -18,12 +18,14 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
 };
+use sp_staking::EraIndex;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use frame_support::pallet_prelude::ConstU32;
 use frame_support::sp_runtime::Perquintill;
 use frame_support::traits::EqualPrivilegeOnly;
 use frame_support::traits::SortedMembers;
@@ -109,6 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
+    state_version: 1,
 };
 
 pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
@@ -137,6 +140,9 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
+
+pub const UNITS: Balance = 10_000_000_000;
+pub const DOLLARS: Balance = UNITS; // 10_000_000_000
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -198,6 +204,7 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -299,6 +306,8 @@ impl pallet_scheduler::Config for Runtime {
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = Preimage;
+    type NoPreimagePostponement = ();
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -427,6 +436,24 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
         (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
         (chill_other(), SubstrateStakingWeights, Weight)
     );
+
+    fn set_staking_configs_all_set() -> Weight {
+        todo!()
+    }
+
+    fn set_staking_configs_all_remove() -> Weight {
+        todo!()
+    }
+
+    fn force_apply_min_commission() -> Weight {
+        todo!()
+    }
+}
+
+pub struct StakingBenchmarkingConfig;
+impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
+    type MaxValidators = ConstU32<1000>;
+    type MaxNominators = ConstU32<1000>;
 }
 
 impl pallet_staking::Config for Runtime {
@@ -436,6 +463,7 @@ impl pallet_staking::Config for Runtime {
     type CurrencyToVote = U128CurrencyToVote;
     type ElectionProvider = Elections;
     type GenesisElectionProvider = Elections;
+    type MaxNominations = ConstU32<1>;
     type RewardRemainder = Treasury;
     type Event = Event;
     type Slash = Treasury;
@@ -450,6 +478,8 @@ impl pallet_staking::Config for Runtime {
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
+    type MaxUnlockingChunks = ();
+    type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
 }
 
@@ -544,7 +574,7 @@ parameter_types! {
 pub struct TreasuryGovernance;
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        vec![pallet_sudo::Pallet::<Runtime>::key()]
+        vec![pallet_sudo::Pallet::<Runtime>::key().unwrap()]
     }
 }
 
@@ -563,6 +593,7 @@ impl pallet_treasury::Config for Runtime {
     type SpendFunds = ();
     type SpendPeriod = SpendPeriod;
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+    type ProposalBondMaximum = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -570,6 +601,23 @@ impl pallet_utility::Config for Runtime {
     type Call = Call;
     type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
     type PalletsOrigin = OriginCaller;
+}
+
+parameter_types! {
+    pub const PreimageMaxSize: u32 = 4096 * 1024;
+    pub const PreimageBaseDeposit: Balance = DOLLARS;
+    // One cent: $10,000 / MB
+    pub const PreimageByteDeposit: Balance = CENTS;
+}
+
+impl pallet_preimage::Config for Runtime {
+    type Event = Event;
+    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Currency = Balances;
+    type ManagerOrigin = EnsureRoot<AccountId>;
+    type MaxSize = PreimageMaxSize;
+    type BaseDeposit = PreimageBaseDeposit;
+    type ByteDeposit = PreimageByteDeposit;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -597,6 +645,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        Preimage: pallet_preimage,
     }
 );
 
@@ -630,6 +679,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
+    AllPalletsWithSystem,
 >;
 
 impl_runtime_apis! {

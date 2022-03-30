@@ -21,10 +21,7 @@ pub mod pallet {
         ElectionDataProvider, ElectionProvider, Support, Supports,
     };
     use frame_support::{pallet_prelude::*, traits::Get};
-    use frame_system::{
-        ensure_root,
-        pallet_prelude::{BlockNumberFor, OriginFor},
-    };
+    use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
     #[pallet::storage]
@@ -34,7 +31,10 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type DataProvider: ElectionDataProvider<AccountId=Self::AccountId, BlockNumber = Self::BlockNumber>;
+        type DataProvider: ElectionDataProvider<
+            AccountId = Self::AccountId,
+            BlockNumber = Self::BlockNumber,
+        >;
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
     }
