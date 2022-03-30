@@ -21,9 +21,9 @@ sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polka
 sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false, features = ["disable_oom", "disable_panic_handler"] }
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
-tendermint = { version = "0.24.0-pre.1", default-features = false, features = ["secp256k1"] }
-tendermint-light-client-verifier = { version = "0.24.0-pre.1", default-features = false }
-tendermint-proto = { version = "0.24.0-pre.1",  default-features = false }
+tendermint = { version = "0.23.5", default-features = false, features = ["secp256k1"] }
+tendermint-light-client-verifier = { version = "0.23.5", default-features = false }
+tendermint-proto = { version = "0.23.5",  default-features = false }
 time = { version = "0.3.5", default-features = false, features = [ "parsing"] }
 subtle-encoding = {version = "0.5", default-features = false, features = ["bech32-preview"]}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false, optional = true }
