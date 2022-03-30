@@ -30,7 +30,7 @@ jobs:
         uses: rikhuijzer/cache-install@v1.0.9
         with:
           key: nix-store
-          nix_file: 'default.nix'
+          nix_file: 'shell.nix'
 
       - name: Build binary and runtime
         run: nix-build --arg crates '[ "aleph-node" "aleph-runtime" ]' ./default.nix
