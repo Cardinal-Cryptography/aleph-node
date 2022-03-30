@@ -30,16 +30,16 @@ jobs:
         uses: rikhuijzer/cache-install@v1.0.9
         with:
           key: nix-store
-          nix_file: 'shell.nix'
+          nix_file: 'default.nix'
 
       - name: Build binary and runtime
-        run: nix-build --arg crates '[ "aleph-node" "aleph-runtime" ]' ./default.nix
+        run: CRATES='["aleph-node" "aleph-runtime"]' ../../docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node
-          path: result/bin/aleph-node
+          path: aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -52,16 +52,13 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session"
-
-      - name: Build test binary
-        run: nix-build --arg crates '[ "aleph-node" ]' --arg features '"short_session"' ./default.nix
+        run: CRATES='["aleph-node" "aleph-runtime"]' FEATURES='["short_session"]' ../../docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-node
-          path: result/bin/aleph-node
+          path: aleph-node
           if-no-files-found: error
           retention-days: 7
 
