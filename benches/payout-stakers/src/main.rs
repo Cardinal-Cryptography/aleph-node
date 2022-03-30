@@ -16,12 +16,12 @@ use primitives::staking::{
 
 // testcase parameters
 const NOMINATOR_COUNT: u64 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR as u64;
-const VALIDATOR_COUNT: u64 = 4;
+const VALIDATOR_COUNT: u64 = 10;
 const ERAS_TO_WAIT: u64 = 10;
 
 // we need to schedule batches for limited call count, otherwise we'll exhaust a block max weight
 const BOND_CALL_BATCH_LIMIT: usize = 256;
-const NOMINATE_CALL_BATCH_LIMIT: usize = 128;
+const NOMINATE_CALL_BATCH_LIMIT: usize = 192;
 const TRANSFER_CALL_BATCH_LIMIT: usize = 1024;
 
 fn main() -> Result<(), anyhow::Error> {
