@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-aleph-e2e-client --node "$NODE_URL" "${STORAGE_DEBUG-}"
+if [[ $STORAGE_DEBUG == yes ]]; then
+  aleph-e2e-client --node "$NODE_URL" --storage-debug
+else
+  aleph-e2e-client --node "$NODE_URL"
+fi
 
 echo "Done!"
