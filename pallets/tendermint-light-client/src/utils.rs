@@ -19,6 +19,11 @@ pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
     account::Id::new(bytes)
 }
 
+/// create Vec of known size filled with empty bytes
+pub fn empty_bytes(size: i32) -> Vec<u8> {
+    (0..size).map(|_| u8::default()).collect()
+}
+
 /// Deserialize unix timestamp from rfc3339 formatted string
 #[cfg(feature = "std")]
 pub fn timestamp_from_rfc3339(s: &str) -> Result<TimestampStorage, &str> {

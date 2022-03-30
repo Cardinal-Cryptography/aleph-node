@@ -4,42 +4,43 @@ version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
 [dependencies]
-base64 = { default-features = false, version = "0.13.0" }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+base64 = { version = "0.13.0", default-features = false}
+codec = { version = "2.0.0", package = "parity-scale-codec",default-features = false, features = ["derive"] }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 primitives = { path = "../../primitives", default-features = false}
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 serde = {version = '1', default-features = false, features = ['derive', 'alloc'] }
 serde_json = {version = '1', default-features = false, features = ['alloc'] }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
-sp-io = { default-features = false, features = ["disable_oom", "disable_panic_handler"], git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false, features = ["disable_oom", "disable_panic_handler"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+subtle-encoding = { version = "0.5", default-features = false, features = ["bech32-preview"] }
 tendermint = { version = "0.24.0-pre.1", default-features = false, features = ["secp256k1"] }
 tendermint-light-client-verifier = { version = "0.24.0-pre.1", default-features = false }
-time = {version = "0.3.5", default-features = false, features = [ "parsing"]}
-subtle-encoding = {version = "0.5", default-features = false, features = ["bech32-preview"]}
-frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+time = {version = "0.3.5", default-features = false, features = [ "parsing"] }
 
 # [dev-dependencies]
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
 [features]
 default = ["std"]
 std = [
   "base64/std",
   "codec/std",
+  "frame-benchmarking/std",  
   "frame-support/std",
   "frame-system/std",
   "pallet-timestamp/std",
   "primitives/std",
+  "scale-info/std",
   "sp-std/std",
 ]
-
-runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
-]
+runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
+try-runtime = ["frame-support/try-runtime"]

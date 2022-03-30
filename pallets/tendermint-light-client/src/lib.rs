@@ -1,24 +1,24 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //! This pallet is an on-chain light-client for tendermint (Cosmos) based chains
 //! It verifies headers submitted to it via on-chain transactions, performed by a so-called relayer
 //! It is a part of the Aleph0 <-> Terra bridge
+pub use pallet::*;
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// #[cfg(any(test, feature = "runtime-benchmarks"))]
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
-#[cfg(std)]
-mod mock;
-#[cfg(test)]
-mod tests;
-#[cfg(std)]
-mod tests;
+
 pub mod types;
 mod utils;
 
 use frame_support::traits::StorageVersion;
-pub use pallet::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -88,7 +88,7 @@ pub mod pallet {
         InvalidBlock,
     }
 
-    // TODOs for storage:
+    // NOTE for storage:
     // - header storage should be a ring buffer (i.e. we keep n last headers, ordered by the insertion time)
     // - we keep a pointer to the last finalized header (to avoid deserializing the whole buffer)
     // - insertion moves the pointer and updates the buffer
@@ -127,8 +127,6 @@ pub mod pallet {
             }
         }
     }
-
-    // END: TODOs
 
     /// If true, stop the world
     #[pallet::storage]

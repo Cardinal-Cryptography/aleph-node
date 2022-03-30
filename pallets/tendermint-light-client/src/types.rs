@@ -1,4 +1,4 @@
-use crate::utils::{account_id_from_bytes, sha256_from_bytes};
+use crate::utils::{account_id_from_bytes, empty_bytes, sha256_from_bytes};
 #[cfg(feature = "std")]
 use crate::utils::{
     base64string_as_h512, deserialize_base64string_as_h256, deserialize_from_str,
@@ -723,6 +723,101 @@ impl LightBlockStorage {
             next_validators,
             provider,
         }
+    }
+
+    pub fn create(
+        chain_id_length: i32,
+        app_hash_length: i32,
+        validators_count: i32,
+        validator_name_length: i32,
+    ) -> Self {
+        let version = VersionStorage::new(u64::default(), u64::default());
+        let chain_id = empty_bytes(chain_id_length);
+        let height = 3;
+        let timestamp = TimestampStorage::new(3, 0);
+        let last_block_id = None;
+        let last_commit_hash = None;
+        let data_hash = None;
+        let validators_hash = Hash::default();
+        let next_validators_hash = Hash::default();
+        let consensus_hash = Hash::default();
+        let app_hash = empty_bytes(app_hash_length);
+        let last_results_hash = None;
+        let evidence_hash = None;
+        let proposer_address = TendermintAccountId::default();
+
+        let header = HeaderStorage::new(
+            version,
+            chain_id,
+            height,
+            timestamp,
+            last_block_id,
+            last_commit_hash,
+            data_hash,
+            validators_hash,
+            next_validators_hash,
+            consensus_hash,
+            app_hash,
+            last_results_hash,
+            evidence_hash,
+            proposer_address,
+        );
+
+        let height = 3;
+        let round = 1;
+        let hash = BridgedBlockHash::default();
+        let total = u32::default();
+        let part_set_header = PartSetHeaderStorage::new(total, hash);
+        let block_id = BlockIdStorage::new(hash, part_set_header);
+
+        let signatures = (0..validators_count)
+            .map(|_| {
+                let validator_address = TendermintAccountId::default();
+                let timestamp = TimestampStorage::new(3, 0);
+                let signature = TendermintVoteSignature::default();
+                CommitSignatureStorage::BlockIdFlagCommit {
+                    validator_address,
+                    timestamp,
+                    signature,
+                }
+            })
+            .collect();
+
+        let commit = CommitStorage::new(height, round, block_id, signatures);
+        let signed_header = SignedHeaderStorage::new(header, commit);
+        let provider = TendermintPeerId::default();
+
+        let mut total_voting_power = u64::default();
+
+        let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
+            .map(|_| {
+                let address = TendermintAccountId::default();
+                let pub_key = TendermintPublicKey::Ed25519(H256::default());
+                let power = u64::default();
+                let name = Some(empty_bytes(validator_name_length));
+                let proposer_priority = i64::default();
+
+                total_voting_power += power;
+
+                ValidatorInfoStorage {
+                    address,
+                    pub_key,
+                    power,
+                    name,
+                    proposer_priority,
+                }
+            })
+            .collect();
+
+        let proposer = None;
+        let next_validators = validators.clone();
+
+        LightBlockStorage::new(
+            signed_header,
+            ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
+            ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
+            provider,
+        )
     }
 }
 

@@ -1,21 +1,14 @@
-use super::*;
-use crate::{self as tendermint_light_client, types::*, utils::timestamp_from_rfc3339};
+use crate as tendermint_light_client;
 use frame_support::{
-    construct_runtime, parameter_types, sp_io,
-    traits::{Everything, IsType},
-    weights::RuntimeDbWeight,
+    construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
 use sp_core::H256;
 use sp_io::TestExternalities;
 use sp_runtime::{
-    generic::BlockId,
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
-use tendermint::{
-    block::{self, commit_sig},
-    evidence, signature, validator, Version,
-};
+use sp_std::vec::Vec;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -237,103 +230,10 @@ pub fn new_test_ext<T>(test: impl FnOnce() -> T) -> T {
     TestExternalities::new(Default::default()).execute_with(test)
 }
 
-fn random_bytes(size: i32) -> Vec<u8> {
-    (0..size).map(|_| u8::default()).collect()
-}
-
-// TODO : temporary before its used in benchmarking the pallet
-#[allow(unused)]
-pub fn new_block(
-    chain_id_length: i32,
-    app_hash_length: i32,
-    validators_count: i32,
-    validator_name_length: i32,
-) -> LightBlockStorage {
-    let version = VersionStorage::new(u64::default(), u64::default());
-    let chain_id = random_bytes(chain_id_length);
-    let height = 3;
-    let timestamp = TimestampStorage::new(3, 0);
-    let last_block_id = None;
-    let last_commit_hash = None;
-    let data_hash = None;
-    let validators_hash = Hash::default();
-    let next_validators_hash = Hash::default();
-    let consensus_hash = Hash::default();
-    let app_hash = random_bytes(app_hash_length);
-    let last_results_hash = None;
-    let evidence_hash = None;
-    let proposer_address = TendermintAccountId::default();
-
-    let header = HeaderStorage::new(
-        version,
-        chain_id,
-        height,
-        timestamp,
-        last_block_id,
-        last_commit_hash,
-        data_hash,
-        validators_hash,
-        next_validators_hash,
-        consensus_hash,
-        app_hash,
-        last_results_hash,
-        evidence_hash,
-        proposer_address,
-    );
-
-    let height = 3;
-    let round = 1;
-    let hash = BridgedBlockHash::default();
-    let total = u32::default();
-    let part_set_header = PartSetHeaderStorage::new(total, hash);
-    let block_id = BlockIdStorage::new(hash, part_set_header);
-
-    let signatures = (0..validators_count)
-        .map(|_| {
-            let validator_address = TendermintAccountId::default();
-            let timestamp = TimestampStorage::new(3, 0);
-            let signature = TendermintVoteSignature::default();
-            CommitSignatureStorage::BlockIdFlagCommit {
-                validator_address,
-                timestamp,
-                signature,
-            }
-        })
-        .collect();
-
-    let commit = CommitStorage::new(height, round, block_id, signatures);
-    let signed_header = SignedHeaderStorage::new(header, commit);
-    let provider = TendermintPeerId::default();
-
-    let mut total_voting_power = u64::default();
-
-    let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
-        .map(|_| {
-            let address = TendermintAccountId::default();
-            let pub_key = TendermintPublicKey::Ed25519(H256::default());
-            let power = u64::default();
-            let name = Some(random_bytes(validator_name_length));
-            let proposer_priority = i64::default();
-
-            total_voting_power += power;
-
-            ValidatorInfoStorage {
-                address,
-                pub_key,
-                power,
-                name,
-                proposer_priority,
-            }
-        })
-        .collect();
-
-    let proposer = None;
-    let next_validators = validators.clone();
-
-    LightBlockStorage::new(
-        signed_header,
-        ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
-        ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
-        provider,
-    )
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_genesis_storage() -> sp_io::TestExternalities {
+    frame_system::GenesisConfig::default()
+        .build_storage::<TestRuntime>()
+        .unwrap()
+        .into()
 }
