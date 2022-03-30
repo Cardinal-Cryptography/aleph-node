@@ -144,6 +144,7 @@ impl WsRpcClient {
         self.send_rpc_request(json_req, on_extrinsic_msg_until_finalized)
     }
 
+    #[allow(deprecated)]
     fn send_rpc_request(&self, jsonreq: String, on_message_fn: OnMessageFn) -> WsResult<String> {
         // ws_sender below is used by the RpcClient while being executed by another thread,
         // but we don't want it actually to do anything, since we are sending the given request here
