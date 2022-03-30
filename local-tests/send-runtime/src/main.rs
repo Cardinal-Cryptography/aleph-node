@@ -3,10 +3,10 @@
 use aleph_client::create_connection;
 use sp_core::{sr25519, Pair};
 use std::fs;
-use clap::Args;
+use clap::Parser;
 use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
 
-#[derive(Debug, Args)]
+#[derive(Debug, Parser)]
 #[clap(
     name = "send-runtime",
     about = "Send a setCode extrinsic from a Sudo account."

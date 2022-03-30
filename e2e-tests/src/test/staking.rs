@@ -9,6 +9,7 @@ use crate::{
 };
 use aleph_client::{staking_bond, wait_for_session, change_members, get_current_session, set_keys, rotate_keys, create_connection, KeyPair};
 use log::info;
+use frame_support::BoundedVec;
 use pallet_staking::StakingLedger;
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
@@ -160,7 +161,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
             stash: stash_account.clone(),
             total: MIN_VALIDATOR_BOND,
             active: MIN_VALIDATOR_BOND,
-            unlocking: vec![],
+            unlocking: BoundedVec::try_from(vec![]).unwrap(),
             // we don't need to compare claimed rewards as those are internals of staking pallet
             claimed_rewards: ledger.claimed_rewards.clone()
         }

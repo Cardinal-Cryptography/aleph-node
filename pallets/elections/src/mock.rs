@@ -109,7 +109,6 @@ impl ElectionDataProvider for StakingMock {
     type AccountId = AccountId;
     type BlockNumber = u64;
     type MaxVotesPerVoter = ();
-    // const MAXIMUM_VOTES_PER_VOTER: u32 = 1;
 
     fn targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
         Ok(Vec::new())
