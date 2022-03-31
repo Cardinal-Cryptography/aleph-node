@@ -427,12 +427,12 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
                         2 => CommitSignatureStorage::BlockIdFlagCommit {
                             validator_address,
                             timestamp,
-                            signature: Some(signature),
+                            signature,
                         },
                         3 => CommitSignatureStorage::BlockIdFlagNil {
                             validator_address,
                             timestamp,
-                            signature: Some(signature),
+                            signature,
                         },
                         _ => panic!("Should never get here"),
                     }
@@ -985,7 +985,7 @@ impl LightBlockStorage {
                 CommitSignatureStorage::BlockIdFlagCommit {
                     validator_address,
                     timestamp,
-                    signature: Some(signature),
+                    signature,
                 }
             })
             .collect();
