@@ -103,7 +103,7 @@ where
 /// represent the original value.
 ///
 /// Returns `None` if input value is `None` variant.
-pub fn tm_hash_to_hash(tm_hash: &Hash) -> Option<H256> {
+pub fn tendermint_hash_to_h256(tm_hash: &Hash) -> Option<H256> {
     match tm_hash {
         Hash::Sha256(hash) => Some(H256::from_slice(hash)),
         Hash::None => None,

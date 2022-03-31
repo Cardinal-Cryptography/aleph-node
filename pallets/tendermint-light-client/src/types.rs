@@ -1,5 +1,6 @@
 use crate::utils::{
-    account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes, tm_hash_to_hash,
+    account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes,
+    tendermint_hash_to_h256,
 };
 #[cfg(feature = "std")]
 use crate::utils::{
@@ -635,8 +636,11 @@ impl TryFrom<HeaderStorage> for Header {
 impl TryFrom<Header> for HeaderStorage {
     type Error = &'static str;
     fn try_from(header: Header) -> Result<Self, Self::Error> {
-        let last_commit_hash = header.last_commit_hash.as_ref().and_then(tm_hash_to_hash);
-        let data_hash = header.data_hash.as_ref().and_then(tm_hash_to_hash);
+        let last_commit_hash = header
+            .last_commit_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
+        let data_hash = header.data_hash.as_ref().and_then(tendermint_hash_to_h256);
         let validators_hash = match header.validators_hash {
             TmHash::Sha256(secp) => H256::from_slice(&secp),
             TmHash::None => return Err("unexpected hash variant for validators_hash field"),
@@ -650,8 +654,14 @@ impl TryFrom<Header> for HeaderStorage {
             TmHash::None => return Err("unexpected hash variant for consensus_hash field"),
         };
         let app_hash = header.app_hash.value().clone();
-        let last_results_hash = header.last_results_hash.as_ref().and_then(tm_hash_to_hash);
-        let evidence_hash = header.evidence_hash.as_ref().and_then(tm_hash_to_hash);
+        let last_results_hash = header
+            .last_results_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
+        let evidence_hash = header
+            .evidence_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
         let proposer_address = H160::from_slice(header.proposer_address.as_bytes());
         Ok(HeaderStorage::new(
             header.version.into(),
