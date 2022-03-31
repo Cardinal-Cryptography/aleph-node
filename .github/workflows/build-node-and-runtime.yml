@@ -33,7 +33,7 @@ jobs:
           nix_file: 'default.nix'
 
       - name: Build binary and runtime
-        run: chmod +x docker/nix-build.sh && CRATES='{"aleph-node"=["default"]; "aleph-runtime"=["default"]}' docker/nix-build.sh
+        run: chmod +x docker/nix-build.sh && CRATES='{"aleph-node"=["default"]; "aleph-runtime"=["default"];}' docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -52,7 +52,7 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: chmod +x docker/nix-build.sh && CRATES='{"aleph-node"=["short_session"]; "aleph-runtime"=["short_session"]}' docker/nix-build.sh
+        run: chmod +x docker/nix-build.sh && CRATES='{"aleph-node"=["short_session"]; "aleph-runtime"=["short_session"];}' docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
