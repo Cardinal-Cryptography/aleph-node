@@ -31,5 +31,6 @@ else
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
     cp ./result/bin/aleph-node ./
+    chmod +w ./aleph-node
     patchelf --set-interpreter $DYNAMIC_LINKER_PATH ./aleph-node
 fi
