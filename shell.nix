@@ -45,5 +45,7 @@ with nixpkgs; mkShell.override { stdenv = env; } {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
+    ${nixpkgs.lib.optionalString useCustomRocksdb "export ROCKSDB_LIB_DIR=${customRocksdb}/lib"}
+    ${nixpkgs.lib.optionalString useCustomRocksdb "export ROCKSDB_STATIC=1"}
   '';
 }
