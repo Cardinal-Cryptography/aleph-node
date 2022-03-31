@@ -1,4 +1,6 @@
-use crate::utils::{account_id_from_bytes, empty_bytes, sha256_from_bytes, tm_hash_to_hash};
+use crate::utils::{
+    account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes, tm_hash_to_hash,
+};
 #[cfg(feature = "std")]
 use crate::utils::{
     base64string_as_h512, deserialize_base64string_as_h256, deserialize_from_str,
@@ -394,12 +396,6 @@ pub enum CommitSignatureStorage {
     },
 }
 
-impl CommitSignatureStorage {
-    fn signature(signature: TendermintVoteSignature) -> Option<tendermint::Signature> {
-        tendermint::Signature::try_from(signature.as_bytes()).ok()
-    }
-}
-
 #[cfg(feature = "std")]
 impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
@@ -407,8 +403,8 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
 
         Ok(
             match value.get("block_id_flag").and_then(Value::as_u64).unwrap() {
-                1 => todo!(),
-                2 => {
+                1 => CommitSignatureStorage::BlockIdFlagAbsent,
+                id @ 2 | id @ 3 => {
                     let s = value
                         .get("validator_address")
                         .and_then(Value::as_str)
@@ -426,13 +422,21 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
                         .and_then(Value::as_str)
                         .map(|sig| base64string_as_h512(sig).unwrap());
 
-                    CommitSignatureStorage::BlockIdFlagCommit {
-                        validator_address,
-                        timestamp,
-                        signature,
+                    match id {
+                        2 => CommitSignatureStorage::BlockIdFlagCommit {
+                            validator_address,
+                            timestamp,
+                            signature: Some(signature),
+                        },
+                        3 => CommitSignatureStorage::BlockIdFlagNil {
+                            validator_address,
+                            timestamp,
+                            signature: Some(signature),
+                        },
+                        _ => panic!("Should never get here"),
                     }
                 }
-                3 => todo!(),
+
                 other_ => panic!("unsupported block_id_flag {:?}", other_),
             },
         )
@@ -453,7 +457,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = timestamp.try_into().unwrap();
-                let signature = signature.and_then(CommitSignatureStorage::signature);
+                let signature =
+                    signature.map(|signature| as_tendermint_signature(signature).unwrap());
 
                 Self::BlockIdFlagCommit {
                     validator_address,
@@ -469,7 +474,8 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
                 let timestamp = timestamp.try_into().unwrap();
-                let signature = signature.and_then(CommitSignatureStorage::signature);
+                let signature =
+                    signature.map(|signature| as_tendermint_signature(signature).unwrap());
 
                 Self::BlockIdFlagNil {
                     validator_address,
@@ -965,7 +971,7 @@ impl LightBlockStorage {
             .map(|_| {
                 let validator_address = TendermintAccountId::default();
                 let timestamp = TimestampStorage::new(3, 0);
-                let signature = TendermintVoteSignature::default();
+                let signature = Some(TendermintVoteSignature::default());
                 CommitSignatureStorage::BlockIdFlagCommit {
                     validator_address,
                     timestamp,

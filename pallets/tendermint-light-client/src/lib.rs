@@ -5,16 +5,6 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 pub use pallet::*;
 
-// #[cfg(any(test, feature = "runtime-benchmarks"))]
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarks;
-
 pub mod types;
 mod utils;
 
@@ -172,7 +162,7 @@ pub mod pallet {
         // TODO : benchmark & adjust weights
         /// Verify a block header against a known state.        
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
-        pub fn submit_finality_proof(
+        pub fn update_client(
             origin: OriginFor<T>,
             untrusted_block: LightBlockStorage,
         ) -> DispatchResult {
@@ -229,6 +219,7 @@ pub mod pallet {
             }
         }
 
+        // TODO: This method will need to be called by the pallet itself if it detects a fork.
         /// Halt or resume all light client operations
         ///
         /// Can only be called by root
