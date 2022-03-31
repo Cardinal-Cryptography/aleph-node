@@ -33,10 +33,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type AuthorityId: Member
-            + Parameter
-            + RuntimeAppPublic
-            + MaybeSerializeDeserialize;
+        type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
     }
 
     #[pallet::pallet]

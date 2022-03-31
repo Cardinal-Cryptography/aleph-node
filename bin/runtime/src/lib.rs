@@ -141,8 +141,9 @@ const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
-pub const UNITS: Balance = 10_000_000_000;
-pub const DOLLARS: Balance = UNITS; // 10_000_000_000
+pub const MILLICENTS: Balance = 100_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
+pub const DOLLARS: Balance = 100 * CENTS; // 10_000_000_000
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -306,7 +307,7 @@ impl pallet_scheduler::Config for Runtime {
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = Preimage;
+    type PreimageProvider = ();
     type NoPreimagePostponement = ();
 }
 
@@ -434,20 +435,23 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
             Weight
         ),
         (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
-        (chill_other(), SubstrateStakingWeights, Weight)
+        (chill_other(), SubstrateStakingWeights, Weight),
+        (
+            set_staking_configs_all_set(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            set_staking_configs_all_remove(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            force_apply_min_commission(),
+            SubstrateStakingWeights,
+            Weight
+        )
     );
-
-    fn set_staking_configs_all_set() -> Weight {
-        todo!()
-    }
-
-    fn set_staking_configs_all_remove() -> Weight {
-        todo!()
-    }
-
-    fn force_apply_min_commission() -> Weight {
-        todo!()
-    }
 }
 
 pub struct StakingBenchmarkingConfig;
@@ -478,7 +482,7 @@ impl pallet_staking::Config for Runtime {
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
-    type MaxUnlockingChunks = ();
+    type MaxUnlockingChunks = ConstU32<16>;
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
 }
@@ -518,9 +522,6 @@ impl pallet_vesting::Config for Runtime {
     const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
-pub const MILLICENTS: Balance = 100_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
-
 // at a fixed cost $0.01 per byte, the constants are selected so that
 // the base cost of starting a multisig action is $5
 pub const ALLOCATION_COST: Balance = 412 * CENTS;
@@ -555,6 +556,7 @@ pub const TREASURY_BURN: u32 = 0;
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
 // Every 4h we implement accepted proposals.
 pub fn treasury_spend_period() -> BlockNumber {
     hours_as_block_num(4)
@@ -566,6 +568,7 @@ parameter_types! {
     pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
     pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
     pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
+    pub const ProposalBondMaximum: Balance = TREASURY_MAXIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
     pub SpendPeriod: BlockNumber = treasury_spend_period();
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
@@ -589,11 +592,11 @@ impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ProposalBondMaximum;
     type RejectOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
     type SpendFunds = ();
     type SpendPeriod = SpendPeriod;
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
-    type ProposalBondMaximum = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -601,23 +604,6 @@ impl pallet_utility::Config for Runtime {
     type Call = Call;
     type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
     type PalletsOrigin = OriginCaller;
-}
-
-parameter_types! {
-    pub const PreimageMaxSize: u32 = 4096 * 1024;
-    pub const PreimageBaseDeposit: Balance = DOLLARS;
-    // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = CENTS;
-}
-
-impl pallet_preimage::Config for Runtime {
-    type Event = Event;
-    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
-    type Currency = Balances;
-    type ManagerOrigin = EnsureRoot<AccountId>;
-    type MaxSize = PreimageMaxSize;
-    type BaseDeposit = PreimageBaseDeposit;
-    type ByteDeposit = PreimageByteDeposit;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -645,7 +631,6 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-        Preimage: pallet_preimage,
     }
 );
 
