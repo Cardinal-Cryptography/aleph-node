@@ -653,7 +653,7 @@ impl TryFrom<Header> for HeaderStorage {
             TmHash::Sha256(secp) => H256::from_slice(&secp),
             TmHash::None => return Err("unexpected hash variant for consensus_hash field"),
         };
-        let app_hash = header.app_hash.value().clone();
+        let app_hash = header.app_hash.value();
         let last_results_hash = header
             .last_results_hash
             .as_ref()
@@ -668,7 +668,7 @@ impl TryFrom<Header> for HeaderStorage {
             header.chain_id.as_bytes().to_vec(),
             header.height.value(),
             header.time.try_into()?,
-            header.last_block_id.clone().map(Into::into),
+            header.last_block_id.map(Into::into),
             last_commit_hash,
             data_hash,
             validators_hash,
