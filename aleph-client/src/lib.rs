@@ -1,10 +1,12 @@
+use codec::Encode;
 use std::{thread::sleep, time::Duration};
 
 use log::{info, warn};
-use sp_core::{sr25519, Pair};
+use sp_core::{sr25519, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient, XtStatus,
+    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient,
+    UncheckedExtrinsicV4, XtStatus,
 };
 
 pub use account::{get_free_balance, get_locked_balance, locks};
@@ -107,64 +109,38 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
     }
 }
 
-/// Sends transaction `xt` using `connection`. If `tx_status` is either `Finalized` or `InBlock`
-/// additionally fetches corresponding block number, which is then returned.
-/// Can panic.
-pub fn send_xt(
+/// `panic`able utility wrapper for `try_send_xt`.
+pub fn send_xt<T: Encode>(
     connection: &Connection,
-    xt: String,
-    xt_name: &'static str,
-    tx_status: XtStatus,
-) -> Option<BlockNumber> {
-    let hash = connection
-        .send_extrinsic(xt, tx_status)
-        .expect("Could not send extrinsic")
-        .expect("Could not get tx hash");
-
-    match tx_status {
-        XtStatus::Finalized | XtStatus::InBlock => {
-            let block_number = connection
-                .get_header::<Header>(Some(hash))
-                .expect("Could not fetch header")
-                .expect("Block exists; qed")
-                .number;
-            info!(
-                target: "aleph-client",
-                "Transaction {} was included in block {}.",
-                xt_name, block_number
-            );
-            Some(block_number)
-        }
-        _ => None,
-    }
+    xt: UncheckedExtrinsicV4<T>,
+    xt_name: Option<&'static str>,
+    xt_status: XtStatus,
+) -> Option<H256> {
+    try_send_xt(connection, xt, xt_name, xt_status).expect("Should manage to send extrinsic")
 }
 
 /// Sends transaction `xt` using `connection`. If `tx_status` is either `Finalized` or `InBlock`
-/// fetches corresponding block number, which is then returned.
+/// additionally returns hash of the containing block. `xt_name` is used only for logging purposes.
 /// Recoverable.
-pub fn try_send_xt(
+pub fn try_send_xt<T: Encode>(
     connection: &Connection,
-    xt: String,
-    xt_name: &'static str,
-    tx_status: XtStatus,
-) -> ApiResult<Option<BlockNumber>> {
+    xt: UncheckedExtrinsicV4<T>,
+    xt_name: Option<&'static str>,
+    xt_status: XtStatus,
+) -> ApiResult<Option<H256>> {
     let hash = connection
-        .send_extrinsic(xt, tx_status)?
-        .ok_or_else(|| Error::Other(String::from("Could not get block hash").into()))?;
+        .send_extrinsic(xt.hex_encode(), xt_status)?
+        .ok_or_else(|| Error::Other(String::from("Could not get tx/block hash").into()))?;
 
-    match tx_status {
+    match xt_status {
         XtStatus::Finalized | XtStatus::InBlock => {
-            let block_number = connection
-                .get_header::<Header>(Some(hash))?
-                .expect("Block exists; qed")
-                .number;
-            info!(
-                target: "aleph-client",
-                "Transaction {} was included in block {}.",
-                xt_name, block_number
-            );
-            Ok(Some(block_number))
+            info!(target: "aleph-client",
+                "Transaction `{}` was included in block with hash {}.",
+                xt_name.unwrap_or_default(), hash);
+            Ok(Some(hash))
         }
+        // Other variants either do not return (see https://github.com/scs/substrate-api-client/issues/175)
+        // or return xt hash, which is kinda useless here.
         _ => Ok(None),
     }
 }
