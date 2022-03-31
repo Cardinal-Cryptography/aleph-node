@@ -22,6 +22,7 @@ function usage(){
       ./nix-build.sh [-s - spawn nix-shell]"
 }
 
+nix-env -i patchelf
 if [ $SPAWN_SHELL = true ]
 then
     nix-shell --pure $SHELL_NIX_FILE
