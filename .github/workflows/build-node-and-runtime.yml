@@ -33,7 +33,7 @@ jobs:
           nix_file: 'default.nix'
 
       - name: Build binary and runtime
-        run: CRATES='["aleph-node" "aleph-runtime"]' docker/nix-build.sh
+        run: chmod +x docker/nix-build.sh && CRATES='["aleph-node" "aleph-runtime"]' docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
