@@ -5,16 +5,6 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 pub use pallet::*;
 
-// #[cfg(any(test, feature = "runtime-benchmarks"))]
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarks;
-
 pub mod types;
 mod utils;
 
