@@ -96,4 +96,4 @@ std = [
     "frame-system-rpc-runtime-api/std",
     "primitives/std",
 ]
-short_session = ["primitives/short_session"]
+short_session = ["primitives/short_session", "default"]
