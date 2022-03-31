@@ -1,5 +1,6 @@
 { versions ? import ./nix/versions.nix {}
 , nixpkgs ? versions.nixpkgs
+, useCustomRocksdb ? false
 }:
 let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
@@ -10,20 +11,19 @@ let
 
   inherit (versions) customRocksdb;
 in
-with nixpkgs; mkShell {
+with nixpkgs; mkShell.override { stdenv = env; } {
   nativeBuildInputs = [
     cargo
     rustc
     llvm.clang
     openssl.dev
     protobuf
-    customRocksdb
     pkg-config
     cacert
     git
     findutils
     patchelf
-  ];
+  ] ++ nixpkgs.lib.optional useCustomRocksdb versions.customRocksdb;
 
   shellHook = ''
     export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
@@ -45,7 +45,5 @@ with nixpkgs; mkShell {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
-    export ROCKSDB_LIB_DIR="${customRocksdb}/lib"
-    export ROCKSDB_STATIC=1
   '';
 }
