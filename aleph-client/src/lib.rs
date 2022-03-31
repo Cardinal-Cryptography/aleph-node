@@ -107,42 +107,66 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
     }
 }
 
-pub fn send_xt(connection: &Connection, xt: String, xt_name: &'static str, tx_status: XtStatus) {
-    let block_hash = connection
+/// Sends transaction `xt` using `connection`. If `tx_status` is either `Finalized` or `InBlock`
+/// additionally fetches corresponding block number, which is then returned.
+/// Can panic.
+pub fn send_xt(
+    connection: &Connection,
+    xt: String,
+    xt_name: &'static str,
+    tx_status: XtStatus,
+) -> Option<BlockNumber> {
+    let hash = connection
         .send_extrinsic(xt, tx_status)
         .expect("Could not send extrinsic")
         .expect("Could not get tx hash");
-    let block_number = connection
-        .get_header::<Header>(Some(block_hash))
-        .expect("Could not fetch header")
-        .expect("Block exists; qed")
-        .number;
-    info!(
-        target: "aleph-client",
-        "Transaction {} was included in block {}.",
-        xt_name, block_number
-    );
+
+    match tx_status {
+        XtStatus::Finalized | XtStatus::InBlock => {
+            let block_number = connection
+                .get_header::<Header>(Some(hash))
+                .expect("Could not fetch header")
+                .expect("Block exists; qed")
+                .number;
+            info!(
+                target: "aleph-client",
+                "Transaction {} was included in block {}.",
+                xt_name, block_number
+            );
+            Some(block_number)
+        }
+        _ => None,
+    }
 }
 
+/// Sends transaction `xt` using `connection`. If `tx_status` is either `Finalized` or `InBlock`
+/// fetches corresponding block number, which is then returned.
+/// Recoverable.
 pub fn try_send_xt(
     connection: &Connection,
     xt: String,
     xt_name: &'static str,
     tx_status: XtStatus,
-) -> ApiResult<()> {
-    let block_hash = connection
+) -> ApiResult<Option<BlockNumber>> {
+    let hash = connection
         .send_extrinsic(xt, tx_status)?
         .ok_or_else(|| Error::Other(String::from("Could not get block hash").into()))?;
-    let block_number = connection
-        .get_header::<Header>(Some(block_hash))?
-        .expect("Block exists; qed")
-        .number;
-    info!(
-        target: "aleph-client",
-        "Transaction {} was included in block {}.",
-        xt_name, block_number
-    );
-    Ok(())
+
+    match tx_status {
+        XtStatus::Finalized | XtStatus::InBlock => {
+            let block_number = connection
+                .get_header::<Header>(Some(hash))?
+                .expect("Block exists; qed")
+                .number;
+            info!(
+                target: "aleph-client",
+                "Transaction {} was included in block {}.",
+                xt_name, block_number
+            );
+            Ok(Some(block_number))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub fn keypair_from_string(seed: &str) -> KeyPair {
