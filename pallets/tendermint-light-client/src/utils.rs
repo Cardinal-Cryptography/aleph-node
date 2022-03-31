@@ -1,4 +1,4 @@
-use crate::types::TimestampStorage;
+use crate::types::{TendermintVoteSignature, TimestampStorage};
 use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer};
@@ -22,6 +22,12 @@ pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
 /// create Vec of known size filled with empty bytes
 pub fn empty_bytes(size: i32) -> Vec<u8> {
     (0..size).map(|_| u8::default()).collect()
+}
+
+pub fn as_tendermint_signature(
+    signature: TendermintVoteSignature,
+) -> Result<tendermint::Signature, tendermint::Error> {
+    tendermint::Signature::try_from(signature.as_bytes())
 }
 
 /// Deserialize unix timestamp from rfc3339 formatted string

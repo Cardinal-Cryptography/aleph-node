@@ -162,7 +162,7 @@ pub mod pallet {
         // TODO : benchmark & adjust weights
         /// Verify a block header against a known state.        
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
-        pub fn submit_finality_proof(
+        pub fn update_client(
             origin: OriginFor<T>,
             untrusted_block: LightBlockStorage,
         ) -> DispatchResult {
