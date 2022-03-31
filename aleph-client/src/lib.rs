@@ -3,7 +3,9 @@ use std::{thread::sleep, time::Duration};
 use log::{info, warn};
 use sp_core::{sr25519, Pair};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
-use substrate_api_client::{rpc::ws_client::WsRpcClient, Api, RpcClient, XtStatus};
+use substrate_api_client::{
+    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient, XtStatus,
+};
 
 pub use account::{get_free_balance, get_locked_balance, locks};
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
@@ -58,29 +60,29 @@ pub fn create_connection(address: &str) -> Connection {
 }
 
 enum Protocol {
-    WS,
-    WSS,
+    Ws,
+    Wss,
 }
 
 impl Default for Protocol {
     fn default() -> Self {
-        Protocol::WS
+        Protocol::Ws
     }
 }
 
 impl ToString for Protocol {
     fn to_string(&self) -> String {
         match self {
-            Protocol::WS => String::from("ws://"),
-            Protocol::WSS => String::from("wss://"),
+            Protocol::Ws => String::from("ws://"),
+            Protocol::Wss => String::from("wss://"),
         }
     }
 }
 
 /// Unless `address` already contains protocol, we prepend to it `ws://`.
 fn ensure_protocol(address: &str) -> String {
-    if address.starts_with(&Protocol::WS.to_string())
-        || address.starts_with(&Protocol::WSS.to_string())
+    if address.starts_with(&Protocol::Ws.to_string())
+        || address.starts_with(&Protocol::Wss.to_string())
     {
         return address.to_string();
     }
@@ -120,6 +122,27 @@ pub fn send_xt(connection: &Connection, xt: String, xt_name: &'static str, tx_st
         "Transaction {} was included in block {}.",
         xt_name, block_number
     );
+}
+
+pub fn try_send_xt(
+    connection: &Connection,
+    xt: String,
+    xt_name: &'static str,
+    tx_status: XtStatus,
+) -> ApiResult<()> {
+    let block_hash = connection
+        .send_extrinsic(xt, tx_status)?
+        .ok_or_else(|| Error::Other(String::from("Could not get block hash").into()))?;
+    let block_number = connection
+        .get_header::<Header>(Some(block_hash))?
+        .expect("Block exists; qed")
+        .number;
+    info!(
+        target: "aleph-client",
+        "Transaction {} was included in block {}.",
+        xt_name, block_number
+    );
+    Ok(())
 }
 
 pub fn keypair_from_string(seed: &str) -> KeyPair {
