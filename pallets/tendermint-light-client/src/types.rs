@@ -732,13 +732,13 @@ impl LightBlockStorage {
     }
 
     pub fn create(
-        chain_id_length: i32,
-        app_hash_length: i32,
         validators_count: i32,
-        validator_name_length: i32,
+        chain_id_byte_count: i32,
+        app_hash_byte_count: i32,
+        validator_name_byte_count: i32,
     ) -> Self {
         let version = VersionStorage::new(u64::default(), u64::default());
-        let chain_id = empty_bytes(chain_id_length);
+        let chain_id = empty_bytes(chain_id_byte_count);
         let height = 3;
         let timestamp = TimestampStorage::new(3, 0);
         let last_block_id = None;
@@ -747,7 +747,7 @@ impl LightBlockStorage {
         let validators_hash = Hash::default();
         let next_validators_hash = Hash::default();
         let consensus_hash = Hash::default();
-        let app_hash = empty_bytes(app_hash_length);
+        let app_hash = empty_bytes(app_hash_byte_count);
         let last_results_hash = None;
         let evidence_hash = None;
         let proposer_address = TendermintAccountId::default();
@@ -800,7 +800,7 @@ impl LightBlockStorage {
                 let address = TendermintAccountId::default();
                 let pub_key = TendermintPublicKey::Ed25519(H256::default());
                 let power = u64::default();
-                let name = Some(empty_bytes(validator_name_length));
+                let name = Some(empty_bytes(validator_name_byte_count));
                 let proposer_priority = i64::default();
 
                 total_voting_power += power;

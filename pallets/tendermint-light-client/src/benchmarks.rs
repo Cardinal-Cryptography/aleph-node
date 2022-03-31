@@ -7,12 +7,13 @@ use sp_runtime::traits::Bounded;
 benchmarks! {
     benchmark_for_initialize_client {
 
-        let i in 0 .. i32::max_value() as u32;
+        let v in 0 .. 130 as u32;
+        let i in 0 .. 1024 as u32;
 
         let caller = RawOrigin::Root; //whitelisted_caller();
         let options = types::LightClientOptionsStorage::default ();
 
-        let initial_block = types::LightBlockStorage::create (i as i32, i as i32, i as i32, i as i32);
+        let initial_block = types::LightBlockStorage::create (v as i32, i as i32, i as i32, i as i32);
 
     }: initialize_client(caller.clone(), options, initial_block.clone ())
 
@@ -23,9 +24,6 @@ benchmarks! {
             initial_block.signed_header.commit.block_id.hash,
             last_imported
         );
-
-        // assert_eq! (true, true);
-
     }
 
     // TODO : benchmark client update call

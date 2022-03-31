@@ -50,6 +50,10 @@ pub mod pallet {
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
 
+        // /// Maximal number of block validators in Tendermint
+        // #[pallet::constant]
+        // type MaxValidatorsCount: Get<u32>;
+
         /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;
     }
@@ -99,7 +103,7 @@ pub mod pallet {
     #[pallet::getter(fn get_last_imported_hash)]
     pub type LastImportedHash<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
 
-    /// A ring buffer of imported hashes "ordered" by their insertion time
+    /// All imported hashes "ordered" by their insertion time
     #[pallet::storage]
     pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
 

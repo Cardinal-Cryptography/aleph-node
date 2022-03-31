@@ -52,7 +52,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib
+          args: --lib --features runtime-benchmark
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
