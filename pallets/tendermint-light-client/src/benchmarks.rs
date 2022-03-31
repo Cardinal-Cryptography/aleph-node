@@ -1,5 +1,4 @@
 use super::*;
-// use crate::{mock, types, Pallet as TendermintLightClient};
 use crate::Pallet as TendermintLightClient;
 use frame_benchmarking::{account, benchmarks, benchmarks_instance_pallet, whitelisted_caller};
 use frame_system::{Origin, RawOrigin};
@@ -12,8 +11,6 @@ benchmarks! {
 
         let caller = RawOrigin::Root; //whitelisted_caller();
         let options = types::LightClientOptionsStorage::default ();
-
-        // let initial_block = mock::create_block (i as i32, i as i32, i as i32, i as i32);
 
         let initial_block = types::LightBlockStorage::create (i as i32, i as i32, i as i32, i as i32);
 

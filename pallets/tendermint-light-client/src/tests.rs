@@ -53,7 +53,7 @@ fn successful_verification() {
 
         let origin = Origin::signed(100);
 
-        assert_ok!(Pallet::<TestRuntime>::submit_finality_proof(
+        assert_ok!(Pallet::<TestRuntime>::update_client(
             origin,
             untrusted_block.clone()
         ));
@@ -98,7 +98,7 @@ fn failed_verification() {
         let origin = Origin::signed(100);
 
         assert_err!(
-            Pallet::<TestRuntime>::submit_finality_proof(origin, untrusted_block.clone()),
+            Pallet::<TestRuntime>::update_client(origin, untrusted_block.clone()),
             super::Error::<TestRuntime>::InvalidBlock
         );
     });
