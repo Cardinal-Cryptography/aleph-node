@@ -219,6 +219,7 @@ pub mod pallet {
             }
         }
 
+        // TODO: This method will need to be called by the pallet itself if it detects a fork.
         /// Halt or resume all light client operations
         ///
         /// Can only be called by root
