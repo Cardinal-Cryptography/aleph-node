@@ -23,6 +23,7 @@ with nixpkgs; mkShell.override { stdenv = env; } {
     git
     findutils
     patchelf
+    crate2nix
   ] ++ nixpkgs.lib.optional useCustomRocksdb versions.customRocksdb;
 
   shellHook = ''
