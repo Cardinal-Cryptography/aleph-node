@@ -5,7 +5,8 @@
 //! It is a part of the Aleph0 <-> Terra bridge
 pub use pallet::*;
 
-#[cfg(test)]
+// #[cfg(test)]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 mod mock;
 
 #[cfg(test)]

@@ -170,7 +170,7 @@ impl pallet_timestamp::Config for TestRuntime {
 }
 
 parameter_types! {
-    pub const HeadersToKeep: u32 = 10;
+    pub const HeadersToKeep: u32 = 3;
     pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
 }
 
