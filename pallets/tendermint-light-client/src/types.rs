@@ -1,5 +1,6 @@
 use crate::utils::{
     account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes,
+    tendermint_hash_to_h256,
 };
 #[cfg(feature = "std")]
 use crate::utils::{
@@ -21,12 +22,13 @@ use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
     validator::{self, ProposerPriority},
-    vote, Time,
+    vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
 };
 use tendermint_light_client_verifier::{
     options::Options,
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
+use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
 
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
@@ -117,6 +119,20 @@ impl TryFrom<LightClientOptionsStorage> for Options {
     }
 }
 
+impl From<Options> for LightClientOptionsStorage {
+    fn from(value: Options) -> Self {
+        let trust_threshold = TrustThresholdStorage::new(
+            value.trust_threshold.numerator(),
+            value.trust_threshold.denominator(),
+        );
+        Self::new(
+            trust_threshold,
+            value.trusting_period.as_secs(),
+            value.clock_drift.as_secs(),
+        )
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VersionStorage {
@@ -143,6 +159,15 @@ impl From<VersionStorage> for Version {
     }
 }
 
+impl From<Version> for VersionStorage {
+    fn from(version: Version) -> Self {
+        VersionStorage {
+            block: version.block,
+            app: version.app,
+        }
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PartSetHeaderStorage {
@@ -165,6 +190,15 @@ impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
             PartSetHeader::new(value.total, sha256_from_bytes(value.hash.as_bytes()))
                 .expect("Can't create PartSetHeader"),
         )
+    }
+}
+
+impl From<PartSetHeader> for PartSetHeaderStorage {
+    fn from(psh: PartSetHeader) -> Self {
+        PartSetHeaderStorage {
+            total: psh.total,
+            hash: H256::from_slice(psh.hash.as_bytes()),
+        }
     }
 }
 
@@ -199,6 +233,15 @@ impl TryFrom<BlockIdStorage> for block::Id {
                 .try_into()
                 .expect("Cannot create block Id"),
         })
+    }
+}
+
+impl From<block::Id> for BlockIdStorage {
+    fn from(id: block::Id) -> Self {
+        BlockIdStorage {
+            hash: H256::from_slice(id.hash.as_bytes()),
+            part_set_header: id.part_set_header.into(),
+        }
     }
 }
 
@@ -311,6 +354,22 @@ impl TryFrom<TimestampStorage> for Time {
     }
 }
 
+impl TryFrom<Time> for TimestampStorage {
+    type Error = &'static str;
+
+    fn try_from(value: Time) -> Result<Self, Self::Error> {
+        let tm_timestamp: TmTimestamp = value.into();
+        if let Ok(nanos) = tm_timestamp.nanos.try_into() {
+            Ok(Self {
+                seconds: tm_timestamp.seconds,
+                nanos,
+            })
+        } else {
+            Err("timestamp nanos out of range")
+        }
+    }
+}
+
 /// CommitSig represents a signature of a validator.
 /// It's a part of the Commit and can be used to reconstruct the vote set given the validator set.
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
@@ -359,21 +418,21 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
                     )
                     .unwrap();
 
-                    let signature = base64string_as_h512(
-                        value.get("signature").and_then(Value::as_str).unwrap(),
-                    )
-                    .unwrap();
+                    let signature = value
+                        .get("signature")
+                        .and_then(Value::as_str)
+                        .map(|sig| base64string_as_h512(sig).unwrap());
 
                     match id {
                         2 => CommitSignatureStorage::BlockIdFlagCommit {
                             validator_address,
                             timestamp,
-                            signature: Some(signature),
+                            signature,
                         },
                         3 => CommitSignatureStorage::BlockIdFlagNil {
                             validator_address,
                             timestamp,
-                            signature: Some(signature),
+                            signature,
                         },
                         _ => panic!("Should never get here"),
                     }
@@ -425,6 +484,34 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                     signature,
                 }
             }
+        })
+    }
+}
+
+impl TryFrom<CommitSig> for CommitSignatureStorage {
+    type Error = &'static str;
+
+    fn try_from(commit_sig: CommitSig) -> Result<Self, Self::Error> {
+        Ok(match commit_sig {
+            CommitSig::BlockIdFlagAbsent => CommitSignatureStorage::BlockIdFlagAbsent,
+            CommitSig::BlockIdFlagCommit {
+                validator_address,
+                timestamp,
+                signature,
+            } => CommitSignatureStorage::BlockIdFlagCommit {
+                validator_address: H160::from_slice(validator_address.as_bytes()),
+                timestamp: timestamp.try_into()?,
+                signature: signature.map(|sig| H512::from_slice(sig.as_bytes())),
+            },
+            CommitSig::BlockIdFlagNil {
+                validator_address,
+                timestamp,
+                signature,
+            } => CommitSignatureStorage::BlockIdFlagNil {
+                validator_address: H160::from_slice(validator_address.as_bytes()),
+                timestamp: timestamp.try_into()?,
+                signature: signature.map(|sig| H512::from_slice(sig.as_bytes())),
+            },
         })
     }
 }
@@ -482,6 +569,24 @@ impl TryFrom<CommitStorage> for Commit {
     }
 }
 
+impl TryFrom<Commit> for CommitStorage {
+    type Error = &'static str;
+
+    fn try_from(commit: Commit) -> Result<Self, Self::Error> {
+        let mut signatures = Vec::with_capacity(commit.signatures.len());
+        for sig in commit.signatures {
+            signatures.push(sig.try_into()?)
+        }
+        let block_id = commit.block_id.into();
+        Ok(CommitStorage::new(
+            commit.height.value(),
+            commit.round.value(),
+            block_id,
+            signatures,
+        ))
+    }
+}
+
 impl TryFrom<HeaderStorage> for Header {
     type Error = &'static str;
 
@@ -528,6 +633,55 @@ impl TryFrom<HeaderStorage> for Header {
     }
 }
 
+impl TryFrom<Header> for HeaderStorage {
+    type Error = &'static str;
+    fn try_from(header: Header) -> Result<Self, Self::Error> {
+        let last_commit_hash = header
+            .last_commit_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
+        let data_hash = header.data_hash.as_ref().and_then(tendermint_hash_to_h256);
+        let validators_hash = match header.validators_hash {
+            TmHash::Sha256(secp) => H256::from_slice(&secp),
+            TmHash::None => return Err("unexpected hash variant for validators_hash field"),
+        };
+        let next_validators_hash = match header.validators_hash {
+            TmHash::Sha256(secp) => H256::from_slice(&secp),
+            TmHash::None => return Err("unexpected hash variant for next_validators_hash field"),
+        };
+        let consensus_hash = match header.validators_hash {
+            TmHash::Sha256(secp) => H256::from_slice(&secp),
+            TmHash::None => return Err("unexpected hash variant for consensus_hash field"),
+        };
+        let app_hash = header.app_hash.value();
+        let last_results_hash = header
+            .last_results_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
+        let evidence_hash = header
+            .evidence_hash
+            .as_ref()
+            .and_then(tendermint_hash_to_h256);
+        let proposer_address = H160::from_slice(header.proposer_address.as_bytes());
+        Ok(HeaderStorage::new(
+            header.version.into(),
+            header.chain_id.as_bytes().to_vec(),
+            header.height.value(),
+            header.time.try_into()?,
+            header.last_block_id.map(Into::into),
+            last_commit_hash,
+            data_hash,
+            validators_hash,
+            next_validators_hash,
+            consensus_hash,
+            app_hash,
+            last_results_hash,
+            evidence_hash,
+            proposer_address,
+        ))
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct SignedHeaderStorage {
@@ -552,6 +706,16 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
             commit.try_into().expect("Cannot create Commit"),
         )
         .expect("Cannot create SignedHeader"))
+    }
+}
+
+impl TryFrom<SignedHeader> for SignedHeaderStorage {
+    type Error = &'static str;
+
+    fn try_from(sh: SignedHeader) -> Result<Self, Self::Error> {
+        let header = sh.header().clone().try_into()?;
+        let commit = sh.commit().clone().try_into()?;
+        Ok(SignedHeaderStorage::new(header, commit))
     }
 }
 
@@ -654,6 +818,34 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
     }
 }
 
+impl From<TmPublicKey> for TendermintPublicKey {
+    fn from(key: TmPublicKey) -> Self {
+        match key {
+            TmPublicKey::Ed25519(ed) => {
+                TendermintPublicKey::Ed25519(H256::from_slice(ed.as_bytes()))
+            }
+            TmPublicKey::Secp256k1(secp) => {
+                TendermintPublicKey::Secp256k1(H256::from_slice(&secp.to_bytes().to_vec()))
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<validator::Info> for ValidatorInfoStorage {
+    fn from(info: validator::Info) -> Self {
+        let address = H160::from_slice(info.address.as_bytes());
+        let pub_key = info.pub_key.into();
+        Self::new(
+            address,
+            pub_key,
+            info.power.value(),
+            info.name.clone().map(|s| s.as_bytes().to_vec()),
+            info.proposer_priority.value(),
+        )
+    }
+}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ValidatorSetStorage {
@@ -698,6 +890,15 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
                 None => None,
             },
         ))
+    }
+}
+
+impl From<ValidatorSet> for ValidatorSetStorage {
+    fn from(value: ValidatorSet) -> Self {
+        let validators = value.validators().iter().cloned().map(Into::into).collect();
+        let proposer = value.proposer().clone().map(Into::into);
+        let total_voting_power = value.total_voting_power().value();
+        ValidatorSetStorage::new(validators, proposer, total_voting_power)
     }
 }
 
@@ -849,6 +1050,26 @@ impl TryFrom<LightBlockStorage> for LightBlock {
                 .try_into()
                 .expect("Cannot create next ValidatorSet"),
             provider: node::Id::new(bytes),
+        })
+    }
+}
+
+impl TryFrom<LightBlock> for LightBlockStorage {
+    type Error = &'static str;
+
+    fn try_from(value: LightBlock) -> Result<Self, Self::Error> {
+        let LightBlock {
+            signed_header,
+            validators,
+            next_validators,
+            provider,
+        } = value;
+
+        Ok(Self {
+            signed_header: signed_header.try_into()?,
+            validators: validators.into(),
+            next_validators: next_validators.into(),
+            provider: H160::from_slice(provider.as_bytes()),
         })
     }
 }

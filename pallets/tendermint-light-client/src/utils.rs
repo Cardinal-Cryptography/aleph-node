@@ -96,3 +96,16 @@ where
     let bytes = base64::decode(&string).map_err(serde::de::Error::custom)?;
     Ok(H256::from_slice(&bytes))
 }
+
+/// Maps Tendermint's hash to H256 type.
+/// Since Tendermint hash type has a `None` variant and Substrate uses
+/// a fixed-size array for this, function has to return `Option` to faithfully
+/// represent the original value.
+///
+/// Returns `None` if input value is `None` variant.
+pub fn tendermint_hash_to_h256(tm_hash: &Hash) -> Option<H256> {
+    match tm_hash {
+        Hash::Sha256(hash) => Some(H256::from_slice(hash)),
+        Hash::None => None,
+    }
+}
