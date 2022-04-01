@@ -9,7 +9,7 @@ let
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
   alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures useCustomRocksdb; }).project;
   workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
-  alephDerivation = workspaceMembers."aleph-node";
+  alephDerivation = workspaceMembers."aleph-node".override { inherit features; };
   alephRuntimeDerivation = builtins.head (builtins.filter (crate: crate.crateName == "aleph-runtime") alephDerivation.dependencies);
 in
 nixpkgs.symlinkJoin {
