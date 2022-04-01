@@ -2,6 +2,7 @@ use crate as tendermint_light_client;
 use frame_support::{
     construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
+use primitives::TENDERMINT_MAX_VOTES_COUNT;
 use sp_core::H256;
 use sp_io::TestExternalities;
 use sp_runtime::{
@@ -170,12 +171,14 @@ impl pallet_timestamp::Config for TestRuntime {
 
 parameter_types! {
     pub const HeadersToKeep: u32 = 10;
+    pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
 }
 
 impl tendermint_light_client::Config for TestRuntime {
     type Event = Event;
     type HeadersToKeep = HeadersToKeep;
     type TimeProvider = Timestamp;
+    type MaxVotesCount = MaxVotesCount;
 }
 
 construct_runtime! {

@@ -50,9 +50,9 @@ pub mod pallet {
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
 
-        // /// Maximal number of block validators in Tendermint
-        // #[pallet::constant]
-        // type MaxValidatorsCount: Get<u32>;
+        /// Maximal number of block validators in Tendermint
+        #[pallet::constant]
+        type MaxVotesCount: Get<u32>;
 
         /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;

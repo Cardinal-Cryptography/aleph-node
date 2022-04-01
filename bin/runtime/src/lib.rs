@@ -315,12 +315,14 @@ impl pallet_aleph::Config for Runtime {
 
 parameter_types! {
     pub const HeadersToKeep: u32 = 10000;
+    pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
 }
 
 impl pallet_tendermint_light_client::Config for Runtime {
     type Event = Event;
     type HeadersToKeep = HeadersToKeep;
     type TimeProvider = Timestamp;
+    type MaxVotesCount = MaxVotesCount;
 }
 
 impl_opaque_keys! {

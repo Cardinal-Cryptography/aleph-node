@@ -1,13 +1,14 @@
 use super::*;
 use crate::Pallet as TendermintLightClient;
 use frame_benchmarking::{account, benchmarks, benchmarks_instance_pallet, whitelisted_caller};
+use frame_support::traits::Get;
 use frame_system::{Origin, RawOrigin};
 use sp_runtime::traits::Bounded;
 
 benchmarks! {
     benchmark_for_initialize_client {
 
-        let v in 0 .. 130 as u32;
+        let v in 0 .. T::MaxVotesCount::get();
         let i in 0 .. 1024 as u32;
 
         let caller = RawOrigin::Root; //whitelisted_caller();
