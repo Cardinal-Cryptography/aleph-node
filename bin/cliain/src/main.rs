@@ -1,4 +1,4 @@
-use aleph_client::{from as parse_to_protocol, KeyPair, Protocol};
+use aleph_client::{from as parse_to_protocol, print_storages, KeyPair, Protocol};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
@@ -99,6 +99,9 @@ enum Command {
         #[clap(long)]
         commission_percentage: u8,
     },
+
+    /// print debug info of storage
+    DebugStorage,
 }
 
 fn main() {
@@ -156,6 +159,7 @@ fn main() {
                 .public()
                 .to_string()
         ),
+        Command::DebugStorage => print_storages(&cfg.into()),
     }
 }
 

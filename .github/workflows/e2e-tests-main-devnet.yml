@@ -160,7 +160,9 @@ jobs:
 
       - name: Print debug if failed
         if: ${{ failure() }}
-        run: ./.github/scripts/debug_e2e_storage.sh
+        run: |
+          cd bin/cliain
+          cargo run -- --seed //Alice debug-storage
 
 
   push-image:

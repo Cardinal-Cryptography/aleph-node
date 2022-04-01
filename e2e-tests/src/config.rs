@@ -20,8 +20,4 @@ pub struct Config {
     /// seed value of sudo account
     #[clap(long)]
     pub sudo: Option<String>,
-
-    /// whether to print debug storage info
-    #[clap(long)]
-    pub storage_debug: bool,
 }

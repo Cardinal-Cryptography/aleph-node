@@ -7,8 +7,8 @@ use primitives::AuthorityId;
 pub fn print_storage(connection: &Connection) {
     let members: Vec<AuthorityId> = connection
         .get_storage_value("Elections", "Members", None)
-        .unwrap()
-        .unwrap();
+        .expect("Api call should succeed")
+        .expect("Members should always be present");
 
     println!("{}", pallet_prompt("Elections"));
     println!("{}", entry_prompt("Members"));

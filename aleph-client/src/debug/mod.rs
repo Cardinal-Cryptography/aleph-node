@@ -17,7 +17,7 @@ fn element_prompt(out: String) -> String {
 }
 
 pub fn print_storages(connection: &Connection) {
-    treasury::print_storage(&connection);
-    aleph::print_storage(&connection);
-    elections::print_storage(&connection);
+    treasury::print_storage(connection);
+    aleph::print_storage(connection);
+    elections::print_storage(connection);
 }

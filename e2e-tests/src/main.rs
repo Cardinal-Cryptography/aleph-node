@@ -1,8 +1,6 @@
 use std::{env, time::Instant};
 
 use clap::Parser;
-
-use aleph_client::{create_connection, print_storages};
 use aleph_e2e_client::{
     test_batch_transactions, test_change_validators, test_channeling_fee, test_fee_calculation,
     test_finalization, test_staking_era_payouts, test_staking_new_validator, test_token_transfer,
@@ -15,16 +13,6 @@ fn main() -> anyhow::Result<()> {
 
     let config: Config = Config::parse();
 
-    if config.storage_debug {
-        let connection = create_connection(&config.node, config.protocol);
-        print_storages(&connection);
-        return Ok(());
-    }
-
-    run_tests(config)
-}
-
-fn run_tests(config: Config) -> anyhow::Result<()> {
     run(test_finalization, "finalization", &config)?;
     run(test_token_transfer, "token transfer", &config)?;
     run(test_channeling_fee, "channeling fee", &config)?;

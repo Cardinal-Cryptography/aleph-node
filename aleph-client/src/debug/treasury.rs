@@ -10,12 +10,12 @@ use substrate_api_client::Balance;
 pub fn print_storage(connection: &Connection) {
     let proposal_count: u32 = connection
         .get_storage_value("Treasury", "ProposalCount", None)
-        .unwrap()
+        .expect("Api call should succeed")
         .unwrap_or(0);
 
     let approvals: Vec<ProposalIndex> = connection
         .get_storage_value("Treasury", "Approvals", None)
-        .unwrap()
+        .expect("Api call should succeed")
         .unwrap_or_default();
 
     println!("{}", pallet_prompt("Treasury"));
