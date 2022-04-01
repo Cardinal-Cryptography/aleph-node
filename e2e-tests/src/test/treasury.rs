@@ -122,15 +122,12 @@ fn check_treasury_balance(
 
 pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let Config {
-        ref node,
-        seeds,
-        protocol,
-        ..
+        ref node, seeds, ..
     } = config;
 
     let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = create_connection(node, *protocol).set_signer(proposer);
+    let connection = create_connection(node).set_signer(proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);
@@ -173,8 +170,8 @@ fn propose_treasury_spend(
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury spend",
+        xt.clone(),
+        Some("treasury spend"),
         XtStatus::Finalized,
     );
     xt
@@ -198,8 +195,8 @@ fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> Governan
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury approval",
+        xt.clone(),
+        Some("treasury approval"),
         XtStatus::Finalized,
     );
     xt
@@ -219,8 +216,8 @@ fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> Governa
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury rejection",
+        xt.clone(),
+        Some("treasury rejection"),
         XtStatus::Finalized,
     );
     xt

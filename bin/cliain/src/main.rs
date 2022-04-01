@@ -1,4 +1,4 @@
-use aleph_client::{from as parse_to_protocol, print_storages, KeyPair, Protocol};
+use aleph_client::{print_storages, KeyPair};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
@@ -7,7 +7,7 @@ use substrate_api_client::AccountId;
 
 use cliain::{
     bond, change_validators, force_new_era, prepare_keys, prompt_password_hidden, rotate_keys,
-    set_keys, set_staking_limits, transfer, validate, ConnectionConfig,
+    set_keys, set_staking_limits, transfer, update_runtime, validate, ConnectionConfig,
 };
 
 #[derive(Debug, Parser, Clone)]
@@ -16,10 +16,6 @@ struct Config {
     /// WS endpoint address of the node to connect to
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
-
-    /// Protocol to be used for connecting to node (`ws` or `wss`)
-    #[clap(name = "use_ssl", parse(from_flag = parse_to_protocol))]
-    pub protocol: Protocol,
 
     /// The seed of the key to use for signing calls
     /// If not given, an user is prompted to provide seed
@@ -93,6 +89,13 @@ enum Command {
         to_account: String,
     },
 
+    /// Send new runtime (requires sudo account)
+    UpdateRuntime {
+        #[clap(long)]
+        /// Path to WASM file with runtime
+        runtime: String,
+    },
+
     /// Call staking validate call for a given controller
     Validate {
         /// Validator commission percentage
@@ -109,7 +112,6 @@ fn main() {
 
     let Config {
         node,
-        protocol,
         seed,
         command,
     } = Config::parse();
@@ -124,7 +126,7 @@ fn main() {
             }
         },
     };
-    let cfg = ConnectionConfig::new(node, seed.clone(), protocol);
+    let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
         Command::PrepareKeys => {
@@ -160,6 +162,7 @@ fn main() {
                 .to_string()
         ),
         Command::DebugStorage => print_storages(&cfg.into()),
+        Command::UpdateRuntime { runtime } => update_runtime(cfg.into(), runtime),
     }
 }
 
