@@ -12,8 +12,8 @@ fn entry_prompt(name: &'static str) -> String {
     format!("----{}", name)
 }
 
-fn element_prompt(out: String) -> String {
-    format!("\t{}", out)
+fn element_prompt(el: String) -> String {
+    format!("\t{}", el)
 }
 
 pub fn print_storages(connection: &Connection) {
