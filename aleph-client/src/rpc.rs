@@ -1,5 +1,7 @@
-use crate::{Connection, SessionKeys};
+use crate::{Connection, SessionKeys, H256};
+use log::info;
 use serde_json::{json, Value};
+use sp_core::storage::{StorageChangeSet, StorageData};
 use substrate_api_client::StorageKey;
 
 fn json_req(method: &str, params: Value, id: u32) -> Value {
@@ -33,47 +35,34 @@ fn state_query_storage_at_json(storage_keys: &Vec<StorageKey>) -> Value {
 
 fn parse_query_storage_at_result(
     maybe_json_result: Option<String>,
-) -> Result<Vec<Option<String>>, String> {
+    expected_storage_key_size: usize,
+) -> Result<Vec<Option<StorageData>>, String> {
     match maybe_json_result {
         None => Err(String::from("Returned result was null!")),
         Some(result) => {
-            let mut storage_entries_in_hex_string = vec![];
-
-            let parsed_json_value: Value = serde_json::from_str(&result[..]).map_err(|_| {
-                String::from(&format!("Failed to parse result {:?} into JSON", result))
-            })?;
-            let storage_entries = match parsed_json_value[0]["changes"].as_array() {
-                Some(storage_entries) => storage_entries,
-                None => {
-                    return Err(String::from(&format!(
-                        "Parsed json value {:?} does not have \"changes\" element!",
-                        parsed_json_value
-                    )))
-                }
-            };
-            for entry in storage_entries {
-                let storage_key_and_entry = match entry.as_array() {
-                    Some(entry) => entry,
-                    None => {
-                        return Err(String::from(&format!(
-                            "Value {:?} is not an array!",
-                            entry.clone()
-                        )))
-                    }
-                };
-                if storage_key_and_entry.len() != 2 {
-                    return Err(String::from(&format!(
-                        "Expected {:?} to be length of 2!",
-                        storage_key_and_entry
-                    )));
-                }
-
-                let maybe_entry_in_hex_string = storage_key_and_entry[1]
-                    .as_str()
-                    .map(|entry| String::from(entry));
-                storage_entries_in_hex_string.push(maybe_entry_in_hex_string);
+            let mut storage_change_set_vec: Vec<StorageChangeSet<H256>> =
+                serde_json::from_str(&result[..]).map_err(|_| {
+                    String::from(&format!("Failed to parse result {:?} into JSON", result))
+                })?;
+            if storage_change_set_vec.is_empty() {
+                return Err(String::from("Expected result to be non-empty!"));
             }
-            Ok(storage_entries_in_hex_string)
+            // we're interested only in first element, since queryStorageAt returns history of
+            // changes of given storage key starting from requested block, in our case from
+            // best known block
+            let storage_change_set = storage_change_set_vec.remove(0);
+            if storage_change_set.changes.len() != expected_storage_key_size {
+                return Err(String::from(format!(
+                    "Expected result to have exactly {} entries, got {}!",
+                    expected_storage_key_size,
+                    storage_change_set.changes.len()
+                )));
+            }
+            Ok(storage_change_set
+                .changes
+                .into_iter()
+                .map(|(_, entries)| entries)
+                .collect())
         }
     }
 }
@@ -81,9 +70,11 @@ fn parse_query_storage_at_result(
 pub fn state_query_storage_at(
     connection: &Connection,
     storage_keys: Vec<StorageKey>,
-) -> Result<Vec<Option<String>>, String> {
+) -> Result<Vec<Option<StorageData>>, String> {
     match connection.get_request(state_query_storage_at_json(&storage_keys)) {
-        Ok(maybe_json_result) => parse_query_storage_at_result(maybe_json_result),
+        Ok(maybe_json_result) => {
+            parse_query_storage_at_result(maybe_json_result, storage_keys.len())
+        }
         Err(_) => Err(String::from(format!(
             "Failed to obtain results from storage keys {:?}",
             &storage_keys

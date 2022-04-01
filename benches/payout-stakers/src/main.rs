@@ -6,7 +6,7 @@ use std::iter;
 use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
-    balances_batch_transfer, create_connection, keypair_from_string,
+    balances_batch_transfer, create_connection, keypair_from_string, locks,
     payout_stakers_and_assert_locked_balance, staking_batch_bond, staking_batch_nominate,
     staking_bond, staking_validate, wait_for_next_era, Connection,
 };
@@ -30,12 +30,20 @@ fn main() -> Result<(), anyhow::Error> {
     let sudoer = AccountKeyring::Alice.pair();
 
     env_logger::init();
-    info!("Starting benchmark with config ");
+    info!("Make sure you have 10 nodes run in the background, otherwise you'll see extrinsic send failed errors.");
 
     let connection = create_connection(address).set_signer(sudoer);
     let validators = set_validators(address);
     let validators_and_its_nominators =
         create_test_validators_and_its_nominators(&connection, validators);
+    locks(
+        &connection,
+        &[
+            validators_and_its_nominators[0].1[0].clone(),
+            validators_and_its_nominators[0].1[1].clone(),
+        ],
+    );
+
     wait_for_10_eras(address, &connection, validators_and_its_nominators)?;
 
     Ok(())

@@ -2,7 +2,7 @@ use crate::{state_query_storage_at, Connection};
 use codec::Decode;
 use pallet_balances::BalanceLock;
 use sp_core::{crypto::AccountId32, storage::StorageKey};
-use substrate_api_client::{utils::FromHexString, AccountId, Balance};
+use substrate_api_client::{AccountId, Balance};
 
 pub fn get_free_balance(connection: &Connection, account: &AccountId) -> Balance {
     match connection
@@ -39,15 +39,14 @@ fn create_storage_keys_from_accounts(
 }
 
 fn get_locked_balances_from_storage(
-    connection: &&Connection,
+    connection: &Connection,
     storage_keys: Vec<StorageKey>,
 ) -> Vec<Vec<BalanceLock<Balance>>> {
     match state_query_storage_at(&connection, storage_keys) {
         Ok(storage_entries) => storage_entries
             .into_iter()
             .map(|storage_entry| {
-                let entry_bytes = Vec::from_hex(storage_entry.expect("Storage entry is null!"))
-                    .expect("Cannot parse hex string!");
+                let entry_bytes = storage_entry.expect("Storage entry is null!").0;
                 let balance_lock: Vec<pallet_balances::BalanceLock<Balance>> =
                     Decode::decode(&mut entry_bytes.as_slice())
                         .expect("Failed to decode locked balances!");
