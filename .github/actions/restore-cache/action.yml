@@ -57,12 +57,6 @@ runs:
 
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    # - name: Restore sccache
-    #   uses: actions/cache@v3
-    #   with:
-    #     path: ${{ inputs.sccache-path }}
-    #     key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
-
     - name: Start sccache server
       shell: bash
       run: sccache --start-server
