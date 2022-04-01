@@ -45,7 +45,7 @@ jobs:
           command: clippy
           args: -- --no-deps -D warnings
 
-      - name: Stop cache
+      - name: Stop sccache
         uses: ./.github/actions/post-cache
 
       - name: Run Unit Test Suite
