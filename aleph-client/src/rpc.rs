@@ -35,7 +35,7 @@ fn parse_query_storage_at_result(
     maybe_json_result: Option<String>,
 ) -> Result<Vec<Option<String>>, String> {
     match maybe_json_result {
-        None => Err(String::from(format!("Returned result was null!",))),
+        None => Err(String::from("Returned result was null!")),
         Some(result) => {
             let mut storage_entries_in_hex_string = vec![];
 
@@ -68,10 +68,9 @@ fn parse_query_storage_at_result(
                     )));
                 }
 
-                let maybe_entry_in_hex_string = match storage_key_and_entry[1].as_str() {
-                    Some(entry) => Some(String::from(entry)),
-                    None => None,
-                };
+                let maybe_entry_in_hex_string = storage_key_and_entry[1]
+                    .as_str()
+                    .map(|entry| String::from(entry));
                 storage_entries_in_hex_string.push(maybe_entry_in_hex_string);
             }
             Ok(storage_entries_in_hex_string)
