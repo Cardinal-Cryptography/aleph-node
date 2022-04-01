@@ -43,7 +43,7 @@ runs:
           target/
           ${{ inputs.cargo-targets }}
           ${{ inputs.sccache-path }}
-        key: ${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-v1-${{ hashFiles('**/Cargo.lock') }} # bump cache version if you need to clear it, see https://github.com/actions/cache/issues/485 and https://stackoverflow.com/questions/63521430/clear-cache-in-github-actions
 
     - name: Install sccache for ubuntu-latest
       shell: bash
