@@ -1,5 +1,4 @@
 use crate::{Connection, SessionKeys, H256};
-use log::info;
 use serde_json::{json, Value};
 use sp_core::storage::{StorageChangeSet, StorageData};
 use substrate_api_client::StorageKey;
@@ -158,15 +157,17 @@ mod tests {
   ]"#;
         assert_eq!(
             vec![
-                Some(String::from(
-                    "0x047374616b696e672000407a10f35a0000000000000000000002"
-                )),
-                Some(String::from(
-                    "0x047374616b696e672000407a10f35a0000000000000000000002"
-                )),
+                Some(StorageData(vec![
+                    4, 115, 116, 97, 107, 105, 110, 103, 32, 0, 64, 122, 16, 243, 90, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 2
+                ])),
+                Some(StorageData(vec![
+                    4, 115, 116, 97, 107, 105, 110, 103, 32, 0, 64, 122, 16, 243, 90, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 2
+                ])),
                 None
             ],
-            parse_query_storage_at_result(Some(String::from(expected_json_string))).unwrap()
+            parse_query_storage_at_result(Some(String::from(expected_json_string)), 3).unwrap()
         );
     }
 }
