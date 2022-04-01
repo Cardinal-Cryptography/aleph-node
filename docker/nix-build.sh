@@ -26,7 +26,7 @@ if [ $SPAWN_SHELL = true ]
 then
     nix-shell --pure $SHELL_NIX_FILE
 else
-    ARGS=(--arg crates "${FEATURES}")
+    ARGS=(--arg features "${FEATURES}")
     nix-build $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
