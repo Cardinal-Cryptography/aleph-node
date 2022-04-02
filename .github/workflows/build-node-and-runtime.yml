@@ -32,12 +32,8 @@ jobs:
           key: nix-store
           nix_file: 'nix/github.nix'
 
-      # - uses: actions/checkout@v2
-      # - name: Setup upterm session
-      #   uses: lhotari/action-upterm@v1
-
       - name: Build binary and runtime
-        run: chmod +x docker/nix-build.sh && CRATES='{"aleph-node"=["default"]; "aleph-runtime"=["default"];}' docker/nix-build.sh
+        run: chmod +x docker/nix-build.sh docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
