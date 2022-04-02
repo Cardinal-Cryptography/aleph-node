@@ -69,6 +69,3 @@ jobs:
           path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
