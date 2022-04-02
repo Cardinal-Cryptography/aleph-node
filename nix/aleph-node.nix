@@ -35,6 +35,10 @@ let
           let
             vendoredCargo = vendoredCargoLock "${crateDir}" "Cargo.lock";
             CARGO_HOME="$out/.cargo";
+            wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
+               export CARGO_HOME="${CARGO_HOME}"
+               exec ${pkgs.cargo}/bin/cargo "$@"
+            '';
           in
           {
             inherit CARGO_HOME;
@@ -47,8 +51,8 @@ let
               )
               pkgs.cargo
             ] ++ (attrs.nativeBuildInputs or []);
-            # somehow we need to set it manually
-            CARGO = "${pkgs.cargo}/bin/cargo";
+            # we force it to use our wrapped version of Cargo
+            CARGO = "${wrappedCargo}/bin/cargo";
             # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
             preConfigure = ''
               # populate vendored CARGO_HOME
