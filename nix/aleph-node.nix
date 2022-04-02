@@ -46,7 +46,7 @@ let
                 }
               )
               pkgs.cargo
-            ];
+            ] ++ (attrs.nativeBuildInputs or []);
             # somehow we need to set it manually
             CARGO = "${pkgs.cargo}/bin/cargo";
             # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
