@@ -4,7 +4,7 @@ set -euo pipefail
 SPAWN_SHELL=${SPAWN_SHELL:-false}
 SHELL_NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
-CRATES=${CRATES:-'{"aleph-node"=["default"]; "aleph-runtime"=["default"];}'}
+FEATURES=${FEATURES:-'["default"]'}
 
 while getopts "s" flag
 do
@@ -26,7 +26,7 @@ if [ $SPAWN_SHELL = true ]
 then
     nix-shell --pure $SHELL_NIX_FILE
 else
-    ARGS=(--arg crates "${CRATES}")
+    ARGS=(--arg features "${FEATURES}")
     nix-build $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix

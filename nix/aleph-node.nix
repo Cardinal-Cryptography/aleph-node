@@ -35,17 +35,20 @@ let
           let
             vendoredCargo = vendoredCargoLock "${crateDir}" "Cargo.lock";
             CARGO_HOME="$out/.cargo";
-            # this way Cargo called by build.rs can see our vendored CARGO_HOME
-            wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
-               export CARGO_HOME="${CARGO_HOME}"
-               exec ${pkgs.cargo}/bin/cargo "$@"
-            '';
           in
           {
             inherit CARGO_HOME;
             buildInputs = [pkgs.git pkgs.cacert] ++ (attrs.buildInputs or []);
-            # we force it to use our wrapped version of Cargo
-            CARGO = "${wrappedCargo}/bin/cargo";
+            nativeBuildInputs = [
+              (
+                pkgs.rustc.override {
+                  targets = ["wasm32-unknown-unknown"];
+                }
+              )
+              pkgs.cargo
+            ];
+            # somehow we need to set it manually
+            CARGO = "${pkgs.cargo}/bin/cargo";
             # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
             preConfigure = ''
               # populate vendored CARGO_HOME
@@ -100,8 +103,8 @@ let
             inherit src;
             workspace_member = "bin/runtime";
             postInstall = ''
-              mkdir -p $out/lib
-              find . -type f -name "*.wasm" -exec cp "{}" $out/lib/ \;
+              mkdir -p $lib/lib
+              find . -type f -name "*.wasm" -exec cp "{}" $lib/lib/ \;
             '';
           };
         substrate-test-runtime = attrs:
