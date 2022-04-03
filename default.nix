@@ -1,18 +1,26 @@
 { nixpkgs ? (import ./nix/versions.nix {}).nixpkgs
 , rocksDBVersion ? "6.29.3"
 , runTests ? false
-, features ? [ "default" ]
+, crates ? { "aleph-node" = ["default"]; "aleph-runtime" = ["default"]; }
 , targetFeatures ? import ./nix/target-features.nix
 , useCustomRocksdb ? false
 }:
 let
-  crates ={ "aleph-node" = ["short_session"]; } ;
   versions = import ./nix/versions.nix { inherit rocksDBVersion; };
   alephNode = (import ./nix/aleph-node.nix { inherit versions targetFeatures useCustomRocksdb; }).project;
-  alephDerivation = alephNode.workspaceMembers.aleph-node.build.override { inherit runTests features; };
-  alephRuntimeDerivation = builtins.head (builtins.filter (dep: dep.crateName == "aleph-runtime") alephDerivation.dependencies);
+  workspaceMembers = builtins.mapAttrs (_: crate: crate.build.override { inherit runTests; }) alephNode.workspaceMembers;
+  filteredWorkspaceMembers =
+    if crates == [] then
+      builtins.attrValues workspaceMembers
+    else
+      builtins.attrValues (
+        builtins.mapAttrs
+          (crate: features: (builtins.getAttr crate workspaceMembers).override { inherit features; })
+          crates
+      );
+  outsAndLibs = builtins.concatMap (member: [member.out member.lib]) filteredWorkspaceMembers;
 in
 nixpkgs.symlinkJoin {
-  name = "aleph-node_with_aleph-runtime";
-  paths = [ alephDerivation alephRuntimeDerivation ];
+  name = "filtered-workspace-members";
+  paths = outsAndLibs;
 }
