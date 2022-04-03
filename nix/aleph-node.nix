@@ -9,7 +9,7 @@ let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = nixpkgs.llvmPackages_11;
-  env = llvm.stdenv;
+  env = nixpkgs.keepDebugInfo llvm.stdenv;
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # allows to skip files listed by .gitignore
