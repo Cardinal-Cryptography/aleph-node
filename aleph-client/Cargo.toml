@@ -11,11 +11,10 @@ sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "po
 pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-aleph = { path = "../pallets/aleph", default-features = false }
-primitives = { path = "../primitives", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 
 substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", tag = "polkadot-v0.9.13.b2bfc0c3", features = ["staking-xt"] }
-
+primitives = { path = "../primitives", default-features = false }
 
 # other dependencies
 log = "0.4"

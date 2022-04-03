@@ -103,7 +103,7 @@ enum Command {
         commission_percentage: u8,
     },
 
-    /// print debug info of storage
+    /// Print debug info of storage
     DebugStorage,
 }
 
