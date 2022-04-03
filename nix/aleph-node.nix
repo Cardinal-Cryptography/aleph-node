@@ -34,7 +34,7 @@ let
         buildVendoredCargo = crateDir: attrs:
           let
             vendoredCargo = vendoredCargoLock "${crateDir}" "Cargo.lock";
-            CARGO_HOME="$out/.cargo";
+            CARGO_HOME=".cargo-home/.cargo";
             wrappedCargo = pkgs.writeShellScriptBin "cargo" ''
                export CARGO_HOME="${CARGO_HOME}"
                exec ${pkgs.cargo}/bin/cargo "$@"
@@ -49,22 +49,17 @@ let
                   targets = ["wasm32-unknown-unknown"];
                 }
               )
-              pkgs.cargo
+              wrappedCargo
             ] ++ (attrs.nativeBuildInputs or []);
             # we force it to use our wrapped version of Cargo
             CARGO = "${wrappedCargo}/bin/cargo";
             # build.rs is called during `configure` phase, so we need to setup during `preConfigure`
             preConfigure = ''
               # populate vendored CARGO_HOME
-              mkdir -p $out
+              mkdir -p .cargo-home
               ln -s ${vendoredCargo}/.cargo ${CARGO_HOME}
-              ln -s ${vendoredCargo} $out/cargo-vendor-dir
-              ln -s ${vendoredCargo}/Cargo.lock $out/Cargo.lock
-            '';
-            postBuild = ''
-              # we need to clean after ourselves
-              # buildRustCrate derivation will populate it with necessary artifacts
-              rm -rf $out
+              ln -s ${vendoredCargo} .cargo-home/cargo-vendor-dir
+              ln -s ${vendoredCargo}/Cargo.lock .cargo-home/Cargo.lock
             '';
           };
       in rec {
@@ -106,7 +101,11 @@ let
             # otherwise it has no access to other dependencies in our workspace
             inherit src;
             workspace_member = "bin/runtime";
+            configurePhase = '''';
+            buildPhase = ''cargo build --release -p aleph-runtime'';
             postInstall = ''
+              echo siemano
+              find . -type f -name "*.wasm" -exec sha256sum "{}" \;
               mkdir -p $lib/lib
               find . -type f -name "*.wasm" -exec cp "{}" $lib/lib/ \;
             '';
