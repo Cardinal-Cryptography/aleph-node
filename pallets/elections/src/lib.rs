@@ -31,6 +31,10 @@ pub mod pallet {
     #[pallet::getter(fn members)]
     pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn reserved_members)]
+    pub type ReservedMembers<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -45,6 +49,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeMembers(Vec<T::AccountId>),
+        ChangeReservedMembers(Vec<T::AccountId>),
     }
 
     #[pallet::pallet]
@@ -61,11 +66,24 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn change_reserved_members(
+            origin: OriginFor<T>,
+            reserved_members: Vec<T::AccountId>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            ReservedMembers::<T>::put(reserved_members.clone());
+            Self::deposit_event(Event::ChangeReservedMembers(reserved_members));
+
+            Ok(())
+        }
     }
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub members: Vec<T::AccountId>,
+        pub reserved_members: Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
@@ -73,6 +91,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 members: Vec::new(),
+                reserved_members: Vec::new(),
             }
         }
     }
@@ -81,6 +100,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <Members<T>>::put(&self.members);
+            <ReservedMembers<T>>::put(&self.reserved_members);
         }
     }
 
@@ -99,8 +119,9 @@ pub mod pallet {
         // We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             let voters = Self::DataProvider::voters(None).map_err(Error::DataProvider)?;
-            let members = Pallet::<T>::members();
-            let mut supports: BTreeMap<T::AccountId, Support<T::AccountId>> = members
+            let mut members = Pallet::<T>::reserved_members();
+            members.append(&mut Pallet::<T>::members());
+            let mut supports: BTreeMap<_, _> = members
                 .iter()
                 .map(|id| {
                     (
@@ -122,7 +143,18 @@ pub mod pallet {
                 }
             }
 
-            Ok(supports.into_iter().collect())
+            Ok(members
+                .iter()
+                .map(|member| {
+                    (
+                        member.clone(),
+                        supports
+                            .get(&member)
+                            .expect("Member was initialized")
+                            .clone(),
+                    )
+                })
+                .collect())
         }
     }
 }
