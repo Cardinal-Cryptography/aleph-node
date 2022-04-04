@@ -5,6 +5,7 @@ SPAWN_SHELL=${SPAWN_SHELL:-false}
 SHELL_NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = ["default"]; "aleph-runtime" = ["default"]; }'}
+PATHS_TO_FIX=${PATHS_TO_FIX:-(result/bin/aleph-node)}
 
 while getopts "s" flag
 do
@@ -30,7 +31,10 @@ else
     nix-build $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
-    cp ./result/bin/aleph-node ./
-    chmod +w ./aleph-node
-    patchelf --set-interpreter $DYNAMIC_LINKER_PATH ./aleph-node
+    for path in ${PATHS_TO_FIX[@]}; do
+        cp $path ./
+        filename = $(basename $path)
+        chmod +w $filename
+        patchelf --set-interpreter $DYNAMIC_LINKER_PATH $filename
+    done
 fi
