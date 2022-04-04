@@ -61,16 +61,16 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: aleph-release-runtime
+
+      - name: Cache install Nix packages
+        uses: rikhuijzer/cache-install@v1.0.9
+        with:
+          key: nix-store
+          nix_file: 'nix/github.nix'
 
       - name: Build runtime and compare checksum with artifact
         env:
@@ -80,10 +80,9 @@ jobs:
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          cargo clean
-          cargo build --release -p aleph-runtime
+          chmod +x docker/nix-build.sh && CRATES='{ "aleph-runtime" = ["default"]; }' docker/nix-build.sh
+          mv result/lib/aleph_runtime.compact.wasm "$TARGET_DIR"
           sha256sum -c checksum.sha256
-
 
   build-test-client:
     name: Build e2e test client suite
