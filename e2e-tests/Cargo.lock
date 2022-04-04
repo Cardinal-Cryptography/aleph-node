@@ -118,7 +118,6 @@ name = "aleph_client"
 version = "0.4.0"
 dependencies = [
  "anyhow",
- "hex",
  "log",
  "pallet-aleph",
  "pallet-balances",
