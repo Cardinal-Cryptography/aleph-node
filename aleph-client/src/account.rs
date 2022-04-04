@@ -47,10 +47,8 @@ fn get_locked_balances_from_storage(
             .into_iter()
             .map(|storage_entry| {
                 let entry_bytes = storage_entry.expect("Storage entry is null!").0;
-                let balance_lock: Vec<pallet_balances::BalanceLock<Balance>> =
-                    Decode::decode(&mut entry_bytes.as_slice())
-                        .expect("Failed to decode locked balances!");
-                balance_lock
+                Decode::decode(&mut entry_bytes.as_slice())
+                    .expect("Failed to decode locked balances!")
             })
             .collect(),
         Err(err) => {
