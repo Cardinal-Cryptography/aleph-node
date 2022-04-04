@@ -63,10 +63,22 @@ let
             '';
           };
       in rec {
+        libp2p-core = protobufFix;
+        libp2p-plaintext = protobufFix;
+        libp2p-floodsub = protobufFix;
+        libp2p-gossipsub = protobufFix;
+        libp2p-identify = protobufFix;
+        libp2p-kad = protobufFix;
+        libp2p-relay = protobufFix;
+        libp2p-rendezvous = protobufFix;
+        libp2p-noise = protobufFix;
+        sc-network = protobufFix;
+        prost-build = protobufFix;
+
         librocksdb-sys = attrs:
           let
             targetFeaturesList = import ./target-features.nix;
-            targetFeatures = nixpkgs.lib.foldr (a: b: a + "," + b) "" targetFeaturesList;
+            targetFeatures = nixpkgs.lib.concatStringsSep "," targetFeaturesList;
             overrides =
               {
                 LIBCLANG_PATH="${llvm.libclang.lib}/lib";
@@ -83,33 +95,21 @@ let
             customOverrides
           else
             overrides;
-        libp2p-core = protobufFix;
-        libp2p-plaintext = protobufFix;
-        libp2p-floodsub = protobufFix;
-        libp2p-gossipsub = protobufFix;
-        libp2p-identify = protobufFix;
-        libp2p-kad = protobufFix;
-        libp2p-relay = protobufFix;
-        libp2p-rendezvous = protobufFix;
-        libp2p-noise = protobufFix;
-        sc-network = protobufFix;
+
         aleph-runtime = attrs:
           # this is a bit tricky - aleph-runtime's build.rs calls Cargo, so we need to provide it a populated
           # CARGO_HOME, otherwise it tries to download crates (it doesn't work with sandboxed nix-build)
-          (buildVendoredCargo src attrs) // {
+          (buildVendoredCargo src attrs) // rec {
             # we need to set `src` and workspace_member manually,
             # otherwise it has no access to other dependencies in our workspace
             inherit src;
             workspace_member = "bin/runtime";
-            configurePhase = '''';
-            buildPhase = ''cargo build --release -p aleph-runtime'';
             postInstall = ''
-              echo siemano
-              find . -type f -name "*.wasm" -exec sha256sum "{}" \;
               mkdir -p $lib/lib
-              find . -type f -name "*.wasm" -exec cp "{}" $lib/lib/ \;
+              cp target/wbuild/aleph-runtime/aleph_runtime.compact.wasm $lib/lib
             '';
           };
+
         substrate-test-runtime = attrs:
           # build.rs internal to substrate-test-runtime attempts at building
           # a substrate's node-template using Cargo. It uses its own Cargo.lock,
@@ -118,7 +118,6 @@ let
             substrateSrc = attrs.src;
           in
           buildVendoredCargo substrateSrc attrs;
-        prost-build = protobufFix;
     }
     );
   };
