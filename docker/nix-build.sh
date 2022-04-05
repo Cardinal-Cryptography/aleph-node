@@ -35,7 +35,7 @@ else
     # otherwise our binary references one that is specific for nix
     if [ ! -z "$PATH_TO_FIX" ]; then
         cp $PATH_TO_FIX ./
-        FILENAME = $(basename $PATH_TO_FIX)
+        FILENAME=$(basename $PATH_TO_FIX)
         chmod +w $FILENAME
         patchelf --set-interpreter $DYNAMIC_LINKER_PATH $FILENAME
     fi
