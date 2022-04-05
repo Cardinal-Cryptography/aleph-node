@@ -213,6 +213,8 @@ pub mod pallet {
                 now,
             );
 
+            println!("@ verdict {:?}", verdict);
+
             match verdict {
                 tendermint_light_client_verifier::Verdict::Success => {
                     // update storage

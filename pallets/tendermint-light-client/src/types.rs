@@ -731,6 +731,7 @@ impl LightBlockStorage {
         }
     }
 
+    #[cfg(feature = "runtime-benchmarks")]
     pub fn create(
         validators_count: i32,
         chain_id_byte_count: i32,

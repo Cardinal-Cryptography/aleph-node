@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     mock::*,
-    types::{LightBlockStorage, LightClientOptionsStorage},
+    types::{LightBlockStorage, LightClientOptionsStorage, TimestampStorage},
 };
 use frame_support::{assert_err, assert_ok};
 use tendermint_light_client_verifier::types::LightBlock;
@@ -57,6 +57,31 @@ fn successful_verification() {
             origin,
             untrusted_block.clone()
         ));
+
+        // TODO
+
+
+
+        // let t2 = untrusted_block
+        //     .signed_header
+        //     .commit
+        //     .signatures
+        //     .get(0)
+        //     .and_then(|sig| match sig {
+        //         types::CommitSignatureStorage::BlockIdFlagAbsent => unreachable!(),
+        //         types::CommitSignatureStorage::BlockIdFlagCommit {
+        //             validator_address,
+        //             timestamp,
+        //             signature,
+        //         } => Some(timestamp),
+        //         types::CommitSignatureStorage::BlockIdFlagNil {
+        //             validator_address,
+        //             timestamp,
+        //             signature,
+        //         } => unreachable!(),
+        //     });
+
+        // END: TODO
 
         let best_finalized_hash = Pallet::<TestRuntime>::get_last_imported_hash();
         assert_eq!(
