@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 11,
+    spec_version: 12,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -577,7 +577,7 @@ parameter_types! {
 pub struct TreasuryGovernance;
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        vec![pallet_sudo::Pallet::<Runtime>::key().unwrap()]
+        pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
     }
 }
 
