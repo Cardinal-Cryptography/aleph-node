@@ -6,14 +6,14 @@ edition = "2021"
 
 [dependencies]
 aleph-primitives = { package = "primitives", path = "../primitives" }
-tokio = { version = "1.17.0", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+tokio = { version = "1.17", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 hash-db = { version = "0.15.2", default-features = false }
 log = "0.4.16"
 lru = "0.7.3"
 rand = "0.8.5"
 futures = "0.3.21"
-futures-timer = "3.0.2"
+futures-timer = "3.0"
 parking_lot = "0.12.0"
 parity-util-mem = "0.11.0"
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
@@ -21,7 +21,7 @@ sp-keystore = { git = "https://github.com/paritytech/substrate.git", branch = "p
 sc-network = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 aleph-bft = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", tag = "codec-3.0" }
-serde = "1.0.136"
+serde = "1.0"
 sc-service = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sp-application-crypto = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}

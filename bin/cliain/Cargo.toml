@@ -16,7 +16,7 @@ pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "
 
 # other dependencies
 primitives = { path = "../../primitives", default-features = false}
-clap = {version = "3.0.6", features = ["derive"]}
+clap = {version = "3.0", features = ["derive"]}
 aleph_client = {path = "../../aleph-client" }
 env_logger = "0.8"
 log = "0.4"

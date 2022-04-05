@@ -17,4 +17,4 @@ hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 anyhow = "^1.0"
 env_logger = "0.8"
 log = "0.4"
-rayon = "1.5.1"
+rayon = "1.5"
