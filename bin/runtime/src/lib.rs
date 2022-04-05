@@ -13,8 +13,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, OpaqueKeys,
-        Verify,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, CheckedSub, ConvertInto, IdentifyAccount,
+        OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
@@ -338,33 +338,45 @@ parameter_types! {
     pub const Offset: u32 = 0;
 }
 
-fn subsample() -> Option<Vec<AccountId>> {
+// Choose a subset of all the validators for current era that contains all the
+// reserved nodes. Non reserved ones are chosen in consecutive batches for every session
+fn sample() -> Option<Vec<AccountId>> {
     let current_era = match Staking::active_era() {
         Some(ae) if ae.index > 0 => ae.index,
         _ => return None,
     };
-    let all_validators: Vec<AccountId> =
+    let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
-    let n_all_validators = all_validators.len() as u32;
-    let current_session = Session::current_index();
-    let n_members = MembersPerSession::get();
+    // this is tricky: we might change the number of reserved nodes for (current_era + 1) while still
+    // in current_era. This is not a problem as long as we enlarge the list.
+    // A solution could be to store reserved nodes per era, but this is somewhat cumbersome.
+    // There is a ticket to improve that in later iteration
+    let mut validators = pallet_staking::Invulnerables::<Runtime>::get();
+    all_validators.retain(|v| !validators.contains(v));
+    let n_all_validators = all_validators.len();
 
-    let first_validator = current_session % n_all_validators * n_members;
-    Some(
-        (first_validator..first_validator + n_members)
-            .map(|i| all_validators[(i % n_all_validators) as usize].clone())
-            .collect(),
-    )
+    let n_validators = MembersPerSession::get() as usize;
+    let free_sits = n_validators.checked_sub(validators.len()).unwrap();
+
+    let current_session = Session::current_index() as usize;
+    let first_validator = current_session * free_sits;
+
+    validators.extend(
+        (first_validator..first_validator + free_sits)
+            .map(|i| all_validators[i % n_all_validators].clone()),
+    );
+
+    Some(validators)
 }
 
 use primitives::SessionIndex;
 type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
-pub struct SubsampleSessionManager;
+pub struct SampleSessionManager;
 
-impl pallet_session::SessionManager<AccountId> for SubsampleSessionManager {
+impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
         SM::new_session(new_index);
-        subsample()
+        sample()
     }
 
     fn end_session(end_index: SessionIndex) {
@@ -386,7 +398,7 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = SubsampleSessionManager;
+    type SessionManager = SampleSessionManager;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
