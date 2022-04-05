@@ -25,7 +25,7 @@ jobs:
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
-        
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
@@ -45,35 +45,14 @@ jobs:
           command: clippy
           args: -- --no-deps -D warnings
 
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
-
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --lib
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-
-      - name: Install pylint and pycodestyle
-        run: |
-          python -m pip install --upgrade pip
-          pip install pylint pycodestyle
-
-      - name: Run pylint and pycodestyle
-        run: |
-          echo "Checking package local-tests..."
-
-          pip install -r local-tests/requirements.txt
-
-          export PYLINTRC=local-tests/.pylintrc
-          pylint local-tests/
-
-          pycodestyle --config=local-tests/.pycodestyle local-tests/
+      - name: Stop sccache
+        uses: ./.github/actions/post-cache
 
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2

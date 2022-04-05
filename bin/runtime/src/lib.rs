@@ -25,12 +25,6 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_support::pallet_prelude::ConstU32;
-use frame_support::sp_runtime::Perquintill;
-use frame_support::traits::EqualPrivilegeOnly;
-use frame_support::traits::SortedMembers;
-use frame_support::weights::constants::WEIGHT_PER_MILLIS;
-use frame_support::PalletId;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -43,11 +37,18 @@ pub use frame_support::{
     },
     StorageValue,
 };
+use frame_support::{
+    sp_runtime::Perquintill,
+    traits::{EqualPrivilegeOnly, SortedMembers},
+    weights::constants::WEIGHT_PER_MILLIS,
+    PalletId,
+};
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
-    wrap_methods, ApiError as AlephApiError, AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK,
-    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
+    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -365,7 +366,7 @@ parameter_types! {
     pub const SlashDeferDuration: EraIndex = 13;
     // this is coupled with weights for payout_stakers() call
     // see custom implementation of WeightInfo below
-    pub const MaxNominatorRewardedPerValidator: u32 = 1024;
+    pub const MaxNominatorRewardedPerValidator: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
@@ -385,7 +386,7 @@ type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>
 
 pub struct PayoutStakersDecreasedWeightInfo;
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
-    // To make possible 1024 nominators per validator we need to decrease weight for payout_stakers
+    // To make possible to change nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {
         SubstrateStakingWeights::payout_stakers_alive_staked(n) / 2
     }
