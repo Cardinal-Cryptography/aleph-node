@@ -82,7 +82,7 @@ jobs:
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           chmod +x docker/nix-build.sh
           PATH_TO_FIX="" CRATES='{ "aleph-runtime" = ["default"]; }' docker/nix-build.sh
-          mv result/lib/aleph_runtime.compact.wasm "$TARGET_DIR"
+          cp result/lib/aleph_runtime.compact.wasm "$TARGET_DIR"
           sha256sum -c checksum.sha256
 
   build-test-client:
