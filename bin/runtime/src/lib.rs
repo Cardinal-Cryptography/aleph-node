@@ -38,6 +38,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
+    pallet_prelude::ConstU32,
     sp_runtime::Perquintill,
     traits::{EqualPrivilegeOnly, SortedMembers},
     weights::constants::WEIGHT_PER_MILLIS,
