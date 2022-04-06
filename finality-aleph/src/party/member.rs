@@ -19,7 +19,7 @@ pub fn task<
     subtask_common: AuthoritySubtaskCommon,
     multikeychain: KeyBox,
     config: Config,
-    network: NetworkWrapper<B, ADN>,
+    network: NetworkWrapper<AlephNetworkData<B>, ADN>,
     data_provider: impl aleph_bft::DataProvider<AlephData<B>> + Send + 'static,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
 ) -> Task {
