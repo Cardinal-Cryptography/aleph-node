@@ -14,13 +14,14 @@ use scale_info::{prelude::string::String, TypeInfo};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use serde_json::Value;
-use sp_core::{H160, H256, H512};
+// #[cfg(any(test, feature = "runtime-benchmarks"))]
+use sp_core::{ed25519, Pair, H160, H256, H512};
 use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 #[cfg(feature = "std")]
 use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain, hash, node,
+    chain, hash, node, private_key,
     validator::{self, ProposerPriority},
     vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
 };
@@ -757,17 +758,17 @@ pub enum TendermintPublicKey {
 pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
+    /// seed for the validator keypair
+    /// IMPORTANT: for testing purposes only! Never put this in storage!    
+    #[cfg_attr(any(test, feature = "runtime-benchmarks"), serde(skip))]
+    seed: Option<[u8; 32]>,
     /// Validator public key
     pub pub_key: TendermintPublicKey,
     /// Validator voting power
     // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
     #[cfg_attr(
         feature = "std",
-        serde(
-            alias = "voting_power",
-            // alias = "total_voting_power",
-            deserialize_with = "deserialize_from_str"
-        )
+        serde(alias = "voting_power", deserialize_with = "deserialize_from_str")
     )]
     pub power: u64,
     /// Validator name
@@ -780,6 +781,7 @@ pub struct ValidatorInfoStorage {
 impl ValidatorInfoStorage {
     pub fn new(
         address: TendermintAccountId,
+        seed: Option<[u8; 32]>,
         pub_key: TendermintPublicKey,
         power: u64,
         name: Option<Vec<u8>>,
@@ -787,11 +789,58 @@ impl ValidatorInfoStorage {
     ) -> Self {
         Self {
             address,
+            seed,
             pub_key,
             power,
             name,
             proposer_priority,
         }
+    }
+
+    pub fn default() -> Self {
+        Self {
+            address: TendermintAccountId::default(),
+            seed: None,
+            pub_key: TendermintPublicKey::Ed25519(H256::default()),
+            power: u64::default(),
+            name: Some(empty_bytes(32)),
+            proposer_priority: i64::default(),
+        }
+    }
+
+    pub fn set_seed(&mut self, seed: [u8; 32]) -> Self {
+        self.seed = Some(seed);
+        self.to_owned()
+    }
+
+    pub fn set_name(&mut self, name: Vec<u8>) -> Self {
+        self.name = Some(name);
+        self.to_owned()
+    }
+
+    pub fn set_power(&mut self, power: u64) -> Self {
+        self.power = power;
+        self.to_owned()
+    }
+
+    pub fn generate_pub_key(&mut self) -> Self {
+        if let Some(seed) = self.seed {
+            let pair = ed25519::Pair::from_seed(&seed);
+            let pub_key = pair.public();
+            let pub_key_bytes = pub_key.0;
+            let tendermint_public_key = TendermintPublicKey::Ed25519(H256::from(pub_key_bytes));
+            self.pub_key = tendermint_public_key;
+        };
+        self.to_owned()
+    }
+
+    pub fn generate_address(&mut self) -> Self {
+        if let TendermintPublicKey::Ed25519(hash) = self.pub_key {
+            // SHA256(pub_key)[:20]
+            let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
+            self.address = validator_address;
+        };
+        self.to_owned()
     }
 }
 
@@ -805,6 +854,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
             power,
             name,
             proposer_priority,
+            ..
         } = value;
 
         Ok(Self {
@@ -849,6 +899,7 @@ impl From<validator::Info> for ValidatorInfoStorage {
         let pub_key = info.pub_key.into();
         Self::new(
             address,
+            None,
             pub_key,
             info.power.value(),
             info.name.clone().map(|s| s.as_bytes().to_vec()),
@@ -946,97 +997,129 @@ impl LightBlockStorage {
     // #[cfg(feature = "runtime-benchmarks")]
     pub fn create(
         validators_count: i32,
-        chain_id_byte_count: i32,
-        app_hash_byte_count: i32,
-        validator_name_byte_count: i32,
+        // chain_id_byte_count: i32,
+        // app_hash_byte_count: i32,
+        // validator_name_byte_count: i32,
     ) -> Self {
-        let version = VersionStorage::new(u64::default(), u64::default());
-        let chain_id = empty_bytes(chain_id_byte_count);
-        let height = 3;
-        let timestamp = TimestampStorage::new(3, 0);
-        let last_block_id = None;
-        let last_commit_hash = None;
-        let data_hash = None;
-        let validators_hash = Hash::default();
-        let next_validators_hash = Hash::default();
-        let consensus_hash = Hash::default();
-        let app_hash = empty_bytes(app_hash_byte_count);
-        let last_results_hash = None;
-        let evidence_hash = None;
-        let proposer_address = TendermintAccountId::default();
+        (0..validators_count).map(|id| {
+            let name: Vec<u8> = id.to_ne_bytes().into();
+            assert!(
+                name.len() < 32,
+                "Validator name is too long, keep it at most 32 bytes"
+            );
+            let mut bytes = name.clone();
+            bytes.extend(vec![0u8; 32 - bytes.len()].iter());
+            let bytes: [u8; 32] = bytes.as_slice().try_into().unwrap();
+            // let pair = ed25519::Pair::from_seed(&bytes);
 
-        let header = HeaderStorage::new(
-            version,
-            chain_id,
-            height,
-            timestamp,
-            last_block_id,
-            last_commit_hash,
-            data_hash,
-            validators_hash,
-            next_validators_hash,
-            consensus_hash,
-            app_hash,
-            last_results_hash,
-            evidence_hash,
-            proposer_address,
-        );
+            // let validator =
+            //     ValidatorInfoStorage::new(address, pub_key, power, name, proposer_priority);
 
-        let height = 3;
-        let round = 1;
-        let hash = BridgedBlockHash::default();
-        let total = u32::default();
-        let part_set_header = PartSetHeaderStorage::new(total, hash);
-        let block_id = BlockIdStorage::new(hash, part_set_header);
+            let mut validator = ValidatorInfoStorage::default()
+                .set_name(name)
+                .set_seed(bytes)
+                .set_power(50)
+                .generate_pub_key()
+                .generate_address();
+        });
 
-        let signatures = (0..validators_count)
-            .map(|_| {
-                let validator_address = TendermintAccountId::default();
-                let timestamp = TimestampStorage::new(3, 0);
-                let signature = Some(TendermintVoteSignature::default());
-                CommitSignatureStorage::BlockIdFlagCommit {
-                    validator_address,
-                    timestamp,
-                    signature,
-                }
-            })
-            .collect();
+        // let validators = [ValidatorInfoStorage::new(
+        //     address,
+        //     pub_key,
+        //     power,
+        //     name,
+        //     proposer_priority,
+        // )];
 
-        let commit = CommitStorage::new(height, round, block_id, signatures);
-        let signed_header = SignedHeaderStorage::new(header, commit);
-        let provider = TendermintPeerId::default();
+        // let version = VersionStorage::new(u64::default(), u64::default());
+        // let chain_id = empty_bytes(chain_id_byte_count);
+        // let height = 3;
+        // let timestamp = TimestampStorage::new(3, 0);
+        // let last_block_id = None;
+        // let last_commit_hash = None;
+        // let data_hash = None;
+        // let validators_hash = Hash::default();
+        // let next_validators_hash = Hash::default();
+        // let consensus_hash = Hash::default();
+        // let app_hash = empty_bytes(app_hash_byte_count);
+        // let last_results_hash = None;
+        // let evidence_hash = None;
+        // let proposer_address = TendermintAccountId::default();
 
-        let mut total_voting_power = u64::default();
+        // let header = HeaderStorage::new(
+        //     version,
+        //     chain_id,
+        //     height,
+        //     timestamp,
+        //     last_block_id,
+        //     last_commit_hash,
+        //     data_hash,
+        //     validators_hash,
+        //     next_validators_hash,
+        //     consensus_hash,
+        //     app_hash,
+        //     last_results_hash,
+        //     evidence_hash,
+        //     proposer_address,
+        // );
 
-        let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
-            .map(|_| {
-                let address = TendermintAccountId::default();
-                let pub_key = TendermintPublicKey::Ed25519(H256::default());
-                let power = u64::default();
-                let name = Some(empty_bytes(validator_name_byte_count));
-                let proposer_priority = i64::default();
+        // let height = 3;
+        // let round = 1;
+        // let hash = BridgedBlockHash::default();
+        // let total = u32::default();
+        // let part_set_header = PartSetHeaderStorage::new(total, hash);
+        // let block_id = BlockIdStorage::new(hash, part_set_header);
 
-                total_voting_power += power;
+        // let signatures = (0..validators_count)
+        //     .map(|_| {
+        //         let validator_address = TendermintAccountId::default();
+        //         let timestamp = TimestampStorage::new(3, 0);
+        //         let signature = Some(TendermintVoteSignature::default());
+        //         CommitSignatureStorage::BlockIdFlagCommit {
+        //             validator_address,
+        //             timestamp,
+        //             signature,
+        //         }
+        //     })
+        //     .collect();
 
-                ValidatorInfoStorage {
-                    address,
-                    pub_key,
-                    power,
-                    name,
-                    proposer_priority,
-                }
-            })
-            .collect();
+        // let commit = CommitStorage::new(height, round, block_id, signatures);
+        // let signed_header = SignedHeaderStorage::new(header, commit);
+        // let provider = TendermintPeerId::default();
 
-        let proposer = None;
-        let next_validators = validators.clone();
+        // let mut total_voting_power = u64::default();
 
-        LightBlockStorage::new(
-            signed_header,
-            ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
-            ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
-            provider,
-        )
+        // let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
+        //     .map(|_| {
+        //         let address = TendermintAccountId::default();
+        //         let pub_key = TendermintPublicKey::Ed25519(H256::default());
+        //         let power = u64::default();
+        //         let name = Some(empty_bytes(validator_name_byte_count));
+        //         let proposer_priority = i64::default();
+
+        //         total_voting_power += power;
+
+        //         ValidatorInfoStorage {
+        //             address,
+        //             pub_key,
+        //             power,
+        //             name,
+        //             proposer_priority,
+        //         }
+        //     })
+        //     .collect();
+
+        // let proposer = None;
+        // let next_validators = validators.clone();
+
+        // LightBlockStorage::new(
+        //     signed_header,
+        //     ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
+        //     ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
+        //     provider,
+        // )
+
+        todo!()
     }
 
     // #[cfg(feature = "runtime-benchmarks")]
