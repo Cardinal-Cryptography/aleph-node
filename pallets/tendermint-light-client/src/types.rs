@@ -8,7 +8,7 @@ use crate::utils::{
     deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
-use frame_support::RuntimeDebug;
+use frame_support::{inherent::BlockT, RuntimeDebug};
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -222,6 +222,24 @@ impl BlockIdStorage {
             part_set_header,
         }
     }
+
+    pub fn default() -> Self {
+        let hash = BridgedBlockHash::default();
+        Self {
+            hash,
+            part_set_header: PartSetHeaderStorage::new(1, hash),
+        }
+    }
+
+    pub fn set_hash(&mut self, hash: BridgedBlockHash) -> Self {
+        self.hash = hash;
+        self.to_owned()
+    }
+
+    pub fn set_part_set_header(&mut self, part_set_header: PartSetHeaderStorage) -> Self {
+        self.part_set_header = part_set_header;
+        self.to_owned()
+    }
 }
 
 impl TryFrom<BlockIdStorage> for block::Id {
@@ -368,6 +386,34 @@ impl HeaderStorage {
 
     fn next(&self) -> Self {
         todo!()
+    }
+
+    pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
+        self.timestamp = timestamp;
+        self.to_owned()
+    }
+
+    // TODO : is this correct?
+    pub fn hash(&self) -> BridgedBlockHash {
+        let field_bytes: Vec<Vec<u8>> = vec![
+            self.version.encode(),
+            self.chain_id.encode(),
+            self.height.encode(),
+            self.timestamp.encode(),
+            self.last_block_id.encode(),
+            self.last_commit_hash.encode(),
+            self.data_hash.encode(),
+            self.validators_hash.encode(),
+            self.next_validators_hash.encode(),
+            self.consensus_hash.encode(),
+            self.app_hash.encode(),
+            self.last_results_hash.encode(),
+            self.evidence_hash.encode(),
+            self.proposer_address.encode(),
+        ];
+
+        let hash = merkle::simple_hash_from_byte_vectors(field_bytes);
+        BridgedBlockHash::from_slice(&hash)
     }
 }
 
@@ -608,6 +654,16 @@ impl CommitStorage {
 
     fn next(&self) -> Self {
         todo!()
+    }
+
+    pub fn set_height(&mut self, height: u64) -> Self {
+        self.height = height;
+        self.to_owned()
+    }
+
+    pub fn set_round(&mut self, round: u32) -> Self {
+        self.round = round;
+        self.to_owned()
     }
 }
 
@@ -899,12 +955,14 @@ impl ValidatorInfoStorage {
         self.to_owned()
     }
 
+    // TODO : is that correct?
     /// Returns the bytes to be hashed into the Merkle tree
     pub fn hash_bytes(&self) -> Vec<u8> {
-        match self.pub_key {
-            TendermintPublicKey::Ed25519(hash) => hash.as_bytes().into(),
-            TendermintPublicKey::Secp256k1(_) => todo!(),
-        }
+        // match self.pub_key {
+        //     TendermintPublicKey::Ed25519(hash) => hash.as_bytes().into(),
+        //     TendermintPublicKey::Secp256k1(_) => todo!(),
+        // }
+        self.pub_key.encode()
     }
 }
 
@@ -994,7 +1052,6 @@ impl ValidatorSetStorage {
         }
     }
 
-    // TODO
     /// Compute the hash of this validator set    
     pub fn hash(&self) -> Hash {
         let validator_bytes: Vec<Vec<u8>> = self
@@ -1005,8 +1062,6 @@ impl ValidatorSetStorage {
 
         let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
         Hash::from_slice(&hash)
-        // Hash::Sha256(merkle::simple_hash_from_byte_vectors(validator_bytes))
-        // todo!()
     }
 }
 
@@ -1101,12 +1156,21 @@ impl LightBlockStorage {
         let validators_set = ValidatorSetStorage::new(validators, None, total_voting_power);
         let validators_hash = validators_set.hash();
 
+        let timestamp = TimestampStorage::new(0, 0);
+
         let header = HeaderStorage::default()
             .set_height(height)
             .set_validators_hash(validators_hash.clone())
-            .set_next_validators_hash(validators_hash);
+            .set_next_validators_hash(validators_hash)
+            .set_time(timestamp);
 
-        let commit = CommitStorage::default();
+        let header_hash: BridgedBlockHash = header.hash();
+
+        let block_id = BlockIdStorage::default()
+            .set_hash(header_hash)
+            .set_part_set_header(PartSetHeaderStorage::new(1, header_hash));
+
+        let commit = CommitStorage::default().set_height(height).set_round(1);
 
         // let version = VersionStorage::new(u64::default(), u64::default());
         // let chain_id = empty_bytes(chain_id_byte_count);
