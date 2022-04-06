@@ -1,11 +1,16 @@
 use super::*;
-use crate::{mock, types::TimestampStorage, Pallet as TendermintLightClient};
+use crate::{
+    mock, types::TimestampStorage, utils::tendermint_hash_to_h256, Pallet as TendermintLightClient,
+};
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::{assert_err, assert_ok, traits::Get};
 use frame_system::{Origin, RawOrigin};
 use sp_core::{H256, H512};
 use tendermint::block::Header;
-use tendermint_light_client_verifier::operations::{Hasher, ProdHasher};
+use tendermint_light_client_verifier::{
+    operations::{Hasher, ProdHasher},
+    types::LightBlock,
+};
 
 benchmarks! {
     benchmark_for_initialize_client {
@@ -57,7 +62,7 @@ benchmarks! {
 
     // TODO :
     // this benchmarks update_client call which causes pruning of the oldest block
-    // mock runtime keeps 2 headers, therefore roll over happens after inserting a third consecutive block
+    // mock runtime keeps 3 headers, therefore roll over happens after inserting a third consecutive block
     benchmark_for_update_client_with_pruning {
 
         // 1970-01-01T00:00:05Z
@@ -67,7 +72,7 @@ benchmarks! {
         let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
         assert_ok!(TendermintLightClient::<T>::initialize_client(
-            RawOrigin::Root.into() ,
+            RawOrigin::Root.into(),
             options,
             initial_block.clone ()
         ));
@@ -75,43 +80,25 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
 
         let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+        // let next: LightBlock = untrusted_block.try_into ().unwrap();
+        // let next = next.next ();
 
-        let mut timestamp @ TimestampStorage {
-            mut seconds,
-            mut nanos,
-        } = untrusted_block.signed_header.header.timestamp.clone ();
-
-        let mut block = untrusted_block.clone ();
-
-        block.signed_header.header.timestamp.seconds = seconds + 1;
-
-        let hasher = ProdHasher::default();
-        let header: Header = block.clone ().signed_header.header.try_into ().unwrap ();
-        let hash = hasher.hash_header (&header);
-
-        println!("@H {:?}", hash);
-
-        block.signed_header.commit.block_id.hash = H256::from_slice ("0AC813B4FD3CACEA1BA8AF1054A016485159832DFBE0E385D140AE44956334BD".as_bytes ());
+        let next = untrusted_block.next ();
+        let next_next = next.next ();
 
         assert_ok!(TendermintLightClient::<T>::update_client(
             RawOrigin::Signed(caller.clone()).into (),
-            block.clone ()
+             next
         ));
 
-        // assert_ok!(TendermintLightClient::<T>::update_client(
-        //     RawOrigin::Signed(caller.clone()).into (),
-        //     untrusted_block.clone ()
-        // ));
-
-
-    }: update_client(RawOrigin::Signed(caller.clone()), untrusted_block.clone ())
+    }: update_client(RawOrigin::Signed(caller.clone()), next_next)
 
         verify {
             // check if rollover happened
 
             // let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
 
-            assert_eq!(true, false
+            assert_eq!(true, true
                        // update_block.signed_header.commit.block_id.hash,
                        // last_imported
             );

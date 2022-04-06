@@ -60,26 +60,58 @@ fn successful_verification() {
 
         // TODO
 
+        // untrusted_block.signed_header.commit.
 
+        let mut block = untrusted_block.clone();
 
-        // let t2 = untrusted_block
+        let (v, t, s) = match untrusted_block
+            .clone()
+            .signed_header
+            .commit
+            .signatures
+            .get(0)
+            .unwrap()
+            .to_owned()
+        {
+            types::CommitSignatureStorage::BlockIdFlagAbsent => todo!(),
+            types::CommitSignatureStorage::BlockIdFlagCommit {
+                validator_address,
+                timestamp,
+                signature,
+            } => (validator_address, timestamp, signature),
+            types::CommitSignatureStorage::BlockIdFlagNil {
+                validator_address,
+                timestamp,
+                signature,
+            } => todo!(),
+        };
+
+        // let t2 = block
         //     .signed_header
         //     .commit
         //     .signatures
-        //     .get(0)
-        //     .and_then(|sig| match sig {
-        //         types::CommitSignatureStorage::BlockIdFlagAbsent => unreachable!(),
-        //         types::CommitSignatureStorage::BlockIdFlagCommit {
+        //     .get_mut(0)
+        //     .insert(&mut signature);
+
+        // .and_then(|sig| match sig {
+        //     types::CommitSignatureStorage::BlockIdFlagAbsent => unreachable!(),
+        //     types::CommitSignatureStorage::BlockIdFlagCommit {
+        //         validator_address,
+        //         timestamp,
+        //         signature,
+        //     } => {
+        //         sig = types::CommitSignatureStorage::BlockIdFlagCommit {
         //             validator_address,
         //             timestamp,
         //             signature,
-        //         } => Some(timestamp),
-        //         types::CommitSignatureStorage::BlockIdFlagNil {
-        //             validator_address,
-        //             timestamp,
-        //             signature,
-        //         } => unreachable!(),
-        //     });
+        //         }
+        //     }
+        //     types::CommitSignatureStorage::BlockIdFlagNil {
+        //         validator_address,
+        //         timestamp,
+        //         signature,
+        //     } => unreachable!(),
+        // });
 
         // END: TODO
 

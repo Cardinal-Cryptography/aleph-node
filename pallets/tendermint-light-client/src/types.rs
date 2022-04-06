@@ -544,6 +544,17 @@ impl CommitStorage {
             signatures,
         }
     }
+
+    // TODO
+    fn create(header: HeaderStorage, height: u32) -> CommitStorage {
+        // let val_to_vote = |(i, v): (usize, &ValidatorInfoStorage)| -> Vote {
+        //     // Vote::new(v.clone(), header.clone())
+        //     //     .index(i as u16)
+        //     //     .round(self.round.unwrap_or(1))
+        // };
+
+        todo!()
+    }
 }
 
 impl TryFrom<CommitStorage> for Commit {
@@ -932,7 +943,7 @@ impl LightBlockStorage {
         }
     }
 
-    #[cfg(feature = "runtime-benchmarks")]
+    // #[cfg(feature = "runtime-benchmarks")]
     pub fn create(
         validators_count: i32,
         chain_id_byte_count: i32,
@@ -1026,6 +1037,21 @@ impl LightBlockStorage {
             ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
             provider,
         )
+    }
+
+    // #[cfg(feature = "runtime-benchmarks")]
+    /// Produces a subsequent light block to the supplied one (with height+1)
+    pub fn next(&self) -> Self {
+        let SignedHeaderStorage { header, commit } = self.signed_header.clone();
+        let commit = CommitStorage::create(header.clone(), 1);
+        let signed_header = SignedHeaderStorage::new(header, commit);
+
+        Self {
+            signed_header,
+            validators: self.next_validators.clone(),
+            next_validators: self.next_validators.clone(),
+            provider: self.provider,
+        }
     }
 }
 
