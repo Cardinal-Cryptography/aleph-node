@@ -329,7 +329,6 @@ impl pallet_elections::Config for Runtime {
     type Event = Event;
     type DataProvider = Staking;
     type SessionPeriod = SessionPeriod;
-    type MembersPerSession = MembersPerSession;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -340,7 +339,7 @@ parameter_types! {
 
 // Choose a subset of all the validators for current era that contains all the
 // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
-fn sample() -> Option<Vec<AccountId>> {
+fn rotate() -> Option<Vec<AccountId>> {
     let current_era = match Staking::active_era() {
         Some(ae) if ae.index > 0 => ae.index,
         _ => return None,
@@ -376,7 +375,7 @@ pub struct SampleSessionManager;
 impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
         SM::new_session(new_index);
-        sample()
+        rotate()
     }
 
     fn end_session(end_index: SessionIndex) {

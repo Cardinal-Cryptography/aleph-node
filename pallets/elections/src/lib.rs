@@ -27,18 +27,12 @@ pub mod pallet {
     };
     use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
-    #[pallet::storage]
-    #[pallet::getter(fn members)]
-    pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
-
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type DataProvider: ElectionDataProvider<Self::AccountId, Self::BlockNumber>;
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
-        #[pallet::constant]
-        type MembersPerSession: Get<u32>;
     }
 
     #[pallet::event]
@@ -51,6 +45,13 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
+    #[pallet::storage]
+    #[pallet::getter(fn members)]
+    pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+    #[pallet::storage]
+    pub type MembersPerSession<T> = StorageValue<_, u32, OptionQuery>;
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
@@ -61,11 +62,22 @@ pub mod pallet {
 
             Ok(())
         }
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_members_per_session(
+            origin: OriginFor<T>,
+            members_per_session: u32,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            MembersPerSession::<T>::put(members_per_session);
+
+            Ok(())
+        }
     }
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub members: Vec<T::AccountId>,
+        pub members_per_session: u32,
     }
 
     #[cfg(feature = "std")]
@@ -73,6 +85,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 members: Vec::new(),
+                members_per_session: 4,
             }
         }
     }
@@ -81,6 +94,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <Members<T>>::put(&self.members);
+            <MembersPerSession<T>>::put(&self.members_per_session);
         }
     }
 

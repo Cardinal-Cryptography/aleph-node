@@ -313,6 +313,7 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             members: to_account_ids(&authorities).collect(),
+            members_per_session: authorities.len() as u32,
         },
         session: SessionConfig {
             keys: authorities
