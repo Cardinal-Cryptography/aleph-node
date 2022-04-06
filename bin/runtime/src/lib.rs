@@ -29,7 +29,7 @@ pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier,
-        OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
+        OnUnbalanced, Randomness, ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -39,7 +39,7 @@ pub use frame_support::{
 };
 use frame_support::{
     sp_runtime::Perquintill,
-    traits::{EqualPrivilegeOnly, SortedMembers},
+    traits::{EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
 };
@@ -48,7 +48,7 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD,
+    DEFAULT_SESSION_PERIOD, TOKEN,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -218,11 +218,23 @@ parameter_types! {
     pub const UncleGenerations: BlockNumber = 0;
 }
 
+pub struct StakeReward {}
+impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
+    fn note_author(validator: AccountId) {
+        let active_era = Staking::active_era().unwrap().index;
+        let exposure = pallet_staking::ErasStakers::<Runtime>::get(active_era, &validator);
+        let points = exposure.total / TOKEN;
+
+        pallet_staking::Pallet::<Runtime>::reward_by_ids([(validator, points as u32)].into_iter());
+    }
+    fn note_uncle(_author: AccountId, _age: BlockNumber) {}
+}
+
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = (Staking,);
+    type EventHandler = (StakeReward,);
 }
 
 parameter_types! {
@@ -340,10 +352,10 @@ parameter_types! {
 // Choose a subset of all the validators for current era that contains all the
 // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
 fn rotate() -> Option<Vec<AccountId>> {
-    let current_era = match Staking::active_era() {
-        Some(ae) if ae.index > 0 => ae.index,
-        _ => return None,
-    };
+    let current_era = Staking::current_era()?;
+    if current_era == 0 {
+        return None;
+    }
     let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
     // this is tricky: we might change the number of reserved nodes for (current_era + 1) while still

@@ -337,8 +337,7 @@ fn generate_genesis_config(
             minimum_validator_count: 4,
             invulnerables: to_account_ids(&authorities[..2]).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
-            stakers: stakers
-                .into_iter()
+            stakers: to_account_ids(&authorities)
                 .map(|account_id| {
                     (
                         account_id.clone(),
