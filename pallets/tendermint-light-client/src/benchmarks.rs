@@ -20,7 +20,8 @@ benchmarks! {
         let caller = RawOrigin::Root;
         let options = types::LightClientOptionsStorage::default ();
 
-        let initial_block = types::LightBlockStorage::create (v as i32
+        let initial_block = types::LightBlockStorage::create (v as i32,
+                                                              3
                                                               // , i as i32, i as i32, i as i32
         );
 

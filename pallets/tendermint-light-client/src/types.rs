@@ -21,7 +21,7 @@ use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain, hash, node, private_key,
+    chain, hash, merkle, node, private_key,
     validator::{self, ProposerPriority},
     vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
 };
@@ -331,6 +331,44 @@ impl HeaderStorage {
             proposer_address,
         }
     }
+
+    pub fn default() -> Self {
+        Self {
+            version: VersionStorage::new(u64::default(), u64::default()),
+            chain_id: empty_bytes(20),
+            height: 0,
+            timestamp: TimestampStorage::new(0, 0),
+            last_block_id: None,
+            last_commit_hash: None,
+            data_hash: None,
+            validators_hash: Hash::default(),
+            next_validators_hash: Hash::default(),
+            consensus_hash: Hash::default(),
+            app_hash: empty_bytes(20),
+            last_results_hash: None,
+            evidence_hash: None,
+            proposer_address: TendermintAccountId::default(),
+        }
+    }
+
+    pub fn set_height(&mut self, height: u64) -> Self {
+        self.height = height;
+        self.to_owned()
+    }
+
+    pub fn set_validators_hash(&mut self, hash: Hash) -> Self {
+        self.validators_hash = hash;
+        self.to_owned()
+    }
+
+    pub fn set_next_validators_hash(&mut self, hash: Hash) -> Self {
+        self.next_validators_hash = hash;
+        self.to_owned()
+    }
+
+    fn next(&self) -> Self {
+        todo!()
+    }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -546,14 +584,29 @@ impl CommitStorage {
         }
     }
 
-    // TODO
-    fn create(header: HeaderStorage, height: u32) -> CommitStorage {
-        // let val_to_vote = |(i, v): (usize, &ValidatorInfoStorage)| -> Vote {
-        //     // Vote::new(v.clone(), header.clone())
-        //     //     .index(i as u16)
-        //     //     .round(self.round.unwrap_or(1))
-        // };
+    fn default() -> Self {
+        let height = 0;
+        let round = 0;
+        let validators_count = 1;
+        let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
+            validator_address: TendermintAccountId::default(),
+            timestamp: TimestampStorage::new(0, 0),
+            signature: Some(TendermintVoteSignature::default()),
+        }];
+        let hash = BridgedBlockHash::default();
+        let total = u32::default();
+        let part_set_header = PartSetHeaderStorage::new(total, hash);
+        let block_id = BlockIdStorage::new(hash, part_set_header);
 
+        Self {
+            height,
+            round,
+            block_id,
+            signatures,
+        }
+    }
+
+    fn next(&self) -> Self {
         todo!()
     }
 }
@@ -835,12 +888,23 @@ impl ValidatorInfoStorage {
     }
 
     pub fn generate_address(&mut self) -> Self {
-        if let TendermintPublicKey::Ed25519(hash) = self.pub_key {
-            // SHA256(pub_key)[:20]
-            let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
-            self.address = validator_address;
+        match self.pub_key {
+            TendermintPublicKey::Ed25519(hash) => {
+                // SHA256(pub_key)[:20]
+                let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
+                self.address = validator_address;
+            }
+            TendermintPublicKey::Secp256k1(_) => todo!(),
         };
         self.to_owned()
+    }
+
+    /// Returns the bytes to be hashed into the Merkle tree
+    pub fn hash_bytes(&self) -> Vec<u8> {
+        match self.pub_key {
+            TendermintPublicKey::Ed25519(hash) => hash.as_bytes().into(),
+            TendermintPublicKey::Secp256k1(_) => todo!(),
+        }
     }
 }
 
@@ -929,6 +993,21 @@ impl ValidatorSetStorage {
             total_voting_power,
         }
     }
+
+    // TODO
+    /// Compute the hash of this validator set    
+    pub fn hash(&self) -> Hash {
+        let validator_bytes: Vec<Vec<u8>> = self
+            .validators
+            .iter()
+            .map(|validator| validator.hash_bytes())
+            .collect();
+
+        let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
+        Hash::from_slice(&hash)
+        // Hash::Sha256(merkle::simple_hash_from_byte_vectors(validator_bytes))
+        // todo!()
+    }
 }
 
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {
@@ -995,41 +1074,39 @@ impl LightBlockStorage {
     }
 
     // #[cfg(feature = "runtime-benchmarks")]
-    pub fn create(
-        validators_count: i32,
-        // chain_id_byte_count: i32,
-        // app_hash_byte_count: i32,
-        // validator_name_byte_count: i32,
-    ) -> Self {
-        (0..validators_count).map(|id| {
-            let name: Vec<u8> = id.to_ne_bytes().into();
-            assert!(
-                name.len() < 32,
-                "Validator name is too long, keep it at most 32 bytes"
-            );
-            let mut bytes = name.clone();
-            bytes.extend(vec![0u8; 32 - bytes.len()].iter());
-            let bytes: [u8; 32] = bytes.as_slice().try_into().unwrap();
-            // let pair = ed25519::Pair::from_seed(&bytes);
+    pub fn create(validators_count: i32, height: u64) -> Self {
+        let mut total_voting_power = 0;
+        let validators = (0..validators_count)
+            .map(|id| {
+                let name: Vec<u8> = id.to_ne_bytes().into();
+                assert!(
+                    name.len() < 32,
+                    "Validator name is too long, keep it at most 32 bytes"
+                );
+                let mut bytes = name.clone();
+                bytes.extend(vec![0u8; 32 - bytes.len()].iter());
+                let bytes: [u8; 32] = bytes.as_slice().try_into().unwrap();
 
-            // let validator =
-            //     ValidatorInfoStorage::new(address, pub_key, power, name, proposer_priority);
+                let voting_power = 50;
+                total_voting_power += voting_power;
+                ValidatorInfoStorage::default()
+                    .set_name(name)
+                    .set_seed(bytes)
+                    .set_power(voting_power)
+                    .generate_pub_key()
+                    .generate_address()
+            })
+            .collect::<Vec<ValidatorInfoStorage>>();
 
-            let mut validator = ValidatorInfoStorage::default()
-                .set_name(name)
-                .set_seed(bytes)
-                .set_power(50)
-                .generate_pub_key()
-                .generate_address();
-        });
+        let validators_set = ValidatorSetStorage::new(validators, None, total_voting_power);
+        let validators_hash = validators_set.hash();
 
-        // let validators = [ValidatorInfoStorage::new(
-        //     address,
-        //     pub_key,
-        //     power,
-        //     name,
-        //     proposer_priority,
-        // )];
+        let header = HeaderStorage::default()
+            .set_height(height)
+            .set_validators_hash(validators_hash.clone())
+            .set_next_validators_hash(validators_hash);
+
+        let commit = CommitStorage::default();
 
         // let version = VersionStorage::new(u64::default(), u64::default());
         // let chain_id = empty_bytes(chain_id_byte_count);
@@ -1126,8 +1203,9 @@ impl LightBlockStorage {
     /// Produces a subsequent light block to the supplied one (with height+1)
     pub fn next(&self) -> Self {
         let SignedHeaderStorage { header, commit } = self.signed_header.clone();
-        let commit = CommitStorage::create(header.clone(), 1);
-        let signed_header = SignedHeaderStorage::new(header, commit);
+        let next_header = header.next();
+        let next_commit = commit.next();
+        let signed_header = SignedHeaderStorage::new(next_header, next_commit);
 
         Self {
             signed_header,
