@@ -1,11 +1,11 @@
 use std::{env, time::Instant};
 
-use clap::Parser;
 use aleph_e2e_client::{
-    test_batch_transactions, test_change_validators, test_channeling_fee, test_fee_calculation,
-    test_finalization, test_staking_era_payouts, test_staking_new_validator, test_token_transfer,
-    test_treasury_access, Config,
+    test_batch_transactions, test_change_validators, test_channeling_fee, test_elections,
+    test_fee_calculation, test_finalization, test_staking_era_payouts, test_staking_new_validator,
+    test_token_transfer, test_treasury_access, Config,
 };
+use clap::Parser;
 use log::info;
 
 fn main() -> anyhow::Result<()> {
@@ -18,6 +18,7 @@ fn main() -> anyhow::Result<()> {
     run(test_channeling_fee, "channeling fee", &config)?;
     run(test_treasury_access, "treasury access", &config)?;
     run(test_batch_transactions, "batch_transactions", &config)?;
+    run(test_elections, "members rotate", &config)?;
     run(test_staking_era_payouts, "staking_era_payouts", &config)?;
     run(test_staking_new_validator, "staking_new_validator", &config)?;
     run(test_change_validators, "validators change", &config)?;

@@ -3,10 +3,17 @@ use aleph_client::{keypair_from_string, KeyPair};
 use crate::config::Config;
 
 pub fn default_account_seeds() -> Vec<String> {
-    ["//Damian", "//Hansu", "//Tomasz", "//Zbyszko", "//Julia"]
-        .into_iter()
-        .map(String::from)
-        .collect()
+    [
+        "//Damian",
+        "//Tomasz",
+        "//Zbyszko",
+        "//Marcin",
+        "//Julia",
+        "//Hansu",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
 }
 
 pub fn accounts_from_seeds(seeds: &Option<Vec<String>>) -> Vec<KeyPair> {
