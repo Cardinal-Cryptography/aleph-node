@@ -313,7 +313,7 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             members: to_account_ids(&authorities).collect(),
-            members_per_session: authorities.len() as u32,
+            members_per_session: 4,
         },
         session: SessionConfig {
             keys: authorities
@@ -335,7 +335,7 @@ fn generate_genesis_config(
             validator_count: authorities.len() as u32,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
-            invulnerables: to_account_ids(&authorities).collect(),
+            invulnerables: to_account_ids(&authorities[..4]).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: stakers
                 .into_iter()
