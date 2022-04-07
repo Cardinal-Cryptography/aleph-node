@@ -1,4 +1,10 @@
-{ rocksDBVersion ? "6.29.3" }:
+{ useCustomRocksDb ? false
+, rocksDbOptions ? { version = "6.29.3";
+                     useSnappy = false;
+                     patchVerifyChecksum = true;
+                     patchPath = ./nix/rocksdb.patch;
+                   }
+}:
 let
   # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
@@ -19,17 +25,17 @@ let
   });
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
-  # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
+  # we disable all compression algorithms and force to use SSE 4.2 cpu instruction set
   customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
 
     src = builtins.fetchGit {
       url = "https://github.com/facebook/rocksdb.git";
-      ref = "refs/tags/v${rocksDBVersion}";
+      ref = "refs/tags/v${rocksDbOptions.version}";
     };
 
-    version = "${rocksDBVersion}";
+    version = "${rocksDbOptions.version}";
 
-    patches = [];
+    patches = nixpkgs.lib.optional rocksDbOptions.patchVerifyChecksum rocksDbOptions.patchPath;
 
     cmakeFlags = [
        "-DPORTABLE=0"
@@ -39,7 +45,7 @@ let
        "-DWITH_TOOLS=0"
        "-DWITH_BZ2=0"
        "-DWITH_LZ4=0"
-       "-DWITH_SNAPPY=0"
+       "-DWITH_SNAPPY=${if rocksDbOptions.useSnappy then "1" else "0"}"
        "-DWITH_ZLIB=0"
        "-DWITH_ZSTD=0"
        "-DWITH_GFLAGS=0"
@@ -50,7 +56,7 @@ let
 
     propagatedBuildInputs = [];
 
-    buildInputs = [];
+    buildInputs = nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy;
   });
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
@@ -68,6 +74,10 @@ let
     sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
   };
   inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
+  rocksDbShellHook = if useCustomRocksDb
+                     then
+                       "export ROCKSDB_LIB_DIR=${customRocksdb}/lib; export ROCKSDB_STATIC=1"
+                     else "";
 in
 with nixpkgs; env.mkDerivation rec {
   name = "aleph-node";
@@ -78,13 +88,12 @@ with nixpkgs; env.mkDerivation rec {
     llvm.clang
     openssl.dev
     protobuf
-    customRocksdb
     pkg-config
     cacert
     git
     findutils
     patchelf
-  ];
+  ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
 
   shellHook = ''
     export RUST_SRC_PATH="${rustToolchain}/lib/rustlib/src/rust/src"
@@ -107,21 +116,19 @@ with nixpkgs; env.mkDerivation rec {
         ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
         $BINDGEN_EXTRA_CLANG_ARGS
     "
-    export ROCKSDB_LIB_DIR="${customRocksdb}/lib"
-    export ROCKSDB_STATIC=1
+    ${rocksDbShellHook}
   '';
 
   buildPhase = ''
     ${shellHook}
     export CARGO_HOME="$out/cargo"
-    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
 
     cargo build --locked --release -p aleph-node
   '';
 
   installPhase = ''
     mkdir -p $out/bin
-    mv target/x86_64-unknown-linux-gnu/release/aleph-node $out/bin/
+    mv target/release/aleph-node $out/bin/
   '';
 
   fixupPhase = ''
