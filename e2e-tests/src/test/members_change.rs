@@ -10,24 +10,32 @@ use substrate_api_client::AccountId;
 const MINIMAL_TEST_SESSION_START: u32 = 7;
 const ELECTION_STARTS: u32 = 4;
 
-fn get_reserved_members<T: Clone>(accounts: &Vec<T>) -> Vec<T> {
-    accounts[..2].to_vec()
+fn get_reserved_members() -> Vec<KeyPair> {
+    accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
 }
 
-fn get_non_reserved_members_for_session<T: Clone>(accounts: &Vec<T>, session: u32) -> Vec<T> {
+fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SITS: u32 = 2;
 
     let mut non_reserved = vec![];
 
-    let x = accounts[2..].to_vec();
+    let x = vec![
+        "//Zbyszko".to_string(),
+        "//Marcin".to_string(),
+        "//Julia".to_string(),
+        "//Hansu".to_string(),
+    ];
     let x_len = x.len();
 
     for i in (FREE_SITS * session)..(FREE_SITS * (session + 1)) {
         non_reserved.push(x[i as usize % x_len].clone());
     }
 
-    non_reserved
+    accounts_from_seeds(&Some(non_reserved))
+        .iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect()
 }
 
 fn get_authorities_for_session(connection: &Connection, session: u32) -> Vec<AccountId> {
@@ -57,19 +65,14 @@ pub fn change_members(cfg: &Config) -> anyhow::Result<()> {
         current_session = MINIMAL_TEST_SESSION_START;
     }
 
-    let reserved_members: Vec<_> = get_reserved_members(&accounts)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
-
-    let accounts: Vec<_> = accounts
+    let reserved_members: Vec<_> = get_reserved_members()
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
     for session in ELECTION_STARTS..current_session {
         let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_members_for_session(&accounts, session);
+        let non_reserved = get_non_reserved_members_for_session(session);
 
         let reserved_included = reserved_members
             .clone()

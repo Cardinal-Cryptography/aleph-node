@@ -5,11 +5,11 @@ use crate::config::Config;
 pub fn default_account_seeds() -> Vec<String> {
     [
         "//Damian",
+        "//Hansu",
         "//Tomasz",
         "//Zbyszko",
-        "//Marcin",
         "//Julia",
-        "//Hansu",
+        "//Marcin",
     ]
     .into_iter()
     .map(String::from)
