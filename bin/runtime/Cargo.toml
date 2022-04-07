@@ -25,6 +25,7 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 
 pallet-aura = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+pallet-bags-list = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -66,6 +67,7 @@ std = [
     "pallet-aleph/std",
     "pallet-aura/std",
     "pallet-authorship/std",
+	"pallet-bags-list/std",
     "pallet-balances/std",
     "pallet-elections/std",
     "pallet-randomness-collective-flip/std",
