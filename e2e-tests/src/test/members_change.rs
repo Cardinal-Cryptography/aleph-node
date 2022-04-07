@@ -1,7 +1,7 @@
 use crate::{accounts::accounts_from_seeds, Config};
 use aleph_client::{
-    create_connection, get_current_session, wait_for_finalized_block, wait_for_session, Connection,
-    Header, KeyPair,
+    create_connection, try_get_current_session, wait_for_finalized_block, wait_for_session,
+    Connection, Header, KeyPair,
 };
 use primitives::AuthorityId;
 use sp_core::Pair;
@@ -51,7 +51,7 @@ pub fn change_members(cfg: &Config) -> anyhow::Result<()> {
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = create_connection(node).set_signer(sender);
 
-    let mut current_session = get_current_session(&connection);
+    let mut current_session = try_get_current_session(&connection).unwrap_or_default();
     if current_session < MINIMAL_TEST_SESSION_START {
         wait_for_session(&connection, MINIMAL_TEST_SESSION_START)?;
         current_session = MINIMAL_TEST_SESSION_START;

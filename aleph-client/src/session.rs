@@ -59,9 +59,12 @@ pub fn set_keys(connection: &Connection, new_keys: Keys, status: XtStatus) {
 }
 
 pub fn get_current(connection: &Connection) -> u32 {
+    try_get_current(connection).unwrap()
+}
+
+pub fn try_get_current(connection: &Connection) -> Option<u32> {
     connection
         .get_storage_value("Session", "CurrentIndex", None)
-        .unwrap()
         .unwrap()
 }
 
