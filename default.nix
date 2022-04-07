@@ -58,7 +58,7 @@ let
 
     propagatedBuildInputs = [];
 
-    buildInputs = nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
+    buildInputs = [nixpkgs.git] ++ nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
   });
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
