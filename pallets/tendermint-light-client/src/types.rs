@@ -30,6 +30,7 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
+use tendermint_testgen as testgen;
 
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
@@ -665,6 +666,11 @@ impl CommitStorage {
         self.round = round;
         self.to_owned()
     }
+
+    pub fn set_block_id(&mut self, block_id: BlockIdStorage) -> Self {
+        self.block_id = block_id;
+        self.to_owned()
+    }
 }
 
 impl TryFrom<CommitStorage> for Commit {
@@ -960,7 +966,7 @@ impl ValidatorInfoStorage {
     pub fn hash_bytes(&self) -> Vec<u8> {
         // match self.pub_key {
         //     TendermintPublicKey::Ed25519(hash) => hash.as_bytes().into(),
-        //     TendermintPublicKey::Secp256k1(_) => todo!(),
+        //     TendermintPublicKey::Secp256k1(hash) => hash.as_bytes().into(),
         // }
         self.pub_key.encode()
     }
@@ -1129,155 +1135,77 @@ impl LightBlockStorage {
     }
 
     // #[cfg(feature = "runtime-benchmarks")]
-    pub fn create(validators_count: i32, height: u64) -> Self {
-        let mut total_voting_power = 0;
+    pub fn generate_consecutive_blocks(
+        n: i32,
+        chain_id: String,
+        validators_count: i32,
+        from_height: u64,
+        from_timestamp: TimestampStorage,
+    ) -> Vec<Self> {
         let validators = (0..validators_count)
-            .map(|id| {
-                let name: Vec<u8> = id.to_ne_bytes().into();
-                assert!(
-                    name.len() < 32,
-                    "Validator name is too long, keep it at most 32 bytes"
-                );
-                let mut bytes = name.clone();
-                bytes.extend(vec![0u8; 32 - bytes.len()].iter());
-                let bytes: [u8; 32] = bytes.as_slice().try_into().unwrap();
+            .map(|id| testgen::Validator::new(&id.to_string()).voting_power(50))
+            .collect::<Vec<testgen::Validator>>();
 
-                let voting_power = 50;
-                total_voting_power += voting_power;
-                ValidatorInfoStorage::default()
-                    .set_name(name)
-                    .set_seed(bytes)
-                    .set_power(voting_power)
-                    .generate_pub_key()
-                    .generate_address()
-            })
+        let header = testgen::Header::new(&validators)
+            .height(from_height)
+            .chain_id(&chain_id)
+            .next_validators(&validators)
+            .time(from_timestamp.try_into().unwrap());
+
+        let commit = testgen::Commit::new(header.clone(), 1);
+
+        let validators = testgen::validator::generate_validators(&validators)
+            .unwrap()
+            .into_iter()
+            .map(|v| v.try_into().unwrap())
             .collect::<Vec<ValidatorInfoStorage>>();
 
-        let validators_set = ValidatorSetStorage::new(validators, None, total_voting_power);
-        let validators_hash = validators_set.hash();
+        let validators_set =
+            ValidatorSetStorage::new(validators, None, 50 * validators_count as u64);
 
-        let timestamp = TimestampStorage::new(0, 0);
+        let signed_header = testgen::light_block::generate_signed_header(&header, &commit).unwrap();
 
-        let header = HeaderStorage::default()
-            .set_height(height)
-            .set_validators_hash(validators_hash.clone())
-            .set_next_validators_hash(validators_hash)
-            .set_time(timestamp);
+        let default_provider: TendermintPeerId =
+            "BADFADAD0BEFEEDC0C0ADEADBEEFC0FFEEFACADE".parse().unwrap();
 
-        let header_hash: BridgedBlockHash = header.hash();
+        let mut block = testgen::LightBlock::new(header, commit);
+        let mut blocks = Vec::with_capacity(n as usize);
 
-        let block_id = BlockIdStorage::default()
-            .set_hash(header_hash)
-            .set_part_set_header(PartSetHeaderStorage::new(1, header_hash));
+        blocks.push(LightBlockStorage::new(
+            signed_header.try_into().unwrap(),
+            validators_set.clone(),
+            validators_set.clone(),
+            default_provider,
+        ));
 
-        let commit = CommitStorage::default().set_height(height).set_round(1);
+        for _ in 0..(n - 1) as usize {
+            let testgen::LightBlock { header, commit, .. } = block.clone();
 
-        // let version = VersionStorage::new(u64::default(), u64::default());
-        // let chain_id = empty_bytes(chain_id_byte_count);
-        // let height = 3;
-        // let timestamp = TimestampStorage::new(3, 0);
-        // let last_block_id = None;
-        // let last_commit_hash = None;
-        // let data_hash = None;
-        // let validators_hash = Hash::default();
-        // let next_validators_hash = Hash::default();
-        // let consensus_hash = Hash::default();
-        // let app_hash = empty_bytes(app_hash_byte_count);
-        // let last_results_hash = None;
-        // let evidence_hash = None;
-        // let proposer_address = TendermintAccountId::default();
+            let signed_header =
+                testgen::light_block::generate_signed_header(&header.unwrap(), &commit.unwrap())
+                    .unwrap();
 
-        // let header = HeaderStorage::new(
-        //     version,
-        //     chain_id,
-        //     height,
-        //     timestamp,
-        //     last_block_id,
-        //     last_commit_hash,
-        //     data_hash,
-        //     validators_hash,
-        //     next_validators_hash,
-        //     consensus_hash,
-        //     app_hash,
-        //     last_results_hash,
-        //     evidence_hash,
-        //     proposer_address,
-        // );
-
-        // let height = 3;
-        // let round = 1;
-        // let hash = BridgedBlockHash::default();
-        // let total = u32::default();
-        // let part_set_header = PartSetHeaderStorage::new(total, hash);
-        // let block_id = BlockIdStorage::new(hash, part_set_header);
-
-        // let signatures = (0..validators_count)
-        //     .map(|_| {
-        //         let validator_address = TendermintAccountId::default();
-        //         let timestamp = TimestampStorage::new(3, 0);
-        //         let signature = Some(TendermintVoteSignature::default());
-        //         CommitSignatureStorage::BlockIdFlagCommit {
-        //             validator_address,
-        //             timestamp,
-        //             signature,
-        //         }
-        //     })
-        //     .collect();
-
-        // let commit = CommitStorage::new(height, round, block_id, signatures);
-        // let signed_header = SignedHeaderStorage::new(header, commit);
-        // let provider = TendermintPeerId::default();
-
-        // let mut total_voting_power = u64::default();
-
-        // let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
-        //     .map(|_| {
-        //         let address = TendermintAccountId::default();
-        //         let pub_key = TendermintPublicKey::Ed25519(H256::default());
-        //         let power = u64::default();
-        //         let name = Some(empty_bytes(validator_name_byte_count));
-        //         let proposer_priority = i64::default();
-
-        //         total_voting_power += power;
-
-        //         ValidatorInfoStorage {
-        //             address,
-        //             pub_key,
-        //             power,
-        //             name,
-        //             proposer_priority,
-        //         }
-        //     })
-        //     .collect();
-
-        // let proposer = None;
-        // let next_validators = validators.clone();
-
-        // LightBlockStorage::new(
-        //     signed_header,
-        //     ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
-        //     ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
-        //     provider,
-        // )
-
-        todo!()
-    }
-
-    // #[cfg(feature = "runtime-benchmarks")]
-    /// Produces a subsequent light block to the supplied one (with height+1)
-    pub fn next(&self) -> Self {
-        let SignedHeaderStorage { header, commit } = self.signed_header.clone();
-        let next_header = header.next();
-        let next_commit = commit.next();
-        let signed_header = SignedHeaderStorage::new(next_header, next_commit);
-
-        Self {
-            signed_header,
-            validators: self.next_validators.clone(),
-            next_validators: self.next_validators.clone(),
-            provider: self.provider,
+            blocks.push(LightBlockStorage::new(
+                signed_header.try_into().unwrap(),
+                validators_set.clone(),
+                validators_set.clone(),
+                default_provider,
+            ));
+            block = block.next();
         }
+
+        blocks
     }
+
+    // // #[cfg(feature = "runtime-benchmarks")]
+    // /// Produces a subsequent light block to the supplied one (with height+1)
+    // pub fn next(&self) -> Self {
+    //     let SignedHeaderStorage { header, commit } = self.signed_header.clone();
+
+    //     // let testgen_block = testgen::LightBlock::new(header, commit);
+
+    //     todo!()
+    // }
 }
 
 impl TryFrom<LightBlockStorage> for LightBlock {

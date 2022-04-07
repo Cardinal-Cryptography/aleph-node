@@ -1,7 +1,10 @@
 use super::*;
 use crate::{
     mock::*,
-    types::{LightBlockStorage, LightClientOptionsStorage, TimestampStorage},
+    types::{
+        LightBlockStorage, LightClientOptionsStorage, SignedHeaderStorage, TimestampStorage,
+        ValidatorSetStorage,
+    },
 };
 use frame_support::{assert_err, assert_ok};
 use tendermint_light_client_verifier::types::LightBlock;

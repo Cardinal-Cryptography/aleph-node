@@ -1,6 +1,9 @@
 use super::*;
 use crate::{
-    mock, types::TimestampStorage, utils::tendermint_hash_to_h256, Pallet as TendermintLightClient,
+    mock,
+    types::{LightBlockStorage, TimestampStorage},
+    utils::tendermint_hash_to_h256,
+    Pallet as TendermintLightClient,
 };
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::{assert_err, assert_ok, traits::Get};
@@ -10,6 +13,7 @@ use tendermint_light_client_verifier::{
     operations::{Hasher, ProdHasher},
     types::LightBlock,
 };
+use tendermint_testgen as testgen;
 
 benchmarks! {
     benchmark_for_initialize_client {
@@ -20,10 +24,14 @@ benchmarks! {
         let caller = RawOrigin::Root;
         let options = types::LightClientOptionsStorage::default ();
 
-        let initial_block = types::LightBlockStorage::create (v as i32,
-                                                              3
-                                                              // , i as i32, i as i32, i as i32
-        );
+        // let initial_block = types::LightBlockStorage::create (v as i32,
+        //                                                       3
+        //                                                       // , i as i32, i as i32, i as i32
+        // );
+
+        let mut blocks = LightBlockStorage::generate_consecutive_blocks (1, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+        let initial_block = blocks.pop ().unwrap ();
+        let options = types::LightClientOptionsStorage::default();
 
     }: initialize_client(caller.clone(), options, initial_block.clone ())
 
@@ -36,31 +44,31 @@ benchmarks! {
             );
         }
 
-    benchmark_for_update_client {
+    // benchmark_for_update_client {
 
-        let options = types::LightClientOptionsStorage::default();
-        let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+    //     let options = types::LightClientOptionsStorage::default();
+    //     let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
-        assert_ok!(TendermintLightClient::<T>::initialize_client(
-            RawOrigin::Root.into() ,
-            options,
-            initial_block.clone ()
-        ));
+    //     assert_ok!(TendermintLightClient::<T>::initialize_client(
+    //         RawOrigin::Root.into() ,
+    //         options,
+    //         initial_block.clone ()
+    //     ));
 
-        let caller: T::AccountId = whitelisted_caller();
-        let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+    //     let caller: T::AccountId = whitelisted_caller();
+    //     let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
 
-    }: update_client(RawOrigin::Signed(caller.clone()), untrusted_block.clone ())
+    // }: update_client(RawOrigin::Signed(caller.clone()), untrusted_block.clone ())
 
-        verify {
-            // check if persisted
-            let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
+    //     verify {
+    //         // check if persisted
+    //         let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
 
-            assert_eq!(
-                untrusted_block.signed_header.commit.block_id.hash,
-                last_imported
-            );
-        }
+    //         assert_eq!(
+    //             untrusted_block.signed_header.commit.block_id.hash,
+    //             last_imported
+    //         );
+    //     }
 
     // TODO :
     // this benchmarks update_client call which causes pruning of the oldest block
@@ -70,8 +78,11 @@ benchmarks! {
         // 1970-01-01T00:00:05Z
         mock::Timestamp::set_timestamp(5000);
 
+        let mut blocks = LightBlockStorage::generate_consecutive_blocks (3, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
         let options = types::LightClientOptionsStorage::default();
-        let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+        // let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+        let initial_block = blocks.pop ().unwrap ();
 
         assert_ok!(TendermintLightClient::<T>::initialize_client(
             RawOrigin::Root.into(),
@@ -80,18 +91,21 @@ benchmarks! {
         ));
 
         let caller: T::AccountId = whitelisted_caller();
+        let next = blocks.pop ().unwrap ();
+        let next_next = blocks.pop ().unwrap ();
 
-        let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
-        // let next: LightBlock = untrusted_block.try_into ().unwrap();
-        // let next = next.next ();
+        // let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+        // // let next: LightBlock = untrusted_block.try_into ().unwrap();
+        // // let next = next.next ();
 
-        let next = untrusted_block.next ();
-        let next_next = next.next ();
+        // let next = untrusted_block.next ();
+        // let next_next = next.next ();
 
         assert_ok!(TendermintLightClient::<T>::update_client(
             RawOrigin::Signed(caller.clone()).into (),
-             next
+            next
         ));
+
 
     }: update_client(RawOrigin::Signed(caller.clone()), next_next)
 
