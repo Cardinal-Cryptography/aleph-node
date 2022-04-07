@@ -3,6 +3,7 @@
                      useSnappy = false;
                      patchVerifyChecksum = true;
                      patchPath = ./nix/rocksdb.patch;
+                     enableJemalloc = true;
                    }
 }:
 let
@@ -52,11 +53,12 @@ let
        "-DUSE_RTTI=0"
        "-DFORCE_SSE42=1"
        "-DROCKSDB_BUILD_SHARED=0"
+       "-DWITH_JEMALLOC=${if rocksDbOptions.enableJemalloc then "1" else "0"}"
     ];
 
     propagatedBuildInputs = [];
 
-    buildInputs = nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy;
+    buildInputs = nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
   });
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
