@@ -163,6 +163,7 @@ dependencies = [
 name = "aleph-runtime"
 version = "0.4.0"
 dependencies = [
+ "frame-election-provider-support",
  "frame-executive",
  "frame-support",
  "frame-system",

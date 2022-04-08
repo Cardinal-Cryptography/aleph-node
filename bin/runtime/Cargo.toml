@@ -19,6 +19,7 @@ pallet-aleph = { path = "../../pallets/aleph", default-features = false}
 pallet-elections = { path = "../../pallets/elections", default-features = false}
 
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+frame-election-provider-support ={ default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -64,6 +65,7 @@ std = [
     "codec/std",
     "frame-executive/std",
     "frame-support/std",
+    "frame-election-provider-support/std",
     "pallet-aleph/std",
     "pallet-aura/std",
     "pallet-authorship/std",

@@ -61,6 +61,7 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 
 mod bag_thresholds;
+mod custom_migrations;
 mod weights;
 
 /// An index to a block.
@@ -590,6 +591,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPallets,
+    custom_migrations::UpgradeToBags<Runtime>,
 >;
 
 impl_runtime_apis! {
