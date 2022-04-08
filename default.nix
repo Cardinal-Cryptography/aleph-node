@@ -26,7 +26,7 @@ let
   });
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
-  # we disable all compression algorithms and force to use SSE 4.2 cpu instruction set
+  # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
   customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
 
     src = builtins.fetchGit {
