@@ -3,7 +3,6 @@ use aleph_client::{
     create_connection, try_get_current_session, wait_for_finalized_block, wait_for_session,
     Connection, Header, KeyPair,
 };
-use primitives::AuthorityId;
 use sp_core::Pair;
 use substrate_api_client::AccountId;
 
@@ -53,7 +52,7 @@ fn get_authorities_for_session(connection: &Connection, session: u32) -> Vec<Acc
         .expect("Authorities should always be present")
 }
 
-pub fn change_members(cfg: &Config) -> anyhow::Result<()> {
+pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
     let node = &cfg.node;
     let accounts = accounts_from_seeds(&None);
     let sender = accounts.first().expect("Using default accounts").to_owned();
