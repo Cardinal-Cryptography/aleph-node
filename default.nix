@@ -95,6 +95,7 @@ with nixpkgs; env.mkDerivation rec {
     git
     findutils
     patchelf
+    jemalloc
   ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
 
   shellHook = ''
