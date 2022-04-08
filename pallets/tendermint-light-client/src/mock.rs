@@ -284,12 +284,34 @@ pub fn generate_consecutive_blocks(
     let block = testgen::LightBlock::new(header, commit);
     let mut blocks = Vec::with_capacity(n);
 
-    blocks.push(LightBlockStorage::new(
-        signed_header.try_into().unwrap(),
+    let block_storage = LightBlockStorage::new(
+        signed_header.clone().try_into().unwrap(),
         validators_set.clone(),
         validators_set.clone(),
         default_provider,
-    ));
+    );
+
+    // println!(
+    //     "init block/block_hash {:#?}",
+    //     &signed_header.clone().commit.block_id.hash
+    // );
+    // println!(
+    //     "init block storage/block_hash {:#?}",
+    //     &block_storage.clone().signed_header.commit.block_id.hash
+    // );
+
+    // println!();
+
+    // println!(
+    //     "init block/last_block_id_hash {:#?}",
+    //     &block.clone().header.unwrap().last_block_id_hash
+    // );
+    // println!(
+    //     "init block storage/last_block_id_hash {:#?}",
+    //     &block_storage.clone().signed_header.header.last_block_id
+    // );
+
+    blocks.push(block_storage);
 
     for _index in 1..n {
         let b = block.next();
@@ -306,10 +328,21 @@ pub fn generate_consecutive_blocks(
             default_provider,
         );
 
-        if _index == 1 {
-            println!("{:#?}", &b.header.clone());
-            println!("{:#?}", &bs.signed_header.header);
-        }
+        println!();
+
+        // if _index == 1 {
+        println!(
+            "next block / last_block_id_hash {:#?}",
+            &b.clone().header.unwrap().last_block_id_hash
+        );
+        println!(
+            "next block storage / last_block_id_hash {:#?}",
+            &bs.clone().signed_header.header.last_block_id
+        );
+
+        // println!("{:#?}", &b.header.clone());
+        // println!("{:#?}", &bs.signed_header.header);
+        // }
 
         blocks.push(bs);
     }

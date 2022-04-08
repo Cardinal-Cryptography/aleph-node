@@ -253,6 +253,18 @@ impl BlockIdStorage {
 impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
+        println!("BlockIdStorage -> block::Id");
+
+        println!(
+            "BlockIdStorage -> block::Id BlockIdStorage/hash {:?}",
+            value.hash
+        );
+
+        println!(
+            "BlockIdStorage -> block::Id block::Id / hash {:?}",
+            sha256_from_bytes(value.hash.as_bytes())
+        );
+
         Ok(Self {
             hash: sha256_from_bytes(value.hash.as_bytes()),
             part_set_header: value
@@ -266,8 +278,16 @@ impl TryFrom<BlockIdStorage> for block::Id {
 impl TryFrom<block::Id> for BlockIdStorage {
     type Error = &'static str;
     fn try_from(id: block::Id) -> Result<Self, Self::Error> {
+        println!("block::Id -> BlockIdStorage");
+
+        println!("block::Id -> BlockIdStorage @ block::Id/hash {}", id.hash);
+        println!(
+            "block::Id -> BlockIdStorage @ BlockIdStorage/hash {:?}",
+            BridgedBlockHash::from_slice(id.hash.clone().as_bytes())
+        );
+
         Ok(Self {
-            hash: H256::from_slice(id.hash.as_bytes()),
+            hash: BridgedBlockHash::from_slice(id.hash.as_bytes()),
             part_set_header: id.part_set_header.try_into()?,
         })
     }
@@ -639,10 +659,9 @@ impl CommitStorage {
         }
     }
 
-    fn default() -> Self {
+    pub fn default() -> Self {
         let height = 0;
         let round = 0;
-        let validators_count = 1;
         let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
             validator_address: TendermintAccountId::default(),
             timestamp: TimestampStorage::new(0, 0),
@@ -659,10 +678,6 @@ impl CommitStorage {
             block_id,
             signatures,
         }
-    }
-
-    fn next(&self) -> Self {
-        todo!()
     }
 
     pub fn set_height(&mut self, height: u64) -> Self {
@@ -806,8 +821,8 @@ impl TryFrom<Header> for HeaderStorage {
         let height = header.height.value();
         let time = header.time.try_into()?;
 
-        let last_block_id = match header.last_block_id {
-            Some(id) => id.try_into().ok(),
+        let last_block_id: Option<BlockIdStorage> = match header.last_block_id {
+            Some(id) => Some(id.try_into().expect("Cannot cast Id")),
             None => None,
         };
 
@@ -861,8 +876,20 @@ impl TryFrom<SignedHeader> for SignedHeaderStorage {
     type Error = &'static str;
 
     fn try_from(sh: SignedHeader) -> Result<Self, Self::Error> {
+        println!("SignedHeader -> SignedHeaderStorage");
+
+        let sh_header = sh.header();
+
+        // println!(
+        //     "SignedHeader -> SignedHeaderStorage @sh_header {:#?}",
+        //     &sh_header
+        // );
+
         let header = sh.header().clone().try_into()?;
         let commit = sh.commit().clone().try_into()?;
+
+        // println!("SignedHeader -> SignedHeaderStorage @header {:#?}", &header);
+
         Ok(SignedHeaderStorage::new(header, commit))
     }
 }
