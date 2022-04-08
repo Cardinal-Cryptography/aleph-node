@@ -31,7 +31,6 @@ use tendermint_light_client_verifier::{
     types::{LightBlock, SignedHeader, TrustThreshold, ValidatorSet},
 };
 use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
-use tendermint_testgen as testgen;
 
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
@@ -1154,83 +1153,6 @@ impl LightBlockStorage {
             next_validators,
             provider,
         }
-    }
-
-    // #[cfg(feature = "runtime-benchmarks")]
-    pub fn generate_consecutive_blocks(
-        n: usize,
-        chain_id: String,
-        validators_count: i32,
-        from_height: u64,
-        from_timestamp: TimestampStorage,
-    ) -> Vec<Self> {
-        let validators = (0..validators_count)
-            .map(|id| testgen::Validator::new(&id.to_string()).voting_power(50))
-            .collect::<Vec<testgen::Validator>>();
-
-        let header = testgen::Header::new(&validators)
-            .height(from_height)
-            .chain_id(&chain_id)
-            .next_validators(&validators)
-            .time(from_timestamp.try_into().unwrap());
-
-        let commit = testgen::Commit::new(header.clone(), 1);
-
-        let validators = testgen::validator::generate_validators(&validators)
-            .unwrap()
-            .into_iter()
-            .map(|v| v.try_into().unwrap())
-            .collect::<Vec<ValidatorInfoStorage>>();
-
-        let validators_set =
-            ValidatorSetStorage::new(validators, None, 50 * validators_count as u64);
-
-        let signed_header = testgen::light_block::generate_signed_header(&header, &commit).unwrap();
-
-        let default_provider: TendermintPeerId =
-            "BADFADAD0BEFEEDC0C0ADEADBEEFC0FFEEFACADE".parse().unwrap();
-
-        let block = testgen::LightBlock::new(header, commit);
-        let mut blocks = Vec::with_capacity(n);
-
-        blocks.push(LightBlockStorage::new(
-            signed_header.try_into().unwrap(),
-            validators_set.clone(),
-            validators_set.clone(),
-            default_provider,
-        ));
-
-        for _ in 1..n {
-            let testgen::LightBlock { header, commit, .. } = block.next();
-            let signed_header =
-                testgen::light_block::generate_signed_header(&header.unwrap(), &commit.unwrap())
-                    .unwrap();
-            blocks.push(LightBlockStorage::new(
-                signed_header.try_into().unwrap(),
-                validators_set.clone(),
-                validators_set.clone(),
-                default_provider,
-            ));
-        }
-
-        blocks.reverse();
-
-        // TODO
-        blocks.iter().for_each(|b| {
-            // println!(
-            //     " last_block_id {:?}\n last_commit_hash {:?} \n header_hash {:?}\n part_set_header_hash {:?}\n",
-            //     b.signed_header.header.last_block_id,
-            //     b.signed_header.header.last_commit_hash,
-            //     b.signed_header.commit.block_id.hash,
-            //     b.signed_header.commit.block_id.part_set_header.hash
-            // );
-
-            println!("{:#?}", b);
-        });
-
-        println!("# blocks  {}", blocks.len());
-
-        blocks
     }
 
     // // #[cfg(feature = "runtime-benchmarks")]

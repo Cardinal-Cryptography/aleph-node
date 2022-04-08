@@ -271,6 +271,21 @@ pub mod pallet {
             .try_into()
             .expect("Unexpected failure when casting trusted block as tendermint::LightBlock");
 
+        let h = untrusted_block.clone().signed_header.header;
+        let header_hash = h.hash();
+
+        let commit_hash = untrusted_block.clone().signed_header.commit.block_id.hash;
+
+        println!(
+            "block height {}, header hashes to {:?}\n commit has a header hash {:?}",
+            untrusted_block.height(),
+            &header_hash,
+            &commit_hash
+        );
+
+        // &untrusted.signed_header.header,
+        // untrusted.signed_header.commit.block_id.hash,
+
         // verify against known state
         verifier.verify(
             untrusted_block.as_untrusted_state(),

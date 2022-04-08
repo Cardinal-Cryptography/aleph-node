@@ -29,7 +29,7 @@ benchmarks! {
         let caller = RawOrigin::Root;
         let options = types::LightClientOptionsStorage::default ();
 
-        let mut blocks = LightBlockStorage::generate_consecutive_blocks (1, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+        let mut blocks = mock::generate_consecutive_blocks (1, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
         let initial_block = blocks.pop ().unwrap ();
         let options = types::LightClientOptionsStorage::default();
 
@@ -78,7 +78,7 @@ benchmarks! {
         // 1970-01-01T00:00:05Z
         mock::Timestamp::set_timestamp(5000);
 
-        let mut blocks = LightBlockStorage::generate_consecutive_blocks (2, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+        let mut blocks = mock::generate_consecutive_blocks (2, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
 
         let options = types::LightClientOptionsStorage::default();
         // let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();

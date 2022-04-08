@@ -8,15 +8,41 @@ use crate::{
 };
 use frame_support::{assert_err, assert_ok};
 use tendermint_light_client_verifier::types::LightBlock;
+use tendermint_testgen::light_block;
 
 #[test]
 fn type_casting() {
     let light_block: LightBlock = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
-
     let light_block_storage: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
     let light_block_from_storage: LightBlock = light_block_storage.clone().try_into().unwrap();
 
     assert_eq!(light_block, light_block_from_storage);
+}
+
+#[test]
+fn type_casting_is_commutative() {
+    let light_block: LightBlock = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+    let light_block_storage: LightBlockStorage = light_block.clone().try_into().unwrap();
+    let light_block_from_storage: LightBlock = light_block_storage.clone().try_into().unwrap();
+
+    assert_eq!(light_block, light_block_from_storage);
+}
+
+#[test]
+fn block_generation() {
+    let mut blocks = mock::generate_consecutive_blocks(
+        1,
+        String::from("test-chain"),
+        1,
+        3,
+        TimestampStorage::new(3, 0),
+    );
+
+    let light_block_storage: LightBlockStorage = blocks.pop().unwrap();
+    let light_block_from_storage: LightBlock = light_block_storage.clone().try_into().unwrap();
+    let light_block: LightBlockStorage = light_block_from_storage.clone().try_into().unwrap();
+
+    assert_eq!(light_block, light_block_storage);
 }
 
 #[test]
