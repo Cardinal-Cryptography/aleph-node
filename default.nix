@@ -5,6 +5,7 @@
                      patchPath = ./nix/rocksdb.patch;
                      enableJemalloc = true;
                    }
+, rustflags ? "-C target-cpu=native"
 }:
 let
   # this overlay allows us to use a specified version of the rust toolchain
@@ -120,6 +121,7 @@ with nixpkgs; env.mkDerivation rec {
         $BINDGEN_EXTRA_CLANG_ARGS
     "
     ${rocksDbShellHook}
+    export RUSTFLAGS="${rustflags}"
   '';
 
   buildPhase = ''
