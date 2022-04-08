@@ -22,6 +22,7 @@ use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, merkle, node, private_key,
+    serializers::bytes,
     validator::{self, ProposerPriority},
     vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
 };
@@ -195,11 +196,18 @@ impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
     }
 }
 
-impl From<PartSetHeader> for PartSetHeaderStorage {
-    fn from(psh: PartSetHeader) -> Self {
-        PartSetHeaderStorage {
-            total: psh.total,
-            hash: H256::from_slice(psh.hash.as_bytes()),
+// TODO : panics
+impl TryFrom<PartSetHeader> for PartSetHeaderStorage {
+    type Error = &'static str;
+    fn try_from(psh: PartSetHeader) -> Result<Self, Self::Error> {
+        let bytes = psh.hash.as_bytes();
+        if bytes.len() == hash::SHA256_HASH_SIZE {
+            Ok(PartSetHeaderStorage {
+                total: psh.total,
+                hash: BridgedBlockHash::from_slice(bytes),
+            })
+        } else {
+            Err("Invalid hash size")
         }
     }
 }
@@ -256,12 +264,13 @@ impl TryFrom<BlockIdStorage> for block::Id {
     }
 }
 
-impl From<block::Id> for BlockIdStorage {
-    fn from(id: block::Id) -> Self {
-        BlockIdStorage {
+impl TryFrom<block::Id> for BlockIdStorage {
+    type Error = &'static str;
+    fn try_from(id: block::Id) -> Result<Self, Self::Error> {
+        Ok(Self {
             hash: H256::from_slice(id.hash.as_bytes()),
-            part_set_header: id.part_set_header.into(),
-        }
+            part_set_header: id.part_set_header.try_into()?,
+        })
     }
 }
 
@@ -704,7 +713,7 @@ impl TryFrom<Commit> for CommitStorage {
         for sig in commit.signatures {
             signatures.push(sig.try_into()?)
         }
-        let block_id = commit.block_id.into();
+        let block_id = commit.block_id.try_into()?;
         Ok(CommitStorage::new(
             commit.height.value(),
             commit.round.value(),
@@ -767,7 +776,9 @@ impl TryFrom<Header> for HeaderStorage {
             .last_commit_hash
             .as_ref()
             .and_then(tendermint_hash_to_h256);
+
         let data_hash = header.data_hash.as_ref().and_then(tendermint_hash_to_h256);
+
         let validators_hash = match header.validators_hash {
             TmHash::Sha256(secp) => H256::from_slice(&secp),
             TmHash::None => return Err("unexpected hash variant for validators_hash field"),
@@ -790,12 +801,23 @@ impl TryFrom<Header> for HeaderStorage {
             .as_ref()
             .and_then(tendermint_hash_to_h256);
         let proposer_address = H160::from_slice(header.proposer_address.as_bytes());
+
+        let version = header.version.into();
+        let chain_id = header.chain_id.as_bytes().to_vec();
+        let height = header.height.value();
+        let time = header.time.try_into()?;
+
+        let last_block_id = match header.last_block_id {
+            Some(id) => id.try_into().ok(),
+            None => None,
+        };
+
         Ok(HeaderStorage::new(
-            header.version.into(),
-            header.chain_id.as_bytes().to_vec(),
-            header.height.value(),
-            header.time.try_into()?,
-            header.last_block_id.map(Into::into),
+            version,
+            chain_id,
+            height,
+            time,
+            last_block_id,
             last_commit_hash,
             data_hash,
             validators_hash,
@@ -1136,7 +1158,7 @@ impl LightBlockStorage {
 
     // #[cfg(feature = "runtime-benchmarks")]
     pub fn generate_consecutive_blocks(
-        n: i32,
+        n: usize,
         chain_id: String,
         validators_count: i32,
         from_height: u64,
@@ -1168,8 +1190,8 @@ impl LightBlockStorage {
         let default_provider: TendermintPeerId =
             "BADFADAD0BEFEEDC0C0ADEADBEEFC0FFEEFACADE".parse().unwrap();
 
-        let mut block = testgen::LightBlock::new(header, commit);
-        let mut blocks = Vec::with_capacity(n as usize);
+        let block = testgen::LightBlock::new(header, commit);
+        let mut blocks = Vec::with_capacity(n);
 
         blocks.push(LightBlockStorage::new(
             signed_header.try_into().unwrap(),
@@ -1178,21 +1200,35 @@ impl LightBlockStorage {
             default_provider,
         ));
 
-        for _ in 0..(n - 1) as usize {
-            let testgen::LightBlock { header, commit, .. } = block.clone();
-
+        for _ in 1..n {
+            let testgen::LightBlock { header, commit, .. } = block.next();
             let signed_header =
                 testgen::light_block::generate_signed_header(&header.unwrap(), &commit.unwrap())
                     .unwrap();
-
             blocks.push(LightBlockStorage::new(
                 signed_header.try_into().unwrap(),
                 validators_set.clone(),
                 validators_set.clone(),
                 default_provider,
             ));
-            block = block.next();
         }
+
+        blocks.reverse();
+
+        // TODO
+        blocks.iter().for_each(|b| {
+            // println!(
+            //     " last_block_id {:?}\n last_commit_hash {:?} \n header_hash {:?}\n part_set_header_hash {:?}\n",
+            //     b.signed_header.header.last_block_id,
+            //     b.signed_header.header.last_commit_hash,
+            //     b.signed_header.commit.block_id.hash,
+            //     b.signed_header.commit.block_id.part_set_header.hash
+            // );
+
+            println!("{:#?}", b);
+        });
+
+        println!("# blocks  {}", blocks.len());
 
         blocks
     }

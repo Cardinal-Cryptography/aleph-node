@@ -15,6 +15,11 @@ use tendermint_light_client_verifier::{
 };
 use tendermint_testgen as testgen;
 
+// let initial_block = types::LightBlockStorage::create (v as i32,
+//                                                       3
+//                                                       // , i as i32, i as i32, i as i32
+// );
+
 benchmarks! {
     benchmark_for_initialize_client {
 
@@ -23,11 +28,6 @@ benchmarks! {
 
         let caller = RawOrigin::Root;
         let options = types::LightClientOptionsStorage::default ();
-
-        // let initial_block = types::LightBlockStorage::create (v as i32,
-        //                                                       3
-        //                                                       // , i as i32, i as i32, i as i32
-        // );
 
         let mut blocks = LightBlockStorage::generate_consecutive_blocks (1, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
         let initial_block = blocks.pop ().unwrap ();
@@ -78,7 +78,8 @@ benchmarks! {
         // 1970-01-01T00:00:05Z
         mock::Timestamp::set_timestamp(5000);
 
-        let mut blocks = LightBlockStorage::generate_consecutive_blocks (3, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+        let mut blocks = LightBlockStorage::generate_consecutive_blocks (2, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+
         let options = types::LightClientOptionsStorage::default();
         // let initial_block: types::LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
@@ -92,22 +93,14 @@ benchmarks! {
 
         let caller: T::AccountId = whitelisted_caller();
         let next = blocks.pop ().unwrap ();
-        let next_next = blocks.pop ().unwrap ();
+        // let next_next = blocks.pop ().unwrap ();
 
-        // let untrusted_block: types::LightBlockStorage = serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
-        // // let next: LightBlock = untrusted_block.try_into ().unwrap();
-        // // let next = next.next ();
+        // assert_ok!(TendermintLightClient::<T>::update_client(
+        //     RawOrigin::Signed(caller.clone()).into (),
+        //     next
+        // ));
 
-        // let next = untrusted_block.next ();
-        // let next_next = next.next ();
-
-        assert_ok!(TendermintLightClient::<T>::update_client(
-            RawOrigin::Signed(caller.clone()).into (),
-            next
-        ));
-
-
-    }: update_client(RawOrigin::Signed(caller.clone()), next_next)
+    }: update_client(RawOrigin::Signed(caller.clone()), next)
 
         verify {
             // check if rollover happened
@@ -119,7 +112,6 @@ benchmarks! {
                        // last_imported
             );
         }
-
 
     impl_benchmark_test_suite!(
         TendermintLightClient,
