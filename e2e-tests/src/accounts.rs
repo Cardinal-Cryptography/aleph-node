@@ -9,7 +9,6 @@ pub fn default_account_seeds() -> Vec<String> {
         "//Tomasz",
         "//Zbyszko",
         "//Julia",
-        "//Marcin",
     ]
     .into_iter()
     .map(String::from)
