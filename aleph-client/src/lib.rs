@@ -1,19 +1,18 @@
-use codec::Encode;
 use std::{thread::sleep, time::Duration};
 
+use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
-use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient,
+pub use substrate_api_client::{
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
     UncheckedExtrinsicV4, XtStatus,
 };
 
-pub use debug::print_storages;
 pub use account::{get_free_balance, locks};
+pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
-
 pub use session::{
     change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
     Keys as SessionKeys,
@@ -34,6 +33,7 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod debug;
 mod fee;
+mod multisig;
 mod rpc;
 mod session;
 mod staking;
