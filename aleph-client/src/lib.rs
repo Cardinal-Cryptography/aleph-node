@@ -3,6 +3,7 @@ use std::{thread::sleep, time::Duration};
 use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, Pair, H256};
+use sp_core::storage::StorageKey;
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use substrate_api_client::{
     rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
@@ -159,4 +160,40 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
 
 pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
     AccountId::from(keypair.public())
+}
+
+fn storage_key(module: &str, version: &str) -> [u8; 32] {
+    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
+    let postfix = sp_io::hashing::twox_128(version.as_bytes());
+    let mut final_key = [0u8; 32];
+    final_key[..16].copy_from_slice(&pallet_name);
+    final_key[16..].copy_from_slice(&postfix);
+    final_key
+}
+
+/// Computes hash of given pallet's call. You can use that to pass result to `state.getKeys` RPC call.
+/// * `pallet` name of the pallet
+/// * `call` name of the pallet's call
+///
+/// # Example
+/// ```
+/// let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
+/// assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
+/// ```
+pub fn get_storage_key(pallet: &str, call: &str) -> String {
+    let bytes = storage_key(pallet, call);
+    let storage_key = StorageKey(bytes.into());
+    hex::encode(storage_key.0)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn given_staking_nominate_call_when_get_storage_key_then_hash_is_correct() {
+        let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
+        assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
+    }
 }

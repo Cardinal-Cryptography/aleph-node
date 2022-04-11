@@ -1,6 +1,6 @@
 [package]
 name = "aleph_client"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 
 
@@ -8,6 +8,7 @@ edition = "2021"
 # Substrate dependencies
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", features = ["full_crypto"] }
 sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 pallet-multisig = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
