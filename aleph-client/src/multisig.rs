@@ -136,11 +136,12 @@ impl MultisigParty {
     }
 
     /// This method generates deterministic account id for a given set of members and a threshold.
+    /// `who` must be sorted, otherwise the result will be incorrect.
     ///
     /// It comes from pallet multisig. However, since it is an associated method for a struct
     /// `pallet_multisig::Pallet<T: pallet_multisig::Config>` it is easier to just copy
     /// these two lines.
-    fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
+    pub fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
         let entropy = (b"modlpy/utilisuba", who, threshold).using_encoded(blake2_256);
         AccountId::decode(&mut &entropy[..]).unwrap_or_default()
     }
@@ -443,4 +444,31 @@ impl MultisigParty {
         );
         (xt, connection)
     }
+}
+
+/// Dispatch `call` as on behalf of the multisig party of `author` and `other_signatories`
+/// with threshold 1. `connection` is *not* assumed to be already signed by `author`.
+/// `other_signatories` *must* be sorted (according to the natural ordering on `AccountId`).
+pub fn perform_pato_multisig<CallDetails: Encode + Clone>(
+    connection: &Connection,
+    author: KeyPair,
+    other_signatories: &[AccountId],
+    call: CallDetails,
+) -> Result<()> {
+    let connection = connection.clone().set_signer(author.clone());
+    let xt = compose_extrinsic!(
+        connection,
+        "Multisig",
+        "as_multi_threshold_1",
+        other_signatories,
+        call
+    );
+    try_send_xt(
+        &connection,
+        xt,
+        Some("Multisig with threshold 1"),
+        Finalized,
+    )?
+    .expect("For `Finalized` status a block hash should be returned");
+    Ok(())
 }

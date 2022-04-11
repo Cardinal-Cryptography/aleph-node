@@ -1,17 +1,20 @@
 use aleph_client::{
-    get_call_hash, keypair_from_string, print_storages, Connection, KeyPair, MultisigParty,
+    get_call_hash, keypair_from_string, perform_pato_multisig, print_storages, send_xt, Connection,
+    KeyPair, MultisigParty,
 };
 use clap::{Parser, Subcommand};
 use codec::Encode;
 use log::{error, info};
 use sp_core::Pair;
 use std::env;
-use substrate_api_client::{AccountId, GenericAddress};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, GenericAddress};
 
 use cliain::{
     bond, change_validators, force_new_era, prepare_keys, prompt_password_hidden, rotate_keys,
     set_keys, set_staking_limits, transfer, update_runtime, validate, ConnectionConfig,
 };
+use codec::Compact;
+use substrate_api_client::XtStatus::Finalized;
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -180,23 +183,62 @@ fn init_env() {
 }
 
 fn multisig(connection: &Connection) {
-    let alice = keypair_from_string("//Alice");
-    let charlie = keypair_from_string("//Charlie");
-    let dave = keypair_from_string("//Dave");
+    // let alice = keypair_from_string("//Alice");
+    // let charlie = keypair_from_string("//Charlie");
+    // let dave = keypair_from_string("//Dave");
+    //
+    // let eve = keypair_from_string("//Eve");
+    // let beneficiary = GenericAddress::Id(AccountId::from(eve.public()));
 
-    let eve = keypair_from_string("//Eve");
-    let beneficiary = GenericAddress::Id(AccountId::from(eve.public()));
-
-    let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
-
-    let xt = connection.balance_transfer(beneficiary, 2_000_000_000_000);
-
-    let g = msp
-        .initiate_aggregation_with_call(connection, xt.clone(), 2)
-        .unwrap();
-    error!("{:?}", g);
-
-    msp.cancel(connection, 2, g).unwrap();
+    // let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
+    //
+    // let xt = connection.balance_transfer(beneficiary, 2_000_000_000_000);
+    //
+    // let g = msp
+    //     .initiate_aggregation_with_call(connection, xt.clone(), 2)
+    //     .unwrap();
+    // error!("{:?}", g);
+    //
+    // msp.cancel(connection, 2, g).unwrap();
     // let g = msp.approve(connection, 1, g).unwrap();
     // error!("{:?}", g);
+
+    ///////////////////////// Pato multisig
+
+    // firstly, endow multisig account
+    send_xt(
+        connection,
+        connection.balance_transfer(
+            GenericAddress::Id(MultisigParty::multi_account_id(
+                &vec![
+                    AccountId::from(dave.public()),
+                    AccountId::from(charlie.public()),
+                    AccountId::from(alice.public()),
+                ],
+                1,
+            )),
+            10_000_000_000_000,
+        ),
+        None,
+        Finalized,
+    );
+
+    // ready to go
+    let xt = compose_call!(
+        connection.metadata,
+        "Balances",
+        "transfer",
+        beneficiary,
+        Compact(2_000_000_000_000u128)
+    );
+    perform_pato_multisig(
+        connection,
+        alice,
+        &vec![
+            AccountId::from(dave.public()),
+            AccountId::from(charlie.public()),
+        ],
+        xt,
+    )
+    .unwrap();
 }
