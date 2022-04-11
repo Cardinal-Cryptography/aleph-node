@@ -178,7 +178,7 @@ impl pallet_timestamp::Config for TestRuntime {
 
 parameter_types! {
     pub const HeadersToKeep: u32 = 3;
-    pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
+    pub const MaxVotesCount: u32 = 10; // 100
 }
 
 impl tendermint_light_client::Config for TestRuntime {
@@ -252,7 +252,7 @@ pub fn new_genesis_storage() -> sp_io::TestExternalities {
 pub fn generate_consecutive_blocks(
     n: usize,
     chain_id: String,
-    validators_count: i32,
+    validators_count: u32,
     from_height: u64,
     from_timestamp: TimestampStorage,
 ) -> Vec<LightBlockStorage> {
@@ -291,39 +291,12 @@ pub fn generate_consecutive_blocks(
         default_provider,
     );
 
-    // println!(
-    //     "init block/block_hash {:#?}",
-    //     &signed_header.clone().commit.block_id.hash
-    // );
-    // println!(
-    //     "init block storage/block_hash {:#?}",
-    //     &block_storage.clone().signed_header.commit.block_id.hash
-    // );
-
-    // println!();
-
-    // println!(
-    //     "init block/last_block_id_hash {:#?}",
-    //     &block.clone().header.unwrap().last_block_id_hash
-    // );
-    // println!(
-    //     "init block storage/last_block_id_hash {:#?}",
-    //     &block_storage.clone().signed_header.header.last_block_id
-    // );
-
     blocks.push(block_storage);
 
     for _index in 1..n {
         block = block.next();
 
         let testgen::LightBlock { header, commit, .. } = block.clone();
-
-        println!(
-            "header.time: {:?} hash: {:?}",
-            &header.clone().unwrap().time,
-            &header.clone().unwrap().last_block_id_hash
-        );
-
         let signed_header = testgen::light_block::generate_signed_header(
             &header.clone().unwrap(),
             &commit.unwrap(),
@@ -337,41 +310,14 @@ pub fn generate_consecutive_blocks(
             default_provider,
         );
 
-        // if _index == 1 {
-        // println!(
-        //     "next block / last_block_id_hash {:#?}",
-        //     &b.clone().header.unwrap().last_block_id_hash
-        // );
-        // println!(
-        //     "next block storage / last_block_id_hash {:#?}",
-        //     &bs.clone().signed_header.header.last_block_id
-        // );
-
-        // println!("{:#?}", &b.header.clone());
-        // println!("{:#?}", &bs.signed_header.header);
-        // }
-
         blocks.push(bs);
     }
 
-    blocks.reverse();
-
     // TODO
     blocks.iter().for_each(|b| {
-        println!("TIME {:?}", b.signed_header.header.timestamp);
-
-        // println!(
-        //     " last_block_id {:?}\n last_commit_hash {:?} \n header_hash {:?}\n part_set_header_hash {:?}\n",
-        //     b.signed_header.header.last_block_id,
-        //     b.signed_header.header.last_commit_hash,
-        //     b.signed_header.commit.block_id.hash,
-        //     b.signed_header.commit.block_id.part_set_header.hash
-        // );
-
-        // println!("{:#?}", b);
+        println!("generated block {:?}", b.signed_header.commit.signatures);
     });
 
-    // println!("# blocks  {}", blocks.len());
-
+    blocks.reverse();
     blocks
 }

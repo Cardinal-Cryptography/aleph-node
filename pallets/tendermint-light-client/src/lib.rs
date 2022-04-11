@@ -276,15 +276,12 @@ pub mod pallet {
 
         let commit_hash = untrusted_block.clone().signed_header.commit.block_id.hash;
 
-        println!(
-            "block height {}, header hashes to {:?}\n commit has a header hash {:?}",
-            untrusted_block.height(),
-            &header_hash,
-            &commit_hash
-        );
-
-        // &untrusted.signed_header.header,
-        // untrusted.signed_header.commit.block_id.hash,
+        // println!(
+        //     "block height {}, header hashes to {:?}\n commit has a header hash {:?}",
+        //     untrusted_block.height(),
+        //     &header_hash,
+        //     &commit_hash
+        // );
 
         // verify against known state
         verifier.verify(
