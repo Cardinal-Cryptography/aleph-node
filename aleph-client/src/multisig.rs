@@ -20,8 +20,8 @@ use crate::{
 ///
 /// However, passing such parameter everytime is cumbersome and introduces the need of either
 /// estimating call weight or setting very high universal bound at every caller side.
-/// Thus, we keep a fairly high limit, which should cover almost any call (1 token).
-const MAX_WEIGHT: u64 = 1_000_000_000_000;
+/// Thus, we keep a fairly high limit, which should cover almost any call (0.05 token).
+const MAX_WEIGHT: u64 = 500_000_000;
 
 /// Gathers all possible errors from this module.
 #[derive(Debug, Error)]
@@ -286,7 +286,7 @@ impl MultisigParty {
 
         let (xt, connection) = self.construct_cancel_as_multi(
             connection,
-            Some(sig_agg.timepoint),
+            sig_agg.timepoint,
             author_idx,
             sig_agg.call_hash,
         );
@@ -315,11 +315,11 @@ type AsMultiCall = UncheckedExtrinsicV4<(
 )>;
 
 type CancelAsMultiCall = UncheckedExtrinsicV4<(
-    [u8; 2],           // call index
-    u16,               // threshold
-    Vec<AccountId32>,  // other signatories
-    Option<Timepoint>, // timepoint, `None` for initiating
-    CallHash,          // call hash
+    [u8; 2],          // call index
+    u16,              // threshold
+    Vec<AccountId32>, // other signatories
+    Timepoint,        // timepoint, `None` for initiating
+    CallHash,         // call hash
 )>;
 
 /// Implementation block containing private auxiliary methods used by those from public API.
@@ -426,7 +426,7 @@ impl MultisigParty {
     fn construct_cancel_as_multi(
         &self,
         connection: &Connection,
-        timepoint: Option<Timepoint>,
+        timepoint: Timepoint,
         author_idx: usize,
         call_hash: CallHash,
     ) -> (CancelAsMultiCall, Connection) {

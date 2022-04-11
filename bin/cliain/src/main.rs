@@ -180,32 +180,23 @@ fn init_env() {
 }
 
 fn multisig(connection: &Connection) {
-    // let alice = keypair_from_string("//Alice");
-    // let charlie = keypair_from_string("//Charlie");
-    // let dave = keypair_from_string("//Dave");
-    // let benef = GenericAddress::Id(AccountId::from(dave.public()));
-    //
-    // let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
-    //
-    // let xt = connection.balance_transfer(benef, 1_000_000_000_000);
-    // let g = msp
-    //     .initiate_aggregation_with_hash(connection, get_call_hash(&xt), 2)
-    //     .unwrap();
-    // error!("{:?}", g);
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
     let alice = keypair_from_string("//Alice");
     let charlie = keypair_from_string("//Charlie");
     let dave = keypair_from_string("//Dave");
-    let benef = GenericAddress::Id(AccountId::from(dave.public()));
+
+    let eve = keypair_from_string("//Eve");
+    let beneficiary = GenericAddress::Id(AccountId::from(eve.public()));
 
     let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
 
-    let xt = connection.balance_transfer(benef, 2_000_000_000_000);
-    error!("call: {:?}", xt.function.encode());
-    error!("call hash: {:?}", get_call_hash(&xt));
+    let xt = connection.balance_transfer(beneficiary, 2_000_000_000_000);
 
     let g = msp
-        .initiate_aggregation_with_call(connection, xt, 2)
+        .initiate_aggregation_with_call(connection, xt.clone(), 2)
         .unwrap();
     error!("{:?}", g);
+
+    msp.cancel(connection, 2, g).unwrap();
+    // let g = msp.approve(connection, 1, g).unwrap();
+    // error!("{:?}", g);
 }
