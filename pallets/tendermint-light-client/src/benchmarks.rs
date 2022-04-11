@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     mock,
-    types::{LightBlockStorage, TimestampStorage},
+    types::{LightBlockStorage, TendermintBlockHash, TendermintHashStorage, TimestampStorage},
     utils::tendermint_hash_to_h256,
     Pallet as TendermintLightClient,
 };
@@ -21,7 +21,6 @@ benchmarks! {
         let v in 1 .. T::MaxVotesCount::get();
         let mut blocks = mock::generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
-        // let caller = RawOrigin::Root;
         let initial_block = blocks.pop ().unwrap ();
         let options = types::LightClientOptionsStorage::default();
 
@@ -32,7 +31,7 @@ benchmarks! {
             let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
             assert_eq!(
                 initial_block.signed_header.commit.block_id.hash,
-                last_imported
+                TendermintHashStorage::Some (last_imported)
             );
         }
 
@@ -60,7 +59,7 @@ benchmarks! {
             let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
             assert_eq!(
                 untrusted_block.signed_header.commit.block_id.hash,
-                last_imported
+                TendermintHashStorage::Some (last_imported)
             );
         }
 
@@ -95,14 +94,15 @@ benchmarks! {
     }: update_client(RawOrigin::Signed(caller.clone()), next_next)
 
         verify {
-            // check if rollover happened
-
-            // let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
-
-            assert_eq!(true, true
-                       // update_block.signed_header.commit.block_id.hash,
-                       // last_imported
+            let initial_block_hash = TendermintLightClient::<T>::get_imported_hash(0).unwrap ();
+            assert_eq!(
+                initial_block.signed_header.commit.block_id.hash,
+                TendermintHashStorage::Some (initial_block_hash)
             );
+
+            // check if rollover happened
+            assert_eq! (None, ImportedBlocks::<T>::get(initial_block_hash), "This block should have been pruned");
+
         }
 
     impl_benchmark_test_suite!(

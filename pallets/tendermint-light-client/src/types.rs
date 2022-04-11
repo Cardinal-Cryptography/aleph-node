@@ -9,15 +9,13 @@ use crate::utils::{
 };
 use codec::{Decode, Encode};
 #[cfg(feature = "std")]
-use core::fmt;
-use frame_support::{inherent::BlockT, RuntimeDebug};
+use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(feature = "std")]
 use serde_json::Value;
 #[cfg(feature = "std")]
-use std::fmt::Display;
 // #[cfg(any(test, feature = "runtime-benchmarks"))]
 use sp_core::{ed25519, Pair, H160, H256, H512};
 use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
@@ -25,10 +23,7 @@ use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain,
-    hash::{self, SHA256_HASH_SIZE},
-    merkle, node, private_key,
-    serializers::bytes,
+    chain, hash, node,
     validator::{self, ProposerPriority},
     vote, Hash as TendermintHash, PublicKey as TmPublicKey, Time,
 };
@@ -41,13 +36,13 @@ use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
-pub type TenderminBlockHash = H256;
+pub type TendermintBlockHash = H256;
 
 #[derive(Encode, Decode, Clone, Copy, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize))]
 pub enum TendermintHashStorage {
     /// SHA-256 hash
-    Some(TenderminBlockHash),
+    Some(TendermintBlockHash),
     /// empty hash
     None,
 }
@@ -312,20 +307,7 @@ impl BlockIdStorage {
 impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
-        // println!("BlockIdStorage -> block::Id");
-
-        // println!(
-        //     "BlockIdStorage -> block::Id BlockIdStorage/hash {:?}",
-        //     value.hash
-        // );
-
-        // println!(
-        //     "BlockIdStorage -> block::Id block::Id / hash {:?}",
-        //     sha256_from_bytes(value.hash.as_bytes())
-        // );
-
         Ok(Self {
-            // hash: sha256_from_bytes(value.hash.as_bytes()),
             hash: value
                 .hash
                 .try_into()
@@ -341,16 +323,8 @@ impl TryFrom<BlockIdStorage> for block::Id {
 impl TryFrom<block::Id> for BlockIdStorage {
     type Error = &'static str;
     fn try_from(id: block::Id) -> Result<Self, Self::Error> {
-        // println!("block::Id -> BlockIdStorage");
-
-        // println!("block::Id -> BlockIdStorage @ block::Id/hash {}", id.hash);
-        // println!(
-        //     "block::Id -> BlockIdStorage @ BlockIdStorage/hash {:?}",
-        //     BridgedBlockHash::from_slice(id.hash.clone().as_bytes())
-        // );
-
         Ok(Self {
-            hash: id.hash.try_into()?, //BridgedBlockHash::from_slice(id.hash.as_bytes()),
+            hash: id.hash.try_into()?,
             part_set_header: id.part_set_header.try_into()?,
         })
     }
@@ -476,37 +450,10 @@ impl HeaderStorage {
         self.to_owned()
     }
 
-    fn next(&self) -> Self {
-        todo!()
-    }
-
     pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
         self.timestamp = timestamp;
         self.to_owned()
     }
-
-    // // is this correct?
-    // pub fn hash(&self) -> BridgedBlockHash {
-    //     let field_bytes: Vec<Vec<u8>> = vec![
-    //         self.version.encode(),
-    //         self.chain_id.encode(),
-    //         self.height.encode(),
-    //         self.timestamp.encode(),
-    //         self.last_block_id.encode(),
-    //         self.last_commit_hash.encode(),
-    //         self.data_hash.encode(),
-    //         self.validators_hash.encode(),
-    //         self.next_validators_hash.encode(),
-    //         self.consensus_hash.encode(),
-    //         self.app_hash.encode(),
-    //         self.last_results_hash.encode(),
-    //         self.evidence_hash.encode(),
-    //         self.proposer_address.encode(),
-    //     ];
-
-    //     let hash = merkle::simple_hash_from_byte_vectors(field_bytes);
-    //     BridgedBlockHash::from_slice(&hash)
-    // }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -887,8 +834,6 @@ impl TryFrom<Header> for HeaderStorage {
         let chain_id = header.chain_id.as_bytes().to_vec();
         let height = header.height.value();
         let time = header.time.try_into()?;
-
-        // TODO : fixit
         let last_block_id: Option<BlockIdStorage> = match header.last_block_id {
             Some(id) => Some(
                 id.try_into()
@@ -947,20 +892,8 @@ impl TryFrom<SignedHeader> for SignedHeaderStorage {
     type Error = &'static str;
 
     fn try_from(signed_header: SignedHeader) -> Result<Self, Self::Error> {
-        // println!("SignedHeader -> SignedHeaderStorage");
-
-        // let sh_header = signed_header.header();
-
-        // println!(
-        //     "SignedHeader -> SignedHeaderStorage @sh_header {:#?}",
-        //     &sh_header
-        // );
-
         let header = signed_header.header().clone().try_into()?;
         let commit = signed_header.commit().clone().try_into()?;
-
-        // println!("SignedHeader -> SignedHeaderStorage @header {:#?}", &header);
-
         Ok(SignedHeaderStorage::new(header, commit))
     }
 }
@@ -1081,14 +1014,10 @@ impl ValidatorInfoStorage {
     }
 
     // TODO : is that correct?
-    /// Returns the bytes to be hashed into the Merkle tree
-    pub fn hash_bytes(&self) -> Vec<u8> {
-        // match self.pub_key {
-        //     TendermintPublicKey::Ed25519(hash) => hash.as_bytes().into(),
-        //     TendermintPublicKey::Secp256k1(hash) => hash.as_bytes().into(),
-        // }
-        self.pub_key.encode()
-    }
+    // /// Returns the bytes to be hashed into the Merkle tree
+    // pub fn hash_bytes(&self) -> Vec<u8> {
+    //     self.pub_key.encode()
+    // }
 }
 
 impl TryFrom<ValidatorInfoStorage> for validator::Info {
@@ -1177,17 +1106,17 @@ impl ValidatorSetStorage {
         }
     }
 
-    /// Compute the hash of this validator set
-    pub fn hash(&self) -> H256 {
-        let validator_bytes: Vec<Vec<u8>> = self
-            .validators
-            .iter()
-            .map(|validator| validator.hash_bytes())
-            .collect();
+    // /// Compute the hash of this validator set
+    // pub fn hash(&self) -> H256 {
+    //     let validator_bytes: Vec<Vec<u8>> = self
+    //         .validators
+    //         .iter()
+    //         .map(|validator| validator.hash_bytes())
+    //         .collect();
 
-        let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
-        H256::from_slice(&hash)
-    }
+    //     let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
+    //     H256::from_slice(&hash)
+    // }
 }
 
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {

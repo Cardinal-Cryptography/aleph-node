@@ -2,8 +2,8 @@ use super::*;
 use crate::{
     mock::*,
     types::{
-        LightBlockStorage, LightClientOptionsStorage, SignedHeaderStorage, TimestampStorage,
-        ValidatorSetStorage,
+        LightBlockStorage, LightClientOptionsStorage, SignedHeaderStorage, TendermintHashStorage,
+        TimestampStorage, ValidatorSetStorage,
     },
 };
 use frame_support::{assert_err, assert_ok};
@@ -72,7 +72,7 @@ fn successful_verification() {
         let last_imported = Pallet::<TestRuntime>::get_last_imported_hash();
         assert_eq!(
             initial_block.signed_header.commit.block_id.hash,
-            last_imported
+            TendermintHashStorage::Some(last_imported)
         );
 
         System::assert_last_event(mock::Event::TendermintLightClient(
@@ -92,7 +92,7 @@ fn successful_verification() {
         let best_finalized_hash = Pallet::<TestRuntime>::get_last_imported_hash();
         assert_eq!(
             untrusted_block.signed_header.commit.block_id.hash,
-            best_finalized_hash
+            TendermintHashStorage::Some(best_finalized_hash)
         );
 
         System::assert_last_event(mock::Event::TendermintLightClient(

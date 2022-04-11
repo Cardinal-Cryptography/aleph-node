@@ -1,5 +1,5 @@
 use crate::types::{
-    TenderminBlockHash, TendermintHashStorage, TendermintVoteSignature, TimestampStorage,
+    TendermintBlockHash, TendermintHashStorage, TendermintVoteSignature, TimestampStorage,
 };
 use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
