@@ -1,3 +1,5 @@
+/// The below array consists of a geometric sequence of the form 10_000_000_000*(1.11317)^k
+/// where the largest element is u64::MAX
 pub const THRESHOLDS: [u64; 200] = [
     10_000_000_000,
     11_131_723_507,
