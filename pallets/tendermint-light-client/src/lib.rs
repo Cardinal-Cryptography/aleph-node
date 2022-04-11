@@ -26,7 +26,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage};
+    use crate::types::{LightBlockStorage, LightClientOptionsStorage, TendermintHashStorage};
     use frame_support::{
         ensure, fail, log,
         pallet_prelude::{
@@ -73,7 +73,7 @@ pub mod pallet {
         /// Light client is initialized
         LightClientInitialized,
         /// New block has been verified and imported into storage \[relayer_address, imported_block_hash\]
-        ImportedLightBlock(T::AccountId, BridgedBlockHash),
+        ImportedLightBlock(T::AccountId, TendermintHashStorage),
     }
 
     #[pallet::error]
@@ -102,11 +102,11 @@ pub mod pallet {
     /// Hash of the last imported header from the bridged chain
     #[pallet::storage]
     #[pallet::getter(fn get_last_imported_hash)]
-    pub type LastImportedHash<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
+    pub type LastImportedHash<T: Config> = StorageValue<_, TendermintHashStorage, ValueQuery>;
 
     /// All imported hashes "ordered" by their insertion time
     #[pallet::storage]
-    pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
+    pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, TendermintHashStorage>;
 
     /// Current ring buffer position
     #[pallet::storage]
@@ -116,7 +116,7 @@ pub mod pallet {
     /// Client keeps HeadersToKeep number of these at any time
     #[pallet::storage]
     pub(super) type ImportedBlocks<T: Config> =
-        StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage, OptionQuery>;
+        StorageMap<_, Identity, TendermintHashStorage, LightBlockStorage, OptionQuery>;
 
     // TODO : expose in runtime API and nodes RPC
     impl<T: Config> Pallet<T> {
@@ -297,7 +297,7 @@ pub mod pallet {
 
     /// update light client storage
     /// should only be called by a trusted origin, *after* performing a verification
-    fn insert_light_block<T: Config>(hash: BridgedBlockHash, light_block: LightBlockStorage) {
+    fn insert_light_block<T: Config>(hash: TendermintHashStorage, light_block: LightBlockStorage) {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
 

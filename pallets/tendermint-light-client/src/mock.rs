@@ -281,7 +281,7 @@ pub fn generate_consecutive_blocks(
     let default_provider: TendermintPeerId =
         "BADFADAD0BEFEEDC0C0ADEADBEEFC0FFEEFACADE".parse().unwrap();
 
-    let block = testgen::LightBlock::new(header, commit);
+    let mut block = testgen::LightBlock::new(header, commit);
     let mut blocks = Vec::with_capacity(n);
 
     let block_storage = LightBlockStorage::new(
@@ -314,12 +314,21 @@ pub fn generate_consecutive_blocks(
     blocks.push(block_storage);
 
     for _index in 1..n {
-        let b = block.next();
+        block = block.next();
 
-        let testgen::LightBlock { header, commit, .. } = b.clone();
-        let signed_header =
-            testgen::light_block::generate_signed_header(&header.unwrap(), &commit.unwrap())
-                .unwrap();
+        let testgen::LightBlock { header, commit, .. } = block.clone();
+
+        println!(
+            "header.time: {:?} hash: {:?}",
+            &header.clone().unwrap().time,
+            &header.clone().unwrap().last_block_id_hash
+        );
+
+        let signed_header = testgen::light_block::generate_signed_header(
+            &header.clone().unwrap(),
+            &commit.unwrap(),
+        )
+        .unwrap();
 
         let bs = LightBlockStorage::new(
             signed_header.try_into().unwrap(),
@@ -328,17 +337,15 @@ pub fn generate_consecutive_blocks(
             default_provider,
         );
 
-        println!();
-
         // if _index == 1 {
-        println!(
-            "next block / last_block_id_hash {:#?}",
-            &b.clone().header.unwrap().last_block_id_hash
-        );
-        println!(
-            "next block storage / last_block_id_hash {:#?}",
-            &bs.clone().signed_header.header.last_block_id
-        );
+        // println!(
+        //     "next block / last_block_id_hash {:#?}",
+        //     &b.clone().header.unwrap().last_block_id_hash
+        // );
+        // println!(
+        //     "next block storage / last_block_id_hash {:#?}",
+        //     &bs.clone().signed_header.header.last_block_id
+        // );
 
         // println!("{:#?}", &b.header.clone());
         // println!("{:#?}", &bs.signed_header.header);
@@ -351,6 +358,8 @@ pub fn generate_consecutive_blocks(
 
     // TODO
     blocks.iter().for_each(|b| {
+        println!("TIME {:?}", b.signed_header.header.timestamp);
+
         // println!(
         //     " last_block_id {:?}\n last_commit_hash {:?} \n header_hash {:?}\n part_set_header_hash {:?}\n",
         //     b.signed_header.header.last_block_id,
@@ -362,7 +371,7 @@ pub fn generate_consecutive_blocks(
         // println!("{:#?}", b);
     });
 
-    println!("# blocks  {}", blocks.len());
+    // println!("# blocks  {}", blocks.len());
 
     blocks
 }

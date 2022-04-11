@@ -8,12 +8,16 @@ use crate::utils::{
     deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
+#[cfg(feature = "std")]
+use core::fmt;
 use frame_support::{inherent::BlockT, RuntimeDebug};
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "std")]
 use serde_json::Value;
+#[cfg(feature = "std")]
+use std::fmt::Display;
 // #[cfg(any(test, feature = "runtime-benchmarks"))]
 use sp_core::{ed25519, Pair, H160, H256, H512};
 use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
@@ -21,10 +25,12 @@ use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
 use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
-    chain, hash, merkle, node, private_key,
+    chain,
+    hash::{self, SHA256_HASH_SIZE},
+    merkle, node, private_key,
     serializers::bytes,
     validator::{self, ProposerPriority},
-    vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
+    vote, Hash as TendermintHash, PublicKey as TmPublicKey, Time,
 };
 use tendermint_light_client_verifier::{
     options::Options,
@@ -35,8 +41,59 @@ use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
-pub type Hash = H256;
-pub type BridgedBlockHash = Hash;
+pub type TenderminBlockHash = H256;
+
+#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, TypeInfo, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize))]
+pub enum TendermintHashStorage {
+    /// SHA-256 hash
+    Some(TenderminBlockHash),
+    /// empty hash
+    None,
+}
+
+#[cfg(feature = "std")]
+impl<'de> Deserialize<'de> for TendermintHashStorage {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        let bytes = hex::decode_upper(&s).or_else(|_| hex::decode(s)).unwrap();
+        Ok(Self::Some(H256::from_slice(&bytes)))
+    }
+}
+
+impl Default for TendermintHashStorage {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl TryFrom<tendermint::Hash> for TendermintHashStorage {
+    type Error = &'static str;
+
+    fn try_from(value: tendermint::Hash) -> Result<Self, Self::Error> {
+        match value {
+            TendermintHash::Sha256(bytes) => {
+                if bytes.len() == hash::SHA256_HASH_SIZE {
+                    Ok(TendermintHashStorage::Some(H256::from_slice(&bytes)))
+                } else {
+                    Err("Invalid hash size")
+                }
+            }
+            TendermintHash::None => Ok(TendermintHashStorage::None),
+        }
+    }
+}
+
+impl TryFrom<TendermintHashStorage> for TendermintHash {
+    type Error = &'static str;
+
+    fn try_from(value: TendermintHashStorage) -> Result<Self, Self::Error> {
+        Ok(match value {
+            TendermintHashStorage::Some(hash) => TendermintHash::Sha256(hash.0),
+            TendermintHashStorage::None => TendermintHash::None,
+        })
+    }
+}
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -138,7 +195,7 @@ impl From<Options> for LightClientOptionsStorage {
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VersionStorage {
-    /// Block version    
+    /// Block version
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub block: u64,
     /// App version
@@ -176,11 +233,11 @@ pub struct PartSetHeaderStorage {
     /// Number of parts in this block
     pub total: u32,
     /// SHA256 Hash of the parts set header,
-    pub hash: BridgedBlockHash,
+    pub hash: TendermintHashStorage,
 }
 
 impl PartSetHeaderStorage {
-    pub fn new(total: u32, hash: BridgedBlockHash) -> Self {
+    pub fn new(total: u32, hash: TendermintHashStorage) -> Self {
         Self { total, hash }
     }
 }
@@ -188,26 +245,28 @@ impl PartSetHeaderStorage {
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
     type Error = &'static str;
     fn try_from(value: PartSetHeaderStorage) -> Result<Self, Self::Error> {
-        Ok(
-            PartSetHeader::new(value.total, sha256_from_bytes(value.hash.as_bytes()))
-                .expect("Can't create PartSetHeader"),
+        Ok(Self::new(
+            value.total,
+            value
+                .hash
+                .try_into()
+                .expect("Cannot cast BrdgedBlock Hash as tendermint::Hash"),
         )
+        .expect("Cannot instantiate PartSetHeader"))
     }
 }
 
-// TODO : panics
 impl TryFrom<PartSetHeader> for PartSetHeaderStorage {
     type Error = &'static str;
+
     fn try_from(psh: PartSetHeader) -> Result<Self, Self::Error> {
-        let bytes = psh.hash.as_bytes();
-        if bytes.len() == hash::SHA256_HASH_SIZE {
-            Ok(PartSetHeaderStorage {
-                total: psh.total,
-                hash: BridgedBlockHash::from_slice(bytes),
-            })
-        } else {
-            Err("Invalid hash size")
-        }
+        Ok(Self {
+            total: psh.total,
+            hash: psh
+                .hash
+                .try_into()
+                .expect("Cannot cast tendermint::Hash as BridgedBlockHash"),
+        })
     }
 }
 
@@ -216,7 +275,7 @@ impl TryFrom<PartSetHeader> for PartSetHeaderStorage {
 pub struct BlockIdStorage {
     /// The block's main hash is the Merkle root of all the fields in the
     /// block header.
-    pub hash: BridgedBlockHash,
+    pub hash: TendermintHashStorage,
     /// Parts header (if available) is used for secure gossipping of the block
     /// during consensus. It is the Merkle root of the complete serialized block
     /// cut into parts.
@@ -224,7 +283,7 @@ pub struct BlockIdStorage {
 }
 
 impl BlockIdStorage {
-    pub fn new(hash: BridgedBlockHash, part_set_header: PartSetHeaderStorage) -> Self {
+    pub fn new(hash: TendermintHashStorage, part_set_header: PartSetHeaderStorage) -> Self {
         Self {
             hash,
             part_set_header,
@@ -232,14 +291,14 @@ impl BlockIdStorage {
     }
 
     pub fn default() -> Self {
-        let hash = BridgedBlockHash::default();
+        let hash = TendermintHashStorage::default();
         Self {
             hash,
             part_set_header: PartSetHeaderStorage::new(1, hash),
         }
     }
 
-    pub fn set_hash(&mut self, hash: BridgedBlockHash) -> Self {
+    pub fn set_hash(&mut self, hash: TendermintHashStorage) -> Self {
         self.hash = hash;
         self.to_owned()
     }
@@ -253,20 +312,24 @@ impl BlockIdStorage {
 impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
-        println!("BlockIdStorage -> block::Id");
+        // println!("BlockIdStorage -> block::Id");
 
-        println!(
-            "BlockIdStorage -> block::Id BlockIdStorage/hash {:?}",
-            value.hash
-        );
+        // println!(
+        //     "BlockIdStorage -> block::Id BlockIdStorage/hash {:?}",
+        //     value.hash
+        // );
 
-        println!(
-            "BlockIdStorage -> block::Id block::Id / hash {:?}",
-            sha256_from_bytes(value.hash.as_bytes())
-        );
+        // println!(
+        //     "BlockIdStorage -> block::Id block::Id / hash {:?}",
+        //     sha256_from_bytes(value.hash.as_bytes())
+        // );
 
         Ok(Self {
-            hash: sha256_from_bytes(value.hash.as_bytes()),
+            // hash: sha256_from_bytes(value.hash.as_bytes()),
+            hash: value
+                .hash
+                .try_into()
+                .expect("Cannot cast BridgedBlockHash as tendermint::Hash"),
             part_set_header: value
                 .part_set_header
                 .try_into()
@@ -278,16 +341,16 @@ impl TryFrom<BlockIdStorage> for block::Id {
 impl TryFrom<block::Id> for BlockIdStorage {
     type Error = &'static str;
     fn try_from(id: block::Id) -> Result<Self, Self::Error> {
-        println!("block::Id -> BlockIdStorage");
+        // println!("block::Id -> BlockIdStorage");
 
-        println!("block::Id -> BlockIdStorage @ block::Id/hash {}", id.hash);
-        println!(
-            "block::Id -> BlockIdStorage @ BlockIdStorage/hash {:?}",
-            BridgedBlockHash::from_slice(id.hash.clone().as_bytes())
-        );
+        // println!("block::Id -> BlockIdStorage @ block::Id/hash {}", id.hash);
+        // println!(
+        //     "block::Id -> BlockIdStorage @ BlockIdStorage/hash {:?}",
+        //     BridgedBlockHash::from_slice(id.hash.clone().as_bytes())
+        // );
 
         Ok(Self {
-            hash: BridgedBlockHash::from_slice(id.hash.as_bytes()),
+            hash: id.hash.try_into()?, //BridgedBlockHash::from_slice(id.hash.as_bytes()),
             part_set_header: id.part_set_header.try_into()?,
         })
     }
@@ -320,15 +383,15 @@ pub struct HeaderStorage {
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
-    pub last_commit_hash: Option<Hash>,
+    pub last_commit_hash: Option<H256>,
     /// Merkle root of transaction hashes
-    pub data_hash: Option<Hash>,
+    pub data_hash: Option<H256>,
     /// Validators for the current block
-    pub validators_hash: Hash,
+    pub validators_hash: H256,
     /// Validators for the next block
-    pub next_validators_hash: Hash,
+    pub next_validators_hash: H256,
     /// Consensus params for the current block
-    pub consensus_hash: Hash,
+    pub consensus_hash: H256,
     /// State after txs from the previous block
     /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data
     #[cfg_attr(
@@ -337,9 +400,9 @@ pub struct HeaderStorage {
     )]
     pub app_hash: Vec<u8>,
     /// Root hash of all results from the txs from the previous block
-    pub last_results_hash: Option<Hash>,
+    pub last_results_hash: Option<H256>,
     /// Hash of evidence included in the block
-    pub evidence_hash: Option<Hash>,
+    pub evidence_hash: Option<H256>,
     /// Original proposer of the block
     pub proposer_address: TendermintAccountId,
 }
@@ -351,14 +414,14 @@ impl HeaderStorage {
         height: u64,
         timestamp: TimestampStorage,
         last_block_id: Option<BlockIdStorage>,
-        last_commit_hash: Option<Hash>,
-        data_hash: Option<Hash>,
-        validators_hash: Hash,
-        next_validators_hash: Hash,
-        consensus_hash: Hash,
+        last_commit_hash: Option<H256>,
+        data_hash: Option<H256>,
+        validators_hash: H256,
+        next_validators_hash: H256,
+        consensus_hash: H256,
         app_hash: Vec<u8>,
-        last_results_hash: Option<Hash>,
-        evidence_hash: Option<Hash>,
+        last_results_hash: Option<H256>,
+        evidence_hash: Option<H256>,
         proposer_address: TendermintAccountId,
     ) -> Self {
         Self {
@@ -388,9 +451,9 @@ impl HeaderStorage {
             last_block_id: None,
             last_commit_hash: None,
             data_hash: None,
-            validators_hash: Hash::default(),
-            next_validators_hash: Hash::default(),
-            consensus_hash: Hash::default(),
+            validators_hash: H256::default(),
+            next_validators_hash: H256::default(),
+            consensus_hash: H256::default(),
             app_hash: empty_bytes(20),
             last_results_hash: None,
             evidence_hash: None,
@@ -403,12 +466,12 @@ impl HeaderStorage {
         self.to_owned()
     }
 
-    pub fn set_validators_hash(&mut self, hash: Hash) -> Self {
+    pub fn set_validators_hash(&mut self, hash: H256) -> Self {
         self.validators_hash = hash;
         self.to_owned()
     }
 
-    pub fn set_next_validators_hash(&mut self, hash: Hash) -> Self {
+    pub fn set_next_validators_hash(&mut self, hash: H256) -> Self {
         self.next_validators_hash = hash;
         self.to_owned()
     }
@@ -422,28 +485,28 @@ impl HeaderStorage {
         self.to_owned()
     }
 
-    // TODO : is this correct?
-    pub fn hash(&self) -> BridgedBlockHash {
-        let field_bytes: Vec<Vec<u8>> = vec![
-            self.version.encode(),
-            self.chain_id.encode(),
-            self.height.encode(),
-            self.timestamp.encode(),
-            self.last_block_id.encode(),
-            self.last_commit_hash.encode(),
-            self.data_hash.encode(),
-            self.validators_hash.encode(),
-            self.next_validators_hash.encode(),
-            self.consensus_hash.encode(),
-            self.app_hash.encode(),
-            self.last_results_hash.encode(),
-            self.evidence_hash.encode(),
-            self.proposer_address.encode(),
-        ];
+    // // is this correct?
+    // pub fn hash(&self) -> BridgedBlockHash {
+    //     let field_bytes: Vec<Vec<u8>> = vec![
+    //         self.version.encode(),
+    //         self.chain_id.encode(),
+    //         self.height.encode(),
+    //         self.timestamp.encode(),
+    //         self.last_block_id.encode(),
+    //         self.last_commit_hash.encode(),
+    //         self.data_hash.encode(),
+    //         self.validators_hash.encode(),
+    //         self.next_validators_hash.encode(),
+    //         self.consensus_hash.encode(),
+    //         self.app_hash.encode(),
+    //         self.last_results_hash.encode(),
+    //         self.evidence_hash.encode(),
+    //         self.proposer_address.encode(),
+    //     ];
 
-        let hash = merkle::simple_hash_from_byte_vectors(field_bytes);
-        BridgedBlockHash::from_slice(&hash)
-    }
+    //     let hash = merkle::simple_hash_from_byte_vectors(field_bytes);
+    //     BridgedBlockHash::from_slice(&hash)
+    // }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -513,7 +576,7 @@ pub enum CommitSignatureStorage {
 
 #[cfg(feature = "std")]
 impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let value = Value::deserialize(d)?;
 
         Ok(
@@ -667,7 +730,7 @@ impl CommitStorage {
             timestamp: TimestampStorage::new(0, 0),
             signature: Some(TendermintVoteSignature::default()),
         }];
-        let hash = BridgedBlockHash::default();
+        let hash = TendermintHashStorage::default();
         let total = u32::default();
         let part_set_header = PartSetHeaderStorage::new(total, hash);
         let block_id = BlockIdStorage::new(hash, part_set_header);
@@ -794,16 +857,20 @@ impl TryFrom<Header> for HeaderStorage {
         let data_hash = header.data_hash.as_ref().and_then(tendermint_hash_to_h256);
 
         let validators_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for validators_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => {
+                return Err("unexpected hash variant for validators_hash field")
+            }
         };
         let next_validators_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for next_validators_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => {
+                return Err("unexpected hash variant for next_validators_hash field")
+            }
         };
         let consensus_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for consensus_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => return Err("unexpected hash variant for consensus_hash field"),
         };
         let app_hash = header.app_hash.value();
         let last_results_hash = header
@@ -814,15 +881,19 @@ impl TryFrom<Header> for HeaderStorage {
             .evidence_hash
             .as_ref()
             .and_then(tendermint_hash_to_h256);
-        let proposer_address = H160::from_slice(header.proposer_address.as_bytes());
+        let proposer_address = TendermintPeerId::from_slice(header.proposer_address.as_bytes());
 
         let version = header.version.into();
         let chain_id = header.chain_id.as_bytes().to_vec();
         let height = header.height.value();
         let time = header.time.try_into()?;
 
+        // TODO : fixit
         let last_block_id: Option<BlockIdStorage> = match header.last_block_id {
-            Some(id) => Some(id.try_into().expect("Cannot cast Id")),
+            Some(id) => Some(
+                id.try_into()
+                    .expect("Cannot cast block::Id as BlockIdStorage"),
+            ),
             None => None,
         };
 
@@ -875,18 +946,18 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 impl TryFrom<SignedHeader> for SignedHeaderStorage {
     type Error = &'static str;
 
-    fn try_from(sh: SignedHeader) -> Result<Self, Self::Error> {
-        println!("SignedHeader -> SignedHeaderStorage");
+    fn try_from(signed_header: SignedHeader) -> Result<Self, Self::Error> {
+        // println!("SignedHeader -> SignedHeaderStorage");
 
-        let sh_header = sh.header();
+        // let sh_header = signed_header.header();
 
         // println!(
         //     "SignedHeader -> SignedHeaderStorage @sh_header {:#?}",
         //     &sh_header
         // );
 
-        let header = sh.header().clone().try_into()?;
-        let commit = sh.commit().clone().try_into()?;
+        let header = signed_header.header().clone().try_into()?;
+        let commit = signed_header.commit().clone().try_into()?;
 
         // println!("SignedHeader -> SignedHeaderStorage @header {:#?}", &header);
 
@@ -922,7 +993,7 @@ pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
     /// seed for the validator keypair
-    /// IMPORTANT: for testing purposes only! Never put this in storage!    
+    /// IMPORTANT: for testing purposes only! Never put this in storage!
     #[cfg_attr(any(test, feature = "runtime-benchmarks"), serde(skip))]
     seed: Option<[u8; 32]>,
     /// Validator public key
@@ -1106,8 +1177,8 @@ impl ValidatorSetStorage {
         }
     }
 
-    /// Compute the hash of this validator set    
-    pub fn hash(&self) -> Hash {
+    /// Compute the hash of this validator set
+    pub fn hash(&self) -> H256 {
         let validator_bytes: Vec<Vec<u8>> = self
             .validators
             .iter()
@@ -1115,7 +1186,7 @@ impl ValidatorSetStorage {
             .collect();
 
         let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
-        Hash::from_slice(&hash)
+        H256::from_slice(&hash)
     }
 }
 
@@ -1234,7 +1305,7 @@ impl TryFrom<LightBlock> for LightBlockStorage {
             signed_header: signed_header.try_into()?,
             validators: validators.into(),
             next_validators: next_validators.into(),
-            provider: H160::from_slice(provider.as_bytes()),
+            provider: TendermintPeerId::from_slice(provider.as_bytes()),
         })
     }
 }

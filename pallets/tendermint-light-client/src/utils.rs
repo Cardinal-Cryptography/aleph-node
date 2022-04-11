@@ -1,4 +1,6 @@
-use crate::types::{TendermintVoteSignature, TimestampStorage};
+use crate::types::{
+    TenderminBlockHash, TendermintHashStorage, TendermintVoteSignature, TimestampStorage,
+};
 use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer};
@@ -109,3 +111,14 @@ pub fn tendermint_hash_to_h256(tm_hash: &Hash) -> Option<H256> {
         Hash::None => None,
     }
 }
+
+// /// Deserialize string into TendermintHashStorage
+// #[cfg(feature = "std")]
+// pub fn deserialize_string_as_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
+// where
+//     D: Deserializer<'de>,
+// {
+//     let string = String::deserialize(deserializer)?;
+//     let bytes = base64::decode(&string).map_err(serde::de::Error::custom)?;
+//     Ok(H256::from_slice(&bytes))
+// }

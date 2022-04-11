@@ -56,6 +56,8 @@ fn successful_verification() {
         let options = LightClientOptionsStorage::default();
         let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
+        println!("@ inital block {:?}", initial_block);
+
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
             origin,
             options.clone(),
@@ -86,63 +88,6 @@ fn successful_verification() {
             origin,
             untrusted_block.clone()
         ));
-
-        // TODO
-
-        // untrusted_block.signed_header.commit.
-
-        let mut block = untrusted_block.clone();
-
-        let (v, t, s) = match untrusted_block
-            .clone()
-            .signed_header
-            .commit
-            .signatures
-            .get(0)
-            .unwrap()
-            .to_owned()
-        {
-            types::CommitSignatureStorage::BlockIdFlagAbsent => todo!(),
-            types::CommitSignatureStorage::BlockIdFlagCommit {
-                validator_address,
-                timestamp,
-                signature,
-            } => (validator_address, timestamp, signature),
-            types::CommitSignatureStorage::BlockIdFlagNil {
-                validator_address,
-                timestamp,
-                signature,
-            } => todo!(),
-        };
-
-        // let t2 = block
-        //     .signed_header
-        //     .commit
-        //     .signatures
-        //     .get_mut(0)
-        //     .insert(&mut signature);
-
-        // .and_then(|sig| match sig {
-        //     types::CommitSignatureStorage::BlockIdFlagAbsent => unreachable!(),
-        //     types::CommitSignatureStorage::BlockIdFlagCommit {
-        //         validator_address,
-        //         timestamp,
-        //         signature,
-        //     } => {
-        //         sig = types::CommitSignatureStorage::BlockIdFlagCommit {
-        //             validator_address,
-        //             timestamp,
-        //             signature,
-        //         }
-        //     }
-        //     types::CommitSignatureStorage::BlockIdFlagNil {
-        //         validator_address,
-        //         timestamp,
-        //         signature,
-        //     } => unreachable!(),
-        // });
-
-        // END: TODO
 
         let best_finalized_hash = Pallet::<TestRuntime>::get_last_imported_hash();
         assert_eq!(
