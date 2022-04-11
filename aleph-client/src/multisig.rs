@@ -2,6 +2,7 @@ use std::{collections::HashSet, str::FromStr};
 
 use anyhow::{ensure, Result};
 use codec::{Decode, Encode};
+use log::error;
 use pallet_multisig::Pallet;
 use primitives::Balance;
 use sp_core::{blake2_256, Pair};
@@ -18,14 +19,8 @@ use crate::{try_send_xt, AccountId, BlockNumber, Connection, KeyPair, H256};
 ///
 /// However, passing such parameter everytime is cumbersome and introduces the need of either
 /// estimating call weight or setting very high universal bound at every caller side.
-/// Thus, we keep a fairly high limit, which should cover almost any call (1 token). If in need,
-/// you can specify your own limit with environment variable `ALEPH_CLIENT_MULTISIG_MAX_WEIGHT`.
-/// Note, that this one is a compile-time variable, so after changing it, the crate will have to
-/// be recompiled. However, it is still more handy than digging into the library code.
-const MAX_WEIGHT: u64 = option_env!("ALEPH_CLIENT_MULTISIG_MAX_WEIGHT")
-    .map_or(1_000_000_000_000, |env| {
-        u64::from_str(env).expect("Max weight should be parsable")
-    });
+/// Thus, we keep a fairly high limit, which should cover almost any call (1 token).
+const MAX_WEIGHT: u64 = 1;
 
 /// Gathers all possible errors from this module.
 #[derive(Debug, Error)]
@@ -46,7 +41,7 @@ type Timepoint = pallet_multisig::Timepoint<BlockNumber>;
 /// Unfortunately, we have to copy this struct from pallet. We can get such object from storage
 /// but there is no way of accessing the info within nor interacting in any manner 💩.
 #[derive(Clone, Decode)]
-pub struct Multisig {
+struct Multisig {
     when: Timepoint,
     deposit: Balance,
     depositor: AccountId,
@@ -55,7 +50,8 @@ pub struct Multisig {
 
 /// This represents the ongoing procedure of aggregating approvals among members
 /// of multisignature party.
-pub struct SignatureAggregation<Call> {
+#[derive(Clone, Debug)]
+pub struct SignatureAggregation {
     /// The point in 'time' when the aggregation was initiated on the chain.
     /// Internally it is a pair: number of the block containing initial call and the position
     /// of the corresponding extrinsic within block.
@@ -71,7 +67,7 @@ pub struct SignatureAggregation<Call> {
     /// The hash of the target call.
     call_hash: CallHash,
     /// The call itself. Maybe.
-    call: Option<Call>,
+    call: Option<String>,
     /// We keep counting approvals, just for information.
     approvers: HashSet<AccountId>,
 }
@@ -80,7 +76,7 @@ pub struct SignatureAggregation<Call> {
 /// a group of accounts (`members`) and a threshold (`threshold`).
 pub struct MultisigParty {
     /// Derived multiparty account (public key).
-    account: AccountId,
+    pub account: AccountId,
     /// *Sorted* collection of members.
     members: Vec<KeyPair>,
     /// Minimum required approvals.
@@ -110,7 +106,7 @@ impl MultisigParty {
         );
 
         let (keypairs, accounts): (Vec<_>, Vec<_>) = members.iter().cloned().unzip();
-        let account = Pallet::multi_account_id(&accounts, threshold);
+        let account = Self::multi_account_id(&accounts, threshold);
         Ok(Self {
             account,
             members: keypairs,
@@ -118,30 +114,38 @@ impl MultisigParty {
         })
     }
 
+    pub fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
+        let entropy = (b"modlpy/utilisuba", who, threshold).using_encoded(blake2_256);
+        AccountId::decode(&mut &entropy[..]).unwrap_or_default()
+    }
+
     /// Effectively calls `approveAsMulti`.
-    pub fn initiate_aggregation_with_hash<Call>(
+    pub fn initiate_aggregation_with_hash(
         &self,
         connection: &Connection,
         call_hash: CallHash,
         author_idx: usize,
-    ) -> Result<SignatureAggregation<Call>> {
+    ) -> Result<SignatureAggregation> {
         ensure!(
-            0 <= author_idx && author_idx < self.members.len(),
+            author_idx < self.members.len(),
             MultisigError::IncorrectMemberIndex
         );
 
         let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        error!("{:?}", author.public());
         let connection = connection.clone().set_signer(author.clone());
+        let chuj: Option<String> = None;
         let xt = compose_extrinsic!(
             &connection,
             "Multisig",
             "approve_as_multi",
             self.threshold,
             other_signatories,
-            None,
+            chuj,
             call_hash.clone(),
             MAX_WEIGHT
         );
+        error!("{:?}", xt.function.encode());
         let block_hash = try_send_xt(
             &connection,
             xt,
@@ -179,15 +183,19 @@ impl MultisigParty {
         call_hash: CallHash,
         block_hash: H256,
     ) -> Result<Timepoint> {
+        error!("block hash: {:?}", block_hash);
+        error!("account: {:?}", self.account);
+
+        let chuj: Option<H256> = None;
         let multisig: Multisig = connection
             .get_storage_double_map(
                 "Multisig",
                 "Multisigs",
                 self.account.clone(),
-                Some(call_hash),
+                call_hash,
                 Some(block_hash),
             )?
-            .ok_or(MultisigError::NoAggregationFound.into())?;
+            .ok_or(MultisigError::NoAggregationFound)?;
         Ok(multisig.when)
     }
 }

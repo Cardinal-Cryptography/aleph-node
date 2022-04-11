@@ -35,4 +35,5 @@ std = [
     "pallet-aleph/std",
     "primitives/std",
     "pallet-balances/std",
+    "pallet-multisig/std",
 ]

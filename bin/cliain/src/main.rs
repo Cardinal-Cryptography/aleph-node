@@ -1,9 +1,10 @@
-use aleph_client::{print_storages, KeyPair};
+use aleph_client::{keypair_from_string, print_storages, Connection, KeyPair, MultisigParty};
 use clap::{Parser, Subcommand};
+use codec::Encode;
 use log::{error, info};
-use sp_core::Pair;
+use sp_core::{blake2_256, twox_256, Pair};
 use std::env;
-use substrate_api_client::AccountId;
+use substrate_api_client::{AccountId, GenericAddress};
 
 use cliain::{
     bond, change_validators, force_new_era, prepare_keys, prompt_password_hidden, rotate_keys,
@@ -49,6 +50,8 @@ enum Command {
 
     /// Force new era in staking world. Requires sudo.
     ForceNewEra,
+
+    Multisig,
 
     /// Associate the node with a specific staking account.
     PrepareKeys,
@@ -162,6 +165,7 @@ fn main() {
                 .to_string()
         ),
         Command::DebugStorage => print_storages(&cfg.into()),
+        Command::Multisig => multisig(&cfg.into()),
         Command::UpdateRuntime { runtime } => update_runtime(cfg.into(), runtime),
     }
 }
@@ -171,4 +175,19 @@ fn init_env() {
         env::set_var(env_logger::DEFAULT_FILTER_ENV, "info");
     }
     env_logger::init();
+}
+
+fn multisig(connection: &Connection) {
+    let alice = keypair_from_string("//Alice");
+    let charlie = keypair_from_string("//Charlie");
+    let dave = keypair_from_string("//Dave");
+    let benef = GenericAddress::Id(AccountId::from(dave.public()));
+    let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
+
+    let xt = connection.balance_transfer(benef, 1_000_000_000_000);
+    error!("{:?}", blake2_256(&xt.function.encode()));
+    let g = msp
+        .initiate_aggregation_with_hash(connection, blake2_256(&xt.function.encode()), 2)
+        .unwrap();
+    error!("{:?}", g);
 }
