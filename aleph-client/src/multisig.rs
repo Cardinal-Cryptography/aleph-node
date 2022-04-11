@@ -26,16 +26,20 @@ const MAX_WEIGHT: u64 = 1_000_000_000_000;
 /// Gathers all possible errors from this module.
 #[derive(Debug, Error)]
 pub enum MultisigError {
-    #[error("❌ Threshold should be between 2 and {0}.")]
+    #[error("👪❌ Threshold should be between 2 and {0}.")]
     IncorrectThreshold(usize),
-    #[error("❌ There should be at least 2 unique members.")]
+    #[error("👪❌ There should be at least 2 unique members.")]
     TooFewMembers,
-    #[error("❌ There is no available member at the provided index.")]
+    #[error("👪❌ There is no available member at the provided index.")]
     IncorrectMemberIndex,
-    #[error("❌ There is no such member in the party.")]
+    #[error("👪❌ There is no such member in the party.")]
     NoSuchMember,
-    #[error("❌ There is no entry for this multisig aggregation in the pallet storage.")]
+    #[error("👪❌ There is no entry for this multisig aggregation in the pallet storage.")]
     NoAggregationFound,
+    #[error("👪❌ Trying to report approval for a different call that already registered.")]
+    CallConflict,
+    #[error("👪❌ Only the author can cancel aggregation.")]
+    NotAuthor,
 }
 
 type CallHash = [u8; 32];
@@ -59,7 +63,7 @@ struct Multisig {
 
 /// This represents the ongoing procedure of aggregating approvals among members
 /// of multisignature party.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SignatureAggregation {
     /// The point in 'time' when the aggregation was initiated on the chain.
     /// Internally it is a pair: number of the block containing initial call and the position
@@ -79,6 +83,13 @@ pub struct SignatureAggregation {
     call: Option<Call>,
     /// We keep counting approvals, just for information.
     approvers: HashSet<AccountId>,
+}
+
+impl SignatureAggregation {
+    /// How many approvals has already been aggregated.
+    pub fn num_of_approvals(&self) -> usize {
+        self.approvers.len()
+    }
 }
 
 /// `MultisigParty` is representing a multiparty entity constructed from
@@ -150,21 +161,19 @@ impl MultisigParty {
 
 /// Implementation block with public API of `MultisigParty`.
 impl MultisigParty {
-    /// Effectively starts the aggregation process by calling `approveAsMulti`.
+    /// Effectively starts the aggregation process by calling `approveAsMulti`. Does *not* expect
+    /// that `connection` is already signed by the author.
     pub fn initiate_aggregation_with_hash(
         &self,
         connection: &Connection,
         call_hash: CallHash,
         author_idx: usize,
     ) -> Result<SignatureAggregation> {
-        ensure!(
-            author_idx < self.members.len(),
-            MultisigError::IncorrectMemberIndex
-        );
+        self.ensure_index(author_idx)?;
 
         let (xt, connection) =
             self.construct_approve_as_multi(connection, None, author_idx, call_hash);
-        let block_hash = self.finalize_initialization(&connection, xt)?;
+        let block_hash = self.finalize_xt(&connection, xt, "Initiate multisig aggregation")?;
 
         Ok(SignatureAggregation {
             timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
@@ -176,19 +185,18 @@ impl MultisigParty {
     }
 
     /// Effectively starts aggregation process by calling `asMulti` with storing call flag on.
+    /// Does *not* expect that `connection` is already signed by the author.
     pub fn initiate_aggregation_with_call<CallDetails: Encode + Clone>(
         &self,
         connection: &Connection,
         call: UncheckedExtrinsicV4<CallDetails>,
         author_idx: usize,
     ) -> Result<SignatureAggregation> {
-        ensure!(
-            author_idx < self.members.len(),
-            MultisigError::IncorrectMemberIndex
-        );
+        self.ensure_index(author_idx)?;
 
         let (xt, connection) = self.construct_as_multi(connection, None, author_idx, call.clone());
-        let block_hash = self.finalize_initialization(&connection, xt)?;
+        let block_hash =
+            self.finalize_xt(&connection, xt, "Initiate multisig aggregation with call")?;
 
         let call_hash = get_call_hash(&call);
         Ok(SignatureAggregation {
@@ -198,6 +206,92 @@ impl MultisigParty {
             call: Some(call.encode()),
             approvers: HashSet::from([account_from_keypair(&self.members[author_idx])]),
         })
+    }
+
+    /// Report approval for `sig_agg` aggregation. Does *not* expect that `connection` is already
+    /// signed by the approving member.
+    pub fn approve(
+        &self,
+        connection: &Connection,
+        author_idx: usize,
+        mut sig_agg: SignatureAggregation,
+    ) -> Result<SignatureAggregation> {
+        self.ensure_index(author_idx)?;
+
+        let (xt, connection) = self.construct_approve_as_multi(
+            connection,
+            Some(sig_agg.timepoint),
+            author_idx,
+            sig_agg.call_hash,
+        );
+        self.finalize_xt(&connection, xt, "Report approval to multisig aggregation")?;
+
+        sig_agg
+            .approvers
+            .insert(account_from_keypair(&self.members[author_idx]));
+        Ok(sig_agg)
+    }
+
+    /// Report approval for `sig_agg` aggregation. Does *not* expect that `connection` is already
+    /// signed by the approving member. Stores the passed call.
+    pub fn approve_with_call<CallDetails: Encode + Clone>(
+        &self,
+        connection: &Connection,
+        author_idx: usize,
+        mut sig_agg: SignatureAggregation,
+        call: UncheckedExtrinsicV4<CallDetails>,
+    ) -> Result<SignatureAggregation> {
+        self.ensure_index(author_idx)?;
+        if let Some(ref reported_call) = sig_agg.call {
+            ensure!(
+                reported_call.eq(&call.encode()),
+                MultisigError::CallConflict
+            );
+        } else {
+            ensure!(
+                get_call_hash(&call) == sig_agg.call_hash,
+                MultisigError::CallConflict
+            );
+        }
+
+        let (xt, connection) = self.construct_as_multi(
+            connection,
+            Some(sig_agg.timepoint),
+            author_idx,
+            call.clone(),
+        );
+        self.finalize_xt(
+            &connection,
+            xt,
+            "Report approval to multisig aggregation with call",
+        )?;
+
+        sig_agg
+            .approvers
+            .insert(account_from_keypair(&self.members[author_idx]));
+        sig_agg.call = Some(call.encode());
+        Ok(sig_agg)
+    }
+
+    /// Cancel `sig_agg` aggregation. Does *not* expect that `connection` is already
+    /// signed by the canceling member.
+    pub fn cancel(
+        &self,
+        connection: &Connection,
+        author_idx: usize,
+        sig_agg: SignatureAggregation,
+    ) -> Result<()> {
+        self.ensure_index(author_idx)?;
+        ensure!(sig_agg.author == author_idx, MultisigError::NotAuthor);
+
+        let (xt, connection) = self.construct_cancel_as_multi(
+            connection,
+            Some(sig_agg.timepoint),
+            author_idx,
+            sig_agg.call_hash,
+        );
+        self.finalize_xt(&connection, xt, "Cancel multisig aggregation")?;
+        Ok(())
     }
 }
 
@@ -220,8 +314,25 @@ type AsMultiCall = UncheckedExtrinsicV4<(
     u64,               // max weight
 )>;
 
+type CancelAsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],           // call index
+    u16,               // threshold
+    Vec<AccountId32>,  // other signatories
+    Option<Timepoint>, // timepoint, `None` for initiating
+    CallHash,          // call hash
+)>;
+
 /// Implementation block containing private auxiliary methods used by those from public API.
 impl MultisigParty {
+    /// Checks whether `member_idx` is a proper position for `self.members`.
+    fn ensure_index(&self, member_idx: usize) -> Result<()> {
+        ensure!(
+            member_idx < self.members.len(),
+            MultisigError::IncorrectMemberIndex
+        );
+        Ok(())
+    }
+
     /// For all extrinsics we have to sign it with the caller (representative) and pass
     /// accounts of the other party members.
     fn designate_representative_and_represented(&self, idx: usize) -> (KeyPair, Vec<AccountId>) {
@@ -253,18 +364,14 @@ impl MultisigParty {
 
     /// Tries sending `xt` with `connection` and waits for its finalization. Returns the hash
     /// of the containing block.
-    fn finalize_initialization<T: Encode>(
+    fn finalize_xt<T: Encode>(
         &self,
         connection: &Connection,
         xt: UncheckedExtrinsicV4<T>,
+        description: &'static str,
     ) -> Result<H256> {
-        Ok(try_send_xt(
-            connection,
-            xt,
-            Some("Initiate multisig aggregation"),
-            Finalized,
-        )?
-        .expect("For `Finalized` status a block hash should be returned"))
+        Ok(try_send_xt(connection, xt, Some(description), Finalized)?
+            .expect("For `Finalized` status a block hash should be returned"))
     }
 
     /// Compose extrinsic for `multisig::approve_as_multi` call. Assumes that `author_idx` is correct.
@@ -311,6 +418,28 @@ impl MultisigParty {
             call.function.encode(),
             true,
             MAX_WEIGHT
+        );
+        (xt, connection)
+    }
+
+    /// Compose extrinsic for `multisig::cancel_as_multi` call. Assumes that `author_idx` is correct.
+    fn construct_cancel_as_multi(
+        &self,
+        connection: &Connection,
+        timepoint: Option<Timepoint>,
+        author_idx: usize,
+        call_hash: CallHash,
+    ) -> (CancelAsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "cancel_as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call_hash
         );
         (xt, connection)
     }
