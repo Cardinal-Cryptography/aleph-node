@@ -152,3 +152,7 @@ pub fn try_send_xt<T: Encode>(
 pub fn keypair_from_string(seed: &str) -> KeyPair {
     KeyPair::from_string(seed, None).expect("Can't create pair from seed value")
 }
+
+pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
+    AccountId::from(keypair.public())
+}

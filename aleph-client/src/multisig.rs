@@ -3,14 +3,15 @@ use std::collections::HashSet;
 use anyhow::{ensure, Result};
 use codec::{Decode, Encode};
 use log::error;
-use pallet_multisig::Pallet; // TODO
 use primitives::Balance;
-use sp_core::{blake2_256, Pair};
-use substrate_api_client::{compose_extrinsic, XtStatus};
+use sp_core::{blake2_256, crypto::AccountId32, Pair};
+use substrate_api_client::{compose_extrinsic, XtStatus::Finalized};
 use thiserror::Error;
-use XtStatus::Finalized;
 
-use crate::{try_send_xt, AccountId, BlockNumber, Connection, KeyPair, UncheckedExtrinsicV4, H256};
+use crate::{
+    account_from_keypair, try_send_xt, AccountId, BlockNumber, Connection, KeyPair,
+    UncheckedExtrinsicV4, H256,
+};
 
 /// `MAX_WEIGHT` is the extrinsic parameter specifying upperbound for executing approved call.
 /// Unless the approval is final, it has no effect. However, if due to your approval the
@@ -20,7 +21,7 @@ use crate::{try_send_xt, AccountId, BlockNumber, Connection, KeyPair, UncheckedE
 /// However, passing such parameter everytime is cumbersome and introduces the need of either
 /// estimating call weight or setting very high universal bound at every caller side.
 /// Thus, we keep a fairly high limit, which should cover almost any call (1 token).
-const MAX_WEIGHT: u64 = 1;
+const MAX_WEIGHT: u64 = 1_000_000_000_000;
 
 /// Gathers all possible errors from this module.
 #[derive(Debug, Error)]
@@ -38,6 +39,7 @@ pub enum MultisigError {
 }
 
 type CallHash = [u8; 32];
+type Call = Vec<u8>;
 type Timepoint = pallet_multisig::Timepoint<BlockNumber>;
 
 pub fn get_call_hash<CallDetails: Encode>(call: &UncheckedExtrinsicV4<CallDetails>) -> CallHash {
@@ -47,6 +49,7 @@ pub fn get_call_hash<CallDetails: Encode>(call: &UncheckedExtrinsicV4<CallDetail
 /// Unfortunately, we have to copy this struct from the pallet. We can get such object from storage
 /// but there is no way of accessing the info within nor interacting in any manner 💩.
 #[derive(Clone, Decode)]
+#[allow(dead_code)]
 struct Multisig {
     when: Timepoint,
     deposit: Balance,
@@ -73,7 +76,7 @@ pub struct SignatureAggregation {
     /// The hash of the target call.
     call_hash: CallHash,
     /// The call to be dispatched. Maybe.
-    call: Option<String>,
+    call: Option<Call>,
     /// We keep counting approvals, just for information.
     approvers: HashSet<AccountId>,
 }
@@ -89,6 +92,7 @@ pub struct MultisigParty {
     threshold: u16,
 }
 
+/// Implementation block with constructing `MultisigParty` together with some basic getters.
 impl MultisigParty {
     /// Creates new party. `members` does *not* have to be already sorted. Also:
     /// - `members` must be of length between 2 and `pallet_multisig::MaxSignatories`;
@@ -99,7 +103,7 @@ impl MultisigParty {
     pub fn new(members: &[KeyPair], threshold: u16) -> Result<Self> {
         let mut members = members
             .iter()
-            .map(|m| (m.clone(), AccountId::from(m.public())))
+            .map(|m| (m.clone(), account_from_keypair(m)))
             .collect::<Vec<_>>();
 
         members.sort_by_key(|(_, a)| a.clone());
@@ -135,14 +139,18 @@ impl MultisigParty {
         self.account.clone()
     }
 
+    /// This is a convenience method, as usually you may want to perform an action
+    /// as a particular member, without sorting their public keys on the callee side.
     pub fn get_member_index(&self, member: AccountId) -> Result<usize> {
         self.members
-            .iter()
-            .position(|kp| AccountId::from(kp.public()) == member)
-            .ok_or(MultisigError::NoSuchMember.into())
+            .binary_search_by_key(&member, account_from_keypair)
+            .map_err(|_| MultisigError::NoSuchMember.into())
     }
+}
 
-    /// Effectively calls `approveAsMulti`.
+/// Implementation block with public API of `MultisigParty`.
+impl MultisigParty {
+    /// Effectively starts the aggregation process by calling `approveAsMulti`.
     pub fn initiate_aggregation_with_hash(
         &self,
         connection: &Connection,
@@ -154,45 +162,72 @@ impl MultisigParty {
             MultisigError::IncorrectMemberIndex
         );
 
-        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        let connection = connection.clone().set_signer(author.clone());
-        let no_call: Option<String> = None;
-        let xt = compose_extrinsic!(
-            &connection,
-            "Multisig",
-            "approve_as_multi",
-            self.threshold,
-            other_signatories,
-            no_call,
-            call_hash.clone(),
-            MAX_WEIGHT
-        );
-        let block_hash = try_send_xt(
-            &connection,
-            xt,
-            Some("Initiate multisig aggregation"),
-            Finalized,
-        )?
-        .expect("For `Finalized` status a block hash should be returned");
+        let (xt, connection) =
+            self.construct_approve_as_multi(connection, None, author_idx, call_hash);
+        let block_hash = self.finalize_initialization(&connection, xt)?;
 
         Ok(SignatureAggregation {
-            timepoint: self.get_timestamp(&connection, call_hash.clone(), block_hash)?,
+            timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
             author: author_idx,
             call_hash,
             call: None,
-            approvers: HashSet::from([AccountId::from(author.public())]),
+            approvers: HashSet::from([account_from_keypair(&self.members[author_idx])]),
         })
     }
 
+    /// Effectively starts aggregation process by calling `asMulti` with storing call flag on.
+    pub fn initiate_aggregation_with_call<CallDetails: Encode + Clone>(
+        &self,
+        connection: &Connection,
+        call: UncheckedExtrinsicV4<CallDetails>,
+        author_idx: usize,
+    ) -> Result<SignatureAggregation> {
+        ensure!(
+            author_idx < self.members.len(),
+            MultisigError::IncorrectMemberIndex
+        );
+
+        let (xt, connection) = self.construct_as_multi(connection, None, author_idx, call.clone());
+        let block_hash = self.finalize_initialization(&connection, xt)?;
+
+        let call_hash = get_call_hash(&call);
+        Ok(SignatureAggregation {
+            timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
+            author: author_idx,
+            call_hash,
+            call: Some(call.encode()),
+            approvers: HashSet::from([account_from_keypair(&self.members[author_idx])]),
+        })
+    }
+}
+
+type ApproveAsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],           // call index
+    u16,               // threshold
+    Vec<AccountId32>,  // other signatories
+    Option<Timepoint>, // timepoint, `None` for initiating
+    CallHash,          // call hash
+    u64,               // max weight
+)>;
+
+type AsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],           // call index
+    u16,               // threshold
+    Vec<AccountId32>,  // other signatories
+    Option<Timepoint>, // timepoint, `None` for initiating
+    Call,              // call
+    bool,              // whether to store call
+    u64,               // max weight
+)>;
+
+/// Implementation block containing private auxiliary methods used by those from public API.
+impl MultisigParty {
     /// For all extrinsics we have to sign it with the caller (representative) and pass
     /// accounts of the other party members.
     fn designate_representative_and_represented(&self, idx: usize) -> (KeyPair, Vec<AccountId>) {
         let mut members = self.members.clone();
         let member = members.remove(idx);
-        let others = members
-            .iter()
-            .map(|m| AccountId::from(m.public()))
-            .collect();
+        let others = members.iter().map(account_from_keypair).collect();
         (member, others)
     }
 
@@ -201,7 +236,7 @@ impl MultisigParty {
     fn get_timestamp(
         &self,
         connection: &Connection,
-        call_hash: CallHash,
+        call_hash: &CallHash,
         block_hash: H256,
     ) -> Result<Timepoint> {
         let multisig: Multisig = connection
@@ -209,10 +244,74 @@ impl MultisigParty {
                 "Multisig",
                 "Multisigs",
                 self.account.clone(),
-                call_hash,
+                *call_hash,
                 Some(block_hash),
             )?
             .ok_or(MultisigError::NoAggregationFound)?;
         Ok(multisig.when)
+    }
+
+    /// Tries sending `xt` with `connection` and waits for its finalization. Returns the hash
+    /// of the containing block.
+    fn finalize_initialization<T: Encode>(
+        &self,
+        connection: &Connection,
+        xt: UncheckedExtrinsicV4<T>,
+    ) -> Result<H256> {
+        Ok(try_send_xt(
+            connection,
+            xt,
+            Some("Initiate multisig aggregation"),
+            Finalized,
+        )?
+        .expect("For `Finalized` status a block hash should be returned"))
+    }
+
+    /// Compose extrinsic for `multisig::approve_as_multi` call. Assumes that `author_idx` is correct.
+    fn construct_approve_as_multi(
+        &self,
+        connection: &Connection,
+        timepoint: Option<Timepoint>,
+        author_idx: usize,
+        call_hash: CallHash,
+    ) -> (ApproveAsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "approve_as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call_hash,
+            MAX_WEIGHT
+        );
+        (xt, connection)
+    }
+
+    /// Compose extrinsic for `multisig::as_multi` call. Assumes that `author_idx` is correct.
+    /// Additionally, it always stores the call in the pallet storage.
+    fn construct_as_multi<CallDetails: Encode>(
+        &self,
+        connection: &Connection,
+        timepoint: Option<Timepoint>,
+        author_idx: usize,
+        call: UncheckedExtrinsicV4<CallDetails>,
+    ) -> (AsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call.function.encode(),
+            true,
+            MAX_WEIGHT
+        );
+        (xt, connection)
     }
 }

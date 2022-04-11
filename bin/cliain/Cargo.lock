@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "hex",
@@ -372,7 +372,7 @@ dependencies = [
 
 [[package]]
 name = "cliain"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aleph_client",
  "clap",
