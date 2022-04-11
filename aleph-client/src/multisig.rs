@@ -1,16 +1,16 @@
-use std::{collections::HashSet, str::FromStr};
+use std::collections::HashSet;
 
 use anyhow::{ensure, Result};
 use codec::{Decode, Encode};
 use log::error;
-use pallet_multisig::Pallet;
+use pallet_multisig::Pallet; // TODO
 use primitives::Balance;
 use sp_core::{blake2_256, Pair};
 use substrate_api_client::{compose_extrinsic, XtStatus};
 use thiserror::Error;
 use XtStatus::Finalized;
 
-use crate::{try_send_xt, AccountId, BlockNumber, Connection, KeyPair, H256};
+use crate::{try_send_xt, AccountId, BlockNumber, Connection, KeyPair, UncheckedExtrinsicV4, H256};
 
 /// `MAX_WEIGHT` is the extrinsic parameter specifying upperbound for executing approved call.
 /// Unless the approval is final, it has no effect. However, if due to your approval the
@@ -31,6 +31,8 @@ pub enum MultisigError {
     TooFewMembers,
     #[error("❌ There is no available member at the provided index.")]
     IncorrectMemberIndex,
+    #[error("❌ There is no such member in the party.")]
+    NoSuchMember,
     #[error("❌ There is no entry for this multisig aggregation in the pallet storage.")]
     NoAggregationFound,
 }
@@ -38,7 +40,11 @@ pub enum MultisigError {
 type CallHash = [u8; 32];
 type Timepoint = pallet_multisig::Timepoint<BlockNumber>;
 
-/// Unfortunately, we have to copy this struct from pallet. We can get such object from storage
+pub fn get_call_hash<CallDetails: Encode>(call: &UncheckedExtrinsicV4<CallDetails>) -> CallHash {
+    blake2_256(&call.function.encode())
+}
+
+/// Unfortunately, we have to copy this struct from the pallet. We can get such object from storage
 /// but there is no way of accessing the info within nor interacting in any manner 💩.
 #[derive(Clone, Decode)]
 struct Multisig {
@@ -66,7 +72,7 @@ pub struct SignatureAggregation {
     author: usize,
     /// The hash of the target call.
     call_hash: CallHash,
-    /// The call itself. Maybe.
+    /// The call to be dispatched. Maybe.
     call: Option<String>,
     /// We keep counting approvals, just for information.
     approvers: HashSet<AccountId>,
@@ -76,7 +82,7 @@ pub struct SignatureAggregation {
 /// a group of accounts (`members`) and a threshold (`threshold`).
 pub struct MultisigParty {
     /// Derived multiparty account (public key).
-    pub account: AccountId,
+    account: AccountId,
     /// *Sorted* collection of members.
     members: Vec<KeyPair>,
     /// Minimum required approvals.
@@ -86,7 +92,7 @@ pub struct MultisigParty {
 impl MultisigParty {
     /// Creates new party. `members` does *not* have to be already sorted. Also:
     /// - `members` must be of length between 2 and `pallet_multisig::MaxSignatories`;
-    ///    since checking the upperbound is expensive, it is not the caller's responsibility
+    ///    since checking the upperbound is expensive, it is the caller's responsibility
     ///    to ensure it is not exceeded
     /// - `members` may contain duplicates, but they are ignored and not counted to the cardinality
     /// - `threshold` must be between 2 and `members.len()`
@@ -114,9 +120,26 @@ impl MultisigParty {
         })
     }
 
-    pub fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
+    /// This method generates deterministic account id for a given set of members and a threshold.
+    ///
+    /// It comes from pallet multisig. However, since it is an associated method for a struct
+    /// `pallet_multisig::Pallet<T: pallet_multisig::Config>` it is easier to just copy
+    /// these two lines.
+    fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
         let entropy = (b"modlpy/utilisuba", who, threshold).using_encoded(blake2_256);
         AccountId::decode(&mut &entropy[..]).unwrap_or_default()
+    }
+
+    /// Provide the address corresponding to the party (and the threshold).
+    pub fn get_account(&self) -> AccountId {
+        self.account.clone()
+    }
+
+    pub fn get_member_index(&self, member: AccountId) -> Result<usize> {
+        self.members
+            .iter()
+            .position(|kp| AccountId::from(kp.public()) == member)
+            .ok_or(MultisigError::NoSuchMember.into())
     }
 
     /// Effectively calls `approveAsMulti`.
@@ -132,20 +155,18 @@ impl MultisigParty {
         );
 
         let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        error!("{:?}", author.public());
         let connection = connection.clone().set_signer(author.clone());
-        let chuj: Option<String> = None;
+        let no_call: Option<String> = None;
         let xt = compose_extrinsic!(
             &connection,
             "Multisig",
             "approve_as_multi",
             self.threshold,
             other_signatories,
-            chuj,
+            no_call,
             call_hash.clone(),
             MAX_WEIGHT
         );
-        error!("{:?}", xt.function.encode());
         let block_hash = try_send_xt(
             &connection,
             xt,
@@ -183,10 +204,6 @@ impl MultisigParty {
         call_hash: CallHash,
         block_hash: H256,
     ) -> Result<Timepoint> {
-        error!("block hash: {:?}", block_hash);
-        error!("account: {:?}", self.account);
-
-        let chuj: Option<H256> = None;
         let multisig: Multisig = connection
             .get_storage_double_map(
                 "Multisig",

@@ -1,8 +1,10 @@
-use aleph_client::{keypair_from_string, print_storages, Connection, KeyPair, MultisigParty};
+use aleph_client::{
+    get_call_hash, keypair_from_string, print_storages, Connection, KeyPair, MultisigParty,
+};
 use clap::{Parser, Subcommand};
 use codec::Encode;
 use log::{error, info};
-use sp_core::{blake2_256, twox_256, Pair};
+use sp_core::Pair;
 use std::env;
 use substrate_api_client::{AccountId, GenericAddress};
 
@@ -182,12 +184,12 @@ fn multisig(connection: &Connection) {
     let charlie = keypair_from_string("//Charlie");
     let dave = keypair_from_string("//Dave");
     let benef = GenericAddress::Id(AccountId::from(dave.public()));
+
     let msp = MultisigParty::new(&vec![alice, dave, charlie], 2).unwrap();
 
     let xt = connection.balance_transfer(benef, 1_000_000_000_000);
-    error!("{:?}", blake2_256(&xt.function.encode()));
     let g = msp
-        .initiate_aggregation_with_hash(connection, blake2_256(&xt.function.encode()), 2)
+        .initiate_aggregation_with_hash(connection, get_call_hash(&xt), 2)
         .unwrap();
     error!("{:?}", g);
 }
