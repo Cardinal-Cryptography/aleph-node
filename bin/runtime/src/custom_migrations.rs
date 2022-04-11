@@ -7,8 +7,8 @@ use frame_support::{log, traits::OnRuntimeUpgrade, weights::Weight};
 pub struct UpgradeToBags<T>(PhantomData<T>);
 impl<T: pallet_staking::Config> OnRuntimeUpgrade for UpgradeToBags<T> {
     fn on_runtime_upgrade() -> Weight {
-        let pre_migrate_nominators_count = pallet_staking::Nominators::<T>::iter_keys().count();
-        let nominators = pallet_staking::Nominators::<T>::iter_keys();
+        let nominators = pallet_staking::Nominators::<T>::iter_keys().collect::<Vec<_>>();
+        let pre_migrate_nominators_count = nominators.len();
         let weight_of_fn = pallet_staking::Pallet::<T>::weight_of_fn();
 
         log::info!(
