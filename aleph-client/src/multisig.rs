@@ -185,17 +185,19 @@ impl MultisigParty {
         })
     }
 
-    /// Effectively starts aggregation process by calling `asMulti` with storing call flag on.
+    /// Effectively starts aggregation process by calling `asMulti`.
     /// Does *not* expect that `connection` is already signed by the author.
     pub fn initiate_aggregation_with_call<CallDetails: Encode + Clone>(
         &self,
         connection: &Connection,
         call: UncheckedExtrinsicV4<CallDetails>,
+        store_call: bool,
         author_idx: usize,
     ) -> Result<SignatureAggregation> {
         self.ensure_index(author_idx)?;
 
-        let (xt, connection) = self.construct_as_multi(connection, None, author_idx, call.clone());
+        let (xt, connection) =
+            self.construct_as_multi(connection, None, author_idx, call.clone(), store_call);
         let block_hash =
             self.finalize_xt(&connection, xt, "Initiate multisig aggregation with call")?;
 
@@ -234,13 +236,14 @@ impl MultisigParty {
     }
 
     /// Report approval for `sig_agg` aggregation. Does *not* expect that `connection` is already
-    /// signed by the approving member. Stores the passed call.
+    /// signed by the approving member.
     pub fn approve_with_call<CallDetails: Encode + Clone>(
         &self,
         connection: &Connection,
         author_idx: usize,
         mut sig_agg: SignatureAggregation,
         call: UncheckedExtrinsicV4<CallDetails>,
+        store_call: bool,
     ) -> Result<SignatureAggregation> {
         self.ensure_index(author_idx)?;
         if let Some(ref reported_call) = sig_agg.call {
@@ -260,6 +263,7 @@ impl MultisigParty {
             Some(sig_agg.timepoint),
             author_idx,
             call.clone(),
+            store_call,
         );
         self.finalize_xt(
             &connection,
@@ -399,13 +403,13 @@ impl MultisigParty {
     }
 
     /// Compose extrinsic for `multisig::as_multi` call. Assumes that `author_idx` is correct.
-    /// Additionally, it always stores the call in the pallet storage.
     fn construct_as_multi<CallDetails: Encode>(
         &self,
         connection: &Connection,
         timepoint: Option<Timepoint>,
         author_idx: usize,
         call: UncheckedExtrinsicV4<CallDetails>,
+        store_call: bool,
     ) -> (AsMultiCall, Connection) {
         let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
         let connection = connection.clone().set_signer(author);
@@ -417,7 +421,7 @@ impl MultisigParty {
             other_signatories,
             timepoint,
             call.function.encode(),
-            true,
+            store_call,
             MAX_WEIGHT
         );
         (xt, connection)
