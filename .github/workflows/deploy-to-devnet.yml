@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["e2e-tests-main-devnet"]
     branches:
+      - A0-812-fix-devnet-finalization # TODO : temporary to check if fix sticks
       - main
     types:
       - completed
