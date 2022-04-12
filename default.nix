@@ -1,4 +1,4 @@
-{ rocksDBVersion ? "6.29.3" }:
+{ rocksDBVersion ? "6.29.3", release ? false }:
 let
   # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
@@ -7,16 +7,33 @@ let
       rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
     });
 
+  overrideRustTarget = rustChannel: rustChannel // {
+    rust = rustChannel.rust.override {
+      targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
+    };
+  };
+  # use Rust toolchain declared by the rust-toolchain file
+  rustToolchain = with nixpkgs; overrideRustTarget ( rustChannelOf { rustToolchain = ./rust-toolchain; } );
+
   # pinned version of nix packages
   # main reason for not using here the newest available version at the time or writing is that this way we depend on glibc version 2.31 (Ubuntu 20.04 LTS)
   nixpkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz";
     sha256 = "08k7jy14rlpbb885x8dyds5pxr2h64mggfgil23vgyw6f1cn9kz6";
-  }) { overlays = [ rustOverlay ]; };
+  }) { overlays = [
+         rustOverlay
+         (self: super: {
+           inherit (rustToolchain) cargo rust-src rust-std;
+           rustc = rustToolchain.rust;
+         })
+       ];
+     };
 
-  rustToolchain = with nixpkgs; ((rustChannelOf { rustToolchain = ./rust-toolchain; }).rust.override {
-    targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
-  });
+  # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
+  # in this version build process should rely only on clang, without access to gcc
+  llvm = nixpkgs.llvmPackages_11;
+  env = llvm.stdenv;
+  llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
@@ -50,14 +67,8 @@ let
 
     propagatedBuildInputs = [];
 
-    buildInputs = [];
+    buildInputs = [ nixpkgs.git ];
   });
-
-  # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
-  # in this version build process should rely only on clang, without access to gcc
-  llvm = nixpkgs.llvmPackages_11;
-  env = llvm.stdenv;
-  llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # allows to skip files listed by .gitignore
   # otherwise `nix-build` copies everything, including the target directory
@@ -68,63 +79,55 @@ let
     sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
   };
   inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
+
+  naerskSrc = builtins.fetchTarball {
+    url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
+    sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
+  };
+  naersk = nixpkgs.callPackage naerskSrc { stdenv = env; };
+  gitFolder = ./.git;
+  gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
+    cp -r ${gitFolder} ./.git
+    echo $(git rev-parse --short HEAD) > $out
+  '';
+  gitCommit = builtins.readFile gitCommitDrv;
 in
-with nixpkgs; env.mkDerivation rec {
+with nixpkgs; naersk.buildPackage {
   name = "aleph-node";
   src = gitignoreSource ./.;
-
+  nativeBuildInputs = [
+    cacert
+    git
+    rustToolchain.cargo
+    rustToolchain.rustc
+    findutils
+    patchelf
+  ];
   buildInputs = [
-    rustToolchain
     llvm.clang
     openssl.dev
     protobuf
     customRocksdb
     pkg-config
-    cacert
-    git
-    findutils
-    patchelf
   ];
 
-  shellHook = ''
-    export RUST_SRC_PATH="${rustToolchain}/lib/rustlib/src/rust/src"
-    export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
-    export PROTOC="${protobuf}/bin/protoc"
-    export CFLAGS=" \
-        ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-        $CFLAGS
-    "
-    export CXXFLAGS+=" \
-        ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-        $CXXFLAGS
-    "
-    # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
-    # Set C flags for Rust's bindgen program. Unlike ordinary C
-    # compilation, bindgen does not invoke $CC directly. Instead it
-    # uses LLVM's libclang. To make sure all necessary flags are
-    # included we need to look in a few places.
-    export BINDGEN_EXTRA_CLANG_ARGS=" \
-        ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-        $BINDGEN_EXTRA_CLANG_ARGS
-    "
-    export ROCKSDB_LIB_DIR="${customRocksdb}/lib"
-    export ROCKSDB_STATIC=1
-  '';
-
-  buildPhase = ''
-    ${shellHook}
-    export CARGO_HOME="$out/cargo"
-    export CARGO_BUILD_TARGET="x86_64-unknown-linux-gnu"
-
-    cargo build --locked --release -p aleph-node
-  '';
-
-  installPhase = ''
-    mkdir -p $out/bin
-    mv target/x86_64-unknown-linux-gnu/release/aleph-node $out/bin/
-  '';
-
-  fixupPhase = ''
-    find $out -type f -exec patchelf --shrink-rpath '{}' \; -exec strip '{}' \; 2>/dev/null
-  '';
+  SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}";
+  ROCKSDB_LIB_DIR="${customRocksdb}/lib";
+  ROCKSDB_STATIC=1;
+  LIBCLANG_PATH="${llvm.libclang.lib}/lib";
+  PROTOC="${protobuf}/bin/protoc";
+  # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
+  # Set C flags for Rust's bindgen program. Unlike ordinary C
+  # compilation, bindgen does not invoke $CC directly. Instead it
+  # uses LLVM's libclang. To make sure all necessary flags are
+  # included we need to look in a few places.
+  BINDGEN_EXTRA_CLANG_ARGS=" \
+     ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+  ";
+  CFLAGS=" \
+    ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+  ";
+  CXXFLAGS=" \
+    ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+  ";
 }

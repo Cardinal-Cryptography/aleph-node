@@ -51,6 +51,7 @@ aleph-node>`.
 ## Manual
 These are build dependencies we use in our linux images for `aleph-node`:
 ```
+rust-nightly-2021-10-24
 bash-4.4
 glibc-2.31
 binutils-2.36,1
