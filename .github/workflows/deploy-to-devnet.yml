@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: ["e2e-tests-main-devnet"]
     branches:
-      - A0-812-fix-devnet-finalization # TODO : temporary to check if fix sticks
       - main
     types:
       - completed
@@ -61,7 +60,7 @@ jobs:
         run: |
           #!/bin/bash
 
-          #setup jq
+          # setup jq
           curl -sS https://webinstall.dev/jq | bash
           export PATH=${HOME}/.local/bin:"$PATH"
 
