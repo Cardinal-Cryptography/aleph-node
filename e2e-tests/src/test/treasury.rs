@@ -1,10 +1,9 @@
-use std::{thread, thread::sleep, time::Duration};
-
 use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
+use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{
     compose_extrinsic, AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus,
 };
@@ -171,8 +170,8 @@ fn propose_treasury_spend(
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury spend",
+        xt.clone(),
+        Some("treasury spend"),
         XtStatus::Finalized,
     );
     xt
@@ -196,8 +195,8 @@ fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> Governan
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury approval",
+        xt.clone(),
+        Some("treasury approval"),
         XtStatus::Finalized,
     );
     xt
@@ -217,8 +216,8 @@ fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> Governa
     );
     send_xt(
         connection,
-        xt.hex_encode(),
-        "treasury rejection",
+        xt.clone(),
+        Some("treasury rejection"),
         XtStatus::Finalized,
     );
     xt
