@@ -139,7 +139,7 @@ impl MultisigParty {
     ///    to ensure it is not exceeded
     /// - `members` may contain duplicates, but they are ignored and not counted to the cardinality
     /// - `threshold` must be between 2 and `members.len()`
-    pub fn new(members: &[KeyPair], threshold: u16) -> Result<Self> {
+    pub fn new(members: Vec<KeyPair>, threshold: u16) -> Result<Self> {
         let mut members = members
             .iter()
             .map(|m| (m.clone(), account_from_keypair(m)))
