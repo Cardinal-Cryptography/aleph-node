@@ -224,7 +224,7 @@ pub mod pallet {
                 now,
             );
 
-            println!("@ verdict {:?}", verdict);
+            // println!("@ verdict {:?}", verdict);
 
             match verdict {
                 tendermint_light_client_verifier::Verdict::Success => {
@@ -311,8 +311,6 @@ pub mod pallet {
     fn insert_light_block<T: Config>(hash: TendermintBlockHash, light_block: LightBlockStorage) {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
-
-        println!("@insert_light_block hash {} index {}", &hash, &index);
 
         <LastImportedHash<T>>::put(hash);
         <ImportedBlocks<T>>::insert(hash, light_block);

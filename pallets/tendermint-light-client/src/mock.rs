@@ -8,8 +8,8 @@ use crate::{
 use frame_support::{
     construct_runtime, parameter_types, sp_io, traits::Everything, weights::RuntimeDbWeight,
 };
-use primitives::TENDERMINT_MAX_VOTES_COUNT;
 use sp_core::H256;
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 use sp_io::TestExternalities;
 use sp_runtime::{
     testing::Header,
@@ -236,19 +236,20 @@ impl frame_system::Config for TestRuntime {
     type OnSetCode = ();
 }
 
+#[cfg(test)]
 pub fn new_test_ext<T>(test: impl FnOnce() -> T) -> T {
     TestExternalities::new(Default::default()).execute_with(test)
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-pub fn new_genesis_storage() -> sp_io::TestExternalities {
+pub fn new_genesis_storage() -> TestExternalities {
     frame_system::GenesisConfig::default()
         .build_storage::<TestRuntime>()
         .unwrap()
         .into()
 }
 
-// #[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 pub fn generate_consecutive_blocks(
     n: usize,
     chain_id: String,
@@ -316,18 +317,15 @@ pub fn generate_consecutive_blocks(
     blocks.reverse();
 
     // TODO
-    blocks.iter().for_each(|b| {
-        println!(
-            "block {:?} \ntimestamp {:?} \nprevious block: {:?}",
-            b.signed_header.commit.block_id.hash,
-            b.signed_header.header.timestamp,
-            b.signed_header.header.last_block_id,
-        );
-
-        println!();
-
-        // println!("generated block {:?}", b.signed_header.commit.signatures);
-    });
+    // blocks.iter().for_each(|b| {
+    //     println!(
+    //         "block {:?} \ntimestamp {:?} \nprevious block: {:?}",
+    //         b.signed_header.commit.block_id.hash,
+    //         b.signed_header.header.timestamp,
+    //         b.signed_header.header.last_block_id,
+    //     );
+    //     println!();
+    // });
 
     blocks
 }

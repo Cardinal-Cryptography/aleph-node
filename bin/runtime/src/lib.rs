@@ -48,7 +48,7 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD,
+    DEFAULT_SESSION_PERIOD, TENDERMINT_MAX_VOTES_COUNT,
 };
 
 pub use pallet_balances::Call as BalancesCall;

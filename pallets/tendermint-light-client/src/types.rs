@@ -8,17 +8,13 @@ use crate::utils::{
     deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
-#[cfg(feature = "std")]
-use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(feature = "std")]
 use serde_json::Value;
-#[cfg(feature = "std")]
-// #[cfg(any(test, feature = "runtime-benchmarks"))]
-use sp_core::{ed25519, Pair, H160, H256, H512};
-use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
+use sp_core::{RuntimeDebug, H160, H256, H512};
+use sp_std::{borrow::ToOwned, prelude::*, time::Duration, vec::Vec};
 #[cfg(feature = "std")]
 use subtle_encoding::hex;
 use tendermint::{
@@ -834,13 +830,10 @@ impl TryFrom<Header> for HeaderStorage {
         let chain_id = header.chain_id.as_bytes().to_vec();
         let height = header.height.value();
         let time = header.time.try_into()?;
-        let last_block_id: Option<BlockIdStorage> = match header.last_block_id {
-            Some(id) => Some(
-                id.try_into()
-                    .expect("Cannot cast block::Id as BlockIdStorage"),
-            ),
-            None => None,
-        };
+        let last_block_id: Option<BlockIdStorage> = header.last_block_id.map(|id| {
+            id.try_into()
+                .expect("Cannot cast block::Id as BlockIdStorage")
+        });
 
         Ok(HeaderStorage::new(
             version,
@@ -990,28 +983,28 @@ impl ValidatorInfoStorage {
         self.to_owned()
     }
 
-    pub fn generate_pub_key(&mut self) -> Self {
-        if let Some(seed) = self.seed {
-            let pair = ed25519::Pair::from_seed(&seed);
-            let pub_key = pair.public();
-            let pub_key_bytes = pub_key.0;
-            let tendermint_public_key = TendermintPublicKey::Ed25519(H256::from(pub_key_bytes));
-            self.pub_key = tendermint_public_key;
-        };
-        self.to_owned()
-    }
+    // pub fn generate_pub_key(&mut self) -> Self {
+    //     if let Some(seed) = self.seed {
+    //         let pair = ed25519::Pair::from_seed(&seed);
+    //         let pub_key = pair.public();
+    //         let pub_key_bytes = pub_key.0;
+    //         let tendermint_public_key = TendermintPublicKey::Ed25519(H256::from(pub_key_bytes));
+    //         self.pub_key = tendermint_public_key;
+    //     };
+    //     self.to_owned()
+    // }
 
-    pub fn generate_address(&mut self) -> Self {
-        match self.pub_key {
-            TendermintPublicKey::Ed25519(hash) => {
-                // SHA256(pub_key)[:20]
-                let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
-                self.address = validator_address;
-            }
-            TendermintPublicKey::Secp256k1(_) => todo!(),
-        };
-        self.to_owned()
-    }
+    // pub fn generate_address(&mut self) -> Self {
+    //     match self.pub_key {
+    //         TendermintPublicKey::Ed25519(hash) => {
+    //             // SHA256(pub_key)[:20]
+    //             let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
+    //             self.address = validator_address;
+    //         }
+    //         TendermintPublicKey::Secp256k1(_) => todo!(),
+    //     };
+    //     self.to_owned()
+    // }
 
     // TODO : is that correct?
     // /// Returns the bytes to be hashed into the Merkle tree

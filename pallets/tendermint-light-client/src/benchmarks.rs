@@ -1,19 +1,12 @@
 use super::*;
 use crate::{
     mock,
-    types::{LightBlockStorage, TendermintBlockHash, TendermintHashStorage, TimestampStorage},
-    utils::tendermint_hash_to_h256,
+    types::{LightClientOptionsStorage, TendermintHashStorage, TimestampStorage},
     Pallet as TendermintLightClient,
 };
-use frame_benchmarking::{account, benchmarks, whitelisted_caller};
-use frame_support::{assert_err, assert_ok, traits::Get};
-use frame_system::{Origin, RawOrigin};
-use tendermint::block::Header;
-use tendermint_light_client_verifier::{
-    operations::{Hasher, ProdHasher},
-    types::LightBlock,
-};
-use tendermint_testgen as testgen;
+use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_support::{assert_ok, traits::Get};
+use frame_system::RawOrigin;
 
 benchmarks! {
     benchmark_for_initialize_client {
@@ -22,7 +15,7 @@ benchmarks! {
         let mut blocks = mock::generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
         let initial_block = blocks.pop ().unwrap ();
-        let options = types::LightClientOptionsStorage::default();
+        let options = LightClientOptionsStorage::default();
 
     }: initialize_client(RawOrigin::Root, options, initial_block.clone ())
 
@@ -40,7 +33,7 @@ benchmarks! {
         let v in 1 .. T::MaxVotesCount::get();
         let mut blocks = mock::generate_consecutive_blocks (2, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
-        let options = types::LightClientOptionsStorage::default();
+        let options = LightClientOptionsStorage::default();
         let initial_block = blocks.pop ().unwrap ();
 
         assert_ok!(TendermintLightClient::<T>::initialize_client(
@@ -73,7 +66,7 @@ benchmarks! {
 
         let mut blocks = mock::generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
-        let options = types::LightClientOptionsStorage::default();
+        let options = LightClientOptionsStorage::default();
 
         let initial_block = blocks.pop ().unwrap ();
         assert_ok!(TendermintLightClient::<T>::initialize_client(

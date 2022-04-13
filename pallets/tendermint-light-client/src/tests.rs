@@ -2,13 +2,11 @@ use super::*;
 use crate::{
     mock::*,
     types::{
-        LightBlockStorage, LightClientOptionsStorage, SignedHeaderStorage, TendermintHashStorage,
-        TimestampStorage, ValidatorSetStorage,
+        LightBlockStorage, LightClientOptionsStorage, TendermintHashStorage, TimestampStorage,
     },
 };
 use frame_support::{assert_err, assert_ok};
 use tendermint_light_client_verifier::types::LightBlock;
-use tendermint_testgen::light_block;
 
 #[test]
 fn type_casting() {
