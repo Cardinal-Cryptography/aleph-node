@@ -1,10 +1,10 @@
-{ rocksDBVersion ? "6.29.3", release ? false }:
+{ rocksDBVersion ? "6.29.3", release ? true, package ? "aleph-node" }:
 let
   # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
-    import (builtins.fetchGit {
-      url = "https://github.com/mozilla/nixpkgs-mozilla.git";
-      rev = "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996";
+    import (builtins.fetchTarball {
+      url = "https://github.com/mozilla/nixpkgs-mozilla/archive/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996.tar.gz";
+      sha256 = "1rzz03h0b38l5sg61rmfvzpbmbd5fn2jsi1ccvq22rb76s1nbh8i";
     });
 
   overrideRustTarget = rustChannel: rustChannel // {
@@ -32,7 +32,7 @@ let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = nixpkgs.llvmPackages_11;
-  env = llvm.stdenv;
+  env = nixpkgs.keepDebugInfo llvm.stdenv;
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
@@ -91,10 +91,13 @@ let
     echo $(git rev-parse --short HEAD) > $out
   '';
   gitCommit = builtins.readFile gitCommitDrv;
+  pathToWasm = "target/" + (if release then "release" else "debug") + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
+
 in
-with nixpkgs; naersk.buildPackage {
+with nixpkgs; naersk.buildPackage rec {
   name = "aleph-node";
   src = gitignoreSource ./.;
+  inherit release;
   nativeBuildInputs = [
     cacert
     git
@@ -110,6 +113,19 @@ with nixpkgs; naersk.buildPackage {
     customRocksdb
     pkg-config
   ];
+  cargoBuildOptions = opts:
+    nixpkgs.lib.lists.optional (package != null) ("-p " + package)
+    ++ ["--locked"]
+    ++ opts;
+  preBuild = ''
+    export SUBSTRATE_CLI_GIT_COMMIT_HASH=${SUBSTRATE_CLI_GIT_COMMIT_HASH}
+  '';
+  postInstall = ''
+    if [ -f ${pathToWasm} ]; then
+      mkdir -p $out/lib
+      cp ${pathToWasm} $out/lib/
+    fi
+  '';
 
   SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}";
   ROCKSDB_LIB_DIR="${customRocksdb}/lib";
