@@ -7,9 +7,7 @@ use crate::{
     party::{AuthoritySubtaskCommon, Task},
     BlockHashNum, Metrics, SessionBoundaries,
 };
-use aleph_bft::{
-    KeyBox as BftKeyBox, SignatureSet, SpawnHandle,
-};
+use aleph_bft::{KeyBox as BftKeyBox, SignatureSet, SpawnHandle};
 use aleph_bft_rmc::{DoublingDelayScheduler, ReliableMulticast};
 use futures::{
     channel::{mpsc, oneshot},

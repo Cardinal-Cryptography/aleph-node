@@ -34,8 +34,7 @@ impl<D: Data, DN: DataNetwork<D>> From<DN> for NetworkWrapper<D, DN> {
 }
 
 #[async_trait::async_trait]
-impl<D: Data, DN: DataNetwork<D>> AlephNetwork<D> for NetworkWrapper<D, DN>
-{
+impl<D: Data, DN: DataNetwork<D>> AlephNetwork<D> for NetworkWrapper<D, DN> {
     fn send(&self, data: D, recipient: aleph_bft::Recipient) {
         if self.inner.send(data, recipient).is_err() {
             warn!(target: "aleph-network", "Error sending an AlephBFT message to the network.");
