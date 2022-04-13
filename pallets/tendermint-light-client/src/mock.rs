@@ -313,11 +313,21 @@ pub fn generate_consecutive_blocks(
         blocks.push(bs);
     }
 
+    blocks.reverse();
+
     // TODO
     blocks.iter().for_each(|b| {
-        println!("generated block {:?}", b.signed_header.commit.signatures);
+        println!(
+            "block {:?} \ntimestamp {:?} \nprevious block: {:?}",
+            b.signed_header.commit.block_id.hash,
+            b.signed_header.header.timestamp,
+            b.signed_header.header.last_block_id,
+        );
+
+        println!();
+
+        // println!("generated block {:?}", b.signed_header.commit.signatures);
     });
 
-    blocks.reverse();
     blocks
 }

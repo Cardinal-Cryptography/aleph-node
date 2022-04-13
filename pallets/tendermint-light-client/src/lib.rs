@@ -107,7 +107,8 @@ pub mod pallet {
     #[pallet::getter(fn get_last_imported_hash)]
     pub type LastImportedHash<T: Config> = StorageValue<_, TendermintBlockHash, ValueQuery>;
 
-    /// All imported hashes "ordered" by their insertion time
+    /// Imported hashes "ordered" by their insertion time
+    /// Client keeps HeadersToKeep number of these at any time    
     #[pallet::storage]
     #[pallet::getter(fn get_imported_hash)]
     pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, TendermintBlockHash>;
@@ -310,6 +311,8 @@ pub mod pallet {
     fn insert_light_block<T: Config>(hash: TendermintBlockHash, light_block: LightBlockStorage) {
         let index = <ImportedHashesPointer<T>>::get();
         let pruning = <ImportedHashes<T>>::try_get(index);
+
+        println!("@insert_light_block hash {} index {}", &hash, &index);
 
         <LastImportedHash<T>>::put(hash);
         <ImportedBlocks<T>>::insert(hash, light_block);

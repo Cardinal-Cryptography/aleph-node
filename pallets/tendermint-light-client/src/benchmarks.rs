@@ -63,19 +63,19 @@ benchmarks! {
             );
         }
 
-    // TODO :
     // this benchmarks update_client call which causes pruning of the oldest block
-    // mock runtime keeps 3 headers, therefore rollover happens after inserting a third consecutive block
+    // mock runtime keeps 3 headers, therefore rollover happens after inserting a fourth consecutive block
     benchmark_for_update_client_with_pruning {
 
+        let v in 1 .. T::MaxVotesCount::get();
         // 1970-01-01T00:00:05Z
         mock::Timestamp::set_timestamp(5000);
 
-        let mut blocks = mock::generate_consecutive_blocks (3, String::from ("test-chain"), 2, 3, TimestampStorage::new (3, 0));
+        let mut blocks = mock::generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
         let options = types::LightClientOptionsStorage::default();
-        let initial_block = blocks.pop ().unwrap ();
 
+        let initial_block = blocks.pop ().unwrap ();
         assert_ok!(TendermintLightClient::<T>::initialize_client(
             RawOrigin::Root.into(),
             options,
@@ -83,25 +83,38 @@ benchmarks! {
         ));
 
         let caller: T::AccountId = whitelisted_caller();
-        let next = blocks.pop ().unwrap ();
-        let next_next = blocks.pop ().unwrap ();
 
+        let next = blocks.pop ().unwrap ();
         assert_ok!(TendermintLightClient::<T>::update_client(
             RawOrigin::Signed(caller.clone()).into (),
             next
         ));
 
-    }: update_client(RawOrigin::Signed(caller.clone()), next_next)
+        let next_next = blocks.pop ().unwrap ();
+        assert_ok!(TendermintLightClient::<T>::update_client(
+            RawOrigin::Signed(caller.clone()).into (),
+            next_next
+        ));
+
+        let next_next_next = blocks.pop ().unwrap ();
+
+    }: update_client(RawOrigin::Signed(caller.clone()), next_next_next)
 
         verify {
-            let initial_block_hash = TendermintLightClient::<T>::get_imported_hash(0).unwrap ();
+            // check if rollover happened
+
+            let expected_last_imported_block_hash = TendermintLightClient::<T>::get_last_imported_hash();
+            let last_imported_block_hash = TendermintLightClient::<T>::get_imported_hash(0).unwrap ();
+
             assert_eq!(
-                initial_block.signed_header.commit.block_id.hash,
-                TendermintHashStorage::Some (initial_block_hash)
+                expected_last_imported_block_hash,
+                last_imported_block_hash,
+                "This hash should have been pruned"
             );
 
-            // check if rollover happened
-            assert_eq! (None, ImportedBlocks::<T>::get(initial_block_hash), "This block should have been pruned");
+            if let TendermintHashStorage::Some(hash) = initial_block.signed_header.commit.block_id.hash {
+                assert_eq! (None, ImportedBlocks::<T>::get(hash), "This block should have been pruned");
+            }
 
         }
 
