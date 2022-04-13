@@ -1,6 +1,5 @@
 { release ? true
-, package ? "aleph-node"
-, features ? []
+, crates ? { "aleph-node" = ["default"]; }
 , rustflags ? "-C target-cpu=native"
 , useCustomRocksDb ? false
 , rocksDbOptions ? { version = "6.29.3";
@@ -111,8 +110,18 @@ let
   gitCommit = builtins.readFile gitCommitDrv;
 
   pathToWasm = "target/" + (if release then "release" else "debug") + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
+  features =
+    builtins.concatLists
+      (builtins.attrValues
+        (builtins.mapAttrs
+          (crate: features: builtins.map (feature: crate + "/" + feature) features)
+          crates
+        )
+      );
   enabledFeatures = nixpkgs.lib.concatStringsSep "," features;
-  featuresFlag = if enabledFeatures == "" then "" else "--features" + enabledFeatures;
+  featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
+  packages = nixpkgs.lib.concatStringsSep "," (builtins.attrNames crates);
+  packagesFlag = if packages == "" then "" else "--package " + packages;
 in
 with nixpkgs; naersk.buildPackage rec {
   name = "aleph-node";
@@ -133,8 +142,7 @@ with nixpkgs; naersk.buildPackage rec {
     pkg-config
   ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
-    nixpkgs.lib.lists.optional (package != null) ("-p " + package)
-    ++ nixpkgs.lib.lists.optional (enabledFeatures != "") ("--features " + enabledFeatures)
+    [packagesFlag featuresFlag]
     ++ ["--locked"]
     ++ opts;
   shellHook = ''

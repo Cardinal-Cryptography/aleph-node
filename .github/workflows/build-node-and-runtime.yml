@@ -26,23 +26,20 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
+      - name: Cache install Nix packages
+        uses: rikhuijzer/cache-install@v1.0.9
+        with:
+          key: nix-store
+          nix_file: 'nix/github.nix'
 
       - name: Build binary and runtime
-        run: cargo build --release -p aleph-node
+        run: chmod +x docker/nix-build.sh && docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node
-          path: target/release/aleph-node
+          path: aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -50,18 +47,18 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session"
+        run: chmod +x docker/nix-build.sh && CRATES='{ "aleph-node" = ["default" "short_session"]; "aleph-runtime" = ["default" "short_session"]; }' docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-node
-          path: target/release/aleph-node
+          path: aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -69,9 +66,6 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
