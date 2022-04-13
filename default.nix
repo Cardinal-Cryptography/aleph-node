@@ -1,4 +1,14 @@
-{ rocksDBVersion ? "6.29.3", release ? true, package ? "aleph-node" }:
+{ release ? true
+, package ? "aleph-node"
+, rustflags ? "-C target-cpu=native"
+, useCustomRocksDb ? false
+, rocksDbOptions ? { version = "6.29.3";
+                     useSnappy = false;
+                     patchVerifyChecksum = true;
+                     patchPath = ./nix/rocksdb.patch;
+                     enableJemalloc = true;
+                   }
+}:
 let
   # this overlay allows us to use a specified version of the rust toolchain
   rustOverlay =
@@ -41,12 +51,12 @@ let
 
     src = builtins.fetchGit {
       url = "https://github.com/facebook/rocksdb.git";
-      ref = "refs/tags/v${rocksDBVersion}";
+      ref = "refs/tags/v${rocksDbOptions.version}";
     };
 
-    version = "${rocksDBVersion}";
+    version = "${rocksDbOptions.version}";
 
-    patches = [];
+    patches = nixpkgs.lib.optional rocksDbOptions.patchVerifyChecksum rocksDbOptions.patchPath;
 
     cmakeFlags = [
        "-DPORTABLE=0"
@@ -56,18 +66,19 @@ let
        "-DWITH_TOOLS=0"
        "-DWITH_BZ2=0"
        "-DWITH_LZ4=0"
-       "-DWITH_SNAPPY=0"
+       "-DWITH_SNAPPY=${if rocksDbOptions.useSnappy then "1" else "0"}"
        "-DWITH_ZLIB=0"
        "-DWITH_ZSTD=0"
        "-DWITH_GFLAGS=0"
        "-DUSE_RTTI=0"
        "-DFORCE_SSE42=1"
        "-DROCKSDB_BUILD_SHARED=0"
+       "-DWITH_JEMALLOC=${if rocksDbOptions.enableJemalloc then "1" else "0"}"
     ];
 
     propagatedBuildInputs = [];
 
-    buildInputs = [ nixpkgs.git ];
+    buildInputs = [nixpkgs.git] ++ nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
   });
 
   # allows to skip files listed by .gitignore
@@ -80,19 +91,25 @@ let
   };
   inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
 
+  rocksDbShellHook = if useCustomRocksDb
+                     then
+                       "export ROCKSDB_LIB_DIR=${customRocksdb}/lib; export ROCKSDB_STATIC=1"
+                     else "";
+
   naerskSrc = builtins.fetchTarball {
     url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
     sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
   };
   naersk = nixpkgs.callPackage naerskSrc { stdenv = env; };
+
   gitFolder = ./.git;
   gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
     cp -r ${gitFolder} ./.git
     echo $(git rev-parse --short HEAD) > $out
   '';
   gitCommit = builtins.readFile gitCommitDrv;
-  pathToWasm = "target/" + (if release then "release" else "debug") + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 
+  pathToWasm = "target/" + (if release then "release" else "debug") + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 in
 with nixpkgs; naersk.buildPackage rec {
   name = "aleph-node";
@@ -110,15 +127,25 @@ with nixpkgs; naersk.buildPackage rec {
     llvm.clang
     openssl.dev
     protobuf
-    customRocksdb
     pkg-config
-  ];
+  ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
     nixpkgs.lib.lists.optional (package != null) ("-p " + package)
     ++ ["--locked"]
     ++ opts;
-  preBuild = ''
+  shellHook = ''
+    ${rocksDbShellHook}
     export SUBSTRATE_CLI_GIT_COMMIT_HASH=${SUBSTRATE_CLI_GIT_COMMIT_HASH}
+    export RUSTFLAGS="${rustflags}"
+    export ROCKSDB_STATIC=1;
+    export LIBCLANG_PATH=${LIBCLANG_PATH};
+    export PROTOC=${PROTOC}
+    export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS}"
+    export CFLAGS="${CFLAGS}"
+    export CXXFLAGS="${CXXFLAGS}"
+  '';
+  preBuild = ''
+    ${shellHook}
   '';
   postInstall = ''
     if [ -f ${pathToWasm} ]; then
@@ -128,7 +155,6 @@ with nixpkgs; naersk.buildPackage rec {
   '';
 
   SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}";
-  ROCKSDB_LIB_DIR="${customRocksdb}/lib";
   ROCKSDB_STATIC=1;
   LIBCLANG_PATH="${llvm.libclang.lib}/lib";
   PROTOC="${protobuf}/bin/protoc";
