@@ -134,12 +134,11 @@ with nixpkgs; naersk.buildPackage rec {
     rustToolchain.rustc
     findutils
     patchelf
+    pkg-config
   ];
   buildInputs = [
-    llvm.clang
     openssl.dev
     protobuf
-    pkg-config
   ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
     [packagesFlag featuresFlag]
@@ -167,6 +166,7 @@ with nixpkgs; naersk.buildPackage rec {
   '';
 
   SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}";
+  RUSTFLAGS="${rustflags}";
   ROCKSDB_STATIC=1;
   LIBCLANG_PATH="${llvm.libclang.lib}/lib";
   PROTOC="${protobuf}/bin/protoc";
