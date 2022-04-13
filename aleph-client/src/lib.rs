@@ -4,8 +4,8 @@ use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
-pub use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
+use substrate_api_client::{
+    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient,
     UncheckedExtrinsicV4, XtStatus,
 };
 
@@ -27,6 +27,7 @@ pub use staking::{
     payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
     validate as staking_validate, wait_for_full_era_completion, wait_for_next_era,
 };
+pub use substrate_api_client;
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
