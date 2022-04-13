@@ -5,7 +5,7 @@ use log::{info, warn};
 use sp_core::{sr25519, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient,
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
     UncheckedExtrinsicV4, XtStatus,
 };
 
