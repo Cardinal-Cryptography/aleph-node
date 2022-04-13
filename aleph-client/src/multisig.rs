@@ -451,7 +451,7 @@ impl MultisigParty {
 /// Dispatch `call` as on behalf of the multisig party of `author` and `other_signatories`
 /// with threshold 1. `connection` is *not* assumed to be already signed by `author`.
 /// `other_signatories` *must* be sorted (according to the natural ordering on `AccountId`).
-pub fn perform_pato_multisig<CallDetails: Encode + Clone>(
+pub fn perform_multisig_with_threshold_1<CallDetails: Encode + Clone>(
     connection: &Connection,
     author: KeyPair,
     other_signatories: &[AccountId],
