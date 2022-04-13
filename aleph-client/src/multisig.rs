@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{ensure, Result};
 use codec::{Decode, Encode};
-use log::error;
+use log::{error, info};
 use primitives::Balance;
 use sp_core::{blake2_256, crypto::AccountId32, Pair};
 use substrate_api_client::{compose_extrinsic, XtStatus::Finalized};
@@ -276,6 +276,7 @@ impl MultisigParty {
         let (xt, connection) =
             self.construct_approve_as_multi(connection, None, author_idx, call_hash);
         let block_hash = self.finalize_xt(&connection, xt, "Initiate multisig aggregation")?;
+        info!(target: "aleph-client", "Initiating multisig aggregation for call hash: {:?}", call_hash);
 
         Ok(SignatureAggregation {
             timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
@@ -328,6 +329,8 @@ impl MultisigParty {
             self.finalize_xt(&connection, xt, "Initiate multisig aggregation with call")?;
 
         let call_hash = compute_call_hash(&call);
+        info!(target: "aleph-client", "Initiating multisig aggregation for call hash: {:?}", call_hash);
+
         Ok(SignatureAggregation {
             timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
             author: author_idx,
@@ -355,6 +358,7 @@ impl MultisigParty {
         );
         self.finalize_xt(&connection, xt, "Report approval to multisig aggregation")?;
 
+        info!(target: "aleph-client", "Registered multisig approval for call hash: {:?}", sig_agg.call_hash);
         sig_agg
             .approvers
             .insert(account_from_keypair(&self.members[author_idx]));
@@ -397,6 +401,7 @@ impl MultisigParty {
             "Report approval to multisig aggregation with call",
         )?;
 
+        info!(target: "aleph-client", "Registered multisig approval for call hash: {:?}", sig_agg.call_hash);
         sig_agg
             .approvers
             .insert(account_from_keypair(&self.members[author_idx]));
@@ -444,6 +449,7 @@ impl MultisigParty {
             sig_agg.call_hash,
         );
         self.finalize_xt(&connection, xt, "Cancel multisig aggregation")?;
+        info!(target: "aleph-client", "Cancelled multisig aggregation for call hash: {:?}", sig_agg.call_hash);
         Ok(())
     }
 }
