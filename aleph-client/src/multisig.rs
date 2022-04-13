@@ -46,7 +46,36 @@ type CallHash = [u8; 32];
 type Call = Vec<u8>;
 type Timepoint = pallet_multisig::Timepoint<BlockNumber>;
 
-pub fn get_call_hash<CallDetails: Encode>(call: &UncheckedExtrinsicV4<CallDetails>) -> CallHash {
+type ApproveAsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],           // call index
+    u16,               // threshold
+    Vec<AccountId32>,  // other signatories
+    Option<Timepoint>, // timepoint, `None` for initiating
+    CallHash,          // call hash
+    u64,               // max weight
+)>;
+
+type AsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],           // call index
+    u16,               // threshold
+    Vec<AccountId32>,  // other signatories
+    Option<Timepoint>, // timepoint, `None` for initiating
+    Call,              // call
+    bool,              // whether to store call
+    u64,               // max weight
+)>;
+
+type CancelAsMultiCall = UncheckedExtrinsicV4<(
+    [u8; 2],          // call index
+    u16,              // threshold
+    Vec<AccountId32>, // other signatories
+    Timepoint,        // timepoint, `None` for initiating
+    CallHash,         // call hash
+)>;
+
+pub fn compute_call_hash<CallDetails: Encode>(
+    call: &UncheckedExtrinsicV4<CallDetails>,
+) -> CallHash {
     blake2_256(&call.function.encode())
 }
 
@@ -103,7 +132,6 @@ pub struct MultisigParty {
     threshold: u16,
 }
 
-/// Implementation block with constructing `MultisigParty` together with some basic getters.
 impl MultisigParty {
     /// Creates new party. `members` does *not* have to be already sorted. Also:
     /// - `members` must be of length between 2 and `pallet_multisig::MaxSignatories`;
@@ -161,10 +189,80 @@ impl MultisigParty {
             .binary_search_by_key(&member, account_from_keypair)
             .map_err(|_| MultisigError::NoSuchMember.into())
     }
-}
 
-/// Implementation block with public API of `MultisigParty`.
-impl MultisigParty {
+    /// For all extrinsics we have to sign it with the caller (representative) and pass
+    /// accounts of the other party members.
+    fn designate_representative_and_represented(&self, idx: usize) -> (KeyPair, Vec<AccountId>) {
+        let mut members = self.members.clone();
+        let member = members.remove(idx);
+        let others = members.iter().map(account_from_keypair).collect();
+        (member, others)
+    }
+
+    /// Compose extrinsic for `multisig::approve_as_multi` call. Assumes that `author_idx` is correct.
+    fn construct_approve_as_multi(
+        &self,
+        connection: &Connection,
+        timepoint: Option<Timepoint>,
+        author_idx: usize,
+        call_hash: CallHash,
+    ) -> (ApproveAsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "approve_as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call_hash,
+            MAX_WEIGHT
+        );
+        (xt, connection)
+    }
+
+    /// Tries sending `xt` with `connection` and waits for its finalization. Returns the hash
+    /// of the containing block.
+    fn finalize_xt<T: Encode>(
+        &self,
+        connection: &Connection,
+        xt: UncheckedExtrinsicV4<T>,
+        description: &'static str,
+    ) -> Result<H256> {
+        Ok(try_send_xt(connection, xt, Some(description), Finalized)?
+            .expect("For `Finalized` status a block hash should be returned"))
+    }
+
+    /// Reads the pallet storage and takes the timestamp regarding procedure for the `self` party
+    /// initiated at `block_hash`.
+    fn get_timestamp(
+        &self,
+        connection: &Connection,
+        call_hash: &CallHash,
+        block_hash: H256,
+    ) -> Result<Timepoint> {
+        let multisig: Multisig = connection
+            .get_storage_double_map(
+                "Multisig",
+                "Multisigs",
+                self.account.clone(),
+                *call_hash,
+                Some(block_hash),
+            )?
+            .ok_or(MultisigError::NoAggregationFound)?;
+        Ok(multisig.when)
+    }
+
+    /// Checks whether `member_idx` is a proper position for `self.members`.
+    fn ensure_index(&self, member_idx: usize) -> Result<()> {
+        ensure!(
+            member_idx < self.members.len(),
+            MultisigError::IncorrectMemberIndex
+        );
+        Ok(())
+    }
+
     /// Effectively starts the aggregation process by calling `approveAsMulti`. Does *not* expect
     /// that `connection` is already signed by the author.
     pub fn initiate_aggregation_with_hash(
@@ -188,6 +286,31 @@ impl MultisigParty {
         })
     }
 
+    /// Compose extrinsic for `multisig::as_multi` call. Assumes that `author_idx` is correct.
+    fn construct_as_multi<CallDetails: Encode>(
+        &self,
+        connection: &Connection,
+        timepoint: Option<Timepoint>,
+        author_idx: usize,
+        call: UncheckedExtrinsicV4<CallDetails>,
+        store_call: bool,
+    ) -> (AsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call.function.encode(),
+            store_call,
+            MAX_WEIGHT
+        );
+        (xt, connection)
+    }
+
     /// Effectively starts aggregation process by calling `asMulti`.
     /// Does *not* expect that `connection` is already signed by the author.
     pub fn initiate_aggregation_with_call<CallDetails: Encode + Clone>(
@@ -204,7 +327,7 @@ impl MultisigParty {
         let block_hash =
             self.finalize_xt(&connection, xt, "Initiate multisig aggregation with call")?;
 
-        let call_hash = get_call_hash(&call);
+        let call_hash = compute_call_hash(&call);
         Ok(SignatureAggregation {
             timepoint: self.get_timestamp(&connection, &call_hash, block_hash)?,
             author: author_idx,
@@ -256,7 +379,7 @@ impl MultisigParty {
             );
         } else {
             ensure!(
-                get_call_hash(&call) == sig_agg.call_hash,
+                compute_call_hash(&call) == sig_agg.call_hash,
                 MultisigError::CallConflict
             );
         }
@@ -281,6 +404,28 @@ impl MultisigParty {
         Ok(sig_agg)
     }
 
+    /// Compose extrinsic for `multisig::cancel_as_multi` call. Assumes that `author_idx` is correct.
+    fn construct_cancel_as_multi(
+        &self,
+        connection: &Connection,
+        timepoint: Timepoint,
+        author_idx: usize,
+        call_hash: CallHash,
+    ) -> (CancelAsMultiCall, Connection) {
+        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
+        let connection = connection.clone().set_signer(author);
+        let xt = compose_extrinsic!(
+            connection,
+            "Multisig",
+            "cancel_as_multi",
+            self.threshold,
+            other_signatories,
+            timepoint,
+            call_hash
+        );
+        (xt, connection)
+    }
+
     /// Cancel `sig_agg` aggregation. Does *not* expect that `connection` is already
     /// signed by the canceling member.
     pub fn cancel(
@@ -303,156 +448,6 @@ impl MultisigParty {
     }
 }
 
-type ApproveAsMultiCall = UncheckedExtrinsicV4<(
-    [u8; 2],           // call index
-    u16,               // threshold
-    Vec<AccountId32>,  // other signatories
-    Option<Timepoint>, // timepoint, `None` for initiating
-    CallHash,          // call hash
-    u64,               // max weight
-)>;
-
-type AsMultiCall = UncheckedExtrinsicV4<(
-    [u8; 2],           // call index
-    u16,               // threshold
-    Vec<AccountId32>,  // other signatories
-    Option<Timepoint>, // timepoint, `None` for initiating
-    Call,              // call
-    bool,              // whether to store call
-    u64,               // max weight
-)>;
-
-type CancelAsMultiCall = UncheckedExtrinsicV4<(
-    [u8; 2],          // call index
-    u16,              // threshold
-    Vec<AccountId32>, // other signatories
-    Timepoint,        // timepoint, `None` for initiating
-    CallHash,         // call hash
-)>;
-
-/// Implementation block containing private auxiliary methods used by those from public API.
-impl MultisigParty {
-    /// Checks whether `member_idx` is a proper position for `self.members`.
-    fn ensure_index(&self, member_idx: usize) -> Result<()> {
-        ensure!(
-            member_idx < self.members.len(),
-            MultisigError::IncorrectMemberIndex
-        );
-        Ok(())
-    }
-
-    /// For all extrinsics we have to sign it with the caller (representative) and pass
-    /// accounts of the other party members.
-    fn designate_representative_and_represented(&self, idx: usize) -> (KeyPair, Vec<AccountId>) {
-        let mut members = self.members.clone();
-        let member = members.remove(idx);
-        let others = members.iter().map(account_from_keypair).collect();
-        (member, others)
-    }
-
-    /// Reads the pallet storage and takes the timestamp regarding procedure for the `self` party
-    /// initiated at `block_hash`.
-    fn get_timestamp(
-        &self,
-        connection: &Connection,
-        call_hash: &CallHash,
-        block_hash: H256,
-    ) -> Result<Timepoint> {
-        let multisig: Multisig = connection
-            .get_storage_double_map(
-                "Multisig",
-                "Multisigs",
-                self.account.clone(),
-                *call_hash,
-                Some(block_hash),
-            )?
-            .ok_or(MultisigError::NoAggregationFound)?;
-        Ok(multisig.when)
-    }
-
-    /// Tries sending `xt` with `connection` and waits for its finalization. Returns the hash
-    /// of the containing block.
-    fn finalize_xt<T: Encode>(
-        &self,
-        connection: &Connection,
-        xt: UncheckedExtrinsicV4<T>,
-        description: &'static str,
-    ) -> Result<H256> {
-        Ok(try_send_xt(connection, xt, Some(description), Finalized)?
-            .expect("For `Finalized` status a block hash should be returned"))
-    }
-
-    /// Compose extrinsic for `multisig::approve_as_multi` call. Assumes that `author_idx` is correct.
-    fn construct_approve_as_multi(
-        &self,
-        connection: &Connection,
-        timepoint: Option<Timepoint>,
-        author_idx: usize,
-        call_hash: CallHash,
-    ) -> (ApproveAsMultiCall, Connection) {
-        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        let connection = connection.clone().set_signer(author);
-        let xt = compose_extrinsic!(
-            connection,
-            "Multisig",
-            "approve_as_multi",
-            self.threshold,
-            other_signatories,
-            timepoint,
-            call_hash,
-            MAX_WEIGHT
-        );
-        (xt, connection)
-    }
-
-    /// Compose extrinsic for `multisig::as_multi` call. Assumes that `author_idx` is correct.
-    fn construct_as_multi<CallDetails: Encode>(
-        &self,
-        connection: &Connection,
-        timepoint: Option<Timepoint>,
-        author_idx: usize,
-        call: UncheckedExtrinsicV4<CallDetails>,
-        store_call: bool,
-    ) -> (AsMultiCall, Connection) {
-        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        let connection = connection.clone().set_signer(author);
-        let xt = compose_extrinsic!(
-            connection,
-            "Multisig",
-            "as_multi",
-            self.threshold,
-            other_signatories,
-            timepoint,
-            call.function.encode(),
-            store_call,
-            MAX_WEIGHT
-        );
-        (xt, connection)
-    }
-
-    /// Compose extrinsic for `multisig::cancel_as_multi` call. Assumes that `author_idx` is correct.
-    fn construct_cancel_as_multi(
-        &self,
-        connection: &Connection,
-        timepoint: Timepoint,
-        author_idx: usize,
-        call_hash: CallHash,
-    ) -> (CancelAsMultiCall, Connection) {
-        let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        let connection = connection.clone().set_signer(author);
-        let xt = compose_extrinsic!(
-            connection,
-            "Multisig",
-            "cancel_as_multi",
-            self.threshold,
-            other_signatories,
-            timepoint,
-            call_hash
-        );
-        (xt, connection)
-    }
-}
-
 /// Dispatch `call` as on behalf of the multisig party of `author` and `other_signatories`
 /// with threshold 1. `connection` is *not* assumed to be already signed by `author`.
 /// `other_signatories` *must* be sorted (according to the natural ordering on `AccountId`).
@@ -462,7 +457,7 @@ pub fn perform_pato_multisig<CallDetails: Encode + Clone>(
     other_signatories: &[AccountId],
     call: CallDetails,
 ) -> Result<()> {
-    let connection = connection.clone().set_signer(author.clone());
+    let connection = connection.clone().set_signer(author);
     let xt = compose_extrinsic!(
         connection,
         "Multisig",

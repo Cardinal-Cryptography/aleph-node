@@ -13,7 +13,7 @@ pub use account::{get_free_balance, locks};
 pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use multisig::{
-    get_call_hash, perform_pato_multisig, MultisigError, MultisigParty, SignatureAggregation,
+    compute_call_hash, perform_pato_multisig, MultisigError, MultisigParty, SignatureAggregation,
 };
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
