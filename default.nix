@@ -32,6 +32,7 @@ let
     sha256 = "08k7jy14rlpbb885x8dyds5pxr2h64mggfgil23vgyw6f1cn9kz6";
   }) { overlays = [
          rustOverlay
+         # we override rust toolchain
          (self: super: {
            inherit (rustToolchain) cargo rust-src rust-std;
            rustc = rustToolchain.rust;
@@ -46,7 +47,7 @@ let
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
-  # we disable all compression algorithms and force it to use SSE 4.2 cpu instruction set
+  # we disable all compression algorithms, force it to use SSE 4.2 cpu instruction set and disable its `verify_checksum` mechanism
   customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
 
     src = builtins.fetchGit {
@@ -100,7 +101,7 @@ let
     url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
     sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
   };
-  naersk = nixpkgs.callPackage naerskSrc { stdenv = env; };
+  naersk = nixpkgs.callPackage naerskSrc { stdenv = env; cargo = rustToolchain.rust; rustc = rustToolchain.rust; };
 
   gitFolder = ./.git;
   gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
@@ -114,7 +115,7 @@ let
     builtins.concatLists
       (builtins.attrValues
         (builtins.mapAttrs
-          (crate: features: builtins.map (feature: crate + "/" + feature) features)
+          (package: features: builtins.map (feature: package + "/" + feature) features)
           crates
         )
       );
@@ -132,8 +133,6 @@ with nixpkgs; naersk.buildPackage rec {
     git
     rustToolchain.cargo
     rustToolchain.rustc
-    findutils
-    patchelf
     pkg-config
   ];
   buildInputs = [
@@ -148,7 +147,6 @@ with nixpkgs; naersk.buildPackage rec {
     ${rocksDbShellHook}
     export SUBSTRATE_CLI_GIT_COMMIT_HASH=${SUBSTRATE_CLI_GIT_COMMIT_HASH}
     export RUSTFLAGS="${rustflags}"
-    export ROCKSDB_STATIC=1;
     export LIBCLANG_PATH=${LIBCLANG_PATH};
     export PROTOC=${PROTOC}
     export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS}"
