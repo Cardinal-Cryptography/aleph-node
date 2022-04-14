@@ -1,5 +1,6 @@
 { release ? true
 , crates ? { "aleph-node" = ["default"]; }
+, runTests ? false
 , rustflags ? "-C target-cpu=native"
 , useCustomRocksDb ? false
 , rocksDbOptions ? { version = "6.29.3";
@@ -90,7 +91,7 @@ let
     rev = "5b9e0ff9d3b551234b4f3eb3983744fa354b17f1";
     sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
   };
-  inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreSource;
+  inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreFilter;
 
   rocksDbShellHook = if useCustomRocksDb
                      then
@@ -123,16 +124,26 @@ let
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
   packages = nixpkgs.lib.concatStringsSep "," (builtins.attrNames crates);
   packagesFlag = if packages == "" then "" else "--package " + packages;
+
+  # we need to include the .git directory, since Substrate build scripts use git to retrieve HEAD's commit hash
+  gitFilter = src:
+    let
+      srcIgnored = gitignoreFilter src;
+    in
+      path: type:
+        builtins.baseNameOf path == ".git" || srcIgnored path type;
+  src = nixpkgs.lib.cleanSourceWith {
+    src = ./.;
+    filter = gitFilter ./.;
+    name = "aleph-source";
+  };
 in
 with nixpkgs; naersk.buildPackage rec {
   name = "aleph-node";
-  src = gitignoreSource ./.;
-  inherit release;
+  inherit release src;
+  doCheck = runTests;
   nativeBuildInputs = [
-    cacert
     git
-    rustToolchain.cargo
-    rustToolchain.rustc
     pkg-config
   ];
   buildInputs = [
