@@ -133,8 +133,6 @@ fn failed_verification() {
     });
 }
 
-// TODO : round_robin_storage test
-
 #[test]
 fn halted() {
     new_test_ext(|| {

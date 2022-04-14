@@ -1,35 +1,18 @@
-use crate::{
-    self as tendermint_light_client,
-    // types::{
-    //     LightBlockStorage, TendermintPeerId, TimestampStorage, ValidatorInfoStorage,
-    //     ValidatorSetStorage,
-    // },
-};
-// use codec::alloc::string::ToString;
+use crate::{self as tendermint_light_client};
 use frame_support::{
     construct_runtime, parameter_types, traits::Everything, weights::RuntimeDbWeight,
 };
-// #[cfg(feature = "std")]
 use frame_system::mocking;
-// use scale_info::prelude::string::String;
 use sp_core::H256;
-// #[cfg(feature = "std")]
 use sp_io::TestExternalities;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
 use sp_std::{boxed::Box, vec::Vec};
-// use tendermint_testgen as testgen;
-// use sp_runtime::generic::{Block, UncheckedExtrinsic};
 
-// #[cfg(feature = "std")]
 type UncheckedExtrinsic = mocking::MockUncheckedExtrinsic<TestRuntime>;
-// #[cfg(feature = "std")]
 type Block = mocking::MockBlock<TestRuntime>;
-
-// type UncheckedExtrinsic = UncheckedExtrinsic<TestRuntime>;
-// type Block = Block<TestRuntime>;
 
 pub const TRUSTED_BLOCK: &str = r#"{
     "signed_header": {

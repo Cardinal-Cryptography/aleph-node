@@ -331,18 +331,19 @@ pub mod pallet {
     /// should only be called by a trusted origin, *after* performing a verification
     fn insert_light_block<T: Config>(hash: TendermintBlockHash, light_block: LightBlockStorage) {
         let index = Pallet::<T>::get_imported_hashes_pointer();
-        let pruning = <ImportedHashes<T>>::try_get(index);
 
         <LastImportedBlockHash<T>>::put(hash);
         <ImportedBlocks<T>>::insert(hash, light_block);
-        <ImportedHashes<T>>::insert(index, hash);
         <ImportedHashesPointer<T>>::put((index + 1) % T::HeadersToKeep::get());
 
-        // prune light block
-        if let Ok(hash) = pruning {
-            log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
-            <ImportedBlocks<T>>::remove(hash);
-        }
+        <ImportedHashes<T>>::mutate(index, |current| {
+            // prune light block
+            if let Some(hash) = current {
+                log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
+                <ImportedBlocks<T>>::remove(hash);
+            }
+            *current = Some(hash);
+        });
     }
 
     /// Ensure that the light client is not in a halted state
