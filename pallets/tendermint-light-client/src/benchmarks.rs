@@ -22,7 +22,7 @@ benchmarks! {
 
         verify {
             // check if persisted
-            let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
+            let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
             assert_eq!(
                 initial_block.signed_header.commit.block_id.hash,
                 TendermintHashStorage::Some (last_imported)
@@ -40,7 +40,7 @@ benchmarks! {
         assert_ok!(TendermintLightClient::<T>::initialize_client(
             RawOrigin::Root.into() ,
             options,
-            initial_block.clone ()
+            initial_block
         ));
 
         let caller: T::AccountId = whitelisted_caller();
@@ -50,7 +50,7 @@ benchmarks! {
 
         verify {
             // check if persisted
-            let last_imported = TendermintLightClient::<T>::get_last_imported_hash();
+            let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
             assert_eq!(
                 untrusted_block.signed_header.commit.block_id.hash,
                 TendermintHashStorage::Some (last_imported)
@@ -96,7 +96,7 @@ benchmarks! {
 
         verify {
             // check if rollover has happened
-            let expected_last_imported_block_hash = TendermintLightClient::<T>::get_last_imported_hash();
+            let expected_last_imported_block_hash = TendermintLightClient::<T>::get_last_imported_block_hash();
             let last_imported_block_hash = TendermintLightClient::<T>::get_imported_hash(0).unwrap ();
 
             assert_eq!(

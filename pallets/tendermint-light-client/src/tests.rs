@@ -50,12 +50,12 @@ fn successful_verification() {
         // 1970-01-01T00:00:05Z
         Timestamp::set_timestamp(5000);
 
-        let origin = Origin::root();
+        let root = Origin::root();
         let options = LightClientOptionsStorage::default();
         let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
-            origin,
+            root,
             options.clone(),
             initial_block.clone()
         ));
@@ -65,7 +65,7 @@ fn successful_verification() {
 
         assert_eq!(Pallet::<TestRuntime>::is_halted(), false);
 
-        let last_imported = Pallet::<TestRuntime>::get_last_imported_hash();
+        let last_imported = Pallet::<TestRuntime>::get_last_imported_block_hash();
         assert_eq!(
             initial_block.signed_header.commit.block_id.hash,
             TendermintHashStorage::Some(last_imported)
@@ -85,7 +85,7 @@ fn successful_verification() {
             untrusted_block.clone()
         ));
 
-        let best_finalized_hash = Pallet::<TestRuntime>::get_last_imported_hash();
+        let best_finalized_hash = Pallet::<TestRuntime>::get_last_imported_block_hash();
         assert_eq!(
             untrusted_block.signed_header.commit.block_id.hash,
             TendermintHashStorage::Some(best_finalized_hash)
@@ -112,11 +112,11 @@ fn failed_verification() {
         // 1970-01-01T00:00:03Z + trusting period + clock_drift
         Timestamp::set_timestamp(3000 + (options.trusting_period + options.clock_drift) * 1000);
 
-        let origin = Origin::root();
+        let root = Origin::root();
         let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
-            origin,
+            root,
             options.clone(),
             initial_block.clone()
         ));
@@ -135,4 +135,35 @@ fn failed_verification() {
 
 // TODO : round_robin_storage test
 
-// TODO : halted test
+#[test]
+fn halted() {
+    new_test_ext(|| {
+        System::set_block_number(1);
+
+        let options = LightClientOptionsStorage::default();
+
+        // 1970-01-01T00:00:03Z + trusting period + clock_drift
+        Timestamp::set_timestamp(3000 + (options.trusting_period + options.clock_drift) * 1000);
+
+        let root = Origin::root();
+        let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+        assert_ok!(Pallet::<TestRuntime>::initialize_client(
+            root.clone(),
+            options.clone(),
+            initial_block.clone()
+        ));
+
+        assert_ok!(Pallet::<TestRuntime>::set_halted(root, true));
+
+        let untrusted_block: LightBlockStorage =
+            serde_json::from_str(mock::UNTRUSTED_BLOCK).unwrap();
+
+        let origin = Origin::signed(100);
+
+        assert_err!(
+            Pallet::<TestRuntime>::update_client(origin, untrusted_block.clone()),
+            super::Error::<TestRuntime>::Halted
+        );
+    });
+}

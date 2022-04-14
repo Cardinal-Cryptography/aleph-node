@@ -34,7 +34,7 @@ default = ["std"]
 std = [
   "base64/std",
   "codec/std",
-  "frame-benchmarking/std",  
+  "frame-benchmarking/std",
   "frame-support/std",
   "frame-system/std",
   "pallet-timestamp/std",

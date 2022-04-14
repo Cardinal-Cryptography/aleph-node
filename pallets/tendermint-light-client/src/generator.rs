@@ -45,7 +45,7 @@ pub fn generate_consecutive_blocks(
     let mut blocks = Vec::with_capacity(n);
 
     let block_storage = LightBlockStorage::new(
-        signed_header.clone().try_into().unwrap(),
+        signed_header.try_into().unwrap(),
         validators_set.clone(),
         validators_set.clone(),
         default_provider,
