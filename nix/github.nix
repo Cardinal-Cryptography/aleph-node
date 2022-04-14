@@ -1,4 +1,2 @@
-{ versions ? import ./versions.nix {}
-, nixpkgs ? versions.nixpkgs
-}:
+{ nixpkgs ? (import ./versions.nix).nixpkgs }:
 [ nixpkgs.patchelf ]

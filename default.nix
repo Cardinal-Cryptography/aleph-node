@@ -11,40 +11,14 @@
                    }
 }:
 let
-  # this overlay allows us to use a specified version of the rust toolchain
-  rustOverlay =
-    import (builtins.fetchTarball {
-      url = "https://github.com/mozilla/nixpkgs-mozilla/archive/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996.tar.gz";
-      sha256 = "1rzz03h0b38l5sg61rmfvzpbmbd5fn2jsi1ccvq22rb76s1nbh8i";
-    });
-
-  overrideRustTarget = rustChannel: rustChannel // {
-    rust = rustChannel.rust.override {
-      targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
-    };
-  };
-  # use Rust toolchain declared by the rust-toolchain file
-  rustToolchain = with nixpkgs; overrideRustTarget ( rustChannelOf { rustToolchain = ./rust-toolchain; } );
-
-  # pinned version of nix packages
-  # main reason for not using here the newest available version at the time or writing is that this way we depend on glibc version 2.31 (Ubuntu 20.04 LTS)
-  nixpkgs = import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz";
-    sha256 = "08k7jy14rlpbb885x8dyds5pxr2h64mggfgil23vgyw6f1cn9kz6";
-  }) { overlays = [
-         rustOverlay
-         # we override rust toolchain
-         (self: super: {
-           inherit (rustToolchain) cargo rust-src rust-std;
-           rustc = rustToolchain.rust;
-         })
-       ];
-     };
+  versions = import ./nix/versions.nix;
+  nixpkgs = versions.nixpkgs;
+  rustToolchain = versions.rustToolchain;
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
-  llvm = nixpkgs.llvmPackages_11;
-  env = nixpkgs.keepDebugInfo llvm.stdenv;
+  llvm = versions.llvm;
+  env = versions.stdenv;
   llvmVersionString = "${nixpkgs.lib.getVersion env.cc.cc}";
 
   # we use a newer version of rocksdb than the one provided by nixpkgs
@@ -145,6 +119,7 @@ with nixpkgs; naersk.buildPackage rec {
   nativeBuildInputs = [
     git
     pkg-config
+    llvm.libclang
   ];
   buildInputs = [
     openssl.dev
