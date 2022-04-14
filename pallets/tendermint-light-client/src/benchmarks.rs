@@ -1,18 +1,19 @@
 use super::*;
 use crate::{
-    mock,
     types::{LightClientOptionsStorage, TendermintHashStorage, TimestampStorage},
     Pallet as TendermintLightClient,
 };
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_support::{assert_ok, traits::Get};
 use frame_system::RawOrigin;
+use generator::generate_consecutive_blocks;
+use scale_info::prelude::string::String;
 
 benchmarks! {
     benchmark_for_initialize_client {
 
         let v in 1 .. T::MaxVotesCount::get();
-        let mut blocks = mock::generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
+        let mut blocks = generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
         let initial_block = blocks.pop ().unwrap ();
         let options = LightClientOptionsStorage::default();
@@ -31,7 +32,7 @@ benchmarks! {
     benchmark_for_update_client {
 
         let v in 1 .. T::MaxVotesCount::get();
-        let mut blocks = mock::generate_consecutive_blocks (2, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
+        let mut blocks = generate_consecutive_blocks (2, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
         let options = LightClientOptionsStorage::default();
         let initial_block = blocks.pop ().unwrap ();
@@ -62,9 +63,9 @@ benchmarks! {
 
         let v in 1 .. T::MaxVotesCount::get();
         // 1970-01-01T00:00:05Z
-        mock::Timestamp::set_timestamp(5000);
+        // crate::mock::Timestamp::set_timestamp(5000);
 
-        let mut blocks = mock::generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
+        let mut blocks = generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (0, 0));
 
         let options = LightClientOptionsStorage::default();
 
@@ -94,8 +95,7 @@ benchmarks! {
     }: update_client(RawOrigin::Signed(caller.clone()), next_next_next)
 
         verify {
-            // check if rollover happened
-
+            // check if rollover has happened
             let expected_last_imported_block_hash = TendermintLightClient::<T>::get_last_imported_hash();
             let last_imported_block_hash = TendermintLightClient::<T>::get_imported_hash(0).unwrap ();
 
@@ -113,8 +113,8 @@ benchmarks! {
 
     impl_benchmark_test_suite!(
         TendermintLightClient,
-        mock::new_genesis_storage (),
-        mock::TestRuntime,
+        crate::mock::new_genesis_storage (),
+        crate::mock::TestRuntime,
     );
 
 }

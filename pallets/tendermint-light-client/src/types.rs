@@ -918,10 +918,10 @@ pub enum TendermintPublicKey {
 pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
-    /// seed for the validator keypair
-    /// IMPORTANT: for testing purposes only! Never put this in storage!
-    #[cfg_attr(any(test, feature = "runtime-benchmarks"), serde(skip))]
-    seed: Option<[u8; 32]>,
+    // /// seed for the validator keypair
+    // /// IMPORTANT: for testing purposes only! Never put this in storage!
+    // #[cfg_attr(any(test, feature = "runtime-benchmarks"), serde(skip))]
+    // seed: Option<[u8; 32]>,
     /// Validator public key
     pub pub_key: TendermintPublicKey,
     /// Validator voting power
@@ -941,7 +941,7 @@ pub struct ValidatorInfoStorage {
 impl ValidatorInfoStorage {
     pub fn new(
         address: TendermintAccountId,
-        seed: Option<[u8; 32]>,
+        // seed: Option<[u8; 32]>,
         pub_key: TendermintPublicKey,
         power: u64,
         name: Option<Vec<u8>>,
@@ -949,7 +949,7 @@ impl ValidatorInfoStorage {
     ) -> Self {
         Self {
             address,
-            seed,
+            // seed,
             pub_key,
             power,
             name,
@@ -960,7 +960,7 @@ impl ValidatorInfoStorage {
     pub fn default() -> Self {
         Self {
             address: TendermintAccountId::default(),
-            seed: None,
+            // seed: None,
             pub_key: TendermintPublicKey::Ed25519(H256::default()),
             power: u64::default(),
             name: Some(empty_bytes(32)),
@@ -968,10 +968,10 @@ impl ValidatorInfoStorage {
         }
     }
 
-    pub fn set_seed(&mut self, seed: [u8; 32]) -> Self {
-        self.seed = Some(seed);
-        self.to_owned()
-    }
+    // pub fn set_seed(&mut self, seed: [u8; 32]) -> Self {
+    //     self.seed = Some(seed);
+    //     self.to_owned()
+    // }
 
     pub fn set_name(&mut self, name: Vec<u8>) -> Self {
         self.name = Some(name);
@@ -1068,7 +1068,7 @@ impl From<validator::Info> for ValidatorInfoStorage {
         let pub_key = info.pub_key.into();
         Self::new(
             address,
-            None,
+            // None,
             pub_key,
             info.power.value(),
             info.name.clone().map(|s| s.as_bytes().to_vec()),

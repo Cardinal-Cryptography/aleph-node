@@ -28,7 +28,7 @@ fn type_casting_is_commutative() {
 
 #[test]
 fn block_generation() {
-    let mut blocks = mock::generate_consecutive_blocks(
+    let mut blocks = crate::generator::generate_consecutive_blocks(
         1,
         String::from("test-chain"),
         1,
@@ -53,8 +53,6 @@ fn successful_verification() {
         let origin = Origin::root();
         let options = LightClientOptionsStorage::default();
         let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
-
-        println!("@ inital block {:?}", initial_block);
 
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
             origin,
@@ -96,6 +94,8 @@ fn successful_verification() {
         System::assert_last_event(mock::Event::TendermintLightClient(
             super::Event::ImportedLightBlock(100, best_finalized_hash),
         ));
+
+        // println!("@ chain-id {:?}", String::from("test-chain").as_bytes());
 
         let last_imported_block = Pallet::<TestRuntime>::get_last_imported_block().unwrap();
         assert_eq!(untrusted_block, last_imported_block);
