@@ -1,6 +1,5 @@
 use crate::utils::{
-    account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes,
-    tendermint_hash_to_h256,
+    account_id_from_bytes, as_tendermint_signature, sha256_from_bytes, tendermint_hash_to_h256,
 };
 #[cfg(feature = "std")]
 use crate::utils::{
@@ -52,11 +51,11 @@ impl<'de> Deserialize<'de> for TendermintHashStorage {
     }
 }
 
-impl Default for TendermintHashStorage {
-    fn default() -> Self {
-        Self::None
-    }
-}
+// impl Default for TendermintHashStorage {
+//     fn default() -> Self {
+//         Self::None
+//     }
+// }
 
 impl TryFrom<tendermint::Hash> for TendermintHashStorage {
     type Error = &'static str;
@@ -281,23 +280,23 @@ impl BlockIdStorage {
         }
     }
 
-    pub fn default() -> Self {
-        let hash = TendermintHashStorage::default();
-        Self {
-            hash,
-            part_set_header: PartSetHeaderStorage::new(1, hash),
-        }
-    }
+    // pub fn default() -> Self {
+    //     let hash = TendermintHashStorage::default();
+    //     Self {
+    //         hash,
+    //         part_set_header: PartSetHeaderStorage::new(1, hash),
+    //     }
+    // }
 
-    pub fn set_hash(&mut self, hash: TendermintHashStorage) -> Self {
-        self.hash = hash;
-        self.to_owned()
-    }
+    // pub fn set_hash(&mut self, hash: TendermintHashStorage) -> Self {
+    //     self.hash = hash;
+    //     self.to_owned()
+    // }
 
-    pub fn set_part_set_header(&mut self, part_set_header: PartSetHeaderStorage) -> Self {
-        self.part_set_header = part_set_header;
-        self.to_owned()
-    }
+    // pub fn set_part_set_header(&mut self, part_set_header: PartSetHeaderStorage) -> Self {
+    //     self.part_set_header = part_set_header;
+    //     self.to_owned()
+    // }
 }
 
 impl TryFrom<BlockIdStorage> for block::Id {
@@ -412,44 +411,44 @@ impl HeaderStorage {
         }
     }
 
-    pub fn default() -> Self {
-        Self {
-            version: VersionStorage::new(u64::default(), u64::default()),
-            chain_id: empty_bytes(20),
-            height: 0,
-            timestamp: TimestampStorage::new(0, 0),
-            last_block_id: None,
-            last_commit_hash: None,
-            data_hash: None,
-            validators_hash: H256::default(),
-            next_validators_hash: H256::default(),
-            consensus_hash: H256::default(),
-            app_hash: empty_bytes(20),
-            last_results_hash: None,
-            evidence_hash: None,
-            proposer_address: TendermintAccountId::default(),
-        }
-    }
+    // pub fn default() -> Self {
+    //     Self {
+    //         version: VersionStorage::new(u64::default(), u64::default()),
+    //         chain_id: empty_bytes(20),
+    //         height: 0,
+    //         timestamp: TimestampStorage::new(0, 0),
+    //         last_block_id: None,
+    //         last_commit_hash: None,
+    //         data_hash: None,
+    //         validators_hash: H256::default(),
+    //         next_validators_hash: H256::default(),
+    //         consensus_hash: H256::default(),
+    //         app_hash: empty_bytes(20),
+    //         last_results_hash: None,
+    //         evidence_hash: None,
+    //         proposer_address: TendermintAccountId::default(),
+    //     }
+    // }
 
-    pub fn set_height(&mut self, height: u64) -> Self {
-        self.height = height;
-        self.to_owned()
-    }
+    // pub fn set_height(&mut self, height: u64) -> Self {
+    //     self.height = height;
+    //     self.to_owned()
+    // }
 
-    pub fn set_validators_hash(&mut self, hash: H256) -> Self {
-        self.validators_hash = hash;
-        self.to_owned()
-    }
+    // pub fn set_validators_hash(&mut self, hash: H256) -> Self {
+    //     self.validators_hash = hash;
+    //     self.to_owned()
+    // }
 
-    pub fn set_next_validators_hash(&mut self, hash: H256) -> Self {
-        self.next_validators_hash = hash;
-        self.to_owned()
-    }
+    // pub fn set_next_validators_hash(&mut self, hash: H256) -> Self {
+    //     self.next_validators_hash = hash;
+    //     self.to_owned()
+    // }
 
-    pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
-        self.timestamp = timestamp;
-        self.to_owned()
-    }
+    // pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
+    //     self.timestamp = timestamp;
+    //     self.to_owned()
+    // }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -665,41 +664,41 @@ impl CommitStorage {
         }
     }
 
-    pub fn default() -> Self {
-        let height = 0;
-        let round = 0;
-        let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
-            validator_address: TendermintAccountId::default(),
-            timestamp: TimestampStorage::new(0, 0),
-            signature: Some(TendermintVoteSignature::default()),
-        }];
-        let hash = TendermintHashStorage::default();
-        let total = u32::default();
-        let part_set_header = PartSetHeaderStorage::new(total, hash);
-        let block_id = BlockIdStorage::new(hash, part_set_header);
+    // pub fn default() -> Self {
+    //     let height = 0;
+    //     let round = 0;
+    //     let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
+    //         validator_address: TendermintAccountId::default(),
+    //         timestamp: TimestampStorage::new(0, 0),
+    //         signature: Some(TendermintVoteSignature::default()),
+    //     }];
+    //     let hash = TendermintHashStorage::default();
+    //     let total = u32::default();
+    //     let part_set_header = PartSetHeaderStorage::new(total, hash);
+    //     let block_id = BlockIdStorage::new(hash, part_set_header);
 
-        Self {
-            height,
-            round,
-            block_id,
-            signatures,
-        }
-    }
+    //     Self {
+    //         height,
+    //         round,
+    //         block_id,
+    //         signatures,
+    //     }
+    // }
 
-    pub fn set_height(&mut self, height: u64) -> Self {
-        self.height = height;
-        self.to_owned()
-    }
+    // pub fn set_height(&mut self, height: u64) -> Self {
+    //     self.height = height;
+    //     self.to_owned()
+    // }
 
-    pub fn set_round(&mut self, round: u32) -> Self {
-        self.round = round;
-        self.to_owned()
-    }
+    // pub fn set_round(&mut self, round: u32) -> Self {
+    //     self.round = round;
+    //     self.to_owned()
+    // }
 
-    pub fn set_block_id(&mut self, block_id: BlockIdStorage) -> Self {
-        self.block_id = block_id;
-        self.to_owned()
-    }
+    // pub fn set_block_id(&mut self, block_id: BlockIdStorage) -> Self {
+    //     self.block_id = block_id;
+    //     self.to_owned()
+    // }
 }
 
 impl TryFrom<CommitStorage> for Commit {
@@ -918,10 +917,6 @@ pub enum TendermintPublicKey {
 pub struct ValidatorInfoStorage {
     /// Validator account address
     pub address: TendermintAccountId,
-    // /// seed for the validator keypair
-    // /// IMPORTANT: for testing purposes only! Never put this in storage!
-    // #[cfg_attr(any(test, feature = "runtime-benchmarks"), serde(skip))]
-    // seed: Option<[u8; 32]>,
     /// Validator public key
     pub pub_key: TendermintPublicKey,
     /// Validator voting power
@@ -941,7 +936,6 @@ pub struct ValidatorInfoStorage {
 impl ValidatorInfoStorage {
     pub fn new(
         address: TendermintAccountId,
-        // seed: Option<[u8; 32]>,
         pub_key: TendermintPublicKey,
         power: u64,
         name: Option<Vec<u8>>,
@@ -949,7 +943,6 @@ impl ValidatorInfoStorage {
     ) -> Self {
         Self {
             address,
-            // seed,
             pub_key,
             power,
             name,
@@ -957,59 +950,24 @@ impl ValidatorInfoStorage {
         }
     }
 
-    pub fn default() -> Self {
-        Self {
-            address: TendermintAccountId::default(),
-            // seed: None,
-            pub_key: TendermintPublicKey::Ed25519(H256::default()),
-            power: u64::default(),
-            name: Some(empty_bytes(32)),
-            proposer_priority: i64::default(),
-        }
-    }
+    // pub fn default() -> Self {
+    //     Self {
+    //         address: TendermintAccountId::default(),
+    //         pub_key: TendermintPublicKey::Ed25519(H256::default()),
+    //         power: u64::default(),
+    //         name: Some(empty_bytes(32)),
+    //         proposer_priority: i64::default(),
+    //     }
+    // }
 
-    // pub fn set_seed(&mut self, seed: [u8; 32]) -> Self {
-    //     self.seed = Some(seed);
+    // pub fn set_name(&mut self, name: Vec<u8>) -> Self {
+    //     self.name = Some(name);
     //     self.to_owned()
     // }
 
-    pub fn set_name(&mut self, name: Vec<u8>) -> Self {
-        self.name = Some(name);
-        self.to_owned()
-    }
-
-    pub fn set_power(&mut self, power: u64) -> Self {
-        self.power = power;
-        self.to_owned()
-    }
-
-    // pub fn generate_pub_key(&mut self) -> Self {
-    //     if let Some(seed) = self.seed {
-    //         let pair = ed25519::Pair::from_seed(&seed);
-    //         let pub_key = pair.public();
-    //         let pub_key_bytes = pub_key.0;
-    //         let tendermint_public_key = TendermintPublicKey::Ed25519(H256::from(pub_key_bytes));
-    //         self.pub_key = tendermint_public_key;
-    //     };
+    // pub fn set_power(&mut self, power: u64) -> Self {
+    //     self.power = power;
     //     self.to_owned()
-    // }
-
-    // pub fn generate_address(&mut self) -> Self {
-    //     match self.pub_key {
-    //         TendermintPublicKey::Ed25519(hash) => {
-    //             // SHA256(pub_key)[:20]
-    //             let validator_address = TendermintAccountId::from_slice(&hash.as_bytes()[..20]);
-    //             self.address = validator_address;
-    //         }
-    //         TendermintPublicKey::Secp256k1(_) => todo!(),
-    //     };
-    //     self.to_owned()
-    // }
-
-    // TODO : is that correct?
-    // /// Returns the bytes to be hashed into the Merkle tree
-    // pub fn hash_bytes(&self) -> Vec<u8> {
-    //     self.pub_key.encode()
     // }
 }
 
@@ -1098,18 +1056,6 @@ impl ValidatorSetStorage {
             total_voting_power,
         }
     }
-
-    // /// Compute the hash of this validator set
-    // pub fn hash(&self) -> H256 {
-    //     let validator_bytes: Vec<Vec<u8>> = self
-    //         .validators
-    //         .iter()
-    //         .map(|validator| validator.hash_bytes())
-    //         .collect();
-
-    //     let hash = merkle::simple_hash_from_byte_vectors(validator_bytes);
-    //     H256::from_slice(&hash)
-    // }
 }
 
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {
@@ -1174,16 +1120,6 @@ impl LightBlockStorage {
             provider,
         }
     }
-
-    // // #[cfg(feature = "runtime-benchmarks")]
-    // /// Produces a subsequent light block to the supplied one (with height+1)
-    // pub fn next(&self) -> Self {
-    //     let SignedHeaderStorage { header, commit } = self.signed_header.clone();
-
-    //     // let testgen_block = testgen::LightBlock::new(header, commit);
-
-    //     todo!()
-    // }
 }
 
 impl TryFrom<LightBlockStorage> for LightBlock {
