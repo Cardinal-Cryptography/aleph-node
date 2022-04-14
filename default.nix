@@ -1,4 +1,5 @@
-{ release ? true
+{ versions ? import ./nix/versions.nix
+, release ? true
 , crates ? { "aleph-node" = ["default"]; }
 , runTests ? false
 , rustflags ? "-C target-cpu=native"
@@ -11,7 +12,6 @@
                    }
 }:
 let
-  versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
   rustToolchain = versions.rustToolchain;
 
