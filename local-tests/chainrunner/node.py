@@ -98,4 +98,4 @@ class Node:
     def set_log_level(self, target, level):
         """Change log verbosity of the chosen target.
         This method should be called on a running node."""
-        self.rpc('system_addLogFilter', [f'{target}={level}'])
+        return self.rpc('system_addLogFilter', [f'{target}={level}'])
