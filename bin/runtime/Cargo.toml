@@ -110,18 +110,4 @@ runtime-benchmarks = [
     "pallet-tendermint-light-client/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
-
-    # "frame-benchmarking/runtime-benchmarks",
-    # "frame-support/runtime-benchmarks",
-    # "frame-system/runtime-benchmarks",
-    # "sp-runtime/runtime-benchmarks",
-    # "frame-system-benchmarking",
-    # "pallet-tendermint-light-client/runtime-benchmarks",
-    # "pallet-balances/runtime-benchmarks",
-    # "pallet-staking/runtime-benchmarks",
-    # "pallet-timestamp/runtime-benchmarks",
-    # "pallet-treasury/runtime-benchmarks",
-    # "pallet-vesting/runtime-benchmarks",
-    # "pallet-multisig/runtime-benchmarks",
-    # "pallet-utility/runtime-benchmarks",
 ]

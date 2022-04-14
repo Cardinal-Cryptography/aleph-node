@@ -5,7 +5,6 @@
 //! It is a part of the Aleph Zero <-> Terra bridge
 pub use pallet::*;
 
-// #[cfg(any(test, feature = "runtime-benchmarks"))]
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -13,7 +12,6 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
-// #[cfg(feature = "runtime-benchmarks")]
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod generator;
 
@@ -328,7 +326,6 @@ pub mod pallet {
     }
 
     /// update light client storage
-    /// should only be called by a trusted origin, *after* performing a verification
     fn insert_light_block<T: Config>(hash: TendermintBlockHash, light_block: LightBlockStorage) {
         let index = Pallet::<T>::get_imported_hashes_pointer();
 

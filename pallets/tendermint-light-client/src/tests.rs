@@ -95,8 +95,6 @@ fn successful_verification() {
             super::Event::ImportedLightBlock(100, best_finalized_hash),
         ));
 
-        // println!("@ chain-id {:?}", String::from("test-chain").as_bytes());
-
         let last_imported_block = Pallet::<TestRuntime>::get_last_imported_block().unwrap();
         assert_eq!(untrusted_block, last_imported_block);
     });

@@ -171,7 +171,7 @@ impl pallet_timestamp::Config for TestRuntime {
 
 parameter_types! {
     pub const HeadersToKeep: u32 = 3;
-    pub const MaxVotesCount: u32 = 10; // 100
+    pub const MaxVotesCount: u32 = 10;
 }
 
 impl tendermint_light_client::Config for TestRuntime {
@@ -181,7 +181,6 @@ impl tendermint_light_client::Config for TestRuntime {
     type MaxVotesCount = MaxVotesCount;
 }
 
-// #[cfg(feature = "std")]
 construct_runtime! {
     pub enum TestRuntime where
         Block = Block,

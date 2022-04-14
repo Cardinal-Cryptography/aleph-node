@@ -62,9 +62,7 @@ benchmarks! {
     benchmark_for_update_client_with_pruning {
 
         let v in 1 .. T::MaxVotesCount::get();
-        // 1970-01-01T00:00:05Z
-        // crate::mock::Timestamp::set_timestamp(5000);
-
+        // block at 1970-01-01T00:00:00Z
         let mut blocks = generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (0, 0));
 
         let options = LightClientOptionsStorage::default();
