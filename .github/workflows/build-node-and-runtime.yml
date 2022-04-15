@@ -52,7 +52,7 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: chmod +x docker/nix-build.sh && CRATES='{ "aleph-node" = ["default" "short_session"]; "aleph-runtime" = ["default" "short_session"]; }' docker/nix-build.sh
+        run: chmod +x docker/nix-build.sh && CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

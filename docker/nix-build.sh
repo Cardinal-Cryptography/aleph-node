@@ -4,7 +4,7 @@ set -euo pipefail
 SPAWN_SHELL=${SPAWN_SHELL:-false}
 SHELL_NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
-CRATES=${CRATES:-'{ "aleph-node" = ["default"]; "aleph-runtime" = ["default"]; }'}
+CRATES=${CRATES:-'{ "aleph-node" = []; "aleph-runtime" = []; }'}
 if [ -z ${PATH_TO_FIX+x} ]; then
     PATH_TO_FIX="result/bin/aleph-node"
 fi

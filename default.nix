@@ -117,6 +117,7 @@ with nixpkgs; naersk.buildPackage rec {
   doCheck = runTests;
   nativeBuildInputs = [
     git
+    cacert
     pkg-config
     llvm.libclang
   ];
