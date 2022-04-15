@@ -153,7 +153,7 @@ with nixpkgs; naersk.buildPackage rec {
     fi
     if [ -f ${pathToCompactWasm} ]; then
       mkdir -p $out/lib
-      cp ${pathToWasm} $out/lib/
+      cp ${pathToCompactWasm} $out/lib/
     fi
   '';
 
