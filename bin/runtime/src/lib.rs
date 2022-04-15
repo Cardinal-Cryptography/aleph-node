@@ -223,9 +223,18 @@ impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
     fn note_author(validator: AccountId) {
         let active_era = Staking::active_era().unwrap().index;
         let exposure = pallet_staking::ErasStakers::<Runtime>::get(active_era, &validator);
-        let points = exposure.total / TOKEN;
+        let number_of_sessions_per_validator = SessionsPerEra::get()
+            / (MembersPerSession::get() - Staking::invulnerables().len() as u32);
+        let total_points_per_session = exposure.total / TOKEN;
+        let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
+        let blocks_to_produce_per_era =
+            blocks_to_produce_per_session * number_of_sessions_per_validator;
+        let points_per_block =
+            Perbill::from_rational(1, blocks_to_produce_per_era) * total_points_per_session as u32;
 
-        pallet_staking::Pallet::<Runtime>::reward_by_ids([(validator, points as u32)].into_iter());
+        pallet_staking::Pallet::<Runtime>::reward_by_ids(
+            [(validator, points_per_block)].into_iter(),
+        );
     }
     fn note_uncle(_author: AccountId, _age: BlockNumber) {}
 }
