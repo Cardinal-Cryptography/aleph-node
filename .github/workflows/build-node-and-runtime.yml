@@ -29,7 +29,7 @@ jobs:
       - name: Cache install Nix packages
         uses: rikhuijzer/cache-install@v1.0.9
         with:
-          key: nix-store
+          key: nix-${{ hashFiles('Cargo.lock') }}
           nix_file: 'nix/github.nix'
 
       - name: Build binary and runtime
