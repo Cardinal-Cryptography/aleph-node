@@ -614,7 +614,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-        TendermintLightClient: pallet_tendermint_light_client::{Call, Pallet, Storage, Event<T>} = 18,
+        TendermintLightClient: pallet_tendermint_light_client::{Pallet, Call, Storage, Event<T>} = 18,
     }
 );
 
