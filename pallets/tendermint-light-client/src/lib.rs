@@ -2,7 +2,7 @@
 
 //! This pallet is an on-chain light-client for tendermint (Cosmos) based chains
 //! It verifies headers submitted to it via on-chain transactions, performed by a so-called relayer
-//! It is a part of the Aleph0 <-> Terra bridge
+//! It is a part of the Aleph Zero <-> Terra bridge
 pub use pallet::*;
 
 pub mod types;
@@ -16,7 +16,9 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::types::{BridgedBlockHash, LightBlockStorage, LightClientOptionsStorage};
+    use crate::types::{
+        LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash, TendermintHashStorage,
+    };
     use frame_support::{
         ensure, fail, log,
         pallet_prelude::{
@@ -29,7 +31,7 @@ pub mod pallet {
     use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
     use tendermint::Time;
     use tendermint_light_client_verifier::{
-        options::Options, types::LightBlock, ProdVerifier, Verifier,
+        options::Options, types::LightBlock, ProdVerifier, Verdict, Verifier,
     };
 
     #[pallet::config]
@@ -40,6 +42,10 @@ pub mod pallet {
         /// Maximal number of finalized headers to keep in the storage, last-in first-out
         #[pallet::constant]
         type HeadersToKeep: Get<u32>;
+
+        /// Maximal number of block validators in Tendermint
+        #[pallet::constant]
+        type MaxVotesCount: Get<u32>;
 
         /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;
@@ -59,13 +65,11 @@ pub mod pallet {
         /// Light client is initialized
         LightClientInitialized,
         /// New block has been verified and imported into storage \[relayer_address, imported_block_hash\]
-        ImportedLightBlock(T::AccountId, BridgedBlockHash),
+        ImportedLightBlock(T::AccountId, TendermintBlockHash),
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Unable to deserialize extrinsic
-        DeserializeError,
         /// Light client has not been initialized        
         NotInitialized,
         /// Light client has already been initialized
@@ -74,8 +78,12 @@ pub mod pallet {
         Halted,
         /// The minimum voting power threshold is not reached, the block cannot be trusted yet
         NotEnoughTrust,
-        /// Verification failed, the block is invalid.        
+        /// Verification failed, the block is invalid        
         InvalidBlock,
+        /// Initial block is invalid
+        InvalidInitialBlock,
+        /// General error during client operations
+        Other,
     }
 
     // NOTE for storage:
@@ -87,32 +95,34 @@ pub mod pallet {
 
     /// Hash of the last imported header from the bridged chain
     #[pallet::storage]
-    #[pallet::getter(fn get_last_imported_hash)]
-    pub type LastImportedHash<T: Config> = StorageValue<_, BridgedBlockHash, ValueQuery>;
+    #[pallet::getter(fn get_last_imported_block_hash)]
+    pub type LastImportedBlockHash<T: Config> = StorageValue<_, TendermintBlockHash, ValueQuery>;
 
-    /// A ring buffer of imported hashes "ordered" by their insertion time
+    /// Imported hashes "ordered" by their insertion time
+    /// Client keeps HeadersToKeep number of these at any time    
     #[pallet::storage]
-    pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, BridgedBlockHash>;
+    #[pallet::getter(fn get_imported_hash)]
+    pub type ImportedHashes<T: Config> = StorageMap<_, Identity, u32, TendermintBlockHash>;
 
     /// Current ring buffer position
     #[pallet::storage]
+    #[pallet::getter(fn get_imported_hashes_pointer)]
     pub(super) type ImportedHashesPointer<T: Config> = StorageValue<_, u32, ValueQuery>;
 
     /// Bridged chain Headers which have been imported by the client
     /// Client keeps HeadersToKeep number of these at any time
     #[pallet::storage]
+    #[pallet::getter(fn get_imported_block)]
     pub(super) type ImportedBlocks<T: Config> =
-        StorageMap<_, Identity, BridgedBlockHash, LightBlockStorage, OptionQuery>;
+        StorageMap<_, Identity, TendermintBlockHash, LightBlockStorage, OptionQuery>;
 
-    // TODO : expose in runtime API and nodes RPC
     impl<T: Config> Pallet<T> {
         pub fn get_last_imported_block() -> Option<LightBlockStorage> {
-            let ptr = ImportedHashesPointer::<T>::get()
-                .checked_sub(1)
-                .expect("unexpected failure when subtracting");
-
-            match ImportedHashes::<T>::get(ptr) {
-                Some(key) => ImportedBlocks::<T>::get(key),
+            match ImportedHashesPointer::<T>::get().checked_sub(1) {
+                Some(ptr) => match ImportedHashes::<T>::get(ptr) {
+                    Some(key) => ImportedBlocks::<T>::get(key),
+                    None => None,
+                },
                 None => None,
             }
         }
@@ -141,22 +151,27 @@ pub mod pallet {
             log::debug!(target: "runtime::tendermint-lc", "Initializing Light Client light:\n options: {:?}\n initial block {:#?}", &options, &initial_block);
 
             // ensure client is not already initialized
-            let can_initialize = !<LastImportedHash<T>>::exists();
+            let can_initialize = !<LastImportedBlockHash<T>>::exists();
             ensure!(can_initialize, <Error<T>>::AlreadyInitialized);
 
-            <LightClientOptions<T>>::put(options);
+            match initial_block.signed_header.commit.block_id.hash {
+                TendermintHashStorage::Some(hash) => {
+                    <LightClientOptions<T>>::put(options);
+                    <ImportedHashesPointer<T>>::put(0);
+                    // update block storage
+                    insert_light_block::<T>(hash, initial_block);
 
-            let hash = initial_block.signed_header.commit.block_id.hash;
-            <ImportedHashesPointer<T>>::put(0);
-            // update block storage
-            insert_light_block::<T>(hash, initial_block);
-
-            // update status
-            <IsHalted<T>>::put(false);
-            log::info!(target: "runtime::tendermint-lc", "Light client initialized");
-            Self::deposit_event(Event::LightClientInitialized);
-
-            Ok(())
+                    // update status
+                    <IsHalted<T>>::put(false);
+                    log::info!(target: "runtime::tendermint-lc", "Light client initialized");
+                    Self::deposit_event(Event::LightClientInitialized);
+                    Ok(())
+                }
+                TendermintHashStorage::None => {
+                    log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid initial light block; empty hash");
+                    fail!(<Error<T>>::InvalidInitialBlock)
+                }
+            }
         }
 
         // TODO : benchmark & adjust weights
@@ -172,10 +187,21 @@ pub mod pallet {
 
             log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &hash);
 
-            let options: Options = <LightClientOptions<T>>::get().try_into()?;
+            let options: Options = match Self::get_options().try_into() {
+                Ok(options) => options,
+                Err(why) => {
+                    log::error!(
+                        target: "runtime::tendermint-lc",
+                        "Cannot convert to Options {:?}",
+                        &why,
+                    );
+                    fail!(<Error<T>>::Other);
+                }
+            };
+
             let verifier = ProdVerifier::default();
-            let most_recent_trusted_block = match <ImportedBlocks<T>>::get(
-                <LastImportedHash<T>>::get(),
+            let most_recent_trusted_block = match Self::get_imported_block(
+                Self::get_last_imported_block_hash(),
             ) {
                 Some(best_finalized) => best_finalized,
                 None => {
@@ -188,34 +214,51 @@ pub mod pallet {
                 }
             };
 
-            let now = T::TimeProvider::now();
-            let now = Time::from_unix_timestamp(now.as_secs().try_into().unwrap(), 0).unwrap();
+            let seconds = T::TimeProvider::now().as_secs() as i64;
+            let now = match Time::from_unix_timestamp(seconds, 0) {
+                Ok(now) => now,
+                Err(why) => {
+                    log::error!(
+                        target: "runtime::tendermint-lc",
+                        "Cannot read current time {:?}",
+                        &why,
+                    );
+                    fail!(<Error<T>>::Other)
+                }
+            };
 
-            let verdict = verify_light_block(
+            match verify_light_block::<T>(
                 verifier,
                 untrusted_block.clone(),
                 most_recent_trusted_block,
                 &options,
                 now,
-            );
-
-            match verdict {
-                tendermint_light_client_verifier::Verdict::Success => {
-                    // update storage
-                    insert_light_block::<T>(hash, untrusted_block);
-                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
-                    Self::deposit_event(Event::ImportedLightBlock(who, hash));
-                    Ok(())
+            ) {
+                Ok(verdict) => {
+                    match verdict {
+                        Verdict::Success => {
+                            match hash {
+                                TendermintHashStorage::Some(hash) => {
+                                    // update storage
+                                    insert_light_block::<T>(hash, untrusted_block);
+                                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
+                                    Self::deposit_event(Event::ImportedLightBlock(who, hash));
+                                    Ok(())
+                                }
+                                TendermintHashStorage::None => fail!(<Error<T>>::InvalidBlock),
+                            }
+                        }
+                        Verdict::NotEnoughTrust(voting_power_tally) => {
+                            log::warn!(target: "runtime::tendermint-lc", "Not enough voting power to accept the light block {:#?}, vote tally  {}", &hash, &voting_power_tally);
+                            fail!(<Error<T>>::NotEnoughTrust)
+                        }
+                        Verdict::Invalid(why) => {
+                            log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
+                            fail!(<Error<T>>::InvalidBlock)
+                        }
+                    }
                 }
-                tendermint_light_client_verifier::Verdict::NotEnoughTrust(voting_power_tally) => {
-                    log::warn!(target: "runtime::tendermint-lc", "Not enough voting power to accept the light block {:#?}, vote tally  {}", &hash, &voting_power_tally);
-                    fail!(<Error<T>>::NotEnoughTrust)
-                }
-                tendermint_light_client_verifier::Verdict::Invalid(why) => {
-                    log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
-
-                    fail!(<Error<T>>::InvalidBlock)
-                }
+                Err(error) => fail!(error),
             }
         }
 
@@ -240,51 +283,59 @@ pub mod pallet {
         }
     }
 
-    fn verify_light_block(
+    fn verify_light_block<T: Config>(
         verifier: ProdVerifier,
         untrusted_block: LightBlockStorage,
         trusted_block: LightBlockStorage,
         options: &Options,
         now: Time,
-    ) -> tendermint_light_client_verifier::Verdict {
-        let untrusted_block: LightBlock = untrusted_block
-            .try_into()
-            .expect("Unexpected failure when casting untrusted block as tendermint::LightBlock");
+    ) -> Result<tendermint_light_client_verifier::Verdict, Error<T>> {
+        let untrusted_block: LightBlock = match untrusted_block.try_into() {
+            Ok(block) => block,
+            Err(why) => {
+                log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
+                return Err(Error::Other);
+            }
+        };
 
-        let trusted_block: LightBlock = trusted_block
-            .try_into()
-            .expect("Unexpected failure when casting trusted block as tendermint::LightBlock");
+        let trusted_block: LightBlock = match trusted_block.try_into() {
+            Ok(block) => block,
+            Err(why) => {
+                log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
+                return Err(Error::Other);
+            }
+        };
 
         // verify against known state
-        verifier.verify(
+        Ok(verifier.verify(
             untrusted_block.as_untrusted_state(),
             trusted_block.as_trusted_state(),
             options,
             now,
-        )
+        ))
     }
 
     /// update light client storage
-    /// should only be called by a trusted origin, *after* performing a verification
-    fn insert_light_block<T: Config>(hash: BridgedBlockHash, light_block: LightBlockStorage) {
-        let index = <ImportedHashesPointer<T>>::get();
-        let pruning = <ImportedHashes<T>>::try_get(index);
+    fn insert_light_block<T: Config>(hash: TendermintBlockHash, light_block: LightBlockStorage) {
+        let index = Pallet::<T>::get_imported_hashes_pointer();
 
-        <LastImportedHash<T>>::put(hash);
+        <LastImportedBlockHash<T>>::put(hash);
         <ImportedBlocks<T>>::insert(hash, light_block);
-        <ImportedHashes<T>>::insert(index, hash);
         <ImportedHashesPointer<T>>::put((index + 1) % T::HeadersToKeep::get());
 
-        // prune light block
-        if let Ok(hash) = pruning {
-            log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
-            <ImportedBlocks<T>>::remove(hash);
-        }
+        <ImportedHashes<T>>::mutate(index, |current| {
+            // prune light block
+            if let Some(hash) = current {
+                log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
+                <ImportedBlocks<T>>::remove(hash);
+            }
+            *current = Some(hash);
+        });
     }
 
     /// Ensure that the light client is not in a halted state
     fn ensure_not_halted<T: Config>() -> Result<(), Error<T>> {
-        if <IsHalted<T>>::get() {
+        if Pallet::<T>::is_halted() {
             Err(<Error<T>>::Halted)
         } else {
             Ok(())

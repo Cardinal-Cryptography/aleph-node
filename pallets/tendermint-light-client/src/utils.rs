@@ -1,8 +1,13 @@
-use crate::types::{TendermintVoteSignature, TimestampStorage};
+use crate::types::TendermintVoteSignature;
+#[cfg(feature = "std")]
+use crate::types::TimestampStorage;
+#[cfg(feature = "std")]
 use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer};
-use sp_core::{H256, H512};
+use sp_core::H256;
+#[cfg(feature = "std")]
+use sp_core::H512;
 use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{fmt::Display, str::FromStr};
@@ -17,11 +22,6 @@ pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
 
 pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
     account::Id::new(bytes)
-}
-
-/// create Vec of known size filled with empty bytes
-pub fn empty_bytes(size: i32) -> Vec<u8> {
-    (0..size).map(|_| u8::default()).collect()
 }
 
 pub fn as_tendermint_signature(

@@ -1,6 +1,5 @@
 use crate::utils::{
-    account_id_from_bytes, as_tendermint_signature, empty_bytes, sha256_from_bytes,
-    tendermint_hash_to_h256,
+    account_id_from_bytes, as_tendermint_signature, sha256_from_bytes, tendermint_hash_to_h256,
 };
 #[cfg(feature = "std")]
 use crate::utils::{
@@ -8,21 +7,20 @@ use crate::utils::{
     deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
-use frame_support::RuntimeDebug;
 use scale_info::{prelude::string::String, TypeInfo};
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(feature = "std")]
 use serde_json::Value;
-use sp_core::{H160, H256, H512};
-use sp_std::{borrow::ToOwned, time::Duration, vec::Vec};
+use sp_core::{RuntimeDebug, H160, H256, H512};
+use sp_std::{borrow::ToOwned, prelude::*, time::Duration, vec::Vec};
 #[cfg(feature = "std")]
 use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
     validator::{self, ProposerPriority},
-    vote, Hash as TmHash, PublicKey as TmPublicKey, Time,
+    vote, Hash as TendermintHash, PublicKey as TmPublicKey, Time,
 };
 use tendermint_light_client_verifier::{
     options::Options,
@@ -33,8 +31,59 @@ use tendermint_proto::google::protobuf::Timestamp as TmTimestamp;
 pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
-pub type Hash = H256;
-pub type BridgedBlockHash = Hash;
+pub type TendermintBlockHash = H256;
+
+#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, TypeInfo, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize))]
+pub enum TendermintHashStorage {
+    /// SHA-256 hash
+    Some(TendermintBlockHash),
+    /// empty hash
+    None,
+}
+
+#[cfg(feature = "std")]
+impl<'de> Deserialize<'de> for TendermintHashStorage {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        let bytes = hex::decode_upper(&s).or_else(|_| hex::decode(s)).unwrap();
+        Ok(Self::Some(H256::from_slice(&bytes)))
+    }
+}
+
+// impl Default for TendermintHashStorage {
+//     fn default() -> Self {
+//         Self::None
+//     }
+// }
+
+impl TryFrom<tendermint::Hash> for TendermintHashStorage {
+    type Error = &'static str;
+
+    fn try_from(value: tendermint::Hash) -> Result<Self, Self::Error> {
+        match value {
+            TendermintHash::Sha256(bytes) => {
+                if bytes.len() == hash::SHA256_HASH_SIZE {
+                    Ok(TendermintHashStorage::Some(H256::from_slice(&bytes)))
+                } else {
+                    Err("Invalid hash size")
+                }
+            }
+            TendermintHash::None => Ok(TendermintHashStorage::None),
+        }
+    }
+}
+
+impl TryFrom<TendermintHashStorage> for TendermintHash {
+    type Error = &'static str;
+
+    fn try_from(value: TendermintHashStorage) -> Result<Self, Self::Error> {
+        Ok(match value {
+            TendermintHashStorage::Some(hash) => TendermintHash::Sha256(hash.0),
+            TendermintHashStorage::None => TendermintHash::None,
+        })
+    }
+}
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -136,7 +185,7 @@ impl From<Options> for LightClientOptionsStorage {
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct VersionStorage {
-    /// Block version    
+    /// Block version
     #[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_str"))]
     pub block: u64,
     /// App version
@@ -174,11 +223,11 @@ pub struct PartSetHeaderStorage {
     /// Number of parts in this block
     pub total: u32,
     /// SHA256 Hash of the parts set header,
-    pub hash: BridgedBlockHash,
+    pub hash: TendermintHashStorage,
 }
 
 impl PartSetHeaderStorage {
-    pub fn new(total: u32, hash: BridgedBlockHash) -> Self {
+    pub fn new(total: u32, hash: TendermintHashStorage) -> Self {
         Self { total, hash }
     }
 }
@@ -186,19 +235,28 @@ impl PartSetHeaderStorage {
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
     type Error = &'static str;
     fn try_from(value: PartSetHeaderStorage) -> Result<Self, Self::Error> {
-        Ok(
-            PartSetHeader::new(value.total, sha256_from_bytes(value.hash.as_bytes()))
-                .expect("Can't create PartSetHeader"),
+        Ok(Self::new(
+            value.total,
+            value
+                .hash
+                .try_into()
+                .expect("Cannot cast BrdgedBlock Hash as tendermint::Hash"),
         )
+        .expect("Cannot instantiate PartSetHeader"))
     }
 }
 
-impl From<PartSetHeader> for PartSetHeaderStorage {
-    fn from(psh: PartSetHeader) -> Self {
-        PartSetHeaderStorage {
+impl TryFrom<PartSetHeader> for PartSetHeaderStorage {
+    type Error = &'static str;
+
+    fn try_from(psh: PartSetHeader) -> Result<Self, Self::Error> {
+        Ok(Self {
             total: psh.total,
-            hash: H256::from_slice(psh.hash.as_bytes()),
-        }
+            hash: psh
+                .hash
+                .try_into()
+                .expect("Cannot cast tendermint::Hash as BridgedBlockHash"),
+        })
     }
 }
 
@@ -207,7 +265,7 @@ impl From<PartSetHeader> for PartSetHeaderStorage {
 pub struct BlockIdStorage {
     /// The block's main hash is the Merkle root of all the fields in the
     /// block header.
-    pub hash: BridgedBlockHash,
+    pub hash: TendermintHashStorage,
     /// Parts header (if available) is used for secure gossipping of the block
     /// during consensus. It is the Merkle root of the complete serialized block
     /// cut into parts.
@@ -215,19 +273,40 @@ pub struct BlockIdStorage {
 }
 
 impl BlockIdStorage {
-    pub fn new(hash: BridgedBlockHash, part_set_header: PartSetHeaderStorage) -> Self {
+    pub fn new(hash: TendermintHashStorage, part_set_header: PartSetHeaderStorage) -> Self {
         Self {
             hash,
             part_set_header,
         }
     }
+
+    // pub fn default() -> Self {
+    //     let hash = TendermintHashStorage::default();
+    //     Self {
+    //         hash,
+    //         part_set_header: PartSetHeaderStorage::new(1, hash),
+    //     }
+    // }
+
+    // pub fn set_hash(&mut self, hash: TendermintHashStorage) -> Self {
+    //     self.hash = hash;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_part_set_header(&mut self, part_set_header: PartSetHeaderStorage) -> Self {
+    //     self.part_set_header = part_set_header;
+    //     self.to_owned()
+    // }
 }
 
 impl TryFrom<BlockIdStorage> for block::Id {
     type Error = &'static str;
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
         Ok(Self {
-            hash: sha256_from_bytes(value.hash.as_bytes()),
+            hash: value
+                .hash
+                .try_into()
+                .expect("Cannot cast BridgedBlockHash as tendermint::Hash"),
             part_set_header: value
                 .part_set_header
                 .try_into()
@@ -236,12 +315,13 @@ impl TryFrom<BlockIdStorage> for block::Id {
     }
 }
 
-impl From<block::Id> for BlockIdStorage {
-    fn from(id: block::Id) -> Self {
-        BlockIdStorage {
-            hash: H256::from_slice(id.hash.as_bytes()),
-            part_set_header: id.part_set_header.into(),
-        }
+impl TryFrom<block::Id> for BlockIdStorage {
+    type Error = &'static str;
+    fn try_from(id: block::Id) -> Result<Self, Self::Error> {
+        Ok(Self {
+            hash: id.hash.try_into()?,
+            part_set_header: id.part_set_header.try_into()?,
+        })
     }
 }
 
@@ -272,15 +352,15 @@ pub struct HeaderStorage {
     /// Previous block info
     pub last_block_id: Option<BlockIdStorage>,
     /// Commit from validators from the last block
-    pub last_commit_hash: Option<Hash>,
+    pub last_commit_hash: Option<H256>,
     /// Merkle root of transaction hashes
-    pub data_hash: Option<Hash>,
+    pub data_hash: Option<H256>,
     /// Validators for the current block
-    pub validators_hash: Hash,
+    pub validators_hash: H256,
     /// Validators for the next block
-    pub next_validators_hash: Hash,
+    pub next_validators_hash: H256,
     /// Consensus params for the current block
-    pub consensus_hash: Hash,
+    pub consensus_hash: H256,
     /// State after txs from the previous block
     /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data
     #[cfg_attr(
@@ -289,9 +369,9 @@ pub struct HeaderStorage {
     )]
     pub app_hash: Vec<u8>,
     /// Root hash of all results from the txs from the previous block
-    pub last_results_hash: Option<Hash>,
+    pub last_results_hash: Option<H256>,
     /// Hash of evidence included in the block
-    pub evidence_hash: Option<Hash>,
+    pub evidence_hash: Option<H256>,
     /// Original proposer of the block
     pub proposer_address: TendermintAccountId,
 }
@@ -303,14 +383,14 @@ impl HeaderStorage {
         height: u64,
         timestamp: TimestampStorage,
         last_block_id: Option<BlockIdStorage>,
-        last_commit_hash: Option<Hash>,
-        data_hash: Option<Hash>,
-        validators_hash: Hash,
-        next_validators_hash: Hash,
-        consensus_hash: Hash,
+        last_commit_hash: Option<H256>,
+        data_hash: Option<H256>,
+        validators_hash: H256,
+        next_validators_hash: H256,
+        consensus_hash: H256,
         app_hash: Vec<u8>,
-        last_results_hash: Option<Hash>,
-        evidence_hash: Option<Hash>,
+        last_results_hash: Option<H256>,
+        evidence_hash: Option<H256>,
         proposer_address: TendermintAccountId,
     ) -> Self {
         Self {
@@ -330,6 +410,45 @@ impl HeaderStorage {
             proposer_address,
         }
     }
+
+    // pub fn default() -> Self {
+    //     Self {
+    //         version: VersionStorage::new(u64::default(), u64::default()),
+    //         chain_id: empty_bytes(20),
+    //         height: 0,
+    //         timestamp: TimestampStorage::new(0, 0),
+    //         last_block_id: None,
+    //         last_commit_hash: None,
+    //         data_hash: None,
+    //         validators_hash: H256::default(),
+    //         next_validators_hash: H256::default(),
+    //         consensus_hash: H256::default(),
+    //         app_hash: empty_bytes(20),
+    //         last_results_hash: None,
+    //         evidence_hash: None,
+    //         proposer_address: TendermintAccountId::default(),
+    //     }
+    // }
+
+    // pub fn set_height(&mut self, height: u64) -> Self {
+    //     self.height = height;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_validators_hash(&mut self, hash: H256) -> Self {
+    //     self.validators_hash = hash;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_next_validators_hash(&mut self, hash: H256) -> Self {
+    //     self.next_validators_hash = hash;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
+    //     self.timestamp = timestamp;
+    //     self.to_owned()
+    // }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -399,7 +518,7 @@ pub enum CommitSignatureStorage {
 
 #[cfg(feature = "std")]
 impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let value = Value::deserialize(d)?;
 
         Ok(
@@ -544,6 +663,42 @@ impl CommitStorage {
             signatures,
         }
     }
+
+    // pub fn default() -> Self {
+    //     let height = 0;
+    //     let round = 0;
+    //     let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
+    //         validator_address: TendermintAccountId::default(),
+    //         timestamp: TimestampStorage::new(0, 0),
+    //         signature: Some(TendermintVoteSignature::default()),
+    //     }];
+    //     let hash = TendermintHashStorage::default();
+    //     let total = u32::default();
+    //     let part_set_header = PartSetHeaderStorage::new(total, hash);
+    //     let block_id = BlockIdStorage::new(hash, part_set_header);
+
+    //     Self {
+    //         height,
+    //         round,
+    //         block_id,
+    //         signatures,
+    //     }
+    // }
+
+    // pub fn set_height(&mut self, height: u64) -> Self {
+    //     self.height = height;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_round(&mut self, round: u32) -> Self {
+    //     self.round = round;
+    //     self.to_owned()
+    // }
+
+    // pub fn set_block_id(&mut self, block_id: BlockIdStorage) -> Self {
+    //     self.block_id = block_id;
+    //     self.to_owned()
+    // }
 }
 
 impl TryFrom<CommitStorage> for Commit {
@@ -577,7 +732,7 @@ impl TryFrom<Commit> for CommitStorage {
         for sig in commit.signatures {
             signatures.push(sig.try_into()?)
         }
-        let block_id = commit.block_id.into();
+        let block_id = commit.block_id.try_into()?;
         Ok(CommitStorage::new(
             commit.height.value(),
             commit.round.value(),
@@ -640,18 +795,24 @@ impl TryFrom<Header> for HeaderStorage {
             .last_commit_hash
             .as_ref()
             .and_then(tendermint_hash_to_h256);
+
         let data_hash = header.data_hash.as_ref().and_then(tendermint_hash_to_h256);
+
         let validators_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for validators_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => {
+                return Err("unexpected hash variant for validators_hash field")
+            }
         };
         let next_validators_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for next_validators_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => {
+                return Err("unexpected hash variant for next_validators_hash field")
+            }
         };
         let consensus_hash = match header.validators_hash {
-            TmHash::Sha256(secp) => H256::from_slice(&secp),
-            TmHash::None => return Err("unexpected hash variant for consensus_hash field"),
+            TendermintHash::Sha256(secp) => H256::from_slice(&secp),
+            TendermintHash::None => return Err("unexpected hash variant for consensus_hash field"),
         };
         let app_hash = header.app_hash.value();
         let last_results_hash = header
@@ -662,13 +823,23 @@ impl TryFrom<Header> for HeaderStorage {
             .evidence_hash
             .as_ref()
             .and_then(tendermint_hash_to_h256);
-        let proposer_address = H160::from_slice(header.proposer_address.as_bytes());
+        let proposer_address = TendermintPeerId::from_slice(header.proposer_address.as_bytes());
+
+        let version = header.version.into();
+        let chain_id = header.chain_id.as_bytes().to_vec();
+        let height = header.height.value();
+        let time = header.time.try_into()?;
+        let last_block_id: Option<BlockIdStorage> = header.last_block_id.map(|id| {
+            id.try_into()
+                .expect("Cannot cast block::Id as BlockIdStorage")
+        });
+
         Ok(HeaderStorage::new(
-            header.version.into(),
-            header.chain_id.as_bytes().to_vec(),
-            header.height.value(),
-            header.time.try_into()?,
-            header.last_block_id.map(Into::into),
+            version,
+            chain_id,
+            height,
+            time,
+            last_block_id,
             last_commit_hash,
             data_hash,
             validators_hash,
@@ -712,9 +883,9 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 impl TryFrom<SignedHeader> for SignedHeaderStorage {
     type Error = &'static str;
 
-    fn try_from(sh: SignedHeader) -> Result<Self, Self::Error> {
-        let header = sh.header().clone().try_into()?;
-        let commit = sh.commit().clone().try_into()?;
+    fn try_from(signed_header: SignedHeader) -> Result<Self, Self::Error> {
+        let header = signed_header.header().clone().try_into()?;
+        let commit = signed_header.commit().clone().try_into()?;
         Ok(SignedHeaderStorage::new(header, commit))
     }
 }
@@ -752,11 +923,7 @@ pub struct ValidatorInfoStorage {
     // Compatibility with genesis.json https://github.com/tendermint/tendermint/issues/5549
     #[cfg_attr(
         feature = "std",
-        serde(
-            alias = "voting_power",
-            // alias = "total_voting_power",
-            deserialize_with = "deserialize_from_str"
-        )
+        serde(alias = "voting_power", deserialize_with = "deserialize_from_str")
     )]
     pub power: u64,
     /// Validator name
@@ -782,6 +949,26 @@ impl ValidatorInfoStorage {
             proposer_priority,
         }
     }
+
+    // pub fn default() -> Self {
+    //     Self {
+    //         address: TendermintAccountId::default(),
+    //         pub_key: TendermintPublicKey::Ed25519(H256::default()),
+    //         power: u64::default(),
+    //         name: Some(empty_bytes(32)),
+    //         proposer_priority: i64::default(),
+    //     }
+    // }
+
+    // pub fn set_name(&mut self, name: Vec<u8>) -> Self {
+    //     self.name = Some(name);
+    //     self.to_owned()
+    // }
+
+    // pub fn set_power(&mut self, power: u64) -> Self {
+    //     self.power = power;
+    //     self.to_owned()
+    // }
 }
 
 impl TryFrom<ValidatorInfoStorage> for validator::Info {
@@ -794,6 +981,7 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
             power,
             name,
             proposer_priority,
+            ..
         } = value;
 
         Ok(Self {
@@ -838,6 +1026,7 @@ impl From<validator::Info> for ValidatorInfoStorage {
         let pub_key = info.pub_key.into();
         Self::new(
             address,
+            // None,
             pub_key,
             info.power.value(),
             info.name.clone().map(|s| s.as_bytes().to_vec()),
@@ -931,101 +1120,6 @@ impl LightBlockStorage {
             provider,
         }
     }
-
-    pub fn create(
-        chain_id_length: i32,
-        app_hash_length: i32,
-        validators_count: i32,
-        validator_name_length: i32,
-    ) -> Self {
-        let version = VersionStorage::new(u64::default(), u64::default());
-        let chain_id = empty_bytes(chain_id_length);
-        let height = 3;
-        let timestamp = TimestampStorage::new(3, 0);
-        let last_block_id = None;
-        let last_commit_hash = None;
-        let data_hash = None;
-        let validators_hash = Hash::default();
-        let next_validators_hash = Hash::default();
-        let consensus_hash = Hash::default();
-        let app_hash = empty_bytes(app_hash_length);
-        let last_results_hash = None;
-        let evidence_hash = None;
-        let proposer_address = TendermintAccountId::default();
-
-        let header = HeaderStorage::new(
-            version,
-            chain_id,
-            height,
-            timestamp,
-            last_block_id,
-            last_commit_hash,
-            data_hash,
-            validators_hash,
-            next_validators_hash,
-            consensus_hash,
-            app_hash,
-            last_results_hash,
-            evidence_hash,
-            proposer_address,
-        );
-
-        let height = 3;
-        let round = 1;
-        let hash = BridgedBlockHash::default();
-        let total = u32::default();
-        let part_set_header = PartSetHeaderStorage::new(total, hash);
-        let block_id = BlockIdStorage::new(hash, part_set_header);
-
-        let signatures = (0..validators_count)
-            .map(|_| {
-                let validator_address = TendermintAccountId::default();
-                let timestamp = TimestampStorage::new(3, 0);
-                let signature = Some(TendermintVoteSignature::default());
-                CommitSignatureStorage::BlockIdFlagCommit {
-                    validator_address,
-                    timestamp,
-                    signature,
-                }
-            })
-            .collect();
-
-        let commit = CommitStorage::new(height, round, block_id, signatures);
-        let signed_header = SignedHeaderStorage::new(header, commit);
-        let provider = TendermintPeerId::default();
-
-        let mut total_voting_power = u64::default();
-
-        let validators: Vec<ValidatorInfoStorage> = (0..validators_count)
-            .map(|_| {
-                let address = TendermintAccountId::default();
-                let pub_key = TendermintPublicKey::Ed25519(H256::default());
-                let power = u64::default();
-                let name = Some(empty_bytes(validator_name_length));
-                let proposer_priority = i64::default();
-
-                total_voting_power += power;
-
-                ValidatorInfoStorage {
-                    address,
-                    pub_key,
-                    power,
-                    name,
-                    proposer_priority,
-                }
-            })
-            .collect();
-
-        let proposer = None;
-        let next_validators = validators.clone();
-
-        LightBlockStorage::new(
-            signed_header,
-            ValidatorSetStorage::new(validators, proposer.clone(), total_voting_power),
-            ValidatorSetStorage::new(next_validators, proposer, total_voting_power),
-            provider,
-        )
-    }
 }
 
 impl TryFrom<LightBlockStorage> for LightBlock {
@@ -1069,7 +1163,7 @@ impl TryFrom<LightBlock> for LightBlockStorage {
             signed_header: signed_header.try_into()?,
             validators: validators.into(),
             next_validators: next_validators.into(),
-            provider: H160::from_slice(provider.as_bytes()),
+            provider: TendermintPeerId::from_slice(provider.as_bytes()),
         })
     }
 }
