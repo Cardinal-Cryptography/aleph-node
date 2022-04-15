@@ -1,6 +1,6 @@
 { versions ? import ./nix/versions.nix
 , release ? true
-, crates ? { "aleph-node" = ["default"]; }
+, crates ? { "aleph-node" = []; }
 , runTests ? false
 , rustflags ? "-C target-cpu=native"
 , useCustomRocksDb ? false
