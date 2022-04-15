@@ -1,7 +1,7 @@
 { nixpkgs ? (import ./versions.nix).nixpkgs }:
 let
   alephNodeDrv = import ../default.nix;
-  alephNode = alephNodeDrv { crates = { "aleph-node" = ["default"]; }; };
-  alephNodeShortSession = alephNodeDrv { crates = { "aleph-node" = ["short_session"]; }; };
+  alephNode = alephNodeDrv { crates = { "aleph-node" = []; "aleph-runtime" = []; }; };
+  alephNodeShortSession = alephNodeDrv { crates = { "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }; };
 in
 [ nixpkgs.patchelf alephNode alephNodeShortSession ]
