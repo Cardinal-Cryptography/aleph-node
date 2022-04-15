@@ -85,7 +85,10 @@ let
   '';
   gitCommit = builtins.readFile gitCommitDrv;
 
-  pathToWasm = "target/" + (if release then "release" else "debug") + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
+  modePath = if release then "release" else "debug";
+  pathToWasm = "target/" + modePath + "/wbuild/aleph-runtime/target/wasm32-unknown-unknown/" + modePath + "/aleph_runtime.wasm";
+  pathToCompactWasm = "target/" + modePath + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
+
   features =
     builtins.concatLists
       (builtins.attrValues
@@ -145,6 +148,10 @@ with nixpkgs; naersk.buildPackage rec {
   '';
   postInstall = ''
     if [ -f ${pathToWasm} ]; then
+      mkdir -p $out/lib
+      cp ${pathToWasm} $out/lib/
+    fi
+    if [ -f ${pathToCompactWasm} ]; then
       mkdir -p $out/lib
       cp ${pathToWasm} $out/lib/
     fi
