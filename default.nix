@@ -96,8 +96,7 @@ let
       );
   enabledFeatures = nixpkgs.lib.concatStringsSep "," features;
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
-  packages = nixpkgs.lib.concatStringsSep "," (builtins.attrNames crates);
-  packagesFlag = if packages == "" then "" else "--package " + packages;
+  packageFlags = builtins.map (crate: "--package " + crate) (builtins.attrNames crates);
 
   # we need to include the .git directory, since Substrate build scripts use git to retrieve HEAD's commit hash
   gitFilter = src:
@@ -126,7 +125,8 @@ with nixpkgs; naersk.buildPackage rec {
     protobuf
   ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
-    [packagesFlag featuresFlag]
+    packageFlags
+    ++ [featuresFlag]
     ++ ["--locked"]
     ++ opts;
   shellHook = ''
