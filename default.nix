@@ -131,7 +131,7 @@ with nixpkgs; naersk.buildPackage rec {
   cargoBuildOptions = opts:
     packageFlags
     ++ [featuresFlag]
-    ++ ["--locked"]
+    ++ ["--locked" "--offline"]
     ++ opts;
   shellHook = ''
     ${rocksDbShellHook}
