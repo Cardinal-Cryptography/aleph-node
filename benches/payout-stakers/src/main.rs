@@ -70,10 +70,29 @@ fn main() -> Result<(), anyhow::Error> {
     warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
     let connection = create_connection(&address).set_signer(sudoer);
-    let validators = set_validators(&address, validators_seed_file, validator_count);
+    let validators = match validators_seed_file {
+        Some(validators_seed_file) => {
+            let validators_seeds = std::fs::read_to_string(&validators_seed_file)
+                .expect(&format!("Failed to read file {}", validators_seed_file));
+            validators_seeds
+                .split("\n")
+                .filter(|seed| !seed.is_empty())
+                .map(keypair_from_string)
+                .collect()
+        }
+        None => (0..validator_count)
+            .map(|validator_number| derive_user_account_from_numeric_seed(validator_number))
+            .collect::<Vec<_>>(),
+    };
+    let validators = bond_validate(&address, validators);
     let validators_and_its_nominators =
         create_test_validators_and_its_nominators(&connection, validators, validator_count);
-    wait_for_eras(&address, &connection, validators_and_its_nominators)?;
+    wait_for_successive_eras(
+        &address,
+        &connection,
+        validators_and_its_nominators,
+        ERAS_TO_WAIT,
+    )?;
 
     Ok(())
 }
@@ -105,10 +124,11 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
     keypair_from_string(&format!("//{}", seed))
 }
 
-fn wait_for_eras(
+fn wait_for_successive_eras(
     address: &str,
     connection: &Connection,
     validators_and_its_nominators: Vec<(KeyPair, Vec<AccountId>)>,
+    eras_to_wait: u32,
 ) -> Result<(), anyhow::Error> {
     // in order to have over 8k nominators we need to wait around 60 seconds all calls to be processed
     // that means not all 8k nominators we'll make i to era 1st, hence we need to wait to 2nd era
@@ -116,7 +136,7 @@ fn wait_for_eras(
     wait_for_next_era(connection)?;
     // then we wait another full era to test rewards
     let mut current_era = wait_for_next_era(connection)?;
-    for _ in 0..ERAS_TO_WAIT {
+    for _ in 0..eras_to_wait {
         info!(
             "Era {} started, claiming rewards for era {}",
             current_era,
@@ -156,7 +176,7 @@ fn nominate_validator(
             staking_batch_bond(
                 connection,
                 chunk,
-                (rng.gen::<u8>() % 100) as u128 * TOKEN + MIN_NOMINATOR_BOND,
+                (rng.gen::<u128>() % 100) * TOKEN + MIN_NOMINATOR_BOND,
                 RewardDestination::Staked,
             )
         });
@@ -169,25 +189,7 @@ fn nominate_validator(
         .for_each(|chunk| staking_batch_nominate(connection, chunk));
 }
 
-fn set_validators(
-    address: &str,
-    validators_seed_file: Option<String>,
-    validators_count: u32,
-) -> Vec<KeyPair> {
-    let validators = match validators_seed_file {
-        Some(validators_seed_file) => {
-            let validators_seeds = std::fs::read_to_string(&validators_seed_file)
-                .expect(&format!("Failed to read file {}", validators_seed_file));
-            validators_seeds
-                .split("\n")
-                .filter(|seed| !seed.is_empty())
-                .map(keypair_from_string)
-                .collect()
-        }
-        None => (0..validators_count)
-            .map(|validator_number| derive_user_account_from_numeric_seed(validator_number))
-            .collect::<Vec<_>>(),
-    };
+fn bond_validate(address: &str, validators: Vec<KeyPair>) -> Vec<KeyPair> {
     validators.par_iter().for_each(|account| {
         let connection = create_connection(address).set_signer(account.clone());
         let controller_account_id = AccountId::from(account.public());

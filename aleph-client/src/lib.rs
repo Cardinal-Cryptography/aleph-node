@@ -163,8 +163,8 @@ pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
 }
 
 fn storage_key(module: &str, version: &str) -> [u8; 32] {
-    let pallet_name = sp_io::hashing::twox_128(module.as_bytes());
-    let postfix = sp_io::hashing::twox_128(version.as_bytes());
+    let pallet_name = sp_core::hashing::twox_128(module.as_bytes());
+    let postfix = sp_core::hashing::twox_128(version.as_bytes());
     let mut final_key = [0u8; 32];
     final_key[..16].copy_from_slice(&pallet_name);
     final_key[16..].copy_from_slice(&postfix);
