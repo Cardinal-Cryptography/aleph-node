@@ -203,7 +203,13 @@ pub mod pallet {
             let most_recent_trusted_block = match Self::get_imported_block(
                 Self::get_last_imported_block_hash(),
             ) {
-                Some(best_finalized) => best_finalized,
+                Some(best_finalized) => match best_finalized.try_into() {
+                    Ok(block) => block,
+                    Err(why) => {
+                        log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
+                        fail!(<Error<T>>::Other);
+                    }
+                },
                 None => {
                     log::error!(
                         target: "runtime::tendermint-lc",
@@ -227,38 +233,41 @@ pub mod pallet {
                 }
             };
 
+            let to_verify = match untrusted_block.clone().try_into() {
+                Ok(block) => block,
+                Err(why) => {
+                    log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
+                    fail!(<Error<T>>::Other);
+                }
+            };
+
             match verify_light_block::<T>(
                 verifier,
-                untrusted_block.clone(),
-                most_recent_trusted_block,
+                &to_verify,
+                &most_recent_trusted_block,
                 &options,
                 now,
             ) {
-                Ok(verdict) => {
-                    match verdict {
-                        Verdict::Success => {
-                            match hash {
-                                TendermintHashStorage::Some(hash) => {
-                                    // update storage
-                                    insert_light_block::<T>(hash, untrusted_block);
-                                    log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
-                                    Self::deposit_event(Event::ImportedLightBlock(who, hash));
-                                    Ok(())
-                                }
-                                TendermintHashStorage::None => fail!(<Error<T>>::InvalidBlock),
-                            }
+                Verdict::Success => {
+                    match hash {
+                        TendermintHashStorage::Some(hash) => {
+                            // update storage
+                            insert_light_block::<T>(hash, untrusted_block);
+                            log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
+                            Self::deposit_event(Event::ImportedLightBlock(who, hash));
+                            Ok(())
                         }
-                        Verdict::NotEnoughTrust(voting_power_tally) => {
-                            log::warn!(target: "runtime::tendermint-lc", "Not enough voting power to accept the light block {:#?}, vote tally  {}", &hash, &voting_power_tally);
-                            fail!(<Error<T>>::NotEnoughTrust)
-                        }
-                        Verdict::Invalid(why) => {
-                            log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
-                            fail!(<Error<T>>::InvalidBlock)
-                        }
+                        TendermintHashStorage::None => fail!(<Error<T>>::InvalidBlock),
                     }
                 }
-                Err(error) => fail!(error),
+                Verdict::NotEnoughTrust(voting_power_tally) => {
+                    log::warn!(target: "runtime::tendermint-lc", "Not enough voting power to accept the light block {:#?}, vote tally  {}", &hash, &voting_power_tally);
+                    fail!(<Error<T>>::NotEnoughTrust)
+                }
+                Verdict::Invalid(why) => {
+                    log::warn!(target: "runtime::tendermint-lc", "Rejecting invalid light block {:#?} becasue {}", &hash, &why);
+                    fail!(<Error<T>>::InvalidBlock)
+                }
             }
         }
 
@@ -285,34 +294,18 @@ pub mod pallet {
 
     fn verify_light_block<T: Config>(
         verifier: ProdVerifier,
-        untrusted_block: LightBlockStorage,
-        trusted_block: LightBlockStorage,
+        untrusted_block: &LightBlock,
+        trusted_block: &LightBlock,
         options: &Options,
         now: Time,
-    ) -> Result<tendermint_light_client_verifier::Verdict, Error<T>> {
-        let untrusted_block: LightBlock = match untrusted_block.try_into() {
-            Ok(block) => block,
-            Err(why) => {
-                log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
-                return Err(Error::Other);
-            }
-        };
-
-        let trusted_block: LightBlock = match trusted_block.try_into() {
-            Ok(block) => block,
-            Err(why) => {
-                log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
-                return Err(Error::Other);
-            }
-        };
-
-        // verify against known state
-        Ok(verifier.verify(
+    ) -> tendermint_light_client_verifier::Verdict {
+        // verify against trusted state
+        verifier.verify(
             untrusted_block.as_untrusted_state(),
             trusted_block.as_trusted_state(),
             options,
             now,
-        ))
+        )
     }
 
     /// update light client storage
