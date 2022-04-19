@@ -185,15 +185,3 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn given_staking_nominate_call_when_get_storage_key_then_hash_is_correct() {
-        let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
-        assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
-    }
-}

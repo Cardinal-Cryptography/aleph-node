@@ -19,8 +19,8 @@ use primitives::{
 use sp_core::crypto::AccountId32;
 
 // testcase parameters
-const NOMINATOR_COUNT: u64 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR as u64;
-const ERAS_TO_WAIT: u64 = 100;
+const NOMINATOR_COUNT: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
+const ERAS_TO_WAIT: u32 = 100;
 
 // we need to schedule batches for limited call count, otherwise we'll exhaust a block max weight
 const BOND_CALL_BATCH_LIMIT: usize = 256;
@@ -46,7 +46,7 @@ struct Config {
 
     /// number of testcase validators
     #[clap(long, default_value = "10")]
-    pub validator_count: u64,
+    pub validator_count: u32,
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -67,7 +67,7 @@ fn main() -> Result<(), anyhow::Error> {
     };
 
     env_logger::init();
-    info!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
+    warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
     let connection = create_connection(&address).set_signer(sudoer);
     let validators = set_validators(&address, validators_seed_file, validator_count);
@@ -75,15 +75,13 @@ fn main() -> Result<(), anyhow::Error> {
         create_test_validators_and_its_nominators(&connection, validators, validator_count);
     wait_for_eras(&address, &connection, validators_and_its_nominators)?;
 
-    // spam_accounts(&connection);
-
     Ok(())
 }
 
 fn create_test_validators_and_its_nominators(
     connection: &Connection,
     validators: Vec<KeyPair>,
-    validators_count: u64,
+    validators_count: u32,
 ) -> Vec<(KeyPair, Vec<AccountId32>)> {
     validators
         .iter()
@@ -91,7 +89,7 @@ fn create_test_validators_and_its_nominators(
         .map(|(validator_index, validator_pair)| {
             let nominator_accounts = generate_nominator_accounts_with_minimal_bond(
                 &connection,
-                validator_index as u64,
+                validator_index as u32,
                 validators_count,
             );
             let nominee_account = AccountId::from(validator_pair.public());
@@ -102,7 +100,7 @@ fn create_test_validators_and_its_nominators(
         .collect()
 }
 
-pub fn derive_user_account_from_numeric_seed(seed: u64) -> KeyPair {
+pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
     trace!("Generating account from numeric seed {}", seed);
     keypair_from_string(&format!("//{}", seed))
 }
@@ -174,7 +172,7 @@ fn nominate_validator(
 fn set_validators(
     address: &str,
     validators_seed_file: Option<String>,
-    validators_count: u64,
+    validators_count: u32,
 ) -> Vec<KeyPair> {
     let validators = match validators_seed_file {
         Some(validators_seed_file) => {
@@ -210,8 +208,8 @@ fn set_validators(
 
 fn generate_nominator_accounts_with_minimal_bond(
     connection: &Connection,
-    validator_number: u64,
-    validators_count: u64,
+    validator_number: u32,
+    validators_count: u32,
 ) -> Vec<AccountId> {
     info!(
         "Generating nominator accounts for validator {}",
