@@ -1,5 +1,5 @@
 use clap::Parser;
-use log::{info, trace};
+use log::{info, trace, warn};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
