@@ -1,5 +1,5 @@
-{ nixpkgs ? (import ./versions.nix).nixpkgs }:
 let
+  nixpkgs = (import ./versions.nix).nixpkgs;
   alephNodeDrv = import ../default.nix;
   alephNode = alephNodeDrv { crates = { "aleph-node" = []; }; };
   alephRuntime = alephNodeDrv { crates = { "aleph-runtime" = []; }; };
