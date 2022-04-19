@@ -19,6 +19,7 @@ use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
+    trust_threshold::TrustThresholdFraction,
     validator::{self, ProposerPriority},
     vote, Hash as TendermintHash, PublicKey as TmPublicKey, Time,
 };
@@ -32,6 +33,20 @@ pub type TendermintVoteSignature = H512;
 pub type TendermintPeerId = H160;
 pub type TendermintAccountId = H160;
 pub type TendermintBlockHash = H256;
+
+#[derive(RuntimeDebug)]
+pub enum ConversionError {
+    /// error with a context in a str
+    WithContext(&'static str),
+    /// wrapper for tendermint error types
+    Upstream(tendermint::Error),
+}
+
+impl From<tendermint::Error> for ConversionError {
+    fn from(e: tendermint::Error) -> Self {
+        Self::Upstream(e)
+    }
+}
 
 #[derive(Encode, Decode, Clone, Copy, RuntimeDebug, TypeInfo, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize))]
@@ -51,14 +66,8 @@ impl<'de> Deserialize<'de> for TendermintHashStorage {
     }
 }
 
-// impl Default for TendermintHashStorage {
-//     fn default() -> Self {
-//         Self::None
-//     }
-// }
-
 impl TryFrom<tendermint::Hash> for TendermintHashStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: tendermint::Hash) -> Result<Self, Self::Error> {
         match value {
@@ -66,7 +75,7 @@ impl TryFrom<tendermint::Hash> for TendermintHashStorage {
                 if bytes.len() == hash::SHA256_HASH_SIZE {
                     Ok(TendermintHashStorage::Some(H256::from_slice(&bytes)))
                 } else {
-                    Err("Invalid hash size")
+                    Err(ConversionError::WithContext("Invalid hash size"))
                 }
             }
             TendermintHash::None => Ok(TendermintHashStorage::None),
@@ -74,14 +83,12 @@ impl TryFrom<tendermint::Hash> for TendermintHashStorage {
     }
 }
 
-impl TryFrom<TendermintHashStorage> for TendermintHash {
-    type Error = &'static str;
-
-    fn try_from(value: TendermintHashStorage) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<TendermintHashStorage> for TendermintHash {
+    fn from(value: TendermintHashStorage) -> Self {
+        match value {
             TendermintHashStorage::Some(hash) => TendermintHash::Sha256(hash.0),
             TendermintHashStorage::None => TendermintHash::None,
-        })
+        }
     }
 }
 
@@ -102,10 +109,10 @@ impl TrustThresholdStorage {
 }
 
 impl TryFrom<TrustThresholdStorage> for TrustThreshold {
-    type Error = tendermint::Error;
+    type Error = ConversionError;
 
     fn try_from(value: TrustThresholdStorage) -> Result<Self, Self::Error> {
-        Self::new(value.numerator, value.denominator)
+        Self::new(value.numerator, value.denominator).map_err(ConversionError::Upstream)
     }
 }
 
@@ -154,14 +161,13 @@ impl Default for LightClientOptionsStorage {
 }
 
 impl TryFrom<LightClientOptionsStorage> for Options {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: LightClientOptionsStorage) -> Result<Self, Self::Error> {
+        let trust_threshold = value.trust_threshold.try_into()?;
+
         Ok(Self {
-            trust_threshold: value
-                .trust_threshold
-                .try_into()
-                .expect("Can't create TrustThreshold"),
+            trust_threshold,
             trusting_period: Duration::from_secs(value.trusting_period),
             clock_drift: Duration::from_secs(value.clock_drift),
         })
@@ -233,29 +239,22 @@ impl PartSetHeaderStorage {
 }
 
 impl TryFrom<PartSetHeaderStorage> for PartSetHeader {
-    type Error = &'static str;
+    type Error = ConversionError;
+
     fn try_from(value: PartSetHeaderStorage) -> Result<Self, Self::Error> {
-        Ok(Self::new(
-            value.total,
-            value
-                .hash
-                .try_into()
-                .expect("Cannot cast BrdgedBlock Hash as tendermint::Hash"),
-        )
-        .expect("Cannot instantiate PartSetHeader"))
+        let PartSetHeaderStorage { total, hash } = value;
+        Ok(Self::new(total, hash.into())?)
     }
 }
 
 impl TryFrom<PartSetHeader> for PartSetHeaderStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
-    fn try_from(psh: PartSetHeader) -> Result<Self, Self::Error> {
+    fn try_from(value: PartSetHeader) -> Result<Self, Self::Error> {
+        let PartSetHeader { total, hash, .. } = value;
         Ok(Self {
-            total: psh.total,
-            hash: psh
-                .hash
-                .try_into()
-                .expect("Cannot cast tendermint::Hash as BridgedBlockHash"),
+            total,
+            hash: hash.try_into()?,
         })
     }
 }
@@ -279,48 +278,36 @@ impl BlockIdStorage {
             part_set_header,
         }
     }
-
-    // pub fn default() -> Self {
-    //     let hash = TendermintHashStorage::default();
-    //     Self {
-    //         hash,
-    //         part_set_header: PartSetHeaderStorage::new(1, hash),
-    //     }
-    // }
-
-    // pub fn set_hash(&mut self, hash: TendermintHashStorage) -> Self {
-    //     self.hash = hash;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_part_set_header(&mut self, part_set_header: PartSetHeaderStorage) -> Self {
-    //     self.part_set_header = part_set_header;
-    //     self.to_owned()
-    // }
 }
 
 impl TryFrom<BlockIdStorage> for block::Id {
-    type Error = &'static str;
+    type Error = ConversionError;
+
     fn try_from(value: BlockIdStorage) -> Result<Self, Self::Error> {
+        let BlockIdStorage {
+            hash,
+            part_set_header,
+        } = value;
+
         Ok(Self {
-            hash: value
-                .hash
-                .try_into()
-                .expect("Cannot cast BridgedBlockHash as tendermint::Hash"),
-            part_set_header: value
-                .part_set_header
-                .try_into()
-                .expect("Cannot create block Id"),
+            hash: hash.into(),
+            part_set_header: part_set_header.try_into()?,
         })
     }
 }
 
 impl TryFrom<block::Id> for BlockIdStorage {
-    type Error = &'static str;
-    fn try_from(id: block::Id) -> Result<Self, Self::Error> {
+    type Error = ConversionError;
+
+    fn try_from(value: block::Id) -> Result<Self, Self::Error> {
+        let block::Id {
+            hash,
+            part_set_header,
+        } = value;
+
         Ok(Self {
-            hash: id.hash.try_into()?,
-            part_set_header: id.part_set_header.try_into()?,
+            hash: hash.try_into()?,
+            part_set_header: part_set_header.try_into()?,
         })
     }
 }
@@ -410,45 +397,6 @@ impl HeaderStorage {
             proposer_address,
         }
     }
-
-    // pub fn default() -> Self {
-    //     Self {
-    //         version: VersionStorage::new(u64::default(), u64::default()),
-    //         chain_id: empty_bytes(20),
-    //         height: 0,
-    //         timestamp: TimestampStorage::new(0, 0),
-    //         last_block_id: None,
-    //         last_commit_hash: None,
-    //         data_hash: None,
-    //         validators_hash: H256::default(),
-    //         next_validators_hash: H256::default(),
-    //         consensus_hash: H256::default(),
-    //         app_hash: empty_bytes(20),
-    //         last_results_hash: None,
-    //         evidence_hash: None,
-    //         proposer_address: TendermintAccountId::default(),
-    //     }
-    // }
-
-    // pub fn set_height(&mut self, height: u64) -> Self {
-    //     self.height = height;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_validators_hash(&mut self, hash: H256) -> Self {
-    //     self.validators_hash = hash;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_next_validators_hash(&mut self, hash: H256) -> Self {
-    //     self.next_validators_hash = hash;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_time(&mut self, timestamp: TimestampStorage) -> Self {
-    //     self.timestamp = timestamp;
-    //     self.to_owned()
-    // }
 }
 
 /// Represents  UTC time since Unix epoch
@@ -466,15 +414,15 @@ impl TimestampStorage {
 }
 
 impl TryFrom<TimestampStorage> for Time {
-    type Error = tendermint::Error;
+    type Error = ConversionError;
 
     fn try_from(value: TimestampStorage) -> Result<Self, Self::Error> {
-        Time::from_unix_timestamp(value.seconds, value.nanos)
+        Time::from_unix_timestamp(value.seconds, value.nanos).map_err(ConversionError::Upstream)
     }
 }
 
 impl TryFrom<Time> for TimestampStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: Time) -> Result<Self, Self::Error> {
         let tm_timestamp: TmTimestamp = value.into();
@@ -484,7 +432,7 @@ impl TryFrom<Time> for TimestampStorage {
                 nanos,
             })
         } else {
-            Err("timestamp nanos out of range")
+            Err(ConversionError::WithContext("timestamp nanos out of range"))
         }
     }
 }
@@ -564,7 +512,7 @@ impl<'de> serde::Deserialize<'de> for CommitSignatureStorage {
 }
 
 impl TryFrom<CommitSignatureStorage> for CommitSig {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: CommitSignatureStorage) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -576,9 +524,13 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
             } => {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
-                let timestamp = timestamp.try_into().unwrap();
-                let signature =
-                    signature.map(|signature| as_tendermint_signature(signature).unwrap());
+                let timestamp = timestamp.try_into()?;
+                let signature = match signature {
+                    Some(value) => {
+                        Some(as_tendermint_signature(value).map_err(ConversionError::Upstream)?)
+                    }
+                    None => None,
+                };
 
                 Self::BlockIdFlagCommit {
                     validator_address,
@@ -586,6 +538,7 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
                     signature,
                 }
             }
+
             CommitSignatureStorage::BlockIdFlagNil {
                 validator_address,
                 timestamp,
@@ -593,9 +546,13 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
             } => {
                 let validator_address =
                     account_id_from_bytes(validator_address.as_fixed_bytes().to_owned());
-                let timestamp = timestamp.try_into().unwrap();
-                let signature =
-                    signature.map(|signature| as_tendermint_signature(signature).unwrap());
+                let timestamp = timestamp.try_into()?;
+                let signature = match signature {
+                    Some(value) => {
+                        Some(as_tendermint_signature(value).map_err(ConversionError::Upstream)?)
+                    }
+                    None => None,
+                };
 
                 Self::BlockIdFlagNil {
                     validator_address,
@@ -608,11 +565,12 @@ impl TryFrom<CommitSignatureStorage> for CommitSig {
 }
 
 impl TryFrom<CommitSig> for CommitSignatureStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(commit_sig: CommitSig) -> Result<Self, Self::Error> {
         Ok(match commit_sig {
             CommitSig::BlockIdFlagAbsent => CommitSignatureStorage::BlockIdFlagAbsent,
+
             CommitSig::BlockIdFlagCommit {
                 validator_address,
                 timestamp,
@@ -622,6 +580,7 @@ impl TryFrom<CommitSig> for CommitSignatureStorage {
                 timestamp: timestamp.try_into()?,
                 signature: signature.map(|sig| H512::from_slice(sig.as_bytes())),
             },
+
             CommitSig::BlockIdFlagNil {
                 validator_address,
                 timestamp,
@@ -663,46 +622,11 @@ impl CommitStorage {
             signatures,
         }
     }
-
-    // pub fn default() -> Self {
-    //     let height = 0;
-    //     let round = 0;
-    //     let signatures = vec![CommitSignatureStorage::BlockIdFlagCommit {
-    //         validator_address: TendermintAccountId::default(),
-    //         timestamp: TimestampStorage::new(0, 0),
-    //         signature: Some(TendermintVoteSignature::default()),
-    //     }];
-    //     let hash = TendermintHashStorage::default();
-    //     let total = u32::default();
-    //     let part_set_header = PartSetHeaderStorage::new(total, hash);
-    //     let block_id = BlockIdStorage::new(hash, part_set_header);
-
-    //     Self {
-    //         height,
-    //         round,
-    //         block_id,
-    //         signatures,
-    //     }
-    // }
-
-    // pub fn set_height(&mut self, height: u64) -> Self {
-    //     self.height = height;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_round(&mut self, round: u32) -> Self {
-    //     self.round = round;
-    //     self.to_owned()
-    // }
-
-    // pub fn set_block_id(&mut self, block_id: BlockIdStorage) -> Self {
-    //     self.block_id = block_id;
-    //     self.to_owned()
-    // }
 }
 
+// TODO
 impl TryFrom<CommitStorage> for Commit {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: CommitStorage) -> Result<Self, Self::Error> {
         let CommitStorage {
@@ -713,19 +637,28 @@ impl TryFrom<CommitStorage> for Commit {
         } = value;
 
         Ok(Self {
-            height: block::Height::try_from(height).expect("Cannot create Height"),
-            round: block::Round::try_from(round).expect("Cannot create Round"),
-            block_id: block_id.try_into().expect("Cannot create block Id"),
+            height: block::Height::try_from(height)?,
+            round: block::Round::try_from(round)?,
+            block_id: block_id.try_into()?,
+
             signatures: signatures
                 .into_iter()
-                .map(|elem| elem.try_into().expect("Cannot create Commit"))
+                .map(|elem| elem.try_into().unwrap())
                 .collect(),
+            // signatures: signatures.into_iter().try_fold(
+            //     Vec::new(),
+            //     |acc, elem| -> Result<Vec<CommitSig>, Self::Error> {
+            //         let converted = elem.try_into();
+            //         acc.push(converted);
+            //         acc
+            //     },
+            // ),
         })
     }
 }
 
 impl TryFrom<Commit> for CommitStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(commit: Commit) -> Result<Self, Self::Error> {
         let mut signatures = Vec::with_capacity(commit.signatures.len());
@@ -743,7 +676,7 @@ impl TryFrom<Commit> for CommitStorage {
 }
 
 impl TryFrom<HeaderStorage> for Header {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: HeaderStorage) -> Result<Self, Self::Error> {
         let HeaderStorage {
@@ -764,13 +697,12 @@ impl TryFrom<HeaderStorage> for Header {
         } = value;
 
         Ok(Self {
-            version: version.try_into().expect("Cannot create Version"),
+            version: version.into(),
             chain_id: String::from_utf8(chain_id)
-                .expect("Not a UTF8 string encoding")
-                .parse::<chain::Id>()
-                .expect("Cannot parse as Chain Id"),
-            height: block::Height::try_from(height).expect("Cannot create Height"),
-            time: timestamp.try_into().unwrap(),
+                .map_err(|_| ConversionError::WithContext("Not a UTF8 string encoding"))?
+                .parse::<chain::Id>()?,
+            height: block::Height::try_from(height)?,
+            time: timestamp.try_into()?,
             last_block_id: match last_block_id {
                 Some(id) => id.try_into().ok(),
                 None => None,
@@ -780,7 +712,7 @@ impl TryFrom<HeaderStorage> for Header {
             validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
             next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
             consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
-            app_hash: hash::AppHash::try_from(app_hash).expect("Cannot create AppHash"),
+            app_hash: hash::AppHash::try_from(app_hash)?,
             last_results_hash: last_results_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             evidence_hash: evidence_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
             proposer_address: account_id_from_bytes(proposer_address.as_fixed_bytes().to_owned()),
@@ -789,7 +721,8 @@ impl TryFrom<HeaderStorage> for Header {
 }
 
 impl TryFrom<Header> for HeaderStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
+
     fn try_from(header: Header) -> Result<Self, Self::Error> {
         let last_commit_hash = header
             .last_commit_hash
@@ -801,18 +734,26 @@ impl TryFrom<Header> for HeaderStorage {
         let validators_hash = match header.validators_hash {
             TendermintHash::Sha256(secp) => H256::from_slice(&secp),
             TendermintHash::None => {
-                return Err("unexpected hash variant for validators_hash field")
+                return Err(ConversionError::WithContext(
+                    "unexpected hash variant for validators_hash field",
+                ))
             }
         };
         let next_validators_hash = match header.validators_hash {
             TendermintHash::Sha256(secp) => H256::from_slice(&secp),
             TendermintHash::None => {
-                return Err("unexpected hash variant for next_validators_hash field")
+                return Err(ConversionError::WithContext(
+                    "unexpected hash variant for next_validators_hash field",
+                ))
             }
         };
         let consensus_hash = match header.validators_hash {
             TendermintHash::Sha256(secp) => H256::from_slice(&secp),
-            TendermintHash::None => return Err("unexpected hash variant for consensus_hash field"),
+            TendermintHash::None => {
+                return Err(ConversionError::WithContext(
+                    "unexpected hash variant for consensus_hash field",
+                ))
+            }
         };
         let app_hash = header.app_hash.value();
         let last_results_hash = header
@@ -824,15 +765,15 @@ impl TryFrom<Header> for HeaderStorage {
             .as_ref()
             .and_then(tendermint_hash_to_h256);
         let proposer_address = TendermintPeerId::from_slice(header.proposer_address.as_bytes());
-
         let version = header.version.into();
         let chain_id = header.chain_id.as_bytes().to_vec();
         let height = header.height.value();
         let time = header.time.try_into()?;
-        let last_block_id: Option<BlockIdStorage> = header.last_block_id.map(|id| {
-            id.try_into()
-                .expect("Cannot cast block::Id as BlockIdStorage")
-        });
+
+        let last_block_id = match header.last_block_id {
+            Some(last_block_id) => Some(last_block_id.try_into()?),
+            None => None,
+        };
 
         Ok(HeaderStorage::new(
             version,
@@ -867,7 +808,7 @@ impl SignedHeaderStorage {
 }
 
 impl TryFrom<SignedHeaderStorage> for SignedHeader {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: SignedHeaderStorage) -> Result<Self, Self::Error> {
         let SignedHeaderStorage { header, commit } = value;
@@ -875,13 +816,12 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
         Ok(Self::new(
             header.try_into().expect("Cannot create Header"),
             commit.try_into().expect("Cannot create Commit"),
-        )
-        .expect("Cannot create SignedHeader"))
+        )?)
     }
 }
 
 impl TryFrom<SignedHeader> for SignedHeaderStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(signed_header: SignedHeader) -> Result<Self, Self::Error> {
         let header = signed_header.header().clone().try_into()?;
@@ -949,30 +889,10 @@ impl ValidatorInfoStorage {
             proposer_priority,
         }
     }
-
-    // pub fn default() -> Self {
-    //     Self {
-    //         address: TendermintAccountId::default(),
-    //         pub_key: TendermintPublicKey::Ed25519(H256::default()),
-    //         power: u64::default(),
-    //         name: Some(empty_bytes(32)),
-    //         proposer_priority: i64::default(),
-    //     }
-    // }
-
-    // pub fn set_name(&mut self, name: Vec<u8>) -> Self {
-    //     self.name = Some(name);
-    //     self.to_owned()
-    // }
-
-    // pub fn set_power(&mut self, power: u64) -> Self {
-    //     self.power = power;
-    //     self.to_owned()
-    // }
 }
 
 impl TryFrom<ValidatorInfoStorage> for validator::Info {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: ValidatorInfoStorage) -> Result<Self, Self::Error> {
         let ValidatorInfoStorage {
@@ -989,14 +909,14 @@ impl TryFrom<ValidatorInfoStorage> for validator::Info {
             pub_key: match pub_key {
                 TendermintPublicKey::Ed25519(hash) => {
                     tendermint::PublicKey::from_raw_ed25519(hash.as_bytes())
-                        .expect("Not a ed25519 public key")
+                        .ok_or(ConversionError::WithContext("Not a ed25519 public key"))?
                 }
                 TendermintPublicKey::Secp256k1(hash) => {
                     tendermint::PublicKey::from_raw_secp256k1(hash.as_bytes())
-                        .expect("Not a secp256k1 public key")
+                        .ok_or(ConversionError::WithContext("Not a secp256k1 public key"))?
                 }
             },
-            power: vote::Power::try_from(power).expect("Cannot create Power"),
+            power: vote::Power::try_from(power)?,
             name: match name {
                 Some(name) => String::from_utf8(name).ok(),
                 None => None,
@@ -1026,7 +946,6 @@ impl From<validator::Info> for ValidatorInfoStorage {
         let pub_key = info.pub_key.into();
         Self::new(
             address,
-            // None,
             pub_key,
             info.power.value(),
             info.name.clone().map(|s| s.as_bytes().to_vec()),
@@ -1058,8 +977,9 @@ impl ValidatorSetStorage {
     }
 }
 
+// TODO
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: ValidatorSetStorage) -> Result<Self, Self::Error> {
         let ValidatorSetStorage {
@@ -1068,12 +988,17 @@ impl TryFrom<ValidatorSetStorage> for ValidatorSet {
             ..
         } = value;
 
+        let validators = validators.into_iter().try_fold(
+            Vec::new(),
+            |mut acc, element| -> Result<Vec<validator::Info>, ConversionError> {
+                acc.push(element.try_into()?);
+                Ok(acc)
+            },
+        )?;
+
         // NOTE: constructor will sum up voting powers
         Ok(Self::new(
-            validators
-                .into_iter()
-                .map(|elem| elem.try_into().expect("Cannot create ValidatorInfo"))
-                .collect(),
+            validators,
             match proposer {
                 Some(proposer) => proposer.try_into().ok(),
                 None => None,
@@ -1123,7 +1048,7 @@ impl LightBlockStorage {
 }
 
 impl TryFrom<LightBlockStorage> for LightBlock {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: LightBlockStorage) -> Result<Self, Self::Error> {
         let LightBlockStorage {
@@ -1133,23 +1058,22 @@ impl TryFrom<LightBlockStorage> for LightBlock {
             provider,
         } = value;
 
-        let bytes: [u8; 20] = provider.try_into().expect("Not a 20 byte array");
+        let bytes: [u8; 20] = provider
+            .try_into()
+            .map_err(|_| ConversionError::WithContext("Not a 20 byte array"))?;
 
         Ok(Self {
-            signed_header: signed_header
-                .try_into()
-                .expect("Cannot create SignedHeader"),
-            validators: validators.try_into().expect("Cannot create ValidatorSet"),
-            next_validators: next_validators
-                .try_into()
-                .expect("Cannot create next ValidatorSet"),
+            signed_header: signed_header.try_into()?, // .expect("Cannot create SignedHeader")
+            validators: validators.try_into()?,       //.expect("Cannot create ValidatorSet"),
+            next_validators: next_validators.try_into()?,
+            // .expect("Cannot create next ValidatorSet"),
             provider: node::Id::new(bytes),
         })
     }
 }
 
 impl TryFrom<LightBlock> for LightBlockStorage {
-    type Error = &'static str;
+    type Error = ConversionError;
 
     fn try_from(value: LightBlock) -> Result<Self, Self::Error> {
         let LightBlock {

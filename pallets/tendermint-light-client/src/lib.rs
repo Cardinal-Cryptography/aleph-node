@@ -92,6 +92,7 @@ pub mod pallet {
         InvalidBlock,
         /// Initial block is invalid
         InvalidInitialBlock,
+        // TODO : type conversion error
         /// General error during client operations
         Other,
     }
