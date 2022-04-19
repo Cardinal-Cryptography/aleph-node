@@ -19,7 +19,6 @@ use subtle_encoding::hex;
 use tendermint::{
     block::{self, header::Version, parts::Header as PartSetHeader, Commit, CommitSig, Header},
     chain, hash, node,
-    trust_threshold::TrustThresholdFraction,
     validator::{self, ProposerPriority},
     vote, Hash as TendermintHash, PublicKey as TmPublicKey, Time,
 };
@@ -624,7 +623,6 @@ impl CommitStorage {
     }
 }
 
-// TODO
 impl TryFrom<CommitStorage> for Commit {
     type Error = ConversionError;
 
@@ -636,23 +634,19 @@ impl TryFrom<CommitStorage> for Commit {
             signatures,
         } = value;
 
+        let signatures = signatures.into_iter().try_fold(
+            Vec::new(),
+            |mut acc, element| -> Result<Vec<tendermint::block::CommitSig>, ConversionError> {
+                acc.push(element.try_into()?);
+                Ok(acc)
+            },
+        )?;
+
         Ok(Self {
             height: block::Height::try_from(height)?,
             round: block::Round::try_from(round)?,
             block_id: block_id.try_into()?,
-
-            signatures: signatures
-                .into_iter()
-                .map(|elem| elem.try_into().unwrap())
-                .collect(),
-            // signatures: signatures.into_iter().try_fold(
-            //     Vec::new(),
-            //     |acc, elem| -> Result<Vec<CommitSig>, Self::Error> {
-            //         let converted = elem.try_into();
-            //         acc.push(converted);
-            //         acc
-            //     },
-            // ),
+            signatures,
         })
     }
 }
@@ -812,11 +806,7 @@ impl TryFrom<SignedHeaderStorage> for SignedHeader {
 
     fn try_from(value: SignedHeaderStorage) -> Result<Self, Self::Error> {
         let SignedHeaderStorage { header, commit } = value;
-
-        Ok(Self::new(
-            header.try_into().expect("Cannot create Header"),
-            commit.try_into().expect("Cannot create Commit"),
-        )?)
+        Ok(Self::new(header.try_into()?, commit.try_into()?)?)
     }
 }
 
@@ -977,7 +967,6 @@ impl ValidatorSetStorage {
     }
 }
 
-// TODO
 impl TryFrom<ValidatorSetStorage> for ValidatorSet {
     type Error = ConversionError;
 
@@ -1063,10 +1052,9 @@ impl TryFrom<LightBlockStorage> for LightBlock {
             .map_err(|_| ConversionError::WithContext("Not a 20 byte array"))?;
 
         Ok(Self {
-            signed_header: signed_header.try_into()?, // .expect("Cannot create SignedHeader")
-            validators: validators.try_into()?,       //.expect("Cannot create ValidatorSet"),
+            signed_header: signed_header.try_into()?,
+            validators: validators.try_into()?,
             next_validators: next_validators.try_into()?,
-            // .expect("Cannot create next ValidatorSet"),
             provider: node::Id::new(bytes),
         })
     }
