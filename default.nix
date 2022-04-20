@@ -1,5 +1,6 @@
 { versions ? import ./nix/versions.nix
 , release ? true
+, name ? "aleph-node"
 , crates ? { "aleph-node" = []; }
 , runTests ? false
 , rustflags ? "-C target-cpu=native"
@@ -115,7 +116,7 @@ let
   };
 in
 with nixpkgs; naersk.buildPackage rec {
-  name = "aleph-node";
+  inherit name;
   inherit release src;
   doCheck = runTests;
   nativeBuildInputs = [

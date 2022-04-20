@@ -80,7 +80,7 @@ jobs:
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          chmod +x docker/nix-build.sh && CRATES='{ "aleph-runtime" = []; }' PATH_TO_FIX= docker/nix-build.sh
+          chmod +x docker/nix-build.sh && CRATES='{ "aleph-runtime" = []; }' NAME="aleph-runtime" PATH_TO_FIX= docker/nix-build.sh
           cp result/lib/aleph_runtime.compact.wasm "$TARGET_DIR"
           sha256sum -c checksum.sha256
 
