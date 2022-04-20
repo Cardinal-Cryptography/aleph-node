@@ -3,6 +3,7 @@ use crate::{
     mock::*,
     types::{
         LightBlockStorage, LightClientOptionsStorage, TendermintHashStorage, TimestampStorage,
+        TrustThresholdStorage,
     },
 };
 use frame_support::{assert_err, assert_ok};
@@ -51,7 +52,7 @@ fn successful_verification() {
         Timestamp::set_timestamp(5000);
 
         let root = Origin::root();
-        let options = LightClientOptionsStorage::default();
+        let options = LightClientOptionsStorage::new(TrustThresholdStorage::new(2, 3), 3600, 60);
         let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
 
         assert_ok!(Pallet::<TestRuntime>::initialize_client(
@@ -60,8 +61,12 @@ fn successful_verification() {
             initial_block.clone()
         ));
 
+        let stored_options @ LightClientOptionsStorage {clock_drift,..}: LightClientOptionsStorage =
+            Pallet::<TestRuntime>::get_options();
+
         // assert storage updated
-        assert_eq!(Pallet::<TestRuntime>::get_options(), options.clone());
+        assert_eq!(clock_drift, 60);
+        assert_eq!(stored_options, options.clone());
 
         assert_eq!(Pallet::<TestRuntime>::is_halted(), false);
 
@@ -160,6 +165,36 @@ fn halted() {
         assert_err!(
             Pallet::<TestRuntime>::update_client(origin, untrusted_block.clone()),
             super::Error::<TestRuntime>::Halted
+        );
+    });
+}
+
+#[test]
+fn already_initialized() {
+    new_test_ext(|| {
+        System::set_block_number(1);
+
+        let options = LightClientOptionsStorage::default();
+
+        // 1970-01-01T00:00:03Z + trusting period + clock_drift
+        Timestamp::set_timestamp(3000 + (options.trusting_period + options.clock_drift) * 1000);
+
+        let root = Origin::root();
+        let initial_block: LightBlockStorage = serde_json::from_str(mock::TRUSTED_BLOCK).unwrap();
+
+        assert_ok!(Pallet::<TestRuntime>::initialize_client(
+            root.clone(),
+            options.clone(),
+            initial_block.clone()
+        ));
+
+        assert_err!(
+            Pallet::<TestRuntime>::initialize_client(
+                root.clone(),
+                options.clone(),
+                initial_block.clone()
+            ),
+            super::Error::<TestRuntime>::AlreadyInitialized
         );
     });
 }

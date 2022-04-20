@@ -189,7 +189,7 @@ construct_runtime! {
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        TendermintLightClient: tendermint_light_client::{Pallet, Storage, Event<T>}
+        TendermintLightClient: tendermint_light_client::{Pallet, Call, Storage, Event<T>}
     }
 }
 
