@@ -701,14 +701,34 @@ impl TryFrom<HeaderStorage> for Header {
                 Some(id) => id.try_into().ok(),
                 None => None,
             },
-            last_commit_hash: last_commit_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
-            data_hash: data_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
-            validators_hash: sha256_from_bytes(validators_hash.as_bytes()),
-            next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes()),
-            consensus_hash: sha256_from_bytes(consensus_hash.as_bytes()),
+            last_commit_hash: match last_commit_hash {
+                Some(hash) => {
+                    Some(sha256_from_bytes(hash.as_bytes()).map_err(ConversionError::Upstream)?)
+                }
+                None => None,
+            },
+            data_hash: match data_hash {
+                Some(hash) => {
+                    Some(sha256_from_bytes(hash.as_bytes()).map_err(ConversionError::Upstream)?)
+                }
+                None => None,
+            },
+            validators_hash: sha256_from_bytes(validators_hash.as_bytes())?,
+            next_validators_hash: sha256_from_bytes(next_validators_hash.as_bytes())?,
+            consensus_hash: sha256_from_bytes(consensus_hash.as_bytes())?,
             app_hash: hash::AppHash::try_from(app_hash)?,
-            last_results_hash: last_results_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
-            evidence_hash: evidence_hash.map(|hash| sha256_from_bytes(hash.as_bytes())),
+            last_results_hash: match last_results_hash {
+                Some(hash) => {
+                    Some(sha256_from_bytes(hash.as_bytes()).map_err(ConversionError::Upstream)?)
+                }
+                None => None,
+            },
+            evidence_hash: match evidence_hash {
+                Some(hash) => {
+                    Some(sha256_from_bytes(hash.as_bytes()).map_err(ConversionError::Upstream)?)
+                }
+                None => None,
+            },
             proposer_address: account_id_from_bytes(proposer_address.as_fixed_bytes().to_owned()),
         })
     }
