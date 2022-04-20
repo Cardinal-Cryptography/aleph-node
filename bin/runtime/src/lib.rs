@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use crate::elections::{SampleSessionManager, StakeReward};
 use pallet_staking::EraIndex;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -48,7 +49,7 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, TOKEN,
+    DEFAULT_SESSION_PERIOD,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -59,6 +60,8 @@ use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
+
+mod elections;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -218,27 +221,6 @@ parameter_types! {
     pub const UncleGenerations: BlockNumber = 0;
 }
 
-pub struct StakeReward {}
-impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
-    fn note_author(validator: AccountId) {
-        let active_era = Staking::active_era().unwrap().index;
-        let exposure = pallet_staking::ErasStakers::<Runtime>::get(active_era, &validator);
-        let number_of_sessions_per_validator = SessionsPerEra::get()
-            / (MembersPerSession::get() - Staking::invulnerables().len() as u32);
-        let total_points_per_session = exposure.total / TOKEN;
-        let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
-        let blocks_to_produce_per_era =
-            blocks_to_produce_per_session * number_of_sessions_per_validator;
-        let points_per_block =
-            Perbill::from_rational(1, blocks_to_produce_per_era) * total_points_per_session as u32;
-
-        pallet_staking::Pallet::<Runtime>::reward_by_ids(
-            [(validator, points_per_block)].into_iter(),
-        );
-    }
-    fn note_uncle(_author: AccountId, _age: BlockNumber) {}
-}
-
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
@@ -334,6 +316,8 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
 }
 
+impl pallet_rewards::Config for Runtime {}
+
 impl_opaque_keys! {
     pub struct SessionKeys {
         pub aura: Aura,
@@ -356,60 +340,6 @@ impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
     pub const Offset: u32 = 0;
-}
-
-// Choose a subset of all the validators for current era that contains all the
-// reserved nodes. Non reserved ones are chosen in consecutive batches for every session
-fn rotate() -> Option<Vec<AccountId>> {
-    let current_era = Staking::current_era()?;
-    if current_era == 0 {
-        return None;
-    }
-    let mut all_validators: Vec<AccountId> =
-        pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
-    // this is tricky: we might change the number of reserved nodes for (current_era + 1) while still
-    // in current_era. This is not a problem as long as we enlarge the list.
-    // A solution could be to store reserved nodes per era, but this is somewhat cumbersome.
-    // There is a ticket to improve that in later iteration
-    let mut validators = pallet_staking::Invulnerables::<Runtime>::get();
-    all_validators.retain(|v| !validators.contains(v));
-    let n_all_validators = all_validators.len();
-
-    let n_validators = MembersPerSession::get() as usize;
-    let free_sits = n_validators.checked_sub(validators.len()).unwrap();
-
-    let current_session = Session::current_index() as usize;
-    let first_validator = current_session * free_sits;
-
-    validators.extend(
-        (first_validator..first_validator + free_sits)
-            .map(|i| all_validators[i % n_all_validators].clone()),
-    );
-
-    Some(validators)
-}
-
-use primitives::SessionIndex;
-type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
-pub struct SampleSessionManager;
-
-impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
-    fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session(new_index);
-        rotate()
-    }
-
-    fn end_session(end_index: SessionIndex) {
-        SM::end_session(end_index)
-    }
-
-    fn start_session(start_index: SessionIndex) {
-        SM::start_session(start_index)
-    }
-
-    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session_genesis(new_index)
-    }
 }
 
 impl pallet_session::Config for Runtime {
@@ -678,6 +608,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        Rewards: pallet_rewards::{Pallet, Storage} = 18
     }
 );
 
