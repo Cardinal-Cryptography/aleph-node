@@ -6,18 +6,18 @@ edition = "2021"
 # client
 [dependencies.substrate-api-client]
 git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git"
-tag = "polkadot-v0.9.18.b26ad4db"
+branch = "polkadot-v0.9.19"
 features = ["staking-xt"]
 
 [dependencies]
 # Substrate dependencies
 primitives = { path = "../primitives", default-features = false}
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false, features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", default-features = false}
-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18", package = "frame-system" }
-pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.18", default-features = false }
-pallet-balances = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.18", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false, features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", default-features = false}
+system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", package = "frame-system" }
+pallet-staking = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.19", default-features = false }
+pallet-balances = {git = "https://github.com/paritytech/substrate.git",branch = "polkadot-v0.9.19", default-features = false }
 
 
 # other dependencies

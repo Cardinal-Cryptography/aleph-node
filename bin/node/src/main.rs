@@ -71,7 +71,7 @@ fn main() -> sc_cli::Result<()> {
                     backend,
                     ..
                 } = new_partial(&config)?;
-                Ok((cmd.run(client, backend), task_manager))
+                Ok((cmd.run(client, backend, None), task_manager))
             })
         }
         None => {
