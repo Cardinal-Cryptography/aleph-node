@@ -2,7 +2,9 @@ use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
 
-use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
+use aleph_node::{new_authority, new_full, new_partial, Cli, ExecutorDispatch, Subcommand};
+
+use aleph_runtime::Block;
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
@@ -72,6 +74,18 @@ fn main() -> sc_cli::Result<()> {
                 } = new_partial(&config)?;
                 Ok((cmd.run(client, backend), task_manager))
             })
+        }
+        Some(Subcommand::Benchmark(cmd)) => {
+            if cfg!(feature = "runtime-benchmarks") {
+                let runner = cli.create_runner(cmd)?;
+                runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
+            } else {
+                Err(
+                    "Benchmarking wasn't enabled when building the node. You can enable it with \
+				     `--features runtime-benchmarks`."
+                        .into(),
+                )
+            }
         }
         None => {
             let runner = cli.create_runner(&cli.run)?;
