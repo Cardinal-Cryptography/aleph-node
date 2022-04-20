@@ -67,7 +67,7 @@ class Chain:
             for i, n in enumerate(nodes):
                 if isinstance(v, Seq):
                     n.flags[k] = v + i
-                elif isinstance(v, list) and len(v) == len(nodes):
+                elif isinstance(v, list) and i < len(v):
                     n.flags[k] = v[i]
                 else:
                     n.flags[k] = v
@@ -79,7 +79,8 @@ class Chain:
         `--my-arg some_val` in the binary call.
         Seq (type alias for int) can be used to specify numerical values that should be different
         for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
-        on."""
+        on.
+        Providing a list of values results in each node being assigned a corresponding value from the list."""
         Chain._set_flags(self.nodes, *args, **kwargs)
 
     def set_flags_validator(self, *args, **kwargs):
@@ -89,7 +90,8 @@ class Chain:
         `--my-arg some_val` in the binary call.
         Seq (type alias for int) can be used to specify numerical values that should be different
         for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
-        on."""
+        on.
+        Providing a list of values results in each node being assigned a corresponding value from the list."""
         Chain._set_flags(self.validator_nodes, *args, **kwargs)
 
     def set_flags_nonvalidator(self, *args, **kwargs):
@@ -99,7 +101,8 @@ class Chain:
         `--my-arg some_val` in the binary call.
         Seq (type alias for int) can be used to specify numerical values that should be different
         for each node. `val=Seq(13)` results in `--val 13` for node0, `--val 14` for node1 and so
-        on."""
+        on.
+        Providing a list of values results in each node being assigned a corresponding value from the list."""
         Chain._set_flags(self.nonvalidator_nodes, *args, **kwargs)
 
     def set_binary(self, binary, nodes=None):

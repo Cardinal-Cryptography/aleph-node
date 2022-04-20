@@ -16,7 +16,7 @@ port = 30334
 ws_port = 9944
 rpc_port = 9933
 
-phrases = ['//Alice', '//Bob', '//Cedric', '//Dick', '//Ezekiel', '//Fanny', '//George', '//Hugo']
+phrases = ['//Alice', '//Bob', '//Charlie', '//Dave', '//Ezekiel', '//Fanny', '//George', '//Hugo']
 keys_dict = generate_keys(binary, phrases)
 keys = list(keys_dict.values())
 nodes = min(nodes, len(phrases))
@@ -34,7 +34,7 @@ chain.set_flags('validator',
                 port=Seq(port),
                 ws_port=Seq(ws_port),
                 rpc_port=Seq(rpc_port),
-                unit_creation_delay=200,
+                unit_creation_delay=500,
                 execution='Native',
                 rpc_cors='all',
                 rpc_methods='Unsafe')
