@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{ErrorKind, Parser, CommandFactory};
 use log::{info, trace, warn};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
@@ -45,8 +45,8 @@ struct Config {
     pub validators_seed_file: Option<String>,
 
     /// number of testcase validators
-    #[clap(long, default_value = "10")]
-    pub validator_count: u32,
+    #[clap(long)]
+    pub validator_count: Option<u32>,
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -56,6 +56,14 @@ fn main() -> Result<(), anyhow::Error> {
         validators_seed_file,
         validator_count,
     } = Config::parse();
+
+    if !(validator_count.is_some() ^ validators_seed_file.is_some()) {
+        let mut cmd = Config::command();
+        cmd.error(
+            ErrorKind::ArgumentConflict,
+            "only one of --validator-count or --validators-seed-file must be specified!",
+        ).exit();
+    }
 
     let sudoer = match root_seed_file {
         Some(root_seed_file) => {
@@ -67,7 +75,6 @@ fn main() -> Result<(), anyhow::Error> {
     };
 
     env_logger::init();
-    warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
     let connection = create_connection(&address).set_signer(sudoer);
     let validators = match validators_seed_file {
@@ -80,10 +87,13 @@ fn main() -> Result<(), anyhow::Error> {
                 .map(keypair_from_string)
                 .collect()
         }
-        None => (0..validator_count)
+        None => (0..validator_count.unwrap())
             .map(|validator_number| derive_user_account_from_numeric_seed(validator_number))
             .collect::<Vec<_>>(),
     };
+    let validator_count = validators.len() as u32;
+    warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.",validator_count);
+
     let validators = bond_validate(&address, validators);
     let validators_and_its_nominators =
         create_test_validators_and_its_nominators(&connection, validators, validator_count);
