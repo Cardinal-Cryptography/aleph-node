@@ -13,11 +13,11 @@ use sp_std::vec::Vec;
 use std::{fmt::Display, str::FromStr};
 use tendermint::{
     account,
-    hash::{self, Hash},
+    hash::{self, Hash as TendermintHash},
 };
 
-pub fn sha256_from_bytes(bytes: &[u8]) -> Hash {
-    Hash::from_bytes(hash::Algorithm::Sha256, bytes).expect("Can't produce Hash from raw bytes")
+pub fn sha256_from_bytes(bytes: &[u8]) -> Result<TendermintHash, tendermint::Error> {
+    TendermintHash::from_bytes(hash::Algorithm::Sha256, bytes)
 }
 
 pub fn account_id_from_bytes(bytes: [u8; 20]) -> account::Id {
@@ -103,9 +103,9 @@ where
 /// represent the original value.
 ///
 /// Returns `None` if input value is `None` variant.
-pub fn tendermint_hash_to_h256(tm_hash: &Hash) -> Option<H256> {
+pub fn tendermint_hash_to_h256(tm_hash: &TendermintHash) -> Option<H256> {
     match tm_hash {
-        Hash::Sha256(hash) => Some(H256::from_slice(hash)),
-        Hash::None => None,
+        TendermintHash::Sha256(hash) => Some(H256::from_slice(hash)),
+        TendermintHash::None => None,
     }
 }
