@@ -28,11 +28,13 @@ jobs:
       - name: Cache install Nix packages
         uses: rikhuijzer/cache-install@v1.0.9
         with:
-          key: nix-${{ hashFiles('Cargo.lock') }}
+          key: nix_storage-${{ hashFiles('Cargo.lock') }}
           nix_file: 'nix/github.nix'
 
       - name: Build binary and runtime
-        run: chmod +x docker/nix-build.sh && docker/nix-build.sh
+        run: |
+          chmod +x docker/nix-build.sh
+          docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -51,7 +53,9 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: chmod +x docker/nix-build.sh && CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' NAME='"short_session"' docker/nix-build.sh
+        run: |
+          chmod +x docker/nix-build.sh
+          CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' NAME='"short_session"' docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
