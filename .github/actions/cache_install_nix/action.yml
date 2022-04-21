@@ -36,4 +36,4 @@ runs:
 
     - uses: cachix/install-nix-action@v17
       with:
-        nix_path: nixpkgs=https://github.com/mozilla/nixpkgs-mozilla/archive/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996.tar.gz
+        nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz
