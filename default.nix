@@ -58,26 +58,12 @@ let
     buildInputs = [nixpkgs.git] ++ nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
   });
 
-  # allows to skip files listed by .gitignore
-  # otherwise `nix-build` copies everything, including the target directory
-  gitignoreSrc = nixpkgs.fetchFromGitHub {
-    owner = "hercules-ci";
-    repo = "gitignore.nix";
-    rev = "5b9e0ff9d3b551234b4f3eb3983744fa354b17f1";
-    sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
-  };
-  inherit (import gitignoreSrc { inherit (nixpkgs) lib; }) gitignoreFilter;
-
   rocksDbShellHook = if useCustomRocksDb
                      then
                        "export ROCKSDB_LIB_DIR=${customRocksdb}/lib; export ROCKSDB_STATIC=1"
                      else "";
 
-  naerskSrc = builtins.fetchTarball {
-    url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
-    sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
-  };
-  naersk = nixpkgs.callPackage naerskSrc { stdenv = env; cargo = rustToolchain.rust; rustc = rustToolchain.rust; };
+  naersk = versions.naersk;
 
   gitFolder = ./.git;
   gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
@@ -102,7 +88,11 @@ let
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
   packageFlags = builtins.map (crate: "--package " + crate) (builtins.attrNames crates);
 
-  # we need to include the .git directory, since Substrate build scripts use git to retrieve HEAD's commit hash
+  # allows to skip files listed by .gitignore
+  # otherwise `nix-build` copies everything, including the target directory
+  inherit (versions.gitignore) gitignoreFilter;
+
+  # we need to include the .git directory, since Substrate build scripts use git to retrieve commit hash of HEAD
   gitFilter = src:
     let
       srcIgnored = gitignoreFilter src;

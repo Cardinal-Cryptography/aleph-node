@@ -48,7 +48,17 @@ rec {
         url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
         sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
       };
-      naersk = nixpkgs.callPackage naerskSrc { inherit stdenv; cargo = rustToolchain.rust; rustc = rustToolchain.rust; };
     in
-      naersk;
+      nixpkgs.callPackage naerskSrc { inherit stdenv; cargo = rustToolchain.rust; rustc = rustToolchain.rust; };
+
+  gitignore =
+    let
+      gitignoreSrc = nixpkgs.fetchFromGitHub {
+        owner = "hercules-ci";
+        repo = "gitignore.nix";
+        rev = "5b9e0ff9d3b551234b4f3eb3983744fa354b17f1";
+        sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
+      };
+    in
+      import gitignoreSrc { inherit (nixpkgs) lib; };
 }
