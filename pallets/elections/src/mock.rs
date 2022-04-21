@@ -110,11 +110,11 @@ impl ElectionDataProvider for StakingMock {
     type BlockNumber = u64;
     type MaxVotesPerVoter = ();
 
-    fn targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
+    fn electable_targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
         Ok(Vec::new())
     }
 
-    fn voters(
+    fn electing_voters(
         _maybe_max_len: Option<usize>,
     ) -> data_provider::Result<Vec<(AccountId, VoteWeight, AccountIdBoundedVec)>> {
         Ok(Vec::new())
