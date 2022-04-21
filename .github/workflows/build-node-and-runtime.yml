@@ -27,6 +27,8 @@ jobs:
 
       - name: Install and restore nix
         uses: ./.github/actions/cache_install_nix
+        with:
+          cache-key: ${{ runner.os }}-nix_store-node-v1-${{ hashFiles('**/Cargo.lock') }} # bump cache version if you need to clear it, see https://github.com/actions/cache/issues/485 and https://stackoverflow.com/questions/63521430/clear-cache-in-github-actions
 
       - name: Build binary and runtime
         run: |

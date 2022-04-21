@@ -1,6 +1,11 @@
 name: 'Cache install nix'
 description: 'Restore nix-store from github cache and install nix'
 
+inputs:
+  cache-key:
+    description: 'key used for storing in CI cache'
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -27,7 +32,7 @@ runs:
           !/nix/var/nix/gc.lock
           !/nix/var/nix/db/big-lock
           !/nix/var/nix/db/reserved
-        key: ${{ runner.os }}-nix_store-v1-${{ hashFiles('**/Cargo.lock') }} # bump cache version if you need to clear it, see https://github.com/actions/cache/issues/485 and https://stackoverflow.com/questions/63521430/clear-cache-in-github-actions
+        key: ${{ inputs.cache-key }}
 
     - uses: cachix/install-nix-action@v17
       with:
