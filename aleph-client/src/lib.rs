@@ -1,19 +1,23 @@
-use codec::Encode;
 use std::{thread::sleep, time::Duration};
 
+use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, Pair, H256};
+use sp_core::storage::StorageKey;
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, RpcClient,
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
     UncheckedExtrinsicV4, XtStatus,
 };
 
-pub use debug::print_storages;
 pub use account::{get_free_balance, locks};
+pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
+pub use multisig::{
+    compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
+    SignatureAggregation,
+};
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
-
 pub use session::{
     change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
     Keys as SessionKeys,
@@ -25,6 +29,7 @@ pub use staking::{
     payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
     validate as staking_validate, wait_for_full_era_completion, wait_for_next_era,
 };
+pub use substrate_api_client;
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
@@ -34,6 +39,7 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod debug;
 mod fee;
+mod multisig;
 mod rpc;
 mod session;
 mod staking;
@@ -150,4 +156,32 @@ pub fn try_send_xt<T: Encode>(
 
 pub fn keypair_from_string(seed: &str) -> KeyPair {
     KeyPair::from_string(seed, None).expect("Can't create pair from seed value")
+}
+
+pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
+    AccountId::from(keypair.public())
+}
+
+fn storage_key(module: &str, version: &str) -> [u8; 32] {
+    let pallet_name = sp_core::hashing::twox_128(module.as_bytes());
+    let postfix = sp_core::hashing::twox_128(version.as_bytes());
+    let mut final_key = [0u8; 32];
+    final_key[..16].copy_from_slice(&pallet_name);
+    final_key[16..].copy_from_slice(&postfix);
+    final_key
+}
+
+/// Computes hash of given pallet's call. You can use that to pass result to `state.getKeys` RPC call.
+/// * `pallet` name of the pallet
+/// * `call` name of the pallet's call
+///
+/// # Example
+/// ```
+/// let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
+/// assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
+/// ```
+pub fn get_storage_key(pallet: &str, call: &str) -> String {
+    let bytes = storage_key(pallet, call);
+    let storage_key = StorageKey(bytes.into());
+    hex::encode(storage_key.0)
 }

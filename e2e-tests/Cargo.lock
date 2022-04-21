@@ -131,6 +131,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "substrate-api-client",
+ "thiserror",
 ]
 
 [[package]]
