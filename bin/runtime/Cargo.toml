@@ -19,6 +19,7 @@ primitives = { path = "../../primitives", default-features = false }
 pallet-aleph = { path = "../../pallets/aleph", default-features = false}
 pallet-elections = { path = "../../pallets/elections", default-features = false}
 pallet-tendermint-light-client = { path = "../../pallets/tendermint-light-client", default-features = false}
+pallet-tendermint-light-client-rpc-runtime-api = { path = "../../pallets/tendermint-light-client/rpc/runtime-api", default-features = false}
 
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
@@ -68,6 +69,7 @@ std = [
     "frame-support/std",
     "pallet-aleph/std",
     "pallet-tendermint-light-client/std",
+    "pallet-tendermint-light-client-rpc-runtime-api/std",
     "pallet-aura/std",
     "pallet-authorship/std",
     "pallet-balances/std",

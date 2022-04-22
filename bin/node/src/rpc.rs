@@ -8,6 +8,7 @@
 use std::sync::Arc;
 
 use aleph_runtime::{opaque::Block, AccountId, Balance, Index};
+use pallet_tendermint_light_client_rpc::{TendermintLightClient, TendermintLightClientApi};
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -54,6 +55,10 @@ where
     io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
         client,
     )));
+
+    io.extend_with(TendermintLightClientApi::to_delegate(
+        TendermintLightClient::new(),
+    ));
 
     io
 }

@@ -1,0 +1,25 @@
+[package]
+name = "pallet-tendermint-light-client-rpc"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://substrate.io"
+description = "RPC interface for the tendermint LC pallet."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0" }
+jsonrpc-core = "18.0.0"
+jsonrpc-core-client = "18.0.0"
+jsonrpc-derive = "18.0.0"
+
+sp-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+pallet-tendermint-light-client-rpc-runtime-api = { path = "./runtime-api" }
