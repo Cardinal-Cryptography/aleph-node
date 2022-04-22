@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-//! This pallet is an on-chain light-client for tendermint (Cosmos) based chains
+//! This pallet is an on-chain light-client for Tendermint (Cosmos) based chains
 //! It verifies headers submitted to it via on-chain transactions, performed by a so-called relayer
-//! It is a part of the Aleph Zero <-> Terra bridge
+//! It is a part of the Aleph Zero <-> Tendermint bridge
 pub use pallet::*;
 
 #[cfg(test)]
@@ -27,7 +27,8 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 pub mod pallet {
     use super::*;
     use crate::types::{
-        LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash, TendermintHashStorage,
+        ConversionError, LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash,
+        TendermintHashStorage,
     };
     use frame_support::{
         ensure, fail, log,
@@ -70,12 +71,14 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Pallet is halted
         LightClientHalted,
+        /// client already in the same state as requested, indicates a no-op
+        NoOp,
         /// Pallet operations are resumed        
         LightClientResumed,
         /// Light client is initialized
         LightClientInitialized,
-        /// New block has been verified and imported into storage \[relayer_address, imported_block_hash\]
-        ImportedLightBlock(T::AccountId, TendermintBlockHash),
+        /// New block has been verified and imported into storage \[relayer_address, imported_block_hash, imported_block_height\]
+        ImportedLightBlock(T::AccountId, TendermintBlockHash, u64),
     }
 
     #[pallet::error]
@@ -92,6 +95,8 @@ pub mod pallet {
         InvalidBlock,
         /// Initial block is invalid
         InvalidInitialBlock,
+        /// Error during type conversion, usually indicative of a bug
+        ConversionError,
         /// General error during client operations
         Other,
     }
@@ -141,11 +146,17 @@ pub mod pallet {
     /// If true, stop the world
     #[pallet::storage]
     #[pallet::getter(fn is_halted)]
-    pub type IsHalted<T: Config> = StorageValue<_, bool, ValueQuery>;
+    pub type IsHalted<T: Config> = StorageValue<_, bool, ValueQuery, DefaultIsHalted<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultIsHalted<T: Config>() -> bool {
+        true
+    }
 
     #[pallet::storage]
     #[pallet::getter(fn get_options)]
-    pub type LightClientOptions<T: Config> = StorageValue<_, LightClientOptionsStorage, ValueQuery>;
+    pub type LightClientOptions<T: Config> =
+        StorageValue<_, LightClientOptionsStorage, OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -194,19 +205,23 @@ pub mod pallet {
             ensure_not_halted::<T>()?;
             let who = ensure_signed(origin)?;
             let hash = untrusted_block.signed_header.commit.block_id.hash;
+            let height = untrusted_block.signed_header.header.height;
 
             log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &hash);
 
-            let options: Options = match Self::get_options().try_into() {
-                Ok(options) => options,
-                Err(why) => {
-                    log::error!(
-                        target: "runtime::tendermint-lc",
-                        "Cannot convert to Options {:?}",
-                        &why,
-                    );
-                    fail!(<Error<T>>::Other);
-                }
+            let options = match Self::get_options() {
+                Some(options) => match options.try_into() {
+                    Ok(options) => options,
+                    Err(why) => {
+                        log::error!(
+                            target: "runtime::tendermint-lc",
+                            "Cannot convert to Options {:?}",
+                            &why,
+                        );
+                        fail!(<Error<T>>::ConversionError);
+                    }
+                },
+                None => fail!(<Error<T>>::NotInitialized),
             };
 
             let verifier = ProdVerifier::default();
@@ -217,7 +232,7 @@ pub mod pallet {
                     Ok(block) => block,
                     Err(why) => {
                         log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
-                        fail!(<Error<T>>::Other);
+                        fail!(<Error<T>>::ConversionError);
                     }
                 },
                 None => {
@@ -247,7 +262,7 @@ pub mod pallet {
                 Ok(block) => block,
                 Err(why) => {
                     log::error!(target: "runtime::tendermint-lc", "Conversion failed {:?}", why);
-                    fail!(<Error<T>>::Other);
+                    fail!(<Error<T>>::ConversionError);
                 }
             };
 
@@ -264,7 +279,7 @@ pub mod pallet {
                             // update storage
                             insert_light_block::<T>(hash, untrusted_block);
                             log::info!(target: "runtime::tendermint-lc", "Successfully verified light block {:#?}", &hash);
-                            Self::deposit_event(Event::ImportedLightBlock(who, hash));
+                            Self::deposit_event(Event::ImportedLightBlock(who, hash, height));
                             Ok(())
                         }
                         TendermintHashStorage::None => fail!(<Error<T>>::InvalidBlock),
@@ -282,20 +297,29 @@ pub mod pallet {
         }
 
         // TODO: This method will need to be called by the pallet itself if it detects a fork.
+        // TODO : weight depends on whether this is a no-op or not
         /// Halt or resume all light client operations
         ///
         /// Can only be called by root
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         pub fn set_halted(origin: OriginFor<T>, halted: bool) -> DispatchResult {
             ensure_root(origin)?;
-            <IsHalted<T>>::put(halted);
 
-            if halted {
-                log::warn!(target: "runtime::tendermint-lc", "Halting light client operations");
-                Self::deposit_event(Event::LightClientHalted);
-            } else {
-                log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
-                Self::deposit_event(Event::LightClientResumed);
+            let current_status = Self::is_halted();
+
+            match [halted, current_status].as_slice() {
+                [true, true] | [false, false] => Self::deposit_event(Event::NoOp),
+                [true, false] | [false, true] => {
+                    <IsHalted<T>>::put(halted);
+                    if halted {
+                        log::warn!(target: "runtime::tendermint-lc", "Halting light client operations");
+                        Self::deposit_event(Event::LightClientHalted);
+                    } else {
+                        log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
+                        Self::deposit_event(Event::LightClientResumed);
+                    }
+                }
+                _ => fail!(<Error<T>>::Other),
             }
 
             Ok(())

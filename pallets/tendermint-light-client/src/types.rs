@@ -146,6 +146,7 @@ impl LightClientOptionsStorage {
     }
 }
 
+#[cfg(test)]
 impl Default for LightClientOptionsStorage {
     fn default() -> Self {
         Self {
