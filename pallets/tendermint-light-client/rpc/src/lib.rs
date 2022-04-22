@@ -2,9 +2,8 @@
 use codec::{Codec, Decode};
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-// pub use pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi as TransactionPaymentRuntimeApi;
-// use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, InclusionFee, RuntimeDispatchInfo};
 use pallet_tendermint_light_client_rpc_runtime_api::LightBlockStorage;
+pub use pallet_tendermint_light_client_rpc_runtime_api::TendermintLightClientApi as TendermintLightClientRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_core::Bytes;
@@ -16,23 +15,47 @@ use sp_runtime::{
 use std::sync::Arc;
 
 #[rpc]
-pub trait TendermintLightClientApi // <BlockHash, ResponseType>
+pub trait TendermintLightClientApi<BlockHash> // <BlockHash, ResponseType>
 {
     #[rpc(name = "tendermintLightClient_getLastImportedBlock")]
-    fn get_last_imported_block(&self) -> Result<Option<LightBlockStorage>>;
+    fn get_last_imported_block(&self, at: Option<BlockHash>) -> Result<Option<LightBlockStorage>>;
 }
 
 /// A struct that implements the [`TransactionPaymentApi`].
-pub struct TendermintLightClient;
+pub struct TendermintLightClient<C, B> {
+    client: Arc<C>,
+    _marker: std::marker::PhantomData<B>,
+}
 
-impl TendermintLightClient {
-    pub fn new() -> Self {
-        Self {}
+impl<C, B> TendermintLightClient<C, B> {
+    pub fn new(client: Arc<C>) -> Self {
+        Self {
+            client,
+            _marker: Default::default(),
+        }
     }
 }
 
-impl TendermintLightClientApi for TendermintLightClient {
-    fn get_last_imported_block(&self) -> Result<Option<LightBlockStorage>> {
-        todo!()
+impl<C, Block> TendermintLightClientApi<<Block as BlockT>::Hash> for TendermintLightClient<C, Block>
+where
+    Block: BlockT,
+    C: 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+    C::Api: TendermintLightClientRuntimeApi<Block>,
+{
+    fn get_last_imported_block(
+        &self,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Option<LightBlockStorage>> {
+        let api = self.client.runtime_api();
+
+        let at = BlockId::hash(at.unwrap_or_else(||
+			                         // If the block hash is not supplied assume the last finalized block
+			                         self.client.info().best_hash));
+
+        api.get_last_imported_block(&at).map_err(|e| RpcError {
+            code: ErrorCode::ServerError(666), //ErrorCode::ServerError(Error::RuntimeError.into()),
+            message: "Unable to query last imported block.".into(),
+            data: Some(e.to_string().into()),
+        })
     }
 }
