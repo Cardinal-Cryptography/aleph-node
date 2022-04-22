@@ -207,7 +207,7 @@ pub mod pallet {
             let hash = untrusted_block.signed_header.commit.block_id.hash;
             let height = untrusted_block.signed_header.header.height;
 
-            log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?}", &hash);
+            log::debug!(target: "runtime::tendermint-lc", "Verifying light block {:#?} at height {}", &hash, &height);
 
             let options = match Self::get_options() {
                 Some(options) => match options.try_into() {
