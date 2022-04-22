@@ -1,22 +1,14 @@
-// pub use self::gen_client::Client as TransactionPaymentClient;
-use codec::{Codec, Decode};
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
 use pallet_tendermint_light_client_rpc_runtime_api::LightBlockStorage;
 pub use pallet_tendermint_light_client_rpc_runtime_api::TendermintLightClientApi as TendermintLightClientRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::Bytes;
-use sp_rpc::number::NumberOrHex;
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block as BlockT, MaybeDisplay},
-};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
 #[rpc]
-pub trait TendermintLightClientApi<BlockHash> // <BlockHash, ResponseType>
-{
+pub trait TendermintLightClientApi<BlockHash> {
     #[rpc(name = "tendermintLightClient_getLastImportedBlock")]
     fn get_last_imported_block(&self, at: Option<BlockHash>) -> Result<Option<LightBlockStorage>>;
 }
@@ -53,7 +45,7 @@ where
 			                         self.client.info().best_hash));
 
         api.get_last_imported_block(&at).map_err(|e| RpcError {
-            code: ErrorCode::ServerError(666), //ErrorCode::ServerError(Error::RuntimeError.into()),
+            code: ErrorCode::ServerError(666), // there is just one error possible here, runtime error
             message: "Unable to query last imported block.".into(),
             data: Some(e.to_string().into()),
         })

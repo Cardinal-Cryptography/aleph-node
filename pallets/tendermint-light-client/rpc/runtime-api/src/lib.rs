@@ -2,7 +2,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Codec;
 pub use pallet_tendermint_light_client::types::LightBlockStorage;
 
 sp_api::decl_runtime_apis! {
