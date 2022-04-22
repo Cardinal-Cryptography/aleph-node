@@ -3,6 +3,7 @@
 , name ? "aleph-node"
 , crates ? { "aleph-node" = []; }
 , runTests ? false
+, singleStep ? false
 , rustflags ? "-C target-cpu=native"
 , useCustomRocksDb ? false
 , rocksDbOptions ? { version = "6.29.3";
@@ -106,8 +107,7 @@ let
   };
 in
 with nixpkgs; naersk.buildPackage rec {
-  inherit name;
-  inherit release src;
+  inherit name release src singleStep;
   doCheck = runTests;
   nativeBuildInputs = [
     git
