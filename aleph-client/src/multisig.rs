@@ -171,8 +171,7 @@ impl MultisigParty {
     /// `pallet_multisig::Pallet<T: pallet_multisig::Config>` it is easier to just copy
     /// these two lines.
     ///
-    /// *Note:* this function is a little different in the newer Substrate versions.
-    /// After update, this code should be adjusted.
+    /// *Note:* if this function changes in some newer Substrate version, this code should be adjusted.
     pub fn multi_account_id(who: &[AccountId], threshold: u16) -> AccountId {
         let entropy = (b"modlpy/utilisuba", who, threshold).using_encoded(blake2_256);
         Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))

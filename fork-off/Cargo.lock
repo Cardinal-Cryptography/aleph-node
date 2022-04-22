@@ -658,7 +658,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sp-core",
  "sp-io",
  "substrate-api-client",
  "tokio",
