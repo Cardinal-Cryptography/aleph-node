@@ -144,7 +144,7 @@ jobs:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
-          ref: add-fe-helm-chart
+          ref: main
 
       - name: Start testnet image on feature environment
         env:
@@ -182,7 +182,7 @@ jobs:
           message: "New Feature Environment Deployment with name: ${{ env.APP_NAME }}"
           add: "*.yaml"
           cwd: "aleph-apps"
-          branch: add-fe-helm-chart
+          branch: main
 
       - name: Refresh Argo and wait for the testnet image deployment to be finished
         env:
@@ -229,7 +229,7 @@ jobs:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
-          ref: add-fe-helm-chart
+          ref: main
 
       - name: Update feature environment to the latest PR image
         env:
@@ -270,7 +270,7 @@ jobs:
           message: "Image changed for the feature environment to: ${{ env.FE_ALEPH_NODE_REGISTRY }}:${{ env.IMAGE_TAG }}"
           add: "*.yaml"
           cwd: "aleph-apps"
-          branch: add-fe-helm-chart
+          branch: main
 
       - name: Refresh Argo and wait for the PR image deployment to be finished
         env:
@@ -340,7 +340,7 @@ jobs:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
-          ref: add-fe-helm-chart
+          ref: main
         
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -371,7 +371,7 @@ jobs:
           message: "Feature Environment: ${{ env.APP_NAME }} has been deleted"
           add: "*.yaml"
           cwd: "aleph-apps"
-          branch: add-fe-helm-chart
+          branch: main
 
       - name: Refresh Argo and wait for the deletion to be finished
         env:
@@ -445,7 +445,7 @@ jobs:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
-          ref: add-fe-helm-chart
+          ref: main
         
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -476,7 +476,7 @@ jobs:
           message: "Feature Environment: ${{ env.APP_NAME }} has been deleted"
           add: "*.yaml"
           cwd: "aleph-apps"
-          branch: add-fe-helm-chart
+          branch: main
 
       - name: Refresh Argo and wait for the deletion to be finished
         env:
