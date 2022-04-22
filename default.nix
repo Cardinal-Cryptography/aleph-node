@@ -16,6 +16,7 @@
 let
   nixpkgs = versions.nixpkgs;
   rustToolchain = versions.rustToolchain;
+  naersk = versions.naersk;
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
@@ -56,16 +57,16 @@ let
 
     propagatedBuildInputs = [];
 
-    buildInputs = [nixpkgs.git] ++ nixpkgs.lib.optional rocksDbOptions.useSnappy nixpkgs.snappy ++ nixpkgs.lib.optional rocksDbOptions.enableJemalloc nixpkgs.jemalloc;
+    buildInputs = nixpkgs.lib.optionals rocksDbOptions.useSnappy [nixpkgs.snappy] ++
+                  nixpkgs.lib.optionals rocksDbOptions.enableJemalloc [nixpkgs.jemalloc] ++
+                 [nixpkgs.git];
   });
-
   rocksDbShellHook = if useCustomRocksDb
                      then
                        "export ROCKSDB_LIB_DIR=${customRocksdb}/lib; export ROCKSDB_STATIC=1"
                      else "";
 
-  naersk = versions.naersk;
-
+  # newer versions of substrate support providing a version hash by means of an env variable, i.e. SUBSTRATE_CLI_GIT_COMMIT_HASH
   gitFolder = ./.git;
   gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
     cp -r ${gitFolder} ./.git
@@ -92,7 +93,6 @@ let
   # allows to skip files listed by .gitignore
   # otherwise `nix-build` copies everything, including the target directory
   inherit (versions.gitignore) gitignoreFilter;
-
   # we need to include the .git directory, since Substrate build scripts use git to retrieve commit hash of HEAD
   gitFilter = src:
     let
