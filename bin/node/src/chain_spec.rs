@@ -307,9 +307,16 @@ fn generate_staking_accounts(
 const TOTAL_ISSUANCE: u128 = 300_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
 
 /// Calculate initial endowments such that total issuance is kept approximately constant.
-fn calculate_initial_endowment(accounts: &Vec<AccountId>) -> u128 {
-    let endowment = TOTAL_ISSUANCE / (accounts.len() as u128);
-    endowment
+fn calculate_initial_endowment(accounts: &[AccountId]) -> u128 {
+    TOTAL_ISSUANCE / (accounts.len() as u128)
+}
+
+/// Provides configuration for staking by defining balances, members, keys and stakers.
+struct AccountsConfig {
+    balances: Vec<(AccountId, u128)>,
+    members: Vec<AccountId>,
+    keys: Vec<(AccountId, AccountId, SessionKeys)>,
+    stakers: Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>,
 }
 
 /// Provides accounts for GenesisConfig setup based on distinct staking accounts.
@@ -318,8 +325,8 @@ fn configure_distinct_staking_accounts(
     unique_accounts_balances: Vec<(AccountId, u128)>,
     authorities: Vec<AuthorityKeys>,
     controllers: Vec<AccountId>,
-    stashes: Vec<AccountId>
-) -> (Vec<(AccountId, u128)>, Vec<AccountId>, Vec<(AccountId, AccountId, SessionKeys)>, Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>){
+    stashes: Vec<AccountId>,
+) -> AccountsConfig {
     let balances = unique_accounts_balances
         .into_iter()
         .chain(
@@ -335,8 +342,6 @@ fn configure_distinct_staking_accounts(
                 .map(|account| (account, MIN_VALIDATOR_BOND + TOKEN)),
         )
         .collect();
-
-    let members = stashes.clone();
 
     let keys = authorities
         .iter()
@@ -354,6 +359,7 @@ fn configure_distinct_staking_accounts(
         .collect();
 
     let stakers = stashes
+        .clone()
         .into_iter()
         .zip(controllers)
         .map(|(stash, controller)| {
@@ -366,7 +372,12 @@ fn configure_distinct_staking_accounts(
         })
         .collect();
 
-    (balances, members, keys, stakers)
+    AccountsConfig {
+        balances,
+        members: stashes,
+        keys,
+        stakers,
+    }
 }
 
 /// Provides accounts for GenesisConfig setup based on non-distinct staking accounts.
@@ -374,8 +385,7 @@ fn configure_distinct_staking_accounts(
 fn configure_non_distinct_staking_accounts(
     unique_accounts_balances: Vec<(AccountId, u128)>,
     authorities: Vec<AuthorityKeys>,
-) -> (Vec<(AccountId, u128)>, Vec<AccountId>, Vec<(AccountId, AccountId, SessionKeys)>, Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>) {
-    let balances = unique_accounts_balances;
+) -> AccountsConfig {
     let members = to_account_ids(&authorities).collect();
     let keys = authorities
         .iter()
@@ -390,8 +400,13 @@ fn configure_non_distinct_staking_accounts(
             )
         })
         .collect();
-    let stakers = vec![];
-    (balances, members, keys, stakers)
+
+    AccountsConfig {
+        balances: unique_accounts_balances,
+        members,
+        keys,
+        stakers: vec![],
+    }
 }
 
 /// Configure initial storage state for FRAME modules.
@@ -427,18 +442,14 @@ fn generate_genesis_config(
 
     let validator_count = authorities.len() as u32;
 
-    let (balances, members, keys, stakers) = match (controller_accounts, stash_accounts) {
-        (Some(controllers), Some(stashes)) => {
-            configure_distinct_staking_accounts(
-                unique_accounts_balances,
-                authorities,
-                controllers,
-                stashes,
-            )
-        }
-        (_, _) => {
-            configure_non_distinct_staking_accounts(unique_accounts_balances, authorities)
-        }
+    let accounts_config = match (controller_accounts, stash_accounts) {
+        (Some(controllers), Some(stashes)) => configure_distinct_staking_accounts(
+            unique_accounts_balances,
+            authorities,
+            controllers,
+            stashes,
+        ),
+        (_, _) => configure_non_distinct_staking_accounts(unique_accounts_balances, authorities),
     };
 
     GenesisConfig {
@@ -448,7 +459,7 @@ fn generate_genesis_config(
         },
         balances: BalancesConfig {
             // Configure endowed accounts with an initial, significant balance
-            balances,
+            balances: accounts_config.balances,
         },
         aura: AuraConfig {
             authorities: vec![],
@@ -458,17 +469,19 @@ fn generate_genesis_config(
             key: sudo_account,
         },
         elections: ElectionsConfig {
-            members: members.clone(),
+            members: accounts_config.members.clone(),
         },
-        session: SessionConfig { keys },
+        session: SessionConfig {
+            keys: accounts_config.keys,
+        },
         staking: StakingConfig {
             force_era: Forcing::NotForcing,
             validator_count,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
-            invulnerables: members,
+            invulnerables: accounts_config.members,
             slash_reward_fraction: Perbill::from_percent(10),
-            stakers,
+            stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,
             min_nominator_bond: MIN_NOMINATOR_BOND,
             ..Default::default()
