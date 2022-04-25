@@ -122,7 +122,7 @@ pub struct BootstrapChainCmd {
 
 impl BootstrapChainCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let genesis_authorities: Vec<AuthorityKeys> = self
+        let genesis_authorities = self
             .chain_params
             .account_ids()
             .iter()

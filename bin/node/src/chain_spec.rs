@@ -303,8 +303,96 @@ fn generate_staking_accounts(
         .collect()
 }
 
-// to have total issuance 300M (for devnet/tests/local runs only)
-const ENDOWMENT: u128 = 60_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
+// total issuance of 300M (for devnet/tests/local runs only)
+const TOTAL_ISSUANCE: u128 = 300_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
+
+/// Calculate initial endowments such that total issuance is kept approximately constant.
+fn calculate_initial_endowment(accounts: &Vec<AccountId>) -> u128 {
+    let endowment = TOTAL_ISSUANCE / (accounts.len() as u128);
+    endowment
+}
+
+/// Provides accounts for GenesisConfig setup based on distinct staking accounts.
+/// Assumes validator, controller and stash are all separate accounts.
+fn configure_distinct_staking_accounts(
+    unique_accounts_balances: Vec<(AccountId, u128)>,
+    authorities: Vec<AuthorityKeys>,
+    controllers: Vec<AccountId>,
+    stashes: Vec<AccountId>
+) -> (Vec<(AccountId, u128)>, Vec<AccountId>, Vec<(AccountId, AccountId, SessionKeys)>, Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>){
+    let balances = unique_accounts_balances
+        .into_iter()
+        .chain(
+            controllers
+                .clone()
+                .into_iter()
+                .map(|account| (account, TOKEN)),
+        )
+        .chain(
+            stashes
+                .clone()
+                .into_iter()
+                .map(|account| (account, MIN_VALIDATOR_BOND + TOKEN)),
+        )
+        .collect();
+
+    let members = stashes.clone();
+
+    let keys = authorities
+        .iter()
+        .zip(stashes.clone())
+        .map(|(auth, stash)| {
+            (
+                stash.clone(),
+                stash,
+                SessionKeys {
+                    aura: auth.aura_key.clone(),
+                    aleph: auth.aleph_key.clone(),
+                },
+            )
+        })
+        .collect();
+
+    let stakers = stashes
+        .into_iter()
+        .zip(controllers)
+        .map(|(stash, controller)| {
+            (
+                stash,
+                controller,
+                MIN_VALIDATOR_BOND,
+                StakerStatus::Validator,
+            )
+        })
+        .collect();
+
+    (balances, members, keys, stakers)
+}
+
+/// Provides accounts for GenesisConfig setup based on non-distinct staking accounts.
+/// Assumes validator, controller and stash are all the same account.
+fn configure_non_distinct_staking_accounts(
+    unique_accounts_balances: Vec<(AccountId, u128)>,
+    authorities: Vec<AuthorityKeys>,
+) -> (Vec<(AccountId, u128)>, Vec<AccountId>, Vec<(AccountId, AccountId, SessionKeys)>, Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>) {
+    let balances = unique_accounts_balances;
+    let members = to_account_ids(&authorities).collect();
+    let keys = authorities
+        .iter()
+        .map(|auth| {
+            (
+                auth.account_id.clone(),
+                auth.account_id.clone(),
+                SessionKeys {
+                    aura: auth.aura_key.clone(),
+                    aleph: auth.aleph_key.clone(),
+                },
+            )
+        })
+        .collect();
+    let stakers = vec![];
+    (balances, members, keys, stakers)
+}
 
 /// Configure initial storage state for FRAME modules.
 /// Possible to provide distinct controller and stash accounts.
@@ -324,79 +412,32 @@ fn generate_genesis_config(
     // NOTE: some combinations of bootstrap chain arguments can potentially
     // lead to duplicated rich accounts, e.g. if a sudo account is also an authority
     // which is why we remove the duplicates if any here
-    let unique_accounts: Vec<AccountId> = deduplicate(
+    let unique_accounts = deduplicate(
         to_account_ids(&authorities)
             .chain(special_accounts)
             .collect(),
     );
 
+    let endowment = calculate_initial_endowment(&unique_accounts);
+
     let unique_accounts_balances = unique_accounts
         .into_iter()
-        .map(|account| (account, ENDOWMENT));
+        .map(|account| (account, endowment))
+        .collect::<Vec<_>>();
+
+    let validator_count = authorities.len() as u32;
 
     let (balances, members, keys, stakers) = match (controller_accounts, stash_accounts) {
         (Some(controllers), Some(stashes)) => {
-            let balances: Vec<(AccountId, u128)> = unique_accounts_balances
-                .chain(
-                    controllers
-                        .clone()
-                        .into_iter()
-                        .map(|account| (account, TOKEN)),
-                )
-                .chain(
-                    stashes
-                        .clone()
-                        .into_iter()
-                        .map(|account| (account, MIN_VALIDATOR_BOND + TOKEN)),
-                )
-                .collect();
-            let members = stashes.clone();
-            let keys = authorities
-                .iter()
-                .zip(stashes.clone())
-                .map(|(auth, stash)| {
-                    (
-                        stash.clone(),
-                        stash,
-                        SessionKeys {
-                            aura: auth.aura_key.clone(),
-                            aleph: auth.aleph_key.clone(),
-                        },
-                    )
-                })
-                .collect();
-            let stakers = stashes
-                .into_iter()
-                .zip(controllers)
-                .map(|(stash, controller)| {
-                    (
-                        stash,
-                        controller,
-                        MIN_VALIDATOR_BOND,
-                        StakerStatus::Validator,
-                    )
-                })
-                .collect();
-            (balances, members, keys, stakers)
+            configure_distinct_staking_accounts(
+                unique_accounts_balances,
+                authorities,
+                controllers,
+                stashes,
+            )
         }
         (_, _) => {
-            let balances = unique_accounts_balances.collect();
-            let members = to_account_ids(&authorities).collect();
-            let keys = authorities
-                .iter()
-                .map(|auth| {
-                    (
-                        auth.account_id.clone(),
-                        auth.account_id.clone(),
-                        SessionKeys {
-                            aura: auth.aura_key.clone(),
-                            aleph: auth.aleph_key.clone(),
-                        },
-                    )
-                })
-                .collect();
-            let stakers = vec![];
-            (balances, members, keys, stakers)
+            configure_non_distinct_staking_accounts(unique_accounts_balances, authorities)
         }
     };
 
@@ -422,7 +463,7 @@ fn generate_genesis_config(
         session: SessionConfig { keys },
         staking: StakingConfig {
             force_era: Forcing::NotForcing,
-            validator_count: authorities.len() as u32,
+            validator_count,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
             invulnerables: members,
