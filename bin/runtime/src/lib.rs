@@ -370,6 +370,8 @@ fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
         Some(ae) => ae.index,
         _ => return,
     };
+    // this will be populated once for the session `n+1` on the start of the session `n` where session
+    // `n+1` starts a new era.
     if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
         if era_index == start_index {
             let reserved = pallet_staking::Invulnerables::<Runtime>::get();
