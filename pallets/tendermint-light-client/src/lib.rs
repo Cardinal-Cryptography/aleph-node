@@ -71,8 +71,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Pallet is halted
         LightClientHalted,
-        /// client already in the same state as requested, indicates a no-op
-        NoOp,
         /// Pallet operations are resumed        
         LightClientResumed,
         /// Light client is initialized
@@ -306,20 +304,20 @@ pub mod pallet {
             ensure_root(origin)?;
 
             let current_status = Self::is_halted();
-
             match [halted, current_status].as_slice() {
-                [true, true] | [false, false] => Self::deposit_event(Event::NoOp),
-                [true, false] | [false, true] => {
+                [true, false] => {
                     <IsHalted<T>>::put(halted);
-                    if halted {
-                        log::warn!(target: "runtime::tendermint-lc", "Halting light client operations");
-                        Self::deposit_event(Event::LightClientHalted);
-                    } else {
-                        log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
-                        Self::deposit_event(Event::LightClientResumed);
-                    }
+                    log::warn!(target: "runtime::tendermint-lc", "Halting light client operations");
+                    Self::deposit_event(Event::LightClientHalted);
                 }
-                _ => fail!(<Error<T>>::Other),
+                [false, true] => {
+                    <IsHalted<T>>::put(halted);
+                    log::warn!(target: "runtime::tendermint-lc", "Resuming light client operations");
+                    Self::deposit_event(Event::LightClientResumed);
+                }
+                _ => {
+                    // noop
+                }
             }
 
             Ok(())
