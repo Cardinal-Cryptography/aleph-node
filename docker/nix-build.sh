@@ -7,6 +7,7 @@ DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = []; }'}
 NAME=${NAME:-'"aleph-node"'}
 SINGLE_STEP=${SINGLE_STEP:-'false'}
+RUSTFLAGS=${RUSTFLAGS:-'"-C target-cpu=native"'}
 if [ -z ${PATH_TO_FIX+x} ]; then
     PATH_TO_FIX="result/bin/aleph-node"
 fi
@@ -31,7 +32,7 @@ if [ $SPAWN_SHELL = true ]
 then
     nix-shell --pure $SHELL_NIX_FILE
 else
-    ARGS=(--arg crates "${CRATES}" --arg name "${NAME}" --arg singleStep "${SINGLE_STEP}")
+    ARGS=(--arg crates "${CRATES}" --arg name "${NAME}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
     nix-build $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix

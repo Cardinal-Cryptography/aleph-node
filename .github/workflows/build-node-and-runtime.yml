@@ -33,7 +33,7 @@ jobs:
       - name: Build binary and runtime
         run: |
           chmod +x docker/nix-build.sh
-          docker/nix-build.sh
+          RUSTFLAGS='"-C target-cpu=x86-64-v2"' docker/nix-build.sh
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -54,7 +54,7 @@ jobs:
       - name: Build test binary
         run: |
           chmod +x docker/nix-build.sh
-          CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' NAME='"short_session"' docker/nix-build.sh
+          RUSTFLAGS='"-C target-cpu=x86-64-v2"' CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' NAME='"short_session"' docker/nix-build.sh
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
