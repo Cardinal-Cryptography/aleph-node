@@ -6,8 +6,8 @@ use aleph_client::{
 use sp_core::Pair;
 use substrate_api_client::AccountId;
 
-const MINIMAL_TEST_SESSION_START: u32 = 7;
-const ELECTION_STARTS: u32 = 4;
+const MINIMAL_TEST_SESSION_START: u32 = 9;
+const ELECTION_STARTS: u32 = 6;
 
 fn get_reserved_members() -> Vec<KeyPair> {
     accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
