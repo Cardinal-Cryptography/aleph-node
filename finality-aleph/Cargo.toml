@@ -5,7 +5,8 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-aleph-bft = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", tag = "codec-3.0" }
+aleph-bft = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", branch = "codec3" }
+aleph-bft-rmc = { git = "https://github.com/Cardinal-Cryptography/AlephBFT.git", branch = "codec3" }
 aleph-primitives = { package = "primitives", path = "../primitives" }
 
 async-trait = "0.1"

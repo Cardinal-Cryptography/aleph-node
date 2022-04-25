@@ -84,19 +84,55 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.8.4"
-source = "git+https://github.com/Cardinal-Cryptography/AlephBFT.git?tag=codec-3.0#6c652f2615f05e560aa127076a1e1a3288c294bf"
+version = "0.13.0"
+source = "git+https://github.com/Cardinal-Cryptography/AlephBFT.git?branch=codec3#044e2e683bd704428ba59753d0d75af816b467d6"
 dependencies = [
+ "aleph-bft-rmc",
+ "aleph-bft-types",
  "async-trait",
- "bit-vec",
  "derivative",
- "derive_more",
  "futures 0.3.21",
  "futures-timer",
  "log",
  "parity-scale-codec",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.0",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "aleph-bft-crypto"
+version = "0.3.0"
+source = "git+https://github.com/Cardinal-Cryptography/AlephBFT.git?branch=codec3#044e2e683bd704428ba59753d0d75af816b467d6"
+dependencies = [
+ "async-trait",
+ "bit-vec",
+ "derive_more",
+ "log",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "aleph-bft-rmc"
+version = "0.3.0"
+source = "git+https://github.com/Cardinal-Cryptography/AlephBFT.git?branch=codec3#044e2e683bd704428ba59753d0d75af816b467d6"
+dependencies = [
+ "aleph-bft-crypto",
+ "async-trait",
+ "futures 0.3.21",
+ "futures-timer",
+ "log",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "aleph-bft-types"
+version = "0.3.0"
+source = "git+https://github.com/Cardinal-Cryptography/AlephBFT.git?branch=codec3#044e2e683bd704428ba59753d0d75af816b467d6"
+dependencies = [
+ "aleph-bft-crypto",
+ "async-trait",
+ "futures 0.3.21",
+ "parity-scale-codec",
 ]
 
 [[package]]
@@ -1575,6 +1611,7 @@ name = "finality-aleph"
 version = "0.3.0"
 dependencies = [
  "aleph-bft",
+ "aleph-bft-rmc",
  "async-trait",
  "derive_more",
  "env_logger",
