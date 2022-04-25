@@ -62,7 +62,7 @@ fn successful_verification() {
         ));
 
         let stored_options @ LightClientOptionsStorage {clock_drift,..}: LightClientOptionsStorage =
-            Pallet::<TestRuntime>::get_options();
+            Pallet::<TestRuntime>::get_options().unwrap ();
 
         // assert storage updated
         assert_eq!(clock_drift, 60);
@@ -96,8 +96,9 @@ fn successful_verification() {
             TendermintHashStorage::Some(best_finalized_hash)
         );
 
+        let height = untrusted_block.signed_header.header.height;
         System::assert_last_event(mock::Event::TendermintLightClient(
-            super::Event::ImportedLightBlock(100, best_finalized_hash),
+            super::Event::ImportedLightBlock(100, best_finalized_hash, height),
         ));
 
         let last_imported_block = Pallet::<TestRuntime>::get_last_imported_block().unwrap();

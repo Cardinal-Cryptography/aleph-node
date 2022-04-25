@@ -47,8 +47,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, TENDERMINT_MAX_VOTES_COUNT,
+    AuthorityId as AlephId, DEFAULT_HEADERS_TO_KEEP, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, TENDERMINT_MAX_VOTES_COUNT,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -316,7 +316,7 @@ impl pallet_aleph::Config for Runtime {
 }
 
 parameter_types! {
-    pub const HeadersToKeep: u32 = 10000;
+    pub const HeadersToKeep: u32 = DEFAULT_HEADERS_TO_KEEP;
     pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
 }
 

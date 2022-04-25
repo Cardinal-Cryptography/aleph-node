@@ -351,7 +351,7 @@ pub mod pallet {
         <ImportedHashes<T>>::mutate(index, |current| {
             // prune light block
             if let Some(hash) = current {
-                log::info!(target: "runtime::tendermint-lc", "Pruninig a stale light block with hash {:?}", hash);
+                log::info!(target: "runtime::tendermint-lc", "Pruning a stale light block with hash {:?}", hash);
                 <ImportedBlocks<T>>::remove(hash);
             }
             *current = Some(hash);
