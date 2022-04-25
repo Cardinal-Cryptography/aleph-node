@@ -4498,6 +4498,7 @@ dependencies = [
  "frame-system",
  "pallet-balances",
  "pallet-session",
+ "pallet-staking",
  "parity-scale-codec",
  "primitives",
  "scale-info",

@@ -346,11 +346,8 @@ fn rotate() -> Option<Vec<AccountId>> {
     };
     let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
-    // this is tricky: we might change the number of reserved nodes for (current_era + 1) while still
-    // in current_era. This is not a problem as long as we enlarge the list.
-    // A solution could be to store reserved nodes per era, but this is somewhat cumbersome.
-    // There is a ticket to improve that in later iteration
-    let mut validators = pallet_staking::Invulnerables::<Runtime>::get();
+
+    let mut validators = pallet_elections::ErasReserved::<Runtime>::get(current_era);
     all_validators.retain(|v| !validators.contains(v));
     let n_all_validators = all_validators.len();
 
@@ -368,6 +365,19 @@ fn rotate() -> Option<Vec<AccountId>> {
     Some(validators)
 }
 
+fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
+    let current_era = match Staking::active_era() {
+        Some(ae) => ae.index,
+        _ => return,
+    };
+    if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
+        if era_index == start_index {
+            let reserved = pallet_staking::Invulnerables::<Runtime>::get();
+            pallet_elections::ErasReserved::<Runtime>::insert(current_era + 1, reserved);
+        }
+    }
+}
+
 use primitives::SessionIndex;
 type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
 pub struct SampleSessionManager;
@@ -375,6 +385,9 @@ pub struct SampleSessionManager;
 impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
         SM::new_session(new_index);
+        // new session is always called before the end_session of the previous session
+        // so we need to populate reserved set here not on start_session nor end_session
+        populate_reserved_on_next_era_start(new_index);
         rotate()
     }
 
