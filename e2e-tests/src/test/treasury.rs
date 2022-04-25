@@ -4,8 +4,8 @@ use crate::{
     fee::get_tx_fee_info,
     transfer::{setup_for_transfer, transfer},
 };
-use codec::{Compact, Decode};
 use aleph_client::{create_connection, wait_for_event, Connection};
+use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
@@ -128,16 +128,13 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 
+    let proposals_counter_before = get_proposals_counter(&connection);
     propose_treasury_spend(10u128, &beneficiary, &connection);
-    propose_treasury_spend(100u128, &beneficiary, &connection);
-    let proposals_counter = get_proposals_counter(&connection);
-    assert!(proposals_counter >= 2, "Proposal was not created");
-
-    let sudo = get_sudo(config);
-    let connection = connection.set_signer(sudo);
-
-    treasury_approve(proposals_counter - 2, &connection)?;
-    treasury_reject(proposals_counter - 1, &connection)?;
+    let proposals_counter_after = get_proposals_counter(&connection);
+    assert_eq!(
+        proposals_counter_before, proposals_counter_after,
+        "Proposal was created: deposit was not high enough"
+    );
 
     Ok(())
 }
@@ -175,7 +172,7 @@ fn get_proposals_counter(connection: &Connection) -> u32 {
     connection
         .get_storage_value("Treasury", "ProposalCount", None)
         .unwrap()
-        .unwrap()
+        .unwrap_or(0)
 }
 
 type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;

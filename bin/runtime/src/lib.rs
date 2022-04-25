@@ -25,11 +25,6 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_support::sp_runtime::Perquintill;
-use frame_support::traits::EqualPrivilegeOnly;
-use frame_support::traits::SortedMembers;
-use frame_support::weights::constants::WEIGHT_PER_MILLIS;
-use frame_support::PalletId;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -41,6 +36,12 @@ pub use frame_support::{
         IdentityFee, Weight,
     },
     StorageValue,
+};
+use frame_support::{
+    sp_runtime::Perquintill,
+    traits::{EqualPrivilegeOnly, SortedMembers},
+    weights::constants::WEIGHT_PER_MILLIS,
+    PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
@@ -106,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 11,
+    spec_version: 12,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -526,8 +527,9 @@ pub const TREASURY_BURN: u32 = 0;
 // The percentage of the amount of the proposal that the proposer should deposit.
 // We agreed on non-progressive deposit.
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
-// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
-pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, 100B tokens}.
+// This should effectively block making proposals.
+pub const TREASURY_MINIMUM_BOND: Balance = 100_000_000_000_000_000_000_000;
 // Every 4h we implement accepted proposals.
 pub fn treasury_spend_period() -> BlockNumber {
     hours_as_block_num(4)
