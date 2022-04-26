@@ -30,7 +30,7 @@ pub const TRUSTED_BLOCK: &str = r#"{
             "validators_hash": "75E6DD63C2DC2B58FE0ED82792EAB369C4308C7EC16B69446382CC4B41D46068",
             "next_validators_hash": "75E6DD63C2DC2B58FE0ED82792EAB369C4308C7EC16B69446382CC4B41D46068",
             "consensus_hash": "75E6DD63C2DC2B58FE0ED82792EAB369C4308C7EC16B69446382CC4B41D46068",
-            "app_hash": "",
+            "app_hash": "B095E97A18AF44BED80C1E697FDE6E9326F3B6EEDA802866036D936ABA32647C",
             "last_results_hash": null,
             "evidence_hash": null,
             "proposer_address": "6AE5C701F508EB5B63343858E068C5843F28105F"

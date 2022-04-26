@@ -3,8 +3,9 @@ use crate::utils::{
 };
 #[cfg(feature = "std")]
 use crate::utils::{
-    base64string_as_h512, deserialize_base64string_as_h256, deserialize_from_str,
-    deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339, timestamp_from_rfc3339,
+    base64string_as_h512, deserialize_app_hash_as_bytes, deserialize_base64string_as_h256,
+    deserialize_from_str, deserialize_string_as_bytes, deserialize_timestamp_from_rfc3339,
+    timestamp_from_rfc3339,
 };
 use codec::{Decode, Encode};
 use scale_info::{prelude::string::String, TypeInfo};
@@ -352,7 +353,7 @@ pub struct HeaderStorage {
     /// AppHash is usually a SHA256 hash, but in reality it can be any kind of data
     #[cfg_attr(
         feature = "std",
-        serde(deserialize_with = "deserialize_string_as_bytes")
+        serde(deserialize_with = "deserialize_app_hash_as_bytes")
     )]
     pub app_hash: Vec<u8>,
     /// Root hash of all results from the txs from the previous block
