@@ -352,13 +352,18 @@ fn rotate() -> Option<Vec<AccountId>> {
     let n_all_validators = all_validators.len();
 
     let n_validators = MembersPerSession::get() as usize;
-    let free_sits = n_validators.checked_sub(validators.len()).unwrap();
+    let free_seats = n_validators.checked_sub(validators.len()).unwrap();
 
+    // The validators for the committee at the session `n` are chosen as follow:
+    // 1. Reserved validators are always chosen.
+    // 2. Given non-reserved list of validators the chosen ones are from the range:
+    // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
+    // seats in the committee after reserved nodes are added.
     let current_session = Session::current_index() as usize;
-    let first_validator = current_session * free_sits;
+    let first_validator = current_session * free_seats;
 
     validators.extend(
-        (first_validator..first_validator + free_sits)
+        (first_validator..first_validator + free_seats)
             .map(|i| all_validators[i % n_all_validators].clone()),
     );
 
