@@ -10,8 +10,6 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarks;
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod generator;
 
@@ -27,8 +25,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 pub mod pallet {
     use super::*;
     use crate::types::{
-        ConversionError, LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash,
-        TendermintHashStorage,
+        LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash, TendermintHashStorage,
     };
     use frame_support::{
         ensure, fail, log,
