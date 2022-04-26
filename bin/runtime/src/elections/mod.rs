@@ -1,7 +1,7 @@
 use pallet_staking::EraIndex;
 use primitives::{
     TOKEN,
-    SessionIndex
+    SessionIndex,
 };
 use crate::{AccountId, BlockNumber, MembersPerSession, Perbill, SessionPeriod, SessionsPerEra, Runtime, Staking, Rewards, Session, Vec};
 
@@ -38,7 +38,7 @@ impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
         // let exposure = pallet_staking::ErasStakers::<Runtime>::get(active_era, &validator);
         // let number_of_sessions_per_validator = SessionsPerEra::get()
         //     / (MembersPerSession::get() - Staking::invulnerables().len() as u32);
-        // let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
+        let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
         // let points_per_block = points_per_block(exposure.total, number_of_sessions_per_validator, blocks_to_produce_per_session, TOKEN);
         //
         // pallet_staking::Pallet::<Runtime>::reward_by_ids(
@@ -49,21 +49,20 @@ impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
     fn note_uncle(_author: AccountId, _age: BlockNumber) {}
 }
 
+fn reward_session_validators() {}
+
 
 // Choose a subset of all the validators for current era that contains all the
 // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
 fn rotate() -> Option<Vec<AccountId>> {
-    let current_era = Staking::current_era()?;
-    if current_era == 0 {
-        return None;
-    }
+    let current_era = match Staking::active_era() {
+        Some(ae) if ae.index > 0 => ae.index,
+        _ => return None,
+    };
     let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
-    // this is tricky: we might change the number of reserved nodes for (current_era + 1) while still
-    // in current_era. This is not a problem as long as we enlarge the list.
-    // A solution could be to store reserved nodes per era, but this is somewhat cumbersome.
-    // There is a ticket to improve that in later iteration
-    let mut validators = pallet_staking::Invulnerables::<Runtime>::get();
+
+    let mut validators = pallet_elections::ErasReserved::<Runtime>::get(current_era);
     all_validators.retain(|v| !validators.contains(v));
     let n_all_validators = all_validators.len();
 
@@ -78,15 +77,23 @@ fn rotate() -> Option<Vec<AccountId>> {
             .map(|i| all_validators[i % n_all_validators].clone()),
     );
 
-    for validator in &validators {
-        pallet_rewards::ErasParticipatedSessions::<Runtime>::mutate(&current_era, validator, |v| {
-            *v += 1
-        });
-    }
     Some(validators)
 }
 
-fn reward_session_validators() {}
+fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
+    let current_era = match Staking::active_era() {
+        Some(ae) => ae.index,
+        _ => return,
+    };
+    // this will be populated once for the session `n+1` on the start of the session `n` where session
+    // `n+1` starts a new era.
+    if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
+        if era_index == start_index {
+            let reserved = pallet_staking::Invulnerables::<Runtime>::get();
+            pallet_elections::ErasReserved::<Runtime>::insert(current_era + 1, reserved);
+        }
+    }
+}
 
 type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
 pub struct SampleSessionManager;
@@ -94,11 +101,10 @@ pub struct SampleSessionManager;
 impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
         SM::new_session(new_index);
+        // new session is always called before the end_session of the previous session
+        // so we need to populate reserved set here not on start_session nor end_session
+        populate_reserved_on_next_era_start(new_index);
         rotate()
-    }
-
-    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session_genesis(new_index)
     }
 
     fn end_session(end_index: SessionIndex) {
@@ -108,8 +114,11 @@ impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn start_session(start_index: SessionIndex) {
         SM::start_session(start_index)
     }
-}
 
+    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
+        SM::new_session_genesis(new_index)
+    }
+}
 
 
 #[cfg(test)]

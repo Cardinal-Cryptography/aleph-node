@@ -32,4 +32,5 @@ std = [
     "pallet-session/std",
     "primitives/std",
     "pallet-balances/std",
+    "pallet-staking/std",
 ]

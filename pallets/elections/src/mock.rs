@@ -135,9 +135,12 @@ pub fn new_test_ext(members: Vec<AccountId>) -> sp_io::TestExternalities {
         .unwrap();
 
     let members_per_session = members.len() as u32;
-    crate::GenesisConfig::<Test> { members, members_per_session }
-        .assimilate_storage(&mut t)
-        .unwrap();
+    crate::GenesisConfig::<Test> {
+        members,
+        members_per_session,
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     t.into()
 }
