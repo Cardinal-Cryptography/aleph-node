@@ -67,9 +67,9 @@ let
                      else "";
 
   # newer versions of substrate support providing a version hash by means of an env variable, i.e. SUBSTRATE_CLI_GIT_COMMIT_HASH
-  gitFolder = ./.git;
+  gitFolder = ./.;
   gitCommitDrv = nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
-    cp -r ${gitFolder} ./.git
+    cd ${gitFolder}
     echo $(git rev-parse --short HEAD) > $out
   '';
   gitCommit = builtins.readFile gitCommitDrv;
