@@ -17,8 +17,10 @@ mod generator;
 
 pub mod types;
 mod utils;
+pub mod weights;
 
 use frame_support::traits::StorageVersion;
+pub use weights::WeightInfo;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -59,6 +61,9 @@ pub mod pallet {
 
         /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -159,6 +164,8 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         // TODO : benchmark & adjust weights
         #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+
+        // #[pallet::weight(T::WeightInfo::vest_locked(T::MAX_VOTES_COUNT))]
         pub fn initialize_client(
             origin: OriginFor<T>,
             options: LightClientOptionsStorage,

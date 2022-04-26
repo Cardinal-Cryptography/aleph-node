@@ -325,7 +325,7 @@ impl pallet_tendermint_light_client::Config for Runtime {
     type HeadersToKeep = HeadersToKeep;
     type TimeProvider = Timestamp;
     type MaxVotesCount = MaxVotesCount;
-    // type Moment = u64;
+    type WeightInfo = pallet_tendermint_light_client::weights::SubstrateWeight<Runtime>;
 }
 
 impl_opaque_keys! {

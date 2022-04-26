@@ -25,9 +25,10 @@ where
 }
 
 benchmarks! {
-    benchmark_for_initialize_client {
 
-        let v in 1 .. T::MaxVotesCount::get();
+    initialize_client {
+
+        let v in 1 .. 2;//T::MaxVotesCount::get();
 
         // set `now` to 1 millis after epoch time 0 to avoid errors from Timestamp pallet
         Timestamp::<T>::set_timestamp(T::Moment::one ());
@@ -49,9 +50,9 @@ benchmarks! {
             );
         }
 
-    benchmark_for_update_client {
+    update_client {
 
-        let v in 1 .. T::MaxVotesCount::get();
+        let v in 1 .. 2;//T::MaxVotesCount::get();
 
         // set `now` to 1 millis after epoch time 0 to avoid errors from Timestamp pallet
         Timestamp::<T>::set_timestamp(T::Moment::one ());
@@ -83,12 +84,9 @@ benchmarks! {
 
     // this benchmarks update_client call which causes pruning of the oldest block
     // mock runtime keeps 3 headers, therefore rollover happens after inserting a fourth consecutive block
-    benchmark_for_update_client_with_pruning {
+    update_client_with_pruning {
 
-        let v in 1 .. T::MaxVotesCount::get();
-
-        // let mut block_number = System::<T>::block_number();
-        // System::<T>::set_block_number(block_number);
+        let v in 1 .. 2;//T::MaxVotesCount::get();
 
         let mut now = T::Moment::zero ();
         Timestamp::<T>::set_timestamp(now);
