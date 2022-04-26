@@ -5,65 +5,68 @@ use crate::{
 };
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_support::{assert_ok, traits::Get};
-use frame_system::RawOrigin;
+use frame_system::{Pallet as System, RawOrigin};
 use generator::generate_consecutive_blocks;
 use scale_info::prelude::string::String;
 
 benchmarks! {
-    benchmark_for_initialize_client {
+    // benchmark_for_initialize_client {
 
-        let v in 1 .. T::MaxVotesCount::get();
-        let mut blocks = generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
+    //     let v in 1 .. 2;//T::MaxVotesCount::get();
+    //     let mut blocks = generate_consecutive_blocks (1, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
-        let initial_block = blocks.pop ().unwrap ();
-        let options = LightClientOptionsStorage::default();
+    //     let initial_block = blocks.pop ().unwrap ();
+    //     let options = LightClientOptionsStorage::default();
 
-    }: initialize_client(RawOrigin::Root, options, initial_block.clone ())
+    // }: initialize_client(RawOrigin::Root, options, initial_block.clone ())
 
-        verify {
-            // check if persisted
-            let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
-            assert_eq!(
-                initial_block.signed_header.commit.block_id.hash,
-                TendermintHashStorage::Some (last_imported)
-            );
-        }
+    //     verify {
+    //         // check if persisted
+    //         let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
+    //         assert_eq!(
+    //             initial_block.signed_header.commit.block_id.hash,
+    //             TendermintHashStorage::Some (last_imported)
+    //         );
+    //     }
 
-    benchmark_for_update_client {
+    // benchmark_for_update_client {
 
-        let v in 1 .. T::MaxVotesCount::get();
-        let mut blocks = generate_consecutive_blocks (2, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
+    //     let v in 1 .. 2;//T::MaxVotesCount::get();
+    //     let mut blocks = generate_consecutive_blocks (2, String::from ("test-chain"), v, 3, TimestampStorage::new (3, 0));
 
-        let options = LightClientOptionsStorage::default();
-        let initial_block = blocks.pop ().unwrap ();
+    //     let options = LightClientOptionsStorage::default();
+    //     let initial_block = blocks.pop ().unwrap ();
 
-        assert_ok!(TendermintLightClient::<T>::initialize_client(
-            RawOrigin::Root.into() ,
-            options,
-            initial_block
-        ));
+    //     assert_ok!(TendermintLightClient::<T>::initialize_client(
+    //         RawOrigin::Root.into() ,
+    //         options,
+    //         initial_block
+    //     ));
 
-        let caller: T::AccountId = whitelisted_caller();
-        let untrusted_block = blocks.pop ().unwrap ();
+    //     let caller: T::AccountId = whitelisted_caller();
+    //     let untrusted_block = blocks.pop ().unwrap ();
 
-    }: update_client(RawOrigin::Signed(caller.clone()), untrusted_block.clone ())
+    // }: update_client(RawOrigin::Signed(caller.clone()), untrusted_block.clone ())
 
-        verify {
-            // check if persisted
-            let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
-            assert_eq!(
-                untrusted_block.signed_header.commit.block_id.hash,
-                TendermintHashStorage::Some (last_imported)
-            );
-        }
+    //     verify {
+    //         // check if persisted
+    //         let last_imported = TendermintLightClient::<T>::get_last_imported_block_hash();
+    //         assert_eq!(
+    //             untrusted_block.signed_header.commit.block_id.hash,
+    //             TendermintHashStorage::Some (last_imported)
+    //         );
+    //     }
 
     // this benchmarks update_client call which causes pruning of the oldest block
     // mock runtime keeps 3 headers, therefore rollover happens after inserting a fourth consecutive block
     benchmark_for_update_client_with_pruning {
 
-        let v in 1 .. T::MaxVotesCount::get();
-        // block at 1970-01-01T00:00:00Z
-        let mut blocks = generate_consecutive_blocks (4, String::from ("test-chain"), v, 3, TimestampStorage::new (0, 0));
+        let v in 1 .. 1; // T::MaxVotesCount::get();
+
+        System::<T>::set_block_number(1u32.into ());
+
+        // initial block at 1970-01-01T00:00:00Z
+        let mut blocks = generate_consecutive_blocks (T::HeadersToKeep::get()  as usize, String::from ("test-chain"), v, 3, TimestampStorage::new (0, 0));
 
         let options = LightClientOptionsStorage::default();
 
@@ -76,21 +79,17 @@ benchmarks! {
 
         let caller: T::AccountId = whitelisted_caller();
 
-        let next = blocks.pop ().unwrap ();
-        assert_ok!(TendermintLightClient::<T>::update_client(
-            RawOrigin::Signed(caller.clone()).into (),
-            next
-        ));
+        for _ in 1..T::HeadersToKeep::get() - 1 {
+            let next = blocks.pop ().unwrap ();
+            assert_ok!(TendermintLightClient::<T>::update_client(
+                RawOrigin::Signed(caller.clone()).into (),
+                next
+            ));
+        }
 
-        let next_next = blocks.pop ().unwrap ();
-        assert_ok!(TendermintLightClient::<T>::update_client(
-            RawOrigin::Signed(caller.clone()).into (),
-            next_next
-        ));
+        let last = blocks.pop ().unwrap ();
 
-        let next_next_next = blocks.pop ().unwrap ();
-
-    }: update_client(RawOrigin::Signed(caller.clone()), next_next_next)
+    }: update_client(RawOrigin::Signed(caller.clone()), last)
 
         verify {
             // check if rollover has happened

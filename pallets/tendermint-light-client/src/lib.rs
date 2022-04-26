@@ -27,8 +27,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 pub mod pallet {
     use super::*;
     use crate::types::{
-        ConversionError, LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash,
-        TendermintHashStorage,
+        LightBlockStorage, LightClientOptionsStorage, TendermintBlockHash, TendermintHashStorage,
     };
     use frame_support::{
         ensure, fail, log,
