@@ -55,7 +55,6 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_tendermint_light_client_rpc_runtime_api::LightBlockStorage;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-// use pallet_tendermint_light_client::types::LightBlockStorage;
 use sp_consensus_aura::SlotDuration;
 use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
@@ -672,7 +671,6 @@ impl_runtime_apis! {
 
             list_benchmark!(list, extra, frame_benchmarking, BaselineBench::<Runtime>);
             list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
-            // list_benchmark!(list, extra, pallet_balances, Balances);
             list_benchmark!(list, extra, pallet_timestamp, Timestamp);
             list_benchmark!(list, extra, pallet_tendermint_light_client, TendermintLightClient);
 
@@ -700,7 +698,6 @@ impl_runtime_apis! {
 
             add_benchmark!(params, batches, frame_benchmarking, BaselineBench::<Runtime>);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-            // add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_tendermint_light_client, TendermintLightClient);
 

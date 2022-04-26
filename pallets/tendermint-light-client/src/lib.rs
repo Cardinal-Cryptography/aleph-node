@@ -162,7 +162,6 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         #[pallet::weight(
 	    <T as pallet::Config>::WeightInfo::initialize_client(T::MaxVotesCount::get())
 	)]
@@ -200,7 +199,6 @@ pub mod pallet {
         }
 
         /// Verify a block header against a known state.        
-        // #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
         #[pallet::weight(
 	    <T as pallet::Config>::WeightInfo::update_client(T::MaxVotesCount::get())
                 .max (<T as pallet::Config>::WeightInfo::update_client_with_pruning(T::MaxVotesCount::get()))
@@ -303,7 +301,7 @@ pub mod pallet {
             }
         }
 
-        // TODO: This method will need to be called by the pallet itself if it detects a fork.
+        // TODO : This method will need to be called by the pallet itself if it detects a fork.
         /// Halt or resume all light client operations
         ///
         /// Can only be called by root

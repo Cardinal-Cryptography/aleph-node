@@ -51,7 +51,6 @@ sp-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "
 pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
 # These dependencies are used for runtime benchmarking
-# frame-benchmarking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
 aleph-runtime = { path = "../runtime"}
