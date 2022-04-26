@@ -47,13 +47,15 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD,
+    AuthorityId as AlephId, DEFAULT_HEADERS_TO_KEEP, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, TENDERMINT_MAX_VOTES_COUNT,
 };
 
 pub use pallet_balances::Call as BalancesCall;
+use pallet_tendermint_light_client_rpc_runtime_api::LightBlockStorage;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+// use pallet_tendermint_light_client::types::LightBlockStorage;
 use sp_consensus_aura::SlotDuration;
 use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
@@ -311,6 +313,18 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
+}
+
+parameter_types! {
+    pub const HeadersToKeep: u32 = DEFAULT_HEADERS_TO_KEEP;
+    pub const MaxVotesCount: u32 = TENDERMINT_MAX_VOTES_COUNT;
+}
+
+impl pallet_tendermint_light_client::Config for Runtime {
+    type Event = Event;
+    type HeadersToKeep = HeadersToKeep;
+    type TimeProvider = Timestamp;
+    type MaxVotesCount = MaxVotesCount;
 }
 
 impl_opaque_keys! {
@@ -602,6 +616,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        TendermintLightClient: pallet_tendermint_light_client::{Pallet, Call, Storage, Event<T>} = 18,
     }
 );
 
@@ -758,6 +773,12 @@ impl_runtime_apis! {
                 .iter()
                 .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()
+        }
+    }
+
+    impl pallet_tendermint_light_client_rpc_runtime_api::TendermintLightClientApi<Block> for Runtime {
+        fn get_last_imported_block () -> Option<LightBlockStorage> {
+            TendermintLightClient::get_last_imported_block ()
         }
     }
 

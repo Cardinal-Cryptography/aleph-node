@@ -146,7 +146,7 @@ impl LightClientOptionsStorage {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 impl Default for LightClientOptionsStorage {
     fn default() -> Self {
         Self {

@@ -1,0 +1,26 @@
+[package]
+name = "pallet-tendermint-light-client-rpc-runtime-api"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+description = "RPC runtime API for the tendermint light client pallet"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
+sp-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false, features = ["disable_oom", "disable_panic_handler"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
+pallet-tendermint-light-client = { default-features = false, path = "../../../tendermint-light-client" }
+
+[features]
+default = ["std"]
+std = [
+  "codec/std",
+  "sp-api/std",
+  "sp-runtime/std",
+  "pallet-tendermint-light-client/std",
+]

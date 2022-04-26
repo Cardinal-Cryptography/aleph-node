@@ -63,6 +63,7 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate.git", branch = 
 sp-block-builder = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}
+pallet-tendermint-light-client-rpc = { path = "../../pallets/tendermint-light-client/rpc" }
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13"}

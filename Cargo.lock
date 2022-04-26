@@ -122,6 +122,7 @@ dependencies = [
  "libp2p 0.39.1",
  "log",
  "pallet-staking",
+ "pallet-tendermint-light-client-rpc",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "primitives",
@@ -178,6 +179,8 @@ dependencies = [
  "pallet-session",
  "pallet-staking",
  "pallet-sudo",
+ "pallet-tendermint-light-client",
+ "pallet-tendermint-light-client-rpc-runtime-api",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -4778,7 +4781,6 @@ name = "pallet-tendermint-light-client"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.0",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-timestamp",
@@ -4797,6 +4799,33 @@ dependencies = [
  "tendermint-proto",
  "tendermint-testgen",
  "time 0.3.7",
+]
+
+[[package]]
+name = "pallet-tendermint-light-client-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "pallet-tendermint-light-client-rpc-runtime-api",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-tendermint-light-client-rpc-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "pallet-tendermint-light-client",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

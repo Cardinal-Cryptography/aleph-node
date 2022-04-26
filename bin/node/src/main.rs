@@ -1,8 +1,7 @@
+use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
-
-use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::from_args();

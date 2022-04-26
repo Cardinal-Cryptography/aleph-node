@@ -46,6 +46,10 @@ pub const TOKEN: u128 = 10u128.pow(TOKEN_DECIMALS);
 pub const ADDRESSES_ENCODING: u32 = 42;
 pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
+// https://github.com/tendermint/tendermint/blob/4a504c068762a868de13270ac20ad890cac2ebd4/types/vote_set.go
+pub const TENDERMINT_MAX_VOTES_COUNT: u32 = 10000;
+pub const DEFAULT_HEADERS_TO_KEEP: u32 = 1000;
+
 #[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum ApiError {
     DecodeKey,
