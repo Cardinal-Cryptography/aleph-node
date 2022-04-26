@@ -1,32 +1,16 @@
-use crate::accounts::accounts_from_seeds;
-use crate::config::Config;
-use crate::{Connection, TransferTransaction};
-use common::create_connection;
-use log::info;
+use crate::{accounts::accounts_from_seeds, config::Config};
+use aleph_client::{create_connection, Connection, KeyPair};
 use sp_core::Pair;
-use sp_runtime::AccountId32;
 use substrate_api_client::AccountId;
-use substrate_api_client::GenericAddress;
 
-pub fn setup_for_transfer(config: Config) -> (Connection, AccountId32, AccountId32) {
-    let Config { node, seeds, .. } = config;
+pub fn setup_for_transfer(config: &Config) -> (Connection, KeyPair, AccountId) {
+    let Config {
+        ref node, seeds, ..
+    } = config;
 
     let accounts = accounts_from_seeds(seeds);
-    let (from, to) = (accounts[0].to_owned(), accounts[1].to_owned());
-
+    let (from, to) = (accounts[0].clone(), accounts[1].clone());
     let connection = create_connection(node).set_signer(from.clone());
-    let from = AccountId::from(from.public());
     let to = AccountId::from(to.public());
     (connection, from, to)
-}
-
-pub fn transfer(target: &AccountId32, value: u128, connection: &Connection) -> TransferTransaction {
-    crate::send_extrinsic!(
-        connection,
-        "Balances",
-        "transfer",
-        |tx_hash| info!("[+] Transfer transaction hash: {}", tx_hash),
-        GenericAddress::Id(target.clone()),
-        Compact(value)
-    )
 }

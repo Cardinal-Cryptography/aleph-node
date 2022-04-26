@@ -107,7 +107,7 @@ impl Handler {
         self.authority_verifier.node_count()
     }
 
-    fn session_id(&self) -> SessionId {
+    pub fn session_id(&self) -> SessionId {
         self.session_info.session_id()
     }
 
@@ -117,14 +117,6 @@ impl Handler {
             SessionInfo::SessionId(_) => None,
             SessionInfo::OwnAuthentication(own_authentication) => Some(own_authentication.clone()),
         }
-    }
-
-    /// Returns the authentication for the node with the given index, if we have it.
-    pub fn authentication_for(&self, node_id: &NodeIndex) -> Option<Authentication> {
-        self.peer_id(node_id)
-            .map(|peer_id| self.authentications.get(&peer_id))
-            .flatten()
-            .map(|(auth, _)| auth.clone())
     }
 
     /// Returns a vector of indices of nodes for which the handler has no authentication.
@@ -205,15 +197,9 @@ impl Handler {
         .await?;
 
         for (_, (auth, maybe_auth)) in authentications {
-            print!(
-                "normal authentication: {:?}",
-                self.handle_authentication(auth)
-            );
+            self.handle_authentication(auth);
             if let Some(auth) = maybe_auth {
-                print!(
-                    "alternative authentication: {:?}",
-                    self.handle_authentication(auth)
-                );
+                self.handle_authentication(auth);
             }
         }
         Ok(self
@@ -234,7 +220,6 @@ mod tests {
         },
         NodeIndex, SessionId,
     };
-    use codec::Encode;
 
     const NUM_NODES: usize = 7;
 
@@ -395,7 +380,6 @@ mod tests {
         .await
         .unwrap();
         assert!(handler0.peer_id(&NodeIndex(0)).is_none());
-        assert!(handler0.authentication_for(&NodeIndex(0)).is_none());
     }
 
     #[tokio::test]
@@ -440,10 +424,6 @@ mod tests {
         assert_eq!(missing_nodes, expected_missing);
         let peer_id1 = get_common_peer_id(&correct_addresses_1());
         assert_eq!(handler0.peer_id(&NodeIndex(1)), peer_id1);
-        assert_eq!(
-            handler0.authentication_for(&NodeIndex(1)).encode(),
-            handler1.authentication().encode()
-        );
     }
 
     #[tokio::test]
@@ -499,7 +479,6 @@ mod tests {
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
-        assert!(handler0.authentication_for(&NodeIndex(1)).is_none());
     }
 
     #[tokio::test]
@@ -525,7 +504,6 @@ mod tests {
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
-        assert!(handler0.authentication_for(&NodeIndex(1)).is_none());
     }
 
     #[tokio::test]
@@ -566,22 +544,18 @@ mod tests {
         .unwrap();
         assert!(handler0.handle_authentication(handler1.authentication().unwrap()));
         let new_crypto_basics = crypto_basics(NUM_NODES).await;
-        print!(
-            "{:?}",
-            handler0
-                .update(
-                    Some(new_crypto_basics.0[0].clone()),
-                    new_crypto_basics.1.clone(),
-                    correct_addresses_0()
-                )
-                .await
-                .unwrap()
-        );
+        handler0
+            .update(
+                Some(new_crypto_basics.0[0].clone()),
+                new_crypto_basics.1.clone(),
+                correct_addresses_0(),
+            )
+            .await
+            .unwrap();
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
         assert!(handler0.peer_id(&NodeIndex(1)).is_none());
-        assert!(handler0.authentication_for(&NodeIndex(1)).is_none());
     }
 
     #[tokio::test]
@@ -629,10 +603,6 @@ mod tests {
         assert_eq!(
             handler0.peer_id(&NodeIndex(1)),
             get_common_peer_id(&correct_addresses_1())
-        );
-        assert_eq!(
-            handler0.authentication_for(&NodeIndex(1)).encode(),
-            handler1.authentication().encode()
         );
     }
 }

@@ -1,8 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use crate::justification::{AlephJustification, SessionInfo, SessionInfoProvider, Verifier};
-use crate::testing::mocks::{AcceptancePolicy, TBlock, THash, TNumber};
-use crate::{last_block_of_session, session_id_from_block_num, SessionPeriod};
+use crate::{
+    justification::{AlephJustification, SessionInfo, SessionInfoProvider, Verifier},
+    last_block_of_session, session_id_from_block_num,
+    testing::mocks::{AcceptancePolicy, TBlock, THash, TNumber},
+    SessionPeriod,
+};
 
 pub(crate) struct VerifierWrapper {
     acceptance_policy: Arc<Mutex<AcceptancePolicy>>,
@@ -28,8 +31,9 @@ impl SessionInfoProviderImpl {
     }
 }
 
+#[async_trait::async_trait]
 impl SessionInfoProvider<TBlock, VerifierWrapper> for SessionInfoProviderImpl {
-    fn for_block_num(&self, number: TNumber) -> SessionInfo<TBlock, VerifierWrapper> {
+    async fn for_block_num(&self, number: TNumber) -> SessionInfo<TBlock, VerifierWrapper> {
         let current_session = session_id_from_block_num::<TBlock>(number, self.session_period);
         SessionInfo {
             current_session,

@@ -34,7 +34,6 @@ class Node:
 
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
-            # pylint: disable=consider-using-with
             self.process = subprocess.Popen(cmd, stderr=logfile, stdout=subprocess.DEVNULL)
         self.running = True
 
@@ -99,4 +98,18 @@ class Node:
     def set_log_level(self, target, level):
         """Change log verbosity of the chosen target.
         This method should be called on a running node."""
-        self.rpc('system_addLogFilter', [f'{target}={level}'])
+        return self.rpc('system_addLogFilter', [f'{target}={level}'])
+
+    def address(self, port=None):
+        """Get the public address of this node. Returned value is of the form
+        /dns4/localhost/tcp/{PORT}/p2p/{KEY}. This method needs to know node's port -
+        if it's not supplied a as parameter, it must be present in `self.flags`.
+        """
+        if port is None:
+            if 'port' in self.flags:
+                port = self.flags['port']
+            else:
+                return None
+        cmd = [self.binary, 'key', 'inspect-node-key', '--file', op.join(self.path, 'p2p_secret')]
+        output = subprocess.check_output(cmd).decode().strip()
+        return f'/dns4/localhost/tcp/{port}/p2p/{output}'

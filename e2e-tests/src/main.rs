@@ -1,23 +1,27 @@
-use std::env;
-use std::time::Instant;
+use std::{env, time::Instant};
 
 use clap::Parser;
-
-use aleph_e2e_client::config::Config;
-use aleph_e2e_client::test;
+use aleph_e2e_client::{
+    test_batch_transactions, test_change_validators, test_channeling_fee, test_fee_calculation,
+    test_finalization, test_staking_era_payouts, test_staking_new_validator, test_token_transfer,
+    test_treasury_access, Config,
+};
+use log::info;
 
 fn main() -> anyhow::Result<()> {
     init_env();
 
     let config: Config = Config::parse();
 
-    run(test::finalization, "finalization", config.clone())?;
-    run(test::change_validators, "validators change", config.clone())?;
-    run(test::fee_calculation, "fee calculation", config.clone())?;
-    run(test::token_transfer, "token transfer", config.clone())?;
-    run(test::channeling_fee, "channeling fee", config.clone())?;
-    run(test::treasury_access, "treasury access", config.clone())?;
-    run(test::batch_transactions, "batch_transactions", config.clone())?;
+    run(test_finalization, "finalization", &config)?;
+    run(test_token_transfer, "token transfer", &config)?;
+    run(test_channeling_fee, "channeling fee", &config)?;
+    run(test_treasury_access, "treasury access", &config)?;
+    run(test_batch_transactions, "batch_transactions", &config)?;
+    run(test_staking_era_payouts, "staking_era_payouts", &config)?;
+    run(test_staking_new_validator, "staking_new_validator", &config)?;
+    run(test_change_validators, "validators change", &config)?;
+    run(test_fee_calculation, "fee calculation", &config)?;
 
     Ok(())
 }
@@ -30,11 +34,11 @@ fn init_env() {
 }
 
 fn run<T>(
-    testcase: fn(Config) -> anyhow::Result<T>,
+    testcase: fn(&Config) -> anyhow::Result<T>,
     name: &str,
-    config: Config,
+    config: &Config,
 ) -> anyhow::Result<()> {
-    println!("Running test: {}", name);
+    info!("Running test: {}", name);
     let start = Instant::now();
     testcase(config).map(|_| {
         let elapsed = Instant::now().duration_since(start);

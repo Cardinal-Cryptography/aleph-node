@@ -1,18 +1,21 @@
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
-use crate::justification::{JustificationHandlerConfig, JustificationRequestDelay};
-use crate::testing::mocks::single_action_mock::SingleActionMock;
-use crate::testing::mocks::{AcceptancePolicy, TBlock};
+use crate::{
+    justification::{JustificationHandlerConfig, JustificationRequestScheduler, SchedulerActions},
+    testing::mocks::{single_action_mock::SingleActionMock, AcceptancePolicy, TBlock},
+};
 
 #[derive(Clone)]
-pub(crate) struct JustificationRequestDelayImpl {
+pub(crate) struct JustificationRequestSchedulerImpl {
     acceptance_policy: Arc<Mutex<AcceptancePolicy>>,
     fin_reporter: SingleActionMock<()>,
     req_reporter: SingleActionMock<()>,
 }
 
-impl JustificationRequestDelayImpl {
+impl JustificationRequestSchedulerImpl {
     pub(crate) fn new(acceptance_policy: AcceptancePolicy) -> Self {
         Self {
             acceptance_policy: Arc::new(Mutex::new(acceptance_policy)),
@@ -34,9 +37,13 @@ impl JustificationRequestDelayImpl {
     }
 }
 
-impl JustificationRequestDelay for JustificationRequestDelayImpl {
-    fn can_request_now(&self) -> bool {
-        self.acceptance_policy.lock().unwrap().accepts()
+impl JustificationRequestScheduler for JustificationRequestSchedulerImpl {
+    fn schedule_action(&mut self) -> SchedulerActions {
+        if self.acceptance_policy.lock().unwrap().accepts() {
+            SchedulerActions::Request
+        } else {
+            SchedulerActions::Wait
+        }
     }
 
     fn on_block_finalized(&mut self) {
@@ -51,24 +58,12 @@ impl JustificationRequestDelay for JustificationRequestDelayImpl {
 const DEFAULT_VERIFIER_TIMEOUT_MS: u64 = 10u64;
 const DEFAULT_NOTIFICATION_TIMEOUT_MS: u64 = 10u64;
 
-impl JustificationHandlerConfig<TBlock, JustificationRequestDelayImpl> {
-    pub(crate) fn new(request_policy: AcceptancePolicy) -> Self {
-        JustificationHandlerConfig {
-            justification_request_delay: JustificationRequestDelayImpl::new(request_policy),
-            metrics: None,
-            verifier_timeout: Duration::from_millis(DEFAULT_VERIFIER_TIMEOUT_MS),
-            notification_timeout: Duration::from_millis(DEFAULT_NOTIFICATION_TIMEOUT_MS),
-        }
-    }
-}
-
-impl Clone for JustificationHandlerConfig<TBlock, JustificationRequestDelayImpl> {
-    fn clone(&self) -> Self {
-        Self {
-            justification_request_delay: self.justification_request_delay.clone(),
-            metrics: self.metrics.clone(),
-            verifier_timeout: self.verifier_timeout,
-            notification_timeout: self.notification_timeout,
-        }
+impl JustificationHandlerConfig<TBlock> {
+    pub fn test() -> Self {
+        JustificationHandlerConfig::new(
+            Duration::from_millis(DEFAULT_VERIFIER_TIMEOUT_MS),
+            Duration::from_millis(DEFAULT_NOTIFICATION_TIMEOUT_MS),
+            3u32.into(),
+        )
     }
 }

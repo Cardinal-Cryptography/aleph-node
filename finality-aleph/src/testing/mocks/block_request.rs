@@ -1,8 +1,9 @@
 use sp_runtime::traits::Block;
 
-use crate::network::RequestBlocks;
-use crate::testing::mocks::single_action_mock::SingleActionMock;
-use crate::testing::mocks::{TBlock, THash, TNumber};
+use crate::{
+    network::RequestBlocks,
+    testing::mocks::{single_action_mock::SingleActionMock, TBlock, THash, TNumber},
+};
 
 type CallArgs = (THash, TNumber);
 
@@ -38,5 +39,10 @@ impl RequestBlocks<TBlock> for MockedBlockRequester {
 
     fn request_stale_block(&self, _hash: THash, _number: TNumber) {
         panic!("`request_stale_block` not implemented!")
+    }
+
+    /// Clear all pending justification requests.
+    fn clear_justification_requests(&self) {
+        panic!("`clear_justification_requests` not implemented!")
     }
 }

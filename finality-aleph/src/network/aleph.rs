@@ -1,7 +1,7 @@
 use crate::{
     crypto::Signature,
-    data_io::{AlephDataFor, AlephNetworkMessage},
-    network::DataNetwork,
+    data_io::{AlephData, AlephNetworkMessage},
+    network::{Data, DataNetwork},
     Hasher,
 };
 use aleph_bft::{Network as AlephNetwork, NetworkData as AlephNetworkData, SignatureSet};
@@ -10,41 +10,38 @@ use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 
 pub type NetworkData<B> =
-    AlephNetworkData<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>;
+    AlephNetworkData<Hasher, AlephData<B>, Signature, SignatureSet<Signature>>;
 
 impl<B: Block> AlephNetworkMessage<B> for NetworkData<B> {
-    fn included_blocks(&self) -> Vec<AlephDataFor<B>> {
+    fn included_data(&self) -> Vec<AlephData<B>> {
         self.included_data()
     }
 }
 
 /// A wrapper needed only because of type system theoretical constraints. Sadness.
-pub struct NetworkWrapper<B: Block, ADN: DataNetwork<NetworkData<B>>> {
-    inner: ADN,
-    phantom: PhantomData<B>,
+pub struct NetworkWrapper<D: Data, DN: DataNetwork<D>> {
+    inner: DN,
+    _phantom: PhantomData<D>,
 }
 
-impl<B: Block, ADN: DataNetwork<NetworkData<B>>> From<ADN> for NetworkWrapper<B, ADN> {
-    fn from(inner: ADN) -> Self {
+impl<D: Data, DN: DataNetwork<D>> From<DN> for NetworkWrapper<D, DN> {
+    fn from(inner: DN) -> Self {
         NetworkWrapper {
             inner,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
 
 #[async_trait::async_trait]
-impl<B: Block, ADN: DataNetwork<NetworkData<B>>>
-    AlephNetwork<Hasher, AlephDataFor<B>, Signature, SignatureSet<Signature>>
-    for NetworkWrapper<B, ADN>
-{
-    fn send(&self, data: NetworkData<B>, recipient: aleph_bft::Recipient) {
+impl<D: Data, DN: DataNetwork<D>> AlephNetwork<D> for NetworkWrapper<D, DN> {
+    fn send(&self, data: D, recipient: aleph_bft::Recipient) {
         if self.inner.send(data, recipient).is_err() {
             warn!(target: "aleph-network", "Error sending an AlephBFT message to the network.");
         }
     }
 
-    async fn next_event(&mut self) -> Option<NetworkData<B>> {
+    async fn next_event(&mut self) -> Option<D> {
         self.inner.next().await
     }
 }

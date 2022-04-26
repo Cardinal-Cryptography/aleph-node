@@ -3,11 +3,11 @@
 set -e
 
 NETRC_CREDS="./_netrc"
-RUNTIME_TOOL="./send_runtime"
+CLIAIN="./cliain"
 SUDO_PHRASE=${RUNTIME_PHRASE}
 
-RPC_ADDR="rpc.dev.azero.dev"
-WS_ADDR="ws.dev.azero.dev"
+RPC_ADDR="${RPC_ENVIRONMENT_ENDPOINT:-rpc.dev.azero.dev}"
+WS_ADDR="${WS_ENVIRONMENT_ENDPOINT:-ws.dev.azero.dev}"
 
 echo -n  $(date +"%d-%b-%y %T") "   Checking runtime version on devnet: "
 OLD_VER=$(curl -sS -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "state_getRuntimeVersion"}' $RPC_ADDR | jq .result.specVersion)
@@ -25,7 +25,7 @@ fi
 
 if (( "$NEW_VER" > "$OLD_VER" )); then
     echo -n $(date +"%d-%b-%y %T") "   Fetching latest runtime from github..."
-    ALEPH_RUNTIME_URL=$(curl -sS -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/Cardinal-Cryptography/aleph-node/actions/artifacts | jq '.artifacts' | jq -r '.[] | select(.name=="aleph-runtime") | .archive_download_url' | head -n 1)
+    ALEPH_RUNTIME_URL=$(curl -sS -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/Cardinal-Cryptography/aleph-node/actions/artifacts | jq -r '.artifacts[] | select(.name=="aleph-release-runtime").archive_download_url' | head -n 1)
     curl -sS --netrc-file $NETRC_CREDS -L -o aleph-runtime.zip $ALEPH_RUNTIME_URL
     echo "completed"
     mkdir runtime
@@ -33,7 +33,8 @@ if (( "$NEW_VER" > "$OLD_VER" )); then
     NEW_RUNTIME=runtime/$(ls runtime)
 
     echo -n $(date +"%d-%b-%y %T") "   Sending runtime update... "
-    $RUNTIME_TOOL --url $WS_ADDR --sudo-phrase "$SUDO_PHRASE" $NEW_RUNTIME
+    export RUST_LOG="warn"
+    $CLIAIN --node $WS_ADDR --seed "$SUDO_PHRASE" update-runtime --runtime $NEW_RUNTIME
     echo "completed"
     echo -n $(date +"%d-%b-%y %T") "   Checking new runtime version on devnet: "
     UPD_VER=$(curl -sS -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "state_getRuntimeVersion"}' $RPC_ADDR | jq .result.specVersion)

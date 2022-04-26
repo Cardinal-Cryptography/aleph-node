@@ -6,7 +6,7 @@ from os.path import abspath, join
 from time import sleep
 import jsonrpcclient
 
-from chainrunner import Chain, Seq, generate_keys
+from chainrunner import Chain, Seq, generate_keys, check_finalized
 
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
@@ -16,8 +16,8 @@ oldbin = abspath(os.getenv('OLD_BINARY', join(workdir, 'aleph-node-old')))
 newbin = abspath(os.getenv('NEW_BINARY', join(workdir, 'aleph-node-new')))
 # Path to the post-update compiled runtime:
 runtime = abspath(os.getenv('NEW_RUNTIME', join(workdir, 'aleph_runtime.compact.wasm')))
-# Path to the send-runtime binary (which lives in aleph-node/local-tests/send-runtime):
-SEND_RUNTIME = abspath('send-runtime/target/release/send_runtime')
+# Path to cliain:
+CLIAIN = abspath('../bin/cliain/target/release/cliain')
 
 
 def query_runtime_version(nodes):
@@ -39,14 +39,6 @@ def query_runtime_version(nodes):
     return -1
 
 
-def check_highest(nodes):
-    results = [node.highest_block() for node in nodes]
-    highest, finalized = zip(*results)
-    print('Blocks seen by nodes:')
-    print('  Highest:   ', *highest)
-    print('  Finalized: ', *finalized)
-
-
 phrases = ['//Cartman', '//Stan', '//Kyle', '//Kenny']
 keys = generate_keys(newbin, phrases)
 chain = Chain(workdir)
@@ -54,9 +46,7 @@ print('Bootstraping the chain with old binary')
 chain.bootstrap(oldbin,
                 keys.values(),
                 sudo_account_id=keys[phrases[0]],
-                chain_type='local',
-                millisecs_per_block=2000,
-                session_period=40)
+                chain_type='local')
 
 chain.set_flags('validator',
                 port=Seq(30334),
@@ -68,10 +58,10 @@ chain.set_flags('validator',
 print('Starting the chain with old binary')
 chain.start('old')
 
-print('Waiting a minute')
-sleep(60)
+print('Waiting 90s')
+sleep(90)
 
-check_highest(chain)
+check_finalized(chain)
 query_runtime_version(chain)
 
 print('Killing node 3 and deleting its database')
@@ -82,35 +72,42 @@ print('Restarting node 3 with new binary')
 chain[3].binary = newbin
 chain[3].start('new3')
 
-print('Waiting a minute')
-sleep(60)
+print('Waiting 30s')
+sleep(30)
 
-check_highest(chain)
+check_finalized(chain)
 oldver = query_runtime_version(chain)
 
 print('Submitting extrinsic with new runtime')
 subprocess.check_call(
-    [SEND_RUNTIME, '--url', 'localhost:9945', '--sudo-phrase', phrases[0], runtime])
+    [CLIAIN, '--node', 'localhost:9945', '--seed', phrases[0],
+        'update-runtime', '--runtime', runtime],
+    env=dict(os.environ, RUST_LOG="warn"))
 
 print('Waiting a bit')
-sleep(15)
+sleep(10)
 
-check_highest(chain)
+check_finalized(chain)
 newver = query_runtime_version(chain)
 
 print('Restarting remaining nodes with new binary')
 chain.stop(nodes=[0, 1, 2])
 chain.set_binary(newbin, nodes=[0, 1, 2])
+print('Waiting 30s')
+sleep(30)
 chain.start('new', nodes=[0, 1, 2])
 
-print('Waiting a minute')
-sleep(60)
+print('Waiting 90s')
+sleep(90)
 
-check_highest(chain)
+check_finalized(chain)
 query_runtime_version(chain)
 
 print('Stopping the chain')
 chain.stop()
+
+print('Waiting a bit')
+sleep(10)
 
 hf = min(node.highest_block()[1] for node in chain)
 print(f'Sanity check: the highest finalized block is {hf}. '

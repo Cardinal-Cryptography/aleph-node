@@ -1,7 +1,9 @@
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::{collections::HashMap, time::Instant};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    hash::Hash,
+    time::{Duration, Instant},
+};
 
 use log::{trace, warn};
 use lru::LruCache;
@@ -26,7 +28,7 @@ struct Inner<H: Key> {
 
 impl<H: Key> Inner<H> {
     fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
-        trace!(target: "afa", "Reporting block stage: {:?} (hash: {:?}, at: {:?}", checkpoint_type, hash, checkpoint_time);
+        trace!(target: "aleph-metrics", "Reporting block stage: {:?} (hash: {:?}, at: {:?}", checkpoint_type, hash, checkpoint_time);
 
         self.starts.entry(checkpoint_type).and_modify(|starts| {
             starts.put(hash, checkpoint_time);
@@ -42,11 +44,11 @@ impl<H: Key> Inner<H> {
                 let duration = match checkpoint_time.checked_duration_since(*start) {
                     Some(duration) => duration,
                     None => {
-                        warn!(target: "afa", "Earlier metrics time {:?} is later that current one \
+                        warn!(target: "aleph-metrics", "Earlier metrics time {:?} is later that current one \
                         {:?}. Checkpoint type {:?}, block: {:?}",
                             *start, checkpoint_time, checkpoint_type, hash);
                         Duration::new(0, 0)
-                    },
+                    }
                 };
                 self.gauges
                     .get(&checkpoint_type)

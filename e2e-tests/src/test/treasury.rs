@@ -1,73 +1,131 @@
-use crate::accounts::{accounts_from_seeds, get_free_balance, get_sudo};
-use crate::config::Config;
-use crate::fee::get_tx_fee_info;
-use crate::transfer::{setup_for_transfer, transfer};
-use crate::waiting::wait_for_event;
-use crate::Connection;
 use codec::{Compact, Decode};
-use common::create_connection;
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::AccountId32;
-use sp_runtime::MultiAddress;
-use std::thread;
-use std::thread::sleep;
-use std::time::Duration;
-use substrate_api_client::GenericAddress;
-use substrate_api_client::{AccountId, UncheckedExtrinsicV4};
+use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
+use std::{thread, thread::sleep, time::Duration};
+use substrate_api_client::{
+    compose_extrinsic, AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus,
+};
 
-pub fn channeling_fee(config: Config) -> anyhow::Result<()> {
+use aleph_client::{
+    balances_transfer, create_connection, get_free_balance, get_tx_fee_info, send_xt,
+    wait_for_event, Connection,
+};
+
+use crate::{
+    accounts::{accounts_from_seeds, get_sudo},
+    config::Config,
+    transfer::setup_for_transfer,
+};
+
+fn calculate_staking_treasury_addition(connection: &Connection) -> u128 {
+    let sessions_per_era = connection
+        .get_constant::<u32>("Staking", "SessionsPerEra")
+        .unwrap();
+    let session_period = connection
+        .get_constant::<u32>("Elections", "SessionPeriod")
+        .unwrap();
+    let millisecs_per_block = 2 * connection
+        .get_constant::<u64>("Timestamp", "MinimumPeriod")
+        .unwrap();
+    let millisecs_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
+    let treasury_era_payout_from_staking = primitives::staking::era_payout(millisecs_per_era).1;
+    info!(
+        "[+] Possible treasury gain from staking is {}",
+        treasury_era_payout_from_staking
+    );
+    treasury_era_payout_from_staking
+}
+
+pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
     let (connection, _, to) = setup_for_transfer(config);
     let treasury = get_treasury_account(&connection);
 
-    let treasury_balance_before = get_free_balance(&treasury, &connection);
+    let possibly_treasury_gain_from_staking = calculate_staking_treasury_addition(&connection);
+    let treasury_balance_before = get_free_balance(&connection, &treasury);
     let issuance_before = get_total_issuance(&connection);
     info!(
         "[+] Treasury balance before tx: {}. Total issuance: {}.",
         treasury_balance_before, issuance_before
     );
 
-    let tx = transfer(&to, 1000u128, &connection);
-
-    let treasury_balance_after = get_free_balance(&treasury, &connection);
+    let tx = balances_transfer(&connection, &to, 1000u128, XtStatus::Finalized);
+    let treasury_balance_after = get_free_balance(&connection, &treasury);
     let issuance_after = get_total_issuance(&connection);
-    info!(
-        "[+] Treasury balance after tx: {}. Total issuance: {}.",
-        treasury_balance_after, issuance_after
-    );
-
-    assert!(
-        issuance_after <= issuance_before,
-        "Unexpectedly {} was minted",
-        issuance_after - issuance_before
-    );
-    assert!(
-        issuance_before <= issuance_after,
-        "Unexpectedly {} was burned",
-        issuance_before - issuance_after
+    check_treasury_issuance(
+        possibly_treasury_gain_from_staking,
+        treasury_balance_after,
+        issuance_before,
+        issuance_after,
     );
 
     let fee_info = get_tx_fee_info(&connection, &tx);
     let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
-
-    assert_eq!(
-        treasury_balance_before + fee,
-        treasury_balance_after,
-        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}",
+    check_treasury_balance(
+        possibly_treasury_gain_from_staking,
         treasury_balance_before,
         treasury_balance_after,
-        fee
+        fee,
     );
 
     Ok(())
 }
 
-pub fn treasury_access(config: Config) -> anyhow::Result<()> {
-    let Config { node, seeds, .. } = config.clone();
+fn check_treasury_issuance(
+    possibly_treasury_gain_from_staking: u128,
+    treasury_balance_after: Balance,
+    issuance_before: u128,
+    issuance_after: u128,
+) {
+    info!(
+        "[+] Treasury balance after tx: {}. Total issuance: {}.",
+        treasury_balance_after, issuance_after
+    );
 
-    let proposer = accounts_from_seeds(seeds)[0].to_owned();
+    if issuance_after > issuance_before {
+        let difference = issuance_after - issuance_before;
+        assert_eq!(
+            difference % possibly_treasury_gain_from_staking,
+            0,
+            "Unexpectedly {} was minted, and it's not related to staking treasury reward which is {}",
+            difference, possibly_treasury_gain_from_staking
+        );
+    }
+
+    assert!(
+        issuance_before <= issuance_after,
+        "Unexpectedly {} was burned",
+        issuance_before - issuance_after
+    );
+}
+
+fn check_treasury_balance(
+    possibly_treasury_gain_from_staking: u128,
+    treasury_balance_before: Balance,
+    treasury_balance_after: Balance,
+    fee: Balance,
+) {
+    let treasury_balance_diff = treasury_balance_after - (treasury_balance_before + fee);
+    assert_eq!(
+        treasury_balance_diff % possibly_treasury_gain_from_staking,
+        0,
+        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}.  We can \
+        be different only as multiples of staking treasury reward {}, but the remainder is {}",
+        treasury_balance_before,
+        treasury_balance_after,
+        fee,
+        possibly_treasury_gain_from_staking,
+        treasury_balance_diff % possibly_treasury_gain_from_staking,
+    );
+}
+
+pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
+    let Config {
+        ref node, seeds, ..
+    } = config;
+
+    let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
     let connection = create_connection(node).set_signer(proposer);
 
@@ -103,14 +161,20 @@ fn propose_treasury_spend(
     beneficiary: &AccountId32,
     connection: &Connection,
 ) -> ProposalTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "propose_spend",
-        |tx_hash| info!("[+] Treasury spend transaction hash: {}", tx_hash),
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
-    )
+    );
+    send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury spend"),
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn get_proposals_counter(connection: &Connection) -> u32 {
@@ -121,14 +185,21 @@ fn get_proposals_counter(connection: &Connection) -> u32 {
 }
 
 type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
+
 fn send_treasury_approval(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "approve_proposal",
-        |tx_hash| info!("[+] Treasury approval transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    )
+    );
+    send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury approval"),
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {
@@ -137,13 +208,19 @@ fn treasury_approve(proposal_id: u32, connection: &Connection) -> anyhow::Result
 }
 
 fn send_treasury_rejection(proposal_id: u32, connection: &Connection) -> GovernanceTransaction {
-    crate::send_extrinsic!(
+    let xt = compose_extrinsic!(
         connection,
         "Treasury",
         "reject_proposal",
-        |tx_hash| info!("[+] Treasury rejection transaction hash: {}", tx_hash),
         Compact(proposal_id)
-    )
+    );
+    send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury rejection"),
+        XtStatus::Finalized,
+    );
+    xt
 }
 
 fn treasury_reject(proposal_id: u32, connection: &Connection) -> anyhow::Result<()> {

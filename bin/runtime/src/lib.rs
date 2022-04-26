@@ -6,12 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use lazy_static::lazy_static;
-use pallet_contracts::weights::WeightInfo;
-use pallet_contracts::DefaultAddressGenerator;
-use pallet_contracts_primitives::{
-    CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
-};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -22,29 +16,20 @@ use sp_runtime::{
         Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature,
+    ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
 };
+use sp_staking::EraIndex;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-// A few exports that help ease life for downstream crates.
-use frame_support::pallet_prelude::DispatchClass;
-use frame_support::sp_runtime::traits::Convert;
-use frame_support::sp_runtime::Perquintill;
-use frame_support::traits::EqualPrivilegeOnly;
-use frame_support::traits::SortedMembers;
-use frame_support::weights::constants::WEIGHT_PER_MILLIS;
-use frame_support::PalletId;
 pub use frame_support::{
     construct_runtime, parameter_types,
-    sp_runtime::curve::PiecewiseLinear,
     traits::{
-        Currency, EstimateNextNewSession, Everything, Imbalance, KeyOwnerProofSystem,
-        LockIdentifier, Nothing, OnUnbalanced, PreimageProvider, Randomness, U128CurrencyToVote,
-        ValidatorSet,
+        Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
+        OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -52,19 +37,33 @@ pub use frame_support::{
     },
     StorageValue,
 };
-use frame_system::limits::BlockLength;
-use frame_system::limits::BlockWeights;
-use frame_system::EnsureSignedBy;
-use primitives::{ApiError as AlephApiError, AuthorityId as AlephId};
+use frame_support::{
+    pallet_prelude::ConstU32,
+    sp_runtime::Perquintill,
+    traits::{EqualPrivilegeOnly, SortedMembers},
+    weights::constants::WEIGHT_PER_MILLIS,
+    PalletId,
+};
+use frame_system::{EnsureRoot, EnsureSignedBy};
+pub use primitives::Balance;
+use primitives::{
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
+    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, TOKEN,
+};
 
 pub use pallet_balances::Call as BalancesCall;
+use pallet_contracts::weights::WeightInfo;
+use pallet_contracts_primitives::{
+    CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
+};
 pub use pallet_timestamp::Call as TimestampCall;
-use pallet_transaction_payment::{CurrencyAdapter, Multiplier, MultiplierUpdate};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use sp_consensus_aura::SlotDuration;
-use sp_runtime::traits::{One, Zero};
+use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -79,9 +78,6 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
-
-/// Balance of an account.
-pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
@@ -117,33 +113,23 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("smartnet"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 1,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
-    /// Version of the state implementation used by this runtime.
-    /// Use of an incorrect version is consensus breaking.
     state_version: 1,
 };
 
-/// This determines the average expected block time that we are targetting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
-/// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 1000;
+pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
 
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
+pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
+pub const MILLISECS_PER_DAY: u64 = MILLISECS_PER_HOUR * 24;
 
-// Time is measured by number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-pub const HOURS: BlockNumber = MINUTES * 60;
-pub const DAYS: BlockNumber = HOURS * 24;
-
-// Prints debug output of the `contracts` pallet to stdout if the node is
-// started with `-lruntime::contracts=debug`.
-pub const CONTRACTS_DEBUG_OUTPUT: bool = true;
+/// Get the number of blocks produced in the period given by `hours`
+pub fn hours_as_block_num(hours: u64) -> BlockNumber {
+    (MILLISECS_PER_HOUR * hours / MILLISECS_PER_BLOCK) as BlockNumber
+}
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -154,47 +140,23 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
-/// We assume that this much of the block weight is consumed by `on_initialize` handlers. This is
-/// used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used by
-/// `Operational` extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
 const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
-lazy_static! {
-    static ref NORMAL_WEIGHT: u64 = NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT;
-}
+pub const MILLICENTS: Balance = 100_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
+pub const DOLLARS: Balance = 100 * CENTS; // 10_000_000_000
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
-    pub RuntimeBlockWeights: BlockWeights =
-        BlockWeights::builder()
-        .base_block(BlockExecutionWeight::get())
-        .for_class(DispatchClass::all(), |weights| {
-            weights.base_extrinsic = ExtrinsicBaseWeight::get();
-        })
-        .for_class(DispatchClass::Normal, |weights| {
-            weights.max_total = Some(*NORMAL_WEIGHT);
-        })
-        .for_class(DispatchClass::Operational, |weights| {
-            weights.max_total = Some(MAX_BLOCK_WEIGHT);
-            // Operational transactions have some extra reserved space, so that they
-            // are included even if block reached `MAX_BLOCK_WEIGHT`.
-            weights.reserved = Some(
-                MAX_BLOCK_WEIGHT - *NORMAL_WEIGHT
-            );
-        })
-        .avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-        .build_or_panic();
-    pub RuntimeBlockLength: BlockLength = frame_system::limits::BlockLength
+    pub BlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
+        ::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
+    pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
         ::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
     pub const SS58Prefix: u8 = 42;
 }
@@ -203,11 +165,11 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = Everything;
+    type BaseCallFilter = frame_support::traits::Everything;
     /// Block & extrinsics weights: base values and limits.
-    type BlockWeights = RuntimeBlockWeights;
+    type BlockWeights = BlockWeights;
     /// The maximum length of a block (in bytes).
-    type BlockLength = RuntimeBlockLength;
+    type BlockLength = BlockLength;
     /// The identifier used to distinguish between accounts.
     type AccountId = AccountId;
     /// The aggregated dispatch type that is available for extrinsics.
@@ -249,11 +211,8 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
-    /// The maximum number of consumers allowed on a single account.
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
-
-impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
     // https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L784
@@ -266,24 +225,15 @@ impl pallet_aura::Config for Runtime {
     type DisabledValidators = ();
 }
 
-pub struct MinimumPeriod;
-impl MinimumPeriod {
-    pub fn get() -> u64 {
-        Aleph::millisecs_per_block() / 2
-    }
-}
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MinimumPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+parameter_types! {
+    pub const UncleGenerations: BlockNumber = 0;
 }
 
-impl pallet_timestamp::Config for Runtime {
-    /// A timestamp: milliseconds since the unix epoch.
-    type Moment = u64;
-    type OnTimestampSet = Aura;
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
+impl pallet_authorship::Config for Runtime {
+    type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
+    type UncleGenerations = UncleGenerations;
+    type FilterUncle = ();
+    type EventHandler = (Staking,);
 }
 
 parameter_types! {
@@ -306,38 +256,16 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 1;
     // This value increases the priority of `Operational` transactions by adding
     // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
     // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
     pub const OperationalFeeMultiplier: u8 = 5;
 }
 
-pub struct ConstantFeeMultiplierUpdate;
-
-impl Convert<Multiplier, Multiplier> for ConstantFeeMultiplierUpdate {
-    fn convert(m: Multiplier) -> Multiplier {
-        m
-    }
-}
-
-impl MultiplierUpdate for ConstantFeeMultiplierUpdate {
-    fn min() -> Multiplier {
-        Multiplier::one()
-    }
-
-    fn target() -> Perquintill {
-        Default::default()
-    }
-
-    fn variability() -> Multiplier {
-        Multiplier::zero()
-    }
-}
-
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct EverythingToTheTreasury;
+
 impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
@@ -349,18 +277,29 @@ impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
     }
 }
 
+parameter_types! {
+    // We expect that on average 25% of the normal capacity will be occupied with normal txs.
+    pub TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
+    // During 20 blocks the fee may not change more than by 100%. This, together with the
+    // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
+    // formulas please refer to Substrate code at `frame/transaction-payment/src/lib.rs`.
+    pub FeeVariability: Multiplier = Multiplier::saturating_from_rational(67, 1000);
+    // Fee should never be lower than the computational cost.
+    pub MinimumMultiplier: Multiplier = Multiplier::one();
+}
+
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
-    type TransactionByteFee = TransactionByteFee;
+    type LengthToFee = IdentityFee<Balance>;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ConstantFeeMultiplierUpdate;
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
-    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
-    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -374,7 +313,7 @@ impl pallet_scheduler::Config for Runtime {
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
     type PreimageProvider = ();
-    type NoPreimagePostponement = NoPreimagePostponement;
+    type NoPreimagePostponement = ();
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -384,7 +323,6 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
-    type Event = Event;
 }
 
 impl_opaque_keys! {
@@ -395,50 +333,174 @@ impl_opaque_keys! {
 }
 
 parameter_types! {
-    pub const Offset: u32 = 0;
+    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
 }
+
+impl pallet_elections::Config for Runtime {
+    type Event = Event;
+    type DataProvider = Staking;
+    type SessionPeriod = SessionPeriod;
+}
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
-    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
-}
-
-pub struct MillisecsPerBlock;
-
-impl MillisecsPerBlock {
-    pub fn get() -> u64 {
-        Aleph::millisecs_per_block()
-    }
-}
-
-impl<I: From<u64>> ::frame_support::traits::Get<I> for MillisecsPerBlock {
-    fn get() -> I {
-        I::from(Self::get())
-    }
-}
-
-pub struct SessionPeriod;
-
-impl SessionPeriod {
-    pub fn get() -> u32 {
-        Aleph::session_period()
-    }
-}
-
-impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
-    fn get() -> I {
-        I::from(Self::get())
-    }
+    pub const Offset: u32 = 0;
 }
 
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
-    type ValidatorIdOf = ConvertInto;
+    type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = pallet_aleph::AlephSessionManager<Self>;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
+    type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_session::historical::Config for Runtime {
+    type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
+    type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
+}
+
+parameter_types! {
+    pub const BondingDuration: EraIndex = 14;
+    pub const SlashDeferDuration: EraIndex = 13;
+    // this is coupled with weights for payout_stakers() call
+    // see custom implementation of WeightInfo below
+    pub const MaxNominatorRewardedPerValidator: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
+    pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
+    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
+    pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
+}
+
+pub struct UniformEraPayout {}
+
+impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
+    fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
+        let miliseconds_per_era =
+            MILLISECS_PER_BLOCK * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
+        primitives::staking::era_payout(miliseconds_per_era)
+    }
+}
+
+type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>;
+
+pub struct PayoutStakersDecreasedWeightInfo;
+impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
+    // To make possible to change nominators per validator we need to decrease weight for payout_stakers
+    fn payout_stakers_alive_staked(n: u32) -> Weight {
+        SubstrateStakingWeights::payout_stakers_alive_staked(n) / 2
+    }
+    wrap_methods!(
+        (bond(), SubstrateStakingWeights, Weight),
+        (bond_extra(), SubstrateStakingWeights, Weight),
+        (unbond(), SubstrateStakingWeights, Weight),
+        (
+            withdraw_unbonded_update(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            withdraw_unbonded_kill(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (validate(), SubstrateStakingWeights, Weight),
+        (kick(k: u32), SubstrateStakingWeights, Weight),
+        (nominate(n: u32), SubstrateStakingWeights, Weight),
+        (chill(), SubstrateStakingWeights, Weight),
+        (set_payee(), SubstrateStakingWeights, Weight),
+        (set_controller(), SubstrateStakingWeights, Weight),
+        (set_validator_count(), SubstrateStakingWeights, Weight),
+        (force_no_eras(), SubstrateStakingWeights, Weight),
+        (force_new_era(), SubstrateStakingWeights, Weight),
+        (force_new_era_always(), SubstrateStakingWeights, Weight),
+        (set_invulnerables(v: u32), SubstrateStakingWeights, Weight),
+        (force_unstake(s: u32), SubstrateStakingWeights, Weight),
+        (
+            cancel_deferred_slash(s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            payout_stakers_dead_controller(n: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (rebond(l: u32), SubstrateStakingWeights, Weight),
+        (set_history_depth(e: u32), SubstrateStakingWeights, Weight),
+        (reap_stash(s: u32), SubstrateStakingWeights, Weight),
+        (new_era(v: u32, n: u32), SubstrateStakingWeights, Weight),
+        (
+            get_npos_voters(v: u32, n: u32, s: u32),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
+        (chill_other(), SubstrateStakingWeights, Weight),
+        (
+            set_staking_configs_all_set(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            set_staking_configs_all_remove(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            force_apply_min_commission(),
+            SubstrateStakingWeights,
+            Weight
+        )
+    );
+}
+
+pub struct StakingBenchmarkingConfig;
+impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
+    type MaxValidators = ConstU32<1000>;
+    type MaxNominators = ConstU32<1000>;
+}
+
+impl pallet_staking::Config for Runtime {
+    // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
+    type Currency = Balances;
+    type UnixTime = Timestamp;
+    type CurrencyToVote = U128CurrencyToVote;
+    type ElectionProvider = Elections;
+    type GenesisElectionProvider = Elections;
+    type MaxNominations = ConstU32<1>;
+    type RewardRemainder = Treasury;
+    type Event = Event;
+    type Slash = Treasury;
+    type Reward = ();
+    type SessionsPerEra = SessionsPerEra;
+    type BondingDuration = BondingDuration;
+    type SlashDeferDuration = SlashDeferDuration;
+    type SlashCancelOrigin = EnsureRoot<AccountId>;
+    type SessionInterface = Self;
+    type EraPayout = UniformEraPayout;
+    type NextNewSession = Session;
+    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
+    type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
+    type MaxUnlockingChunks = ConstU32<16>;
+    type BenchmarkingConfig = StakingBenchmarkingConfig;
+    type WeightInfo = PayoutStakersDecreasedWeightInfo;
+}
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = MILLISECS_PER_BLOCK / 2;
+}
+
+impl pallet_timestamp::Config for Runtime {
+    /// A timestamp: milliseconds since the unix epoch.
+    type Moment = u64;
+    type OnTimestampSet = Aura;
+    type MinimumPeriod = MinimumPeriod;
     type WeightInfo = ();
 }
 
@@ -464,9 +526,6 @@ impl pallet_vesting::Config for Runtime {
     // follows polkadot https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L980
     const MAX_VESTING_SCHEDULES: u32 = 28;
 }
-
-pub const MILLICENTS: Balance = 100_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
 
 // at a fixed cost $0.01 per byte, the constants are selected so that
 // the base cost of starting a multisig action is $5
@@ -502,10 +561,11 @@ pub const TREASURY_BURN: u32 = 0;
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
-// TODO NOTE: I pulled this value from the air; it needs to be researched and understood
-pub const TREASURY_MAXIMUM_BOND: Balance = 10000 * CENTS;
+pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
 // Every 4h we implement accepted proposals.
-pub const TREASURY_SPEND_PERIOD: BlockNumber = 4 * HOURS;
+pub fn treasury_spend_period() -> BlockNumber {
+    hours_as_block_num(4)
+}
 // We allow at most 20 approvals in the queue at once.
 pub const TREASURY_MAX_APPROVALS: u32 = 20;
 
@@ -515,15 +575,14 @@ parameter_types! {
     pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
     pub const ProposalBondMaximum: Balance = TREASURY_MAXIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
-    pub const SpendPeriod: BlockNumber = TREASURY_SPEND_PERIOD;
+    pub SpendPeriod: BlockNumber = treasury_spend_period();
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
 }
 
 pub struct TreasuryGovernance;
-
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        vec![pallet_sudo::Pallet::<Runtime>::key().expect("No sudo key found")]
+        pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
     }
 }
 
@@ -554,11 +613,10 @@ impl pallet_utility::Config for Runtime {
 
 parameter_types! {
     // The following weights are minimal to allow Smartnet users do whatever they want.
-    pub const DepositPerItem: Balance = 1_000_000_000;  //  1 milli-SZERO per item
-    pub const DepositPerByte: Balance = 1_000_000;      // ~1 milli-SZERO per kB storage
+    pub const DepositPerItem: Balance = TOKEN / 1_000;  //  1 milli-SZERO per item
+    pub const DepositPerByte: Balance = TOKEN / 1_000_000;      // ~1 milli-SZERO per kB storage
     // The lazy deletion runs inside on_initialize.
-    pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
-        RuntimeBlockWeights::get().max_block;
+    pub DeletionWeightLimit: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block;
     // The weight needed for decoding the queue should be less or equal than a fifth
     // of the overall weight dedicated to the lazy deletion.
     pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
@@ -590,7 +648,7 @@ impl pallet_contracts::Config for Runtime {
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
-    type AddressGenerator = DefaultAddressGenerator;
+    type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -600,21 +658,25 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Aleph: pallet_aleph::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Storage, Event},
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
+        Aura: pallet_aura::{Pallet, Config<T>} = 3,
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 4,
+        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 6,
+        Authorship: pallet_authorship::{Pallet, Call, Storage} = 7,
+        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
+        History: pallet_session::historical::{Pallet} = 9,
+        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
+        Aleph: pallet_aleph::{Pallet, Storage} = 11,
+        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+        Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
+        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 18,
     }
 );
 
@@ -753,25 +815,27 @@ impl_runtime_apis! {
     }
 
     impl primitives::AlephSessionApi<Block> for Runtime {
-        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
-            Aleph::next_session_authorities()
-        }
-
         fn authorities() -> Vec<AlephId> {
             Aleph::authorities()
         }
 
-        fn session_period() -> u32 {
-            Aleph::session_period()
-        }
-
         fn millisecs_per_block() -> u64 {
-            Aleph::millisecs_per_block()
+            MILLISECS_PER_BLOCK
         }
 
+        fn session_period() -> u32 {
+            SessionPeriod::get()
+        }
+
+        fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
+            Session::queued_keys()
+                .iter()
+                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
+                .collect::<Result<Vec<AlephId>, AlephApiError>>()
+        }
     }
 
-    impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash,> for Runtime {
+    impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash> for Runtime {
 
         fn call(
             origin: AccountId,
@@ -781,7 +845,7 @@ impl_runtime_apis! {
             storage_deposit_limit: Option<Balance>,
             input_data: Vec<u8>,
         ) -> ContractExecResult<Balance> {
-            Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, CONTRACTS_DEBUG_OUTPUT)
+            Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, true)
         }
 
         fn instantiate(
@@ -794,7 +858,7 @@ impl_runtime_apis! {
             salt: Vec<u8>,
         ) -> ContractInstantiateResult<AccountId, Balance>
         {
-            Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, CONTRACTS_DEBUG_OUTPUT)
+            Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, true)
         }
 
         fn upload_code(

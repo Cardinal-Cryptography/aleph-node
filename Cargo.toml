@@ -4,17 +4,16 @@ members = [
     "bin/node",
     "bin/runtime",
     "finality-aleph",
-    "pallet",
+    "pallets/aleph",
+    "pallets/elections",
     "primitives",
 ]
 
 exclude = [
   "flooder",
   "e2e-tests",
-  "common",
-  "local-tests/send-runtime",
-  "fork-off"
+  "aleph-client",
+  "fork-off",
+  "benches/payout-stakers",
+  "bin/cliain",
 ]
-
-[profile.release]
-panic = 'unwind'

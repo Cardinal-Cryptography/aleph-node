@@ -5,14 +5,13 @@ use futures::stream::Stream;
 use sc_network::{Event, Multiaddr, PeerId as ScPeerId};
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
-use std::{borrow::Cow, collections::HashSet, pin::Pin};
+use std::{borrow::Cow, collections::HashSet, convert::TryFrom, pin::Pin};
 
 mod aleph;
 mod component;
 mod manager;
 #[cfg(test)]
 mod mock;
-mod rmc;
 mod service;
 mod session;
 mod split;
@@ -21,15 +20,25 @@ mod substrate;
 use manager::SessionCommand;
 
 pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
-pub use component::SimpleNetwork;
-pub use manager::{ConnectionIO, ConnectionManager};
-pub use rmc::NetworkData as RmcNetworkData;
+pub use component::{
+    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
+    SimpleNetwork,
+};
+pub use manager::{get_peer_id, ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use service::{Service, IO};
 pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
 pub use split::{split, Split};
-pub use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-};
+
+#[cfg(test)]
+pub mod testing {
+    pub use super::{
+        manager::{
+            testing::{crypto_basics, MockNetworkIdentity},
+            Authentication, DiscoveryMessage, NetworkData, SessionHandler,
+        },
+        mock::MockNetwork,
+    };
+}
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct PeerId(pub(crate) ScPeerId);
@@ -89,6 +98,18 @@ impl Protocol {
     }
 }
 
+impl TryFrom<&str> for Protocol {
+    type Error = &'static str;
+
+    fn try_from(item: &str) -> Result<Self, Self::Error> {
+        match item {
+            ALEPH_PROTOCOL_NAME => Ok(Protocol::Generic),
+            ALEPH_VALIDATOR_PROTOCOL_NAME => Ok(Protocol::Validator),
+            _ => Err("Unsupported conversion"),
+        }
+    }
+}
+
 type NetworkEventStream = Pin<Box<dyn Stream<Item = Event> + Send>>;
 
 /// Abstraction over a sender to network.
@@ -138,6 +159,10 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
 
     /// Request the given block -- this is supposed to be used only for "old forks".
     fn request_stale_block(&self, hash: B::Hash, number: NumberFor<B>);
+
+    /// Clear all pending justification requests. We need this function in case
+    /// we requested a justification for a block, which will never get it.
+    fn clear_justification_requests(&self);
 }
 
 /// What do do with a specific piece of data.

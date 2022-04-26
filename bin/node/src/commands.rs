@@ -1,22 +1,19 @@
-use crate::chain_spec::ChainSpec;
 use crate::chain_spec::{
-    self, get_account_id_from_seed, AuthorityKeys, ChainParams, SerializablePeerId,
+    self, get_account_id_from_seed, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
+    DEFAULT_CHAIN_ID,
 };
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
+use clap::Parser;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{Error, KeystoreParams};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
-use sp_application_crypto::key_types;
-use sp_application_crypto::Ss58Codec;
+use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
-use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
-use structopt::StructOpt;
+use std::{fs, io::Write, path::PathBuf};
 
 /// returns Aura key, if absent a new key is generated
 fn aura_key(keystore: &impl SyncCryptoStore) -> AuraId {
@@ -40,7 +37,7 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
         .into()
 }
 
-/// Returns peer id, if not p2p key found under base_path/account-id/node-key-file a new provate key gets generated
+/// Returns peer id, if not p2p key found under base_path/account-id/node-key-file a new private key gets generated
 fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePeerId {
     let authority = account_id.to_string();
     let file = chain_params
@@ -55,13 +52,13 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
         let secret =
             libp2p_ed25519::SecretKey::from_bytes(&mut file_content).expect("Bad node key file");
         let keypair = libp2p_ed25519::Keypair::from(secret);
-        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
+        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).to_peer_id())
     } else {
         let keypair = libp2p_ed25519::Keypair::generate();
         let secret = keypair.secret();
         let secret_hex = hex::encode(secret.as_ref());
         fs::write(file, secret_hex).expect("Could not write p2p secret");
-        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).into_peer_id())
+        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).to_peer_id())
     }
 }
 
@@ -110,16 +107,16 @@ fn authority_keys(
 /// The `bootstrap-chain` command is used to generate private keys for the genesis authorities
 /// keys are written to the keystore of the authorities
 /// and the chain specification is printed to stdout in the JSON format
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct BootstrapChainCmd {
     /// Force raw genesis storage output.
-    #[structopt(long = "raw")]
+    #[clap(long = "raw")]
     pub raw: bool,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub keystore_params: KeystoreParams,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub chain_params: ChainParams,
 }
 
@@ -135,7 +132,10 @@ impl BootstrapChainCmd {
             })
             .collect();
 
-        let chain_spec = chain_spec::config(self.chain_params.clone(), genesis_authorities)?;
+        let chain_spec = match self.is_local_run() {
+            true => chain_spec::local_config(self.chain_params.clone(), genesis_authorities)?,
+            false => chain_spec::config(self.chain_params.clone(), genesis_authorities)?,
+        };
 
         let json = sc_service::chain_ops::build_spec(&chain_spec, self.raw)?;
         if std::io::stdout().write_all(json.as_bytes()).is_err() {
@@ -144,27 +144,31 @@ impl BootstrapChainCmd {
 
         Ok(())
     }
+
+    fn is_local_run(&self) -> bool {
+        self.chain_params.chain_id() == DEFAULT_CHAIN_ID
+    }
 }
 
 /// The `bootstrap-node` command is used to generate key pairs for a single authority
 /// private keys are stored in a specified keystore, and the public keys are written to stdout.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct BootstrapNodeCmd {
     /// Pass the AccountId of a new node
     ///
     /// Expects a string with an AccountId (hex encoding of an sr2559 public key)
     /// If this argument is not passed a random AccountId will be generated using account-seed argument as a seed
-    #[structopt(long)]
+    #[clap(long)]
     account_id: Option<String>,
 
-    /// Pass seed used to generate the account pivate key (sr2559) and the corresponding AccountId
-    #[structopt(long, required_unless = "account-id")]
+    /// Pass seed used to generate the account private key (sr2559) and the corresponding AccountId
+    #[clap(long, required_unless_present = "account-id")]
     pub account_seed: Option<String>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub keystore_params: KeystoreParams,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub chain_params: ChainParams,
 }
 
@@ -185,8 +189,7 @@ impl BootstrapNodeCmd {
             Some(id) => AccountId::from_string(id.as_str())
                 .expect("Passed string is not a hex encoding of a public key"),
             None => get_account_id_from_seed::<sr25519::Public>(
-                &self
-                    .account_seed
+                self.account_seed
                     .clone()
                     .expect("Pass account-seed argument")
                     .as_str(),
@@ -196,10 +199,10 @@ impl BootstrapNodeCmd {
 }
 
 /// Command used to go from chainspec to the raw chainspec format
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ConvertChainspecToRawCmd {
     /// Specify path to JSON chainspec
-    #[structopt(long, parse(from_os_str))]
+    #[clap(long, parse(from_os_str))]
     pub chain: PathBuf,
 }
 
