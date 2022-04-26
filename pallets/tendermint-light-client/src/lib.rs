@@ -45,7 +45,7 @@ pub mod pallet {
     };
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + pallet_timestamp::Config {
         /// ubiquitous event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 

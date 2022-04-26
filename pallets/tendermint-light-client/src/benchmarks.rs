@@ -4,10 +4,26 @@ use crate::{
     Pallet as TendermintLightClient,
 };
 use frame_benchmarking::{benchmarks, whitelisted_caller};
-use frame_support::{assert_ok, traits::Get};
+use frame_support::{
+    assert_ok, log,
+    traits::{Get, OriginTrait, UnixTime},
+};
 use frame_system::{Pallet as System, RawOrigin};
 use generator::generate_consecutive_blocks;
+use pallet_timestamp::Pallet as Timestamp;
 use scale_info::prelude::string::String;
+use sp_runtime::traits::{AtLeast32Bit, Bounded, One, Zero};
+
+fn mul<M>(value: M, by: u64) -> M
+where
+    M: AtLeast32Bit,
+{
+    let mut res = value;
+    for _ in 0..by {
+        res += M::one();
+    }
+    res
+}
 
 benchmarks! {
     // benchmark_for_initialize_client {
@@ -63,10 +79,14 @@ benchmarks! {
 
         let v in 1 .. 1; // T::MaxVotesCount::get();
 
-        System::<T>::set_block_number(1u32.into ());
+        let mut block_number = System::<T>::block_number();
+        System::<T>::set_block_number(block_number);
+
+        let mut now = T::Moment::zero ();
+        Timestamp::<T>::set_timestamp(now);
 
         // initial block at 1970-01-01T00:00:00Z
-        let mut blocks = generate_consecutive_blocks (T::HeadersToKeep::get()  as usize, String::from ("test-chain"), v, 3, TimestampStorage::new (0, 0));
+        let mut blocks = generate_consecutive_blocks ((T::HeadersToKeep::get() + 1u32) as usize, String::from ("test-chain"), v, 0, TimestampStorage::new (0, 0));
 
         let options = LightClientOptionsStorage::default();
 
@@ -79,7 +99,16 @@ benchmarks! {
 
         let caller: T::AccountId = whitelisted_caller();
 
-        for _ in 1..T::HeadersToKeep::get() - 1 {
+        for _ in 1..T::HeadersToKeep::get() {
+
+            now = now + mul(T::Moment::one (), 1000) ;
+            block_number = block_number + One::one();
+
+            System::<T>::set_block_number(block_number);
+            Timestamp::<T>::set_timestamp(now);
+
+            log::info!(target: "runtime-benchmarks::tendermint-lc", "now {:?}", T::TimeProvider::now ());
+
             let next = blocks.pop ().unwrap ();
             assert_ok!(TendermintLightClient::<T>::update_client(
                 RawOrigin::Signed(caller.clone()).into (),
@@ -87,7 +116,7 @@ benchmarks! {
             ));
         }
 
-        let last = blocks.pop ().unwrap ();
+        let last = blocks.pop ().expect ("No more blocks!");
 
     }: update_client(RawOrigin::Signed(caller.clone()), last)
 
