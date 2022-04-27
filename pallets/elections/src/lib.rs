@@ -22,7 +22,6 @@ pub mod pallet {
     };
     use frame_support::{pallet_prelude::*, traits::Get};
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
-    use sp_staking::EraIndex;
     use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
     #[pallet::config]
@@ -55,8 +54,7 @@ pub mod pallet {
     pub type MembersPerSession<T> = StorageValue<_, u32, OptionQuery>;
 
     #[pallet::storage]
-    pub type ErasReserved<T: Config> =
-        StorageMap<_, Twox64Concat, EraIndex, Vec<T::AccountId>, ValueQuery>;
+    pub type ErasReserved<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {

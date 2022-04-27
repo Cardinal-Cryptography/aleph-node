@@ -355,7 +355,7 @@ fn rotate() -> Option<Vec<AccountId>> {
     let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
 
-    let mut validators = pallet_elections::ErasReserved::<Runtime>::get(current_era);
+    let mut validators = pallet_elections::ErasReserved::<Runtime>::get();
     all_validators.retain(|v| !validators.contains(v));
     let n_all_validators = all_validators.len();
 
@@ -388,7 +388,7 @@ fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
     if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
         if era_index == start_index {
             let reserved = pallet_staking::Invulnerables::<Runtime>::get();
-            pallet_elections::ErasReserved::<Runtime>::insert(current_era + 1, reserved);
+            pallet_elections::ErasReserved::<Runtime>::put(reserved);
         }
     }
 }
@@ -402,8 +402,10 @@ impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
         SM::new_session(new_index);
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
+        let committee = rotate();
         populate_reserved_on_next_era_start(new_index);
-        rotate()
+
+        committee
     }
 
     fn end_session(end_index: SessionIndex) {
