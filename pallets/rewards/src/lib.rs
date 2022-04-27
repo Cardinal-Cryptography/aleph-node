@@ -5,41 +5,27 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{
+        pallet_prelude::{StorageDoubleMap, ValueQuery},
         Twox64Concat,
-        pallet_prelude::{StorageDoubleMap, ValueQuery}
     };
-    use pallet_staking::EraIndex;
+    use primitives::SessionIndex;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
-    }
+    pub trait Config: frame_system::Config {}
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
-    /// Number of block produced by validator at era.
-    #[pallet::storage]
-    #[pallet::getter(fn eras_block_to_produce)]
-    pub type ErasBlockProduced<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat,
-        EraIndex,
-        Twox64Concat,
-        T::AccountId,
-        u32,
-        ValueQuery,
-    >;
-
-    /// Number of sessions in which the validator was in committee at era.
+    /// Whether validator was in committee at session.
     #[pallet::storage]
     #[pallet::getter(fn eras_participated_sessions)]
-    pub type ErasParticipatedSessions<T: Config> = StorageDoubleMap<
+    pub type SessionParticipated<T: Config> = StorageDoubleMap<
         _,
         Twox64Concat,
-        EraIndex,
+        SessionIndex,
         Twox64Concat,
         T::AccountId,
-        u32,
+        bool,
         ValueQuery,
     >;
 }

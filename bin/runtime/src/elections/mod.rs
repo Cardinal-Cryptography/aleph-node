@@ -1,56 +1,66 @@
-use pallet_staking::EraIndex;
-use primitives::{
-    TOKEN,
-    SessionIndex,
+use crate::{
+    AccountId, BlockNumber, MembersPerSession, Perbill, Rewards, Runtime, Session, SessionPeriod,
+    SessionsPerEra, Staking, Vec,
 };
-use crate::{AccountId, BlockNumber, MembersPerSession, Perbill, SessionPeriod, SessionsPerEra, Runtime, Staking, Rewards, Session, Vec};
+use pallet_staking::EraIndex;
+use primitives::{SessionIndex, TOKEN};
+use sp_runtime::generic::Era;
 
+fn total_exposure(era: EraIndex, validator: &AccountId) -> u32 {
+    let total = pallet_staking::ErasStakers::<Runtime>::get(era, &validator).total;
 
-fn points_per_block(exposure_total: u128, nr_of_sessions: EraIndex, blocks_per_session: u32, token: u128) -> u32 {
-    let total = exposure_total / token;
-    let blocks_to_produce_per_era = nr_of_sessions * blocks_per_session;
-
-    Perbill::from_rational(1, blocks_to_produce_per_era) * total as u32
+    (total / TOKEN) as u32
 }
 
-fn compute_reward_ratio(validator: AccountId, era: EraIndex, blocks_per_session: u32) -> (u32, u32) {
-    let nr_of_sessions = pallet_rewards::ErasParticipatedSessions::<Runtime>::get(&era, &validator);
+fn points_per_block(total: u32, sessions_per_era: u32, blocks_to_produce_per_session: u32) -> u32 {
+    Perbill::from_rational(1, blocks_to_produce_per_session * sessions_per_era) * total as u32
+}
 
-    // was never elected, get max ratio
-    if nr_of_sessions == 0 {
-        return (1, 1);
-    }
+fn reward_for_session_non_committee(session: SessionIndex) {
+    let active_era = match Staking::active_era() {
+        Some(ae) => ae.index,
+        _ => return,
+    };
+    let all_validators: Vec<AccountId> =
+        pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(active_era).collect();
 
-    let produced_blocks = pallet_rewards::ErasBlockProduced::<Runtime>::get(&era, &validator);
-    let expected_nr_blocks = nr_of_sessions * blocks_per_session;
+    let nr_of_sessions = SessionsPerEra::get();
 
-    (produced_blocks, expected_nr_blocks)
+    let session_rewards = all_validators.into_iter().filter_map(|validator| {
+        let participated =
+            pallet_rewards::SessionParticipated::<Runtime>::get(&session, &validator);
+
+        if participated {
+            return None;
+        }
+
+        let total = total_exposure(active_era, &validator);
+        let session_points = points_per_block(total, nr_of_sessions, 1);
+
+        Some((validator, session_points))
+    });
+
+    pallet_staking::Pallet::<Runtime>::reward_by_ids(session_rewards);
 }
 
 pub struct StakeReward;
-
 impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
     fn note_author(validator: AccountId) {
         let active_era = Staking::active_era().unwrap().index;
-        pallet_rewards::ErasBlockProduced::<Runtime>::mutate(&active_era, &validator, |v| {
-            *v += 1
-        });
-        // let exposure = pallet_staking::ErasStakers::<Runtime>::get(active_era, &validator);
-        // let number_of_sessions_per_validator = SessionsPerEra::get()
-        //     / (MembersPerSession::get() - Staking::invulnerables().len() as u32);
+
+        let total = total_exposure(active_era, &validator);
+        let sessions_per_era = SessionsPerEra::get();
         let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
-        // let points_per_block = points_per_block(exposure.total, number_of_sessions_per_validator, blocks_to_produce_per_session, TOKEN);
-        //
-        // pallet_staking::Pallet::<Runtime>::reward_by_ids(
-        //     [(validator, points_per_block)].into_iter(),
-        // );
+        let points_per_block =
+            points_per_block(total, sessions_per_era, blocks_to_produce_per_session);
+
+        pallet_staking::Pallet::<Runtime>::reward_by_ids(
+            [(validator, points_per_block)].into_iter(),
+        );
     }
 
     fn note_uncle(_author: AccountId, _age: BlockNumber) {}
 }
-
-fn reward_session_validators() {}
-
 
 // Choose a subset of all the validators for current era that contains all the
 // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
@@ -95,7 +105,19 @@ fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
     }
 }
 
+fn mark_participation(committee: &Option<Vec<AccountId>>, session: SessionIndex) {
+    let committee = match committee {
+        Some(c) => c,
+        None => return,
+    };
+
+    for validator in committee {
+        pallet_rewards::SessionParticipated::<Runtime>::insert(&session, &validator, true);
+    }
+}
+
 type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
+
 pub struct SampleSessionManager;
 
 impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
@@ -104,7 +126,15 @@ impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
         populate_reserved_on_next_era_start(new_index);
-        rotate()
+
+        let committee = rotate();
+        mark_participation(&committee, new_index);
+
+        committee
+    }
+
+    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
+        SM::new_session_genesis(new_index)
     }
 
     fn end_session(end_index: SessionIndex) {
@@ -112,14 +142,10 @@ impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     }
 
     fn start_session(start_index: SessionIndex) {
+        reward_for_session_non_committee(start_index);
         SM::start_session(start_index)
     }
-
-    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session_genesis(new_index)
-    }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -127,6 +153,6 @@ mod tests {
 
     #[test]
     fn calculates_reward_correctly() {
-        assert_eq!(1000, points_per_block(1_000_000, 10, 100, 1));
+        assert_eq!(1000, points_per_block(1_000_000, 10, 100));
     }
 }
