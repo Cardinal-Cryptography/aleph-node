@@ -1,10 +1,8 @@
 use crate::{
-    AccountId, BlockNumber, MembersPerSession, Perbill, Rewards, Runtime, Session, SessionPeriod,
+    AccountId, BlockNumber, EraIndex, MembersPerSession, Perbill, Runtime, Session, SessionPeriod,
     SessionsPerEra, Staking, Vec,
 };
-use pallet_staking::EraIndex;
 use primitives::{SessionIndex, TOKEN};
-use sp_runtime::generic::Era;
 
 fn total_exposure(era: EraIndex, validator: &AccountId) -> u32 {
     let total = pallet_staking::ErasStakers::<Runtime>::get(era, &validator).total;
@@ -72,18 +70,23 @@ fn rotate() -> Option<Vec<AccountId>> {
     let mut all_validators: Vec<AccountId> =
         pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
 
-    let mut validators = pallet_elections::ErasReserved::<Runtime>::get(current_era);
+    let mut validators = pallet_elections::ErasReserved::<Runtime>::get();
     all_validators.retain(|v| !validators.contains(v));
     let n_all_validators = all_validators.len();
 
     let n_validators = MembersPerSession::get() as usize;
-    let free_sits = n_validators.checked_sub(validators.len()).unwrap();
+    let free_seats = n_validators.checked_sub(validators.len()).unwrap();
 
+    // The validators for the committee at the session `n` are chosen as follow:
+    // 1. Reserved validators are always chosen.
+    // 2. Given non-reserved list of validators the chosen ones are from the range:
+    // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
+    // seats in the committee after reserved nodes are added.
     let current_session = Session::current_index() as usize;
-    let first_validator = current_session * free_sits;
+    let first_validator = current_session * free_seats;
 
     validators.extend(
-        (first_validator..first_validator + free_sits)
+        (first_validator..first_validator + free_seats)
             .map(|i| all_validators[i % n_all_validators].clone()),
     );
 
@@ -100,7 +103,7 @@ fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
     if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
         if era_index == start_index {
             let reserved = pallet_staking::Invulnerables::<Runtime>::get();
-            pallet_elections::ErasReserved::<Runtime>::insert(current_era + 1, reserved);
+            pallet_elections::ErasReserved::<Runtime>::put(reserved);
         }
     }
 }
@@ -117,17 +120,16 @@ fn mark_participation(committee: &Option<Vec<AccountId>>, session: SessionIndex)
 }
 
 type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
-
 pub struct SampleSessionManager;
 
 impl pallet_session::SessionManager<AccountId> for SampleSessionManager {
     fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
         SM::new_session(new_index);
+
+        let committee = rotate();
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
         populate_reserved_on_next_era_start(new_index);
-
-        let committee = rotate();
         mark_participation(&committee, new_index);
 
         committee

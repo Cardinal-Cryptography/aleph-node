@@ -7,7 +7,6 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use crate::elections::{SampleSessionManager, StakeReward};
-use pallet_staking::EraIndex;
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -20,6 +19,7 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
 };
+use sp_staking::EraIndex;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -39,6 +39,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
+    pallet_prelude::ConstU32,
     sp_runtime::Perquintill,
     traits::{EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
     weights::constants::WEIGHT_PER_MILLIS,
@@ -114,7 +115,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_version: 12,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 4,
+    transaction_version: 5,
+    state_version: 1,
 };
 
 pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
@@ -143,6 +145,10 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
+
+pub const MILLICENTS: Balance = 100_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
+pub const DOLLARS: Balance = 100 * CENTS; // 10_000_000_000
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -204,6 +210,7 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -248,7 +255,6 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 1;
     // This value increases the priority of `Operational` transactions by adding
     // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
     // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
@@ -283,7 +289,7 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
-    type TransactionByteFee = TransactionByteFee;
+    type LengthToFee = IdentityFee<Balance>;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier>;
@@ -305,6 +311,8 @@ impl pallet_scheduler::Config for Runtime {
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = ();
+    type NoPreimagePostponement = ();
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -434,19 +442,39 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
             Weight
         ),
         (get_npos_targets(v: u32), SubstrateStakingWeights, Weight),
-        (set_staking_limits(), SubstrateStakingWeights, Weight),
-        (chill_other(), SubstrateStakingWeights, Weight)
+        (chill_other(), SubstrateStakingWeights, Weight),
+        (
+            set_staking_configs_all_set(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            set_staking_configs_all_remove(),
+            SubstrateStakingWeights,
+            Weight
+        ),
+        (
+            force_apply_min_commission(),
+            SubstrateStakingWeights,
+            Weight
+        )
     );
+}
+
+pub struct StakingBenchmarkingConfig;
+impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
+    type MaxValidators = ConstU32<1000>;
+    type MaxNominators = ConstU32<1000>;
 }
 
 impl pallet_staking::Config for Runtime {
     // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
-    const MAX_NOMINATIONS: u32 = 1;
     type Currency = Balances;
     type UnixTime = Timestamp;
     type CurrencyToVote = U128CurrencyToVote;
     type ElectionProvider = Elections;
     type GenesisElectionProvider = Elections;
+    type MaxNominations = ConstU32<1>;
     type RewardRemainder = Treasury;
     type Event = Event;
     type Slash = Treasury;
@@ -460,7 +488,9 @@ impl pallet_staking::Config for Runtime {
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
-    type SortedListProvider = pallet_staking::UseNominatorsMap<Runtime>;
+    type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
+    type MaxUnlockingChunks = ConstU32<16>;
+    type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
 }
 
@@ -499,9 +529,6 @@ impl pallet_vesting::Config for Runtime {
     const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
-pub const MILLICENTS: Balance = 100_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
-
 // at a fixed cost $0.01 per byte, the constants are selected so that
 // the base cost of starting a multisig action is $5
 pub const ALLOCATION_COST: Balance = 412 * CENTS;
@@ -536,6 +563,7 @@ pub const TREASURY_BURN: u32 = 0;
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
 pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
 // Every 4h we implement accepted proposals.
 pub fn treasury_spend_period() -> BlockNumber {
     hours_as_block_num(4)
@@ -547,6 +575,7 @@ parameter_types! {
     pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
     pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
     pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
+    pub const ProposalBondMaximum: Balance = TREASURY_MAXIMUM_BOND;
     pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
     pub SpendPeriod: BlockNumber = treasury_spend_period();
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
@@ -555,7 +584,7 @@ parameter_types! {
 pub struct TreasuryGovernance;
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
-        vec![pallet_sudo::Pallet::<Runtime>::key()]
+        pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
     }
 }
 
@@ -570,6 +599,7 @@ impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ProposalBondMaximum;
     type RejectOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
     type SpendFunds = ();
     type SpendPeriod = SpendPeriod;
@@ -642,7 +672,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+    AllPalletsWithSystem,
 >;
 
 impl_runtime_apis! {

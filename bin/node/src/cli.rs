@@ -3,24 +3,24 @@ use crate::{
     chain_spec,
     commands::{BootstrapChainCmd, BootstrapNodeCmd, ConvertChainspecToRawCmd},
 };
+use clap::{Parser, Subcommand as ClapSubcommand};
 use sc_cli::{ChainSpec, RunCmd, RuntimeVersion, SubstrateCli};
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Cli {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub subcommand: Option<Subcommand>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub aleph: AlephCli,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub run: RunCmd,
 }
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Substrate Node".into()
+        "Aleph Node".into()
     }
 
     fn impl_version() -> String {
@@ -36,7 +36,7 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "support.anonymous.an".into()
+        "docs.alephzero.org".into()
     }
 
     fn copyright_start_year() -> i32 {
@@ -62,9 +62,10 @@ impl SubstrateCli for Cli {
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, ClapSubcommand)]
 pub enum Subcommand {
     /// Key management cli utilities
+    #[clap(subcommand)]
     Key(sc_cli::KeySubcommand),
 
     // NOTE: similarly we could have a BootstrapNode command that takes a node-name parameter
