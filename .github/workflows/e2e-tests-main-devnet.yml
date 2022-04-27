@@ -401,28 +401,28 @@ jobs:
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh
 
-  remove-old-artifacts-if-PR:
-    name: Remove old node and runtime artifacts
-    runs-on: ubuntu-latest
-    needs: [test-runtime-update-if-PR]
-    steps:
-      - name: Remove artifacts
-        uses: geekyeggo/delete-artifact@v1
-        with:
-          failOnError: false
-          name: |
-            old-aleph-release-node
-            old-aleph-runtime
-
-  remove-old-artifacts-if-OTHER:
-    name: Remove old node and runtime artifacts
-    runs-on: ubuntu-latest
-    needs: [test-runtime-update-if-OTHER]
-    steps:
-      - name: Remove artifacts
-        uses: geekyeggo/delete-artifact@v1
-        with:
-          failOnError: false
-          name: |
-            old-aleph-release-node
-            old-aleph-runtime
+#  remove-old-artifacts-if-PR:
+#    name: Remove old node and runtime artifacts
+#    runs-on: ubuntu-latest
+#    needs: [test-runtime-update-if-PR]
+#    steps:
+#      - name: Remove artifacts
+#        uses: geekyeggo/delete-artifact@v1
+#        with:
+#          failOnError: false
+#          name: |
+#            old-aleph-release-node
+#            old-aleph-runtime
+#
+#  remove-old-artifacts-if-OTHER:
+#    name: Remove old node and runtime artifacts
+#    runs-on: ubuntu-latest
+#    needs: [test-runtime-update-if-OTHER]
+#    steps:
+#      - name: Remove artifacts
+#        uses: geekyeggo/delete-artifact@v1
+#        with:
+#          failOnError: false
+#          name: |
+#            old-aleph-release-node
+#            old-aleph-runtime
