@@ -36,7 +36,7 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "support.anonymous.an".into()
+        "docs.alephzero.org".into()
     }
 
     fn copyright_start_year() -> i32 {
