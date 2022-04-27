@@ -20,7 +20,7 @@ pub struct Cli {
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Substrate Node".into()
+        "Aleph Node".into()
     }
 
     fn impl_version() -> String {
