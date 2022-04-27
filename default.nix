@@ -113,10 +113,10 @@ with nixpkgs; naersk.buildPackage rec {
     cacert
     pkg-config
     llvm.libclang
+    protobuf
   ];
   buildInputs = [
     openssl.dev
-    protobuf
   ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
     packageFlags
