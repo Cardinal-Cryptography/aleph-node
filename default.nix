@@ -1,22 +1,23 @@
-{ versions ? import ./nix/versions.nix
-, release ? true
-, name ? "aleph-node"
-, crates ? { "aleph-node" = []; }
-, runTests ? false
-, singleStep ? false
-, rustflags ? "-C target-cpu=native"
-, useCustomRocksDb ? false
-, rocksDbOptions ? { version = "6.29.3";
-                     useSnappy = false;
-                     patchVerifyChecksum = true;
-                     patchPath = ./nix/rocksdb.patch;
-                     enableJemalloc = true;
-                   }
-}:
+args@
+  { release ? true
+  , name ? "aleph-node"
+  , crates ? { "aleph-node" = []; }
+  , runTests ? false
+  , singleStep ? false
+  , rustflags ? "-C target-cpu=native"
+  , useCustomRocksDb ? false
+  , rocksDbOptions ? { version = "6.29.3";
+                      useSnappy = false;
+                      patchVerifyChecksum = true;
+                      patchPath = ./nix/rocksdb.patch;
+                      enableJemalloc = true;
+                    }
+  }:
 let
+  versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
-  rustToolchain = versions.rustToolchain;
-  naersk = versions.naersk;
+  rustToolchain = args.versions.rustToolchain;
+  naersk = args.versions.naersk;
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
@@ -73,21 +74,17 @@ let
   '';
   gitCommit = builtins.readFile gitCommitDrv;
 
-  modePath = if release then "release" else "debug";
+  modePath = if args.release then "release" else "debug";
   pathToWasm = "target/" + modePath + "/wbuild/aleph-runtime/target/wasm32-unknown-unknown/" + modePath + "/aleph_runtime.wasm";
   pathToCompactWasm = "target/" + modePath + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 
-  features =
-    builtins.concatLists
-      (builtins.attrValues
-        (builtins.mapAttrs
-          (package: features: builtins.map (feature: package + "/" + feature) features)
-          crates
-        )
-      );
-  enabledFeatures = nixpkgs.lib.concatStringsSep "," features;
+  featureIntoPrefixedFeature = packageName: feature: packageName + "/" + feature;
+  featuresIntoPrefixedFeatures = package: features: builtins.map (featureIntoPrefixedFeature package) features;
+  prefixedFeatureList = nixpkgs.mapAttrsToList featuresIntoPrefixedFeatures args.crates;
+
+  enabledFeatures = nixpkgs.lib.concatStringsSep "," prefixedFeatureList;
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
-  packageFlags = builtins.map (crate: "--package " + crate) (builtins.attrNames crates);
+  packageFlags = if args.crates == {} then "" else builtins.map (crate: "--package " + crate) (builtins.attrNames args.crates);
 
   # allows to skip files listed by .gitignore
   # otherwise `nix-build` copies everything, including the target directory
@@ -106,18 +103,16 @@ let
   };
 in
 with nixpkgs; naersk.buildPackage rec {
-  inherit name release src singleStep;
-  doCheck = runTests;
+  inherit (args) name release singleStep;
+  inherit src;
+  doCheck = args.runTests;
   nativeBuildInputs = [
     git
-    cacert
     pkg-config
     llvm.libclang
     protobuf
   ];
-  buildInputs = [
-    openssl.dev
-  ] ++ nixpkgs.lib.optional useCustomRocksDb customRocksdb;
+  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuildOptions = opts:
     packageFlags
     ++ [featuresFlag]
@@ -125,13 +120,26 @@ with nixpkgs; naersk.buildPackage rec {
     ++ opts;
   shellHook = ''
     ${rocksDbShellHook}
-    export SUBSTRATE_CLI_GIT_COMMIT_HASH=${SUBSTRATE_CLI_GIT_COMMIT_HASH}
+    export SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}"
     export RUSTFLAGS="${rustflags}"
-    export LIBCLANG_PATH=${LIBCLANG_PATH};
-    export PROTOC=${PROTOC}
-    export BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS}"
-    export CFLAGS="${CFLAGS}"
-    export CXXFLAGS="${CXXFLAGS}"
+    export ROCKSDB_STATIC=1
+    export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
+    export PROTOC="${protobuf}/bin/protoc";
+    export CFLAGS=" \
+      ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+    "
+    export CXXFLAGS=" \
+      ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+    "
+
+    # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
+    # Set C flags for Rust's bindgen program. Unlike ordinary C
+    # compilation, bindgen does not invoke $CC directly. Instead it
+    # uses LLVM's libclang. To make sure all necessary flags are
+    # included we need to look in a few places.
+    export BINDGEN_EXTRA_CLANG_ARGS=" \
+      ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
+    "
   '';
   preBuild = ''
     ${shellHook}
@@ -147,23 +155,4 @@ with nixpkgs; naersk.buildPackage rec {
     fi
   '';
 
-  SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}";
-  RUSTFLAGS="${rustflags}";
-  ROCKSDB_STATIC=1;
-  LIBCLANG_PATH="${llvm.libclang.lib}/lib";
-  PROTOC="${protobuf}/bin/protoc";
-  # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
-  # Set C flags for Rust's bindgen program. Unlike ordinary C
-  # compilation, bindgen does not invoke $CC directly. Instead it
-  # uses LLVM's libclang. To make sure all necessary flags are
-  # included we need to look in a few places.
-  BINDGEN_EXTRA_CLANG_ARGS=" \
-     ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-  ";
-  CFLAGS=" \
-    ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-  ";
-  CXXFLAGS=" \
-    ${"-isystem ${llvm.libclang.lib}/lib/clang/${llvmVersionString}/include"} \
-  ";
 }
