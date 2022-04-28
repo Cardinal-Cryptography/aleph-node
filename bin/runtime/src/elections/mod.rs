@@ -19,8 +19,7 @@ fn reward_for_session_non_committee(session: SessionIndex) {
         Some(ae) => ae.index,
         _ => return,
     };
-    let all_validators: Vec<AccountId> =
-        pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(active_era).collect();
+    let all_validators = pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(active_era);
 
     let nr_of_sessions = SessionsPerEra::get();
 
