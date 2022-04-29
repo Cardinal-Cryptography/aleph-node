@@ -141,6 +141,9 @@ jobs:
     name: Run e2e token transfer test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/github-actions/run-e2e-test@v1
         with:
