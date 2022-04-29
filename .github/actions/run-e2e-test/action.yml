@@ -9,6 +9,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: GIT | Checkout Source code
+      uses: actions/checkout@v2
+
     - name: Download artifact with docker image
       uses: actions/download-artifact@v2
       with:
