@@ -129,7 +129,10 @@ jobs:
     name: Run e2e finalization test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v2
       - name: Run e2e test
+
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: finalization
