@@ -66,7 +66,7 @@ pub fn get_current(connection: &Connection) -> u32 {
 }
 
 pub fn wait_for(connection: &Connection, session_index: u32) -> anyhow::Result<BlockNumber> {
-    info!(target: "aleph-client", "Waiting for the session {}", session_index);
+    info!(target: "aleph-client", "Waiting for session {}", session_index);
 
     #[derive(Debug, Decode, Clone)]
     struct NewSessionEvent {
