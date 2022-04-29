@@ -53,7 +53,7 @@ This action runs a single test from the e2e test suite. It requires a test case,
 Sample usage:
 ```yaml
 steps:
-  - uses: Cardinal-Cryptography/github-actions/run-e2e-test
+  - uses: ./.github/actions/run-e2e-test@v1
     with:
       test-case: finalization
 ```
