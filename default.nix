@@ -1,37 +1,36 @@
-args@
-  {
-  # defines whether target should be build in release or debug mode
-    release ? true
-  # name of this derivation
-  , name ? "aleph-node"
-  # attribute set of the form { "package_name" = [list_of_features] }
-  # defines which packages supposed to be build
-  , crates ? { "aleph-node" = []; }
-  # allows to run unit tests during the build procedure
-  , runTests ? false
-  # forces naersk (helper tool for building rust projects under nix) to build in a single derivation, instead default way that uses deps and project derivations
-  # used for building aleph-runtime (we don't want its dependencies to be build separately for a non-WASM architecture)
-  , singleStep ? false
-  # passed to rustc by cargo - it allows us to set the list of supported cpu features
-  # we can use for example `-C target-cpu=native` which should produce a binary that is significantly faster than the one produced using `generic`
-  # `generic` is the default `target-cpu` provided by cargo
-  , rustflags ? "-C target-cpu=generic"
-  # allows to build a custom version of rocksdb instead of using one build by librocksdb-sys
-  # our custom version includes couple of changes that should significantly speed it up
-  , useCustomRocksDb ? false
-  # fine grained configuration of the custom rocksdb
-  , rocksDbOptions ? { # defines which version of rocksdb should be downloaded from github
-                       version = "6.29.3";
-                       # allows to disable snappy compression
-                       useSnappy = false;
-                       # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
-                       patchVerifyChecksum = true;
-                       # used to patch source code of rocksdb in order to disable its verify_checksum feature
-                       patchPath = ./nix/rocksdb.patch;
-                       # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
-                       enableJemalloc = true;
-                     }
-  }:
+{
+# defines whether target should be build in release or debug mode
+  release ? true
+# name of this derivation
+, name ? "aleph-node"
+# attribute set of the form { "package_name" = [list_of_features] }
+# defines which packages supposed to be build
+, crates ? { "aleph-node" = []; }
+# allows to run unit tests during the build procedure
+, runTests ? false
+# forces naersk (helper tool for building rust projects under nix) to build in a single derivation, instead default way that uses deps and project derivations
+# used for building aleph-runtime (we don't want its dependencies to be build separately for a non-WASM architecture)
+, singleStep ? false
+# passed to rustc by cargo - it allows us to set the list of supported cpu features
+# we can use for example `-C target-cpu=native` which should produce a binary that is significantly faster than the one produced using `generic`
+# `generic` is the default `target-cpu` provided by cargo
+, rustflags ? "-C target-cpu=generic"
+# allows to build a custom version of rocksdb instead of using one build by librocksdb-sys
+# our custom version includes couple of changes that should significantly speed it up
+, useCustomRocksDb ? false
+# fine grained configuration of the custom rocksdb
+, rocksDbOptions ? { # defines which version of rocksdb should be downloaded from github
+                      version = "6.29.3";
+                      # allows to disable snappy compression
+                      useSnappy = false;
+                      # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
+                      patchVerifyChecksum = true;
+                      # used to patch source code of rocksdb in order to disable its verify_checksum feature
+                      patchPath = ./nix/rocksdb.patch;
+                      # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
+                      enableJemalloc = true;
+                    }
+}:
 let
   versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
@@ -43,7 +42,7 @@ let
   llvm = versions.llvm;
   env = versions.stdenv;
 
-  # WARNING this custom version of rocksdb is only build when args.useCustomRocksDb == true
+  # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms, force it to use SSE 4.2 cpu instruction set and disable its `verify_checksum` mechanism
   customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
@@ -94,17 +93,17 @@ let
     ''
   );
 
-  modePath = if args.release then "release" else "debug";
+  modePath = if release then "release" else "debug";
   pathToWasm = "target/" + modePath + "/wbuild/aleph-runtime/target/wasm32-unknown-unknown/" + modePath + "/aleph_runtime.wasm";
   pathToCompactWasm = "target/" + modePath + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
 
   featureIntoPrefixedFeature = packageName: feature: packageName + "/" + feature;
   featuresIntoPrefixedFeatures = package: features: builtins.map (featureIntoPrefixedFeature package) features;
-  prefixedFeatureList = nixpkgs.mapAttrsToList featuresIntoPrefixedFeatures args.crates;
+  prefixedFeatureList = nixpkgs.mapAttrsToList featuresIntoPrefixedFeatures crates;
 
   enabledFeatures = nixpkgs.lib.concatStringsSep "," prefixedFeatureList;
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
-  packageFlags = if args.crates == {} then "" else builtins.map (crate: "--package " + crate) (builtins.attrNames args.crates);
+  packageFlags = if crates == {} then "" else builtins.map (crate: "--package " + crate) (builtins.attrNames crates);
 
   # allows to skip files listed by .gitignore
   # otherwise `nix-build` copies everything, including the target directory
@@ -124,7 +123,7 @@ let
 in
 with nixpkgs; naersk.buildPackage rec {
   inherit src name release singleStep;
-  doCheck = args.runTests;
+  doCheck = runTests;
   nativeBuildInputs = [
     git
     pkg-config
