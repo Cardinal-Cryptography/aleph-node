@@ -99,7 +99,7 @@ let
 
   featureIntoPrefixedFeature = packageName: feature: packageName + "/" + feature;
   featuresIntoPrefixedFeatures = package: features: builtins.map (featureIntoPrefixedFeature package) features;
-  prefixedFeatureList = nixpkgs.lib.mapAttrsToList featuresIntoPrefixedFeatures crates;
+  prefixedFeatureList = builtins.concatLists (nixpkgs.lib.mapAttrsToList featuresIntoPrefixedFeatures crates);
 
   enabledFeatures = nixpkgs.lib.concatStringsSep "," prefixedFeatureList;
   featuresFlag = if enabledFeatures == "" then "" else "--features " + enabledFeatures;
