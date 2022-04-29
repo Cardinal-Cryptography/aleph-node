@@ -153,7 +153,7 @@ with nixpkgs; naersk.buildPackage rec {
     # some of the rust libraries calls c and c++ compilers directly
     # and somehow they miss paths to header files of libc and libcxx
     export CFLAGS=$(cat ${env.cc}/nix-support/{cc,libc}-cflags)
-    export CXXFLAGS=$(cat ${env.cc}/nix-support/libcxx-cxxflags
+    export CXXFLAGS=$(cat ${env.cc}/nix-support/libcxx-cxxflags)
 
     # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
     # Set C flags for Rust's bindgen program. Unlike ordinary C
