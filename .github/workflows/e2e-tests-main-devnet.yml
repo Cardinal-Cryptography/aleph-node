@@ -130,9 +130,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t finalization
 
 
   run-e2e-token-transfer-test:
@@ -141,9 +142,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t token_transfer
 
 
   run-e2e-chanelling-fee-test:
@@ -152,9 +154,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t chanelling_fee
 
 
   run-e2e-treasury-access-test:
@@ -163,9 +166,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t treasury_access
 
 
   run-e2e-batch-transactions-test:
@@ -174,9 +178,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t batch_transactions
 
 
   run-e2e-staking-era-payouts-test:
@@ -185,9 +190,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 10
-        run: ./.github/scripts/run_e2e_test.sh -t staking_era_payouts
 
 
   run-e2e-staking-new-validator-test:
@@ -196,9 +202,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 10
-        run: ./.github/scripts/run_e2e_test.sh -t staking_new_validator
 
 
   run-e2e-change-validators-test:
@@ -207,9 +214,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t change_validators
 
 
   run-e2e-fee-calculation:
@@ -218,9 +226,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run e2e test
-        shell: bash
+        uses: Cardinal-Cryptography/github-actions/run-e2e-test@v1
+        with:
+          test-case: finalization
         timeout-minutes: 1
-        run: ./.github/scripts/run_e2e_test.sh -t fee_calculation
 
 
   push-image:
