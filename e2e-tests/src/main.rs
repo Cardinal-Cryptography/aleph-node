@@ -1,28 +1,29 @@
 use std::{env, time::Instant};
+use std::collections::HashMap;
 
 use clap::Parser;
-use aleph_e2e_client::{
-    test_batch_transactions, test_change_validators, test_channeling_fee, test_fee_calculation,
-    test_finalization, test_staking_era_payouts, test_staking_new_validator, test_token_transfer,
-    test_treasury_access, Config,
-};
+use aleph_e2e_client::{Config, TestCase, possible_test_cases};
 use log::info;
 
 fn main() -> anyhow::Result<()> {
     init_env();
 
     let config: Config = Config::parse();
+    let test_cases = config.test_cases.clone();
 
-    run(test_finalization, "finalization", &config)?;
-    run(test_token_transfer, "token transfer", &config)?;
-    run(test_channeling_fee, "channeling fee", &config)?;
-    run(test_treasury_access, "treasury access", &config)?;
-    run(test_batch_transactions, "batch_transactions", &config)?;
-    run(test_staking_era_payouts, "staking_era_payouts", &config)?;
-    run(test_staking_new_validator, "staking_new_validator", &config)?;
-    run(test_change_validators, "validators change", &config)?;
-    run(test_fee_calculation, "fee calculation", &config)?;
-
+    let possible_test_cases = possible_test_cases();
+    // Possibility to handle specified vs. default test cases
+    // is helpful to parallelize e2e tests.
+    match test_cases {
+        Some(cases) => {
+            info!("Running specified test cases.");
+            run_specified_test_cases(cases, possible_test_cases, &config)?;
+        },
+        None => {
+            info!("Running default test cases.");
+            run_default_test_cases(possible_test_cases, &config)?;
+        }
+    };
     Ok(())
 }
 
@@ -33,6 +34,53 @@ fn init_env() {
     env_logger::init();
 }
 
+/// Runs default test cases in sequence.
+fn run_default_test_cases(possible_test_cases: HashMap<&str, TestCase>, config: &Config) -> anyhow::Result<()> {
+    let _ = possible_test_cases
+        .iter()
+        .map::<anyhow::Result<()>, _> (
+            |(test_name, &test_case)| {
+                run_test_case(test_case, test_name, config)?;
+                Ok(())
+            }
+        ).collect::<Vec<_>>();
+    Ok(())
+}
+
+/// Runs specified test cases in sequence.
+/// Checks whether each provided test case is valid.
+fn run_specified_test_cases(test_cases: Vec<String>, possible_test_cases: HashMap<&str, TestCase>, config: &Config) -> anyhow::Result<()> {
+    let _ = test_cases
+        .iter()
+        .map::<anyhow::Result<()>, _>(
+            |test_name| {
+                if let Some(&test_case) = possible_test_cases.get(test_name.as_str()) {
+                    run_test_case(test_case, test_name, config)?;
+                    Ok(())
+                } else {
+                    Err(anyhow::anyhow!(
+                        format!("Provided test case '{}' is not handled.", test_name)
+                    ))
+                }
+            }
+        ).collect::<Vec<_>>();
+    Ok(())
+}
+
+/// Runs a particular test case. Handles different test case return types.
+fn run_test_case(test_case: TestCase, test_name: &str, config: &Config) -> anyhow::Result<()> {
+    match test_case {
+        TestCase::BlockNumberResult(case) => {
+            run(case, test_name, config)?;
+        },
+        TestCase::EmptyResult(case) => {
+            run(case, test_name, config)?;
+        },
+    };
+    Ok(())
+}
+
+/// Runs single test case. Allows for a generic return type.
 fn run<T>(
     testcase: fn(&Config) -> anyhow::Result<T>,
     name: &str,
