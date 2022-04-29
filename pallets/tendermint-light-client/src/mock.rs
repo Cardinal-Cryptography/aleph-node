@@ -179,6 +179,7 @@ impl tendermint_light_client::Config for TestRuntime {
     type HeadersToKeep = HeadersToKeep;
     type TimeProvider = Timestamp;
     type MaxVotesCount = MaxVotesCount;
+    type WeightInfo = ();
 }
 
 construct_runtime! {
