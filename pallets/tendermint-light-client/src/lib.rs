@@ -17,6 +17,9 @@ mod generator;
 
 pub mod types;
 mod utils;
+
+#[allow(unknown_lints)]
+#[allow(clippy::all)]
 pub mod weights;
 
 use frame_support::traits::StorageVersion;
