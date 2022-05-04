@@ -218,7 +218,7 @@ parameter_types! {
 impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
-    type DisabledValidators = ();
+    type DisabledValidators = Session;
 }
 
 parameter_types! {
