@@ -19,27 +19,30 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
+      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v4-${{ hashFiles('**/Cargo.lock') }} # bump cache version if you need to clear it, see https://github.com/actions/cache/issues/485 and https://stackoverflow.com/questions/63521430/clear-cache-in-github-actions
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
 
       - name: Build binary and runtime
-        run: |
-          chmod +x docker/nix-build.sh
-          RUSTFLAGS='"-C target-cpu=x86-64-v2"' docker/nix-build.sh
+        run: cargo build --release -p aleph-node
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node
-          path: aleph-node
+          path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -47,20 +50,18 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-runtime
-          path: result/lib/aleph_runtime.compact.wasm
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
       - name: Build test binary
-        run: |
-          chmod +x docker/nix-build.sh
-          RUSTFLAGS='"-C target-cpu=x86-64-v2"' CRATES='{ "aleph-node" = ["short_session"]; "aleph-runtime" = ["short_session"]; }' NAME='"short_session"' docker/nix-build.sh
+        run: cargo build --release -p aleph-node --features "short_session"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-node
-          path: aleph-node
+          path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -68,6 +69,9 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-runtime
-          path: result/lib/aleph_runtime.compact.wasm
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
+
+      - name: Stop cache
+        uses: ./.github/actions/post-cache
