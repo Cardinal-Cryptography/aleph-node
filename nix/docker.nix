@@ -3,7 +3,7 @@
   alephArgs ? {}
 }:
 let
-  versions = import ../nix/versions.nix {};
+  versions = import ./versions.nix;
   nixpkgs = versions.nixpkgs;
   nixpkgsForDocker = versions.dockerNixpkgs;
 
