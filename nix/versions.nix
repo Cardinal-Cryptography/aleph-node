@@ -24,8 +24,8 @@ rec {
       # pinned version of nix packages
       # main reason for not using here the newest available version at the time or writing is that this way we depend on glibc version 2.31 (Ubuntu 20.04 LTS)
       nixpkgs = import (builtins.fetchTarball {
-        url = "https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz";
-        sha256 = "08k7jy14rlpbb885x8dyds5pxr2h64mggfgil23vgyw6f1cn9kz6";
+        url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/20.09.tar.gz";
+        sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
       }) { overlays = [
              rustOverlay
              # we override rust toolchain
@@ -40,7 +40,7 @@ rec {
 
   llvm = nixpkgs.llvmPackages_11;
 
-  stdenv = nixpkgs.keepDebugInfo llvm.stdenv;
+  stdenv = llvm.stdenv;
 
   naersk =
     let
@@ -53,10 +53,8 @@ rec {
 
   gitignore =
     let
-      gitignoreSrc = nixpkgs.fetchFromGitHub {
-        owner = "hercules-ci";
-        repo = "gitignore.nix";
-        rev = "5b9e0ff9d3b551234b4f3eb3983744fa354b17f1";
+      gitignoreSrc = builtins.fetchTarball {
+        url = "https://github.com/hercules-ci/gitignore.nix/archive/5b9e0ff9d3b551234b4f3eb3983744fa354b17f1.tar.gz";
         sha256 = "o/BdVjNwcB6jOmzZjOH703BesSkkS5O7ej3xhyO8hAY=";
       };
     in
