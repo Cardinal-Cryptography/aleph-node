@@ -40,7 +40,7 @@ let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = versions.llvm;
-  env = versions.stdenv;
+  env = if release then versions.stdenv else nixpkgs.keepDebugInfo versions.stdenv;
 
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
@@ -162,7 +162,7 @@ with nixpkgs; naersk.buildPackage rec {
     # included we need to look in a few places.
     export BINDGEN_EXTRA_CLANG_ARGS=$(cat ${env.cc}/nix-support/{cc,libc}-cflags)
   '';
-  preBuild = ''
+  preConfigure = ''
     ${shellHook}
   '';
   # called after successful build - copies aleph-runtime WASM binaries
