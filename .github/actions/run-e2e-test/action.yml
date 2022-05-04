@@ -37,7 +37,7 @@ runs:
 
     - name: Run single e2e test
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh ${{ inputs.test-case }}
+      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }}
 
     - name: Print debug if failed
       if: ${{ failure() }}
