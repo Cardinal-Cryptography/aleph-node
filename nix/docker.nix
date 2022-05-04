@@ -1,5 +1,7 @@
 # defines a derivation that builds a minimal docker image containing aleph-node and its src folder
 {
+  # when keepDebugInfo = true, created docker image includes `all` dependencies
+  # and image weights > 490MB instead of < 100MB
   alephArgs ? { keepDebugInfo = false; }
 }:
 let
