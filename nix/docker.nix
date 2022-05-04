@@ -7,7 +7,6 @@
 let
   versions = import ./versions.nix;
   nixpkgs = versions.nixpkgs;
-  nixpkgsForDocker = versions.dockerNixpkgs;
 
   alephNode = import ../default.nix alephArgs;
   dockerEntrypointScript = (nixpkgs.writeScriptBin "docker_entrypoint.sh" (builtins.readFile ../docker/docker_entrypoint.sh)).overrideAttrs(old: {
@@ -18,7 +17,7 @@ let
     '';
   });
 in
-nixpkgsForDocker.dockerTools.buildImage {
+nixpkgs.dockerTools.buildImage {
   name = "aleph-node";
   created = "now";
   contents = [alephNode dockerEntrypointScript nixpkgs.bash nixpkgs.coreutils];
