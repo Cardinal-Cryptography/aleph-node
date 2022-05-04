@@ -1,12 +1,16 @@
 #!/bin/bash
 
-set -e
+set -eu
 
 while getopts t: opt
 do
   case $opt in
-    t) TEST_CASE=$OPTARG;;
-    \?) echo "Invalid option: -$OPTARG";;
+    t)
+      export TEST_CASE=$OPTARG;;
+    \?)
+      echo "Invalid option: -$OPTARG"
+      exit 1
+      ;;
   esac
 done
 
