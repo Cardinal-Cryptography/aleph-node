@@ -151,7 +151,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: token_transfer
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-chanelling-fee-test:
@@ -256,7 +256,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: fee_calculation
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   push-image:
