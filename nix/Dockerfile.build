@@ -7,8 +7,7 @@ RUN nix-env -i patchelf && \
     chmod +x /node/nix-build.sh
 
 WORKDIR /node/build
-RUN /node/nix-build.sh && \
-    rm -rf /node/build
+RUN /node/nix-build.sh
 
 ENTRYPOINT ["/node/nix-build.sh"]
 CMD []
