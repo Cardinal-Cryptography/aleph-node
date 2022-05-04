@@ -1,6 +1,6 @@
 # defines a derivation that builds a minimal docker image containing aleph-node and its src folder
 {
-  alephArgs ? {}
+  alephArgs ? { keepDebugInfo = false; }
 }:
 let
   versions = import ./versions.nix;

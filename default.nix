@@ -1,6 +1,8 @@
 {
 # defines whether target should be build in release or debug mode
   release ? true
+# allows to strip binary from all debug info
+, keepDebugInfo ? true
 # name of this derivation
 , name ? "aleph-node"
 # attribute set of the form { "package_name" = [list_of_features] }
@@ -40,7 +42,7 @@ let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = versions.llvm;
-  env = if release then versions.stdenv else nixpkgs.keepDebugInfo versions.stdenv;
+  env = if keepDebugInfo then versions.stdenv else nixpkgs.keepDebugInfo versions.stdenv;
 
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
