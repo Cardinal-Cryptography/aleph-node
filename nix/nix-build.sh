@@ -7,7 +7,7 @@ DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = []; }'}
 NAME=${NAME:-'"aleph-node"'}
 SINGLE_STEP=${SINGLE_STEP:-'false'}
-RUSTFLAGS=${RUSTFLAGS:-'"-C target-cpu=native"'}
+RUSTFLAGS=${RUSTFLAGS:-'"-C target-cpu=generic"'}
 if [ -z ${PATH_TO_FIX+x} ]; then
     PATH_TO_FIX="result/bin/aleph-node"
 fi
