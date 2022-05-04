@@ -129,10 +129,10 @@ jobs:
     name: Run e2e finalization test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source code
+      - name: Checkout source code
         uses: actions/checkout@v2
-      - name: Run e2e test
 
+      - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: finalization
@@ -144,6 +144,9 @@ jobs:
     name: Run e2e token transfer test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -156,6 +159,9 @@ jobs:
     name: Run e2e chanelling fee test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -168,6 +174,9 @@ jobs:
     name: Run e2e treasury access test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -180,6 +189,9 @@ jobs:
     name: Run e2e batch transactions test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -192,6 +204,9 @@ jobs:
     name: Run e2e staking era payouts test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -204,6 +219,9 @@ jobs:
     name: Run e2e staking new validator test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -216,6 +234,9 @@ jobs:
     name: Run e2e change validators test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -228,6 +249,9 @@ jobs:
     name: Run e2e fee calcultation test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
