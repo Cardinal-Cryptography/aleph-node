@@ -11,8 +11,10 @@ let
   nixpkgs = versions.nixpkgs;
   env = versions.stdenv;
   project = import ./default.nix { inherit useCustomRocksDb rocksDbOptions; };
+  nativeBuildInputs = project.nativeBuildInputs ++ [nixpkgs.cacert];
 in
 nixpkgs.mkShell.override { stdenv = env; }
   {
-    inherit (project) nativeBuildInputs buildInputs shellHook;
+    inherit nativeBuildInputs;
+    inherit (project) buildInputs shellHook;
   }
