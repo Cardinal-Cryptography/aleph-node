@@ -7,7 +7,7 @@ let
   nixpkgs = versions.nixpkgs;
   nixpkgsForDocker = versions.dockerNixpkgs;
 
-  alephNode = import ../nix/default.nix alephArgs;
+  alephNode = import ../default.nix alephArgs;
   dockerEntrypointScript = (nixpkgs.writeScriptBin "docker_entrypoint.sh" (builtins.readFile ../docker/docker_entrypoint.sh)).overrideAttrs(old: {
     buildCommand = ''
       ${old.buildCommand}
