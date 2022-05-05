@@ -154,9 +154,9 @@ jobs:
         timeout-minutes: 2
 
 
-  run-e2e-chanelling-fee-test:
+  run-e2e-channeling-fee-test:
     needs: [build-test-docker, build-test-client]
-    name: Run e2e chanelling fee test
+    name: Run e2e channeling fee test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -165,7 +165,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: chanelling_fee
+          test-case: channeling_fee
         timeout-minutes: 2
 
 
@@ -263,7 +263,7 @@ jobs:
     needs: [
       run-e2e-finalization-test,
       run-e2e-token-transfer-test,
-      run-e2e-chanelling-fee-test,
+      run-e2e-channeling-fee-test,
       run-e2e-treasury-access-test,
       run-e2e-batch-transactions-test,
       run-e2e-staking-era-payouts-test,
