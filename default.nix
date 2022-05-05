@@ -154,22 +154,19 @@ with nixpkgs; naersk.buildPackage rec {
     # it allows us to provide hash of the git's HEAD, which is used as part of the version string returned by aleph-node
     # see https://github.com/paritytech/substrate/blob/5597a93a8c8b1ab578693c68549e3ce1902f3eaf/utils/build-script-utils/src/version.rs#L22
     export SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}"
-    # some of the custom build.rs scripts of our dependencies use LIBCLANG while building their c/c++ depdendencies
-    export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
 
     # libp2p* rust libraries depends on protobuf
+    # https://github.com/tokio-rs/prost/blob/7c0916d908c2d088ddb64a7e8849bfc839f6a3de/prost-build/build.rs#L30
     export PROTOC="${protobuf}/bin/protoc";
 
-    # some of the rust libraries calls c and c++ compilers directly
-    # and somehow they miss paths to header files of libc and libcxx
-    export CFLAGS=$(cat ${env.cc}/nix-support/{cc,libc}-cflags)
-    export CXXFLAGS=$(cat ${env.cc}/nix-support/libcxx-cxxflags)
-
-    # From: https://github.com/NixOS/nixpkgs/blob/1fab95f5190d087e66a3502481e34e15d62090aa/pkgs/applications/networking/browsers/firefox/common.nix#L247-L253
+    # some of the custom build.rs scripts of our dependencies use LIBCLANG while building their c/c++ depdendencies
+    # this is required by librocksdb-sys
+    export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
     # Set C flags for Rust's bindgen program. Unlike ordinary C
     # compilation, bindgen does not invoke $CC directly. Instead it
     # uses LLVM's libclang. To make sure all necessary flags are
     # included we need to look in a few places.
+    # https://github.com/rust-lang/rust-bindgen/blob/89032649044d875983a851fff6fbde2d4e2ceaeb/src/lib.rs#L213
     export BINDGEN_EXTRA_CLANG_ARGS=$(cat ${env.cc}/nix-support/{cc,libc}-cflags)
   '';
   preConfigure = ''
