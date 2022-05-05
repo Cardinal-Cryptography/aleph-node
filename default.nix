@@ -141,7 +141,7 @@ with nixpkgs; naersk.buildPackage rec {
   shellHook = ''
     ${rocksDbShellHook}
 
-    # this is the way we can to pass additional arguments to rustc that is called by cargo, e.g. list of available cpu features
+    # this is the way we can pass additional arguments to rustc that is called by cargo, e.g. list of available cpu features
     export RUSTFLAGS="${rustflags}"
     # it allows us to provide hash of the git's HEAD, which is used as part of the version string returned by aleph-node
     # see https://github.com/paritytech/substrate/blob/5597a93a8c8b1ab578693c68549e3ce1902f3eaf/utils/build-script-utils/src/version.rs#L22
