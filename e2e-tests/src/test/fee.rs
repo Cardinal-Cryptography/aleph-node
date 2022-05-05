@@ -12,6 +12,7 @@ use aleph_client::{
 use crate::{config::Config, transfer::setup_for_transfer};
 
 pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
+    // An initial transfer is needed to establish the fee multiplier.
     let (connection, _, to) = setup_for_transfer(config);
     let transfer_value = 1000u128;
     balances_transfer(&connection, &to, transfer_value, XtStatus::Finalized);

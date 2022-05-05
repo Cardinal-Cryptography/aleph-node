@@ -136,7 +136,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: finalization
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-token-transfer-test:
@@ -166,7 +166,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: chanelling_fee
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-treasury-access-test:
@@ -181,7 +181,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: treasury_access
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-batch-transactions-test:
@@ -196,7 +196,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: batch_transactions
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-staking-era-payouts-test:
@@ -241,7 +241,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: change_validators
-        timeout-minutes: 1
+        timeout-minutes: 2
 
 
   run-e2e-fee-calculation:
