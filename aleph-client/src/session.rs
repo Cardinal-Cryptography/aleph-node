@@ -59,17 +59,11 @@ pub fn set_keys(connection: &Connection, new_keys: Keys, status: XtStatus) {
 }
 
 /// Get the number of the current session.
-/// Panics for the 0th session.
 pub fn get_current(connection: &Connection) -> u32 {
-        try_get_current(connection).unwrap()
-}
-
-/// Try to get the number of the current session.
-/// A None result signifies the 0th session.
-pub fn try_get_current(connection: &Connection) -> Option<u32> {
     connection
         .get_storage_value("Session", "CurrentIndex", None)
         .unwrap()
+        .unwrap_or(0)
 }
 
 pub fn wait_for(connection: &Connection, session_index: u32) -> anyhow::Result<BlockNumber> {

@@ -9,24 +9,17 @@ use crate::test::{
 };
 use crate::config::Config;
 
-/// Wrapper around the type of the test case.
-#[derive(Copy, Clone)]
-pub enum TestCase {
-    BlockNumberResult(fn(&Config) -> anyhow::Result<u32>),
-    EmptyResult(fn(&Config) -> anyhow::Result<()>),
-}
-
 /// Get a map with test cases that the e2e suite is able to handle.
-pub fn possible_test_cases() -> HashMap<&'static str, TestCase> {
+pub fn possible_test_cases() -> HashMap<&'static str, fn(&Config) -> anyhow::Result<()>> {
     HashMap::from([
-       ("finalization", TestCase::BlockNumberResult(test_finalization)),
-       ("token_transfer", TestCase::EmptyResult(test_token_transfer)),
-       ("channeling_fee", TestCase::EmptyResult(test_channeling_fee)),
-       ("treasury_access", TestCase::EmptyResult(test_treasury_access)),
-       ("batch_transactions", TestCase::EmptyResult(test_batch_transactions)),
-       ("staking_era_payouts", TestCase::EmptyResult(test_staking_era_payouts)),
-       ("staking_new_validator", TestCase::EmptyResult(test_staking_new_validator)),
-       ("change_validators", TestCase::EmptyResult(test_change_validators)),
-       ("fee_calculation", TestCase::EmptyResult(test_fee_calculation)),
+       ("finalization", test_finalization),
+       ("token_transfer", test_token_transfer),
+       ("channeling_fee", test_channeling_fee),
+       ("treasury_access", test_treasury_access),
+       ("batch_transactions", test_batch_transactions),
+       ("staking_era_payouts", test_staking_era_payouts),
+       ("staking_new_validator", test_staking_new_validator),
+       ("change_validators", test_change_validators),
+       ("fee_calculation", test_fee_calculation),
     ])
 }

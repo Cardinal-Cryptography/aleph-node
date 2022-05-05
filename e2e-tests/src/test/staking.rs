@@ -11,7 +11,7 @@ use aleph_client::{
     balances_batch_transfer, change_members, create_connection, get_current_session,
     keypair_from_string, payout_stakers_and_assert_locked_balance, rotate_keys, set_keys,
     staking_bond, staking_bonded, staking_ledger, staking_nominate, staking_validate,
-    try_get_current_session, wait_for_full_era_completion, wait_for_session, KeyPair,
+    wait_for_full_era_completion, wait_for_session, KeyPair,
 };
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
@@ -140,7 +140,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
 
-    let current_session = try_get_current_session(&connection).unwrap_or(0);
+    let current_session = get_current_session(&connection);
 
     let _ = wait_for_session(&connection, current_session + 2)?;
 

@@ -35,7 +35,7 @@ fn init_env() {
 }
 
 /// Runs default test cases in sequence.
-fn run_default_test_cases(possible_test_cases: HashMap<&str, TestCase>, config: &Config) -> anyhow::Result<()> {
+fn run_default_test_cases(possible_test_cases: HashMap<&str, fn(&Config) -> anyhow::Result<()>>, config: &Config) -> anyhow::Result<()> {
     let _ = possible_test_cases
         .iter()
         .map::<anyhow::Result<()>, _> (
@@ -49,26 +49,25 @@ fn run_default_test_cases(possible_test_cases: HashMap<&str, TestCase>, config: 
 
 /// Runs specified test cases in sequence.
 /// Checks whether each provided test case is valid.
-fn run_specified_test_cases(test_cases: Vec<String>, possible_test_cases: HashMap<&str, TestCase>, config: &Config) -> anyhow::Result<()> {
-    let _ = test_cases
+fn run_specified_test_cases(test_cases: Vec<String>, possible_test_cases: HashMap<&'static str, fn(&Config) -> anyhow::Result<()>>, config: &Config) -> anyhow::Result<()> {
+     test_cases
         .iter()
-        .map::<anyhow::Result<()>, _>(
+        .for_each(
             |test_name| {
                 if let Some(&test_case) = possible_test_cases.get(test_name.as_str()) {
                     run_test_case(test_case, test_name, config)?;
-                    Ok(())
                 } else {
                     Err(anyhow::anyhow!(
                         format!("Provided test case '{}' is not handled.", test_name)
                     ))
                 }
             }
-        ).collect::<Vec<_>>();
+        );
     Ok(())
 }
 
 /// Runs a particular test case. Handles different test case return types.
-fn run_test_case(test_case: TestCase, test_name: &str, config: &Config) -> anyhow::Result<()> {
+fn run_test_case(test_case: fn(&Config) -> anyhow::Result<()>, test_name: &str, config: &Config) -> anyhow::Result<()> {
     match test_case {
         TestCase::BlockNumberResult(case) => {
             run(case, test_name, config)?;
