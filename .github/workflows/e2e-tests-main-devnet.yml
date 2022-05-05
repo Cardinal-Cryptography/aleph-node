@@ -246,7 +246,7 @@ jobs:
 
   run-e2e-fee-calculation:
     needs: [build-test-docker, build-test-client]
-    name: Run e2e fee calcultation test
+    name: Run e2e fee calculation test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
