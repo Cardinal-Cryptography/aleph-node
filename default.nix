@@ -11,7 +11,7 @@
 # allows to run unit tests during the build procedure
 , runTests ? false
 # forces naersk (helper tool for building rust projects under nix) to build in a single derivation, instead default way that uses deps and project derivations
-# used for building aleph-runtime (we don't want its dependencies to be build separately for a non-WASM architecture)
+# it is used for building aleph-runtime (we don't want its dependencies to be build separately for a non-WASM architecture)
 , singleStep ? false
 # passed to rustc by cargo - it allows us to set the list of supported cpu features
 # we can use for example `-C target-cpu=native` which should produce a binary that is significantly faster than the one produced using `generic`
@@ -28,6 +28,7 @@
                       # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
                       patchVerifyChecksum = true;
                       # used to patch source code of rocksdb in order to disable its verify_checksum feature
+                      # it's one of the options supported by rocksdb, but unfortunately rust-wrapper doesn't support setting this argument to `false`
                       patchPath = ./nix/rocksdb.patch;
                       # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
                       enableJemalloc = true;
@@ -136,8 +137,15 @@ with nixpkgs; naersk.buildPackage rec {
   cargoBuildOptions = opts:
     packageFlags
     ++ [featuresFlag]
-    ++ ["--locked" "--offline"]
+    ++
+    [
+      # require Cargo.lock is up to date
+      "--locked"
+      # run cargo without accessing the network
+      "--offline"
+    ]
     ++ opts;
+  # provides necessary env variables
   shellHook = ''
     ${rocksDbShellHook}
 
