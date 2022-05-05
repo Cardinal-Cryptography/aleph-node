@@ -1,5 +1,5 @@
-use log::info;
 use frame_support::BoundedVec;
+use log::info;
 use pallet_staking::StakingLedger;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,

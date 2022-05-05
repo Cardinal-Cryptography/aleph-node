@@ -1,5 +1,5 @@
+pub use cases::{possible_test_cases, TestCase};
 pub use config::Config;
-pub use cases::{TestCase, possible_test_cases};
 
 mod accounts;
 mod cases;

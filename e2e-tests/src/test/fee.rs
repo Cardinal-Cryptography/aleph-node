@@ -6,7 +6,8 @@ use substrate_api_client::{
 };
 
 use aleph_client::{
-    balances_transfer, get_next_fee_multiplier, get_tx_fee_info, send_xt, Connection, FeeInfo, TransferTransaction,
+    balances_transfer, get_next_fee_multiplier, get_tx_fee_info, send_xt, Connection, FeeInfo,
+    TransferTransaction,
 };
 
 use crate::{config::Config, transfer::setup_for_transfer};
