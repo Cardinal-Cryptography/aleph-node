@@ -30,8 +30,7 @@ rec {
              rustOverlay
              # we override rust toolchain
              (self: super: {
-               inherit (rustToolchain) cargo rust-src rust-std;
-               rustc = rustToolchain.rust;
+               rust = rustToolchain.rust;
              })
            ];
          };

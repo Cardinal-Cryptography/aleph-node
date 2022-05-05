@@ -11,7 +11,10 @@ let
   nixpkgs = versions.nixpkgs;
   env = versions.stdenv;
   project = import ./default.nix { inherit useCustomRocksDb rocksDbOptions; };
-  nativeBuildInputs = project.nativeBuildInputs ++ [nixpkgs.cacert];
+  rust = nixpkgs.rust.override {
+    extensions = [ "rust-src" ];
+  };
+  nativeBuildInputs = [rust nixpkgs.cacert] ++ project.nativeBuildInputs;
 in
 nixpkgs.mkShell.override { stdenv = env; }
   {
