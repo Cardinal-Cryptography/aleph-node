@@ -19,8 +19,8 @@ fn main() -> anyhow::Result<()> {
             run_specified_test_cases(cases, possible_test_cases, &config)?;
         }
         None => {
-            info!("Running default test cases.");
-            run_default_test_cases(possible_test_cases, &config)?;
+            info!("Running all handled test cases.");
+            run_all_test_cases(possible_test_cases, &config)?;
         }
     };
     Ok(())
@@ -33,8 +33,8 @@ fn init_env() {
     env_logger::init();
 }
 
-/// Runs default test cases in sequence.
-fn run_default_test_cases(
+/// Runs all handled test cases in sequence.
+fn run_all_test_cases(
     possible_test_cases: HashMap<&str, TestCase>,
     config: &Config,
 ) -> anyhow::Result<()> {
