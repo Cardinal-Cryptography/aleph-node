@@ -33,7 +33,7 @@ then
     nix-shell --pure $SHELL_NIX_FILE
 else
     ARGS=(--arg crates "${CRATES}" --arg name "${NAME}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
-    nix-build --max-jobs 4 $SHELL_NIX_FILE "${ARGS[@]}"
+    nix-build --max-jobs auto --cores 0 $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
     if [ ! -z "$PATH_TO_FIX" ]; then
