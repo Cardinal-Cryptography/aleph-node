@@ -151,16 +151,17 @@ with nixpkgs; naersk.buildPackage rec {
 
     # this is the way we can pass additional arguments to rustc that is called by cargo, e.g. list of available cpu features
     export RUSTFLAGS="${rustflags}"
+
     # it allows us to provide hash of the git's HEAD, which is used as part of the version string returned by aleph-node
     # see https://github.com/paritytech/substrate/blob/5597a93a8c8b1ab578693c68549e3ce1902f3eaf/utils/build-script-utils/src/version.rs#L22
     export SUBSTRATE_CLI_GIT_COMMIT_HASH="${gitCommit}"
 
-    # libp2p* rust libraries depends on protobuf
+    # libp2p* rust libraries depends (indirectly) on protobuf
     # https://github.com/tokio-rs/prost/blob/7c0916d908c2d088ddb64a7e8849bfc839f6a3de/prost-build/build.rs#L30
     export PROTOC="${protobuf}/bin/protoc";
 
-    # some of the custom build.rs scripts of our dependencies use LIBCLANG while building their c/c++ depdendencies
-    # this is required by librocksdb-sys
+    # following two exports are required in order to build librocksdb-sys
+    # some of the custom build.rs scripts of our dependencies use libclang while building their c/c++ depdendencies
     export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
     # Set C flags for Rust's bindgen program. Unlike ordinary C
     # compilation, bindgen does not invoke $CC directly. Instead it
