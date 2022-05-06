@@ -81,7 +81,11 @@ impl<N: Network, D: Data> Service<N, D> {
         }
     }
 
-    fn get_sender(&mut self, peer: &PeerId, protocol: Protocol) -> Option<&mut TracingUnboundedSender<D>> {
+    fn get_sender(
+        &mut self,
+        peer: &PeerId,
+        protocol: Protocol,
+    ) -> Option<&mut TracingUnboundedSender<D>> {
         match protocol {
             Protocol::Generic => self.generic_peer_senders.get_mut(peer),
             Protocol::Validator => self.validator_peer_senders.get_mut(peer),
