@@ -32,7 +32,7 @@ then
     nix-shell --pure $SHELL_NIX_FILE
 else
     ARGS=(--arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
-    nix-build --max-jobs auto --cores 0 $SHELL_NIX_FILE "${ARGS[@]}"
+    nix-build --max-jobs auto $SHELL_NIX_FILE "${ARGS[@]}"
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
     # we need it for aleph-node to be run outside nix-shell
