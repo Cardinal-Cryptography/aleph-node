@@ -131,9 +131,6 @@ impl<N: Network, D: Data> Service<N, D> {
             Some(sender) => {
                 match sender.unbounded_send(data) {
                     Err(e) => {
-                        if e.is_full() {
-                            warn!(target: "aleph-network", "Failed sending data to peer because buffer is full: {:?}", peer);
-                        }
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here
                         if e.is_disconnected() {
