@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     config::Config,
     test::{
@@ -13,9 +11,13 @@ use crate::{
 
 pub type TestCase = fn(&Config) -> anyhow::Result<()>;
 
-/// Get a map with test cases that the e2e suite is able to handle.
-pub fn possible_test_cases() -> HashMap<&'static str, TestCase> {
-    HashMap::from([
+pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
+
+/// Get a Vec with test cases that the e2e suite is able to handle.
+/// The order of items is important for test when more than one case is handled in order.
+/// This comes up in local tests.
+pub fn possible_test_cases() -> PossibleTestCases {
+    vec![
         ("finalization", test_finalization as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         ("channeling_fee", test_channeling_fee as TestCase),
@@ -28,5 +30,5 @@ pub fn possible_test_cases() -> HashMap<&'static str, TestCase> {
         ),
         ("change_validators", test_change_validators as TestCase),
         ("fee_calculation", test_fee_calculation as TestCase),
-    ])
+    ]
 }

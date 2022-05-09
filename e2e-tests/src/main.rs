@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env, time::Instant};
+use std::{env, time::Instant};
 
-use aleph_e2e_client::{possible_test_cases, Config, TestCase};
+use aleph_e2e_client::{possible_test_cases, Config, PossibleTestCases, TestCase};
 use clap::Parser;
 use log::info;
 
@@ -35,7 +35,7 @@ fn init_env() {
 
 /// Runs all handled test cases in sequence.
 fn run_all_test_cases(
-    possible_test_cases: HashMap<&str, TestCase>,
+    possible_test_cases: PossibleTestCases,
     config: &Config,
 ) -> anyhow::Result<()> {
     for (test_name, test_case) in possible_test_cases {
@@ -47,13 +47,17 @@ fn run_all_test_cases(
 /// Runs specified test cases in sequence.
 /// Checks whether each provided test case is valid.
 fn run_specified_test_cases(
-    test_cases: Vec<String>,
-    possible_test_cases: HashMap<&'static str, fn(&Config) -> anyhow::Result<()>>,
+    test_names: Vec<String>,
+    possible_test_cases: PossibleTestCases,
     config: &Config,
 ) -> anyhow::Result<()> {
-    for test_name in test_cases {
-        if let Some(&test_case) = possible_test_cases.get(test_name.as_str()) {
-            run(test_case, test_name.as_str(), config)?;
+    for test_name in test_names {
+        if let Some(idx) = possible_test_cases
+            .iter()
+            .position(|&(name, _)| name == test_name)
+        {
+            let (_, case) = possible_test_cases[idx];
+            run(case, test_name.as_str(), config)?;
         } else {
             return Err(anyhow::anyhow!(format!(
                 "Provided test case '{}' is not handled.",

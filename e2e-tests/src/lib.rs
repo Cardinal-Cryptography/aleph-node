@@ -1,4 +1,4 @@
-pub use cases::{possible_test_cases, TestCase};
+pub use cases::{possible_test_cases, PossibleTestCases, TestCase};
 pub use config::Config;
 
 mod accounts;
