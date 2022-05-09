@@ -14,7 +14,7 @@ pub type TestCase = fn(&Config) -> anyhow::Result<()>;
 pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 
 /// Get a Vec with test cases that the e2e suite is able to handle.
-/// The order of items is important for test when more than one case is handled in order.
+/// The order of items is important for tests when more than one case is handled in order.
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
