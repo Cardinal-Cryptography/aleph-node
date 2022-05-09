@@ -1,6 +1,6 @@
 use std::{env, time::Instant};
 
-use aleph_e2e_client::{possible_test_cases, Config, PossibleTestCases, TestCase};
+use aleph_e2e_client::{possible_test_cases, Config, PossibleTestCases};
 use clap::Parser;
 use log::info;
 
