@@ -472,6 +472,7 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             members: accounts_config.members.clone(),
+            members_per_session: 4,
         },
         session: SessionConfig {
             keys: accounts_config.keys,

@@ -1,7 +1,8 @@
 use crate::{
-    AccountId, BlockNumber, EraIndex, MembersPerSession, Perbill, Runtime, Session, SessionPeriod,
+    AccountId, BlockNumber, EraIndex, Perbill, Runtime, Session, SessionPeriod,
     SessionsPerEra, Staking, Vec,
 };
+use pallet_elections::MembersPerSession;
 use primitives::{SessionIndex, TOKEN};
 
 fn total_exposure(era: EraIndex, validator: &AccountId) -> u32 {
@@ -47,7 +48,7 @@ impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
 
         let total = total_exposure(active_era, &validator);
         let sessions_per_era = SessionsPerEra::get();
-        let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::get();
+        let blocks_to_produce_per_session = SessionPeriod::get() / MembersPerSession::<Runtime>::get().unwrap();
         let points_per_block =
             points_per_block(total, sessions_per_era, blocks_to_produce_per_session);
 
@@ -73,7 +74,7 @@ fn rotate() -> Option<Vec<AccountId>> {
     all_validators.retain(|v| !validators.contains(v));
     let n_all_validators = all_validators.len();
 
-    let n_validators = MembersPerSession::get() as usize;
+    let n_validators = MembersPerSession::<Runtime>::get().unwrap() as usize;
     let free_seats = n_validators.checked_sub(validators.len()).unwrap();
 
     // The validators for the committee at the session `n` are chosen as follow:
