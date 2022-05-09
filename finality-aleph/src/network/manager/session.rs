@@ -103,7 +103,7 @@ impl Handler {
         }
     }
 
-    pub fn is_validator_in_session(&self) -> bool {
+    pub fn is_validator(&self) -> bool {
         self.authority_index_and_pen.is_some()
     }
 
@@ -303,8 +303,8 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(!no_authority_handler.is_validator_in_session());
-        assert!(authority_handler.is_validator_in_session());
+        assert!(!no_authority_handler.is_validator());
+        assert!(authority_handler.is_validator());
     }
 
     #[tokio::test]
