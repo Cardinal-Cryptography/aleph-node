@@ -80,8 +80,6 @@ pub mod pallet {
         }
     }
 
-
-
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub members: Vec<T::AccountId>,
@@ -124,7 +122,7 @@ pub mod pallet {
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             let voters = Self::DataProvider::electing_voters(None).map_err(Error::DataProvider)?;
             let members = Pallet::<T>::members();
-            let mut supports: BTreeMap<T::AccountId, Support<T::AccountId>> = members
+            let mut supports: BTreeMap<_, _> = members
                 .iter()
                 .map(|id| {
                     (

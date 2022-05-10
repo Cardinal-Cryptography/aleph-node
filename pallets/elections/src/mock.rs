@@ -145,8 +145,8 @@ pub fn new_test_ext(members: Vec<AccountId>) -> sp_io::TestExternalities {
         members,
         members_per_session,
     }
-        .assimilate_storage(&mut t)
-        .unwrap();
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     t.into()
 }
