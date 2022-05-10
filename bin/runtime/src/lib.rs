@@ -348,31 +348,35 @@ fn rotate<T: Clone + PartialEq>(
     current_era: EraIndex,
     current_session: SessionIndex,
     n_validators: usize,
-    mut all_validators: Vec<T>,
-    mut reserved: Vec<T>,
+    all_validators: Vec<T>,
+    reserved: Vec<T>,
 ) -> Option<Vec<T>> {
     if current_era == 0 {
         return None;
     }
 
-    all_validators.retain(|v| !reserved.contains(v));
-    let n_all_validators = all_validators.len();
-
-    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
+    let validators_without_reserved: Vec<_> = all_validators
+        .into_iter()
+        .filter(|v| !reserved.contains(v))
+        .collect();
+    let n_all_validators_without_reserved = validators_without_reserved.len();
 
     // The validators for the committee at the session `n` are chosen as follow:
     // 1. Reserved validators are always chosen.
     // 2. Given non-reserved list of validators the chosen ones are from the range:
     // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
     // seats in the committee after reserved nodes are added.
+    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
     let first_validator = current_session as usize * free_seats;
+    let committee =
+        reserved
+            .into_iter()
+            .chain((first_validator..first_validator + free_seats).map(|i| {
+                validators_without_reserved[i % n_all_validators_without_reserved].clone()
+            }))
+            .collect();
 
-    reserved.extend(
-        (first_validator..first_validator + free_seats)
-            .map(|i| all_validators[i % n_all_validators].clone()),
-    );
-
-    Some(reserved)
+    Some(committee)
 }
 
 // Choose a subset of all the validators for current era that contains all the
