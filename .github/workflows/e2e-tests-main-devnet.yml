@@ -151,7 +151,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: token_transfer
-        timeout-minutes: 2
+        timeout-minutes: 3
 
 
   run-e2e-channeling-fee-test:
@@ -166,7 +166,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: channeling_fee
-        timeout-minutes: 2
+        timeout-minutes: 3
 
 
   run-e2e-treasury-access-test:
@@ -181,7 +181,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: treasury_access
-        timeout-minutes: 2
+        timeout-minutes: 3
 
 
   run-e2e-batch-transactions-test:
@@ -241,7 +241,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: change_validators
-        timeout-minutes: 2
+        timeout-minutes: 3
 
 
   run-e2e-fee-calculation:
@@ -260,7 +260,7 @@ jobs:
 
   run-e2e-members-rotate:
     needs: [build-test-docker, build-test-client]
-    name: Run e2e fee calculation test
+    name: Run members rotation test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
@@ -270,7 +270,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: members_rotate
-        timeout-minutes: 8
+        timeout-minutes: 10
 
 
   push-image:
