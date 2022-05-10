@@ -1,7 +1,4 @@
-use aleph_client::{
-    account_from_keypair, get_schedules, keypair_from_string, merge_schedules, print_storages,
-    BlockNumber, Connection,
-};
+use aleph_client::{keypair_from_string, print_storages, BlockNumber};
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use sp_core::Pair;
@@ -147,7 +144,6 @@ enum Command {
 
     /// Print debug info of storage
     DebugStorage,
-    Check,
 }
 
 fn main() {
@@ -225,15 +221,6 @@ fn main() {
             per_block,
             starting_block,
         ),
-        Command::Check => {
-            let c: Connection = cfg.into();
-            let caller = c.signer.clone().unwrap();
-            let x = get_schedules(&c, account_from_keypair(&caller));
-            error!("{:?}", x);
-            merge_schedules(&c, caller.clone(), 0, 1).unwrap();
-            let x = get_schedules(&c, account_from_keypair(&caller));
-            error!("{:?}", x);
-        }
     }
 }
 

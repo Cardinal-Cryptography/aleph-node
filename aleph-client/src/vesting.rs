@@ -73,7 +73,8 @@ pub fn vested_transfer(
 
 pub fn get_schedules(connection: &Connection, who: AccountId) -> AnyResult<Vec<VestingSchedule>> {
     connection
-        .get_storage_map::<AccountId, Vec<VestingSchedule>>(PALLET, "Vesting", who, None)?
+        .get_storage_map::<AccountId, Option<Vec<VestingSchedule>>>(PALLET, "Vesting", who, None)?
+        .flatten()
         .ok_or_else(|| VestingError::NotVesting.into())
 }
 
