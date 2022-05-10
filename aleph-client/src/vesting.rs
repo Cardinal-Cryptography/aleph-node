@@ -26,10 +26,10 @@ const PALLET: &str = "Vesting";
 ///
 /// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules
 /// and thus the extrinsic was not successful. However, semantically it is still correct.
-pub fn vest(connection: &Connection, who: KeyPair) -> AnyResult<()> {
+pub fn vest(connection: Connection, who: KeyPair) -> AnyResult<()> {
     // Ensure that we make a call as `account`.
-    let connection = connection.clone().set_signer(who.clone());
-    let xt = compose_extrinsic!(connection, "Vesting", "vest");
+    let connection = connection.set_signer(who.clone());
+    let xt = compose_extrinsic!(connection, PALLET, "vest");
     let block_hash = try_send_xt(&connection, xt, Some("Vesting"), Finalized)?
         .expect("For `Finalized` status a block hash should be returned");
     info!(
@@ -47,12 +47,12 @@ pub fn vest(connection: &Connection, who: KeyPair) -> AnyResult<()> {
 /// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules
 /// and thus the extrinsic was not successful. However, semantically it is still correct.
 pub fn vest_other(
-    connection: &Connection,
+    connection: Connection,
     caller: KeyPair,
     vest_account: AccountId,
 ) -> AnyResult<()> {
     // Ensure that we make a call as `caller`.
-    let connection = connection.clone().set_signer(caller);
+    let connection = connection.set_signer(caller);
     let xt = compose_extrinsic!(
         connection,
         PALLET,
@@ -69,13 +69,13 @@ pub fn vest_other(
 ///
 /// Does not expect `connection` to be signed. Fails if transaction could not have been sent.
 pub fn vested_transfer(
-    connection: &Connection,
+    connection: Connection,
     sender: KeyPair,
     receiver: AccountId,
     schedule: VestingSchedule,
 ) -> AnyResult<()> {
     // Ensure that we make a call as `sender`.
-    let connection = connection.clone().set_signer(sender);
+    let connection = connection.set_signer(sender);
     let xt = compose_extrinsic!(
         connection,
         PALLET,
@@ -106,13 +106,13 @@ pub fn get_schedules(connection: &Connection, who: AccountId) -> AnyResult<Vec<V
 /// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules, or
 /// it has fewer schedules than `max(idx1, idx2) - 1` and thus the extrinsic was not successful.
 pub fn merge_schedules(
-    connection: &Connection,
+    connection: Connection,
     who: KeyPair,
     idx1: u32,
     idx2: u32,
 ) -> AnyResult<()> {
     // Ensure that we make a call as `who`.
-    let connection = connection.clone().set_signer(who.clone());
+    let connection = connection.set_signer(who.clone());
     let xt = compose_extrinsic!(connection, PALLET, "merge_schedules", idx1, idx2);
     let block_hash = try_send_xt(&connection, xt, Some("Merge vesting schedules"), Finalized)?
         .expect("For `Finalized` status a block hash should be returned");
