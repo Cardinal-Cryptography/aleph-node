@@ -77,6 +77,18 @@ where
     Ok(string.as_bytes().to_vec())
 }
 
+/// Deserialize uppercase HEX string into an AppHash and then Vec<u8>.
+#[cfg(feature = "std")]
+pub fn deserialize_app_hash_as_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use tendermint::AppHash;
+
+    let string = String::deserialize(deserializer)?;
+    AppHash::from_hex_upper(&string).map(|hu| hu.value()).map_err(serde::de::Error::custom)
+}
+
 /// Deserialize base64string into H512
 #[cfg(feature = "std")]
 pub fn base64string_as_h512(s: &str) -> Result<H512, &str> {
