@@ -66,31 +66,36 @@ fn rotate<T: Clone + PartialEq>(
     current_era: EraIndex,
     current_session: SessionIndex,
     n_validators: usize,
-    mut all_validators: Vec<T>,
-    mut reserved: Vec<T>,
+    all_validators: Vec<T>,
+    reserved: Vec<T>,
 ) -> Option<Vec<T>> {
     if current_era == 0 {
         return None;
     }
 
-    all_validators.retain(|v| !reserved.contains(v));
-    let n_all_validators = all_validators.len();
-
-    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
+    let validators_without_reserved: Vec<_> = all_validators
+        .into_iter()
+        .filter(|v| !reserved.contains(v))
+        .collect();
+    let n_all_validators_without_reserved = validators_without_reserved.len();
 
     // The validators for the committee at the session `n` are chosen as follow:
     // 1. Reserved validators are always chosen.
     // 2. Given non-reserved list of validators the chosen ones are from the range:
     // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
     // seats in the committee after reserved nodes are added.
+    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
     let first_validator = current_session as usize * free_seats;
 
-    reserved.extend(
-        (first_validator..first_validator + free_seats)
-            .map(|i| all_validators[i % n_all_validators].clone()),
-    );
+    let committee =
+        reserved
+            .into_iter()
+            .chain((first_validator..first_validator + free_seats).map(|i| {
+                validators_without_reserved[i % n_all_validators_without_reserved].clone()
+            }))
+            .collect();
 
-    Some(reserved)
+    Some(committee)
 }
 
 // Choose a subset of all the validators for current era that contains all the
@@ -173,6 +178,7 @@ fn mark_participation(committee: &Option<Vec<AccountId>>, session: SessionIndex)
 #[cfg(test)]
 mod tests {
     use crate::elections::{points_per_block, rotate};
+    use std::collections::VecDeque;
 
     #[test]
     fn calculates_reward_correctly() {
@@ -180,25 +186,38 @@ mod tests {
     }
 
     #[test]
-    fn test_rotate() {
-        let all_validators = vec![1, 2, 3, 4, 5, 6];
-        let reserved = vec![1, 2];
+    fn given_era_zero_when_rotating_committee_then_committee_is_empty() {
+        assert_eq!(None, rotate(0, 0, 4, (0..10).collect(), vec![1, 2, 3, 4]));
+    }
 
-        assert_eq!(
-            None,
-            rotate(0, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 5, 6]),
-            rotate(1, 1, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 2, 4, all_validators, reserved)
-        );
+    #[test]
+    fn given_non_zero_era_and_prime_number_of_validators_when_rotating_committee_then_rotate_is_correct(
+    ) {
+        let all_validators: Vec<_> = (0..101).collect();
+        let reserved: Vec<_> = (0..11).collect();
+        let total_validators = 53;
+        let mut rotated_free_seats_validators: VecDeque<_> = (11..101).collect();
+
+        for session_index in 0u32..100u32 {
+            let mut expected_rotated_free_seats = vec![];
+            for _ in 0..total_validators - reserved.len() {
+                let first = rotated_free_seats_validators.pop_front().unwrap();
+                expected_rotated_free_seats.push(first);
+                rotated_free_seats_validators.push_back(first);
+            }
+            let mut expected_rotated_committee = reserved.clone();
+            expected_rotated_committee.append(&mut expected_rotated_free_seats);
+            assert_eq!(
+                expected_rotated_committee,
+                rotate(
+                    1,
+                    session_index,
+                    total_validators,
+                    all_validators.clone(),
+                    reserved.clone(),
+                )
+                .expect("Expected non-empty rotated committee!")
+            );
+        }
     }
 }
