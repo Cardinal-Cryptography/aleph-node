@@ -2,8 +2,7 @@ use std::{thread::sleep, time::Duration};
 
 use codec::Encode;
 use log::{info, warn};
-use sp_core::{sr25519, Pair, H256};
-use sp_core::storage::StorageKey;
+use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 use substrate_api_client::{
     rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
@@ -19,8 +18,8 @@ pub use multisig::{
 };
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_members, get_current as get_current_session, set_keys,
-    try_get_current as try_get_current_session, wait_for as wait_for_session, Keys as SessionKeys,
+    change_members, get_current as get_current_session, set_keys, wait_for as wait_for_session,
+    Keys as SessionKeys,
 };
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,

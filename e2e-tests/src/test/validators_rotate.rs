@@ -1,7 +1,7 @@
 use crate::{accounts::accounts_from_seeds, Config};
 use aleph_client::{
-    create_connection, try_get_current_session, wait_for_finalized_block, wait_for_session,
-    Connection, Header, KeyPair,
+    create_connection, get_current_session, wait_for_finalized_block, wait_for_session, Connection,
+    Header, KeyPair,
 };
 use sp_core::Pair;
 use substrate_api_client::AccountId;
@@ -58,7 +58,7 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = create_connection(node).set_signer(sender);
 
-    let mut current_session = try_get_current_session(&connection).unwrap_or_default();
+    let mut current_session = get_current_session(&connection);
     if current_session < MINIMAL_TEST_SESSION_START {
         wait_for_session(&connection, MINIMAL_TEST_SESSION_START)?;
         current_session = MINIMAL_TEST_SESSION_START;
