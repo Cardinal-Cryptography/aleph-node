@@ -6,7 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use crate::elections::StakeReward;
+use crate::elections::{ComiteeRotationSessionManager, StakeReward};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -335,7 +335,6 @@ impl_opaque_keys! {
 
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
-    pub const MembersPerSession: u32 = 4;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -356,7 +355,7 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
+    type SessionManager = ComiteeRotationSessionManager;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
@@ -795,5 +794,33 @@ impl_runtime_apis! {
                 .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rotate;
+
+    #[test]
+    fn test_rotate() {
+        let all_validators = vec![1, 2, 3, 4, 5, 6];
+        let reserved = vec![1, 2];
+
+        assert_eq!(
+            None,
+            rotate(0, 0, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 3, 4]),
+            rotate(1, 0, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 5, 6]),
+            rotate(1, 1, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 3, 4]),
+            rotate(1, 2, 4, all_validators, reserved)
+        );
     }
 }

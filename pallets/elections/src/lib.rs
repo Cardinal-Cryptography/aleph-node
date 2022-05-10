@@ -22,6 +22,7 @@ pub mod pallet {
     };
     use frame_support::{pallet_prelude::*, traits::Get};
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use primitives::DEFAULT_MEMBERS_PER_SESSION;
     use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
     #[pallet::config]
@@ -51,7 +52,7 @@ pub mod pallet {
     pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
-    pub type MembersPerSession<T> = StorageValue<_, u32, OptionQuery>;
+    pub type MembersPerSession<T> = StorageValue<_, u32, ValueQuery>;
 
     #[pallet::storage]
     pub type ErasReserved<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
@@ -92,7 +93,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 members: Vec::new(),
-                members_per_session: 4,
+                members_per_session: DEFAULT_MEMBERS_PER_SESSION,
             }
         }
     }
