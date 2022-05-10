@@ -1,6 +1,6 @@
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MEMBERS_PER_SESSION, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
@@ -472,7 +472,7 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             members: accounts_config.members.clone(),
-            members_per_session: 4,
+            members_per_session: DEFAULT_MEMBERS_PER_SESSION,
         },
         session: SessionConfig {
             keys: accounts_config.keys,
