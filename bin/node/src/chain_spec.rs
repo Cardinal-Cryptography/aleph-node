@@ -482,6 +482,7 @@ fn generate_genesis_config(
             validator_count,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
+            // we set first 2 members as invulnerables for testing purposes
             invulnerables: accounts_config.members[0..2].to_vec(),
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
