@@ -166,8 +166,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: channeling_fee
-        timeout-minutes: 3
-
+        timeout-minutes: 4
 
   run-e2e-treasury-access-test:
     needs: [build-test-docker, build-test-client]
@@ -181,7 +180,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: treasury_access
-        timeout-minutes: 3
+        timeout-minutes: 4
 
 
   run-e2e-batch-transactions-test:
@@ -196,7 +195,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: batch_transactions
-        timeout-minutes: 2
+        timeout-minutes: 4
 
 
   run-e2e-staking-era-payouts-test:

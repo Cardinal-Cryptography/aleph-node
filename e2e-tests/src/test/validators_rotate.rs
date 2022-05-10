@@ -4,6 +4,7 @@ use aleph_client::{
     Header, KeyPair,
 };
 use sp_core::Pair;
+use std::collections::HashMap;
 use substrate_api_client::AccountId;
 
 const MINIMAL_TEST_SESSION_START: u32 = 9;
@@ -15,7 +16,7 @@ fn get_reserved_members() -> Vec<KeyPair> {
 
 fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
     // Test assumption
-    const FREE_SITS: u32 = 2;
+    const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
 
@@ -27,7 +28,7 @@ fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
     ];
     let x_len = x.len();
 
-    for i in (FREE_SITS * session)..(FREE_SITS * (session + 1)) {
+    for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
         non_reserved.push(x[i as usize % x_len].clone());
     }
 
@@ -69,9 +70,15 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
+    let mut non_reserved_count = HashMap::new();
+
     for session in ELECTION_STARTS..current_session {
         let elected = get_authorities_for_session(&connection, session);
         let non_reserved = get_non_reserved_members_for_session(session);
+
+        for nr in non_reserved.clone() {
+            *non_reserved_count.entry(nr).or_insert(0) += 1;
+        }
 
         let reserved_included = reserved_members
             .clone()
@@ -102,6 +109,10 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
             session
         );
     }
+
+    let max_elected = non_reserved_count.values().max().unwrap();
+    let min_elected = non_reserved_count.values().min().unwrap();
+    assert!(max_elected - min_elected <= 1);
 
     let block_number = connection
         .get_header::<Header>(None)
