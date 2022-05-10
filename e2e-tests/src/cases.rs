@@ -24,11 +24,11 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("treasury_access", test_treasury_access as TestCase),
         ("batch_transactions", test_batch_transactions as TestCase),
         ("staking_era_payouts", test_staking_era_payouts as TestCase),
+        ("members_rotate", test_elections as TestCase),
         (
             "staking_new_validator",
             test_staking_new_validator as TestCase,
         ),
-        ("members_rotate", test_elections as TestCase),
         ("change_validators", test_change_validators as TestCase),
         ("fee_calculation", test_fee_calculation as TestCase),
     ]
