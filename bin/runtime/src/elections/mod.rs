@@ -58,6 +58,7 @@ impl pallet_authorship::EventHandler<AccountId, BlockNumber> for StakeReward {
         );
     }
 
+    // TODO double check we don't need it
     fn note_uncle(_author: AccountId, _age: BlockNumber) {}
 }
 
@@ -139,6 +140,7 @@ impl pallet_session::SessionManager<AccountId> for ComiteeRotationSessionManager
         // so we need to populate reserved set here not on start_session nor end_session
         let committee = rotate_committee();
         populate_reserved_on_next_era_start(new_index);
+        mark_participation(&committee, new_index);
 
         committee
     }
@@ -152,6 +154,7 @@ impl pallet_session::SessionManager<AccountId> for ComiteeRotationSessionManager
     }
 
     fn start_session(start_index: SessionIndex) {
+        reward_for_session_non_committee(start_index);
         SM::start_session(start_index)
     }
 }
@@ -169,10 +172,33 @@ fn mark_participation(committee: &Option<Vec<AccountId>>, session: SessionIndex)
 
 #[cfg(test)]
 mod tests {
-    use crate::elections::points_per_block;
+    use crate::elections::{points_per_block, rotate};
 
     #[test]
     fn calculates_reward_correctly() {
         assert_eq!(1000, points_per_block(1_000_000, 10, 100));
+    }
+
+    #[test]
+    fn test_rotate() {
+        let all_validators = vec![1, 2, 3, 4, 5, 6];
+        let reserved = vec![1, 2];
+
+        assert_eq!(
+            None,
+            rotate(0, 0, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 3, 4]),
+            rotate(1, 0, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 5, 6]),
+            rotate(1, 1, 4, all_validators.clone(), reserved.clone())
+        );
+        assert_eq!(
+            Some(vec![1, 2, 3, 4]),
+            rotate(1, 2, 4, all_validators, reserved)
+        );
     }
 }

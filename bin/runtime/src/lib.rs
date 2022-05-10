@@ -796,31 +796,3 @@ impl_runtime_apis! {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::rotate;
-
-    #[test]
-    fn test_rotate() {
-        let all_validators = vec![1, 2, 3, 4, 5, 6];
-        let reserved = vec![1, 2];
-
-        assert_eq!(
-            None,
-            rotate(0, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 5, 6]),
-            rotate(1, 1, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 2, 4, all_validators, reserved)
-        );
-    }
-}
