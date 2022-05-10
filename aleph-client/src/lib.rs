@@ -180,7 +180,9 @@ fn storage_key(module: &str, version: &str) -> [u8; 32] {
 /// * `call` name of the pallet's call
 ///
 /// # Example
-/// ```
+/// ```no_run
+/// use aleph_client::get_storage_key;
+///
 /// let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
 /// assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
 /// ```

@@ -15,9 +15,17 @@ pub enum VestingError {
     #[error("🦺❌ Account has no active vesting schedules.")]
     NotVesting,
 }
-const PALLET: &str = "Vesting";
+
 pub type VestingSchedule = VestingInfo<Balance, BlockNumber>;
 
+const PALLET: &str = "Vesting";
+
+/// Calls `pallet_vesting::vest` for `who`, i.e. makes all unlocked balances transferable.
+///
+/// Does not expect `connection` to be signed. Fails if transaction could not have been sent.
+///
+/// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules
+/// and thus the extrinsic was not successful. However, semantically it is still correct.
 pub fn vest(connection: &Connection, who: KeyPair) -> AnyResult<()> {
     // Ensure that we make a call as `account`.
     let connection = connection.clone().set_signer(who.clone());
@@ -31,6 +39,13 @@ pub fn vest(connection: &Connection, who: KeyPair) -> AnyResult<()> {
     Ok(())
 }
 
+/// Calls `pallet_vesting::vest_other` by `caller` on behalf of `vest_account`, i.e. makes all
+/// unlocked balances of `vest_account` transferable.
+///
+/// Does not expect `connection` to be signed. Fails if transaction could not have been sent.
+///
+/// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules
+/// and thus the extrinsic was not successful. However, semantically it is still correct.
 pub fn vest_other(
     connection: &Connection,
     caller: KeyPair,
@@ -50,6 +65,9 @@ pub fn vest_other(
     Ok(())
 }
 
+/// Performs a vested transfer from `receiver` to `sender` according to `schedule`.
+///
+/// Does not expect `connection` to be signed. Fails if transaction could not have been sent.
 pub fn vested_transfer(
     connection: &Connection,
     sender: KeyPair,
@@ -71,6 +89,9 @@ pub fn vested_transfer(
     Ok(())
 }
 
+/// Returns all active schedules of `who`.
+///
+/// Fails if `who` does not have any active vesting schedules.
 pub fn get_schedules(connection: &Connection, who: AccountId) -> AnyResult<Vec<VestingSchedule>> {
     connection
         .get_storage_map::<AccountId, Option<Vec<VestingSchedule>>>(PALLET, "Vesting", who, None)?
@@ -78,6 +99,12 @@ pub fn get_schedules(connection: &Connection, who: AccountId) -> AnyResult<Vec<V
         .ok_or_else(|| VestingError::NotVesting.into())
 }
 
+/// Merges two vesting schedules (at indices `idx1` and `idx2`) of `who`.
+///
+/// Does not expect `connection` to be signed. Fails if transaction could not have been sent.
+///
+/// *Note*: This function returns `Ok(_)` even if the account has no active vesting schedules, or
+/// it has fewer schedules than `max(idx1, idx2) - 1` and thus the extrinsic was not successful.
 pub fn merge_schedules(
     connection: &Connection,
     who: KeyPair,

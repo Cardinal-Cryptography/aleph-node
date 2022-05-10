@@ -4,6 +4,9 @@ use aleph_client::{
 use log::{error, info};
 use primitives::{Balance, TOKEN};
 
+/// Retrieves signer from `connection`.
+///
+/// Panics if `connection` is not signed.
 fn get_caller(connection: &Connection) -> KeyPair {
     connection
         .signer
@@ -11,6 +14,9 @@ fn get_caller(connection: &Connection) -> KeyPair {
         .expect("Connection should be signed")
 }
 
+/// Delegates to `aleph_client::vest`.
+///
+/// `connection` should be signed: the vesting is performed for the signer.
 pub fn vest(connection: Connection) {
     let caller = get_caller(&connection);
     match aleph_client::vest(&connection, caller) {
@@ -19,6 +25,10 @@ pub fn vest(connection: Connection) {
     }
 }
 
+/// Delegates to `aleph_client::vest_other`.
+///
+/// `connection` should be signed: the vesting is performed by the signer for
+/// `vesting_account_seed`.
 pub fn vest_other(connection: Connection, vesting_account_seed: String) {
     let caller = get_caller(&connection);
     let vester = account_from_keypair(&keypair_from_string(vesting_account_seed.as_str()));
@@ -28,6 +38,11 @@ pub fn vest_other(connection: Connection, vesting_account_seed: String) {
     }
 }
 
+/// Delegates to `aleph_client::vested_transfer`.
+///
+/// `connection` should be signed: the transfer is performed from the signer to `target_seed`.
+/// `amount_in_tokens`, `per_block` and `starting_block` corresponds to the fields of
+/// `aleph_client::VestingSchedule` struct.
 pub fn vested_transfer(
     connection: Connection,
     target_seed: String,
