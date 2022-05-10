@@ -21,9 +21,8 @@ fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
     let mut non_reserved = vec![];
 
     let x = vec![
-        "//Zbyszko".to_string(),
-        "//Marcin".to_string(),
         "//Julia".to_string(),
+        "//Zbyszko".to_string(),
         "//Hansu".to_string(),
     ];
     let x_len = x.len();
