@@ -230,7 +230,6 @@ dependencies = [
  "sp-io",
  "sp-offchain",
  "sp-runtime",
- "sp-sandbox",
  "sp-session",
  "sp-staking",
  "sp-std",
