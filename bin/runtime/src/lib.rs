@@ -711,18 +711,21 @@ impl pallet_utility::Config for Runtime {
     type PalletsOrigin = OriginCaller;
 }
 
+// Prints debug output of the `contracts` pallet to stdout if the node is started with `-lruntime::contracts=debug`.
+const CONTRACTS_DEBUG_OUTPUT: bool = true;
+
 parameter_types! {
     // The following weights are pulled out of thin air. A separate task to adjust them is already in JIRA.
-    pub const DepositPerItem: Balance = TOKEN / 100;  //  10 milli-AZERO per item
-    pub const DepositPerByte: Balance = TOKEN / 100_000;      // ~10 milli-AZERO per kB storage
+    pub const DepositPerItem: Balance = TOKEN / 100;     //  10 milli-AZERO per item
+    pub const DepositPerByte: Balance = TOKEN / 100_000; // ~10 milli-AZERO per kB storage
     // The lazy deletion runs inside on_initialize.
-    pub DeletionWeightLimit: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block;
+    pub DeletionWeightLimit: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block; // 40ms
     // The weight needed for decoding the queue should be less or equal than a tenth
     // of the overall weight dedicated to the lazy deletion.
     pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
             <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
             <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
-        )) / 10) as u32;
+        )) / 10) as u32; // 2228
     pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
 }
 
@@ -940,7 +943,7 @@ impl_runtime_apis! {
             storage_deposit_limit: Option<Balance>,
             input_data: Vec<u8>,
         ) -> ContractExecResult<Balance> {
-            Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, true)
+            Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, CONTRACTS_DEBUG_OUTPUT)
         }
 
         fn instantiate(
@@ -953,7 +956,7 @@ impl_runtime_apis! {
             salt: Vec<u8>,
         ) -> ContractInstantiateResult<AccountId, Balance>
         {
-            Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, true)
+            Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, CONTRACTS_DEBUG_OUTPUT)
         }
 
         fn upload_code(
