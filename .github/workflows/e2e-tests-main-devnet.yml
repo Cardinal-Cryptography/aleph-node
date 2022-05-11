@@ -272,7 +272,7 @@ jobs:
         timeout-minutes: 10
 
 
-  push-image:
+  all-e2e-tests-completed:
     needs: [
       run-e2e-finalization-test,
       run-e2e-token-transfer-test,
@@ -285,6 +285,12 @@ jobs:
       run-e2e-fee-calculation,
       run-e2e-members-rotate
     ]
+    name: All e2e tests completed
+    runs-on: ubuntu-latest
+
+
+  push-image:
+    needs: [all-e2e-tests-completed]
     name: Push node image to the ECR repository
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
