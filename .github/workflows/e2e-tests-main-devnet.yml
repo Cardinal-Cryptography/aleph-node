@@ -287,6 +287,9 @@ jobs:
     ]
     name: All e2e tests completed
     runs-on: ubuntu-latest
+    steps:
+     - name: All e2e tests completed
+       run: echo "All e2e tests completed."
 
 
   push-image:
