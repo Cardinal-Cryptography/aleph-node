@@ -29,7 +29,7 @@ fn validator_points_per_block(
         * total_exposure_in_tokens) as u32
 }
 
-fn reward_for_session_non_committee(committee: &Vec<AccountId>) {
+fn reward_for_session_non_committee(committee: &[AccountId]) {
     let active_era = match Staking::active_era() {
         Some(ae) => ae.index,
         _ => return,
@@ -57,14 +57,14 @@ fn reward_for_session_non_committee(committee: &Vec<AccountId>) {
 }
 
 fn calculate_adjusted_session_points<F: Fn(EraIndex, &T) -> u128, T: Clone + PartialEq>(
-    committee: &Vec<T>,
+    committee: &[T],
     active_era: EraIndex,
     nr_of_sessions: EraIndex,
     blocks_per_session: u32,
     validator: &T,
     get_total_exposure: F,
 ) -> u32 {
-    let participated = committee.contains(&validator);
+    let participated = committee.contains(validator);
 
     if participated {
         return 0;
@@ -246,12 +246,12 @@ mod tests {
     fn adjusted_session_points_for_committee_member_is_zero() {
         assert_eq!(
             0,
-            calculate_adjusted_session_points(&vec![1, 2, 3, 4], 1, 5, 30, &1, |_, _| 2_500_000)
+            calculate_adjusted_session_points(&[1, 2, 3, 4], 1, 5, 30, &1, |_, _| 2_500_000)
         );
 
         assert_eq!(
             0,
-            calculate_adjusted_session_points(&vec![1, 2, 3, 4], 1, 96, 900, &1, |_, _| {
+            calculate_adjusted_session_points(&[1, 2, 3, 4], 1, 96, 900, &1, |_, _| {
                 60_000_000_000
             })
         );
@@ -261,19 +261,19 @@ mod tests {
     fn adjusted_session_points_for_non_committee_member_is_correct() {
         assert_eq!(
             500010,
-            calculate_adjusted_session_points(&vec![1, 2, 3, 4], 1, 5, 30, &5, |_, _| 2_500_000)
+            calculate_adjusted_session_points(&[1, 2, 3, 4], 1, 5, 30, &5, |_, _| 2_500_000)
         );
 
         assert_eq!(
             624999600,
-            calculate_adjusted_session_points(&vec![1, 2, 3, 4], 1, 96, 900, &5, |_, _| {
+            calculate_adjusted_session_points(&[1, 2, 3, 4], 1, 96, 900, &5, |_, _| {
                 60_000_000_000
             })
         );
 
         assert_eq!(
             614583000,
-            calculate_adjusted_session_points(&vec![1, 2, 3, 4], 1, 96, 900, &5, |era, _| {
+            calculate_adjusted_session_points(&[1, 2, 3, 4], 1, 96, 900, &5, |era, _| {
                 match era {
                     0 => 0,
                     1 => 59_000_000_000,
