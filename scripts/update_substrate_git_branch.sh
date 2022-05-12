@@ -9,10 +9,11 @@ paths=$(find . -mindepth 2 -type f -name "Cargo.toml" -not -path "*/target/*")
 
 for path in ${paths[@]}; do
     echo upgrade $path
-    # 1. Find and capture `paritytech/substrate.git", branch = "` substring. It will be available as `\1`.
+    # 1. Find and capture `paritytech/substrate.git", branch = "` substring. It will be available as `\1`. In place
+    #    of spaces there can be sequence of `\s` characters.
     # 2. Find and capture whatever is after closing `"` and before `,` or `}`. It will be available as `\2`.
     # 3. Substitute new branch and concatenate it with `\1` and `\2`.
-    sed -e 's/\(paritytech\/substrate.git", branch = "\)[^"]*"\([^,}]*\)/\1'$branch'"\2/' < $path > x
+    sed -e 's/\(paritytech\/substrate.git",\s*branch\s*=\s*"\)[^"]*"\([^,}]*\)/\1'$branch'"\2/' < $path > x
     mv x $path
 done
 
