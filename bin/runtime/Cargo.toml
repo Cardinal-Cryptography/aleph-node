@@ -17,7 +17,6 @@ serde = { version = "1.0", optional = true, features = ["derive"] }
 primitives = { path = "../../primitives", default-features = false }
 pallet-aleph = { path = "../../pallets/aleph", default-features = false }
 pallet-elections = { path = "../../pallets/elections", default-features = false }
-pallet-rewards = { path = "../../pallets/rewards", default-features = false }
 
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
@@ -70,7 +69,6 @@ std = [
     "pallet-balances/std",
     "pallet-elections/std",
     "pallet-randomness-collective-flip/std",
-    "pallet-rewards/std",
     "pallet-session/std",
     "pallet-staking/std",
     "pallet-sudo/std",

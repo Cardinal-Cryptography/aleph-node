@@ -6,7 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use crate::elections::{ComiteeRotationSessionManager, StakeReward};
+use crate::elections::{CommitteeRotationSessionManager, StakeReward};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -324,8 +324,6 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
 }
 
-impl pallet_rewards::Config for Runtime {}
-
 impl_opaque_keys! {
     pub struct SessionKeys {
         pub aura: Aura,
@@ -355,7 +353,7 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = ComiteeRotationSessionManager;
+    type SessionManager = CommitteeRotationSessionManager;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
@@ -637,7 +635,6 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-        Rewards: pallet_rewards::{Pallet, Storage} = 18
     }
 );
 

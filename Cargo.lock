@@ -204,7 +204,6 @@ dependencies = [
  "pallet-elections",
  "pallet-multisig",
  "pallet-randomness-collective-flip",
- "pallet-rewards",
  "pallet-scheduler",
  "pallet-session",
  "pallet-staking",
@@ -4128,18 +4127,6 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-rewards"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "primitives",
- "scale-info",
- "sp-runtime",
 ]
 
 [[package]]
