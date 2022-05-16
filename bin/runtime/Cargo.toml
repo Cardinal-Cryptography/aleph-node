@@ -27,9 +27,9 @@ frame-system-rpc-runtime-api = { default-features = false, git = "https://github
 pallet-aura = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
 pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
-pallet-contracts = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
-pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
-pallet-contracts-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
+pallet-contracts = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.19" }
+pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.19" }
+pallet-contracts-rpc-runtime-api = { git = "https://github.com/paritytech/substrate.git", default-features = false, branch = "polkadot-v0.9.19" }
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
 pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
