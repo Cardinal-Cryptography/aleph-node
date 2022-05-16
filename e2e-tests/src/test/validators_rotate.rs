@@ -1,7 +1,7 @@
 use crate::{accounts::accounts_from_seeds, Config};
 use aleph_client::{
-    create_connection, get_current_session, wait_for_finalized_block, wait_for_session,
-    AnyConnection, Header, KeyPair, SignedConnection,
+    get_current_session, wait_for_finalized_block, wait_for_session, AnyConnection, Header,
+    KeyPair, SignedConnection,
 };
 use sp_core::Pair;
 use std::collections::HashMap;
@@ -58,7 +58,7 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
     let node = &cfg.node;
     let accounts = accounts_from_seeds(&None);
     let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(create_connection(node), sender);
+    let connection = SignedConnection::new(node, sender);
 
     let mut current_session = get_current_session(&connection);
     if current_session < MINIMAL_TEST_SESSION_START {

@@ -9,8 +9,8 @@ use substrate_api_client::{
 };
 
 use aleph_client::{
-    balances_transfer, create_connection, get_free_balance, get_tx_fee_info, send_xt,
-    wait_for_event, AnyConnection, RootConnection, SignedConnection,
+    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, wait_for_event, AnyConnection,
+    RootConnection, SignedConnection,
 };
 
 use crate::{
@@ -130,7 +130,7 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
 
     let proposer = accounts_from_seeds(seeds)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = SignedConnection::new(create_connection(node), proposer);
+    let connection = SignedConnection::new(node, proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);
@@ -138,7 +138,7 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     assert!(proposals_counter >= 2, "Proposal was not created");
 
     let sudo = get_sudo(config);
-    let connection = RootConnection::new(SignedConnection::new(connection, sudo));
+    let connection = RootConnection::new(node, sudo);
 
     treasury_approve(proposals_counter - 2, &connection)?;
     treasury_reject(proposals_counter - 1, &connection)?;

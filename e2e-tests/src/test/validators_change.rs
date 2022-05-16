@@ -3,8 +3,7 @@ use crate::{
     config::Config,
 };
 use aleph_client::{
-    change_members, create_connection, wait_for_event, wait_for_finalized_block, AnyConnection,
-    Header, RootConnection, SignedConnection,
+    change_members, wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
 };
 use codec::Decode;
 use log::info;
@@ -19,7 +18,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let mut accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
-    let connection = RootConnection::new(SignedConnection::new(create_connection(node), sudo));
+    let connection = RootConnection::new(node, sudo);
 
     let members_before: Vec<AccountId> = connection
         .as_connection()
