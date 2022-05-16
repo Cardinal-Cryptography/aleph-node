@@ -39,6 +39,11 @@ runs:
       shell: bash
       run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }}
 
+    - name: Run finalization e2e test
+      if: ${{ inputs.finalization-check == true }}
+      shell: bash
+      run: ./.github/scripts/run_e2e_test.sh -t finalization
+
     - name: Print debug if failed
       if: ${{ failure() }}
       shell: bash

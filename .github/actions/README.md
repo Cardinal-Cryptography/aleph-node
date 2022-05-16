@@ -47,7 +47,8 @@ Stops sccache server. Use together with `restore-cache`.
 ---
 
 ## `run-e2e-test`
-This action runs a single test from the e2e test suite. It requires a test case, which is the name of the test.
+This action runs a single test from the e2e test suite. It requires a test case, which is the name of the test. It runs
+finalization e2e testcase after some of e2e tests to double-check nothing is broken.
 
 ### Usage
 Sample usage:
@@ -55,5 +56,5 @@ Sample usage:
 steps:
   - uses: ./.github/actions/run-e2e-test
     with:
-      test-case: finalization
+      test-case: change_members
 ```

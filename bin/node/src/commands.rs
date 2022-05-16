@@ -1,6 +1,5 @@
 use crate::chain_spec::{
     self, get_account_id_from_seed, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
-    DEFAULT_CHAIN_ID,
 };
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
@@ -132,10 +131,7 @@ impl BootstrapChainCmd {
             })
             .collect();
 
-        let chain_spec = match self.is_local_run() {
-            true => chain_spec::local_config(self.chain_params.clone(), genesis_authorities)?,
-            false => chain_spec::config(self.chain_params.clone(), genesis_authorities)?,
-        };
+        let chain_spec = chain_spec::local_config(self.chain_params.clone(), genesis_authorities)?;
 
         let json = sc_service::chain_ops::build_spec(&chain_spec, self.raw)?;
         if std::io::stdout().write_all(json.as_bytes()).is_err() {
@@ -145,9 +141,6 @@ impl BootstrapChainCmd {
         Ok(())
     }
 
-    fn is_local_run(&self) -> bool {
-        self.chain_params.chain_id() == DEFAULT_CHAIN_ID
-    }
 }
 
 /// The `bootstrap-node` command is used to generate key pairs for a single authority
