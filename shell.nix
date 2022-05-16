@@ -1,16 +1,9 @@
-{ useCustomRocksDb ? false
-, rocksDbOptions ? { version = "6.29.3";
-                     useSnappy = false;
-                     patchVerifyChecksum = true;
-                     patchPath = ./nix/rocksdb.patch;
-                     enableJemalloc = true;
-                   }
-}:
+{ buildOptions ? {} }:
 let
   versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
   env = versions.stdenv;
-  project = import ./default.nix { inherit useCustomRocksDb rocksDbOptions; };
+  project = import ./default.nix buildOptions ;
   rust = nixpkgs.rust.override {
     extensions = [ "rust-src" ];
   };
