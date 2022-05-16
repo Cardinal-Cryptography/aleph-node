@@ -111,4 +111,4 @@ if [[ -n "${CUSTOM_ARGS:-}" ]]; then
   ARGS+=(${CUSTOM_ARGS})
 fi
 
-aleph-node "${ARGS[@]}"
+aleph-node "${ARGS[@]}" 2> ${BASE_PATH}/${NAME}.log > /dev/null &
