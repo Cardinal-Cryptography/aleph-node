@@ -48,6 +48,9 @@ jobs:
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
+        env:
+          RUSTC_WRAPPER: ""
+          RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
           packages="${{ steps.format_output.outputs.packages }}"
           for p in ${packages[@]}
