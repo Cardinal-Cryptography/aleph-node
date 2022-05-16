@@ -150,6 +150,12 @@ impl RootConnection {
     }
 }
 
+impl From<SignedConnection> for RootConnection {
+    fn from(signed: SignedConnection) -> Self {
+        Self::new(signed)
+    }
+}
+
 impl AnyConnection for RootConnection {
     fn as_con(&self) -> Connection {
         self.as_signed().as_con()

@@ -185,7 +185,7 @@ fn main() {
             amount_in_tokens,
             to_account,
         } => transfer(cfg.into(), amount_in_tokens, to_account),
-        Command::RotateKeys => rotate_keys::<SignedConnection>(cfg.into()),
+        Command::RotateKeys => rotate_keys(cfg.into()),
         Command::SetStakingLimits {
             minimal_nominator_stake,
             minimal_validator_stake,

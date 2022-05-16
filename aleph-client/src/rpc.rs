@@ -1,4 +1,4 @@
-use crate::{AnyConnection, SessionKeys, H256};
+use crate::{AnyConnection, RootConnection, SessionKeys, H256};
 use serde_json::{json, Value};
 use sp_core::storage::{StorageChangeSet, StorageData};
 use substrate_api_client::StorageKey;
@@ -84,8 +84,8 @@ pub fn state_query_storage_at<C: AnyConnection>(
     }
 }
 
-pub fn rotate_keys_base<C: AnyConnection, F, R>(
-    connection: &C,
+pub fn rotate_keys_base<F, R>(
+    connection: &RootConnection,
     rpc_result_mapper: F,
 ) -> Result<R, &'static str>
 where
@@ -103,14 +103,14 @@ where
     }
 }
 
-pub fn rotate_keys<C: AnyConnection>(connection: &C) -> Result<SessionKeys, &'static str> {
+pub fn rotate_keys(connection: &RootConnection) -> Result<SessionKeys, &'static str> {
     rotate_keys_base(connection, |keys| match SessionKeys::try_from(keys) {
         Ok(keys) => Some(keys),
         Err(_) => None,
     })
 }
 
-pub fn rotate_keys_raw_result<C: AnyConnection>(connection: &C) -> Result<String, &'static str> {
+pub fn rotate_keys_raw_result(connection: &RootConnection) -> Result<String, &'static str> {
     // we need to escape two characters from RPC result which is escaped quote
     rotate_keys_base(connection, |keys| Some(keys.trim_matches('\"').to_string()))
 }

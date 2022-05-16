@@ -3,7 +3,8 @@ use crate::{
     config::Config,
 };
 use aleph_client::{
-    change_members, create_connection, wait_for_event, wait_for_finalized_block, Header,
+    change_members, create_connection, wait_for_event, wait_for_finalized_block, AnyConnection,
+    Header, RootConnection, SignedConnection,
 };
 use codec::Decode;
 use log::info;
@@ -18,9 +19,10 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let mut accounts = accounts_from_seeds(seeds);
     let sudo = get_sudo(config);
 
-    let connection = create_connection(node).set_signer(sudo);
+    let connection = RootConnection::new(SignedConnection::new(create_connection(node), sudo));
 
     let members_before: Vec<AccountId> = connection
+        .as_con()
         .get_storage_value("Elections", "Members", None)?
         .unwrap();
 
@@ -45,6 +47,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     )?;
 
     let members_after: Vec<AccountId> = connection
+        .as_con()
         .get_storage_value("Elections", "Members", None)?
         .unwrap();
 
@@ -53,6 +56,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     assert!(new_members.eq(&members_after));
 
     let block_number = connection
+        .as_con()
         .get_header::<Header>(None)
         .expect("Could not fetch header")
         .expect("Block exists; qed")
