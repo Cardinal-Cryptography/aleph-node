@@ -42,13 +42,13 @@ fn get_authorities_for_session<C: AnyConnection>(connection: &C, session: u32) -
     let first_block = SESSION_PERIOD * session;
 
     let block = connection
-        .as_con()
+        .as_connection()
         .get_block_hash(Some(first_block))
         .expect("Api call should succeed")
         .expect("Session already started so the first block should be present");
 
     connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Session", "Validators", Some(block))
         .expect("Api call should succeed")
         .expect("Authorities should always be present")
@@ -116,7 +116,7 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
     assert!(max_elected - min_elected <= 1);
 
     let block_number = connection
-        .as_con()
+        .as_connection()
         .get_header::<Header>(None)
         .expect("Could not fetch header")
         .expect("Block exists; qed")

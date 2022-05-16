@@ -118,7 +118,7 @@ fn assert_no_scaling(
 fn prepare_transaction(connection: &SignedConnection) -> TransferTransaction {
     let bytes = [0u8; 32];
     compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Balances",
         "transfer",
         GenericAddress::Id(AccountId::from(bytes)),
@@ -129,7 +129,7 @@ fn prepare_transaction(connection: &SignedConnection) -> TransferTransaction {
 fn fill_blocks(target_ratio: u32, blocks: u32, connection: &RootConnection) {
     for _ in 0..blocks {
         let xt = compose_extrinsic!(
-            connection.as_con(),
+            connection.as_connection(),
             "System",
             "fill_block",
             target_ratio * 10_000_000

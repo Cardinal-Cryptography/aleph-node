@@ -71,7 +71,7 @@ pub fn state_query_storage_at<C: AnyConnection>(
     storage_keys: Vec<StorageKey>,
 ) -> Result<Vec<Option<StorageData>>, String> {
     match connection
-        .as_con()
+        .as_connection()
         .get_request(state_query_storage_at_json(&storage_keys))
     {
         Ok(maybe_json_result) => {
@@ -91,7 +91,10 @@ pub fn rotate_keys_base<C: AnyConnection, F, R>(
 where
     F: Fn(String) -> Option<R>,
 {
-    match connection.as_con().get_request(author_rotate_keys_json()) {
+    match connection
+        .as_connection()
+        .get_request(author_rotate_keys_json())
+    {
         Ok(maybe_keys) => match maybe_keys {
             Some(keys) => match rpc_result_mapper(keys) {
                 Some(keys) => Ok(keys),

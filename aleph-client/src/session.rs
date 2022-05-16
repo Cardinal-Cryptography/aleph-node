@@ -44,13 +44,13 @@ pub fn change_members(
 ) {
     info!(target: "aleph-client", "New members {:#?}", new_members);
     let call = compose_call!(
-        sudo_connection.as_con().metadata,
+        sudo_connection.as_connection().metadata,
         "Elections",
         "change_members",
         new_members
     );
     let xt = compose_extrinsic!(
-        sudo_connection.as_con(),
+        sudo_connection.as_connection(),
         "Sudo",
         "sudo_unchecked_weight",
         call,
@@ -60,14 +60,20 @@ pub fn change_members(
 }
 
 pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus) {
-    let xt = compose_extrinsic!(connection.as_con(), "Session", "set_keys", new_keys, 0u8);
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Session",
+        "set_keys",
+        new_keys,
+        0u8
+    );
     send_xt(connection, xt, Some("set_keys"), status);
 }
 
 /// Get the number of the current session.
 pub fn get_current<C: AnyConnection>(connection: &C) -> u32 {
     connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Session", "CurrentIndex", None)
         .unwrap()
         .unwrap_or(0)

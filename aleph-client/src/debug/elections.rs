@@ -6,7 +6,7 @@ use primitives::AuthorityId;
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
     let members: Vec<AuthorityId> = connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Elections", "Members", None)
         .expect("Api call should succeed")
         .expect("Members should always be present");

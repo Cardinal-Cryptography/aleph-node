@@ -77,11 +77,11 @@ pub type Connection = Api<KeyPair, WsRpcClient>;
 /// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
 /// information for type inferring required for `Into<Connection>`.
 pub trait AnyConnection: Clone {
-    fn as_con(&self) -> Connection;
+    fn as_connection(&self) -> Connection;
 }
 
 impl AnyConnection for Connection {
-    fn as_con(&self) -> Connection {
+    fn as_connection(&self) -> Connection {
         self.clone()
     }
 }
@@ -97,7 +97,7 @@ impl SignedConnection {
     /// Semantically equivalent to `connection.set_signer(signer)`.
     pub fn new<C: AnyConnection>(connection: C, signer: KeyPair) -> Self {
         Self {
-            inner: connection.as_con().set_signer(signer.clone()),
+            inner: connection.as_connection().set_signer(signer.clone()),
             signer,
         }
     }
@@ -109,7 +109,7 @@ impl SignedConnection {
 }
 
 impl AnyConnection for SignedConnection {
-    fn as_con(&self) -> Connection {
+    fn as_connection(&self) -> Connection {
         self.inner.clone()
     }
 }
@@ -157,8 +157,8 @@ impl From<SignedConnection> for RootConnection {
 }
 
 impl AnyConnection for RootConnection {
-    fn as_con(&self) -> Connection {
-        self.as_signed().as_con()
+    fn as_connection(&self) -> Connection {
+        self.as_signed().as_connection()
     }
 }
 
@@ -237,7 +237,7 @@ pub fn try_send_xt<T: Encode, C: AnyConnection>(
     xt_status: XtStatus,
 ) -> ApiResult<Option<H256>> {
     let hash = connection
-        .as_con()
+        .as_connection()
         .send_extrinsic(xt.hex_encode(), xt_status)?
         .ok_or_else(|| Error::Other(String::from("Could not get tx/block hash").into()))?;
 

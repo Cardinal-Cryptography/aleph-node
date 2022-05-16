@@ -6,7 +6,7 @@ use substrate_api_client::{AccountId, Balance};
 
 pub fn get_free_balance<C: AnyConnection>(connection: &C, account: &AccountId) -> Balance {
     match connection
-        .as_con()
+        .as_connection()
         .get_account_data(account)
         .expect("Should be able to access account data")
     {
@@ -32,7 +32,7 @@ fn create_storage_keys_from_accounts<C: AnyConnection>(
         .iter()
         .map(|account| {
             connection
-                .as_con()
+                .as_connection()
                 .metadata
                 .storage_map_key("Balances", "Locks", account)
                 .unwrap_or_else(|_| panic!("Cannot create storage key for account {}!", account))

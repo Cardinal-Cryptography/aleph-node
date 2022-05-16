@@ -8,7 +8,7 @@ use sp_core::crypto::AccountId32;
 use substrate_api_client::Balance;
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
-    let connection = connection.as_con();
+    let connection = connection.as_connection();
     let proposal_count: u32 = connection
         .get_storage_value("Treasury", "ProposalCount", None)
         .expect("Api call should succeed")

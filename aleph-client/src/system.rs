@@ -3,9 +3,14 @@ use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
 
 pub fn set_code(connection: &RootConnection, runtime: Vec<u8>, status: XtStatus) {
-    let call = compose_call!(connection.as_con().metadata, "System", "set_code", runtime);
+    let call = compose_call!(
+        connection.as_connection().metadata,
+        "System",
+        "set_code",
+        runtime
+    );
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Sudo",
         "sudo_unchecked_weight",
         call,

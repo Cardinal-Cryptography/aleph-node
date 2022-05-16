@@ -21,15 +21,15 @@ use crate::{
 
 fn calculate_staking_treasury_addition<C: AnyConnection>(connection: &C) -> u128 {
     let sessions_per_era = connection
-        .as_con()
+        .as_connection()
         .get_constant::<u32>("Staking", "SessionsPerEra")
         .unwrap();
     let session_period = connection
-        .as_con()
+        .as_connection()
         .get_constant::<u32>("Elections", "SessionPeriod")
         .unwrap();
     let millisecs_per_block = 2 * connection
-        .as_con()
+        .as_connection()
         .get_constant::<u64>("Timestamp", "MinimumPeriod")
         .unwrap();
     let millisecs_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
@@ -148,7 +148,7 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
 
 fn get_total_issuance<C: AnyConnection>(connection: &C) -> u128 {
     connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Balances", "TotalIssuance", None)
         .unwrap()
         .unwrap()
@@ -166,7 +166,7 @@ fn propose_treasury_spend(
     connection: &SignedConnection,
 ) -> ProposalTransaction {
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Treasury",
         "propose_spend",
         Compact(value),
@@ -183,7 +183,7 @@ fn propose_treasury_spend(
 
 fn get_proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
     connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Treasury", "ProposalCount", None)
         .unwrap()
         .unwrap()
@@ -193,7 +193,7 @@ type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
 
 fn send_treasury_approval(proposal_id: u32, connection: &RootConnection) -> GovernanceTransaction {
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Treasury",
         "approve_proposal",
         Compact(proposal_id)
@@ -214,7 +214,7 @@ fn treasury_approve(proposal_id: u32, connection: &RootConnection) -> anyhow::Re
 
 fn send_treasury_rejection(proposal_id: u32, connection: &RootConnection) -> GovernanceTransaction {
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Treasury",
         "reject_proposal",
         Compact(proposal_id)
@@ -238,7 +238,7 @@ fn treasury_reject(proposal_id: u32, connection: &RootConnection) -> anyhow::Res
 fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> anyhow::Result<()> {
     loop {
         let approvals: Vec<u32> = connection
-            .as_con()
+            .as_connection()
             .get_storage_value("Treasury", "Approvals", None)
             .unwrap()
             .unwrap();

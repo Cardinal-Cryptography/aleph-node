@@ -16,7 +16,7 @@ pub fn transfer(
     status: XtStatus,
 ) -> TransferTransaction {
     let xt = connection
-        .as_con()
+        .as_connection()
         .balance_transfer(GenericAddress::Id(target.clone()), value);
     send_xt(connection, xt.clone(), Some("transfer"), status);
     xt
@@ -31,7 +31,7 @@ pub fn batch_transfer(
         .into_iter()
         .map(|account_id| {
             compose_call!(
-                connection.as_con().metadata,
+                connection.as_connection().metadata,
                 "Balances",
                 "transfer",
                 GenericAddress::Id(account_id),
@@ -40,7 +40,7 @@ pub fn batch_transfer(
         })
         .collect::<Vec<_>>();
 
-    let xt = compose_extrinsic!(connection.as_con(), "Utility", "batch", batch_endow);
+    let xt = compose_extrinsic!(connection.as_connection(), "Utility", "batch", batch_endow);
     send_xt(
         connection,
         xt,

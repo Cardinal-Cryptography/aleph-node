@@ -22,7 +22,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let connection = RootConnection::new(SignedConnection::new(create_connection(node), sudo));
 
     let members_before: Vec<AccountId> = connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Elections", "Members", None)?
         .unwrap();
 
@@ -47,7 +47,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     )?;
 
     let members_after: Vec<AccountId> = connection
-        .as_con()
+        .as_connection()
         .get_storage_value("Elections", "Members", None)?
         .unwrap();
 
@@ -56,7 +56,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     assert!(new_members.eq(&members_after));
 
     let block_number = connection
-        .as_con()
+        .as_connection()
         .get_header::<Header>(None)
         .expect("Could not fetch header")
         .expect("Block exists; qed")

@@ -33,7 +33,7 @@ const PALLET: &str = "Vesting";
 /// and thus the extrinsic was not successful. However, semantically it is still correct.
 pub fn vest(connection: SignedConnection) -> Result<()> {
     let vester = connection.signer();
-    let xt = compose_extrinsic!(connection.as_con(), PALLET, "vest");
+    let xt = compose_extrinsic!(connection.as_connection(), PALLET, "vest");
     let block_hash = try_send_xt(&connection, xt, Some("Vesting"), Finalized)?
         .expect("For `Finalized` status a block hash should be returned");
     info!(
@@ -52,7 +52,7 @@ pub fn vest(connection: SignedConnection) -> Result<()> {
 /// and thus the extrinsic was not successful. However, semantically it is still correct.
 pub fn vest_other(connection: SignedConnection, vest_account: AccountId) -> Result<()> {
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         PALLET,
         "vest_other",
         GenericAddress::Id(vest_account.clone())
@@ -73,7 +73,7 @@ pub fn vested_transfer(
     schedule: VestingSchedule,
 ) -> Result<()> {
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         PALLET,
         "vested_transfer",
         GenericAddress::Id(receiver.clone()),
@@ -93,7 +93,7 @@ pub fn get_schedules<C: AnyConnection>(
     who: AccountId,
 ) -> Result<Vec<VestingSchedule>> {
     connection
-        .as_con()
+        .as_connection()
         .get_storage_map::<AccountId, Option<Vec<VestingSchedule>>>(PALLET, "Vesting", who, None)?
         .flatten()
         .ok_or_else(|| VestingError::NotVesting.into())
@@ -107,7 +107,13 @@ pub fn get_schedules<C: AnyConnection>(
 /// it has fewer schedules than `max(idx1, idx2) - 1` and thus the extrinsic was not successful.
 pub fn merge_schedules(connection: SignedConnection, idx1: u32, idx2: u32) -> Result<()> {
     let who = connection.signer();
-    let xt = compose_extrinsic!(connection.as_con(), PALLET, "merge_schedules", idx1, idx2);
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        PALLET,
+        "merge_schedules",
+        idx1,
+        idx2
+    );
 
     let block_hash = try_send_xt(&connection, xt, Some("Merge vesting schedules"), Finalized)?
         .expect("For `Finalized` status a block hash should be returned");

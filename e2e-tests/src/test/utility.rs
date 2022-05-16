@@ -15,7 +15,7 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
     let (connection, to) = setup_for_transfer(config);
 
     let call = compose_call!(
-        connection.as_con().metadata,
+        connection.as_connection().metadata,
         "Balances",
         "transfer",
         GenericAddress::Id(to),
@@ -26,10 +26,11 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
         transactions.push(call.clone());
     }
 
-    let extrinsic = compose_extrinsic!(connection.as_con(), "Utility", "batch", transactions);
+    let extrinsic =
+        compose_extrinsic!(connection.as_connection(), "Utility", "batch", transactions);
 
     let finalized_block_hash = connection
-        .as_con()
+        .as_connection()
         .send_extrinsic(extrinsic.hex_encode(), XtStatus::Finalized)
         .expect("Could not send extrinsc")
         .expect("Could not get tx hash");

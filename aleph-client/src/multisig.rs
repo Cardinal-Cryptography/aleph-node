@@ -209,7 +209,7 @@ impl MultisigParty {
         connection: &C,
     ) -> (SignedConnection, Vec<AccountId>) {
         let (author, other_signatories) = self.designate_representative_and_represented(author_idx);
-        let connection = SignedConnection::new(connection.as_con(), author);
+        let connection = SignedConnection::new(connection.as_connection(), author);
         (connection, other_signatories)
     }
 
@@ -222,7 +222,7 @@ impl MultisigParty {
         call_hash: CallHash,
     ) -> ApproveAsMultiCall {
         compose_extrinsic!(
-            connection.as_con(),
+            connection.as_connection(),
             "Multisig",
             "approve_as_multi",
             self.threshold,
@@ -254,7 +254,7 @@ impl MultisigParty {
         block_hash: H256,
     ) -> Result<Timepoint> {
         let multisig: Multisig = connection
-            .as_con()
+            .as_connection()
             .get_storage_double_map(
                 "Multisig",
                 "Multisigs",
@@ -309,7 +309,7 @@ impl MultisigParty {
         store_call: bool,
     ) -> AsMultiCall {
         compose_extrinsic!(
-            connection.as_con(),
+            connection.as_connection(),
             "Multisig",
             "as_multi",
             self.threshold,
@@ -435,7 +435,7 @@ impl MultisigParty {
         call_hash: CallHash,
     ) -> CancelAsMultiCall {
         compose_extrinsic!(
-            connection.as_con(),
+            connection.as_connection(),
             "Multisig",
             "cancel_as_multi",
             self.threshold,
@@ -483,7 +483,7 @@ pub fn perform_multisig_with_threshold_1<C: AnyConnection, CallDetails: Encode +
 ) -> Result<()> {
     let connection = SignedConnection::new(connection.clone(), author);
     let xt = compose_extrinsic!(
-        connection.as_con(),
+        connection.as_connection(),
         "Multisig",
         "as_multi_threshold_1",
         other_signatories,

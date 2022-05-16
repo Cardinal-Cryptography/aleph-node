@@ -16,12 +16,12 @@ pub fn wait_for_event<C: AnyConnection, E: Decode + Clone, P: Fn(E) -> bool>(
     info!(target: "aleph-client", "Creating event subscription {}/{}", module, variant);
 
     let (events_in, events_out) = channel();
-    connection.as_con().subscribe_events(events_in)?;
+    connection.as_connection().subscribe_events(events_in)?;
 
     loop {
         let args: ApiResult<E> =
             connection
-                .as_con()
+                .as_connection()
                 .wait_for_event(module, variant, None, &events_out);
 
         match args {
@@ -37,7 +37,9 @@ pub fn wait_for_finalized_block<C: AnyConnection>(
     block_number: u32,
 ) -> AnyResult<u32> {
     let (sender, receiver) = channel();
-    connection.as_con().subscribe_finalized_heads(sender)?;
+    connection
+        .as_connection()
+        .subscribe_finalized_heads(sender)?;
 
     while let Ok(header) = receiver
         .recv()
