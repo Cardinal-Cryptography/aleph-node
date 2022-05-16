@@ -12,8 +12,9 @@ packages=(
 
 for p in ${packages[@]}
 do
-  echo "Compiling package $p..."
+  echo "Checking package $p..."
   pushd "$p"
+  cargo fmt --all
   cargo clippy --all-targets --all-features -- --no-deps -D warnings
   popd
 done
