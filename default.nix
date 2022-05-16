@@ -38,12 +38,14 @@ let
   versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
   rustToolchain = versions.rustToolchain;
-  naersk = versions.naersk;
 
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = versions.llvm;
-  env = if keepDebugInfo then versions.stdenv else nixpkgs.keepDebugInfo versions.stdenv;
+  env = if keepDebugInfo then nixpkgs.keepDebugInfo versions.stdenv else versions.stdenv;
+
+  # tool for conveniently building rust projects
+  naersk = versions.naersk.override { stdenv = env; };
 
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
