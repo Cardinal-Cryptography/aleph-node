@@ -8,10 +8,9 @@ use std::iter;
 use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
-    balances_batch_transfer, create_connection, keypair_from_string,
-    payout_stakers_and_assert_locked_balance, staking_batch_bond, staking_batch_nominate,
-    staking_multi_bond, staking_validate, wait_for_next_era, AnyConnection, RootConnection,
-    SignedConnection,
+    balances_batch_transfer, keypair_from_string, payout_stakers_and_assert_locked_balance,
+    staking_batch_bond, staking_batch_nominate, staking_multi_bond, staking_validate,
+    wait_for_next_era, AnyConnection, RootConnection, SignedConnection,
 };
 use primitives::{
     staking::{MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
@@ -78,8 +77,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     env_logger::init();
 
-    let connection =
-        RootConnection::new(SignedConnection::new(create_connection(&address), sudoer));
+    let connection = RootConnection::new(&address, sudoer);
     let validators = match validators_seed_file {
         Some(validators_seed_file) => {
             let validators_seeds = std::fs::read_to_string(&validators_seed_file)
@@ -158,8 +156,7 @@ fn wait_for_successive_eras<C: AnyConnection>(
         validators_and_its_nominators
             .iter()
             .for_each(|(validator, nominators)| {
-                let stash_connection =
-                    SignedConnection::new(create_connection(address), validator.clone());
+                let stash_connection = SignedConnection::new(address, validator.clone());
                 let stash_account = AccountId::from(validator.public());
                 info!("Doing payout_stakers for validator {}", stash_account);
                 payout_stakers_and_assert_locked_balance(
@@ -207,7 +204,7 @@ fn bond_validate(address: &str, validators: Vec<KeyPair>) -> Vec<KeyPair> {
     staking_multi_bond(address, &validators, MIN_VALIDATOR_BOND);
     validators.par_iter().for_each(|account| {
         let mut rng = thread_rng();
-        let connection = SignedConnection::new(create_connection(address), account.clone());
+        let connection = SignedConnection::new(address, account.clone());
         staking_validate(&connection, rng.gen::<u8>() % 100, XtStatus::InBlock);
     });
     validators

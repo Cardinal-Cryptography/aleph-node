@@ -94,8 +94,16 @@ pub struct SignedConnection {
 }
 
 impl SignedConnection {
+    pub fn new(address: &str, signer: KeyPair) -> Self {
+        let unsigned = create_connection(address);
+        Self {
+            inner: unsigned.set_signer(signer.clone()),
+            signer,
+        }
+    }
+
     /// Semantically equivalent to `connection.set_signer(signer)`.
-    pub fn new<C: AnyConnection>(connection: C, signer: KeyPair) -> Self {
+    pub fn from_any_connection<C: AnyConnection>(connection: C, signer: KeyPair) -> Self {
         Self {
             inner: connection.as_connection().set_signer(signer.clone()),
             signer,
@@ -114,13 +122,14 @@ impl AnyConnection for SignedConnection {
     }
 }
 
-/// We can always try casting `Connection` to `SignedConnection`, which fails if it is not signed.
+/// We can always try casting `AnyConnection` to `SignedConnection`, which fails if it is not
+/// signed.
 impl TryFrom<Connection> for SignedConnection {
     type Error = &'static str;
 
     fn try_from(connection: Connection) -> Result<Self, Self::Error> {
         if let Some(signer) = connection.signer.clone() {
-            Ok(Self::new(connection, signer))
+            Ok(Self::from_any_connection(connection, signer))
         } else {
             Err("Connection should be signed.")
         }
@@ -138,9 +147,9 @@ pub struct RootConnection {
 }
 
 impl RootConnection {
-    pub fn new(signed_connection: SignedConnection) -> Self {
+    pub fn new(address: &str, root: KeyPair) -> Self {
         Self {
-            inner: signed_connection,
+            inner: SignedConnection::new(address, root),
         }
     }
 
@@ -152,7 +161,7 @@ impl RootConnection {
 
 impl From<SignedConnection> for RootConnection {
     fn from(signed: SignedConnection) -> Self {
-        Self::new(signed)
+        Self { inner: signed }
     }
 }
 

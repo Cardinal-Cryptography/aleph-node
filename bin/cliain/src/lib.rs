@@ -14,7 +14,7 @@ pub use transfer::transfer;
 pub use validators::change_validators;
 pub use vesting::{vest, vest_other, vested_transfer};
 
-use aleph_client::{create_connection, keypair_from_string, RootConnection, SignedConnection};
+use aleph_client::{keypair_from_string, RootConnection, SignedConnection};
 
 pub struct ConnectionConfig {
     node_endpoint: String,
@@ -33,15 +33,12 @@ impl ConnectionConfig {
 impl From<ConnectionConfig> for SignedConnection {
     fn from(cfg: ConnectionConfig) -> Self {
         let key = keypair_from_string(&cfg.signer_seed);
-        create_connection(cfg.node_endpoint.as_str())
-            .set_signer(key)
-            .try_into()
-            .expect("Signer has been just set")
+        SignedConnection::new(cfg.node_endpoint.as_str(), key)
     }
 }
 
 impl From<ConnectionConfig> for RootConnection {
     fn from(cfg: ConnectionConfig) -> Self {
-        RootConnection::new(cfg.into())
+        RootConnection::from(Into::<SignedConnection>::into(cfg))
     }
 }
