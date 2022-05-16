@@ -207,22 +207,14 @@ pub fn local_config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let authority_accounts: Vec<AccountId> = to_account_ids(&authorities).collect();
-    let controller_accounts: Vec<AccountId> =
-        authority_accounts
-            .into_iter()
-            .enumerate()
-            .map(|(index, _account)| {
-                get_account_id_from_seed::<sr25519::Public>(
-                    format!("//{}//Controller", index).as_str(),
-                )
-            })
-            .collect();
-    generate_chain_spec_config(
-        chain_params,
-        authorities,
-        controller_accounts,
-    )
+    let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
+        .into_iter()
+        .enumerate()
+        .map(|(index, _account)| {
+            get_account_id_from_seed::<sr25519::Public>(format!("//{}//Controller", index).as_str())
+        })
+        .collect();
+    generate_chain_spec_config(chain_params, authorities, controller_accounts)
 }
 
 fn generate_chain_spec_config(
@@ -376,10 +368,8 @@ fn generate_genesis_config(
 
     let validator_count = authorities.len() as u32;
 
-    let accounts_config = configure_chain_spec_fields(
-        unique_accounts_balances,
-        authorities,
-        controller_accounts);
+    let accounts_config =
+        configure_chain_spec_fields(unique_accounts_balances, authorities, controller_accounts);
 
     GenesisConfig {
         system: SystemConfig {

@@ -140,7 +140,6 @@ impl BootstrapChainCmd {
 
         Ok(())
     }
-
 }
 
 /// The `bootstrap-node` command is used to generate key pairs for a single authority
