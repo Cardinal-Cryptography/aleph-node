@@ -1,6 +1,6 @@
 use aleph_client::{
-    rotate_keys as rotate, rotate_keys_raw_result, set_keys as set, staking_bond, AnyConnection,
-    RootConnection, SessionKeys, SignedConnection,
+    rotate_keys as rotate, rotate_keys_raw_result, set_keys as set, staking_bond, RootConnection,
+    SessionKeys, SignedConnection,
 };
 use log::info;
 use primitives::staking::MIN_VALIDATOR_BOND;
