@@ -14,7 +14,7 @@ for p in ${packages[@]}
 do
   echo "Checking package $p..."
   pushd "$p"
-  cargo fmt --all
+  cargo fmt --all --check
   cargo clippy --all-targets --all-features -- --no-deps -D warnings
   popd
 done
