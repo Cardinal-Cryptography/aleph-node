@@ -54,14 +54,13 @@ if finalized_before_start_per_node[0] - finalized_before_kill_per_node[0] < 10:
     sys.exit(1)
 
 chain.start('aleph', nodes=[3, 4])
-finalized_after_start = check_finalized(chain)
 
 print('waiting 45s for catch up')
 sleep(45)
 finalized_after_catch_up_per_node = check_finalized(chain)
 
-nonvalidator_diff = finalized_after_catch_up_per_node[4] - finalized_before_start_per_node[0]
-validator_diff = finalized_after_catch_up_per_node[3] - finalized_before_start_per_node[0]
+nonvalidator_diff = finalized_after_catch_up_per_node[4] - finalized_before_start_per_node[4]
+validator_diff = finalized_after_catch_up_per_node[3] - finalized_before_start_per_node[3]
 
 ALLOWED_DELTA = 5
 
