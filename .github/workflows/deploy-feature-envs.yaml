@@ -344,10 +344,18 @@ jobs:
           /usr/local/bin/argocd app wait fe-root-application --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
           /usr/local/bin/argocd app wait ${{ env.APP_NAME }} --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
 
-      - name: Remove deployment request label
+      - name: Remove testnet deployment request label if exists
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-FEATURE-ENV')
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
           labels: '[AZERO] DEPLOY-FEATURE-ENV'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove mainnet deployment request label if exists
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-HOT-FEATURE-ENV')
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: '[AZERO] DEPLOY-HOT-FEATURE-ENV'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove destroyed label if present
