@@ -1,5 +1,5 @@
 use crate::chain_spec::{
-    self, get_account_id_from_seed, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
+    self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
 };
 use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
@@ -10,7 +10,6 @@ use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::sr25519;
 use sp_keystore::SyncCryptoStore;
 use std::{fs, io::Write, path::PathBuf};
 
@@ -180,7 +179,7 @@ impl BootstrapNodeCmd {
         match &self.account_id {
             Some(id) => AccountId::from_string(id.as_str())
                 .expect("Passed string is not a hex encoding of a public key"),
-            None => get_account_id_from_seed::<sr25519::Public>(
+            None => account_id_from_string(
                 self.account_seed
                     .clone()
                     .expect("Pass account-seed argument")

@@ -4,7 +4,7 @@ use aleph_primitives::{
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
-    SessionKeys, Signature, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+    SessionKeys, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use clap::Args;
 use libp2p::PeerId;
@@ -14,8 +14,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_core::{sr25519, Pair};
 use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 pub const CHAINTYPE_DEV: &str = "dev";
@@ -63,21 +62,13 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
     }
 }
 
-type AccountPublic = <Signature as Verify>::Signer;
-
-/// Generate a crypto pair from seed.
-fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-    TPublic::Pair::from_string(&format!("//{}", seed), None)
-        .expect("static values are valid; qed")
-        .public()
-}
-
 /// Generate an account ID from seed.
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-    AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+pub fn account_id_from_string(seed: &str) -> AccountId {
+    AccountId::from(
+        sr25519::Pair::from_string(seed, None)
+            .expect("Can't create pair from seed value")
+            .public(),
+    )
 }
 
 /// Generate AccountId based on string command line argument.
@@ -211,7 +202,7 @@ pub fn config(
         .into_iter()
         .enumerate()
         .map(|(index, _account)| {
-            get_account_id_from_seed::<sr25519::Public>(format!("//{}//Controller", index).as_str())
+            account_id_from_string(format!("//{}//Controller", index).as_str())
         })
         .collect();
     generate_chain_spec_config(chain_params, authorities, controller_accounts)
