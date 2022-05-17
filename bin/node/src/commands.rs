@@ -131,7 +131,7 @@ impl BootstrapChainCmd {
             })
             .collect();
 
-        let chain_spec = chain_spec::local_config(self.chain_params.clone(), genesis_authorities)?;
+        let chain_spec = chain_spec::config(self.chain_params.clone(), genesis_authorities)?;
 
         let json = sc_service::chain_ops::build_spec(&chain_spec, self.raw)?;
         if std::io::stdout().write_all(json.as_bytes()).is_err() {

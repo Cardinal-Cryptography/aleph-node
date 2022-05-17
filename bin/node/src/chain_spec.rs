@@ -203,7 +203,7 @@ fn system_properties(token_symbol: String) -> serde_json::map::Map<String, Value
 
 /// Generate chain spec for local runs.
 /// Controller accounts are generated for the specified authorities.
-pub fn local_config(
+pub fn config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
