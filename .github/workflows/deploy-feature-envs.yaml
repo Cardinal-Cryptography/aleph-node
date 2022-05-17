@@ -7,12 +7,12 @@ on:
 jobs:
   ## After that job run, artefact with aleph-node is created with name: aleph-release-node
   build_aleph_node_binary:
-    if: ${{ github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV' }}
+    if: ${{ (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') || (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV') }}
     name: Build runtime and aleph-node binary artefacts
     uses: ./.github/workflows/build-node-and-runtime.yml
 
   push_pr_image:
-    if: ${{ github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV' }}
+    if: ${{ (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') || (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV') }}
     needs: [build_aleph_node_binary]
     name: Build, prepare and push aleph-node image from PR to ECR
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
 
 
   deploy_feature_env:
-    if: ${{ github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV' }}
+    if: ${{ (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') || (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV') }}
     name: Deploy feature environment based on the PR
     runs-on: ubuntu-latest
     outputs:
@@ -107,7 +107,8 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Build chainspec and send it to S3
+      - name: Build chainspec for testnet FE and send it to S3
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-FEATURE-ENV')
         env:
           BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
           CHAIN_ID: a0fenet
@@ -138,6 +139,39 @@ jobs:
           aws s3 cp chainspec.json s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}/chainspec.json
           aws s3 cp s3://fe-alephzero-devnet-eu-central-1-keys-bucket/data/ s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}/data/ --recursive
 
+      - name: Build chainspec for Hotnet FE and send it to S3
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-HOT-FEATURE-ENV')
+        env:
+          BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
+          CHAIN_ID: a0fenet
+        run: |
+          SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' https://rpc.azero.dev | jq -r '.result')
+          SUFFIX="-x86_64-linux-gnu"
+          LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
+          COMMIT_ID=${LONG_COMMIT_ID: -7}
+          echo $COMMIT_ID
+          MAINNET_IMAGE="public.ecr.aws/p6e8q1z1/aleph-node:$COMMIT_ID"
+
+          # sync all validator's keystores from S3
+          aws s3 cp s3://fe-alephzero-devnet-eu-central-1-keys-bucket/data data --recursive
+
+          # rename validator paths
+          declare -A NAMES=([aleph-node-validator-0]=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY [aleph-node-validator-1]=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty [aleph-node-validator-2]=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y [aleph-node-validator-3]=5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy [aleph-node-validator-4]=5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw)
+
+          for NAME in "${!NAMES[@]}"; do
+            mv -v data/$NAME data/${NAMES[$NAME]}
+          done
+
+          # Generate chainspec skeleton, it will reuse keys from the synced keystore
+          docker run -v $(pwd)/data:/data --env RUST_BACKTRACE=1 --entrypoint "/usr/local/bin/aleph-node" $MAINNET_IMAGE bootstrap-chain --raw --base-path /data --chain-id $CHAIN_ID --account-ids 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY,5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty,5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y,5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy,5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY > chainspec.skeleton.json
+
+          # Generate chainspec from skeleton
+          docker run -v $(pwd):/app --env RUST_LOG=info public.ecr.aws/p6e8q1z1/fork-off:latest --http-rpc-endpoint=https://rpc.azero.dev --initial-spec-path=chainspec.skeleton.json --combined-spec-path=chainspec.json
+
+          aws s3 cp chainspec.json s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}/chainspec.json
+          aws s3 cp s3://fe-alephzero-devnet-eu-central-1-keys-bucket/data/ s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}/data/ --recursive
+
+
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
         with:
@@ -147,6 +181,7 @@ jobs:
           ref: main
 
       - name: Start testnet image on feature environment
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-FEATURE-ENV')
         env:
           BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
           APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
@@ -170,6 +205,32 @@ jobs:
           sed "s/NAMESPACE/${{ env.NAMESPACE }}/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NODE_IMAGE/$TESTNET_IMAGE/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+
+      - name: Start mainnet image on feature environment
+        if: contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-HOT-FEATURE-ENV')
+        env:
+          BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
+          APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
+          NAMESPACE: fe-${{ steps.get_branch.outputs.branch }}
+          CREATE_HOOK: false
+        run: |
+          # Set up envs
+          SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' https://rpc.azero.dev | jq -r '.result')
+          SUFFIX="-x86_64-linux-gnu"
+          LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
+          COMMIT_ID=${LONG_COMMIT_ID: -7}
+          MAINNET_IMAGE="public.ecr.aws\/p6e8q1z1\/aleph-node:$COMMIT_ID"
+          ALEPH_PATH=$(pwd)
+
+          # Create application manifest from template
+
+          sed "s/APP_NAME/${{ env.APP_NAME }}/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+
+          sed "s/CREATE_HOOK/${{ env.CREATE_HOOK  }}/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+
+          sed "s/NAMESPACE/${{ env.NAMESPACE }}/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+
+          sed "s/NODE_IMAGE/$MAINNET_IMAGE/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
     
       - name: GIT | Commit changes to aleph-apps repository.
         uses: EndBug/add-and-commit@v5.1.0
@@ -206,7 +267,7 @@ jobs:
           time: 5m
 
   update_feature_env_image:
-    if: ${{ github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV' }}
+    if: ${{ (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') || (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV') }}
     needs: [push_pr_image,deploy_feature_env]
     name: Update feature environment to the latest PR aleph-node image
     runs-on: ubuntu-latest
@@ -241,11 +302,6 @@ jobs:
           CREATE_HOOK: true
         run: |
           # Set up envs
-          SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' https://rpc.test.azero.dev | jq -r '.result')
-          SUFFIX="-x86_64-linux-gnu"
-          LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
-          COMMIT_ID=${LONG_COMMIT_ID: -7}
-          TESTNET_IMAGE="public.ecr.aws\/p6e8q1z1\/aleph-node:$COMMIT_ID"
           PR_IMAGE="${{ env.FE_ALEPH_NODE_REGISTRY }}\:${{ env.IMAGE_TAG }}"
           ALEPH_PATH=$(pwd)
 
