@@ -210,7 +210,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: staking_era_payouts
-          follow-up-finalization-check: true
         timeout-minutes: 15
 
 
@@ -226,7 +225,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: staking_new_validator
-          follow-up-finalization-check: true
         timeout-minutes: 10
 
 
@@ -242,7 +240,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: change_validators
-          follow-up-finalization-check: true
         timeout-minutes: 3
 
 
@@ -272,7 +269,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: members_rotate
-          follow-up-finalization-check: true
         timeout-minutes: 10
 
 
