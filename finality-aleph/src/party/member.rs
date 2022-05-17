@@ -14,7 +14,7 @@ use std::{
     fs::File,
     io,
     io::{Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
@@ -30,6 +30,7 @@ pub fn task<
     network: NetworkWrapper<AlephNetworkData<B>, ADN>,
     data_provider: impl aleph_bft::DataProvider<AlephData<B>> + Send + 'static,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
+    unit_saving_path: Option<PathBuf>,
 ) -> Task {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -37,7 +38,7 @@ pub fn task<
     } = subtask_common;
     let (stop, exit) = oneshot::channel();
     let (saver, loader): (Box<dyn Write + Send>, Box<dyn Read + Send>) =
-        if let Some(stash_path) = config.unit_saving_path.as_deref() {
+        if let Some(stash_path) = unit_saving_path.as_deref() {
             let (saver, loader) = rotate_saved_unit_files(stash_path, session_id)
                 .expect("Error setting up unit saving");
             (Box::new(saver), Box::new(loader))

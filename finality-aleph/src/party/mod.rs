@@ -75,6 +75,7 @@ pub(crate) struct ConsensusPartyParams<B: Block, SC, C, RB> {
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     pub unit_creation_delay: UnitCreationDelay,
+    pub unit_saving_path: Option<PathBuf>,
 }
 
 pub(crate) struct ConsensusParty<B, C, BE, SC, RB>
@@ -98,6 +99,7 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
+    unit_saving_path: Option<PathBuf>,
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
@@ -124,6 +126,7 @@ where
             metrics,
             authority_justification_tx,
             unit_creation_delay,
+            unit_saving_path,
         } = params;
         Self {
             session_manager,
@@ -138,6 +141,7 @@ where
             spawn_handle,
             phantom: PhantomData,
             unit_creation_delay,
+            unit_saving_path,
         }
     }
 
@@ -202,6 +206,7 @@ where
                 aleph_network.into(),
                 data_provider,
                 ordered_data_interpreter,
+                self.unit_saving_path.clone(),
             ),
             aggregator::task(
                 subtask_common.clone(),
@@ -401,9 +406,10 @@ where
             warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
         }
 
-        spawn_blocking(move || {
-            remove_session_unit_stash(config.unit_saving_path.cloned(), session_id.0)
-        });
+        {
+            let unit_saving_path = self.unit_saving_path.clone();
+            spawn_blocking(move || remove_session_unit_stash(unit_saving_path, session_id.0));
+        }
     }
 
     pub async fn run(mut self) {
