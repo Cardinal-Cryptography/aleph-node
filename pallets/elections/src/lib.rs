@@ -4,6 +4,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod impls;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -22,6 +23,7 @@ pub mod pallet {
     };
     use frame_support::{pallet_prelude::*, traits::Get};
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use pallet_session::SessionManager;
     use primitives::DEFAULT_MEMBERS_PER_SESSION;
     use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
@@ -34,6 +36,7 @@ pub mod pallet {
         >;
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
+        type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
     }
 
     #[pallet::event]

@@ -6,7 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use crate::elections::{CommitteeRotationSessionManager, StakeReward};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -65,8 +64,6 @@ use sp_runtime::traits::One;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
-
-mod elections;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -236,7 +233,7 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = (StakeReward,);
+    type EventHandler = (Elections,);
 }
 
 parameter_types! {
@@ -343,6 +340,7 @@ impl pallet_elections::Config for Runtime {
     type Event = Event;
     type DataProvider = Staking;
     type SessionPeriod = SessionPeriod;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -357,7 +355,7 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = CommitteeRotationSessionManager;
+    type SessionManager = Elections;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
