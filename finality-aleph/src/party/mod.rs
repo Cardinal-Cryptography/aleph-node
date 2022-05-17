@@ -27,7 +27,11 @@ use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
-use std::{collections::HashSet, default::Default, marker::PhantomData, sync::Arc, time::Duration};
+use std::{
+    collections::HashSet, default::Default, fs, io, marker::PhantomData, path::PathBuf, sync::Arc,
+    time::Duration,
+};
+use tokio::task::spawn_blocking;
 
 mod aggregator;
 mod authority;
@@ -396,6 +400,10 @@ where
         if let Err(e) = self.session_manager.stop_session(session_id) {
             warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
         }
+
+        spawn_blocking(move || {
+            remove_session_unit_stash(config.unit_saving_path.cloned(), session_id.0)
+        });
     }
 
     pub async fn run(mut self) {
@@ -433,6 +441,19 @@ pub(crate) fn create_aleph_config(
     };
     consensus_config.delay_config = delay_config;
     consensus_config
+}
+
+fn remove_session_unit_stash(stash_path: Option<PathBuf>, session_id: u32) {
+    let path = match stash_path {
+        Some(path) => path.join(format!("{}", session_id)),
+        None => return,
+    };
+    if let Err(error) = fs::remove_dir_all(&path) {
+        let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
+        if error.kind() != io::ErrorKind::NotFound || dir_exists() {
+            warn!(target: "aleph-party", "Error cleaning up unit stash for session {}: {:?}", session_id, error);
+        }
+    }
 }
 
 pub fn exponential_slowdown(

@@ -9,7 +9,14 @@ use futures::channel::oneshot;
 use log::debug;
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::Block;
-use std::io::{empty, sink};
+use std::{
+    fs,
+    fs::File,
+    io,
+    io::{Read, Write},
+    path::Path,
+    str::FromStr,
+};
 
 /// Runs the member within a single session.
 pub fn task<
@@ -29,8 +36,15 @@ pub fn task<
         session_id,
     } = subtask_common;
     let (stop, exit) = oneshot::channel();
-    // `sink` and `empty` here are noop placeholders which will be replaced in A0-542
-    let local_io = LocalIO::new(data_provider, ordered_data_interpreter, sink(), empty());
+    let (saver, loader): (Box<dyn Write + Send>, Box<dyn Read + Send>) =
+        if let Some(stash_path) = config.unit_saving_path.as_deref() {
+            let (saver, loader) = rotate_saved_unit_files(stash_path, session_id)
+                .expect("Error setting up unit saving");
+            (Box::new(saver), Box::new(loader))
+        } else {
+            (Box::new(io::sink()), Box::new(io::empty()))
+        };
+    let local_io = LocalIO::new(data_provider, ordered_data_interpreter, saver, loader);
     let task = {
         let spawn_handle = spawn_handle.clone();
         async move {
@@ -43,4 +57,24 @@ pub fn task<
 
     let handle = spawn_handle.spawn_essential("aleph/consensus_session_member", task);
     Task::new(handle, stop)
+}
+
+fn rotate_saved_unit_files(stash_path: &Path, session_id: u32) -> Result<(File, File), io::Error> {
+    let extension = ".abfst";
+    let session_path = stash_path.join(format!("{}", session_id));
+    fs::create_dir_all(&session_path)?;
+    let index = fs::read_dir(&session_path)
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .filter_map(|x| x.file_name().into_string().ok())
+        .filter_map(|s| u64::from_str(s.strip_suffix(extension)?).ok())
+        .max();
+    let load_path = match index {
+        Some(index) => session_path.join(format!("{}{}", index, extension)),
+        None => "/dev/null".into(),
+    };
+    let load_file = File::open(load_path)?;
+    let save_file =
+        File::create(session_path.join(format!("{}{}", index.map_or(0, |i| i + 1), extension)))?;
+    Ok((save_file, load_file))
 }
