@@ -15,23 +15,16 @@ fn validator_points_per_block(
     sessions_per_era: u32,
     blocks_to_produce_per_session: u32,
 ) -> u32 {
+    // this rounds to the nearest integer
     (Perquintill::from_rational(1, (blocks_to_produce_per_session * sessions_per_era) as u64)
         * total_exposure_in_tokens) as u32
 }
 
-fn calculate_adjusted_session_points<T: Clone + PartialEq>(
-    committee: &[T],
+fn calculate_adjusted_session_points(
     nr_of_sessions: EraIndex,
     blocks_per_session: u32,
-    validator: &T,
     total: u128,
 ) -> u32 {
-    let participated = committee.contains(validator);
-
-    if participated {
-        return 0;
-    }
-
     let points_per_block = validator_points_per_block(total, nr_of_sessions, blocks_per_session);
 
     points_per_block * blocks_per_session
@@ -59,7 +52,7 @@ fn rotate<T: Clone + PartialEq>(
     // 2. Given non-reserved list of validators the chosen ones are from the range:
     // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
     // seats in the committee after reserved nodes are added.
-    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
+    let free_seats = n_validators.saturating_sub(reserved.len());
     let first_validator = current_session as usize * free_seats;
 
     let committee =
@@ -74,11 +67,22 @@ fn rotate<T: Clone + PartialEq>(
 }
 
 impl<T> Pallet<T>
-where
-    T: Config + pallet_session::Config + pallet_staking::Config,
-    <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-    <T as pallet_session::Config>::ValidatorId: From<T::AccountId>
+    where
+        T: Config + pallet_session::Config + pallet_staking::Config,
+        <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
+        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
+        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>,
 {
+    fn get_committee_and_non_committee(current_era: EraIndex) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
+        let committee: Vec<T::AccountId> = pallet_session::Validators::<T>::get().into_iter().map(|a| a.into()).collect();
+        let non_committee = pallet_staking::ErasStakers::<T>
+        ::iter_key_prefix(current_era)
+            .filter(|a| !committee.contains(a))
+            .collect();
+
+        (committee, non_committee)
+    }
+
     fn blocks_to_produce_per_session() -> u32 {
         T::SessionPeriod::get() / MembersPerSession::<T>::get()
     }
@@ -89,25 +93,22 @@ where
         scale_total_exposure(total.into())
     }
 
-    fn reward_for_session_non_committee(committee: &[<T as pallet_session::Config>::ValidatorId]) {
+    fn reward_for_session_non_committee(non_committee: Vec<T::AccountId>) {
         let active_era = match pallet_staking::ActiveEra::<T>::get() {
             Some(ae) => ae.index,
             _ => return,
         };
-        let all_validators = pallet_staking::ErasStakers::<T>::iter_key_prefix(active_era);
 
         let nr_of_sessions = T::SessionsPerEra::get();
         let blocks_per_session = Self::blocks_to_produce_per_session();
 
-        let session_rewards = all_validators.into_iter().map(|validator| {
+        let session_rewards = non_committee.into_iter().map(|validator| {
             let total = Self::scaled_total_exposure(active_era, &validator);
             (
-                validator.clone(),
+                validator,
                 calculate_adjusted_session_points(
-                    committee,
                     nr_of_sessions,
                     blocks_per_session,
-                    &validator.into(),
                     total,
                 ),
             )
@@ -154,22 +155,22 @@ where
     }
 
     fn adjust_rewards_for_session() {
-        match pallet_staking::ActiveEra::<T>::get() {
-            Some(ae) if ae.index == 0 => return,
-            None => return,
-            _ => {}
-        }
+        let current_era = match pallet_staking::ActiveEra::<T>::get() {
+            Some(ae) if ae.index > 0 => ae.index,
+            _ => return,
+        };
 
-        let committee = pallet_session::Validators::<T>::get();
-        Self::reward_for_session_non_committee(&committee);
+        let (_, non_committee) = Self::get_committee_and_non_committee(current_era);
+        Self::reward_for_session_non_committee(non_committee);
     }
 }
 
 impl<T> pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
-where
-T: Config + pallet_session::Config + pallet_staking::Config,
-<<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-<T as pallet_session::Config>::ValidatorId: From<T::AccountId> {
+    where
+        T: Config + pallet_session::Config + pallet_staking::Config,
+        <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
+        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
+        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>, {
     fn note_author(validator: T::AccountId) {
         let active_era = pallet_staking::ActiveEra::<T>::get().unwrap().index;
 
@@ -191,7 +192,8 @@ impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
     where
         T: Config + pallet_session::Config + pallet_staking::Config,
         <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-        <T as pallet_session::Config>::ValidatorId: From<T::AccountId> {
+        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
+        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>, {
     fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
@@ -253,33 +255,17 @@ mod tests {
     }
 
     #[test]
-    fn adjusted_session_points_for_committee_member_is_zero() {
-        assert_eq!(
-            0,
-            calculate_adjusted_session_points(&[1, 2, 3, 4], 5, 30, &1, 2_500_000)
-        );
-
-        assert_eq!(
-            0,
-            calculate_adjusted_session_points(&[1, 2, 3, 4], 96, 900, &1, 60_000_000_000)
-        );
-    }
-
-    #[test]
     fn adjusted_session_points_for_non_committee_member_is_correct() {
-        assert_eq!(
-            500010,
-            calculate_adjusted_session_points(&[1, 2, 3, 4], 5, 30, &5, 2_500_000)
-        );
+        assert_eq!(500010, calculate_adjusted_session_points(5, 30, 2_500_000));
 
         assert_eq!(
             624999600,
-            calculate_adjusted_session_points(&[1, 2, 3, 4], 96, 900, &5, 60_000_000_000)
+            calculate_adjusted_session_points(96, 900, 60_000_000_000)
         );
 
         assert_eq!(
             614583000,
-            calculate_adjusted_session_points(&[1, 2, 3, 4], 96, 900, &5, 59_000_000_000)
+            calculate_adjusted_session_points(96, 900, 59_000_000_000)
         );
     }
 
