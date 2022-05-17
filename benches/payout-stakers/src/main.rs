@@ -1,4 +1,4 @@
-use clap::{ErrorKind, Parser, CommandFactory};
+use clap::{CommandFactory, ErrorKind, Parser};
 use log::{info, trace, warn};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
@@ -62,7 +62,8 @@ fn main() -> Result<(), anyhow::Error> {
         cmd.error(
             ErrorKind::ArgumentConflict,
             "One and only one of --validator-count or --validators-seed-file must be specified!",
-        ).exit();
+        )
+        .exit();
     }
 
     let sudoer = match root_seed_file {
@@ -94,42 +95,51 @@ fn main() -> Result<(), anyhow::Error> {
     let validator_count = validators.len() as u32;
     warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
-    let validators_controllers = (0..validator_count)
-        .map(|seed| keypair_from_string(&format!("//{}//Controller", seed))).collect::<Vec<_>>();
-    let validators_stashes = (0..validator_count)
-        .map(|seed| keypair_from_string(&format!("//{}//Stash", seed))).collect::<Vec<_>>();
+    let controllers = (0..validator_count)
+        .map(|seed| keypair_from_string(&format!("//{}//Controller", seed)))
+        .collect::<Vec<_>>();
 
-    bond_validate(&address, validators_controllers);
-    let validators_and_nominators_stashes =
-        create_test_validators_and_nominators_stashes(&connection, validators_stashes, validator_count);
+    let validators_with_controllers = controllers
+        .into_iter()
+        .zip(validators.clone().into_iter())
+        .map(|(controller, validator)| (controller, validator))
+        .collect::<Vec<_>>();
+    bond_validate(&address, validators_with_controllers);
+    let validators_and_nominator_stashes =
+        setup_test_validators_and_nominator_stashes(&connection, validators);
     wait_for_successive_eras(
         &address,
         &connection,
-        validators_and_nominators_stashes,
+        validators_and_nominator_stashes,
         ERAS_TO_WAIT,
     )?;
 
     Ok(())
 }
 
-fn create_test_validators_and_nominators_stashes(
+fn setup_test_validators_and_nominator_stashes(
     connection: &Connection,
-    validators_stashes: Vec<KeyPair>,
-    validators_count: u32,
+    validators: Vec<KeyPair>,
 ) -> Vec<(KeyPair, Vec<AccountId32>)> {
-    validators_stashes
+    validators
         .iter()
         .enumerate()
-        .map(|(validator_index, validator_stash_pair)| {
-            let (nominator_controller_accounts, nominator_stash_accounts) = generate_nominator_accounts_with_minimal_bond(
-                &connection,
-                validator_index as u32,
-                validators_count,
-            );
-            let nominee_account = AccountId::from(validator_stash_pair.public());
+        .map(|(validator_index, validator)| {
+            let (nominator_controller_accounts, nominator_stash_accounts) =
+                generate_nominator_accounts_with_minimal_bond(
+                    &connection,
+                    validator_index as u32,
+                    validators.len() as u32,
+                );
+            let nominee_account = AccountId::from(validator.public());
             info!("Nominating validator {}", nominee_account);
-            nominate_validator(&connection, nominator_controller_accounts, nominator_stash_accounts.clone(), nominee_account);
-            (validator_stash_pair.clone(), nominator_stash_accounts)
+            nominate_validator(
+                &connection,
+                nominator_controller_accounts,
+                nominator_stash_accounts.clone(),
+                nominee_account,
+            );
+            (validator.clone(), nominator_stash_accounts)
         })
         .collect()
 }
@@ -142,7 +152,7 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
 fn wait_for_successive_eras(
     address: &str,
     connection: &Connection,
-    validators_and_nominators_stashes: Vec<(KeyPair, Vec<AccountId>)>,
+    validators_and_nominator_stashes: Vec<(KeyPair, Vec<AccountId>)>,
     eras_to_wait: u32,
 ) -> Result<(), anyhow::Error> {
     // in order to have over 8k nominators we need to wait around 60 seconds all calls to be processed
@@ -157,10 +167,10 @@ fn wait_for_successive_eras(
             current_era,
             current_era - 1
         );
-        validators_and_nominators_stashes
-            .iter()
-            .for_each(|(validator_stash, nominators_stashes)| {
-                let stash_connection = create_connection(address).set_signer(validator_stash.clone());
+        validators_and_nominator_stashes.iter().for_each(
+            |(validator_stash, nominators_stashes)| {
+                let stash_connection =
+                    create_connection(address).set_signer(validator_stash.clone());
                 let stash_account = AccountId::from(validator_stash.public());
                 info!("Doing payout_stakers for validator {}", stash_account);
                 payout_stakers_and_assert_locked_balance(
@@ -169,7 +179,8 @@ fn wait_for_successive_eras(
                     &stash_account,
                     current_era,
                 );
-            });
+            },
+        );
         current_era = wait_for_next_era(connection)?;
     }
     Ok(())
@@ -181,11 +192,11 @@ fn nominate_validator(
     nominator_stash_accounts: Vec<AccountId>,
     nominee_account: AccountId,
 ) {
-    let controller_stash_accounts = nominator_controller_accounts
+    let stash_controller_accounts = nominator_stash_accounts
         .iter()
-        .zip(nominator_stash_accounts.iter())
+        .zip(nominator_controller_accounts.iter())
         .collect::<Vec<_>>();
-    controller_stash_accounts
+    stash_controller_accounts
         .chunks(BOND_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
             let mut rng = thread_rng();
@@ -205,23 +216,29 @@ fn nominate_validator(
         .for_each(|chunk| staking_batch_nominate(connection, chunk));
 }
 
-fn bond_validate(address: &str, validators_controllers: Vec<KeyPair>) -> Vec<KeyPair> {
-    validators_controllers.par_iter().for_each(|account| {
-        let connection = create_connection(address).set_signer(account.clone());
-        let controller_account_id = AccountId::from(account.public());
-        staking_bond(
-            &connection,
-            MIN_VALIDATOR_BOND,
-            &controller_account_id,
-            XtStatus::InBlock,
-        );
-    });
-    validators_controllers.par_iter().for_each(|account| {
+fn bond_validate(
+    address: &str,
+    controllers_stashes: Vec<(KeyPair, KeyPair)>,
+) -> Vec<(KeyPair, KeyPair)> {
+    controllers_stashes
+        .par_iter()
+        .for_each(|(controller, stash)| {
+            let connection = create_connection(address).set_signer(stash.clone());
+            let controller_account_id = AccountId::from(controller.public());
+            staking_bond(
+                &connection,
+                MIN_VALIDATOR_BOND,
+                &controller_account_id,
+                XtStatus::InBlock,
+            );
+        });
+    controllers_stashes.par_iter().for_each(|(controller, _)| {
         let mut rng = thread_rng();
-        let connection = create_connection(address).set_signer(account.clone());
+        let connection = create_connection(address).set_signer(controller.clone());
+        println!("Controller id: {}", controller.clone().public());
         staking_validate(&connection, rng.gen::<u8>() % 100, XtStatus::InBlock);
     });
-    validators_controllers
+    controllers_stashes
 }
 
 fn generate_nominator_accounts_with_minimal_bond(
@@ -235,23 +252,23 @@ fn generate_nominator_accounts_with_minimal_bond(
     );
     let mut controller_accounts = vec![];
     let mut stash_accounts = vec![];
-    (0..NOMINATOR_COUNT)
-        .for_each(|nominator_number| {
-            let idx = validators_count + nominator_number + NOMINATOR_COUNT * validator_number;
-            let controller_key_pair = keypair_from_string(&format!("//{}//Controller", idx));
-            let stash_key_pair = keypair_from_string(&format!("//{}//Stash", idx));
-            controller_accounts.extend(vec![AccountId::from(controller_key_pair.public())].into_iter());
-            stash_accounts.extend(vec![AccountId::from(stash_key_pair.public())].into_iter());
-        });
+    (0..NOMINATOR_COUNT).for_each(|nominator_number| {
+        let idx = validators_count + nominator_number + NOMINATOR_COUNT * validator_number;
+        let controller = keypair_from_string(&format!("//{}//Controller", idx));
+        let stash = keypair_from_string(&format!("//{}//Stash", idx));
+        controller_accounts.push(AccountId::from(controller.public()));
+        stash_accounts.push(AccountId::from(stash.public()));
+    });
     controller_accounts
         .chunks(TRANSFER_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
-            balances_batch_transfer(connection, chunk.to_vec(), TOKEN * 10);
+            balances_batch_transfer(connection, chunk.to_vec(), TOKEN);
         });
     stash_accounts
         .chunks(TRANSFER_CALL_BATCH_LIMIT)
         .for_each(|chunk| {
             balances_batch_transfer(connection, chunk.to_vec(), MIN_NOMINATOR_BOND * 10);
+            // potentially change to + 1
         });
 
     (controller_accounts, stash_accounts)
