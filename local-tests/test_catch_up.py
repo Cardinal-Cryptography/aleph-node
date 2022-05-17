@@ -48,7 +48,7 @@ sleep(30 * 2)
 print('restarting nodes')
 finalized_before_start_per_node = check_finalized(chain)
 
-# Check if the finalization didnt stopped after kill
+# Check if the finalization didn't stop after a kill.
 if finalized_before_start_per_node[0] - finalized_before_kill_per_node[0] < 10:
     print('Finalization stalled')
     sys.exit(1)
