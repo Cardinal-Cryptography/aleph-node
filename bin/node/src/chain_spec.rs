@@ -328,7 +328,6 @@ fn configure_chain_spec_fields(
 }
 
 /// Configure initial storage state for FRAME modules.
-/// Possible to provide distinct controller accounts.
 fn generate_genesis_config(
     wasm_binary: &[u8],
     authorities: Vec<AuthorityKeys>,
