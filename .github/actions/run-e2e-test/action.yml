@@ -43,7 +43,7 @@ runs:
       run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }}
 
     - name: Run finalization e2e test
-      if: ${{ inputs.follow-up-finalization-check == true }}
+      if: inputs.follow-up-finalization-check == 'true'
       shell: bash
       run: ./.github/scripts/run_e2e_test.sh -t finalization
 
