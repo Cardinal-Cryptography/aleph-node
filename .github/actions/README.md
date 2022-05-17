@@ -55,5 +55,5 @@ Sample usage:
 steps:
   - uses: ./.github/actions/run-e2e-test
     with:
-      test-case: change_members
+      test-case: finalization
 ```
