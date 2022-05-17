@@ -1,4 +1,4 @@
-use crate::{Connection, SessionKeys, H256};
+use crate::{AnyConnection, SessionKeys, H256};
 use serde_json::{json, Value};
 use sp_core::storage::{StorageChangeSet, StorageData};
 use substrate_api_client::StorageKey;
@@ -16,13 +16,13 @@ pub fn author_rotate_keys_json() -> Value {
     json_req("author_rotateKeys", Value::Null, 1)
 }
 
-fn state_query_storage_at_json(storage_keys: &Vec<StorageKey>) -> Value {
+fn state_query_storage_at_json(storage_keys: &[StorageKey]) -> Value {
     json_req(
         "state_queryStorageAt",
         Value::Array(vec![
             Value::Array(
                 storage_keys
-                    .into_iter()
+                    .iter()
                     .map(|storage_key| Value::String(hex::encode(storage_key)))
                     .collect::<Vec<_>>(),
             ),
@@ -51,11 +51,11 @@ fn parse_query_storage_at_result(
             // best known block
             let storage_change_set = storage_change_set_vec.remove(0);
             if storage_change_set.changes.len() != expected_storage_key_size {
-                return Err(String::from(format!(
+                return Err(format!(
                     "Expected result to have exactly {} entries, got {}!",
                     expected_storage_key_size,
                     storage_change_set.changes.len()
-                )));
+                ));
             }
             Ok(storage_change_set
                 .changes
@@ -66,29 +66,35 @@ fn parse_query_storage_at_result(
     }
 }
 
-pub fn state_query_storage_at(
-    connection: &Connection,
+pub fn state_query_storage_at<C: AnyConnection>(
+    connection: &C,
     storage_keys: Vec<StorageKey>,
 ) -> Result<Vec<Option<StorageData>>, String> {
-    match connection.get_request(state_query_storage_at_json(&storage_keys)) {
+    match connection
+        .as_connection()
+        .get_request(state_query_storage_at_json(&storage_keys))
+    {
         Ok(maybe_json_result) => {
             parse_query_storage_at_result(maybe_json_result, storage_keys.len())
         }
-        Err(_) => Err(String::from(format!(
+        Err(_) => Err(format!(
             "Failed to obtain results from storage keys {:?}",
             &storage_keys
-        ))),
+        )),
     }
 }
 
-pub fn rotate_keys_base<F, R>(
-    connection: &Connection,
+pub fn rotate_keys_base<C: AnyConnection, F, R>(
+    connection: &C,
     rpc_result_mapper: F,
 ) -> Result<R, &'static str>
 where
     F: Fn(String) -> Option<R>,
 {
-    match connection.get_request(author_rotate_keys_json()) {
+    match connection
+        .as_connection()
+        .get_request(author_rotate_keys_json())
+    {
         Ok(maybe_keys) => match maybe_keys {
             Some(keys) => match rpc_result_mapper(keys) {
                 Some(keys) => Ok(keys),
@@ -100,14 +106,14 @@ where
     }
 }
 
-pub fn rotate_keys(connection: &Connection) -> Result<SessionKeys, &'static str> {
+pub fn rotate_keys<C: AnyConnection>(connection: &C) -> Result<SessionKeys, &'static str> {
     rotate_keys_base(connection, |keys| match SessionKeys::try_from(keys) {
         Ok(keys) => Some(keys),
         Err(_) => None,
     })
 }
 
-pub fn rotate_keys_raw_result(connection: &Connection) -> Result<String, &'static str> {
+pub fn rotate_keys_raw_result<C: AnyConnection>(connection: &C) -> Result<String, &'static str> {
     // we need to escape two characters from RPC result which is escaped quote
     rotate_keys_base(connection, |keys| Some(keys.trim_matches('\"').to_string()))
 }
@@ -118,9 +124,10 @@ mod tests {
 
     #[test]
     fn given_some_input_when_state_query_storage_at_json_then_json_is_as_expected() {
-        let mut storage_keys = Vec::new();
-        storage_keys.push(StorageKey(vec![0, 1, 2, 3, 4, 5]));
-        storage_keys.push(StorageKey(vec![9, 8, 7, 6, 5]));
+        let storage_keys = vec![
+            StorageKey(vec![0, 1, 2, 3, 4, 5]),
+            StorageKey(vec![9, 8, 7, 6, 5]),
+        ];
         let expected_json_string = r#"
 {
    "id": "1",
