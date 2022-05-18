@@ -93,7 +93,12 @@ impl<T> Pallet<T>
         scale_total_exposure(total.into())
     }
 
-    fn reward_for_session_non_committee(non_committee: Vec<T::AccountId>, active_era: EraIndex, nr_of_sessions: SessionIndex, blocks_per_session: u32) -> impl IntoIterator<Item = (T::AccountId, u32)> {
+    fn reward_for_session_non_committee(
+        non_committee: Vec<T::AccountId>,
+        active_era: EraIndex,
+        nr_of_sessions: SessionIndex,
+        blocks_per_session: u32,
+    ) -> impl IntoIterator<Item=(T::AccountId, u32)> {
         non_committee.into_iter().map(move |validator| {
             let total = Self::scaled_total_exposure(active_era, &validator);
             (
@@ -108,7 +113,12 @@ impl<T> Pallet<T>
         })
     }
 
-    fn reward_for_session_committee(committee: Vec<T::AccountId>, active_era: EraIndex, nr_of_sessions: SessionIndex, blocks_per_session: u32) -> impl IntoIterator<Item = (T::AccountId, u32)> {
+    fn reward_for_session_committee(
+        committee: Vec<T::AccountId>,
+        active_era: EraIndex,
+        nr_of_sessions: SessionIndex,
+        blocks_per_session: u32,
+    ) -> impl IntoIterator<Item=(T::AccountId, u32)> {
         committee.into_iter().map(move |validator| {
             let total = Self::scaled_total_exposure(active_era, &validator);
             let blocks_created = SessionValidatorBlockCount::<T>::get(&validator);
@@ -171,8 +181,10 @@ impl<T> Pallet<T>
         let nr_of_sessions = T::SessionsPerEra::get();
         let blocks_per_session = Self::blocks_to_produce_per_session();
 
-        let rewards = Self::reward_for_session_non_committee(non_committee, active_era, nr_of_sessions, blocks_per_session).into_iter()
-            .chain(Self::reward_for_session_committee(committee, active_era, nr_of_sessions, blocks_per_session).into_iter());
+        let rewards =
+            Self::reward_for_session_non_committee(non_committee, active_era, nr_of_sessions, blocks_per_session)
+                .into_iter()
+                .chain(Self::reward_for_session_committee(committee, active_era, nr_of_sessions, blocks_per_session).into_iter());
 
         pallet_staking::Pallet::<T>::reward_by_ids(rewards);
     }
