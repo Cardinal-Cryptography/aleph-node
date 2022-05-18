@@ -15,6 +15,8 @@ pub use pallet::*;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
+pub type BlockCount = u32;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -59,6 +61,10 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type ErasReserved<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+    #[pallet::storage]
+    pub type SessionValidatorBlockCount<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, BlockCount, ValueQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
