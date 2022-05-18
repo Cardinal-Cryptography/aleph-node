@@ -5,7 +5,6 @@ use primitives::TOKEN;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
-
 fn scale_total_exposure(total: u128) -> u128 {
     // to cover minimal possible theoretical stake (25k) and avoid loss of accuracy we need to scale
     total / TOKEN
@@ -17,8 +16,10 @@ fn calculate_adjusted_session_points(
     blocks_created: u32,
     total_exposure_in_tokens: u128,
 ) -> u32 {
-    (Perquintill::from_rational(blocks_created as u64, (blocks_to_produce_per_session * sessions_per_era) as u64)
-        * total_exposure_in_tokens) as u32
+    (Perquintill::from_rational(
+        blocks_created as u64,
+        (blocks_to_produce_per_session * sessions_per_era) as u64,
+    ) * total_exposure_in_tokens) as u32
 }
 
 fn rotate<T: Clone + PartialEq>(
@@ -230,9 +231,7 @@ impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 
 #[cfg(test)]
 mod tests {
-    use crate::impls::{
-        calculate_adjusted_session_points, rotate, scale_total_exposure,
-    };
+    use crate::impls::{calculate_adjusted_session_points, rotate, scale_total_exposure};
     use primitives::TOKEN;
     use std::collections::VecDeque;
 
@@ -253,10 +252,7 @@ mod tests {
 
     #[test]
     fn adjusted_session_points_all_blocks_created_are_calculated_correctly() {
-        assert_eq!(
-            5000,
-            calculate_adjusted_session_points(5, 30, 30, 25_000)
-        );
+        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 30, 25_000));
 
         assert_eq!(
             6250000,
