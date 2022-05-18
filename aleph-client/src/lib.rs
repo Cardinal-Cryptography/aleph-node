@@ -4,6 +4,7 @@ use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
+pub use substrate_api_client;
 use substrate_api_client::{
     rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
     UncheckedExtrinsicV4, XtStatus,
@@ -24,14 +25,18 @@ pub use session::{
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
-    ledger as staking_ledger, nominate as staking_nominate, payout_stakers,
-    payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
-    validate as staking_validate, wait_for_full_era_completion, wait_for_next_era,
+    ledger as staking_ledger, multi_bond as staking_multi_bond, nominate as staking_nominate,
+    payout_stakers, payout_stakers_and_assert_locked_balance,
+    set_staking_limits as staking_set_staking_limits, validate as staking_validate,
+    wait_for_full_era_completion, wait_for_next_era,
 };
-pub use substrate_api_client;
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
+};
+pub use vesting::{
+    get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,
+    VestingSchedule,
 };
 pub use waiting::{wait_for_event, wait_for_finalized_block};
 
@@ -44,6 +49,7 @@ mod session;
 mod staking;
 mod system;
 mod transfer;
+mod vesting;
 mod waiting;
 
 pub trait FromStr: Sized {
@@ -64,6 +70,106 @@ pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient>;
+
+/// 'Castability' to `Connection`.
+///
+/// Direct casting is often more handy than generic `.into()`. Justification: `Connection` objects
+/// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
+/// information for type inferring required for `Into<Connection>`.
+pub trait AnyConnection: Clone {
+    fn as_connection(&self) -> Connection;
+}
+
+impl AnyConnection for Connection {
+    fn as_connection(&self) -> Connection {
+        self.clone()
+    }
+}
+
+/// A connection that is signed.
+#[derive(Clone)]
+pub struct SignedConnection {
+    inner: Connection,
+    signer: KeyPair,
+}
+
+impl SignedConnection {
+    pub fn new(address: &str, signer: KeyPair) -> Self {
+        let unsigned = create_connection(address);
+        Self {
+            inner: unsigned.set_signer(signer.clone()),
+            signer,
+        }
+    }
+
+    /// Semantically equivalent to `connection.set_signer(signer)`.
+    pub fn from_any_connection<C: AnyConnection>(connection: C, signer: KeyPair) -> Self {
+        Self {
+            inner: connection.as_connection().set_signer(signer.clone()),
+            signer,
+        }
+    }
+
+    /// A signer corresponding to `self.inner`.
+    pub fn signer(&self) -> KeyPair {
+        self.signer.clone()
+    }
+}
+
+impl AnyConnection for SignedConnection {
+    fn as_connection(&self) -> Connection {
+        self.inner.clone()
+    }
+}
+
+/// We can always try casting `AnyConnection` to `SignedConnection`, which fails if it is not
+/// signed.
+impl TryFrom<Connection> for SignedConnection {
+    type Error = &'static str;
+
+    fn try_from(connection: Connection) -> Result<Self, Self::Error> {
+        if let Some(signer) = connection.signer.clone() {
+            Ok(Self::from_any_connection(connection, signer))
+        } else {
+            Err("Connection should be signed.")
+        }
+    }
+}
+
+/// A connection that is signed by the root account.
+///
+/// Since verifying signature is expensive (requires interaction with the node for checking
+/// storage), there is no guarantee that in fact the signer has sudo access. Hence, effectively it
+/// is just a type wrapper requiring explicit casting.
+#[derive(Clone)]
+pub struct RootConnection {
+    inner: SignedConnection,
+}
+
+impl RootConnection {
+    pub fn new(address: &str, root: KeyPair) -> Self {
+        Self {
+            inner: SignedConnection::new(address, root),
+        }
+    }
+
+    /// A direct casting is often more handy than a generic `.into()`.
+    pub fn as_signed(&self) -> SignedConnection {
+        self.inner.clone()
+    }
+}
+
+impl From<SignedConnection> for RootConnection {
+    fn from(signed: SignedConnection) -> Self {
+        Self { inner: signed }
+    }
+}
+
+impl AnyConnection for RootConnection {
+    fn as_connection(&self) -> Connection {
+        self.as_signed().as_connection()
+    }
+}
 
 pub fn create_connection(address: &str) -> Connection {
     create_custom_connection(address).expect("Connection should be created")
@@ -118,8 +224,8 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
 }
 
 /// `panic`able utility wrapper for `try_send_xt`.
-pub fn send_xt<T: Encode>(
-    connection: &Connection,
+pub fn send_xt<T: Encode, C: AnyConnection>(
+    connection: &C,
     xt: UncheckedExtrinsicV4<T>,
     xt_name: Option<&'static str>,
     xt_status: XtStatus,
@@ -127,16 +233,20 @@ pub fn send_xt<T: Encode>(
     try_send_xt(connection, xt, xt_name, xt_status).expect("Should manage to send extrinsic")
 }
 
-/// Sends transaction `xt` using `connection`. If `tx_status` is either `Finalized` or `InBlock`
-/// additionally returns hash of the containing block. `xt_name` is used only for logging purposes.
+/// Sends transaction `xt` using `connection`.
+///
+/// If `tx_status` is either `Finalized` or `InBlock`, additionally returns hash of the containing
+/// block. `xt_name` is used only for logging purposes.
+///
 /// Recoverable.
-pub fn try_send_xt<T: Encode>(
-    connection: &Connection,
+pub fn try_send_xt<T: Encode, C: AnyConnection>(
+    connection: &C,
     xt: UncheckedExtrinsicV4<T>,
     xt_name: Option<&'static str>,
     xt_status: XtStatus,
 ) -> ApiResult<Option<H256>> {
     let hash = connection
+        .as_connection()
         .send_extrinsic(xt.hex_encode(), xt_status)?
         .ok_or_else(|| Error::Other(String::from("Could not get tx/block hash").into()))?;
 
@@ -176,6 +286,8 @@ fn storage_key(module: &str, version: &str) -> [u8; 32] {
 ///
 /// # Example
 /// ```
+/// use aleph_client::get_storage_key;
+///
 /// let staking_nominate_storage_key = get_storage_key("Staking", "Nominators");
 /// assert_eq!(staking_nominate_storage_key, String::from("5f3e4907f716ac89b6347d15ececedca9c6a637f62ae2af1c7e31eed7e96be04"));
 /// ```

@@ -8,9 +8,9 @@ use std::iter;
 use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
-    balances_batch_transfer, create_connection, keypair_from_string,
-    payout_stakers_and_assert_locked_balance, staking_batch_bond, staking_batch_nominate,
-    staking_bond, staking_validate, wait_for_next_era, Connection,
+    balances_batch_transfer, keypair_from_string, payout_stakers_and_assert_locked_balance,
+    staking_batch_bond, staking_batch_nominate, staking_multi_bond, staking_validate,
+    wait_for_next_era, AnyConnection, RootConnection, SignedConnection,
 };
 use primitives::{
     staking::{MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
@@ -69,7 +69,7 @@ fn main() -> Result<(), anyhow::Error> {
     let sudoer = match root_seed_file {
         Some(root_seed_file) => {
             let root_seed = std::fs::read_to_string(&root_seed_file)
-                .expect(&format!("Failed to read file {}", root_seed_file));
+                .unwrap_or_else(|_| panic!("Failed to read file {}", root_seed_file));
             keypair_from_string(root_seed.trim())
         }
         None => AccountKeyring::Alice.pair(),
@@ -77,19 +77,19 @@ fn main() -> Result<(), anyhow::Error> {
 
     env_logger::init();
 
-    let connection = create_connection(&address).set_signer(sudoer);
+    let connection = RootConnection::new(&address, sudoer);
     let validators = match validators_seed_file {
         Some(validators_seed_file) => {
             let validators_seeds = std::fs::read_to_string(&validators_seed_file)
-                .expect(&format!("Failed to read file {}", validators_seed_file));
+                .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
             validators_seeds
-                .split("\n")
+                .split('\n')
                 .filter(|seed| !seed.is_empty())
                 .map(keypair_from_string)
                 .collect()
         }
         None => (0..validator_count.unwrap())
-            .map(|validator_number| derive_user_account_from_numeric_seed(validator_number))
+            .map(derive_user_account_from_numeric_seed)
             .collect::<Vec<_>>(),
     };
     let validator_count = validators.len() as u32;
@@ -118,7 +118,7 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn setup_test_validators_and_nominator_stashes(
-    connection: &Connection,
+    connection: &RootConnection,
     validators: Vec<KeyPair>,
 ) -> Vec<(KeyPair, Vec<AccountId32>)> {
     validators
@@ -127,7 +127,7 @@ fn setup_test_validators_and_nominator_stashes(
         .map(|(validator_index, validator)| {
             let (nominator_controller_accounts, nominator_stash_accounts) =
                 generate_nominator_accounts_with_minimal_bond(
-                    &connection,
+                    &connection.as_signed(),
                     validator_index as u32,
                     validators.len() as u32,
                 );
@@ -149,9 +149,9 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
     keypair_from_string(&format!("//{}", seed))
 }
 
-fn wait_for_successive_eras(
+fn wait_for_successive_eras<C: AnyConnection>(
     address: &str,
-    connection: &Connection,
+    connection: &C,
     validators_and_nominator_stashes: Vec<(KeyPair, Vec<AccountId>)>,
     eras_to_wait: u32,
 ) -> Result<(), anyhow::Error> {
@@ -169,8 +169,7 @@ fn wait_for_successive_eras(
         );
         validators_and_nominator_stashes.iter().for_each(
             |(validator_stash, nominators_stashes)| {
-                let stash_connection =
-                    create_connection(address).set_signer(validator_stash.clone());
+                let stash_connection = SignedConnection::new(address, validator_stash.clone());
                 let stash_account = AccountId::from(validator_stash.public());
                 info!("Doing payout_stakers for validator {}", stash_account);
                 payout_stakers_and_assert_locked_balance(
@@ -187,7 +186,7 @@ fn wait_for_successive_eras(
 }
 
 fn nominate_validator(
-    connection: &Connection,
+    connection: &RootConnection,
     nominator_controller_accounts: Vec<AccountId>,
     nominator_stash_accounts: Vec<AccountId>,
     nominee_account: AccountId,
@@ -223,7 +222,7 @@ fn bond_validate(
     controllers_stashes
         .par_iter()
         .for_each(|(controller, stash)| {
-            let connection = create_connection(address).set_signer(stash.clone());
+            let connection = SignedConnection::new(address, stash.clone());
             let controller_account_id = AccountId::from(controller.public());
             staking_bond(
                 &connection,
@@ -234,15 +233,14 @@ fn bond_validate(
         });
     controllers_stashes.par_iter().for_each(|(controller, _)| {
         let mut rng = thread_rng();
-        let connection = create_connection(address).set_signer(controller.clone());
-        println!("Controller id: {}", controller.clone().public());
+        let connection = SignedConnection::new(address, controller.clone());
         staking_validate(&connection, rng.gen::<u8>() % 100, XtStatus::InBlock);
     });
     controllers_stashes
 }
 
 fn generate_nominator_accounts_with_minimal_bond(
-    connection: &Connection,
+    connection: &SignedConnection,
     validator_number: u32,
     validators_count: u32,
 ) -> (Vec<AccountId>, Vec<AccountId>) {
