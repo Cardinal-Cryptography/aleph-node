@@ -5,30 +5,20 @@ use primitives::TOKEN;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
+
 fn scale_total_exposure(total: u128) -> u128 {
     // to cover minimal possible theoretical stake (25k) and avoid loss of accuracy we need to scale
-    100 * total / TOKEN
-}
-
-fn validator_points_per_block(
-    total_exposure_in_tokens: u128,
-    sessions_per_era: u32,
-    blocks_to_produce_per_session: u32,
-) -> u32 {
-    // this rounds to the nearest integer
-    (Perquintill::from_rational(1, (blocks_to_produce_per_session * sessions_per_era) as u64)
-        * total_exposure_in_tokens) as u32
+    total / TOKEN
 }
 
 fn calculate_adjusted_session_points(
-    nr_of_sessions: EraIndex,
-    blocks_per_session: u32,
+    sessions_per_era: EraIndex,
+    blocks_to_produce_per_session: u32,
     blocks_created: u32,
-    total: u128,
+    total_exposure_in_tokens: u128,
 ) -> u32 {
-    let points_per_block = validator_points_per_block(total, nr_of_sessions, blocks_per_session);
-
-    points_per_block * blocks_created
+    (Perquintill::from_rational(blocks_created as u64, (blocks_to_produce_per_session * sessions_per_era) as u64)
+        * total_exposure_in_tokens) as u32
 }
 
 fn rotate<T: Clone + PartialEq>(
@@ -241,32 +231,19 @@ impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 #[cfg(test)]
 mod tests {
     use crate::impls::{
-        calculate_adjusted_session_points, rotate, scale_total_exposure, validator_points_per_block,
+        calculate_adjusted_session_points, rotate, scale_total_exposure,
     };
     use primitives::TOKEN;
     use std::collections::VecDeque;
 
     #[test]
-    fn given_minimal_possible_stake_then_points_per_block_are_calculated_correctly() {
-        assert_eq!(16667, validator_points_per_block(2_500_000, 5, 30));
-        assert_eq!(26042, validator_points_per_block(2_500_000, 96, 1));
-        assert_eq!(29, validator_points_per_block(2_500_000, 96, 900));
-    }
-
-    #[test]
-    fn given_maximal_possible_stake_then_points_per_block_are_calculated_correctly() {
-        assert_eq!(625000000, validator_points_per_block(60_000_000_000, 96, 1));
-        assert_eq!(694444, validator_points_per_block(60_000_000_000, 96, 900));
-    }
-
-    #[test]
     fn given_minimal_possible_stake_then_total_exposure_is_calculated_correctly() {
-        assert_eq!(2_500_000, scale_total_exposure(25_000 * TOKEN));
+        assert_eq!(25_000, scale_total_exposure(25_000 * TOKEN));
     }
 
     #[test]
     fn given_maximal_possible_stake_then_total_exposure_is_calculated_correctly() {
-        assert_eq!(60_000_000_000, scale_total_exposure(600_000_000 * TOKEN));
+        assert_eq!(600_000_000, scale_total_exposure(600_000_000 * TOKEN));
     }
 
     #[test]
@@ -277,36 +254,36 @@ mod tests {
     #[test]
     fn adjusted_session_points_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
-            500010,
-            calculate_adjusted_session_points(5, 30, 30, 2_500_000)
+            5000,
+            calculate_adjusted_session_points(5, 30, 30, 25_000)
         );
 
         assert_eq!(
-            624999600,
-            calculate_adjusted_session_points(96, 900, 900, 60_000_000_000)
+            6250000,
+            calculate_adjusted_session_points(96, 900, 900, 600_000_000)
         );
 
         assert_eq!(
-            614583000,
-            calculate_adjusted_session_points(96, 900, 900, 59_000_000_000)
+            6145833,
+            calculate_adjusted_session_points(96, 900, 900, 590_000_000)
         );
     }
 
     #[test]
     fn adjusted_session_points_more_than_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
-            2 * 500010,
-            calculate_adjusted_session_points(5, 30, 2 * 30, 2_500_000)
+            2 * 5000,
+            calculate_adjusted_session_points(5, 30, 2 * 30, 25_000)
         );
 
         assert_eq!(
-            3 * 624999600,
-            calculate_adjusted_session_points(96, 900, 3 * 900, 60_000_000_000)
+            3 * 6250000,
+            calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000)
         );
 
         assert_eq!(
-            615265870,
-            calculate_adjusted_session_points(96, 900, 901, 59_000_000_000)
+            6152662,
+            calculate_adjusted_session_points(96, 900, 901, 590_000_000)
         );
     }
 
