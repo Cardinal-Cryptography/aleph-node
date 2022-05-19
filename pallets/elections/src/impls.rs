@@ -3,23 +3,33 @@ use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::{pallet_prelude::Get, traits::Currency};
 use primitives::TOKEN;
 use sp_staking::{EraIndex, SessionIndex};
-use sp_std::vec::Vec;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-fn scale_total_exposure(total: u128) -> u128 {
-    // to cover minimal possible theoretical stake (25k) and avoid loss of accuracy we need to scale
-    total / TOKEN
-}
+const MAX_REWARD: u32 = u32::MAX;
 
 fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
     blocks_to_produce_per_session: u32,
     blocks_created: u32,
-    total_exposure_in_tokens: u128,
+    total_exposure_in_tokens: u32,
 ) -> u32 {
     (Perquintill::from_rational(
         blocks_created as u64,
         (blocks_to_produce_per_session * sessions_per_era) as u64,
-    ) * total_exposure_in_tokens) as u32
+    ) * total_exposure_in_tokens as u64) as u32
+}
+
+fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u32)>) -> Vec<(V, u32)> {
+    let sum_totals: u32 = validator_totals.iter().map(|(_, t)| t).sum();
+    let scale_factor = MAX_REWARD / sum_totals;
+
+    // in the end we have:
+    // scaled_total = total * (MAX_REWARD / sum_totals)
+    // for maximum possible value of the total sum_totals the scaled_total is equal to MAX_REWARD
+    validator_totals
+        .into_iter()
+        .map(|(v, t)| (v, t * scale_factor))
+        .collect()
 }
 
 fn rotate<T: Clone + PartialEq>(
@@ -65,6 +75,15 @@ impl<T> Pallet<T>
         <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
         <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>,
 {
+    fn compute_validator_scaled_totals(era: EraIndex) -> BTreeMap<T::AccountId, u32> {
+        // scaling by TOKEN to fit it in u32 range
+        let scaled_totals_by_token = pallet_staking::ErasStakers::<T>::iter_prefix(era)
+            .map(|(validator, exposure)| (validator, (exposure.total.into() / TOKEN) as u32))
+            .collect();
+
+        compute_validator_scaled_totals(scaled_totals_by_token).into_iter().collect()
+    }
+
     fn get_committee_and_non_committee(current_era: EraIndex) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
         let committee: Vec<T::AccountId> = pallet_session::Validators::<T>::get().into_iter().map(|a| a.into()).collect();
         let non_committee = pallet_staking::ErasStakers::<T>::iter_key_prefix(current_era)
@@ -78,27 +97,21 @@ impl<T> Pallet<T>
         T::SessionPeriod::get() / MembersPerSession::<T>::get()
     }
 
-    fn scaled_total_exposure(era: u32, validator: &T::AccountId) -> u128 {
-        let total = pallet_staking::ErasStakers::<T>::get(era, validator).total;
-
-        scale_total_exposure(total.into())
-    }
-
     fn reward_for_session_non_committee(
         non_committee: Vec<T::AccountId>,
-        active_era: EraIndex,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
-    ) -> impl IntoIterator<Item=(T::AccountId, u32)> {
+        validator_totals: &BTreeMap<T::AccountId, u32>
+    ) -> impl IntoIterator<Item=(T::AccountId, u32)> + '_ {
         non_committee.into_iter().map(move |validator| {
-            let total = Self::scaled_total_exposure(active_era, &validator);
+            let total = BTreeMap::<_,_>::get(validator_totals,&validator).unwrap_or(&0);
             (
                 validator,
                 calculate_adjusted_session_points(
                     nr_of_sessions,
                     blocks_per_session,
                     blocks_per_session,
-                    total,
+                    *total,
                 ),
             )
         })
@@ -106,12 +119,12 @@ impl<T> Pallet<T>
 
     fn reward_for_session_committee(
         committee: Vec<T::AccountId>,
-        active_era: EraIndex,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
-    ) -> impl IntoIterator<Item=(T::AccountId, u32)> {
+        validator_totals: &BTreeMap<T::AccountId, u32>
+    ) -> impl IntoIterator<Item=(T::AccountId, u32)> + '_ {
         committee.into_iter().map(move |validator| {
-            let total = Self::scaled_total_exposure(active_era, &validator);
+            let total = BTreeMap::<_,_>::get(validator_totals,&validator).unwrap_or(&0);
             let blocks_created = SessionValidatorBlockCount::<T>::get(&validator);
             (
                 validator,
@@ -119,7 +132,7 @@ impl<T> Pallet<T>
                     nr_of_sessions,
                     blocks_per_session,
                     blocks_created,
-                    total,
+                    *total,
                 ),
             )
         })
@@ -171,11 +184,12 @@ impl<T> Pallet<T>
         let (committee, non_committee) = Self::get_committee_and_non_committee(active_era);
         let nr_of_sessions = T::SessionsPerEra::get();
         let blocks_per_session = Self::blocks_to_produce_per_session();
+        let validator_totals = Self::compute_validator_scaled_totals(active_era);
 
         let rewards =
-            Self::reward_for_session_non_committee(non_committee, active_era, nr_of_sessions, blocks_per_session)
+            Self::reward_for_session_non_committee(non_committee, nr_of_sessions, blocks_per_session, &validator_totals)
                 .into_iter()
-                .chain(Self::reward_for_session_committee(committee, active_era, nr_of_sessions, blocks_per_session).into_iter());
+                .chain(Self::reward_for_session_committee(committee, nr_of_sessions, blocks_per_session, &validator_totals).into_iter());
 
         pallet_staking::Pallet::<T>::reward_by_ids(rewards);
     }
@@ -231,19 +245,10 @@ impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 
 #[cfg(test)]
 mod tests {
-    use crate::impls::{calculate_adjusted_session_points, rotate, scale_total_exposure};
-    use primitives::TOKEN;
+    use crate::impls::{
+        calculate_adjusted_session_points, compute_validator_scaled_totals, rotate, MAX_REWARD,
+    };
     use std::collections::VecDeque;
-
-    #[test]
-    fn given_minimal_possible_stake_then_total_exposure_is_calculated_correctly() {
-        assert_eq!(25_000, scale_total_exposure(25_000 * TOKEN));
-    }
-
-    #[test]
-    fn given_maximal_possible_stake_then_total_exposure_is_calculated_correctly() {
-        assert_eq!(600_000_000, scale_total_exposure(600_000_000 * TOKEN));
-    }
 
     #[test]
     fn given_era_zero_when_rotating_committee_then_committee_is_empty() {
@@ -280,6 +285,28 @@ mod tests {
         assert_eq!(
             6152662,
             calculate_adjusted_session_points(96, 900, 901, 590_000_000)
+        );
+    }
+
+    #[test]
+    fn scale_points_correctly() {
+        let subtract_modulo = |v, m| (v - v % m);
+
+        let mr_20 = subtract_modulo(MAX_REWARD, 20);
+        let mr_10 = subtract_modulo(MAX_REWARD, 10);
+        let mr_60 = subtract_modulo(MAX_REWARD, 60);
+
+        assert_eq!(
+            vec![(1, mr_20 / 2), (2, mr_20 / 2)],
+            compute_validator_scaled_totals(vec![(1, 10), (2, 10)])
+        );
+        assert_eq!(
+            vec![(1, mr_10), (2, 0)],
+            compute_validator_scaled_totals(vec![(1, 10), (2, 0)])
+        );
+        assert_eq!(
+            vec![(1, mr_60 / 3), (2, mr_60 / 6), (3, mr_60 / 2)],
+            compute_validator_scaled_totals(vec![(1, 20), (2, 10), (3, 30)])
         );
     }
 
