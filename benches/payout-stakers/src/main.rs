@@ -9,8 +9,8 @@ use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtS
 
 use aleph_client::{
     balances_batch_transfer, keypair_from_string, payout_stakers_and_assert_locked_balance,
-    staking_batch_bond, staking_batch_nominate, staking_bond, staking_validate,
-    wait_for_next_era, AnyConnection, RootConnection, SignedConnection,
+    staking_batch_bond, staking_batch_nominate, staking_bond, staking_validate, wait_for_next_era,
+    AnyConnection, RootConnection, SignedConnection,
 };
 use primitives::{
     staking::{MAX_NOMINATORS_REWARDED_PER_VALIDATOR, MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
@@ -68,21 +68,20 @@ fn main() -> anyhow::Result<()> {
 
     let connection = RootConnection::new(&address, sudoer);
 
-    let validators =
-        match validators_seed_file {
-            Some(validators_seed_file) => {
-                let validators_seeds = std::fs::read_to_string(&validators_seed_file)
-                    .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
-                validators_seeds
-                    .split('\n')
-                    .filter(|seed| !seed.is_empty())
-                    .map(keypair_from_string)
-                    .collect()
-            }
-            None => (0..validator_count.unwrap())
-                .map(derive_user_account_from_numeric_seed)
-                .collect::<Vec<_>>(),
-        };
+    let validators = match validators_seed_file {
+        Some(validators_seed_file) => {
+            let validators_seeds = std::fs::read_to_string(&validators_seed_file)
+                .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
+            validators_seeds
+                .split('\n')
+                .filter(|seed| !seed.is_empty())
+                .map(keypair_from_string)
+                .collect()
+        }
+        None => (0..validator_count.unwrap())
+            .map(derive_user_account_from_numeric_seed)
+            .collect::<Vec<_>>(),
+    };
     let validator_count = validators.len() as u32;
     warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
@@ -115,7 +114,7 @@ fn verify_seed_xor_count(seed_file: &Option<String>, count: &Option<u32>) {
             ErrorKind::ArgumentConflict,
             "One and only one of --validator-count or --validators-seed-file must be specified!",
         )
-            .exit();
+        .exit();
     }
 }
 
@@ -157,7 +156,7 @@ fn setup_test_validators_and_nominator_stashes(
             let nominee_account = AccountId::from(validator.public());
             info!("Nominating validator {}", nominee_account);
             nominate_validator(
-                &connection,
+                connection,
                 nominator_controller_accounts,
                 nominator_stash_accounts.clone(),
                 nominee_account,
@@ -191,8 +190,9 @@ fn wait_for_successive_eras<C: AnyConnection>(
             current_era,
             current_era - 1
         );
-        validators_and_nominator_stashes.iter().for_each(
-            |(validator, nominators_stashes)| {
+        validators_and_nominator_stashes
+            .iter()
+            .for_each(|(validator, nominators_stashes)| {
                 let validator_connection = SignedConnection::new(address, validator.clone());
                 let validator_account = AccountId::from(validator.public());
                 info!("Doing payout_stakers for validator {}", validator_account);
@@ -202,8 +202,7 @@ fn wait_for_successive_eras<C: AnyConnection>(
                     &validator_account,
                     current_era,
                 );
-            },
-        );
+            });
         current_era = wait_for_next_era(connection)?;
     }
     Ok(())
@@ -242,16 +241,16 @@ fn nominate_validator(
 
 /// Bonds controller accounts to the corresponding validator accounts.
 /// We assume stash == validator != controller.
-fn bond_controllers_and_validators (
+fn bond_controllers_and_validators(
     address: &str,
     controllers: Vec<KeyPair>,
     validators: Vec<KeyPair>,
 ) {
-     controllers
+    controllers
         .into_par_iter()
-        .zip(validators.clone().into_par_iter())
+        .zip(validators.into_par_iter())
         .for_each(|(controller, validator)| {
-            let connection = SignedConnection::new(address, validator.clone());
+            let connection = SignedConnection::new(address, validator);
             let controller_account_id = AccountId::from(controller.public());
             staking_bond(
                 &connection,
@@ -264,10 +263,7 @@ fn bond_controllers_and_validators (
 
 /// Validate the controller and validator pairs.
 /// We assume stash == validator != controller.
-fn validate_controllers_and_validators (
-    address: &str,
-    controllers: Vec<KeyPair>,
-) {
+fn validate_controllers_and_validators(address: &str, controllers: Vec<KeyPair>) {
     controllers.par_iter().for_each(|controller| {
         let mut rng = thread_rng();
         let connection = SignedConnection::new(address, controller.clone());
