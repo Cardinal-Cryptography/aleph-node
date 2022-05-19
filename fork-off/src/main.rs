@@ -1,10 +1,3 @@
-use clap::Parser;
-use env_logger::Env;
-use futures::future::join_all;
-use log::info;
-use parking_lot::Mutex;
-use reqwest::Client;
-use serde_json::Value;
 use std::{
     collections::HashMap,
     fs::{self, File},
@@ -12,47 +5,19 @@ use std::{
     sync::Arc,
 };
 
-type StoragePath = String;
+use clap::Parser;
+use env_logger::Env;
+use futures::future::join_all;
+use log::info;
+use parking_lot::Mutex;
+use reqwest::Client;
+use serde_json::Value;
+
+use config::{Config, StoragePath};
+
+mod config;
+
 type StorageKeyHash = String;
-
-#[derive(Debug, Parser)]
-#[clap(version = "1.0")]
-pub struct Config {
-    /// URL address of the node RPC endpoint for the chain you are forking
-    #[clap(long, default_value = "http://127.0.0.1:9933")]
-    pub http_rpc_endpoint: String,
-
-    /// path of the initial chainspec (generated with the `bootstrap-chain` command)
-    #[clap(long, default_value = "./initial_chainspec.json")]
-    pub initial_spec_path: String,
-
-    /// where to write the snapshot of the state
-    #[clap(long, default_value = "./snapshot.json")]
-    pub snapshot_path: String,
-
-    /// where to write the forked genesis chainspec
-    #[clap(long, default_value = "./chainspec_from_snapshot.json")]
-    pub combined_spec_path: String,
-
-    /// whether to read the state from the ready snapshot json file
-    #[clap(long)]
-    pub use_snapshot_file: bool,
-
-    /// how many parallel processes to download values -- note that large values might result in bans because
-    /// of rate-limiting mechanisms
-    #[clap(long, default_value_t = 5)]
-    pub num_workers: u32,
-
-    /// which modules to keep in forked spec
-    #[clap(
-        long,
-        multiple_occurrences = true,
-        takes_value = true,
-        value_delimiter = ',',
-        default_value = "Aura,Aleph,Balances,Sudo,Staking,Session,Elections,System.Account"
-    )]
-    pub storage_keep_state: Vec<StoragePath>,
-}
 
 const KEYS_BATCH_SIZE: u32 = 1000;
 
