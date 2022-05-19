@@ -1,74 +1,25 @@
-use std::collections::HashMap;
-
 use clap::Parser;
 use env_logger::Env;
 use log::info;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::{
+    chainspec_combining::combine_states,
     config::{Config, StoragePath},
     fetching::StateFetcher,
     fsio::{read_json_from_file, read_snapshot_from_file, save_snapshot_to_file, write_to_file},
 };
 
+mod chainspec_combining;
 mod config;
 mod fetching;
 mod fsio;
-
-type StorageKeyHash = String;
 
 type BlockHash = String;
 type StorageKey = String;
 type StorageValue = String;
 type Storage = HashMap<StorageKey, StorageValue>;
-
-fn is_prefix_of(shorter: &str, longer: &str) -> bool {
-    longer.starts_with(shorter)
-}
-
-fn combine_states(
-    mut state: Storage,
-    initial_state: Storage,
-    storage_to_keep: Vec<StoragePath>,
-) -> Storage {
-    let storage_prefixes: Vec<(StoragePath, StorageKeyHash)> = storage_to_keep
-        .into_iter()
-        .map(|path| (path.clone(), hash_storage_prefix(path)))
-        .collect();
-    let mut removed_per_path_count: HashMap<String, usize> = storage_prefixes
-        .iter()
-        .map(|(path, _)| (path.clone(), 0))
-        .collect();
-    let mut added_per_path_cnt = removed_per_path_count.clone();
-    state.retain(|k, _v| {
-        match storage_prefixes
-            .iter()
-            .find(|(_, prefix)| is_prefix_of(prefix, k))
-        {
-            Some((path, _)) => {
-                *removed_per_path_count.get_mut(path).unwrap() += 1;
-                false
-            }
-            None => true,
-        }
-    });
-    for (k, v) in initial_state.iter() {
-        if let Some((pallet, _)) = storage_prefixes
-            .iter()
-            .find(|(_, prefix)| is_prefix_of(prefix, k))
-        {
-            *added_per_path_cnt.get_mut(pallet).unwrap() += 1;
-            state.insert(k.clone(), v.clone());
-        }
-    }
-    for (path, prefix) in storage_prefixes {
-        info!(
-            "For storage path `{}` (prefix `{}`) Replaced {} entries by {} entries from initial_spec",
-            path, prefix, removed_per_path_count[&path], added_per_path_cnt[&path]
-        );
-    }
-    state
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -120,10 +71,4 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Done!");
     Ok(())
-}
-
-fn hash_storage_prefix(storage_path: StoragePath) -> StorageKeyHash {
-    let modules = storage_path.split('.');
-    let hashes = modules.flat_map(|module| sp_io::hashing::twox_128(module.as_bytes()));
-    format!("0x{}", hex::encode(hashes.collect::<Vec<_>>()))
 }
