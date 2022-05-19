@@ -60,6 +60,9 @@ pub mod pallet {
     pub type MembersPerSession<T> = StorageValue<_, u32, ValueQuery>;
 
     #[pallet::storage]
+    pub type ReservedMembers<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+    #[pallet::storage]
     pub type ErasReserved<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
@@ -87,11 +90,23 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn change_reserved_members(
+            origin: OriginFor<T>,
+            members: Vec<T::AccountId>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            ReservedMembers::<T>::put(members);
+
+            Ok(())
+        }
     }
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub members: Vec<T::AccountId>,
+        pub reserved_members: Vec<T::AccountId>,
         pub members_per_session: u32,
     }
 
@@ -100,6 +115,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 members: Vec::new(),
+                reserved_members: Vec::new(),
                 members_per_session: DEFAULT_MEMBERS_PER_SESSION,
             }
         }
@@ -110,6 +126,7 @@ pub mod pallet {
         fn build(&self) {
             <Members<T>>::put(&self.members);
             <MembersPerSession<T>>::put(&self.members_per_session);
+            <ReservedMembers<T>>::put(&self.reserved_members);
         }
     }
 
