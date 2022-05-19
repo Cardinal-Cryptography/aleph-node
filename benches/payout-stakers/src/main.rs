@@ -4,12 +4,12 @@ use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use sp_core::{sr25519::Pair as KeyPair, Pair};
 use sp_keyring::AccountKeyring;
-use std::iter;
+use std::{iter, time::Instant};
 use substrate_api_client::{extrinsic::staking::RewardDestination, AccountId, XtStatus};
 
 use aleph_client::{
     balances_batch_transfer, keypair_from_string, payout_stakers_and_assert_locked_balance,
-    staking_batch_bond, staking_batch_nominate, staking_multi_bond, staking_validate,
+    staking_batch_bond, staking_batch_nominate, staking_bond, staking_validate,
     wait_for_next_era, AnyConnection, RootConnection, SignedConnection,
 };
 use primitives::{
@@ -49,7 +49,12 @@ struct Config {
     pub validator_count: Option<u32>,
 }
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() -> anyhow::Result<()> {
+    env_logger::init();
+
+    info!("Running payout_stakers bench.");
+    let start = Instant::now();
+
     let Config {
         address,
         root_seed_file,
@@ -57,56 +62,38 @@ fn main() -> Result<(), anyhow::Error> {
         validator_count,
     } = Config::parse();
 
-    if !(validator_count.is_some() ^ validators_seed_file.is_some()) {
-        let mut cmd = Config::command();
-        cmd.error(
-            ErrorKind::ArgumentConflict,
-            "One and only one of --validator-count or --validators-seed-file must be specified!",
-        )
-        .exit();
-    }
+    verify_seed_xor_count(&validators_seed_file, &validator_count);
 
-    let sudoer = match root_seed_file {
-        Some(root_seed_file) => {
-            let root_seed = std::fs::read_to_string(&root_seed_file)
-                .unwrap_or_else(|_| panic!("Failed to read file {}", root_seed_file));
-            keypair_from_string(root_seed.trim())
-        }
-        None => AccountKeyring::Alice.pair(),
-    };
-
-    env_logger::init();
+    let sudoer = set_sudoer_keypair(root_seed_file);
 
     let connection = RootConnection::new(&address, sudoer);
-    let validators = match validators_seed_file {
-        Some(validators_seed_file) => {
-            let validators_seeds = std::fs::read_to_string(&validators_seed_file)
-                .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
-            validators_seeds
-                .split('\n')
-                .filter(|seed| !seed.is_empty())
-                .map(keypair_from_string)
-                .collect()
-        }
-        None => (0..validator_count.unwrap())
-            .map(derive_user_account_from_numeric_seed)
-            .collect::<Vec<_>>(),
-    };
+
+    let validators =
+        match validators_seed_file {
+            Some(validators_seed_file) => {
+                let validators_seeds = std::fs::read_to_string(&validators_seed_file)
+                    .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
+                validators_seeds
+                    .split('\n')
+                    .filter(|seed| !seed.is_empty())
+                    .map(keypair_from_string)
+                    .collect()
+            }
+            None => (0..validator_count.unwrap())
+                .map(derive_user_account_from_numeric_seed)
+                .collect::<Vec<_>>(),
+        };
     let validator_count = validators.len() as u32;
     warn!("Make sure you have exactly {} nodes run in the background, otherwise you'll see extrinsic send failed errors.", validator_count);
 
-    let controllers = (0..validator_count)
-        .map(|seed| keypair_from_string(&format!("//{}//Controller", seed)))
-        .collect::<Vec<_>>();
+    let controllers = generate_controllers_for_validators(validator_count);
 
-    let validators_with_controllers = controllers
-        .into_iter()
-        .zip(validators.clone().into_iter())
-        .map(|(controller, validator)| (controller, validator))
-        .collect::<Vec<_>>();
-    bond_validate(&address, validators_with_controllers);
+    bond_controllers_and_validators(&address, controllers.clone(), validators.clone());
+    validate_controllers_and_validators(&address, controllers);
+
     let validators_and_nominator_stashes =
         setup_test_validators_and_nominator_stashes(&connection, validators);
+
     wait_for_successive_eras(
         &address,
         &connection,
@@ -114,9 +101,45 @@ fn main() -> Result<(), anyhow::Error> {
         ERAS_TO_WAIT,
     )?;
 
+    let elapsed = Instant::now().duration_since(start);
+    println!("Ok! Elapsed time {}ms", elapsed.as_millis());
+
     Ok(())
 }
 
+/// Only one of: (1) validator seed file or (2) validator count is supported.
+fn verify_seed_xor_count(seed_file: &Option<String>, count: &Option<u32>) {
+    if !(count.is_some() ^ seed_file.is_some()) {
+        let mut cmd = Config::command();
+        cmd.error(
+            ErrorKind::ArgumentConflict,
+            "One and only one of --validator-count or --validators-seed-file must be specified!",
+        )
+            .exit();
+    }
+}
+
+/// Set key pair based on seed file or default when seed file is not provided.
+fn set_sudoer_keypair(root_seed_file: Option<String>) -> KeyPair {
+    match root_seed_file {
+        Some(root_seed_file) => {
+            let root_seed = std::fs::read_to_string(&root_seed_file)
+                .unwrap_or_else(|_| panic!("Failed to read file {}", root_seed_file));
+            keypair_from_string(root_seed.trim())
+        }
+        None => AccountKeyring::Alice.pair(),
+    }
+}
+
+/// For a given set of validators, generates key pairs for the corresponding controllers.
+fn generate_controllers_for_validators(validator_count: u32) -> Vec<KeyPair> {
+    (0..validator_count)
+        .map(|seed| keypair_from_string(&format!("//{}//Controller", seed)))
+        .collect::<Vec<_>>()
+}
+
+/// For a given set of validators, generates nominator accounts (controllers and stashes).
+/// Bonds nominator controllers to the corresponding nominator stashes.
 fn setup_test_validators_and_nominator_stashes(
     connection: &RootConnection,
     validators: Vec<KeyPair>,
@@ -149,12 +172,13 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
     keypair_from_string(&format!("//{}", seed))
 }
 
+/// For a given number of eras, in each era check whether stash balances of a validator are locked.
 fn wait_for_successive_eras<C: AnyConnection>(
     address: &str,
     connection: &C,
     validators_and_nominator_stashes: Vec<(KeyPair, Vec<AccountId>)>,
     eras_to_wait: u32,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     // in order to have over 8k nominators we need to wait around 60 seconds all calls to be processed
     // that means not all 8k nominators we'll make i to era 1st, hence we need to wait to 2nd era
     wait_for_next_era(connection)?;
@@ -168,14 +192,14 @@ fn wait_for_successive_eras<C: AnyConnection>(
             current_era - 1
         );
         validators_and_nominator_stashes.iter().for_each(
-            |(validator_stash, nominators_stashes)| {
-                let stash_connection = SignedConnection::new(address, validator_stash.clone());
-                let stash_account = AccountId::from(validator_stash.public());
-                info!("Doing payout_stakers for validator {}", stash_account);
+            |(validator, nominators_stashes)| {
+                let validator_connection = SignedConnection::new(address, validator.clone());
+                let validator_account = AccountId::from(validator.public());
+                info!("Doing payout_stakers for validator {}", validator_account);
                 payout_stakers_and_assert_locked_balance(
-                    &stash_connection,
-                    &[&nominators_stashes[..], &[stash_account.clone()]].concat(),
-                    &stash_account,
+                    &validator_connection,
+                    &[&nominators_stashes[..], &[validator_account.clone()]].concat(),
+                    &validator_account,
                     current_era,
                 );
             },
@@ -185,6 +209,7 @@ fn wait_for_successive_eras<C: AnyConnection>(
     Ok(())
 }
 
+/// Nominates a specific validator based on the nominator controller and stash accounts.
 fn nominate_validator(
     connection: &RootConnection,
     nominator_controller_accounts: Vec<AccountId>,
@@ -215,14 +240,18 @@ fn nominate_validator(
         .for_each(|chunk| staking_batch_nominate(connection, chunk));
 }
 
-fn bond_validate(
+/// Bonds controller accounts to the corresponding validator accounts.
+/// We assume stash == validator != controller.
+fn bond_controllers_and_validators (
     address: &str,
-    controllers_stashes: Vec<(KeyPair, KeyPair)>,
-) -> Vec<(KeyPair, KeyPair)> {
-    controllers_stashes
-        .par_iter()
-        .for_each(|(controller, stash)| {
-            let connection = SignedConnection::new(address, stash.clone());
+    controllers: Vec<KeyPair>,
+    validators: Vec<KeyPair>,
+) {
+     controllers
+        .into_par_iter()
+        .zip(validators.clone().into_par_iter())
+        .for_each(|(controller, validator)| {
+            let connection = SignedConnection::new(address, validator.clone());
             let controller_account_id = AccountId::from(controller.public());
             staking_bond(
                 &connection,
@@ -231,14 +260,23 @@ fn bond_validate(
                 XtStatus::InBlock,
             );
         });
-    controllers_stashes.par_iter().for_each(|(controller, _)| {
+}
+
+/// Validate the controller and validator pairs.
+/// We assume stash == validator != controller.
+fn validate_controllers_and_validators (
+    address: &str,
+    controllers: Vec<KeyPair>,
+) {
+    controllers.par_iter().for_each(|controller| {
         let mut rng = thread_rng();
         let connection = SignedConnection::new(address, controller.clone());
         staking_validate(&connection, rng.gen::<u8>() % 100, XtStatus::InBlock);
     });
-    controllers_stashes
 }
 
+/// For a specific validator given by index, generates a predetermined number of nominator accounts.
+/// Nominator accounts are produced as (controller, stash) tuples with initial endowments.
 fn generate_nominator_accounts_with_minimal_bond(
     connection: &SignedConnection,
     validator_number: u32,
