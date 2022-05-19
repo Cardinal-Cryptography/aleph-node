@@ -4,7 +4,7 @@ use frame_support::{pallet_prelude::Get, traits::Currency};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-const MAX_REWARD: u32 = u32::MAX;
+const MAX_REWARD: u32 = 1_000_000_000;
 const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 fn calculate_adjusted_session_points(
@@ -31,23 +31,11 @@ fn calculate_adjusted_session_points(
 fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
     let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
-    // scaling up to MAX_REWARD in case where all totals fits into u32.
-    if sum_totals <= MAX_REWARD as u128 {
-        let scale_factor = MAX_REWARD / sum_totals as u32;
-        return validator_totals
-            .into_iter()
-            .map(|(v, t)| (v, (t as u32 * scale_factor)))
-            .collect();
-    }
-
-    let scale = sum_totals / MAX_REWARD as u128;
-
-    // in the end we have:
     // scaled_total = total * (MAX_REWARD / sum_totals)
     // for maximum possible value of the total sum_totals the scaled_total is equal to MAX_REWARD
     validator_totals
         .into_iter()
-        .map(|(v, t)| (v, (t / scale) as u32))
+        .map(|(v, t)| (v, (t.saturating_mul(MAX_REWARD as u128) / sum_totals) as u32))
         .collect()
 }
 
@@ -323,22 +311,20 @@ mod tests {
 
     #[test]
     fn scale_points_correctly_when_under_u32() {
-        let subtract_modulo = |v, m| (v - v % m);
-
-        let mr_20 = subtract_modulo(MAX_REWARD, 20);
-        let mr_10 = subtract_modulo(MAX_REWARD, 10);
-        let mr_60 = subtract_modulo(MAX_REWARD, 60);
-
         assert_eq!(
-            vec![(1, mr_20 / 2), (2, mr_20 / 2)],
+            vec![(1, MAX_REWARD / 2), (2, MAX_REWARD / 2)],
             compute_validator_scaled_totals(vec![(1, 10), (2, 10)])
         );
         assert_eq!(
-            vec![(1, mr_10), (2, 0)],
+            vec![(1, MAX_REWARD), (2, 0)],
             compute_validator_scaled_totals(vec![(1, 10), (2, 0)])
         );
         assert_eq!(
-            vec![(1, mr_60 / 3), (2, mr_60 / 6), (3, mr_60 / 2)],
+            vec![
+                (1, MAX_REWARD / 3),
+                (2, MAX_REWARD / 6),
+                (3, MAX_REWARD / 2)
+            ],
             compute_validator_scaled_totals(vec![(1, 20), (2, 10), (3, 30)])
         );
     }
