@@ -35,7 +35,12 @@ fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u128)>) -> Vec<(
     // for maximum possible value of the total sum_totals the scaled_total is equal to MAX_REWARD
     validator_totals
         .into_iter()
-        .map(|(v, t)| (v, (t.saturating_mul(MAX_REWARD as u128) / sum_totals) as u32))
+        .map(|(v, t)| {
+            (
+                v,
+                (t.saturating_mul(MAX_REWARD as u128) / sum_totals) as u32,
+            )
+        })
         .collect()
 }
 
