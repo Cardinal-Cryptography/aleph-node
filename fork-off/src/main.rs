@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs::{self, File},
-    io::{ErrorKind, Write},
-};
+use std::collections::HashMap;
 
 use clap::Parser;
 use env_logger::Env;
@@ -12,10 +8,12 @@ use serde_json::Value;
 use crate::{
     config::{Config, StoragePath},
     fetching::StateFetcher,
+    fsio::{read_json_from_file, read_snapshot_from_file, save_snapshot_to_file, write_to_file},
 };
 
 mod config;
 mod fetching;
+mod fsio;
 
 type StorageKeyHash = String;
 
@@ -23,24 +21,6 @@ type BlockHash = String;
 type StorageKey = String;
 type StorageValue = String;
 type Storage = HashMap<StorageKey, StorageValue>;
-
-fn save_snapshot_to_file(snapshot: Storage, path: String) {
-    let data = serde_json::to_vec_pretty(&snapshot).unwrap();
-    info!(
-        "Writing snapshot of {} key-val pairs and {} total bytes",
-        snapshot.len(),
-        data.len()
-    );
-    write_to_file(path, &data);
-}
-
-fn read_snapshot_from_file(path: String) -> Storage {
-    let snapshot: Storage =
-        serde_json::from_str(&fs::read_to_string(&path).expect("Could not read snapshot file"))
-            .expect("could not parse from snapshot");
-    info!("Read snapshot of {} key-val pairs", snapshot.len());
-    snapshot
-}
 
 fn is_prefix_of(shorter: &str, longer: &str) -> bool {
     longer.starts_with(shorter)
@@ -114,9 +94,7 @@ async fn main() -> anyhow::Result<()> {
         &http_rpc_endpoint, &initial_spec_path, &snapshot_path, &combined_spec_path, &use_snapshot_file, &storage_keep_state
     );
 
-    let mut initial_spec: Value = serde_json::from_str(
-        &fs::read_to_string(&initial_spec_path).expect("Could not read chainspec file"),
-    )?;
+    let mut initial_spec: Value = read_json_from_file(initial_spec_path);
 
     assert_ne!(
         initial_spec["genesis"]["raw"],
@@ -142,25 +120,6 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Done!");
     Ok(())
-}
-
-fn write_to_file(write_to_path: String, data: &[u8]) {
-    let mut file = match fs::OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(&write_to_path)
-    {
-        Ok(file) => file,
-        Err(error) => match error.kind() {
-            ErrorKind::NotFound => match File::create(&write_to_path) {
-                Ok(file) => file,
-                Err(why) => panic!("Cannot create file: {:?}", why),
-            },
-            _ => panic!("Unexpected error when creating file: {}", &write_to_path),
-        },
-    };
-
-    file.write_all(data).expect("Could not write to file");
 }
 
 fn hash_storage_prefix(storage_path: StoragePath) -> StorageKeyHash {
