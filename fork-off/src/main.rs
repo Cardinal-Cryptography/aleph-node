@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+
 use clap::Parser;
 use env_logger::Env;
 use log::info;
 use serde_json::Value;
-use std::collections::HashMap;
 
 use crate::{
     chainspec_combining::combine_states,
@@ -52,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
         Value::Null,
         "The initial provided chainspec must be raw! Make sure you use --raw when generating it."
     );
+
     if !use_snapshot_file {
         let fetcher = StateFetcher::new(http_rpc_endpoint);
         let state = fetcher.get_full_state_at_best_block(num_workers).await;
@@ -62,10 +64,12 @@ async fn main() -> anyhow::Result<()> {
     let initial_state: Storage =
         serde_json::from_value(initial_spec["genesis"]["raw"]["top"].take())
             .expect("Deserialization of state from given chainspec file failed");
+
     let state = combine_states(state, initial_state, storage_keep_state);
     let json_state = serde_json::to_value(state).expect("Failed to convert a storage map to json");
     initial_spec["genesis"]["raw"]["top"] = json_state;
     let new_spec = serde_json::to_vec_pretty(&initial_spec)?;
+
     info!(target: "fork", "Writing new chainspec to {}", &combined_spec_path);
     write_to_file(combined_spec_path, &new_spec);
 
