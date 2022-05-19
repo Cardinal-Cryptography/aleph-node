@@ -49,7 +49,7 @@ pub struct Config {
         multiple_occurrences = true,
         takes_value = true,
         value_delimiter = ',',
-        default_value = "Aura,Aleph,Sudo,Staking,Session,Elections,System.Account"
+        default_value = "Aura,Aleph,Balances,Sudo,Staking,Session,Elections,System.Account"
     )]
     pub storage_keep_state: Vec<StoragePath>,
 }
