@@ -275,10 +275,7 @@ fn combine_states(
 ) -> Storage {
     let storage_prefixes: Vec<(StoragePath, StorageKeyHash)> = storage_to_keep
         .into_iter()
-        .map(|path| {
-            let hash = hash_storage_prefix(&path);
-            (path, hash)
-        })
+        .map(|path| (path.clone(), hash_storage_prefix(path)))
         .collect();
     let mut removed_per_path_count: HashMap<String, usize> = storage_prefixes
         .iter()
@@ -388,9 +385,8 @@ fn write_to_file(write_to_path: String, data: &[u8]) {
     file.write_all(data).expect("Could not write to file");
 }
 
-fn hash_storage_prefix(storage_path: &StoragePath) -> StorageKeyHash {
+fn hash_storage_prefix(storage_path: StoragePath) -> StorageKeyHash {
     let modules = storage_path.split('.');
-    let hashes = modules.map(|module| sp_io::hashing::twox_128(module.as_bytes()));
-    let concat = hashes.flatten().collect::<Vec<_>>();
-    format!("0x{}", hex::encode(concat))
+    let hashes = modules.flat_map(|module| sp_io::hashing::twox_128(module.as_bytes()));
+    format!("0x{}", hex::encode(hashes.collect::<Vec<_>>()))
 }
