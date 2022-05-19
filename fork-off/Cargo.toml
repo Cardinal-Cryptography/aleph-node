@@ -1,12 +1,9 @@
 [package]
 name = "fork-off"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 
 [dependencies]
-# client
-substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "polkadot-v0.9.19" }
-
 # Substrate dependencies
 sp-io = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
 
