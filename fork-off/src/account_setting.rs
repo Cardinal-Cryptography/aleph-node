@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+use crate::Storage;
 use codec::Encode;
 use log::info;
 use serde::Deserialize;
 
-use crate::{
-    hashing::{combine_storage_keys, hash_account, hash_storage_prefix},
-    AccountId, Balance, Storage, StoragePath, StorageValue,
-};
+use crate::types::{AccountId, Balance, StorageKey, StoragePath, StorageValue};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Encode)]
 pub struct AccountData {
@@ -26,9 +24,9 @@ pub struct AccountInfo {
     pub data: AccountData,
 }
 
-impl AccountInfo {
-    pub fn to_storage_value(&self) -> StorageValue {
-        format!("0x{}", hex::encode(Encode::encode(self)))
+impl Into<StorageValue> for AccountInfo {
+    fn into(self) -> StorageValue {
+        StorageValue(format!("0x{}", hex::encode(Encode::encode(&self))))
     }
 }
 
@@ -39,12 +37,12 @@ fn get_account_map() -> StoragePath {
 }
 
 pub fn apply_account_setting(mut state: Storage, setting: AccountSetting) -> Storage {
-    let account_map = hash_storage_prefix(&get_account_map());
+    let account_map: StorageKey = get_account_map().into();
     for (account, info) in setting {
-        let account_hash = hash_account(&account);
-        let key = combine_storage_keys(&account_map, &account_hash);
+        let account_hash = account.clone().into();
+        let key = &account_map.join(&account_hash);
 
-        state.insert(key, info.to_storage_value());
+        state.insert(key.clone(), info.clone().into());
         info!("Account info of `{:?}` set to `{:?}`", account, info);
     }
     state

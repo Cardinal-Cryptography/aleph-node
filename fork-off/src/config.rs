@@ -1,21 +1,11 @@
 use std::{
     fmt,
     fmt::{Display, Formatter},
-    str::FromStr,
 };
 
 use clap::Parser;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct StoragePath(pub String);
-
-impl FromStr for StoragePath {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
+use crate::types::StoragePath;
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]

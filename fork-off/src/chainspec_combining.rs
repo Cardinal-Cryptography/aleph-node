@@ -3,8 +3,8 @@ use std::{collections::HashMap, ops::Index};
 use log::info;
 
 use crate::{
-    hashing::{hash_storage_prefix, is_prefix_of},
-    Storage, StoragePath,
+    types::{StorageKey, StoragePath},
+    Storage,
 };
 
 #[derive(Default)]
@@ -32,9 +32,9 @@ pub fn combine_states(
     storage_to_keep: Vec<StoragePath>,
 ) -> Storage {
     let storage_prefixes = storage_to_keep
-        .iter()
-        .map(|path| (path.clone(), hash_storage_prefix(path)))
-        .collect::<Vec<_>>();
+        .into_iter()
+        .map(|path| (path.clone(), path.into()))
+        .collect::<Vec<(StoragePath, StorageKey)>>();
 
     let mut removed_per_path_count = PathCounter::default();
     let mut added_per_path_cnt = PathCounter::default();
@@ -42,7 +42,7 @@ pub fn combine_states(
     state.retain(|k, _v| {
         match storage_prefixes
             .iter()
-            .find(|(_, prefix)| is_prefix_of(prefix, k))
+            .find(|(_, prefix)| prefix.is_prefix_of(k))
         {
             Some((path, _)) => {
                 removed_per_path_count.bump(path);
@@ -55,7 +55,7 @@ pub fn combine_states(
     for (k, v) in initial_state.iter() {
         if let Some((path, _)) = storage_prefixes
             .iter()
-            .find(|(_, prefix)| is_prefix_of(prefix, k))
+            .find(|(_, prefix)| prefix.is_prefix_of(k))
         {
             added_per_path_cnt.bump(path);
             state.insert(k.clone(), v.clone());
@@ -65,7 +65,7 @@ pub fn combine_states(
     for (path, prefix) in storage_prefixes {
         info!(
             "For storage path `{}` (prefix `{}`) Replaced {} entries by {} entries from initial_spec",
-            path.0, prefix, removed_per_path_count[&path], added_per_path_cnt[&path]
+            path.0, prefix.0, removed_per_path_count[&path], added_per_path_cnt[&path]
         );
     }
     state

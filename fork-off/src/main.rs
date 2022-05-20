@@ -1,17 +1,15 @@
-use std::collections::HashMap;
-
 use clap::Parser;
 use env_logger::Env;
 use log::info;
-use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
     account_setting::{apply_account_setting, AccountSetting},
     chainspec_combining::combine_states,
-    config::{Config, StoragePath},
+    config::Config,
     fetching::StateFetcher,
     fsio::{read_json_from_file, read_snapshot_from_file, save_snapshot_to_file, write_to_file},
+    types::Storage,
 };
 
 mod account_setting;
@@ -19,16 +17,7 @@ mod chainspec_combining;
 mod config;
 mod fetching;
 mod fsio;
-mod hashing;
-
-pub type BlockHash = String;
-pub type StorageKey = String;
-pub type StorageValue = String;
-pub type Storage = HashMap<StorageKey, StorageValue>;
-pub type Balance = u128;
-
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize)]
-pub struct AccountId(pub String);
+mod types;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

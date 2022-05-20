@@ -1,12 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::Storage;
 use futures::future::join_all;
 use log::info;
 use parking_lot::Mutex;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::{BlockHash, Storage, StorageKey, StorageValue};
+use crate::types::{BlockHash, StorageKey, StorageValue};
 
 const KEYS_BATCH_SIZE: u32 = 1000;
 
@@ -105,7 +106,7 @@ impl StateFetcher {
     pub async fn get_most_recent_block(&self) -> BlockHash {
         let body = block_hash_body(None);
         let block: String = self.make_request(body).await;
-        block
+        BlockHash(block)
     }
 
     // The start_key is not included in the range. The result is `count` keys that appear after `start_key` in the
@@ -116,7 +117,7 @@ impl StateFetcher {
         start_key: Option<StorageKey>,
         block_hash: Option<BlockHash>,
     ) -> Vec<StorageKey> {
-        let prefix = String::from("");
+        let prefix = StorageKey(String::from(""));
         let body = get_keys_paged_body(prefix, count, start_key, block_hash);
         let keys: Vec<StorageKey> = self.make_request(body).await;
         keys
