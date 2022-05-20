@@ -11,7 +11,7 @@ fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
     blocks_to_produce_per_session: u32,
     blocks_created: u32,
-    total_exposure_in_tokens: u32,
+    total_possible_reward: u32,
 ) -> u32 {
     let performance =
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
@@ -19,13 +19,13 @@ fn calculate_adjusted_session_points(
     // when produced between 90% to 100% expected blocks get 100% possible reward for session
     if performance >= LENIENT_THRESHOLD && blocks_to_produce_per_session >= blocks_created {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
-            * total_exposure_in_tokens as u64) as u32;
+            * total_possible_reward as u64) as u32;
     }
 
     (Perquintill::from_rational(
         blocks_created as u64,
         (blocks_to_produce_per_session * sessions_per_era) as u64,
-    ) * total_exposure_in_tokens as u64) as u32
+    ) * total_possible_reward as u64) as u32
 }
 
 fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
