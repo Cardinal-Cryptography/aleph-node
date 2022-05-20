@@ -117,8 +117,8 @@ impl Default for DataStoreConfig {
             max_proposals_pending: 80_000,
             max_messages_pending: 40_000,
             available_proposals_cache_capacity: 8000,
-            periodic_maintenance_interval: Duration::from_secs(60),
-            request_block_after: Duration::from_secs(100),
+            periodic_maintenance_interval: Duration::from_secs(25),
+            request_block_after: Duration::from_secs(20),
         }
     }
 }
@@ -309,6 +309,27 @@ where
                             debug!(target: "aleph-data-store", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
                             self.block_requester
                                 .request_stale_block(block.hash, block.num);
+                        } else {
+                            // The whole branch has been imported, what's holding us must be that the parent of the base is not finalized
+                            let bottom_block = proposal.bottom_block();
+                            if let Ok(parent_hash) =
+                                self.chain_info_provider.get_parent_hash(&bottom_block)
+                            {
+                                let parent_num = bottom_block.num - NumberFor::<B>::one();
+                                if self
+                                    .chain_info_provider
+                                    .get_finalized_at(parent_num)
+                                    .is_err()
+                                {
+                                    debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
+                                    self.block_requester
+                                        .request_justification(&parent_hash, parent_num);
+                                } else {
+                                    warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks were imported and parent was finalized", proposal);
+                                }
+                            } else {
+                                warn!(target: "aleph-data-store", "Expected the block below the proposal {:?} to be imported", proposal);
+                            }
                         }
                     }
                 }
