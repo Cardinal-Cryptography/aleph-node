@@ -1,4 +1,8 @@
-use std::str::FromStr;
+use std::{
+    fmt,
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
 use clap::Parser;
 
@@ -50,4 +54,32 @@ pub struct Config {
         default_value = "Aura,Aleph,Sudo,Staking,Session,Elections"
     )]
     pub storage_keep_state: Vec<StoragePath>,
+
+    #[clap(long)]
+    pub balances_path: Option<String>,
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Running with config: \n\
+            \thttp_rpc_endpoint: {}\n\
+            \tinitial_spec_path: {}\n\
+            \tsnapshot_path: {}\n\
+            \tcombined_spec_path: {}\n\
+            \tuse_snapshot_file: {}\n\
+            \tstorage_keep_state: {:?}\n\
+            \tnum_workers: {}\n\
+            \tbalances_path: {:?}",
+            self.http_rpc_endpoint,
+            self.initial_spec_path,
+            self.snapshot_path,
+            self.combined_spec_path,
+            self.use_snapshot_file,
+            self.storage_keep_state,
+            self.num_workers,
+            self.balances_path,
+        )
+    }
 }

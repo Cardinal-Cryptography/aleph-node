@@ -2,19 +2,10 @@ use std::{collections::HashMap, ops::Index};
 
 use log::info;
 
-use crate::{Storage, StoragePath};
-
-type StorageKeyHash = String;
-
-fn hash_storage_prefix(storage_path: &StoragePath) -> StorageKeyHash {
-    let modules = storage_path.0.split('.');
-    let hashes = modules.flat_map(|module| sp_io::hashing::twox_128(module.as_bytes()));
-    format!("0x{}", hex::encode(hashes.collect::<Vec<_>>()))
-}
-
-fn is_prefix_of(shorter: &str, longer: &str) -> bool {
-    longer.starts_with(shorter)
-}
+use crate::{
+    hashing::{hash_storage_prefix, is_prefix_of},
+    Storage, StoragePath,
+};
 
 #[derive(Default)]
 struct PathCounter {
