@@ -88,11 +88,11 @@ impl<T> Pallet<T>
         <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>,
 {
     fn compute_validator_scaled_totals(era: EraIndex) -> BTreeMap<T::AccountId, u32> {
-        let scaled_totals_by_token = pallet_staking::ErasStakers::<T>::iter_prefix(era)
+        let validator_totals = pallet_staking::ErasStakers::<T>::iter_prefix(era)
             .map(|(validator, exposure)| (validator, exposure.total.into()))
             .collect();
 
-        compute_validator_scaled_totals(scaled_totals_by_token).into_iter().collect()
+        compute_validator_scaled_totals(validator_totals).into_iter().collect()
     }
 
     fn get_committee_and_non_committee(current_era: EraIndex) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
