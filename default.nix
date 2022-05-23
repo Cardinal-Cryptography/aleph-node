@@ -98,6 +98,15 @@ let
     ''
   );
 
+  # vendored cargo-home
+  fetchImportCargoLock = builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/be872a7453a176df625c12190b8a6c10f6b21647.tar.gz";
+    sha256 = "1hnwh2w5rhxgbp6c8illcrzh85ky81pyqx9309bkgpivyzjf2nba";
+  };
+  importCargoLock = (import fetchImportCargoLock {}).rustPlatform.importCargoLock;
+  vendoredCargoLock = (import ./nix/tools.nix { pkgs = nixpkgs; inherit importCargoLock; }).vendoredCargoLock;
+  cargoHome = vendoredCargoLock ./Cargo.lock;
+
   modePath = if release then "release" else "debug";
   pathToWasm = "target/" + modePath + "/wbuild/aleph-runtime/target/wasm32-unknown-unknown/" + modePath + "/aleph_runtime.wasm";
   pathToCompactWasm = "target/" + modePath + "/wbuild/aleph-runtime/aleph_runtime.compact.wasm";
@@ -174,6 +183,13 @@ with nixpkgs; naersk.buildPackage rec {
   '';
   preConfigure = ''
     ${shellHook}
+  '';
+  # use different method for cargo-vendor
+  postConfigure = ''
+    exit 2
+    rm -rf $CARGO_HOME
+    ln -s ${cargoHome} $CARGO_HOME
+    exit -1
   '';
   # called after successful build - copies aleph-runtime WASM binaries
   postInstall = ''
