@@ -23,7 +23,7 @@ mod types;
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = Config::parse();
-    info!(target: "fork", "{:?}", config);
+    info!(target: "fork-off", "{:?}", config);
 
     let Config {
         http_rpc_endpoint,
@@ -76,9 +76,9 @@ async fn main() -> anyhow::Result<()> {
     initial_spec["genesis"]["raw"]["top"] = json_state;
     let new_spec = serde_json::to_vec_pretty(&initial_spec)?;
 
-    info!(target: "fork", "Writing new chainspec to {}", &combined_spec_path);
+    info!(target: "fork-off", "Writing new chainspec to {}", &combined_spec_path);
     write_to_file(combined_spec_path, &new_spec);
 
-    info!("Done!");
+    info!(target: "fork-off", "Done!");
     Ok(())
 }
