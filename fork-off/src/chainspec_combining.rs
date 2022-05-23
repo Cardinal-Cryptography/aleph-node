@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Index};
 use log::info;
 
 use crate::{
-    types::{StorageKey, StoragePath},
+    types::{Get, StorageKey, StoragePath},
     Storage,
 };
 
@@ -22,7 +22,7 @@ impl Index<&StoragePath> for PathCounter {
     type Output = usize;
 
     fn index(&self, path: &StoragePath) -> &Self::Output {
-        &self.map[path]
+        self.map.get(path).unwrap_or(&0)
     }
 }
 
@@ -65,7 +65,7 @@ pub fn combine_states(
     for (path, prefix) in storage_prefixes {
         info!(
             "For storage path `{}` (prefix `{}`) Replaced {} entries by {} entries from initial_spec",
-            path.0, prefix.0, removed_per_path_count[&path], added_per_path_cnt[&path]
+            path.clone().get(), prefix.clone().get(), removed_per_path_count[&path], added_per_path_cnt[&path]
         );
     }
     state

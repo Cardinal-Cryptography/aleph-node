@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::Storage;
 use codec::Encode;
@@ -24,16 +24,16 @@ pub struct AccountInfo {
     pub data: AccountData,
 }
 
-impl Into<StorageValue> for AccountInfo {
-    fn into(self) -> StorageValue {
-        StorageValue(format!("0x{}", hex::encode(Encode::encode(&self))))
+impl From<AccountInfo> for StorageValue {
+    fn from(account_info: AccountInfo) -> StorageValue {
+        StorageValue::new(&hex::encode(Encode::encode(&account_info)))
     }
 }
 
 pub type AccountSetting = HashMap<AccountId, AccountInfo>;
 
 fn get_account_map() -> StoragePath {
-    StoragePath("System.Account".to_string())
+    StoragePath::from_str("System.Account").unwrap()
 }
 
 pub fn apply_account_setting(mut state: Storage, setting: AccountSetting) -> Storage {

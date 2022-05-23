@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::types::{BlockHash, StorageKey, StorageValue};
+use crate::types::{BlockHash, Get, StorageKey, StorageValue};
 
 const KEYS_BATCH_SIZE: u32 = 1000;
 
@@ -49,7 +49,7 @@ fn block_hash_body(block_num: Option<u32>) -> Value {
 }
 
 fn get_storage_value_body(key: StorageKey, block_hash: Option<BlockHash>) -> Value {
-    let params = serde_json::json!([key, block_hash]);
+    let params = serde_json::json!([key.get(), block_hash.map(Get::get)]);
     construct_json_body("state_getStorage", params)
 }
 
@@ -59,7 +59,12 @@ fn get_keys_paged_body(
     start_key: Option<StorageKey>,
     block_hash: Option<BlockHash>,
 ) -> Value {
-    let params = serde_json::json!([prefix, count, start_key, block_hash]);
+    let params = serde_json::json!([
+        prefix.get(),
+        count,
+        start_key.map(Get::get),
+        block_hash.map(Get::get)
+    ]);
     construct_json_body("state_getKeysPaged", params)
 }
 
@@ -106,7 +111,7 @@ impl StateFetcher {
     pub async fn get_most_recent_block(&self) -> BlockHash {
         let body = block_hash_body(None);
         let block: String = self.make_request(body).await;
-        BlockHash(block)
+        BlockHash::new(&block)
     }
 
     // The start_key is not included in the range. The result is `count` keys that appear after `start_key` in the
@@ -117,7 +122,7 @@ impl StateFetcher {
         start_key: Option<StorageKey>,
         block_hash: Option<BlockHash>,
     ) -> Vec<StorageKey> {
-        let prefix = StorageKey(String::from(""));
+        let prefix = StorageKey::new("");
         let body = get_keys_paged_body(prefix, count, start_key, block_hash);
         let keys: Vec<StorageKey> = self.make_request(body).await;
         keys
