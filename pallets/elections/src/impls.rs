@@ -3,34 +3,46 @@ use crate::{
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::{pallet_prelude::Get, traits::Currency};
-use primitives::TOKEN;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
-const MAX_REWARD: u32 = u32::MAX;
+const MAX_REWARD: u32 = 1_000_000_000;
+const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
     blocks_to_produce_per_session: u32,
     blocks_created: u32,
-    total_exposure_in_tokens: u32,
+    total_possible_reward: u32,
 ) -> u32 {
+    let performance =
+        Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
+
+    // when produced between 90% to 100% expected blocks get 100% possible reward for session
+    if performance >= LENIENT_THRESHOLD && blocks_to_produce_per_session >= blocks_created {
+        return (Perquintill::from_rational(1, sessions_per_era as u64)
+            * total_possible_reward as u64) as u32;
+    }
+
     (Perquintill::from_rational(
         blocks_created as u64,
         (blocks_to_produce_per_session * sessions_per_era) as u64,
-    ) * total_exposure_in_tokens as u64) as u32
+    ) * total_possible_reward as u64) as u32
 }
 
-fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u32)>) -> Vec<(V, u32)> {
-    let sum_totals: u32 = validator_totals.iter().map(|(_, t)| t).sum();
-    let scale_factor = MAX_REWARD / sum_totals;
+fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
+    let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
-    // in the end we have:
     // scaled_total = total * (MAX_REWARD / sum_totals)
     // for maximum possible value of the total sum_totals the scaled_total is equal to MAX_REWARD
     validator_totals
         .into_iter()
-        .map(|(v, t)| (v, t * scale_factor))
+        .map(|(v, t)| {
+            (
+                v,
+                (t.saturating_mul(MAX_REWARD as u128) / sum_totals) as u32,
+            )
+        })
         .collect()
 }
 
@@ -78,12 +90,11 @@ impl<T> Pallet<T>
         <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>,
 {
     fn compute_validator_scaled_totals(era: EraIndex) -> BTreeMap<T::AccountId, u32> {
-        // scaling by TOKEN to fit it in u32 range
-        let scaled_totals_by_token = pallet_staking::ErasStakers::<T>::iter_prefix(era)
-            .map(|(validator, exposure)| (validator, (exposure.total.into() / TOKEN) as u32))
+        let validator_totals = pallet_staking::ErasStakers::<T>::iter_prefix(era)
+            .map(|(validator, exposure)| (validator, exposure.total.into()))
             .collect();
 
-        compute_validator_scaled_totals(scaled_totals_by_token).into_iter().collect()
+        compute_validator_scaled_totals(validator_totals).into_iter().collect()
     }
 
     fn get_committee_and_non_committee(current_era: EraIndex) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
@@ -273,6 +284,21 @@ mod tests {
     }
 
     #[test]
+    fn adjusted_session_points_above_90_perc_are_calculated_correctly() {
+        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 27, 25_000));
+
+        assert_eq!(
+            6250000,
+            calculate_adjusted_session_points(96, 900, 811, 600_000_000)
+        );
+
+        assert_eq!(
+            6145833,
+            calculate_adjusted_session_points(96, 900, 899, 590_000_000)
+        );
+    }
+
+    #[test]
     fn adjusted_session_points_more_than_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
             2 * 5000,
@@ -291,24 +317,44 @@ mod tests {
     }
 
     #[test]
-    fn scale_points_correctly() {
-        let subtract_modulo = |v, m| (v - v % m);
-
-        let mr_20 = subtract_modulo(MAX_REWARD, 20);
-        let mr_10 = subtract_modulo(MAX_REWARD, 10);
-        let mr_60 = subtract_modulo(MAX_REWARD, 60);
-
+    fn scale_points_correctly_when_under_u32() {
         assert_eq!(
-            vec![(1, mr_20 / 2), (2, mr_20 / 2)],
+            vec![(1, MAX_REWARD / 2), (2, MAX_REWARD / 2)],
             compute_validator_scaled_totals(vec![(1, 10), (2, 10)])
         );
         assert_eq!(
-            vec![(1, mr_10), (2, 0)],
+            vec![(1, MAX_REWARD), (2, 0)],
             compute_validator_scaled_totals(vec![(1, 10), (2, 0)])
         );
         assert_eq!(
-            vec![(1, mr_60 / 3), (2, mr_60 / 6), (3, mr_60 / 2)],
+            vec![
+                (1, MAX_REWARD / 3),
+                (2, MAX_REWARD / 6),
+                (3, MAX_REWARD / 2)
+            ],
             compute_validator_scaled_totals(vec![(1, 20), (2, 10), (3, 30)])
+        );
+    }
+
+    #[test]
+    fn scale_points_correctly_when_above_u32() {
+        let max: u128 = u32::MAX as u128;
+
+        assert_eq!(
+            vec![(1, MAX_REWARD / 2), (2, MAX_REWARD / 2)],
+            compute_validator_scaled_totals(vec![(1, 10 * max), (2, 10 * max)])
+        );
+        assert_eq!(
+            vec![(1, MAX_REWARD), (2, 0)],
+            compute_validator_scaled_totals(vec![(1, 10 * max), (2, 0)])
+        );
+        assert_eq!(
+            vec![
+                (1, MAX_REWARD / 3),
+                (2, MAX_REWARD / 6),
+                (3, MAX_REWARD / 2)
+            ],
+            compute_validator_scaled_totals(vec![(1, 20 * max), (2, 10 * max), (3, 30 * max)])
         );
     }
 
