@@ -382,7 +382,7 @@ fn generate_genesis_config(
         elections: ElectionsConfig {
             members: accounts_config.members.clone(),
             members_per_session: DEFAULT_MEMBERS_PER_SESSION,
-            reserved_members: reserved.clone(),
+            reserved_members: reserved,
         },
         session: SessionConfig {
             keys: accounts_config.keys,
@@ -392,8 +392,6 @@ fn generate_genesis_config(
             validator_count,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
-            // we set first 2 members as invulnerables for testing purposes
-            invulnerables: reserved,
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,
