@@ -4,7 +4,7 @@ use log::info;
 use serde_json::Value;
 
 use crate::{
-    account_setting::{apply_account_setting, AccountInfo, AccountSetting},
+    account_setting::{account_info_from_free, apply_account_setting, AccountSetting},
     chainspec_combining::combine_states,
     config::Config,
     fetching::StateFetcher,
@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
             Some(balances) => {
                 let info = balances
                     .into_iter()
-                    .map(|(account, free)| (account, AccountInfo::from_free(free)));
+                    .map(|(account, free)| (account, account_info_from_free(free)));
                 AccountSetting::from_iter(info)
             }
             None => AccountSetting::new(),
