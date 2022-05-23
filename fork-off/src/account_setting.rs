@@ -7,7 +7,8 @@ use serde::Deserialize;
 
 use crate::types::{AccountId, Balance, StorageKey, StoragePath, StorageValue};
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Encode)]
+/// This struct is copied and type-specialized from `pallet_balances::AccountData`.
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Encode, Default)]
 pub struct AccountData {
     pub free: Balance,
     pub reserved: Balance,
@@ -15,7 +16,8 @@ pub struct AccountData {
     pub fee_frozen: Balance,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Encode)]
+/// This struct is copied and type-specialized from `frame_system::AccountInfo`.
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Encode, Default)]
 pub struct AccountInfo {
     pub nonce: u32,
     pub consumers: u32,
@@ -27,6 +29,21 @@ pub struct AccountInfo {
 impl From<AccountInfo> for StorageValue {
     fn from(account_info: AccountInfo) -> StorageValue {
         StorageValue::new(&hex::encode(Encode::encode(&account_info)))
+    }
+}
+
+impl AccountInfo {
+    /// Create `AccountInfo` with all parameters set to `0` apart from free balances, which is
+    /// set to `free` and number of providers, which is set to `1`.
+    pub fn from_free(free: Balance) -> Self {
+        Self {
+            providers: 1,
+            data: AccountData {
+                free,
+                ..AccountData::default()
+            },
+            ..AccountInfo::default()
+        }
     }
 }
 

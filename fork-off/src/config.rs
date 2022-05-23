@@ -1,11 +1,12 @@
 use std::{
+    error::Error,
     fmt,
     fmt::{Display, Formatter},
 };
 
 use clap::Parser;
 
-use crate::types::StoragePath;
+use crate::types::{AccountId, Balance, StoragePath};
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -47,6 +48,23 @@ pub struct Config {
 
     #[clap(long)]
     pub balances_path: Option<String>,
+
+    #[clap(
+        long,
+        parse(try_from_str = parse_balances),
+        value_delimiter = ',',
+        multiple_occurrences(true))
+    ]
+    pub balances: Option<Vec<(AccountId, Balance)>>,
+}
+
+fn parse_balances(s: &str) -> Result<(AccountId, Balance), Box<dyn Error + Send + Sync + 'static>> {
+    let sep_pos = s.find('=').ok_or("Invalid ACCOUNT=BALANCE: no `=` found")?;
+
+    let account_raw: String = s[..sep_pos].parse()?;
+    let account = AccountId::new(&account_raw);
+    let balance = s[sep_pos + 1..].parse()?;
+    Ok((account, balance))
 }
 
 impl Display for Config {
@@ -61,7 +79,8 @@ impl Display for Config {
             \tuse_snapshot_file: {}\n\
             \tstorage_keep_state: {:?}\n\
             \tnum_workers: {}\n\
-            \tbalances_path: {:?}",
+            \tbalances_path: {:?}\n\
+            \tbalances: {:?}",
             self.http_rpc_endpoint,
             self.initial_spec_path,
             self.snapshot_path,
@@ -70,6 +89,7 @@ impl Display for Config {
             self.storage_keep_state,
             self.num_workers,
             self.balances_path,
+            self.balances,
         )
     }
 }

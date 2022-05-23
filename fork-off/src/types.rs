@@ -107,7 +107,7 @@ fn blake2_128concat(x: &[u8]) -> Vec<u8> {
 impl From<AccountId> for StorageKey {
     fn from(account: AccountId) -> StorageKey {
         let mut bytes = [0u8; 32];
-        hex::decode_to_slice(account.0, &mut bytes).unwrap();
+        hex::decode_to_slice(strip_hex(&account.0), &mut bytes).unwrap();
 
         let encoded_account = bytes.encode();
         let hash = blake2_128concat(encoded_account.as_slice());

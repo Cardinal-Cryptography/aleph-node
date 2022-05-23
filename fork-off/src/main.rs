@@ -4,7 +4,7 @@ use log::info;
 use serde_json::Value;
 
 use crate::{
-    account_setting::{apply_account_setting, AccountSetting},
+    account_setting::{apply_account_setting, AccountInfo, AccountSetting},
     chainspec_combining::combine_states,
     config::Config,
     fetching::StateFetcher,
@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
         storage_keep_state,
         num_workers,
         balances_path,
+        balances,
     } = config;
 
     let mut initial_spec: Value = read_json_from_file(initial_spec_path);
@@ -56,9 +57,19 @@ async fn main() -> anyhow::Result<()> {
 
     let state = combine_states(state, initial_state, storage_keep_state);
 
-    let account_setting: AccountSetting =
-        serde_json::from_value(read_json_from_file(balances_path.unwrap()))
-            .expect("Deserialization of balance configuration file failed");
+    let account_setting: AccountSetting = match balances_path {
+        Some(balances_path) => serde_json::from_value(read_json_from_file(balances_path))
+            .expect("Deserialization of balance configuration file failed"),
+        None => match balances {
+            Some(balances) => {
+                let info = balances
+                    .into_iter()
+                    .map(|(account, free)| (account, AccountInfo::from_free(free)));
+                AccountSetting::from_iter(info)
+            }
+            None => AccountSetting::new(),
+        },
+    };
     let state = apply_account_setting(state, account_setting);
 
     let json_state = serde_json::to_value(state).expect("Failed to convert a storage map to json");
