@@ -47,7 +47,7 @@ pub struct Config {
     pub storage_keep_state: Vec<StoragePath>,
 
     #[clap(long)]
-    pub balances_path: Option<String>,
+    pub accounts_path: Option<String>,
 
     #[clap(
         long,
@@ -88,7 +88,7 @@ impl Display for Config {
             self.use_snapshot_file,
             self.storage_keep_state,
             self.num_workers,
-            self.balances_path,
+            self.accounts_path,
             self.balances,
         )
     }

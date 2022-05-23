@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
         use_snapshot_file,
         storage_keep_state,
         num_workers,
-        balances_path,
+        accounts_path,
         balances,
     } = config;
 
@@ -57,8 +57,8 @@ async fn main() -> anyhow::Result<()> {
 
     let state = combine_states(state, initial_state, storage_keep_state);
 
-    let account_setting: AccountSetting = match balances_path {
-        Some(balances_path) => serde_json::from_value(read_json_from_file(balances_path))
+    let account_setting: AccountSetting = match accounts_path {
+        Some(accounts_path) => serde_json::from_value(read_json_from_file(accounts_path))
             .expect("Deserialization of balance configuration file failed"),
         None => match balances {
             Some(balances) => {
