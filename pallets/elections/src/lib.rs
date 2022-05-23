@@ -10,12 +10,20 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
+use scale_info::TypeInfo;
+use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
+
 pub use pallet::*;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 pub type BlockCount = u32;
+pub type Total = u32;
+
+#[derive(Decode, Encode, TypeInfo)]
+pub struct ValidatorTotals<T>(pub BTreeMap<T, Total>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -27,7 +35,6 @@ pub mod pallet {
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use pallet_session::SessionManager;
     use primitives::DEFAULT_MEMBERS_PER_SESSION;
-    use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -65,6 +72,10 @@ pub mod pallet {
     #[pallet::storage]
     pub type SessionValidatorBlockCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, BlockCount, ValueQuery>;
+
+    #[pallet::storage]
+    pub type ValidatorEraScaledTotal<T: Config> =
+        StorageValue<_, ValidatorTotals<T::AccountId>, OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
