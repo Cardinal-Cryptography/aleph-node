@@ -600,6 +600,7 @@ dependencies = [
  "anyhow",
  "clap",
  "env_logger",
+ "frame-support",
  "frame-system",
  "futures",
  "hex",
@@ -610,7 +611,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sp-io",
  "tokio",
 ]
 

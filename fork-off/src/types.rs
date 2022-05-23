@@ -8,9 +8,9 @@
 use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 use codec::Encode;
+use frame_support::{Blake2_128Concat, StorageHasher, Twox128};
 use hex::ToHex;
 use serde::{Deserialize, Serialize};
-use sp_io::hashing::{blake2_128, twox_128};
 
 pub trait Get<T = String> {
     fn get(self) -> T;
@@ -92,11 +92,6 @@ impl StorageKey {
     }
 }
 
-/// Copied from `frame_support`.
-fn blake2_128concat(x: &[u8]) -> Vec<u8> {
-    blake2_128(x).iter().chain(x.iter()).cloned().collect()
-}
-
 /// Convert `AccountId` to `StorageKey` using `Blake2_128Concat` hashing algorithm.
 ///
 /// This is a common way of deriving storage map key for an account: see `substrate-api-client`
@@ -110,7 +105,7 @@ impl From<AccountId> for StorageKey {
         hex::decode_to_slice(strip_hex(&account.0), &mut bytes).unwrap();
 
         let encoded_account = bytes.encode();
-        let hash = blake2_128concat(encoded_account.as_slice());
+        let hash = Blake2_128Concat::hash(encoded_account.as_slice());
         StorageKey::new(&hash.encode_hex::<String>())
     }
 }
@@ -120,7 +115,7 @@ impl From<AccountId> for StorageKey {
 impl From<StoragePath> for StorageKey {
     fn from(path: StoragePath) -> StorageKey {
         let modules = path.0.split('.');
-        let hashes = modules.flat_map(|module| twox_128(module.as_bytes()));
+        let hashes = modules.flat_map(|module| Twox128::hash(module.as_bytes()));
         StorageKey::new(&hex::encode(hashes.collect::<Vec<_>>()))
     }
 }

@@ -38,6 +38,8 @@ The tool will perform the following actions, in this order:
 7. Alternatively to `--accounts_path` you can just pass `--balances` flag with which you can specify initial free balances for some accounts. Similarly, it will be saved to `System.Account` map.
 8. The final, new chainspec is saved to the path provided via `--combined-spec-path`.
 
+Note: `fork-off` expects address as a hex-encoded public key, for Alice it would be `0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d`.
+
 So for instance to generate a new spec keeping the storage of testnet (note that in that case you should use the same binary as running on testnet to `bootstrap-chain`) we would run:
 
 ```bash
