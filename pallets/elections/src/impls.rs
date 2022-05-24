@@ -1,4 +1,7 @@
-use crate::{Config, ErasReserved, MembersPerSession, Pallet, ReservedMembers, SessionValidatorBlockCount, ValidatorEraScaledTotal, ValidatorTotals};
+use crate::{
+    Config, ErasReserved, MembersPerSession, Pallet, ReservedMembers, SessionValidatorBlockCount,
+    ValidatorEraScaledTotal, ValidatorTotals,
+};
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::{pallet_prelude::Get, traits::Currency};
 use sp_staking::{EraIndex, SessionIndex};

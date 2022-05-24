@@ -17,6 +17,8 @@
 //!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
 //! - `SessionValidatorBlockCount` - Count per validator, how many blocks did the validator produced
 //!   in the current session.
+//! - `ValidatorEraScaledTotal` - Total possible reward per validator for the current era. Scaled to
+//!   fit in the u32.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
