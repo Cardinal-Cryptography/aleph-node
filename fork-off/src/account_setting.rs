@@ -1,29 +1,22 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fmt::Formatter, str::FromStr};
 
-use crate::Storage;
 use codec::{Decode, Encode};
-use log::info;
-use serde::{Deserialize, Deserializer};
-
-use crate::types::{AccountId, Balance, StorageKey, StoragePath, StorageValue};
-
 use frame_system::AccountInfo as SubstrateAccountInfo;
+use log::info;
 use pallet_balances::AccountData as SubstrateAccountData;
-use serde::de::Error;
+use serde::{
+    de::{MapAccess, Visitor},
+    Deserialize, Deserializer,
+};
+
+use crate::{
+    types::{AccountId, Balance, StorageKey, StoragePath, StorageValue},
+    Storage,
+};
 
 /// Deserializable `AccountData`.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, Default)]
 pub struct AccountData(SubstrateAccountData<Balance>);
-
-impl<'de> Deserialize<'de> for AccountData {
-    fn deserialize<D>(deserializer: D) -> Result<AccountData, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: &str = Deserialize::deserialize(deserializer)?;
-        serde_json::from_str(s).map_err(Error::custom)
-    }
-}
 
 /// Deserializable `AccountInfo`.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, Default)]
@@ -34,8 +27,80 @@ impl<'de> Deserialize<'de> for AccountInfo {
     where
         D: Deserializer<'de>,
     {
-        let s: &str = Deserialize::deserialize(deserializer)?;
-        serde_json::from_str(s).map_err(Error::custom)
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            Nonce,
+            Consumers,
+            Providers,
+            Sufficients,
+            Free,
+            Reserved,
+            MiscFrozen,
+            FeeFrozen,
+        }
+
+        struct AccountInfoVisitor;
+
+        impl<'de> Visitor<'de> for AccountInfoVisitor {
+            type Value = AccountInfo;
+
+            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+                formatter.write_str("struct AccountInfo")
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let (
+                    mut nonce,
+                    mut consumers,
+                    mut providers,
+                    mut sufficients,
+                    mut free,
+                    mut reserved,
+                    mut misc_frozen,
+                    mut fee_frozen,
+                ) = (None, None, None, None, None, None, None, None);
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Nonce => nonce = Some(map.next_value()?),
+                        Field::Consumers => consumers = Some(map.next_value()?),
+                        Field::Providers => providers = Some(map.next_value()?),
+                        Field::Sufficients => sufficients = Some(map.next_value()?),
+                        Field::Free => free = Some(map.next_value()?),
+                        Field::Reserved => reserved = Some(map.next_value()?),
+                        Field::MiscFrozen => misc_frozen = Some(map.next_value()?),
+                        Field::FeeFrozen => fee_frozen = Some(map.next_value()?),
+                    }
+                }
+                Ok(AccountInfo(SubstrateAccountInfo {
+                    nonce: nonce.expect("Missing `nonce`"),
+                    consumers: consumers.expect("Missing `consumers`"),
+                    providers: providers.expect("Missing `providers`"),
+                    sufficients: sufficients.expect("Missing `sufficients`"),
+                    data: AccountData(SubstrateAccountData {
+                        free: free.expect("Missing `free`"),
+                        reserved: reserved.expect("Missing `reserved`"),
+                        misc_frozen: misc_frozen.expect("Missing `misc_frozen`"),
+                        fee_frozen: fee_frozen.expect("Missing `fee_frozen`"),
+                    }),
+                }))
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "nonce",
+            "consumers",
+            "providers",
+            "sufficients",
+            "free",
+            "reserved",
+            "misc_frozen",
+            "fee_frozen",
+        ];
+        deserializer.deserialize_struct("AccountInfo", FIELDS, AccountInfoVisitor)
     }
 }
 

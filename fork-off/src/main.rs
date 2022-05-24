@@ -8,7 +8,10 @@ use crate::{
     chainspec_combining::combine_states,
     config::Config,
     fetching::StateFetcher,
-    fsio::{read_json_from_file, read_snapshot_from_file, save_snapshot_to_file, write_to_file},
+    fsio::{
+        file_content, read_json_from_file, read_snapshot_from_file, save_snapshot_to_file,
+        write_to_file,
+    },
     types::Storage,
 };
 
@@ -58,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     let state = combine_states(state, initial_state, storage_keep_state);
 
     let account_setting: AccountSetting = match accounts_path {
-        Some(accounts_path) => serde_json::from_value(read_json_from_file(accounts_path))
+        Some(accounts_path) => serde_json::from_str(&file_content(accounts_path))
             .expect("Deserialization of balance configuration file failed"),
         None => match balances {
             Some(balances) => {
