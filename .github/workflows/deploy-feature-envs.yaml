@@ -393,6 +393,11 @@ jobs:
 
       - name: Delete FE
         uses: ./.github/actions/destroy-feature-environment
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
 
     # steps:
     #   - name: checkout repo
