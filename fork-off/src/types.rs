@@ -8,7 +8,7 @@
 use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 use codec::Encode;
-use frame_support::{Blake2_128Concat, StorageHasher, Twox128};
+use frame_support::{sp_runtime::AccountId32, Blake2_128Concat, StorageHasher, Twox128};
 use hex::ToHex;
 use serde::{Deserialize, Serialize};
 
@@ -32,21 +32,21 @@ fn as_hex<T: ToString + ?Sized>(t: &T) -> String {
     }
 }
 
-/// For now, we accept only 64-char-format accounts.
+/// For now, we accept only SS58 public keys.
 ///
-/// For `//Alice` it would be: `0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d`.
+/// For `//Alice` it would be: `5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY`.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct AccountId(String);
 
 impl AccountId {
     pub fn new<T: ToString + ?Sized>(account: &T) -> Self {
-        Self(as_hex(account))
+        Self(account.to_string())
     }
 }
 
 impl Get for AccountId {
     fn get(self) -> String {
-        as_hex(&self.0)
+        self.0.clone()
     }
 }
 
@@ -101,9 +101,7 @@ impl StorageKey {
 /// computed in other manner.
 impl From<AccountId> for StorageKey {
     fn from(account: AccountId) -> StorageKey {
-        let mut bytes = [0u8; 32];
-        hex::decode_to_slice(strip_hex(&account.0), &mut bytes).unwrap();
-
+        let bytes = AccountId32::from_str(account.get().as_str()).unwrap();
         let encoded_account = bytes.encode();
         let hash = Blake2_128Concat::hash(encoded_account.as_slice());
         StorageKey::new(&hash.encode_hex::<String>())
