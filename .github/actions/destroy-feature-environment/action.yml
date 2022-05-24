@@ -85,37 +85,3 @@ runs:
         BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
       run: |
         aws s3 rm --recursive s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
-
-    - name: Remove labels
-      uses: actions-ecosystem/action-remove-labels@v1.3.0
-      with:
-        labels: '[AZERO] DELETE-FEATURE-ENV'
-        github_token: ${{ inputs.gh-ci-token }}
-
-    - name: Remove "DEPLOYED" label if present
-      uses: actions-ecosystem/action-remove-labels@v1.3.0
-      if: contains( github.event.pull_request.labels.*.name, 'DEPLOYED')
-      with:
-        labels: 'DEPLOYED'
-        github_token: ${{ inputs.gh-ci-token }}
-      
-    - name: Add label to mark that feature branch has been destroyed
-      uses: actions-ecosystem/action-add-labels@v1.1.0
-      with:
-        labels: 'DESTROYED'
-        github_token: ${{ inputs.gh-ci-token }}
-
-    - name: Deactivate deployed environment
-      uses: bobheadxi/deployments@v1
-      with:
-        step: deactivate-env
-        token: ${{ inputs.gh-ci-token }}
-        env: ${{ steps.get_branch.outputs.branch }}
-        desc: Environment was deleted
-        debug: true
-
-    - name: Delete environment and deployments
-      uses: strumwolf/delete-deployment-environment@v2
-      with:
-        token: ${{ inputs.gh-ci-token }}
-        environment: ${{ steps.get_branch.outputs.branch }}

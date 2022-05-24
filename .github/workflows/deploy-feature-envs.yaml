@@ -69,6 +69,15 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v2.3.4
 
+      - name: Delete old FE when redeploying
+        if: contains( github.event.pull_request.labels.*.name, 'DEPLOYED')
+        uses: ./.github/actions/destroy-feature-environment
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
+
       - name: Get Branch Name
         id: get_branch
         shell: bash
@@ -398,183 +407,74 @@ jobs:
           aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-
-    # steps:
-    #   - name: checkout repo
-    #     uses: actions/checkout@v2.3.4
-
-    #   - name: Get Branch Name
-    #     id: get_branch
-    #     shell: bash
-    #     env:
-    #       PR_HEAD: ${{ github.head_ref }}
-    #     run: echo "##[set-output name=branch;]$(echo ${PR_HEAD#refs/heads/} | tr / -)"
-
-    #   - name: GIT | Checkout aleph-apps repo
-    #     uses: actions/checkout@master
-    #     with:
-    #       repository: Cardinal-Cryptography/aleph-apps
-    #       token: ${{ secrets.CI_GH_TOKEN }}
-    #       path: "aleph-apps"
-    #       ref: main
-        
-    #   - name: Configure AWS credentials
-    #     uses: aws-actions/configure-aws-credentials@v1
-    #     env:
-    #       AWS_REGION: us-east-1
-    #     with:
-    #       aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-    #       aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-    #       aws-region: ${{ env.AWS_REGION }}
       
-    #   - name: Destroy feature branch
-    #     env:
-    #       APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
-    #     run: |
-    #       ALEPH_PATH=$(pwd)
+      - name: Remove labels
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: '[AZERO] DELETE-FEATURE-ENV'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
 
-    #       ## Delete FE application for argo to delete it automatically
-    #       rm -rf $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
-
-    #   - name: GIT | Commit deletion of the feature environment.
-    #     uses: EndBug/add-and-commit@v5.1.0
-    #     env:
-    #       APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
-    #       GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
-    #     with:
-    #       author_name: AlephZero Automation
-    #       author_email: alephzero@10clouds.com
-    #       message: "Feature Environment: ${{ env.APP_NAME }} has been deleted"
-    #       add: "*.yaml"
-    #       cwd: "aleph-apps"
-    #       branch: main
-
-    #   - name: Refresh Argo and wait for the deletion to be finished
-    #     env:
-    #       ARGOCD_URL: argocd.dev.azero.dev
-    #     run: |
-    #       ## Install argocd CLI tool
-    #       curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/v2.3.3/argocd-linux-amd64
-    #       chmod +x argocd && mv argocd /usr/local/bin/
-
-    #       /usr/local/bin/argocd app get fe-root-application --hard-refresh --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
-    #       /usr/local/bin/argocd app wait fe-root-application --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
-
-    #   - name: Clean S3 storage
-    #     env:
-    #       BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
-    #     run: |
-    #       aws s3 rm --recursive s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
-
-    #   - name: Remove labels
-    #     uses: actions-ecosystem/action-remove-labels@v1.3.0
-    #     with:
-    #       labels: '[AZERO] DELETE-FEATURE-ENV'
-    #       github_token: ${{ secrets.CI_GH_TOKEN }}
-
-    #   - name: Remove "DEPLOYED" label if present
-    #     uses: actions-ecosystem/action-remove-labels@v1.3.0
-    #     if: contains( github.event.pull_request.labels.*.name, 'DEPLOYED')
-    #     with:
-    #       labels: 'DEPLOYED'
-    #       github_token: ${{ secrets.CI_GH_TOKEN }}
+      - name: Remove "DEPLOYED" label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: contains( github.event.pull_request.labels.*.name, 'DEPLOYED')
+        with:
+          labels: 'DEPLOYED'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
       
-    #   - name: Add label to mark that feature branch has been destroyed
-    #     uses: actions-ecosystem/action-add-labels@v1.1.0
-    #     with:
-    #       labels: 'DESTROYED'
-    #       github_token: ${{ secrets.CI_GH_TOKEN }}
+      - name: Add label to mark that feature branch has been destroyed
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: 'DESTROYED'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
 
-    #   - name: Deactivate deployed environment
-    #     uses: bobheadxi/deployments@v1
-    #     with:
-    #       step: deactivate-env
-    #       token: ${{ secrets.CI_GH_TOKEN }}
-    #       env: ${{ steps.get_branch.outputs.branch }}
-    #       desc: Environment was deleted
-    #       debug: true
+      - name: Deactivate deployed environment
+        uses: bobheadxi/deployments@v1
+        with:
+          step: deactivate-env
+          token: ${{ secrets.CI_GH_TOKEN }}
+          env: ${{ steps.get_branch.outputs.branch }}
+          desc: Environment was deleted
+          debug: true
 
-    #   - name: Delete environment and deployments
-    #     uses: strumwolf/delete-deployment-environment@v2
-    #     with:
-    #       token: ${{ secrets.CI_GH_TOKEN }}
-    #       environment: ${{ steps.get_branch.outputs.branch }}
+      - name: Delete environment and deployments
+        uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ secrets.CI_GH_TOKEN }}
+          environment: ${{ steps.get_branch.outputs.branch }}
 
   destroy_feature_env_on_close:
     if: (github.event.action == 'closed' && !contains( github.event.pull_request.labels.*.name, 'DESTROYED') && contains( github.event.pull_request.labels.*.name, 'DEPLOYED'))
     name: Destroy feature env when PR closed
     runs-on: ubuntu-latest
     steps:
-      - name: checkout repo
+      - name: Checkout repo
         uses: actions/checkout@v2.3.4
 
-      - name: Get Branch Name
-        id: get_branch
-        shell: bash
-        env:
-          PR_HEAD: ${{ github.head_ref }}
-        run: echo "##[set-output name=branch;]$(echo ${PR_HEAD#refs/heads/} | tr / -)"
-      
-      - name: GIT | Checkout aleph-apps repo
-        uses: actions/checkout@master
+      - name: Delete FE
+        uses: ./.github/actions/destroy-feature-environment
         with:
-          repository: Cardinal-Cryptography/aleph-apps
-          token: ${{ secrets.CI_GH_TOKEN }}
-          path: "aleph-apps"
-          ref: main
-        
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        env:
-          AWS_REGION: us-east-1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Destroy feature branch
-        env:
-          APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
-        run: |
-          ALEPH_PATH=$(pwd)
-
-          ## Delete FE application for argo to delete it automatically
-          rm -rf $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
-
-      - name: GIT | Commit deletion of the feature environment.
-        uses: EndBug/add-and-commit@v5.1.0
-        env:
-          APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
-          GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
-        with:
-          author_name: AlephZero Automation
-          author_email: alephzero@10clouds.com
-          message: "Feature Environment: ${{ env.APP_NAME }} has been deleted"
-          add: "*.yaml"
-          cwd: "aleph-apps"
-          branch: main
-
-      - name: Refresh Argo and wait for the deletion to be finished
-        env:
-          ARGOCD_URL: argocd.dev.azero.dev
-        run: |
-          ## Install argocd CLI tool
-          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/v2.3.3/argocd-linux-amd64
-          chmod +x argocd && mv argocd /usr/local/bin/
-
-          /usr/local/bin/argocd app get fe-root-application --hard-refresh --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
-          /usr/local/bin/argocd app wait fe-root-application --auth-token ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
-
-      - name: Clean S3 storage
-        env:
-          BRANCH_NAME: ${{ steps.get_branch.outputs.branch }}
-        run: |
-          aws s3 rm --recursive s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
 
       - name: Remove labels
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
+          labels: '[AZERO] DELETE-FEATURE-ENV'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove "DEPLOYED" label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: contains( github.event.pull_request.labels.*.name, 'DEPLOYED')
+        with:
           labels: 'DEPLOYED'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+      
+      - name: Add label to mark that feature branch has been destroyed
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: 'DESTROYED'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Deactivate deployed environment
