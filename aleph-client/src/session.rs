@@ -63,7 +63,7 @@ pub fn change_reserved_members(
     new_members: Vec<AccountId>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New members {:#?}", new_members);
+    info!(target: "aleph-client", "New reserved members {:#?}", new_members);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
@@ -77,7 +77,7 @@ pub fn change_reserved_members(
         call,
         0_u64
     );
-    send_xt(sudo_connection, xt, Some("sudo_unchecked_weight"), status);
+    send_xt(sudo_connection, xt, Some("change_reserved_members"), status);
 }
 
 pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus) {
