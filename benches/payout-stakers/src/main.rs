@@ -1,4 +1,4 @@
-use clap::{CommandFactory, ErrorKind, Parser};
+use clap::{ArgGroup, Parser};
 use log::{info, trace, warn};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
@@ -29,6 +29,7 @@ const TRANSFER_CALL_BATCH_LIMIT: usize = 1024;
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
+#[clap(group(ArgGroup::new("valid").required(true)))]
 struct Config {
     /// WS endpoint address of the node to connect to. Use IP:port syntax, e.g. 127.0.0.1:9944
     #[clap(long, default_value = "127.0.0.1:9944")]
@@ -41,11 +42,13 @@ struct Config {
 
     /// A path to a file that contains seeds of validators, each in a separate line.
     /// If not given, validators 0, 1, ..., validator_count are assumed
-    #[clap(long)]
+    /// Only valid if validator count is not provided.
+    #[clap(long, group = "valid")]
     pub validators_seed_file: Option<String>,
 
-    /// number of testcase validators
-    #[clap(long)]
+    /// Number of testcase validators.
+    /// Only valid if validator seed file is not provided.
+    #[clap(long, group = "valid")]
     pub validator_count: Option<u32>,
 }
 
@@ -62,9 +65,7 @@ fn main() -> anyhow::Result<()> {
         validator_count,
     } = Config::parse();
 
-    verify_seed_xor_count(&validators_seed_file, &validator_count);
-
-    let sudoer = set_sudoer_keypair(root_seed_file);
+    let sudoer = get_sudoer_keypair(root_seed_file);
 
     let connection = RootConnection::new(&address, sudoer);
 
@@ -87,8 +88,8 @@ fn main() -> anyhow::Result<()> {
 
     let controllers = generate_controllers_for_validators(validator_count);
 
-    bond_controllers_and_validators(&address, controllers.clone(), validators.clone());
-    validate_controllers_and_validators(&address, controllers);
+    bond_validators_funds_and_choose_controllers(&address, controllers.clone(), validators.clone());
+    send_validate_txs(&address, controllers);
 
     let validators_and_nominator_stashes =
         setup_test_validators_and_nominator_stashes(&connection, validators);
@@ -106,20 +107,8 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Only one of: (1) validator seed file or (2) validator count is supported.
-fn verify_seed_xor_count(seed_file: &Option<String>, count: &Option<u32>) {
-    if !(count.is_some() ^ seed_file.is_some()) {
-        let mut cmd = Config::command();
-        cmd.error(
-            ErrorKind::ArgumentConflict,
-            "One and only one of --validator-count or --validators-seed-file must be specified!",
-        )
-        .exit();
-    }
-}
-
-/// Set key pair based on seed file or default when seed file is not provided.
-fn set_sudoer_keypair(root_seed_file: Option<String>) -> KeyPair {
+/// Get key pair based on seed file or default when seed file is not provided.
+fn get_sudoer_keypair(root_seed_file: Option<String>) -> KeyPair {
     match root_seed_file {
         Some(root_seed_file) => {
             let root_seed = std::fs::read_to_string(&root_seed_file)
@@ -239,9 +228,10 @@ fn nominate_validator(
         .for_each(|chunk| staking_batch_nominate(connection, chunk));
 }
 
-/// Bonds controller accounts to the corresponding validator accounts.
+/// Bonds the funds of the validators.
+/// Chooses controller accounts for the corresponding validators.
 /// We assume stash == validator != controller.
-fn bond_controllers_and_validators(
+fn bond_validators_funds_and_choose_controllers(
     address: &str,
     controllers: Vec<KeyPair>,
     validators: Vec<KeyPair>,
@@ -261,9 +251,9 @@ fn bond_controllers_and_validators(
         });
 }
 
-/// Validate the controller and validator pairs.
+/// Submits candidate validators via controller accounts.
 /// We assume stash == validator != controller.
-fn validate_controllers_and_validators(address: &str, controllers: Vec<KeyPair>) {
+fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
     controllers.par_iter().for_each(|controller| {
         let mut rng = thread_rng();
         let connection = SignedConnection::new(address, controller.clone());
