@@ -71,7 +71,7 @@ pub fn apply_account_setting(mut state: Storage, setting: AccountSetting) -> Sto
         let key = &account_map.join(&account_hash);
 
         state.insert(key.clone(), info.clone().into());
-        info!("Account info of `{:?}` set to `{:?}`", account, info);
+        info!(target: "fork-off", "Account info of `{:?}` set to `{:?}`", account, info);
     }
     state
 }
