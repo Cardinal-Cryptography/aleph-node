@@ -11,7 +11,7 @@
 //!
 //! ### Storage
 //! - `Members` - List of possible validators.
-//! - `MembersPerSession` - Number of committee size.
+//! - `MembersPerSession` - Committee size.
 //! - `ReservedMembers` - List of reserved nodes.
 //! - `ErasReserved` - List of reserved nodes for the current era.
 //!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
