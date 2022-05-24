@@ -387,8 +387,13 @@ jobs:
     if: ${{ github.event.label.name == '[AZERO] DELETE-FEATURE-ENV' }}
     name: Destroy feature env
     runs-on: ubuntu-latest
-    uses: ./.github/actions/destroy-feature-environment
-    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+
+      - name: Delete FE
+        uses: ./.github/actions/destroy-feature-environment
+
     # steps:
     #   - name: checkout repo
     #     uses: actions/checkout@v2.3.4

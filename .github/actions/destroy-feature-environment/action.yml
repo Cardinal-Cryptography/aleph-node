@@ -4,9 +4,6 @@ description: 'Action used for feature environment deletion'
 runs:
   using: "composite"
   steps:
-    - name: checkout repo
-      uses: actions/checkout@v2.3.4
-
     - name: Get Branch Name
       id: get_branch
       shell: bash
