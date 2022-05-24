@@ -30,13 +30,15 @@ jobs:
           echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install and restore nix
+        uses: ./.github/actions/cache_install_nix
+        with:
+          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
       - name: Build binary
         run: |
-          pushd bin/cliain/
-          cargo build --release
+          pushd bin/cliain
+          nix-shell --pure --file ../shell.nix --run 'cargo build --release --locked'
           popd
 
       - name: Build runtime-update-hook

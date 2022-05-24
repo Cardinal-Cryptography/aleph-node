@@ -17,39 +17,29 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install clippy and fmt
-        run: rustup component add clippy rustfmt
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
+      - name: Install and restore nix
+        uses: ./.github/actions/cache_install_nix
+        with:
+          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
       - name: Run Format Checks
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all
+        run: |
+          nix-shell --pure --file shell.nix --run 'cargo fmt --all'
 
       - name: Run Linter
-        uses: actions-rs/cargo@v1
         env:
           # https://github.com/mozilla/sccache/issues/966
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
-        with:
-          command: clippy
-          args: -- --no-deps -D warnings
+        run: |
+          nix-shell --pure --file shell.nix --run 'cargo clippy -- --no-deps -D warnings'
 
       - name: Run Unit Test Suite
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+        run: |
+          nix-shell --pure --file shell.nix --run 'cargo test --lib
 
       - name: Stop sccache
         uses: ./.github/actions/post-cache

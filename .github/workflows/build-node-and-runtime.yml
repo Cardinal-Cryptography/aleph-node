@@ -26,17 +26,17 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
+      - name: Install and restore nix
+        uses: ./.github/actions/cache_install_nix
+        with:
+          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
+
       - name: Build binary and runtime
-        run: cargo build --release -p aleph-node
+        run: |
+          nix-shell --pure --file shell.nix --run 'cargo build --release --locked -p aleph-node'
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -55,7 +55,8 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session"
+        run: |
+          nix-shell --pure --file shell.nix --run 'cargo build --release --locked -p aleph-node --features "short_session"'
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
