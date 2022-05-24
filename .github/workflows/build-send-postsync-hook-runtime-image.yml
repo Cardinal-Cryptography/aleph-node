@@ -35,10 +35,14 @@ jobs:
         with:
           cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
+      - name: Run nix-shell
+        run: |
+          nix-shell --pure --file shell.nix
+
       - name: Build binary
         run: |
           pushd bin/cliain
-          nix-shell --pure --file ../shell.nix --run 'cargo build --release --locked'
+          cargo build --release --locked
           popd
 
       - name: Build runtime-update-hook

@@ -34,9 +34,13 @@ jobs:
         with:
           cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
+      - name: Run nix-shell
+        run: |
+          nix-shell --pure --file shell.nix
+
       - name: Build binary and runtime
         run: |
-          nix-shell --pure --file shell.nix --run 'cargo build --release --locked -p aleph-node'
+          cargo build --release --locked -p aleph-node
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -56,7 +60,7 @@ jobs:
 
       - name: Build test binary
         run: |
-          nix-shell --pure --file shell.nix --run 'cargo build --release --locked -p aleph-node --features "short_session"'
+          cargo build --release --locked -p aleph-node --features "short_session"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

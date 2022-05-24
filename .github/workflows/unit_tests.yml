@@ -22,12 +22,16 @@ jobs:
         with:
           cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
+      - name: Run nix-shell
+        run: |
+          nix-shell --pure --file shell.nix
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
       - name: Run Format Checks
         run: |
-          nix-shell --pure --file shell.nix --run 'cargo fmt --all'
+          cargo fmt --all
 
       - name: Run Linter
         env:
@@ -35,11 +39,11 @@ jobs:
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
-          nix-shell --pure --file shell.nix --run 'cargo clippy -- --no-deps -D warnings'
+          cargo clippy -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         run: |
-          nix-shell --pure --file shell.nix --run 'cargo test --lib
+          cargo test --lib
 
       - name: Stop sccache
         uses: ./.github/actions/post-cache

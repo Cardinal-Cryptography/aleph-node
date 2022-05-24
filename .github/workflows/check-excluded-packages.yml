@@ -22,6 +22,10 @@ jobs:
         with:
           cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
 
+      - name: Run nix-shell
+        run: |
+          nix-shell --pure --file shell.nix
+
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
         uses: SebRollen/toml-action@v1.0.0
@@ -57,8 +61,8 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
-            nix-shell --pure --file $ROOT/shell.nix --run 'cargo fmt --all --check'
-            nix-shell --pure --file $ROOT/shell.nix --run 'cargo clippy --all-targets --all-features -- --no-deps -D warnings'
+            cargo fmt --all --check
+            cargo clippy --all-targets --all-features -- --no-deps -D warnings
             popd
           done
 
