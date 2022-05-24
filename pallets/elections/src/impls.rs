@@ -1,8 +1,9 @@
 use crate::{
+    traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
     Config, ErasReserved, MembersPerSession, Pallet, ReservedMembers, SessionValidatorBlockCount,
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
-use frame_support::{pallet_prelude::Get, traits::Currency};
+use frame_support::pallet_prelude::Get;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -83,23 +84,23 @@ fn rotate<T: Clone + PartialEq>(
 }
 
 impl<T> Pallet<T>
-    where
-        T: Config + pallet_session::Config + pallet_staking::Config,
-        <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
-        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>,
+where
+    T: Config,
 {
     fn compute_validator_scaled_totals(era: EraIndex) -> BTreeMap<T::AccountId, u32> {
-        let validator_totals = pallet_staking::ErasStakers::<T>::iter_prefix(era)
-            .map(|(validator, exposure)| (validator, exposure.total.into()))
-            .collect();
+        let validator_totals = T::ValidatorRewardsHandler::validator_totals(era);
 
-        compute_validator_scaled_totals(validator_totals).into_iter().collect()
+        compute_validator_scaled_totals(validator_totals)
+            .into_iter()
+            .collect()
     }
 
-    fn get_committee_and_non_committee(current_era: EraIndex) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
-        let committee: Vec<T::AccountId> = pallet_session::Validators::<T>::get().into_iter().map(|a| a.into()).collect();
-        let non_committee = pallet_staking::ErasStakers::<T>::iter_key_prefix(current_era)
+    fn get_committee_and_non_committee(
+        current_era: EraIndex,
+    ) -> (Vec<T::AccountId>, Vec<T::AccountId>) {
+        let committee: Vec<T::AccountId> = T::SessionInfoProvider::current_committee();
+        let non_committee = T::ValidatorRewardsHandler::all_era_validators(current_era)
+            .into_iter()
             .filter(|a| !committee.contains(a))
             .collect();
 
@@ -114,10 +115,10 @@ impl<T> Pallet<T>
         non_committee: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
-        validator_totals: &BTreeMap<T::AccountId, u32>
-    ) -> impl IntoIterator<Item=(T::AccountId, u32)> + '_ {
+        validator_totals: &BTreeMap<T::AccountId, u32>,
+    ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         non_committee.into_iter().map(move |validator| {
-            let total = BTreeMap::<_,_>::get(validator_totals,&validator).unwrap_or(&0);
+            let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
             (
                 validator,
                 calculate_adjusted_session_points(
@@ -134,10 +135,10 @@ impl<T> Pallet<T>
         committee: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
-        validator_totals: &BTreeMap<T::AccountId, u32>
-    ) -> impl IntoIterator<Item=(T::AccountId, u32)> + '_ {
+        validator_totals: &BTreeMap<T::AccountId, u32>,
+    ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         committee.into_iter().map(move |validator| {
-            let total = BTreeMap::<_,_>::get(validator_totals,&validator).unwrap_or(&0);
+            let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
             let blocks_created = SessionValidatorBlockCount::<T>::get(&validator);
             (
                 validator,
@@ -154,15 +155,15 @@ impl<T> Pallet<T>
     // Choose a subset of all the validators for current era that contains all the
     // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
     fn rotate_committee() -> Option<Vec<T::AccountId>> {
-        let current_era = match pallet_staking::ActiveEra::<T>::get() {
-            Some(ae) if ae.index > 0 => ae.index,
+        let current_era = match T::EraInfoProvider::current_era() {
+            Some(ae) if ae > 0 => ae,
             _ => return None,
         };
-        let all_validators: Vec<T::AccountId> =
-            pallet_staking::ErasStakers::<T>::iter_key_prefix(current_era).collect();
+
+        let all_validators = T::ValidatorRewardsHandler::all_era_validators(current_era);
         let reserved = ErasReserved::<T>::get();
         let n_validators = MembersPerSession::<T>::get() as usize;
-        let current_session = pallet_session::Pallet::<T>::current_index();
+        let current_session = T::SessionInfoProvider::current_session();
 
         rotate(
             current_era,
@@ -174,13 +175,14 @@ impl<T> Pallet<T>
     }
 
     fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
-        let current_era = match pallet_staking::ActiveEra::<T>::get() {
-            Some(ae) => ae.index,
+        let current_era = match T::EraInfoProvider::current_era() {
+            Some(ae) => ae,
             _ => return,
         };
+
         // this will be populated once for the session `n+1` on the start of the session `n` where session
         // `n+1` starts a new era.
-        if let Some(era_index) = pallet_staking::ErasStartSessionIndex::<T>::get(current_era + 1) {
+        if let Some(era_index) = T::EraInfoProvider::era_start(current_era + 1) {
             if era_index == start_index {
                 let reserved_validators = ReservedMembers::<T>::get();
                 ErasReserved::<T>::put(reserved_validators);
@@ -189,31 +191,41 @@ impl<T> Pallet<T>
     }
 
     fn adjust_rewards_for_session() {
-        let active_era = match pallet_staking::ActiveEra::<T>::get() {
-            Some(ae) if ae.index > 0 => ae.index,
+        let active_era = match T::EraInfoProvider::current_era() {
+            Some(ae) if ae > 0 => ae,
             _ => return,
         };
 
         let (committee, non_committee) = Self::get_committee_and_non_committee(active_era);
-        let nr_of_sessions = T::SessionsPerEra::get();
+        let nr_of_sessions = T::EraInfoProvider::sessions_per_era();
         let blocks_per_session = Self::blocks_to_produce_per_session();
         let validator_totals = Self::compute_validator_scaled_totals(active_era);
 
-        let rewards =
-            Self::reward_for_session_non_committee(non_committee, nr_of_sessions, blocks_per_session, &validator_totals)
-                .into_iter()
-                .chain(Self::reward_for_session_committee(committee, nr_of_sessions, blocks_per_session, &validator_totals).into_iter());
+        let rewards = Self::reward_for_session_non_committee(
+            non_committee,
+            nr_of_sessions,
+            blocks_per_session,
+            &validator_totals,
+        )
+        .into_iter()
+        .chain(
+            Self::reward_for_session_committee(
+                committee,
+                nr_of_sessions,
+                blocks_per_session,
+                &validator_totals,
+            )
+            .into_iter(),
+        );
 
-        pallet_staking::Pallet::<T>::reward_by_ids(rewards);
+        T::ValidatorRewardsHandler::add_rewards(rewards);
     }
 }
 
 impl<T> pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
-    where
-        T: Config + pallet_session::Config + pallet_staking::Config,
-        <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
-        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>, {
+where
+    T: Config,
+{
     fn note_author(validator: T::AccountId) {
         SessionValidatorBlockCount::<T>::mutate(&validator, |count| {
             *count += 1;
@@ -224,11 +236,9 @@ impl<T> pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet
 }
 
 impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
-    where
-        T: Config + pallet_session::Config + pallet_staking::Config,
-        <<T as pallet_staking::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance: Into<u128>,
-        <T as pallet_session::Config>::ValidatorId: From<T::AccountId>,
-        <T as pallet_session::Config>::ValidatorId: Into<T::AccountId>, {
+where
+    T: Config,
+{
     fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
@@ -330,7 +340,7 @@ mod tests {
             vec![
                 (1, MAX_REWARD / 3),
                 (2, MAX_REWARD / 6),
-                (3, MAX_REWARD / 2)
+                (3, MAX_REWARD / 2),
             ],
             compute_validator_scaled_totals(vec![(1, 20), (2, 10), (3, 30)])
         );
@@ -352,7 +362,7 @@ mod tests {
             vec![
                 (1, MAX_REWARD / 3),
                 (2, MAX_REWARD / 6),
-                (3, MAX_REWARD / 2)
+                (3, MAX_REWARD / 2),
             ],
             compute_validator_scaled_totals(vec![(1, 20 * max), (2, 10 * max), (3, 30 * max)])
         );

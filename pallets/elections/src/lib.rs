@@ -25,6 +25,7 @@ mod impls;
 mod mock;
 #[cfg(test)]
 mod tests;
+mod traits;
 
 use frame_support::traits::StorageVersion;
 pub use pallet::*;
@@ -36,6 +37,7 @@ pub type BlockCount = u32;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
     use frame_election_provider_support::{
         ElectionDataProvider, ElectionProvider, Support, Supports,
     };
@@ -47,6 +49,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        type EraInfoProvider: EraInfoProvider;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type DataProvider: ElectionDataProvider<
             AccountId = Self::AccountId,
@@ -55,6 +58,8 @@ pub mod pallet {
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
+        type SessionInfoProvider: SessionInfoProvider<Self>;
+        type ValidatorRewardsHandler: ValidatorRewardsHandler<Self>;
     }
 
     #[pallet::event]
