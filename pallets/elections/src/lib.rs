@@ -1,6 +1,22 @@
 //! This pallet manages changes in the committee responsible for producing blocks and establishing consensus.
 //! Currently, it's PoA where the validators are set by the root account. In the future, a new
 //! version for DPoS elections will replace the current one.
+//!
+//! ### Terminology
+//! For definition of session, era, staking see pallet_session and pallet_staking.
+//! - Committee: Set of nodes that produce and finalize blocks in the era.
+//! - Validator: Node that can become a member of committee (or already is) via rotation.
+//! - (TODO: remove this to remove confusion) Member: Usually same as validator, sometimes means member of the committee
+//! - ReservedMembers: Validators that are chosen to be in committee every single session.
+//!
+//! ### Storage
+//! - `Members` - List of possible validators.
+//! - `MembersPerSession` - Number of committee size.
+//! - `ReservedMembers` - List of reserved nodes.
+//! - `ErasReserved` - List of reserved nodes for the current era.
+//!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
+//! - `SessionValidatorBlockCount` - Count per validator, how many blocks did the validator produced
+//!   in the current session.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
