@@ -402,6 +402,7 @@ jobs:
 
       - name: Delete FE
         uses: ./.github/actions/destroy-feature-environment
+        id: delete_fe
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
@@ -432,7 +433,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get_branch.outputs.branch }}
+          env: ${{ steps.delete_fe.outputs.deployment-name }}
           desc: Environment was deleted
           debug: true
 
@@ -440,7 +441,7 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.get_branch.outputs.branch }}
+          environment: ${{ steps.delete_fe.outputs.deployment-name }}
 
   destroy_feature_env_on_close:
     if: (github.event.action == 'closed' && !contains( github.event.pull_request.labels.*.name, 'DESTROYED') && contains( github.event.pull_request.labels.*.name, 'DEPLOYED'))
@@ -452,6 +453,7 @@ jobs:
 
       - name: Delete FE
         uses: ./.github/actions/destroy-feature-environment
+        id: delete_fe
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
@@ -482,7 +484,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get_branch.outputs.branch }}
+          env: ${{ steps.delete_fe.outputs.deployment-name }}
           desc: Environment was deleted
           debug: true
 
@@ -490,4 +492,4 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.get_branch.outputs.branch }}
+          environment: ${{ steps.delete_fe.outputs.deployment-name }}

@@ -14,6 +14,11 @@ inputs:
   argo-sync-user-token:
     description: 'ArgoCD user token to be used in the action'
     required: true
+
+outputs:
+  deployment-name:
+    description: 'Output with a deployment name for working with deployments'
+    value: ${{ steps.get_branch.outputs.branch }}
   
 
 
