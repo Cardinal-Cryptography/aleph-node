@@ -46,7 +46,7 @@ impl AccountId {
 
 impl Get for AccountId {
     fn get(self) -> String {
-        self.0.clone()
+        self.0
     }
 }
 
