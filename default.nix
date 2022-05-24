@@ -22,17 +22,17 @@
 , useCustomRocksDb ? false
 # fine grained configuration of the custom rocksdb
 , rocksDbOptions ? { # defines which version of rocksdb should be downloaded from github
-                      version = "6.29.3";
-                      # allows to disable snappy compression
-                      useSnappy = false;
-                      # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
-                      patchVerifyChecksum = true;
-                      # used to patch source code of rocksdb in order to disable its verify_checksum feature
-                      # it's one of the options supported by rocksdb, but unfortunately rust-wrapper doesn't support setting this argument to `false`
-                      patchPath = ./nix/rocksdb.patch;
-                      # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
-                      enableJemalloc = true;
-                    }
+                     version = "6.29.3";
+                     # allows to disable snappy compression
+                     useSnappy = false;
+                     # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
+                     patchVerifyChecksum = true;
+                     # used to patch source code of rocksdb in order to disable its verify_checksum feature
+                     # it's one of the options supported by rocksdb, but unfortunately rust-wrapper doesn't support setting this argument to `false`
+                     patchPath = ./nix/rocksdb.patch;
+                     # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
+                     enableJemalloc = true;
+                   }
 , setInterpreter ? "/lib64/ld-linux-x86-64.so.2"
 }:
 let
@@ -186,7 +186,7 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    ${if setInterpreter == "" then "" else "find $out/bin | xargs patchelf --set-interpreter ${setInterpreter}"}
+    ${if setInterpreter == "" then "" else "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter}"}
   '';
 
 }
