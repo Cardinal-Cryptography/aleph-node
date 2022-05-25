@@ -25,7 +25,7 @@ use crate::{
 
 fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPair>) {
     let validators_seeds = get_validators_seeds(config);
-    let validator_stashes = validators_seeds
+    let validator_stashes: Vec<_> = validators_seeds
         .iter()
         .map(|v| format!("{}//stash", v))
         .collect();

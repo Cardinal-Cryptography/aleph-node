@@ -16,7 +16,7 @@ pub fn get_validators_keys(config: &Config) -> Vec<KeyPair> {
     accounts_seeds_to_keys(&get_validators_seeds(config))
 }
 
-pub fn accounts_seeds_to_keys(seeds: &Vec<String>) -> Vec<KeyPair> {
+pub fn accounts_seeds_to_keys(seeds: &[String]) -> Vec<KeyPair> {
     seeds
         .iter()
         .map(String::as_str)
