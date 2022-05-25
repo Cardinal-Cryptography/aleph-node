@@ -2,9 +2,9 @@ name: Run `cargo-audit`
 
 on:
   pull_request:
-    paths:
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
+#    paths:
+#      - '**/Cargo.toml'
+#      - '**/Cargo.lock'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
