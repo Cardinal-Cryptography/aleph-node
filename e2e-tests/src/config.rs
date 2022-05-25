@@ -12,8 +12,8 @@ pub struct Config {
     pub test_cases: Option<Vec<String>>,
 
     /// Number of //0, //1, ... validators to run e2e tests on
-    #[clap(long, required_unless_present = "validators-seeds")]
-    pub validators_count: Option<u32>,
+    #[clap(long, default_value = "5")]
+    pub validators_count: u32,
 
     /// seed values to create accounts
     /// Optional: by default we use //0, //1, ... seeds for validators

@@ -6,9 +6,7 @@ use crate::config::Config;
 pub fn get_validators_seeds(config: &Config) -> Vec<String> {
     match config.validators_seeds {
         Some(ref seeds) => seeds.clone(),
-        None => (0..config
-            .validators_count
-            .expect("Validators count should be present if --validators-seeds are empty!"))
+        None => (0..config.validators_count)
             .map(|seed| format!("//{}", seed))
             .collect(),
     }

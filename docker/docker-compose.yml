@@ -1,3 +1,5 @@
+# When increasing number of nodes in this file, change default value of --validators-count param in e2e-tests/src/config.rs
+
 services:
   Node0:
     extends:
