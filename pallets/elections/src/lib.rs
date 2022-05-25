@@ -17,7 +17,7 @@
 //!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
 //! - `SessionValidatorBlockCount` - Count per validator, how many blocks did the validator produced
 //!   in the current session.
-//! - `ValidatorEraScaledTotal` - Total possible reward per validator for the current era. Scaled to
+//! - `ValidatorEraTotalReward` - Total possible reward per validator for the current era. Scaled to
 //!   fit in the u32.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -38,10 +38,10 @@ pub use pallet::*;
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 pub type BlockCount = u32;
-pub type Total = u32;
+pub type TotalReward = u32;
 
 #[derive(Decode, Encode, TypeInfo)]
-pub struct ValidatorTotals<T>(pub BTreeMap<T, Total>);
+pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -95,8 +95,8 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, T::AccountId, BlockCount, ValueQuery>;
 
     #[pallet::storage]
-    pub type ValidatorEraScaledTotal<T: Config> =
-        StorageValue<_, ValidatorTotals<T::AccountId>, OptionQuery>;
+    pub type ValidatorEraTotalReward<T: Config> =
+        StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
