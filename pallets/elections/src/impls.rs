@@ -155,7 +155,7 @@ where
     // Choose a subset of all the validators for current era that contains all the
     // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
     fn rotate_committee() -> Option<Vec<T::AccountId>> {
-        let current_era = match T::EraInfoProvider::current_era() {
+        let current_era = match T::EraInfoProvider::active_era() {
             Some(ae) if ae > 0 => ae,
             _ => return None,
         };
@@ -163,7 +163,7 @@ where
         let all_validators = T::ValidatorRewardsHandler::all_era_validators(current_era);
         let reserved = ErasReserved::<T>::get();
         let n_validators = MembersPerSession::<T>::get() as usize;
-        let current_session = T::SessionInfoProvider::current_session();
+        let current_session = T::SessionInfoProvider::current_session_index();
 
         rotate(
             current_era,
@@ -175,7 +175,7 @@ where
     }
 
     fn if_era_starts_do<F: Fn()>(era: EraIndex, start_index: SessionIndex, on_era_start: F) {
-        if let Some(era_start_index) = T::EraInfoProvider::era_start(era) {
+        if let Some(era_start_index) = T::EraInfoProvider::era_start_session_index(era) {
             if era_start_index == start_index {
                 on_era_start()
             }
@@ -183,32 +183,32 @@ where
     }
 
     fn populate_reserved_on_next_era_start(session: SessionIndex) {
-        let current_era = match T::EraInfoProvider::current_era() {
+        let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
             _ => return,
         };
 
         // this will be populated once for the session `n+1` on the start of the session `n` where session
         // `n+1` starts a new era.
-        Self::if_era_starts_do(current_era + 1, session, || {
+        Self::if_era_starts_do(active_era + 1, session, || {
             let reserved_validators = ReservedMembers::<T>::get();
             ErasReserved::<T>::put(reserved_validators)
         });
     }
 
     fn populate_totals_on_new_era_start(session: SessionIndex) {
-        let current_era = match T::EraInfoProvider::current_era() {
+        let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
             _ => return,
         };
 
-        Self::if_era_starts_do(current_era, session, || {
-            Self::update_validator_total_rewards(current_era)
+        Self::if_era_starts_do(active_era, session, || {
+            Self::update_validator_total_rewards(active_era)
         });
     }
 
     fn adjust_rewards_for_session() {
-        let active_era = match T::EraInfoProvider::current_era() {
+        let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) if ae > 0 => ae,
             _ => return,
         };
