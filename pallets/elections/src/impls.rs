@@ -1,6 +1,7 @@
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
     Config, ErasReserved, MembersPerSession, Pallet, ReservedMembers, SessionValidatorBlockCount,
+    ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::pallet_prelude::Get;
@@ -31,7 +32,7 @@ fn calculate_adjusted_session_points(
     ) * total_possible_reward as u64) as u32
 }
 
-fn compute_validator_scaled_totals<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
+fn compute_validator_scaled_total_rewards<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
     let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
     // scaled_total = total * (MAX_REWARD / sum_totals)
@@ -87,12 +88,11 @@ impl<T> Pallet<T>
 where
     T: Config,
 {
-    fn compute_validator_scaled_totals(era: EraIndex) -> BTreeMap<T::AccountId, u32> {
+    fn update_validator_total_rewards(era: EraIndex) {
         let validator_totals = T::ValidatorRewardsHandler::validator_totals(era);
+        let scaled_totals = compute_validator_scaled_total_rewards(validator_totals).into_iter();
 
-        compute_validator_scaled_totals(validator_totals)
-            .into_iter()
-            .collect()
+        ValidatorEraTotalReward::<T>::put(ValidatorTotalRewards(scaled_totals.collect()));
     }
 
     fn get_committee_and_non_committee(
@@ -174,7 +174,15 @@ where
         )
     }
 
-    fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
+    fn if_era_starts_do<F: Fn()>(era: EraIndex, start_index: SessionIndex, on_era_start: F) {
+        if let Some(era_start_index) = T::EraInfoProvider::era_start(era) {
+            if era_start_index == start_index {
+                on_era_start()
+            }
+        }
+    }
+
+    fn populate_reserved_on_next_era_start(session: SessionIndex) {
         let current_era = match T::EraInfoProvider::current_era() {
             Some(ae) => ae,
             _ => return,
@@ -182,12 +190,21 @@ where
 
         // this will be populated once for the session `n+1` on the start of the session `n` where session
         // `n+1` starts a new era.
-        if let Some(era_index) = T::EraInfoProvider::era_start(current_era + 1) {
-            if era_index == start_index {
-                let reserved_validators = ReservedMembers::<T>::get();
-                ErasReserved::<T>::put(reserved_validators);
-            }
-        }
+        Self::if_era_starts_do(current_era + 1, session, || {
+            let reserved_validators = ReservedMembers::<T>::get();
+            ErasReserved::<T>::put(reserved_validators)
+        });
+    }
+
+    fn populate_totals_on_new_era_start(session: SessionIndex) {
+        let current_era = match T::EraInfoProvider::current_era() {
+            Some(ae) => ae,
+            _ => return,
+        };
+
+        Self::if_era_starts_do(current_era, session, || {
+            Self::update_validator_total_rewards(current_era)
+        });
     }
 
     fn adjust_rewards_for_session() {
@@ -199,13 +216,15 @@ where
         let (committee, non_committee) = Self::get_committee_and_non_committee(active_era);
         let nr_of_sessions = T::EraInfoProvider::sessions_per_era();
         let blocks_per_session = Self::blocks_to_produce_per_session();
-        let validator_totals = Self::compute_validator_scaled_totals(active_era);
+        let validator_total_rewards = ValidatorEraTotalReward::<T>::get()
+            .unwrap_or_else(|| ValidatorTotalRewards(BTreeMap::new()))
+            .0;
 
         let rewards = Self::reward_for_session_non_committee(
             non_committee,
             nr_of_sessions,
             blocks_per_session,
-            &validator_totals,
+            &validator_total_rewards,
         )
         .into_iter()
         .chain(
@@ -213,7 +232,7 @@ where
                 committee,
                 nr_of_sessions,
                 blocks_per_session,
-                &validator_totals,
+                &validator_total_rewards,
             )
             .into_iter(),
         );
@@ -263,13 +282,15 @@ where
 
     fn start_session(start_index: SessionIndex) {
         <T as Config>::SessionManager::start_session(start_index);
+        Self::populate_totals_on_new_era_start(start_index);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::impls::{
-        calculate_adjusted_session_points, compute_validator_scaled_totals, rotate, MAX_REWARD,
+        calculate_adjusted_session_points, compute_validator_scaled_total_rewards, rotate,
+        MAX_REWARD,
     };
     use std::collections::VecDeque;
 
@@ -330,11 +351,11 @@ mod tests {
     fn scale_points_correctly_when_under_u32() {
         assert_eq!(
             vec![(1, MAX_REWARD / 2), (2, MAX_REWARD / 2)],
-            compute_validator_scaled_totals(vec![(1, 10), (2, 10)])
+            compute_validator_scaled_total_rewards(vec![(1, 10), (2, 10)])
         );
         assert_eq!(
             vec![(1, MAX_REWARD), (2, 0)],
-            compute_validator_scaled_totals(vec![(1, 10), (2, 0)])
+            compute_validator_scaled_total_rewards(vec![(1, 10), (2, 0)])
         );
         assert_eq!(
             vec![
@@ -342,7 +363,7 @@ mod tests {
                 (2, MAX_REWARD / 6),
                 (3, MAX_REWARD / 2),
             ],
-            compute_validator_scaled_totals(vec![(1, 20), (2, 10), (3, 30)])
+            compute_validator_scaled_total_rewards(vec![(1, 20), (2, 10), (3, 30)])
         );
     }
 
@@ -352,11 +373,11 @@ mod tests {
 
         assert_eq!(
             vec![(1, MAX_REWARD / 2), (2, MAX_REWARD / 2)],
-            compute_validator_scaled_totals(vec![(1, 10 * max), (2, 10 * max)])
+            compute_validator_scaled_total_rewards(vec![(1, 10 * max), (2, 10 * max)])
         );
         assert_eq!(
             vec![(1, MAX_REWARD), (2, 0)],
-            compute_validator_scaled_totals(vec![(1, 10 * max), (2, 0)])
+            compute_validator_scaled_total_rewards(vec![(1, 10 * max), (2, 0)])
         );
         assert_eq!(
             vec![
@@ -364,7 +385,11 @@ mod tests {
                 (2, MAX_REWARD / 6),
                 (3, MAX_REWARD / 2),
             ],
-            compute_validator_scaled_totals(vec![(1, 20 * max), (2, 10 * max), (3, 30 * max)])
+            compute_validator_scaled_total_rewards(vec![
+                (1, 20 * max),
+                (2, 10 * max),
+                (3, 30 * max)
+            ])
         );
     }
 
