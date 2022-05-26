@@ -33,7 +33,7 @@
                      # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
                      enableJemalloc = true;
                    }
-, setInterpreter ? "/lib64/ld-linux-x86-64.so.2"
+, setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = false; }
 }:
 let
   versions = import ./nix/versions.nix;
@@ -186,7 +186,7 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    ${if setInterpreter == "" then "" else "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter}"}
+    ${if !setInterpreter.substitute then "" else "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter.path}"}
   '';
 
 }
