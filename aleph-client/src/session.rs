@@ -58,16 +58,16 @@ pub fn change_members(
     );
     send_xt(sudo_connection, xt, Some("sudo_unchecked_weight"), status);
 }
-pub fn change_reserved_members(
+pub fn change_next_era_reserved_validators(
     sudo_connection: &RootConnection,
     new_members: Vec<AccountId>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New reserved members {:#?}", new_members);
+    info!(target: "aleph-client", "New reserved validators {:#?}", new_members);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
-        "change_reserved_members",
+        "change_next_era_reserved_validators",
         new_members
     );
     let xt = compose_extrinsic!(
@@ -77,7 +77,12 @@ pub fn change_reserved_members(
         call,
         0_u64
     );
-    send_xt(sudo_connection, xt, Some("change_reserved_members"), status);
+    send_xt(
+        sudo_connection,
+        xt,
+        Some("change_next_era_reserved_validators"),
+        status,
+    );
 }
 
 pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus) {

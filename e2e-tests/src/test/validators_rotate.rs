@@ -3,7 +3,7 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_reserved_members, get_current_session, wait_for_finalized_block,
+    change_next_era_reserved_validators, get_current_session, wait_for_finalized_block,
     wait_for_full_era_completion, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
     SignedConnection,
 };
@@ -14,11 +14,11 @@ use substrate_api_client::{AccountId, XtStatus};
 const MINIMAL_TEST_SESSION_START: u32 = 9;
 const ELECTION_STARTS: u32 = 6;
 
-fn get_reserved_members() -> Vec<KeyPair> {
+fn get_next_era_reserved_validators() -> Vec<KeyPair> {
     accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
 }
 
-fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
+fn get_non_reserved_validators_for_session(session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
 
@@ -68,14 +68,14 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
 
     let root_connection = RootConnection::new(node, sudo);
 
-    let reserved_members: Vec<_> = get_reserved_members()
+    let next_era_reserved_validators: Vec<_> = get_next_era_reserved_validators()
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    change_reserved_members(
+    change_next_era_reserved_validators(
         &root_connection,
-        reserved_members.clone(),
+        next_era_reserved_validators.clone(),
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&connection)?;
@@ -90,13 +90,13 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
 
     for session in ELECTION_STARTS..current_session {
         let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_members_for_session(session);
+        let non_reserved = get_non_reserved_validators_for_session(session);
 
         for nr in non_reserved.clone() {
             *non_reserved_count.entry(nr).or_insert(0) += 1;
         }
 
-        let reserved_included = reserved_members
+        let reserved_included = next_era_reserved_validators
             .clone()
             .iter()
             .all(|reserved| elected.contains(reserved));
@@ -105,9 +105,9 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
             .iter()
             .all(|non_reserved| elected.contains(non_reserved));
 
-        let only_expected_members = elected
-            .iter()
-            .all(|elected| reserved_members.contains(elected) || non_reserved.contains(elected));
+        let only_expected_members = elected.iter().all(|elected| {
+            next_era_reserved_validators.contains(elected) || non_reserved.contains(elected)
+        });
 
         assert!(
             reserved_included,

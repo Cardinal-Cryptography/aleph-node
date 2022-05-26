@@ -1,7 +1,7 @@
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    Config, ErasReserved, MembersPerSession, Pallet, ReservedMembers, SessionValidatorBlockCount,
-    ValidatorEraTotalReward, ValidatorTotalRewards,
+    CommitteeSize, Config, CurrentEraReservedValidators, NextEraReservedValidators, Pallet,
+    SessionValidatorBlockCount, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::pallet_prelude::Get;
@@ -108,7 +108,7 @@ where
     }
 
     fn blocks_to_produce_per_session() -> u32 {
-        T::SessionPeriod::get() / MembersPerSession::<T>::get()
+        T::SessionPeriod::get() / CommitteeSize::<T>::get()
     }
 
     fn reward_for_session_non_committee(
@@ -161,8 +161,8 @@ where
         };
 
         let all_validators = T::ValidatorRewardsHandler::all_era_validators(current_era);
-        let reserved = ErasReserved::<T>::get();
-        let n_validators = MembersPerSession::<T>::get() as usize;
+        let reserved = CurrentEraReservedValidators::<T>::get();
+        let n_validators = CommitteeSize::<T>::get() as usize;
         let current_session = T::SessionInfoProvider::current_session_index();
 
         rotate(
@@ -191,8 +191,8 @@ where
         // this will be populated once for the session `n+1` on the start of the session `n` where session
         // `n+1` starts a new era.
         Self::if_era_starts_do(active_era + 1, session, || {
-            let reserved_validators = ReservedMembers::<T>::get();
-            ErasReserved::<T>::put(reserved_validators)
+            let reserved_validators = NextEraReservedValidators::<T>::get();
+            CurrentEraReservedValidators::<T>::put(reserved_validators)
         });
     }
 

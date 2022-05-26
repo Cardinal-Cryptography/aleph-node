@@ -7,18 +7,7 @@
 //! - Committee: Set of nodes that produce and finalize blocks in the era.
 //! - Validator: Node that can become a member of committee (or already is) via rotation.
 //! - (TODO: remove this to remove confusion) Member: Usually same as validator, sometimes means member of the committee
-//! - ReservedMembers: Validators that are chosen to be in committee every single session.
-//!
-//! ### Storage
-//! - `Members` - List of possible validators.
-//! - `MembersPerSession` - Committee size.
-//! - `ReservedMembers` - List of reserved nodes.
-//! - `ErasReserved` - List of reserved nodes for the current era.
-//!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
-//! - `SessionValidatorBlockCount` - Count per validator, how many blocks did the validator produced
-//!   in the current session.
-//! - `ValidatorEraTotalReward` - Total possible reward per validator for the current era. Scaled to
-//!   fit in the u32.
+//! - ReservedValidators: Validators that are chosen to be in committee every single session.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -54,7 +43,7 @@ pub mod pallet {
     use frame_support::{pallet_prelude::*, traits::Get};
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use pallet_session::SessionManager;
-    use primitives::DEFAULT_MEMBERS_PER_SESSION;
+    use primitives::DEFAULT_COMMITTEE_SIZE;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -88,23 +77,35 @@ pub mod pallet {
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
+    /// List of possible validators, used during elections.
+    /// Can be modified via `change_members` call that requires sudo.
     #[pallet::storage]
     #[pallet::getter(fn members)]
     pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+    /// Desirable size of a committee. When new session is planned, first reserved validators are
+    /// added to the committee. Then remaining slots are filled from total validators list excluding
+    /// reserved validators
     #[pallet::storage]
-    pub type MembersPerSession<T> = StorageValue<_, u32, ValueQuery>;
+    pub type CommitteeSize<T> = StorageValue<_, u32, ValueQuery>;
 
+    /// List of reserved validators in force from a new era.
+    /// Can be changed via `change_next_era_reserved_validators` call that requires sudo.
     #[pallet::storage]
-    pub type ReservedMembers<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+    pub type NextEraReservedValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+    /// Current's era list of reserved validators. This is populated from `NextEraReservedValidators`
+    /// at the time of planning the first session of the era.
     #[pallet::storage]
-    pub type ErasReserved<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+    pub type CurrentEraReservedValidators<T: Config> =
+        StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+    /// Count per validator, how many blocks did the validator produced
     #[pallet::storage]
     pub type SessionValidatorBlockCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, BlockCount, ValueQuery>;
 
+    /// Total possible reward per validator for the current era. Scaled to fit in the u32.
     #[pallet::storage]
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
@@ -121,23 +122,20 @@ pub mod pallet {
         }
 
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_members_per_session(
-            origin: OriginFor<T>,
-            members_per_session: u32,
-        ) -> DispatchResult {
+        pub fn set_committee_size(origin: OriginFor<T>, committee_size: u32) -> DispatchResult {
             ensure_root(origin)?;
-            MembersPerSession::<T>::put(members_per_session);
+            CommitteeSize::<T>::put(committee_size);
 
             Ok(())
         }
 
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn change_reserved_members(
+        pub fn change_next_era_reserved_validators(
             origin: OriginFor<T>,
-            members: Vec<T::AccountId>,
+            next_era_reserved_validators: Vec<T::AccountId>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            ReservedMembers::<T>::put(members);
+            NextEraReservedValidators::<T>::put(next_era_reserved_validators);
 
             Ok(())
         }
@@ -146,8 +144,8 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub members: Vec<T::AccountId>,
-        pub reserved_members: Vec<T::AccountId>,
-        pub members_per_session: u32,
+        pub next_era_reserved_validators: Vec<T::AccountId>,
+        pub committee_size: u32,
     }
 
     #[cfg(feature = "std")]
@@ -155,8 +153,8 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 members: Vec::new(),
-                reserved_members: Vec::new(),
-                members_per_session: DEFAULT_MEMBERS_PER_SESSION,
+                next_era_reserved_validators: Vec::new(),
+                committee_size: DEFAULT_COMMITTEE_SIZE,
             }
         }
     }
@@ -165,8 +163,8 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <Members<T>>::put(&self.members);
-            <MembersPerSession<T>>::put(&self.members_per_session);
-            <ReservedMembers<T>>::put(&self.reserved_members);
+            <CommitteeSize<T>>::put(&self.committee_size);
+            <NextEraReservedValidators<T>>::put(&self.next_era_reserved_validators);
         }
     }
 

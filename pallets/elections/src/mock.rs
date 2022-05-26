@@ -179,7 +179,7 @@ impl ElectionDataProvider for StakingMock {
 
 pub fn new_test_ext(
     members: Vec<AccountId>,
-    reserved_members: Vec<AccountId>,
+    next_era_reserved_validators: Vec<AccountId>,
 ) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
@@ -191,11 +191,11 @@ pub fn new_test_ext(
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let members_per_session = members.len() as u32;
+    let committee_size = members.len() as u32;
     crate::GenesisConfig::<Test> {
         members,
-        members_per_session,
-        reserved_members,
+        committee_size,
+        next_era_reserved_validators,
     }
     .assimilate_storage(&mut t)
     .unwrap();
