@@ -257,26 +257,33 @@ fn deduplicate(accounts: Vec<AccountId>) -> Vec<AccountId> {
     set.into_iter().collect()
 }
 
+type AccountBalance = u128;
+
 // total issuance of 300M (for devnet/tests/local runs only)
-const TOTAL_ISSUANCE: u128 = 300_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
+const TOTAL_ISSUANCE: AccountBalance = 300_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
 
 /// Calculate initial endowments such that total issuance is kept approximately constant.
-fn calculate_initial_endowment(accounts: &[AccountId]) -> u128 {
+fn calculate_initial_endowment(accounts: &[AccountId]) -> AccountBalance {
     TOTAL_ISSUANCE / (accounts.len() as u128)
 }
 
 /// Provides configuration for staking by defining balances, members, keys and stakers.
 struct AccountsConfig {
-    balances: Vec<(AccountId, u128)>,
+    balances: Vec<(AccountId, AccountBalance)>,
     members: Vec<AccountId>,
     keys: Vec<(AccountId, AccountId, SessionKeys)>,
-    stakers: Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>,
+    stakers: Vec<(
+        AccountId,
+        AccountId,
+        AccountBalance,
+        StakerStatus<AccountId>,
+    )>,
 }
 
 /// Provides accounts for GenesisConfig setup based on distinct staking accounts.
 /// Assumes validator == stash, but controller is a distinct account
 fn configure_chain_spec_fields(
-    unique_accounts_balances: Vec<(AccountId, u128)>,
+    unique_accounts_balances: Vec<(AccountId, AccountBalance)>,
     authorities: Vec<AuthorityKeys>,
     controllers: Vec<AccountId>,
 ) -> AccountsConfig {
@@ -307,11 +314,12 @@ fn configure_chain_spec_fields(
     let stakers = authorities
         .iter()
         .zip(controllers)
-        .map(|(validator, controller)| {
+        .enumerate()
+        .map(|(validator_idx, (validator, controller))| {
             (
                 validator.account_id.clone(),
                 controller,
-                MIN_VALIDATOR_BOND,
+                (validator_idx + 1) as u128 * MIN_VALIDATOR_BOND,
                 StakerStatus::Validator,
             )
         })
