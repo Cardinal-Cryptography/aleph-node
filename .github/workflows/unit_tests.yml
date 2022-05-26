@@ -30,20 +30,26 @@ jobs:
         uses: ./.github/actions/restore-cache
 
       - name: Run Format Checks
-        run: |
-          cargo fmt --all
+        uses: ./.github/actions/cargo_nix_shell
+        with:
+          command: |
+            cargo fmt --all
 
       - name: Run Linter
+        uses: ./.github/actions/cargo_nix_shell
         env:
           # https://github.com/mozilla/sccache/issues/966
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
-        run: |
-          cargo clippy -- --no-deps -D warnings
+        with:
+          command: |
+            cargo clippy -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
-        run: |
-          cargo test --lib
+        uses: ./.github/actions/cargo_nix_shell
+        with:
+          command: |
+            cargo test --lib
 
       - name: Stop sccache
         uses: ./.github/actions/post-cache

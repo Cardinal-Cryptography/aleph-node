@@ -40,10 +40,13 @@ jobs:
           nix-shell --pure --file shell.nix
 
       - name: Build binary
-        run: |
-          pushd bin/cliain
-          cargo build --release --locked
-          popd
+        uses: ./.github/actions/cargo_nix_shell
+        with:
+          command: |
+            pushd bin/cliain
+            cargo build --release --locked
+            popd
+          output-file: bin/cliain/target/release/cliain
 
       - name: Build runtime-update-hook
         run: |
