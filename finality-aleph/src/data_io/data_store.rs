@@ -107,6 +107,8 @@ pub struct DataStoreConfig {
     pub max_messages_pending: usize,
     pub available_proposals_cache_capacity: usize,
     pub periodic_maintenance_interval: Duration,
+    // Specifies how much time must pass from receiving a given proposal for the first time, till we
+    // perform a request for either a block or a justification required to let this proposal through.
     pub request_block_after: Duration,
 }
 
@@ -316,16 +318,22 @@ where
                                 self.chain_info_provider.get_parent_hash(&bottom_block)
                             {
                                 let parent_num = bottom_block.num - NumberFor::<B>::one();
-                                if self
-                                    .chain_info_provider
-                                    .get_finalized_at(parent_num)
-                                    .is_err()
+                                if let Ok(finalized_block) =
+                                    self.chain_info_provider.get_finalized_at(parent_num)
                                 {
-                                    debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
+                                    if parent_hash != finalized_block.hash {
+                                        warn!(target: "aleph-data-store", "The proposal {:?} is pending because the parent: \
+                                        {:?}, does not agree with the block finalized at this height: {:?}.", proposal, parent_hash, finalized_block);
+                                    } else {
+                                        warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks \
+                                            have been imported and parent was finalized.");
+                                    }
+
+                                } else {
+                                    debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} \
+                                        after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
                                     self.block_requester
                                         .request_justification(&parent_hash, parent_num);
-                                } else {
-                                    warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks were imported and parent was finalized", proposal);
                                 }
                             } else {
                                 warn!(target: "aleph-data-store", "Expected the block below the proposal {:?} to be imported", proposal);
@@ -629,7 +637,8 @@ where
                     {
                         proposals.push(proposal);
                     } else {
-                        warn!(target: "aleph-data-store", "Message {:?} dropped as it contains proposal {:?} not within bounds.", message, unvalidated_proposal);
+                        warn!(target: "aleph-data-store", "Message {:?} dropped as it contains \
+                            proposal {:?} not within bounds.", message, unvalidated_proposal);
                         return;
                     }
                 }
