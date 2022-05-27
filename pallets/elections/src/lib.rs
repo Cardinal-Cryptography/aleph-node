@@ -23,6 +23,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod impls;
+mod migrations;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -36,7 +37,7 @@ use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
 
 pub use pallet::*;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
@@ -51,8 +52,11 @@ pub mod pallet {
     use frame_election_provider_support::{
         ElectionDataProvider, ElectionProvider, Support, Supports,
     };
-    use frame_support::{pallet_prelude::*, traits::Get};
-    use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use frame_support::{log, pallet_prelude::*, traits::Get};
+    use frame_system::{
+        ensure_root,
+        pallet_prelude::{BlockNumberFor, OriginFor},
+    };
     use pallet_session::SessionManager;
     use primitives::DEFAULT_MEMBERS_PER_SESSION;
 
@@ -87,6 +91,28 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
+            T::DbWeight::get().reads(1)
+                + match on_chain {
+                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == StorageVersion::new(0) => {
+                        migrations::v0_to_v1::migrate::<T, Self>()
+                    }
+                    _ => {
+                        log::warn!(
+                            target: "pallet_elections",
+                            "On chain storage version of pallet elections is {:?} but it should not be bigger than 1",
+                            on_chain
+                        );
+                        0
+                    }
+                }
+        }
+    }
 
     #[pallet::storage]
     #[pallet::getter(fn members)]
