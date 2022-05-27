@@ -89,9 +89,9 @@ async fn main() {
 
     // For some reason in this rpc call result is returned in hex encoded decimal, so such ugly conversion is needed
     let block_number = block_res["block"]["header"]["number"].as_str().unwrap();
-    let best_number = u64::from_str_radix(&block_number.trim_start_matches("0x"), 16).unwrap();
+    let best_number = u64::from_str_radix(block_number.trim_start_matches("0x"), 16).unwrap();
 
-    if let Some(peer) = res.iter().filter(|r| r.peer_id == peer_id).next() {
+    if let Some(peer) = res.iter().find(|r| r.peer_id == peer_id) {
         if peer.best_number + block_difference < best_number {
             panic!(
                 "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
