@@ -34,8 +34,14 @@
                      enableJemalloc = true;
                    }
 , setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = false; }
+, cargoHomePath ? ""
+, customBuildCommand ? ""
 }:
 let
+  providedCargoHome = cargoHomePath != "";
+  cargoHome = builtins.path { path = builtins.toPath cargoHomePath; name = "cargo-home"; };
+  localCargoHomeDir = ".cargo-copied-home";
+
   versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
   rustToolchain = versions.rustToolchain;
@@ -126,10 +132,12 @@ let
     filter = gitFilter ./.;
     name = "aleph-source";
   };
+  customBuild = old:
+    if customBuildCommand != "" then customBuildCommand else old;
 in
 with nixpkgs; naersk.buildPackage rec {
   inherit src name release singleStep;
-  doCheck = runTests;
+  copyTarget = true;
   nativeBuildInputs = [
     git
     pkg-config
@@ -137,6 +145,7 @@ with nixpkgs; naersk.buildPackage rec {
     protobuf
   ];
   buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
+  cargoBuild = customBuild;
   cargoBuildOptions = opts:
     packageFlags
     ++ [featuresFlag]
@@ -176,6 +185,20 @@ with nixpkgs; naersk.buildPackage rec {
   preConfigure = ''
     ${shellHook}
   '';
+  postConfigure = ''
+      ${nixpkgs.lib.optionalString providedCargoHome
+         ''
+           cp -r ${cargoHome} ${localCargoHomeDir}
+           export CARGO_HOME=$(pwd)/${localCargoHomeDir}
+         ''
+       }
+
+      # this is needed so cargo/rust doesn't rebuild all of the dependencies
+      # without it, its fingerprinting mechanism complains about mtime, and forces a rebuild
+      chmod +w -R target
+      find . -type f -exec touch -cfht 197001010000 {} +
+      find target -type f -exec touch -cfht 197001010001 {} +
+  '';
   # called after successful build - copies aleph-runtime WASM binaries and sets appropriate interpreter (compatibility with other linux distros)
   postInstall = ''
     if [ -f ${pathToWasm} ]; then
@@ -186,7 +209,7 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    ${if !setInterpreter.substitute then "" else "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter.path}"}
+    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && patchelf --set-interpreter ${setInterpreter.path} $out/bin/*"}
   '';
 
 }
