@@ -40,7 +40,6 @@
 let
   providedCargoHome = cargoHomePath != "";
   cargoHome = builtins.path { path = builtins.toPath cargoHomePath; name = "cargo-home"; };
-  localCargoHomeDir = ".cargo-copied-home";
 
   versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
@@ -188,44 +187,16 @@ with nixpkgs; naersk.buildPackage rec {
   postConfigure = ''
       ${nixpkgs.lib.optionalString providedCargoHome
          ''
-           cp -r ${cargoHome} ${localCargoHomeDir}
-           export CARGO_HOME=$(pwd)/${localCargoHomeDir}
+           export CARGO_HOME=${cargoHome}
          ''
        }
 
       # this is needed so cargo/rust doesn't rebuild all of the dependencies
       # without it, its fingerprinting mechanism complains about mtime, and forces a rebuild
+      rm -rf target/*/wbuild
       chmod +w -R target
-      find . -type f -exec touch -cfht 197001010000 {} +
-      find target -type f -exec touch -cfht 197001010001 {} +
-
-      TODO ok version
-      # this is needed so cargo/rust doesn't rebuild all of the dependencies
-      # without it, its fingerprinting mechanism complains about mtime, and forces a rebuild
-      # find . -type f -exec touch {} +
-      chmod +w -R target
-      rm -rf target/debug/wbuild
-      # find . -exec touch {} +
-      # find . -type f -exec touch {} +
-      # find target -type f -exec touch {} +
-      #
-      # find . -exec touch -cfht 197001010000 {} +
-      # find target -exec touch -cfht 197001010010 {} +
-
-      # rm -rf .cargo-home
-      # cp -R ${cargoHome}/. .cargo-home
       find . -exec touch -cfht 197001010000 {} +
-      find target -exec touch -cfht 197001010010 {} +
-
-      # cp -r ${cargoHome}/* .cargo-home/;
-      # echo ${cargoHome}
-      # find ${cargoHome}
-
-      # find .cargo-home
-      # export CARGO_HOME=$(pwd)/.cargo-home
-      # cp -r ${cargoHome}/* .cargo-home/;
-      # export CARGO_HOME=$(pwd)/.cargo-home
-      export CARGO_HOME=${cargoHome}
+      find target -exec touch -cfht 197001010001 {} +
   '';
   # called after successful build - copies aleph-runtime WASM binaries and sets appropriate interpreter (compatibility with other linux distros)
   postInstall = ''
