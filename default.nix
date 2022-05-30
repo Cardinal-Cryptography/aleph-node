@@ -197,6 +197,8 @@ with nixpkgs; naersk.buildPackage rec {
       chmod +w -R target
       find . -exec touch -cfht 197001010000 {} +
       find target -exec touch -cfht 197001010001 {} +
+
+      export CARGO_TARGET_DIR=target
   '';
   # called after successful build - copies aleph-runtime WASM binaries and sets appropriate interpreter (compatibility with other linux distros)
   postInstall = ''
