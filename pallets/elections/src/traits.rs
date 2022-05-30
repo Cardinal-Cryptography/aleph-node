@@ -27,8 +27,6 @@ where
 }
 
 pub trait ValidatorRewardsHandler<T: frame_system::Config> {
-    /// Returns all validators for the `era`.
-    fn all_era_validators(era: EraIndex) -> Vec<T::AccountId>;
     /// Returns total exposure of validators for the `era`
     fn validator_totals(era: EraIndex) -> Vec<(T::AccountId, u128)>;
     /// Add reward for validators
@@ -40,10 +38,6 @@ where
     T: pallet_staking::Config,
     <T::Currency as Currency<T::AccountId>>::Balance: Into<u128>,
 {
-    fn all_era_validators(era: EraIndex) -> Vec<T::AccountId> {
-        pallet_staking::ErasStakers::<T>::iter_key_prefix(era).collect()
-    }
-
     fn validator_totals(era: EraIndex) -> Vec<(T::AccountId, u128)> {
         pallet_staking::ErasStakers::<T>::iter_prefix(era)
             .map(|(validator, exposure)| (validator, exposure.total.into()))

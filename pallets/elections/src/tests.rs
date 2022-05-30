@@ -14,8 +14,11 @@ generate_storage_alias!(
     Elections, ReservedMembers<T: Config> => Value<Vec<T::AccountId>>
 );
 generate_storage_alias!(
-    Elections, ErasReserved<T: Config> => Value<Vec<T::AccountId>>
+    Elections, NonReservedMembers<T: Config> => Value<Vec<T::AccountId>>
 );
+// generate_storage_alias!(
+//     Elections, ErasReserved<T: Config> => Value<Vec<T::AccountId>>
+// );
 
 #[test]
 fn test_elect() {
@@ -34,7 +37,7 @@ fn test_elect() {
 
 #[test]
 fn migration_from_v0_to_v1_works() {
-    new_test_ext(vec![1, 2, 3], vec![]).execute_with(|| {
+    new_test_ext(vec![4], vec![1, 2, 3]).execute_with(|| {
         let v0 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
 
         assert_eq!(
@@ -64,11 +67,16 @@ fn migration_from_v0_to_v1_works() {
             Some(vec![1, 2, 3]),
             "Migration should set ReservedMembers to the content of Members"
         );
-
         assert_eq!(
-            ErasReserved::<Test>::get(),
-            Some(vec![1, 2, 3]),
-            "Migration should set ErasReserved to the content of Members"
+            NonReservedMembers::<Test>::get(),
+            Some(vec![15]),
+            "Migration should set NonReservedMembers to the content of Members"
         );
+
+        // assert_eq!(
+        //     ErasReserved::<Test>::get(),
+        //     Some(vec![1, 2, 3]),
+        //     "Migration should set ErasReserved to the content of Members"
+        // );
     })
 }
