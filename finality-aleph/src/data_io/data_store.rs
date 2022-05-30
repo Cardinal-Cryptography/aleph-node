@@ -319,7 +319,8 @@ where
                 continue;
             }
             // The top block (thus the whole branch, in the honest case) has been imported. What's holding us
-            // must be that the parent of the base is not finalized.
+            // must be that the parent of the base is not finalized. This might be either because of a malicious
+            // proposal (with not finalized "base") or because we are not up-to-date with finalization.
             let bottom_block = proposal.bottom_block();
             let parent_hash = match self.chain_info_provider.get_parent_hash(&bottom_block) {
                 Ok(ph) => ph,
