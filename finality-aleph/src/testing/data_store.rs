@@ -456,9 +456,9 @@ async fn sends_justification_request_when_not_finalized() {
             .await;
         test_handler.import_branch(blocks.clone()).await;
 
-        let blocks_branch = blocks[2..3].to_vec();
-        let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];
-        test_handler.send_data(test_data.clone());
+        let blocks_branch = vec![blocks[2].clone()];
+        let test_data = vec![aleph_data_from_blocks(blocks_branch)];
+        test_handler.send_data(test_data);
 
         test_handler
             .assert_no_message_out(

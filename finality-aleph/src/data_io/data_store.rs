@@ -302,45 +302,46 @@ where
 
         let now = time::SystemTime::now();
         for (proposal, first_occurrence) in proposals_with_timestamps {
-            if !self.bump_proposal(&proposal) {
-                // `bump_proposal` returns false if the bump didn't make the proposal available, meaning that it is still pending
-                if let Ok(time_waiting) = now.duration_since(first_occurrence) {
-                    if time_waiting >= self.config.request_block_after {
-                        let block = proposal.top_block();
-                        if !self.chain_info_provider.is_block_imported(&block) {
-                            debug!(target: "aleph-data-store", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
-                            self.block_requester
-                                .request_stale_block(block.hash, block.num);
-                        } else {
-                            // The whole branch has been imported, what's holding us must be that the parent of the base is not finalized
-                            let bottom_block = proposal.bottom_block();
-                            if let Ok(parent_hash) =
-                                self.chain_info_provider.get_parent_hash(&bottom_block)
-                            {
-                                let parent_num = bottom_block.num - NumberFor::<B>::one();
-                                if let Ok(finalized_block) =
-                                    self.chain_info_provider.get_finalized_at(parent_num)
-                                {
-                                    if parent_hash != finalized_block.hash {
-                                        warn!(target: "aleph-data-store", "The proposal {:?} is pending because the parent: \
-                                        {:?}, does not agree with the block finalized at this height: {:?}.", proposal, parent_hash, finalized_block);
-                                    } else {
-                                        warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks \
-                                            have been imported and parent was finalized.");
-                                    }
+            if self.bump_proposal(&proposal) {
+                continue;
+            }
+            // `bump_proposal` returns false if the bump didn't make the proposal available, meaning that it is still pending
+            let time_waiting = match now.duration_since(first_occurrence) {
+                Ok(tw) if tw >= self.config.request_block_after => tw,
+                _ => continue,
+            };
 
-                                } else {
-                                    debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} \
-                                        after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
-                                    self.block_requester
-                                        .request_justification(&parent_hash, parent_num);
-                                }
-                            } else {
-                                warn!(target: "aleph-data-store", "Expected the block below the proposal {:?} to be imported", proposal);
-                            }
-                        }
-                    }
+            let block = proposal.top_block();
+            if !self.chain_info_provider.is_block_imported(&block) {
+                debug!(target: "aleph-data-store", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
+                self.block_requester
+                    .request_stale_block(block.hash, block.num);
+                continue;
+            }
+            // The top block (thus the whole branch, in the honest case) has been imported. What's holding us
+            // must be that the parent of the base is not finalized.
+            let bottom_block = proposal.bottom_block();
+            let parent_hash = match self.chain_info_provider.get_parent_hash(&bottom_block) {
+                Ok(ph) => ph,
+                _ => {
+                    warn!(target: "aleph-data-store", "Expected the block below the proposal {:?} to be imported", proposal);
+                    continue;
                 }
+            };
+            let parent_num = bottom_block.num - NumberFor::<B>::one();
+            if let Ok(finalized_block) = self.chain_info_provider.get_finalized_at(parent_num) {
+                if parent_hash != finalized_block.hash {
+                    warn!(target: "aleph-data-store", "The proposal {:?} is pending because the parent: \
+                        {:?}, does not agree with the block finalized at this height: {:?}.", proposal, parent_hash, finalized_block);
+                } else {
+                    warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks \
+                            have been imported and parent was finalized.", proposal);
+                }
+            } else {
+                debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} \
+                        after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
+                self.block_requester
+                    .request_justification(&parent_hash, parent_num);
             }
         }
     }
