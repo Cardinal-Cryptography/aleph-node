@@ -47,7 +47,7 @@ function run_containers {
 }
 
 authorities=$(generate_authorities ${NODE_COUNT})
-generate_chainspec ${authorities[*]}
+generate_chainspec "${authorities[@]}"
 generete_bootnode_peer_id ${authorities[0]}
 run_containers ${NODE_COUNT}
 
