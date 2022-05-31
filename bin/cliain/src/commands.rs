@@ -1,9 +1,22 @@
 use aleph_client::BlockNumber;
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 use primitives::Balance;
 use sp_core::H256;
 use std::path::PathBuf;
 use substrate_api_client::AccountId;
+
+#[derive(Debug, Clone, Args)]
+pub struct ContractOptions {
+    /// balance to transfer from the call origin to the contract
+    #[clap(long, default_value = "0")]
+    pub balance: u128,
+    /// The gas limit enforced when executing the constructor
+    #[clap(long, default_value = "1_000_000_000")]
+    pub gas_limit: u64,
+    /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
+    #[clap(long)]
+    pub storage_deposit_limit: Option<u128>,
+}
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
@@ -141,27 +154,21 @@ pub enum Command {
     ///  Instantiates a contract from a previously deployed wasm binary.
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code_hash-h256-data-bytes-salt-bytes
     ContractInstantiate {
-        /// balance to transfer from the call origin to the contract
-        #[clap(long, default_value = "0")]
-        balance: u128,
-        /// The gas limit enforced when executing the constructor
-        #[clap(long, default_value = "1000000000")]
-        gas_limit: u64,
-        /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
-        #[clap(long)]
-        storage_deposit_limit: Option<u128>,
-        /// Path to the .wasm artifact
-        #[clap(long, parse(from_os_str))]
-        metadata_path: PathBuf,
         /// Code hash of the deployed contract
         #[clap(long, parse(try_from_str))]
         code_hash: H256,
+        /// Path to the .wasm artifact
+        #[clap(long, parse(from_os_str))]
+        metadata_path: PathBuf,
         /// The name of the contract constructor to call
         #[clap(name = "constructor", long, default_value = "new")]
         constructor: String,
         /// The constructor arguments, encoded as strings
         #[clap(long, multiple_values = true)]
         args: Option<Vec<String>>,
+        /// additional options
+        #[clap(flatten)]
+        options: ContractOptions,
     },
 
     /// Deploys a new contract, returns its code hash and the AccountId of the instance
@@ -180,15 +187,9 @@ pub enum Command {
         /// The constructor arguments, encoded as strings, space separated
         #[clap(long, multiple_values = true)]
         args: Option<Vec<String>>,
-        /// balance to transfer from the origin to the newly created contract
-        #[clap(long, default_value = "0")]
-        balance: u128,
-        /// The gas limit enforced when executing the constructor
-        #[clap(long, default_value = "1000000000")]
-        gas_limit: u64,
-        /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
-        #[clap(long)]
-        storage_deposit_limit: Option<u128>,
+        /// additional options
+        #[clap(flatten)]
+        options: ContractOptions,
     },
 
     /// Calls a contract
@@ -200,21 +201,15 @@ pub enum Command {
         /// Path to the .json fiel with contract metadata (abi)
         #[clap(long, parse(from_os_str))]
         metadata_path: PathBuf,
-        /// balance to transfer from the call origin to the contract
-        #[clap(long, default_value = "0")]
-        balance: u128,
-        /// The gas limit enforced when executing the constructor
-        #[clap(long, default_value = "1000000000")]
-        gas_limit: u64,
-        /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
-        #[clap(long)]
-        storage_deposit_limit: Option<u128>,
         /// The name of the contract message to call
         #[clap(long)]
         message: String,
         /// The message arguments, encoded as strings
         #[clap(long, multiple_values = true)]
         args: Option<Vec<String>>,
+        /// additional options
+        #[clap(flatten)]
+        options: ContractOptions,
     },
 
     /// Remove the code stored under code_hash and refund the deposit to its owner.
