@@ -62,9 +62,7 @@ pub fn upload_code(
 
         debug!(target: "contracts", "Prepared `upload_code` extrinsic {:?}", xt);
 
-        let block_hash = send_xt(&connection, xt, Some("upload_code"), XtStatus::InBlock);
-
-        debug!(target: "contracts", "instantiate_with_code extrinsic included in block {:#?}", block_hash);
+        let _block_hash = send_xt(&connection, xt, Some("upload_code"), XtStatus::InBlock);
 
         let code_stored_event: ContractCodeStoredEvent = wait_for_event(
             &connection,
@@ -258,9 +256,7 @@ pub fn call(signed_connection: SignedConnection, command: Command) -> anyhow::Re
 
         debug!(target: "contracts", "Prepared `call` extrinsic {:?}", xt);
 
-        let block_hash = send_xt(&connection, xt, Some("call"), XtStatus::Finalized);
-
-        info!(target: "contracts", "contract call extrinsic finalized in block {:#?}", block_hash);
+        let _block_hash = send_xt(&connection, xt, Some("call"), XtStatus::Finalized);
         Ok(())
     } else {
         panic!("should never get here")
