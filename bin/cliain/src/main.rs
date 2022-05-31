@@ -7,7 +7,6 @@ use cliain::{
     ConnectionConfig,
 };
 use log::{error, info};
-use primitives::Balance;
 use sp_core::Pair;
 use std::env;
 use substrate_api_client::AccountId;

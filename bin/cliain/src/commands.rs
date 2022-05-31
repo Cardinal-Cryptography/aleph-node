@@ -28,6 +28,12 @@ pub enum Command {
     /// Force new era in staking world. Requires sudo.
     ForceNewEra,
 
+    /// Declare the desire to nominate target account
+    Nominate {
+        #[clap(long)]
+        nominee: String,
+    },
+
     /// Associate the node with a specific staking account.
     PrepareKeys,
 

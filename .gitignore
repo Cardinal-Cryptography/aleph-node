@@ -23,12 +23,3 @@ p2p_secret
 # Python
 __pycache__/
 *.py[cod]
-
-# smart contracts
-.env
-node_modules/
-.cache/
-artifacts/
-build/
-deploy.js
-.shadow-cljs/
