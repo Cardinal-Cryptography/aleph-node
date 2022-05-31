@@ -76,7 +76,7 @@ pub type Connection = Api<KeyPair, WsRpcClient>;
 /// Direct casting is often more handy than generic `.into()`. Justification: `Connection` objects
 /// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
 /// information for type inferring required for `Into<Connection>`.
-pub trait AnyConnection: Clone {
+pub trait AnyConnection: Clone + Send {
     fn as_connection(&self) -> Connection;
 }
 
