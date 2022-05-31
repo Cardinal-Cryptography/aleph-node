@@ -1,4 +1,4 @@
-use crate::{Command, ContractMessageTranscoder};
+use crate::{commands::ContractOptions, Command, ContractMessageTranscoder};
 use aleph_client::{send_xt, wait_for_event, AnyConnection, SignedConnection};
 use anyhow::anyhow;
 use codec::{Compact, Decode};
@@ -86,15 +86,19 @@ pub fn instantiate(
     command: Command,
 ) -> anyhow::Result<ContractInstantiatedEvent> {
     if let Command::ContractInstantiate {
-        balance,
-        gas_limit,
-        storage_deposit_limit,
         code_hash,
         metadata_path,
         constructor,
         args,
+        options,
     } = command
     {
+        let ContractOptions {
+            balance,
+            gas_limit,
+            storage_deposit_limit,
+        } = options;
+
         let connection = signed_connection.as_connection();
 
         let metadata = load_metadata(&metadata_path)?;
@@ -146,11 +150,15 @@ pub fn instantiate_with_code(
         metadata_path,
         constructor,
         args,
-        balance,
-        gas_limit,
-        storage_deposit_limit,
+        options,
     } = command
     {
+        let ContractOptions {
+            balance,
+            gas_limit,
+            storage_deposit_limit,
+        } = options;
+
         let connection = signed_connection.as_connection();
 
         let wasm = fs::read(wasm_path).expect("WASM artifact not found");
@@ -217,14 +225,18 @@ pub fn instantiate_with_code(
 pub fn call(signed_connection: SignedConnection, command: Command) -> anyhow::Result<()> {
     if let Command::ContractCall {
         destination,
-        balance,
-        gas_limit,
-        storage_deposit_limit,
         message,
         args,
         metadata_path,
+        options,
     } = command
     {
+        let ContractOptions {
+            balance,
+            gas_limit,
+            storage_deposit_limit,
+        } = options;
+
         let connection = signed_connection.as_connection();
 
         let metadata = load_metadata(&metadata_path)?;
