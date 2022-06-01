@@ -9,7 +9,7 @@ ALICE_SEED=//Alice
 NODE1=5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
 NODE1_SEED=//1
 
-LIFETIME=900
+LIFETIME=10
 TOTAL_BALANCE=1000
 
 CONTRACTS_PATH=/home/filip/CloudStation/aleph/aleph-node/contracts
@@ -59,7 +59,7 @@ cd $CONTRACTS_PATH/yellow-button
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
-sleep 7
+sleep 5
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE1_SEED
 

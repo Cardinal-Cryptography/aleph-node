@@ -88,7 +88,7 @@ mod button_token {
         }
 
         /// Returns the total token supply.
-        #[ink(message)]
+        #[ink(message, selector = 1)]
         pub fn total_supply(&self) -> Balance {
             self.total_supply
         }
@@ -96,7 +96,7 @@ mod button_token {
         /// Returns the account balance for the specified `owner`.
         ///
         /// Returns `0` if the account is non-existent.
-        #[ink(message)]
+        #[ink(message, selector = 2)]
         pub fn balance_of(&self, owner: AccountId) -> Balance {
             self.balance_of_impl(&owner)
         }
@@ -117,7 +117,7 @@ mod button_token {
         /// Returns the amount which `spender` is still allowed to withdraw from `owner`.
         ///
         /// Returns `0` if no allowance has been set.
-        #[ink(message)]
+        #[ink(message, selector = 3)]
         pub fn allowance(&self, owner: AccountId, spender: AccountId) -> Balance {
             self.allowance_impl(&owner, &spender)
         }
@@ -143,7 +143,7 @@ mod button_token {
         ///
         /// Returns `InsufficientBalance` error if there are not enough tokens on
         /// the caller's account balance.
-        #[ink(message)]
+        #[ink(message, selector = 4)]
         pub fn transfer(&mut self, to: AccountId, value: Balance) -> Result<()> {
             let from = self.env().caller();
             self.transfer_from_to(&from, &to, value)
@@ -155,7 +155,7 @@ mod button_token {
         /// If this function is called again it overwrites the current allowance with `value`.
         ///
         /// An `Approval` event is emitted.
-        #[ink(message)]
+        #[ink(message, selector = 5)]
         pub fn approve(&mut self, spender: AccountId, value: Balance) -> Result<()> {
             let owner = self.env().caller();
             self.allowances.insert((&owner, &spender), &value);
@@ -181,7 +181,7 @@ mod button_token {
         ///
         /// Returns `InsufficientBalance` error if there are not enough tokens on
         /// the account balance of `from`.
-        #[ink(message)]
+        #[ink(message, selector = 6)]
         pub fn transfer_from(
             &mut self,
             from: AccountId,
@@ -231,7 +231,7 @@ mod button_token {
 
         /// terminates the contract
         /// can only be called by the contract owner
-        #[ink(message)]
+        #[ink(message, selector = 7)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
             if caller != self.owner {
@@ -244,7 +244,7 @@ mod button_token {
         /// Transfers ownership of the contract to a new account
         ///
         /// Can only be called by the current owner
-        #[ink(message)]
+        #[ink(message, selector = 8)]
         pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
             let caller = Self::env().caller();
             if caller != self.owner {
