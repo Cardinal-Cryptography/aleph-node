@@ -31,7 +31,7 @@ inputs:
   sccache_version:
     description: "Version number of sccache to use."
     required: false
-    default: 0.2.13
+    default: v0.3.0
   sccache_size:
     description: "Size specifier for scache's cache"
     required: false
@@ -73,6 +73,7 @@ runs:
         mkdir -p $HOME/.local/bin
         curl -L "$LINK/${{ inputs.sccache_version }}/$SCCACHE_FILE.tar.gz" | tar xz
         mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+        chmod +x $HOME/.local/bin/sccache
         
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
@@ -89,6 +90,11 @@ runs:
         SCCACHE_CACHE_SIZE: ${{ inputs.sccache_size }}
       shell: bash
       run: sccache --start-server
+
+    - name: Set RUSTC_WRAPPER
+      shell: bash
+      run: |
+        echo "RUSTC_WRAPPER=$HOME/.local/bin/sccache" >> $GITHUB_ENV
 
     - name: Install cargo-cache
       uses: actions-rs/cargo@v1
