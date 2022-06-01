@@ -18,6 +18,80 @@ pub struct ContractOptions {
     pub storage_deposit_limit: Option<u128>,
 }
 
+#[derive(Debug, Clone, Args)]
+pub struct ContractUploadCode {
+    /// Path to the .wasm artifact
+    #[clap(long, parse(from_os_str))]
+    pub wasm_path: PathBuf,
+    /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
+    #[clap(long)]
+    pub storage_deposit_limit: Option<u128>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ContractInstantiateWithCode {
+    /// Path to the .wasm artifact
+    #[clap(long, parse(from_os_str))]
+    pub wasm_path: PathBuf,
+    /// Path to the .json file with contract metadata (abi)
+    #[clap(long, parse(from_os_str))]
+    pub metadata_path: PathBuf,
+    /// The name of the contract constructor to call
+    #[clap(name = "constructor", long, default_value = "new")]
+    pub constructor: String,
+    /// The constructor arguments, encoded as strings, space separated
+    #[clap(long, multiple_values = true)]
+    pub args: Option<Vec<String>>,
+    /// additional options
+    #[clap(flatten)]
+    pub options: ContractOptions,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ContractInstantiate {
+    /// Code hash of the deployed contract
+    #[clap(long, parse(try_from_str))]
+    pub code_hash: H256,
+    /// Path to the .wasm artifact
+    #[clap(long, parse(from_os_str))]
+    pub metadata_path: PathBuf,
+    /// The name of the contract constructor to call
+    #[clap(name = "constructor", long, default_value = "new")]
+    pub constructor: String,
+    /// The constructor arguments, encoded as strings
+    #[clap(long, multiple_values = true)]
+    pub args: Option<Vec<String>>,
+    /// additional options
+    #[clap(flatten)]
+    pub options: ContractOptions,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ContractCall {
+    /// Address of the contract to call
+    #[clap(long, parse(try_from_str))]
+    pub destination: AccountId,
+    /// Path to the .json fiel with contract metadata (abi)
+    #[clap(long, parse(from_os_str))]
+    pub metadata_path: PathBuf,
+    /// The name of the contract message to call
+    #[clap(long)]
+    pub message: String,
+    /// The message arguments, encoded as strings
+    #[clap(long, multiple_values = true)]
+    pub args: Option<Vec<String>>,
+    /// additional options
+    #[clap(flatten)]
+    pub options: ContractOptions,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ContractRemoveCode {
+    /// Code hash of the deployed contract
+    #[clap(long, parse(try_from_str))]
+    pub code_hash: H256,
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     /// Staking call to bond stash with controller
@@ -140,84 +214,25 @@ pub enum Command {
     /// Print debug info of storage
     DebugStorage,
 
-    /// Uploads new code without instantiating a contract from it
-    /// https://polkadot.js.org/docs/substrate/extrinsics/#uploadcodecode-bytes-storage_deposit_limit-optioncompactu128
-    ContractUploadCode {
-        /// Path to the .wasm artifact
-        #[clap(long, parse(from_os_str))]
-        wasm_path: PathBuf,
-        /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
-        #[clap(long)]
-        storage_deposit_limit: Option<u128>,
-    },
-
-    ///  Instantiates a contract from a previously deployed wasm binary.
-    /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code_hash-h256-data-bytes-salt-bytes
-    ContractInstantiate {
-        /// Code hash of the deployed contract
-        #[clap(long, parse(try_from_str))]
-        code_hash: H256,
-        /// Path to the .wasm artifact
-        #[clap(long, parse(from_os_str))]
-        metadata_path: PathBuf,
-        /// The name of the contract constructor to call
-        #[clap(name = "constructor", long, default_value = "new")]
-        constructor: String,
-        /// The constructor arguments, encoded as strings
-        #[clap(long, multiple_values = true)]
-        args: Option<Vec<String>>,
-        /// additional options
-        #[clap(flatten)]
-        options: ContractOptions,
-    },
-
     /// Deploys a new contract, returns its code hash and the AccountId of the instance
     /// contract cannot already exist on-chain
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatewithcodevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code-bytes-data-bytes-salt-bytes
-    ContractInstantiateWithCode {
-        /// Path to the .wasm artifact
-        #[clap(long, parse(from_os_str))]
-        wasm_path: PathBuf,
-        /// Path to the .json file with contract metadata (abi)
-        #[clap(long, parse(from_os_str))]
-        metadata_path: PathBuf,
-        /// The name of the contract constructor to call
-        #[clap(name = "constructor", long, default_value = "new")]
-        constructor: String,
-        /// The constructor arguments, encoded as strings, space separated
-        #[clap(long, multiple_values = true)]
-        args: Option<Vec<String>>,
-        /// additional options
-        #[clap(flatten)]
-        options: ContractOptions,
-    },
+    ContractInstantiateWithCode(ContractInstantiateWithCode),
+
+    /// Uploads new code without instantiating a contract from it
+    /// https://polkadot.js.org/docs/substrate/extrinsics/#uploadcodecode-bytes-storage_deposit_limit-optioncompactu128
+    ContractUploadCode(ContractUploadCode),
+
+    ///  Instantiates a contract from a previously deployed wasm binary.
+    /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code_hash-h256-data-bytes-salt-bytes
+    ContractInstantiate(ContractInstantiate),
 
     /// Calls a contract
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#calldest-multiaddress-value-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-data-bytes
-    ContractCall {
-        /// Address of the contract to call
-        #[clap(long, parse(try_from_str))]
-        destination: AccountId,
-        /// Path to the .json fiel with contract metadata (abi)
-        #[clap(long, parse(from_os_str))]
-        metadata_path: PathBuf,
-        /// The name of the contract message to call
-        #[clap(long)]
-        message: String,
-        /// The message arguments, encoded as strings
-        #[clap(long, multiple_values = true)]
-        args: Option<Vec<String>>,
-        /// additional options
-        #[clap(flatten)]
-        options: ContractOptions,
-    },
+    ContractCall(ContractCall),
 
     /// Remove the code stored under code_hash and refund the deposit to its owner.
     /// Code can only be removed by its original uploader (its owner) and only if it is not used by any contract.
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#removecodecode_hash-h256
-    ContractRemoveCode {
-        /// Code hash of the deployed contract
-        #[clap(long, parse(try_from_str))]
-        code_hash: H256,
-    },
+    ContractRemoveCode(ContractRemoveCode),
 }
