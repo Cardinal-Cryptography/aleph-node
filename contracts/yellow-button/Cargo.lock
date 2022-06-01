@@ -761,6 +761,7 @@ version = "0.1.0"
 dependencies = [
  "ink_env",
  "ink_lang",
+ "ink_lang_codegen",
  "ink_metadata",
  "ink_prelude",
  "ink_primitives",

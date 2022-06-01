@@ -11,21 +11,7 @@ ink_metadata = { version = "=3.0.1", default-features = false, features = ["deri
 ink_env = { version = "=3.0.1", default-features = false }
 ink_storage = { version = "=3.0.1", default-features = false }
 ink_lang = { version = "=3.0.1", default-features = false }
-# NOTE : these work with cargo-contract 1.4.0-unknown-x86_64-unknown-linux-gnu, contracts pallet 9.19 and nightly-2022-03-14 
-# ink_allocator = { version = "=3.0.1", default-features = false }
-# ink_engine = { version = "=3.0.1", default-features = false }
 ink_lang_codegen = { version = "=3.0.1", default-features = false }
-# ink_lang_ir = { version = "=3.0.1", default-features = false }
-# ink_prelude = { version = "=3.0.1", default-features = false }
-# ink_lang_macro = { version = "=3.0.1", default-features = false }
-# ink_storage_derive = { version = "=3.0.1", default-features = false }
-
-# TODO : common traits
-# trait_erc20 = { path = "../trait-erc20", default-features = false }
-# trait_ownable = { path = "../trait-ownable", default-features = false }
-
-# [profile.release]
-# overflow-checks = false
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
@@ -36,8 +22,6 @@ path = "lib.rs"
 crate-type = [
     # Used for normal contract Wasm blobs.
     "cdylib",
-    # Used for ABI generation.
-    # "rlib",
 ]
 
 [features]
@@ -47,13 +31,7 @@ std = [
     "ink_env/std",
     "ink_storage/std",
     "ink_primitives/std",
-    # "ink_allocator/std",
-    # "ink_engine/std",
     "ink_lang_codegen/std",
-    # "ink_lang_ir/std",
-    # "ink_prelude/std",
-    # "ink_lang_macro/std",
-    # "ink_storage_derive/std",
     "scale/std",
     "scale-info/std",
 ]

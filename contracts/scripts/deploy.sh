@@ -8,33 +8,23 @@ function unquote() {
   echo $(echo $1 | xargs -n1 echo)
 }
 
+
 cd $CONTRACTS_PATH/button-token
 # cargo +nightly contract build --release
 
-cd $CLI_PATH
+# DEPLOYED_CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args 1000 --suri //Alice)
+# DEPLOYED_CONTRACT=$(cat out)
 
-# deploy
-DEPLOYED_CONTRACT=$(cargo run -- --seed '//Damian' --node $NODE contract-instantiate-with-code --gas-limit 100000000000 --wasm-path "$CONTRACTS_PATH/button-token/target/ink/button_token.wasm" --metadata-path "$CONTRACTS_PATH/button-token/target/ink/metadata.json" --args 1000)
+# BUTTON_TOKEN=$(echo "$DEPLOYED_CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+BUTTON_TOKEN=5GmasQa5QBEPDYNpQye7Ht1pYmeBUceJQvwXZtCJUa3PS4mW
+# CODE_HASH=$(echo "$DEPLOYED_CONTRACT" | grep "Code hash" | tail -1 | cut -c 15-_
 
-echo "contract deployed: "  $DEPLOYED_CONTRACT
+# echo "code hash: " $CODE_HASH            
+echo "contract address: " $BUTTON_TOKEN
 
-CONTRACT_ADDRESS=$(unquote $(echo $DEPLOYED_CONTRACT | jq '.contract'))
-CODE_HASH=$(unquote $(echo $DEPLOYED_CONTRACT | jq '.code_hash'))
-# CODE_HASH=0x9f52c78f0632ad35b69d3798c5f8a69a0171f6dedd760168cc99cc971688a4cf
+cd $CONTRACTS_PATH/yellow-button
+cargo +nightly contract build --release
 
-echo "contract address: " $CONTRACT_ADDRESS
-
-# terminate
-# cargo run -- --seed '//Damian' --node $NODE contract-call --destination $CONTRACT_ADDRESS --metadata-path "$CONTRACTS_PATH/button-token/target/ink/metadata.json" --message "terminate"
-
-# contract deployed:  {"contract":"5H2frv1go8vUjw2ArJyqvvrF2eAfiroGKZyRoWLHSWdtkP2V","code_hash":"0x9f52c78f0632ad35b69d3798c5f8a69a0171f6dedd760168cc99cc971688a4cf"}
-
-
-# echo "code hash: " $CODE_HASH
-
-# remove contract
-# cargo run -- --seed '//Damian' --node $NODE contract-remove-code --code-hash $CODE_HASH
-
-# wss://ws-smartnet.test.azero.dev
+# cargo contract call --url $NODE --contract 5FWkHZFoqSDPESUfws3nJM3QqdwCL4QENggGDSDeBM1VNHMc --message terminate --suri //Alice
 
 exit $?
