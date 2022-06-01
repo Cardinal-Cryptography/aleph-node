@@ -1,7 +1,10 @@
 use crate::{Config, ErasMembers, MembersPerSession, NonReservedMembers, ReservedMembers};
-use frame_support::{generate_storage_alias, log, traits::{Get, PalletInfoAccess, StorageVersion}, weights::Weight};
+use frame_support::{
+    generate_storage_alias, log,
+    traits::{Get, PalletInfoAccess, StorageVersion},
+    weights::Weight,
+};
 use sp_std::vec::Vec;
-
 
 generate_storage_alias!(
     Elections, Members<T: Config> => Value<Vec<T::AccountId>>

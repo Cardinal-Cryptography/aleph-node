@@ -39,15 +39,19 @@ impl TryFrom<String> for Keys {
 
 pub fn change_members(
     sudo_connection: &RootConnection,
-    new_members: Vec<AccountId>,
+    new_reserved_members: Vec<AccountId>,
+    new_non_reserved_members: Vec<AccountId>,
+    members_per_session: Option<u32>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New members {:#?}", new_members);
+    info!(target: "aleph-client", "New members: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:?}", new_reserved_members, new_non_reserved_members, members_per_session);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
         "change_members",
-        new_members
+        new_reserved_members,
+        new_non_reserved_members,
+        members_per_session
     );
     let xt = compose_extrinsic!(
         sudo_connection.as_connection(),
@@ -56,8 +60,9 @@ pub fn change_members(
         call,
         0_u64
     );
-    send_xt(sudo_connection, xt, Some("sudo_unchecked_weight"), status);
+    send_xt(sudo_connection, xt, Some("change_members"), status);
 }
+
 pub fn change_reserved_members(
     sudo_connection: &RootConnection,
     new_members: Vec<AccountId>,

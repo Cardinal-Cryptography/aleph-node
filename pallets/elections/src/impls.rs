@@ -92,7 +92,8 @@ where
 
     fn get_committee_and_non_committee() -> (Vec<T::AccountId>, Vec<T::AccountId>) {
         let committee: Vec<T::AccountId> = T::SessionInfoProvider::current_committee();
-        let non_committee = ErasMembers::<T>::get().1
+        let non_committee = ErasMembers::<T>::get()
+            .1
             .into_iter()
             .filter(|a| !committee.contains(a))
             .collect();
@@ -202,7 +203,7 @@ where
 
     fn adjust_rewards_for_session() {
         match T::EraInfoProvider::active_era() {
-            Some(ae) if ae > 0 => {},
+            Some(ae) if ae > 0 => {}
             _ => return,
         }
 

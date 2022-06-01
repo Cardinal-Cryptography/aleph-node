@@ -147,10 +147,11 @@ pub mod pallet {
             origin: OriginFor<T>,
             reserved_members: Vec<T::AccountId>,
             non_reserved_members: Vec<T::AccountId>,
+            members_per_session: Option<u32>,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mps = MembersPerSession::<T>::get();
+            let mps = members_per_session.unwrap_or_else(MembersPerSession::<T>::get);
             Self::ensure_members_are_ok(
                 reserved_members.clone(),
                 non_reserved_members.clone(),
