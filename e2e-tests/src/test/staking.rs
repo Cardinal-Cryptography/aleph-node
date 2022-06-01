@@ -189,7 +189,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         convert_authorities_to_account_id(&validator_accounts),
         vec![],
-        Some(4),
+        Some(5),
         XtStatus::InBlock,
     );
     let current_session = get_current_session(&root_connection);

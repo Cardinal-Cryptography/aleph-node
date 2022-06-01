@@ -16,28 +16,34 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let connection = RootConnection::new(&config.node, sudo);
 
-    let reserved_before: Vec<AccountId> =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "ReservedMembers", None)?
-            .unwrap();
+    let reserved_before: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "ReservedMembers", None)?
+        .unwrap();
 
-    let non_reserved_before: Vec<AccountId> =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "NonReservedMembers", None)?
-            .unwrap();
+    let non_reserved_before: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "NonReservedMembers", None)?
+        .unwrap();
 
-    let members_per_session_before: u32 =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "MembersPerSession", None)?
-            .unwrap();
+    let members_per_session_before: u32 = connection
+        .as_connection()
+        .get_storage_value("Elections", "MembersPerSession", None)?
+        .unwrap();
 
-    info!("[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}", reserved_before, non_reserved_before, members_per_session_before);
+    info!(
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}",
+        reserved_before, non_reserved_before, members_per_session_before
+    );
 
     let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
-    change_members(&connection, new_members[0..2].to_vec(), new_members[2..].to_vec(),Some(4), XtStatus::InBlock);
+    change_members(
+        &connection,
+        new_members[0..2].to_vec(),
+        new_members[2..].to_vec(),
+        Some(4),
+        XtStatus::InBlock,
+    );
 
     #[derive(Debug, Decode, Clone)]
     struct NewMembersEvent {
@@ -51,30 +57,31 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         |e: NewMembersEvent| {
             info!("[+] NewMembersEvent: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}", e.reserved, e.non_reserved, e.non_reserved);
 
-            e.reserved == new_members[0..2].to_vec() && e.non_reserved == new_members[2..].to_vec() && e.members_per_session == 4
+            e.reserved == new_members[0..2].to_vec()
+                && e.non_reserved == new_members[2..].to_vec()
+                && e.members_per_session == 4
         },
     )?;
 
+    let reserved_after: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "ReservedMembers", None)?
+        .unwrap();
 
-    let reserved_after: Vec<AccountId> =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "ReservedMembers", None)?
-            .unwrap();
+    let non_reserved_after: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "NonReservedMembers", None)?
+        .unwrap();
 
-    let non_reserved_after: Vec<AccountId> =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "NonReservedMembers", None)?
-            .unwrap();
+    let members_per_session_after: u32 = connection
+        .as_connection()
+        .get_storage_value("Elections", "MembersPerSession", None)?
+        .unwrap();
 
-    let members_per_session_after: u32 =
-        connection
-            .as_connection()
-            .get_storage_value("Elections", "MembersPerSession", None)?
-            .unwrap();
-
-    info!("[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}", reserved_after, non_reserved_after, members_per_session_after);
+    info!(
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}",
+        reserved_after, non_reserved_after, members_per_session_after
+    );
 
     assert_eq!(new_members[..2], reserved_after);
     assert_eq!(new_members[2..], non_reserved_after);
