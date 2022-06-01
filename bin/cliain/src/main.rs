@@ -104,7 +104,7 @@ fn main() {
             starting_block,
         ),
         Command::Nominate { nominee } => nominate(cfg.into(), nominee),
-        command @ Command::ContractInstantiateWithCode { .. } => {
+        Command::ContractInstantiateWithCode(command) => {
             match instantiate_with_code(cfg.into(), command) {
                 Ok(result) => println!(
                     "{}",
@@ -113,19 +113,19 @@ fn main() {
                 Err(why) => error!("Contract deployment failed {:?}", why),
             };
         }
-        command @ Command::ContractCall { .. } => match call(cfg.into(), command) {
-            Ok(result) => println!("{:?}", result),
-            Err(why) => error!("Contract call failed {:?}", why),
-        },
-        command @ Command::ContractUploadCode { .. } => match upload_code(cfg.into(), command) {
+        Command::ContractUploadCode(command) => match upload_code(cfg.into(), command) {
             Ok(result) => println!("{:?}", result),
             Err(why) => error!("Contract upload failed {:?}", why),
         },
-        command @ Command::ContractInstantiate { .. } => match instantiate(cfg.into(), command) {
+        Command::ContractCall(command) => match call(cfg.into(), command) {
+            Ok(result) => println!("{:?}", result),
+            Err(why) => error!("Contract call failed {:?}", why),
+        },
+        Command::ContractInstantiate(command) => match instantiate(cfg.into(), command) {
             Ok(result) => println!("{:?}", result),
             Err(why) => error!("Contract instantiate failed {:?}", why),
         },
-        command @ Command::ContractRemoveCode { .. } => match remove_code(cfg.into(), command) {
+        Command::ContractRemoveCode(command) => match remove_code(cfg.into(), command) {
             Ok(result) => println!("{:?}", result),
             Err(why) => error!("Contract remove code failed {:?}", why),
         },

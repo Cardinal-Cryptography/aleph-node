@@ -1,4 +1,10 @@
-use crate::{commands::ContractOptions, Command, ContractMessageTranscoder};
+use crate::{
+    commands::{
+        ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
+        ContractRemoveCode, ContractUploadCode,
+    },
+    ContractMessageTranscoder,
+};
 use aleph_client::{send_xt, wait_for_event, AnyConnection, SignedConnection};
 use anyhow::anyhow;
 use codec::{Compact, Decode};
@@ -40,255 +46,240 @@ fn storage_deposit(storage_deposit_limit: Option<u128>) -> Option<Compact<u128>>
 
 pub fn upload_code(
     signed_connection: SignedConnection,
-    command: Command,
+    command: ContractUploadCode,
 ) -> anyhow::Result<ContractCodeStoredEvent> {
-    if let Command::ContractUploadCode {
+    let ContractUploadCode {
         wasm_path,
         storage_deposit_limit,
-    } = command
-    {
-        let connection = signed_connection.as_connection();
+    } = command;
 
-        let wasm = fs::read(wasm_path).expect("WASM artifact not found");
-        debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
+    let connection = signed_connection.as_connection();
 
-        let xt = compose_extrinsic!(
-            connection,
-            "Contracts",
-            "upload_code",
-            wasm, // code
-            storage_deposit(storage_deposit_limit)
-        );
+    let wasm = fs::read(wasm_path).expect("WASM artifact not found");
+    debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
 
-        debug!(target: "contracts", "Prepared `upload_code` extrinsic {:?}", xt);
+    let xt = compose_extrinsic!(
+        connection,
+        "Contracts",
+        "upload_code",
+        wasm, // code
+        storage_deposit(storage_deposit_limit)
+    );
 
-        let _block_hash = send_xt(&connection, xt, Some("upload_code"), XtStatus::InBlock);
+    debug!(target: "contracts", "Prepared `upload_code` extrinsic {:?}", xt);
 
-        let code_stored_event: ContractCodeStoredEvent = wait_for_event(
-            &connection,
-            ("Contracts", "CodeStored"),
-            |e: ContractCodeStoredEvent| {
-                info!(target : "contracts", "Received CodeStored event {:?}", e);
-                true
-            },
-        )?;
+    let _block_hash = send_xt(&connection, xt, Some("upload_code"), XtStatus::InBlock);
 
-        Ok(code_stored_event)
-    } else {
-        panic!("should never get here")
-    }
+    let code_stored_event: ContractCodeStoredEvent = wait_for_event(
+        &connection,
+        ("Contracts", "CodeStored"),
+        |e: ContractCodeStoredEvent| {
+            info!(target : "contracts", "Received CodeStored event {:?}", e);
+            true
+        },
+    )?;
+
+    Ok(code_stored_event)
 }
 
 pub fn instantiate(
     signed_connection: SignedConnection,
-    command: Command,
+    command: ContractInstantiate,
 ) -> anyhow::Result<ContractInstantiatedEvent> {
-    if let Command::ContractInstantiate {
+    let ContractInstantiate {
         code_hash,
         metadata_path,
         constructor,
         args,
         options,
-    } = command
-    {
-        let ContractOptions {
-            balance,
-            gas_limit,
-            storage_deposit_limit,
-        } = options;
+    } = command;
 
-        let connection = signed_connection.as_connection();
+    let ContractOptions {
+        balance,
+        gas_limit,
+        storage_deposit_limit,
+    } = options;
 
-        let metadata = load_metadata(&metadata_path)?;
-        let transcoder = ContractMessageTranscoder::new(&metadata);
-        let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
+    let connection = signed_connection.as_connection();
 
-        debug!("Encoded constructor data {:?}", data);
+    let metadata = load_metadata(&metadata_path)?;
+    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
 
-        let xt = compose_extrinsic!(
-            connection,
-            "Contracts",
-            "instantiate",
-            Compact(balance),
-            Compact(gas_limit),
-            storage_deposit(storage_deposit_limit),
-            code_hash,
-            data,             // The input data to pass to the contract constructor
-            Vec::<u8>::new()  // salt used for the address derivation
-        );
+    debug!("Encoded constructor data {:?}", data);
 
-        debug!(target: "contracts", "Prepared `instantiate` extrinsic {:?}", xt);
+    let xt = compose_extrinsic!(
+        connection,
+        "Contracts",
+        "instantiate",
+        Compact(balance),
+        Compact(gas_limit),
+        storage_deposit(storage_deposit_limit),
+        code_hash,
+        data,             // The input data to pass to the contract constructor
+        Vec::<u8>::new()  // salt used for the address derivation
+    );
 
-        let _block_hash = send_xt(&connection, xt, Some("instantiate"), XtStatus::InBlock);
+    debug!(target: "contracts", "Prepared `instantiate` extrinsic {:?}", xt);
 
-        let contract_instantiated_event: ContractInstantiatedEvent = wait_for_event(
-            &connection,
-            ("Contracts", "Instantiated"),
-            |e: ContractInstantiatedEvent| {
-                info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
-                match &connection.signer {
-                    Some(signer) => AccountId::from(signer.public()).eq(&e.deployer),
-                    None => panic!("Should never get here"),
-                }
-            },
-        )?;
+    let _block_hash = send_xt(&connection, xt, Some("instantiate"), XtStatus::InBlock);
 
-        Ok(contract_instantiated_event)
-    } else {
-        panic!("should never get here")
-    }
+    let contract_instantiated_event: ContractInstantiatedEvent = wait_for_event(
+        &connection,
+        ("Contracts", "Instantiated"),
+        |e: ContractInstantiatedEvent| {
+            info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
+            match &connection.signer {
+                Some(signer) => AccountId::from(signer.public()).eq(&e.deployer),
+                None => panic!("Should never get here"),
+            }
+        },
+    )?;
+
+    Ok(contract_instantiated_event)
 }
 
 pub fn instantiate_with_code(
     signed_connection: SignedConnection,
-    command: Command,
+    command: ContractInstantiateWithCode,
 ) -> anyhow::Result<InstantiateWithCodeReturnValue> {
-    if let Command::ContractInstantiateWithCode {
+    let ContractInstantiateWithCode {
         wasm_path,
         metadata_path,
         constructor,
         args,
         options,
-    } = command
-    {
-        let ContractOptions {
-            balance,
-            gas_limit,
-            storage_deposit_limit,
-        } = options;
+    } = command;
 
-        let connection = signed_connection.as_connection();
+    let ContractOptions {
+        balance,
+        gas_limit,
+        storage_deposit_limit,
+    } = options;
 
-        let wasm = fs::read(wasm_path).expect("WASM artifact not found");
-        debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
+    let connection = signed_connection.as_connection();
 
-        let metadata = load_metadata(&metadata_path)?;
-        let transcoder = ContractMessageTranscoder::new(&metadata);
-        let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
+    let wasm = fs::read(wasm_path).expect("WASM artifact not found");
+    debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
 
-        debug!("Encoded constructor data {:?}", data);
+    let metadata = load_metadata(&metadata_path)?;
+    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
 
-        let xt = compose_extrinsic!(
-            connection,
-            "Contracts",
-            "instantiate_with_code",
-            Compact(balance),
-            Compact(gas_limit),
-            storage_deposit(storage_deposit_limit),
-            wasm,             // code
-            data,             // The input data to pass to the contract constructor
-            Vec::<u8>::new()  // salt used for the address derivation
-        );
+    debug!("Encoded constructor data {:?}", data);
 
-        debug!(target: "contracts", "Prepared `instantiate_with_code` extrinsic {:?}", xt);
+    let xt = compose_extrinsic!(
+        connection,
+        "Contracts",
+        "instantiate_with_code",
+        Compact(balance),
+        Compact(gas_limit),
+        storage_deposit(storage_deposit_limit),
+        wasm,             // code
+        data,             // The input data to pass to the contract constructor
+        Vec::<u8>::new()  // salt used for the address derivation
+    );
 
-        let _block_hash = send_xt(
-            &connection,
-            xt,
-            Some("instantiate_with_code"),
-            XtStatus::InBlock,
-        );
+    debug!(target: "contracts", "Prepared `instantiate_with_code` extrinsic {:?}", xt);
 
-        let code_stored_event: ContractCodeStoredEvent = wait_for_event(
-            &connection,
-            ("Contracts", "CodeStored"),
-            |e: ContractCodeStoredEvent| {
-                info!(target : "contracts", "Received CodeStored event {:?}", e);
-                // TODO : can we pre-calculate what the code hash will be?
-                true
-            },
-        )?;
+    let _block_hash = send_xt(
+        &connection,
+        xt,
+        Some("instantiate_with_code"),
+        XtStatus::InBlock,
+    );
 
-        let contract_instantiated_event: ContractInstantiatedEvent = wait_for_event(
-            &connection,
-            ("Contracts", "Instantiated"),
-            |e: ContractInstantiatedEvent| {
-                info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
-                match &connection.signer {
-                    Some(signer) => AccountId::from(signer.public()).eq(&e.deployer),
-                    None => panic!("Should never get here"),
-                }
-            },
-        )?;
+    let code_stored_event: ContractCodeStoredEvent = wait_for_event(
+        &connection,
+        ("Contracts", "CodeStored"),
+        |e: ContractCodeStoredEvent| {
+            info!(target : "contracts", "Received CodeStored event {:?}", e);
+            // TODO : can we pre-calculate what the code hash will be?
+            true
+        },
+    )?;
 
-        Ok(InstantiateWithCodeReturnValue {
-            contract: contract_instantiated_event.contract,
-            code_hash: code_stored_event.code_hash,
-        })
-    } else {
-        panic!("should never get here")
-    }
+    let contract_instantiated_event: ContractInstantiatedEvent = wait_for_event(
+        &connection,
+        ("Contracts", "Instantiated"),
+        |e: ContractInstantiatedEvent| {
+            info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
+            match &connection.signer {
+                Some(signer) => AccountId::from(signer.public()).eq(&e.deployer),
+                None => panic!("Should never get here"),
+            }
+        },
+    )?;
+
+    Ok(InstantiateWithCodeReturnValue {
+        contract: contract_instantiated_event.contract,
+        code_hash: code_stored_event.code_hash,
+    })
 }
 
-pub fn call(signed_connection: SignedConnection, command: Command) -> anyhow::Result<()> {
-    if let Command::ContractCall {
+pub fn call(signed_connection: SignedConnection, command: ContractCall) -> anyhow::Result<()> {
+    let ContractCall {
         destination,
         message,
         args,
         metadata_path,
         options,
-    } = command
-    {
-        let ContractOptions {
-            balance,
-            gas_limit,
-            storage_deposit_limit,
-        } = options;
+    } = command;
 
-        let connection = signed_connection.as_connection();
+    let ContractOptions {
+        balance,
+        gas_limit,
+        storage_deposit_limit,
+    } = options;
 
-        let metadata = load_metadata(&metadata_path)?;
-        let transcoder = ContractMessageTranscoder::new(&metadata);
-        let data = transcoder.encode(&message, &args.unwrap_or_default())?;
+    let connection = signed_connection.as_connection();
 
-        debug!("Encoded call data {:?}", data);
+    let metadata = load_metadata(&metadata_path)?;
+    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let data = transcoder.encode(&message, &args.unwrap_or_default())?;
 
-        let xt = compose_extrinsic!(
-            connection,
-            "Contracts",
-            "call",
-            GenericAddress::Id(destination),
-            Compact(balance),
-            Compact(gas_limit),
-            storage_deposit(storage_deposit_limit),
-            data // The input data to pass to the contract message
-        );
+    debug!("Encoded call data {:?}", data);
 
-        debug!(target: "contracts", "Prepared `call` extrinsic {:?}", xt);
+    let xt = compose_extrinsic!(
+        connection,
+        "Contracts",
+        "call",
+        GenericAddress::Id(destination),
+        Compact(balance),
+        Compact(gas_limit),
+        storage_deposit(storage_deposit_limit),
+        data // The input data to pass to the contract message
+    );
 
-        let _block_hash = send_xt(&connection, xt, Some("call"), XtStatus::Finalized);
-        Ok(())
-    } else {
-        panic!("should never get here")
-    }
+    debug!(target: "contracts", "Prepared `call` extrinsic {:?}", xt);
+
+    let _block_hash = send_xt(&connection, xt, Some("call"), XtStatus::Finalized);
+    Ok(())
 }
 
 pub fn remove_code(
     signed_connection: SignedConnection,
-    command: Command,
+    command: ContractRemoveCode,
 ) -> anyhow::Result<ContractCodeRemovedEvent> {
-    if let Command::ContractRemoveCode { code_hash } = command {
-        let connection = signed_connection.as_connection();
+    let ContractRemoveCode { code_hash } = command;
+    let connection = signed_connection.as_connection();
 
-        let xt = compose_extrinsic!(connection, "Contracts", "remove_code", code_hash);
+    let xt = compose_extrinsic!(connection, "Contracts", "remove_code", code_hash);
 
-        debug!(target: "contracts", "Prepared `remove_code` extrinsic {:?}", xt);
+    debug!(target: "contracts", "Prepared `remove_code` extrinsic {:?}", xt);
 
-        let _block_hash = send_xt(&connection, xt, Some("remove_code"), XtStatus::InBlock);
+    let _block_hash = send_xt(&connection, xt, Some("remove_code"), XtStatus::InBlock);
 
-        let contract_removed_event: ContractCodeRemovedEvent = wait_for_event(
-            &connection,
-            ("Contracts", "CodeRemoved"),
-            |e: ContractCodeRemovedEvent| {
-                info!(target : "contracts", "Received ContractCodeRemoved event {:?}", e);
-                e.code_hash.eq(&code_hash)
-            },
-        )?;
+    let contract_removed_event: ContractCodeRemovedEvent = wait_for_event(
+        &connection,
+        ("Contracts", "CodeRemoved"),
+        |e: ContractCodeRemovedEvent| {
+            info!(target : "contracts", "Received ContractCodeRemoved event {:?}", e);
+            e.code_hash.eq(&code_hash)
+        },
+    )?;
 
-        Ok(contract_removed_event)
-    } else {
-        panic!("should never get here")
-    }
+    Ok(contract_removed_event)
 }
 
 fn load_metadata(path: &Path) -> anyhow::Result<ink_metadata::InkProject> {
