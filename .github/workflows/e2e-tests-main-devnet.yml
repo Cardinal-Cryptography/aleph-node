@@ -104,6 +104,7 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target_key: e2e
+          cargo_key: e2e
           cache_version: v1
           cargo-targets: e2e-tests/target/
 

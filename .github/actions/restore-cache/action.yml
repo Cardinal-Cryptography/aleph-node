@@ -22,6 +22,12 @@ inputs:
       differently for them, so that they don't interfere with each other.
     required: false
     default: ""
+  cargo_key:
+    description: >
+      If you have multiple workflows that generate different contents of the ~/.cargo directory, then you can set this key
+      differently for them, so that they don't interfere with each other.
+    required: false
+    default: ""
   sccache_version:
     description: "Version number of sccache to use."
     required: false
@@ -44,9 +50,9 @@ runs:
       with:
         path: |
           ~/.cargo
-        key: ${{ runner.os }}-cargo-${{ inputs.cache_version }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ inputs.cargo_key }}-${{ inputs.cache_version }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.cache_version }}
+          ${{ runner.os }}-cargo-${{ inputs.cargo_key }}-${{ inputs.cache_version }}
 
     - name: Restore target cache
       uses: actions/cache@v3

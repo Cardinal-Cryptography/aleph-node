@@ -53,6 +53,7 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target_key: excluded
+          cargo_key: excluded
           cache_version: v1
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
