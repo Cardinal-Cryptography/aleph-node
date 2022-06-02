@@ -19,7 +19,6 @@ use ink_lang as ink;
 // DONE : add getters
 // TODO : refactor access control to an Ownable trait
 
-#[allow(non_camel_case_types)]
 #[ink::contract]
 mod yellow_button {
 
@@ -199,7 +198,6 @@ mod yellow_button {
 
         /// Constructor
         #[ink(constructor)]
-        #[allow(non_camel_case_types)]
         pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
             ink_lang::utils::initialize_contract(|contract: &mut Self| {
                 let now = Self::env().block_number();
@@ -371,6 +369,7 @@ mod yellow_button {
             }
 
             let now = self.env().block_number();
+
             if now >= self.deadline {
                 // trigger TheButton's death
                 // at this point is is after the deadline but the death event has not yet been triggered
@@ -426,16 +425,20 @@ mod yellow_button {
 
             let alice = accounts.alice;
             let bob = accounts.bob;
-            let button_token_address = AccountId::from([0xFA; 32]);
-            let game_address = AccountId::from([0xF9; 32]);
+            let charlie = accounts.charlie;
 
-            println!("alice {:?}", alice);
+            let button_token_address = accounts.frank; //AccountId::from([0xFA; 32]);
+            let game_address = accounts.django; //AccountId::from([0xF9; 32]);
 
-            println!("bob {:?}", bob);
+            // println!("alice {:?}", alice);
 
-            println!("button_token_address {:?}", button_token_address);
+            // println!("bob {:?}", bob);
 
-            println!("game address {:?}", game_address);
+            // println!("charlie {:?}", charlie);
+
+            // println!("button_token_address {:?}", button_token_address);
+
+            // println!("game address {:?}", game_address);
 
             // alice deploys the token contract
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
@@ -443,9 +446,10 @@ mod yellow_button {
             let mut button_token = ButtonToken::new(1000);
 
             // alice deploys the game contract
+            let button_lifetime = 3;
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            let game = YellowButton::new(button_token_address, 900);
+            let mut game = YellowButton::new(button_token_address, button_lifetime);
 
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             let button_created_event = &emitted_events[1];
@@ -459,7 +463,7 @@ mod yellow_button {
                     deadline,
                     button_token,
                 }) => {
-                    assert_eq!(deadline, 900, "Wrong ButtonCreated.deadline");
+                    assert_eq!(deadline, button_lifetime, "Wrong ButtonCreated.deadline");
                     assert_eq!(start, 0, "Wrong ButtonCreated.start");
                     assert_eq!(
                         button_token, button_token_address,
@@ -478,13 +482,6 @@ mod yellow_button {
                 "Transfer call failed"
             );
 
-            // TODO: transfer event
-
-            println!(
-                "event counter {:?}",
-                ink_env::test::recorded_events().count()
-            );
-
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             let transfer_event = &emitted_events[2];
             let decoded_event: ButtonTokenEvent =
@@ -501,7 +498,39 @@ mod yellow_button {
                 _ => panic!("Wrong event emitted"),
             }
 
-            //
+            // Alice is the owner and whitelists accounts for playing
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(
+                game.bulk_allow(vec![bob, charlie]).is_ok(),
+                "Bulk allow call failed"
+            );
+
+            // TODO press
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
+
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
+
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+
+            // game ends past block 3
+            // alice is not whitelisted but she can still end the game
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
+
+            println!(
+                "event counter {:?}",
+                ink_env::test::recorded_events().count()
+            );
         }
     }
 }
