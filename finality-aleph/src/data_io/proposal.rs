@@ -8,7 +8,6 @@ use crate::{
     BlockHashNum, SessionBoundaries,
 };
 use codec::{Decode, Encode};
-use derive_more::Error;
 use sp_runtime::{
     traits::{Block as BlockT, NumberFor},
     SaturatedConversion,
@@ -39,11 +38,8 @@ pub struct UnvalidatedAlephProposal<B: BlockT> {
 }
 
 /// Represents possible invalid states as described in [UnvalidatedAlephProposal].
-#[derive(Debug, PartialEq, Error)]
-pub enum ValidationError<B>
-where
-    B: BlockT,
-{
+#[derive(Debug, PartialEq)]
+pub enum ValidationError<B: BlockT> {
     BranchEmpty,
     BranchTooLarge {
         branch_size: usize,
