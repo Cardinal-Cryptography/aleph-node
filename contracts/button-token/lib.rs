@@ -25,17 +25,19 @@ mod button_token {
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
+    #[derive(Debug)]
     pub struct Transfer {
         #[ink(topic)]
-        from: Option<AccountId>,
+        pub from: Option<AccountId>,
         #[ink(topic)]
-        to: Option<AccountId>,
-        value: Balance,
+        pub to: Option<AccountId>,
+        pub value: Balance,
     }
 
     /// Event emitted when an approval occurs that `spender` is allowed to withdraw
     /// up to the amount of `value` tokens from `owner`.
     #[ink(event)]
+    #[derive(Debug)]
     pub struct Approval {
         #[ink(topic)]
         owner: AccountId,
@@ -46,6 +48,7 @@ mod button_token {
 
     /// Event emitted when TheButton owner is changed
     #[ink(event)]
+    #[derive(Debug)]
     pub struct OwnershipTransferred {
         #[ink(topic)]
         from: AccountId,

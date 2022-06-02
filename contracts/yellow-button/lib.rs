@@ -422,20 +422,29 @@ mod yellow_button {
 
         #[ink::test]
         fn distributing_rewards() {
-            let mut button_token = ButtonToken::new(1000);
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
-            // set contract address
-            let button_token_address = AccountId::from([
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1,
-            ]);
+            let alice = accounts.alice;
+            let bob = accounts.bob;
+            let button_token_address = AccountId::from([0xFA; 32]);
+            let game_address = AccountId::from([0xF9; 32]);
 
-            println!("{:?}", button_token_address);
+            println!("alice {:?}", alice);
 
+            println!("bob {:?}", bob);
+
+            println!("button_token_address {:?}", button_token_address);
+
+            println!("game address {:?}", game_address);
+
+            // alice deploys the token contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
-            // alice deploys the game
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(accounts.alice);
+            let mut button_token = ButtonToken::new(1000);
+
+            // alice deploys the game contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
             let game = YellowButton::new(button_token_address, 900);
 
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
@@ -460,23 +469,39 @@ mod yellow_button {
                 _ => panic!("Wrong event emitted"),
             }
 
-            let game_address = AccountId::from([
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 0,
-            ]);
-
-            // ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-
             // Alice transfer all token balance to the game
-            button_token.transfer(game_address, 1000);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
+
+            assert!(
+                button_token.transfer(game_address, 999).is_ok(),
+                "Transfer call failed"
+            );
 
             // TODO: transfer event
 
+            println!(
+                "event counter {:?}",
+                ink_env::test::recorded_events().count()
+            );
+
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            // let button_created_event = &emitted_events[1];
-            // let decoded_event: Event =
-            //     <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
-            //         .expect("Can't decode as Event");
+            let transfer_event = &emitted_events[2];
+            let decoded_event: ButtonTokenEvent =
+                <ButtonTokenEvent as scale::Decode>::decode(&mut &transfer_event.data[..])
+                    .expect("Can't decode as Event");
+
+            match decoded_event {
+                ButtonTokenEvent::Transfer(event) => {
+                    assert_eq!(event.value, 999, "Wrong Transfer.value");
+                    assert_eq!(event.from, Some(alice), "Wrong Transfer.from");
+                    assert_eq!(event.to, Some(game_address), "Wrong Transfer.from");
+                    // println!("transfer: {:?}", event);
+                }
+                _ => panic!("Wrong event emitted"),
+            }
+
+            //
         }
     }
 }
