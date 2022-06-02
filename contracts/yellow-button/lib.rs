@@ -417,28 +417,29 @@ mod yellow_button {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use button_token::ButtonToken;
+        use button_token::{ButtonToken, Event as ButtonTokenEvent};
         use ink_lang as ink;
 
         #[ink::test]
         fn distributing_rewards() {
-            let erc20 = ButtonToken::new(1000);
+            let mut button_token = ButtonToken::new(1000);
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
-            // Get contract address
-            let address = ink_env::account_id::<ink_env::DefaultEnvironment>();
-            println!("{:?}", address);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(address);
+            // set contract address
+            let button_token_address = AccountId::from([
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1,
+            ]);
+
+            println!("{:?}", button_token_address);
+
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
             // alice deploys the game
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(accounts.alice);
-            let game = YellowButton::new(address, 900);
+            let game = YellowButton::new(button_token_address, 900);
 
-            // TODO : created event
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            // assert_eq!(1, emitted_events.len());
-
             let button_created_event = &emitted_events[1];
-
             let decoded_event: Event =
                 <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
                     .expect("Can't decode as Event");
@@ -451,10 +452,31 @@ mod yellow_button {
                 }) => {
                     assert_eq!(deadline, 900, "Wrong ButtonCreated.deadline");
                     assert_eq!(start, 0, "Wrong ButtonCreated.start");
-                    assert_eq!(button_token, address, "Wrong ButtonCreated.button_token");
+                    assert_eq!(
+                        button_token, button_token_address,
+                        "Wrong ButtonCreated.button_token"
+                    );
                 }
                 _ => panic!("Wrong event emitted"),
             }
+
+            let game_address = AccountId::from([
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 0,
+            ]);
+
+            // ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+
+            // Alice transfer all token balance to the game
+            button_token.transfer(game_address, 1000);
+
+            // TODO: transfer event
+
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            // let button_created_event = &emitted_events[1];
+            // let decoded_event: Event =
+            //     <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
+            //         .expect("Can't decode as Event");
         }
     }
 }
