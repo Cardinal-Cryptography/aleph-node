@@ -27,7 +27,7 @@ mod yellow_button {
         call::{build_call, Call, ExecutionInput, Selector},
         DefaultEnvironment, Error as InkEnvError,
     };
-    use ink_lang::codegen::EmitEvent;
+    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
@@ -49,6 +49,8 @@ mod yellow_button {
 
     /// Result type
     pub type Result<T> = core::result::Result<T, Error>;
+    /// Event type
+    type Event = <YellowButton as ContractEventBase>::Type;
 
     impl From<InkEnvError> for Error {
         fn from(e: InkEnvError) -> Self {
@@ -127,17 +129,17 @@ mod yellow_button {
 
     /// Event emitted when TheButton is pressed
     #[ink(event)]
+    #[derive(Debug)]
     pub struct ButtonPressed {
         #[ink(topic)]
         from: AccountId,
-        #[ink(topic)]
         when: u32,
-        #[ink(topic)]
         new_deadline: u32,
     }
 
     /// Event emitted when TheButton owner is changed
     #[ink(event)]
+    #[derive(Debug)]
     pub struct OwnershipTransferred {
         #[ink(topic)]
         from: AccountId,
@@ -147,6 +149,7 @@ mod yellow_button {
 
     /// Event emitted when TheButton is created
     #[ink(event)]
+    #[derive(Debug)]
     pub struct ButtonCreated {
         #[ink(topic)]
         start: u32,
@@ -154,31 +157,31 @@ mod yellow_button {
         deadline: u32,
     }
 
-    /// NOTE: emit all contract events via this enum
-    /// they cannot be used directly
-    /// as they will be conflated with events imported from button-token
-    pub enum YellowButtonEvent {
-        ButtonPressed(ButtonPressed),
-        OwnershipTransferred(OwnershipTransferred),
-        ButtonCreated(ButtonCreated),
-        ButtonDeath(ButtonDeath),
-    }
-
-    impl YellowButtonEvent {
-        fn emit<EE: EmitEvent<YellowButton>>(self, x: EE) {
-            match self {
-                YellowButtonEvent::ButtonPressed(event) => x.emit_event(event),
-                YellowButtonEvent::OwnershipTransferred(event) => x.emit_event(event),
-                YellowButtonEvent::ButtonCreated(event) => x.emit_event(event),
-                YellowButtonEvent::ButtonDeath(event) => x.emit_event(event),
-            }
-        }
-    }
-
-    /// Even emitted when button death is triggered
-    ///
+    /// Even emitted when button death is triggered    
     #[ink(event)]
+    #[derive(Debug)]
     pub struct ButtonDeath;
+
+    // /// NOTE: emit all contract events via this enum
+    // /// they cannot be used directly
+    // /// as they will be conflated with events imported from button-token
+    // pub enum YellowButtonEvent {
+    //     ButtonPressed(ButtonPressed),
+    //     OwnershipTransferred(OwnershipTransferred),
+    //     ButtonCreated(ButtonCreated),
+    //     ButtonDeath(ButtonDeath),
+    // }
+
+    // impl YellowButtonEvent {
+    //     fn emit<EE: EmitEvent<YellowButton>>(self, x: EE) {
+    //         match self {
+    //             YellowButtonEvent::ButtonPressed(event) => x.emit_event(event),
+    //             YellowButtonEvent::OwnershipTransferred(event) => x.emit_event(event),
+    //             YellowButtonEvent::ButtonCreated(event) => x.emit_event(event),
+    //             YellowButtonEvent::ButtonDeath(event) => x.emit_event(event),
+    //         }
+    //     }
+    // }
 
     impl YellowButton {
         /// Returns the buttons status
@@ -211,6 +214,10 @@ mod yellow_button {
             self.last_presser
         }
 
+        fn emit_event<EE: EmitEvent<YellowButton>>(x: EE, event: Event) {
+            x.emit_event(event);
+        }
+
         /// Constructor
         #[ink(constructor)]
         #[allow(non_camel_case_types)]
@@ -226,12 +233,12 @@ mod yellow_button {
                 contract.deadline = deadline;
                 contract.button_token = button_token;
 
-                let event = YellowButtonEvent::ButtonCreated(ButtonCreated {
+                let event = Event::ButtonCreated(ButtonCreated {
                     start: now,
                     deadline,
                 });
 
-                event.emit(Self::env());
+                Self::emit_event(Self::env(), event)
             })
         }
 
@@ -299,7 +306,8 @@ mod yellow_button {
                     Ok(())
                 });
 
-            YellowButtonEvent::ButtonDeath(ButtonDeath {}).emit(self.env());
+            let event = Event::ButtonDeath(ButtonDeath {});
+            Self::emit_event(Self::env(), event);
 
             Ok(())
         }
@@ -369,8 +377,8 @@ mod yellow_button {
             }
             self.owner = to;
 
-            YellowButtonEvent::OwnershipTransferred(OwnershipTransferred { from: caller, to })
-                .emit(self.env());
+            let event = Event::OwnershipTransferred(OwnershipTransferred { from: caller, to });
+            Self::emit_event(Self::env(), event);
 
             Ok(())
         }
@@ -415,12 +423,12 @@ mod yellow_button {
             self.deadline = now + self.button_lifetime;
 
             // emit event
-            YellowButtonEvent::ButtonPressed(ButtonPressed {
+            let event = Event::ButtonPressed(ButtonPressed {
                 from: caller,
                 when: now,
                 new_deadline: self.deadline,
-            })
-            .emit(self.env());
+            });
+            Self::emit_event(Self::env(), event);
 
             Ok(())
         }
@@ -434,30 +442,37 @@ mod yellow_button {
 
         #[ink::test]
         fn distributing_rewards() {
-            let mut erc20 = ButtonToken::new(1000);
+            let erc20 = ButtonToken::new(1000);
+            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
-            // let mut erc20 = Erc20::new(100);
+            // Get contract address
+            let address = ink_env::account_id::<ink_env::DefaultEnvironment>();
+            println!("{:?}", address);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(address);
+            // alice deploys the game
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(accounts.alice);
+            let game = YellowButton::new(address, 900);
 
-            // given
-            // let accounts =
-            //     ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
-            // let contract_id = ink_env::test::callee::<ink_env::DefaultEnvironment>();
-            // ink_env::test::set_caller::<ink_env::DefaultEnvironment>(accounts.alice);
-            // ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
-            //     contract_id,
-            //     100,
-            // );
-            // let mut contract = JustTerminate::new();
+            // TODO : created event
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            // assert_eq!(1, emitted_events.len());
 
-            // // when
-            // let should_terminate = move || contract.terminate_me();
+            let button_created_event = &emitted_events[1];
 
-            // // then
-            // ink_env::test::assert_contract_termination::<ink_env::DefaultEnvironment, _>(
-            //     should_terminate,
-            //     accounts.alice,
-            //     100,
-            // );
+            let decoded_event: Event =
+                <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
+                    .expect("Can't decode as Event");
+
+            match decoded_event {
+                Event::ButtonCreated(button_created_event) => {
+                    println!("{:?}", button_created_event)
+                }
+                _ => todo!(),
+            }
+
+            // if let Event::ButtonCreated(ButtonCreated { .. }) = decoded_event {}
+
+            // println!("{:?}", decoded_event);
         }
     }
 }
