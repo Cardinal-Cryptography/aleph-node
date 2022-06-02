@@ -10,7 +10,6 @@ generate_storage_alias!(
     Elections, Members<T: Config> => Value<Vec<T::AccountId>>
 );
 
-
 /// The assumptions made by this migration:
 ///
 /// There is one storage in the pallet elections `Members` containing current set of validators.
