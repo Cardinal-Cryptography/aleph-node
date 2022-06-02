@@ -25,7 +25,16 @@ fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<Ac
     const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
-    let non_reserved_nodes_order_from_runtime = get_validators_seeds(config)[2..].to_vec();
+
+    let validators_seeds = get_validators_seeds(config);
+    // this order is determined by pallet_staking::ErasStakers::iter_ker_prefix, so by order in
+    // map which is not guaranteed, however runtime is deterministic, so we can rely on particular order
+    // test needs to be reworked to read order from ErasStakers
+    let non_reserved_nodes_order_from_runtime = vec![
+        validators_seeds[3].clone(),
+        validators_seeds[4].clone(),
+        validators_seeds[2].clone(),
+    ];
     let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
@@ -88,7 +97,7 @@ pub fn members_rotate(config: &Config) -> anyhow::Result<()> {
     );
     wait_for_full_era_completion(&connection)?;
 
-    let mut current_session = get_current_session(&connection);
+    let current_session = get_current_session(&connection);
     wait_for_session(&connection, current_session + TEST_LENGTH)?;
 
     let mut non_reserved_count = HashMap::new();
