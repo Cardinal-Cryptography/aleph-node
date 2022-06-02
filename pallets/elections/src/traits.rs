@@ -3,8 +3,6 @@ use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
 pub trait SessionInfoProvider<T: frame_system::Config> {
-    /// Returns index of the current session
-    fn current_session_index() -> SessionIndex;
     /// Returns list containing validators that in the current session produce&finalize blocks.
     fn current_committee() -> Vec<T::AccountId>;
 }
@@ -14,10 +12,6 @@ where
     T: pallet_session::Config,
     T::ValidatorId: Into<T::AccountId>,
 {
-    fn current_session_index() -> SessionIndex {
-        pallet_session::Pallet::<T>::current_index()
-    }
-
     fn current_committee() -> Vec<T::AccountId> {
         pallet_session::Validators::<T>::get()
             .into_iter()

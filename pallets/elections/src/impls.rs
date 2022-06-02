@@ -65,6 +65,11 @@ fn rotate<T: Clone + PartialEq>(
     // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
     // seats in the committee after reserved nodes are added.
     let free_seats = n_validators.saturating_sub(reserved.len());
+
+    if free_seats == 0 {
+        return Some(reserved);
+    }
+
     let non_reserved_len = non_reserved.len();
     let first_validator = current_session as usize * free_seats;
 
@@ -148,7 +153,7 @@ where
 
     // Choose a subset of all the validators for current era that contains all the
     // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
-    fn rotate_committee() -> Option<Vec<T::AccountId>> {
+    fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>> {
         let current_era = match T::EraInfoProvider::active_era() {
             Some(ae) if ae > 0 => ae,
             _ => return None,
@@ -156,7 +161,6 @@ where
 
         let (reserved, non_reserved) = ErasMembers::<T>::get();
         let n_validators = MembersPerSession::<T>::get() as usize;
-        let current_session = T::SessionInfoProvider::current_session_index();
 
         rotate(
             current_era,
@@ -256,7 +260,7 @@ where
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
-        let committee = Self::rotate_committee();
+        let committee = Self::rotate_committee(new_index);
         Self::populate_members_on_next_era_start(new_index);
 
         committee

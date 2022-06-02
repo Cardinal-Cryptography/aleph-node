@@ -101,10 +101,6 @@ parameter_types! {
 pub struct MockProvider;
 
 impl SessionInfoProvider<Test> for MockProvider {
-    fn current_session_index() -> SessionIndex {
-        todo!()
-    }
-
     fn current_committee() -> Vec<<Test as frame_system::Config>::AccountId> {
         todo!()
     }
