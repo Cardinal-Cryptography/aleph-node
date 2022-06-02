@@ -35,6 +35,10 @@ fn calculate_adjusted_session_points(
 fn compute_validator_scaled_total_rewards<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
     let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
+    if sum_totals == 0 {
+        return validator_totals.into_iter().map(|(v, t)| (v, t as u32)).collect();
+    }
+
     // scaled_total = total * (MAX_REWARD / sum_totals)
     // for maximum possible value of the total sum_totals the scaled_total is equal to MAX_REWARD
     validator_totals
