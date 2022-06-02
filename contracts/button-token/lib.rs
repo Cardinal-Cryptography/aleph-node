@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::button_token::{ButtonToken, ButtonTokenRef};
+
 use ink_lang as ink;
 
 #[ink::contract]
@@ -256,8 +258,7 @@ mod button_token {
             Ok(())
         }
     }
-    // TODO : tests
-    //
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -563,6 +564,8 @@ mod button_token {
             result.as_mut()[0..copy_len].copy_from_slice(&hash_output[0..copy_len]);
             result
         }
+
+        // TODO : terminating tests
+        // TODO : ownership tests
     }
-    //
 }

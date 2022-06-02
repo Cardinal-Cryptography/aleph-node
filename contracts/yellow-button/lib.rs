@@ -19,13 +19,16 @@ use ink_lang as ink;
 // DONE : add getters
 // TODO : refactor access control to an Ownable trait
 
+#[allow(non_camel_case_types)]
 #[ink::contract]
 mod yellow_button {
 
+    // use crate::yellow_button::__ink_EventBase::ButtonCreated;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         DefaultEnvironment, Error as InkEnvError,
     };
+    use ink_lang::reflect::ContractEventBase;
     use ink_prelude::{string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
@@ -47,6 +50,8 @@ mod yellow_button {
 
     /// Result type
     pub type Result<T> = core::result::Result<T, Error>;
+    // Event type
+    type BaseEvent = <YellowButton as ContractEventBase>::Type;
 
     impl From<InkEnvError> for Error {
         fn from(e: InkEnvError) -> Self {
@@ -190,6 +195,7 @@ mod yellow_button {
 
         /// Constructor
         #[ink(constructor)]
+        #[allow(non_camel_case_types)]
         pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
             ink_lang::utils::initialize_contract(|contract: &mut Self| {
                 let now = Self::env().block_number();
@@ -202,10 +208,26 @@ mod yellow_button {
                 contract.deadline = deadline;
                 contract.button_token = button_token;
 
-                Self::env().emit_event(ButtonCreated {
-                    start: now,
-                    deadline,
-                });
+                // self::YellowButton::
+
+                // Self::env().emit_event::<crate::yellow_button::ContractEventBase>(ButtonCreated {
+                //     start: now,
+                //     deadline,
+                // });
+
+                // Self::env().emit_event::<crate::yellow_button::ContractEventBase::Type>(
+                //     ButtonCreated {
+                //         start: now,
+                //         deadline,
+                //     },
+                // );
+
+                // Self::env().emit_event::<BaseEvent>(ButtonCreated(ButtonCreated {
+                //     start: now,
+                //     deadline,
+                // }));
+
+                //
             })
         }
 
@@ -394,6 +416,42 @@ mod yellow_button {
             });
 
             Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use button_token::ButtonToken;
+        use ink_lang as ink;
+
+        #[ink::test]
+        fn distributing_rewards() {
+
+            // crate::yellow_button::ContractEventBase::Type
+
+            // let mut erc20 = Erc20::new(100);
+
+            // given
+            // let accounts =
+            //     ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+            // let contract_id = ink_env::test::callee::<ink_env::DefaultEnvironment>();
+            // ink_env::test::set_caller::<ink_env::DefaultEnvironment>(accounts.alice);
+            // ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+            //     contract_id,
+            //     100,
+            // );
+            // let mut contract = JustTerminate::new();
+
+            // // when
+            // let should_terminate = move || contract.terminate_me();
+
+            // // then
+            // ink_env::test::assert_contract_termination::<ink_env::DefaultEnvironment, _>(
+            //     should_terminate,
+            //     accounts.alice,
+            //     100,
+            // );
         }
     }
 }
