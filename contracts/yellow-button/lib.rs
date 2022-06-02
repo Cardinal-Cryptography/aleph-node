@@ -23,12 +23,11 @@ use ink_lang as ink;
 #[ink::contract]
 mod yellow_button {
 
-    // use crate::yellow_button::__ink_EventBase::ButtonCreated;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         DefaultEnvironment, Error as InkEnvError,
     };
-    use ink_lang::reflect::ContractEventBase;
+    use ink_lang::codegen::EmitEvent;
     use ink_prelude::{string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
@@ -50,8 +49,6 @@ mod yellow_button {
 
     /// Result type
     pub type Result<T> = core::result::Result<T, Error>;
-    // Event type
-    type BaseEvent = <YellowButton as ContractEventBase>::Type;
 
     impl From<InkEnvError> for Error {
         fn from(e: InkEnvError) -> Self {
@@ -157,6 +154,27 @@ mod yellow_button {
         deadline: u32,
     }
 
+    /// NOTE: emit all contract events via this enum
+    /// they cannot be used directly
+    /// as they will be conflated with events imported from button-token
+    pub enum YellowButtonEvent {
+        ButtonPressed(ButtonPressed),
+        OwnershipTransferred(OwnershipTransferred),
+        ButtonCreated(ButtonCreated),
+        ButtonDeath(ButtonDeath),
+    }
+
+    impl YellowButtonEvent {
+        fn emit<EE: EmitEvent<YellowButton>>(self, x: EE) {
+            match self {
+                YellowButtonEvent::ButtonPressed(event) => x.emit_event(event),
+                YellowButtonEvent::OwnershipTransferred(event) => x.emit_event(event),
+                YellowButtonEvent::ButtonCreated(event) => x.emit_event(event),
+                YellowButtonEvent::ButtonDeath(event) => x.emit_event(event),
+            }
+        }
+    }
+
     /// Even emitted when button death is triggered
     ///
     #[ink(event)]
@@ -208,26 +226,12 @@ mod yellow_button {
                 contract.deadline = deadline;
                 contract.button_token = button_token;
 
-                // self::YellowButton::
+                let event = YellowButtonEvent::ButtonCreated(ButtonCreated {
+                    start: now,
+                    deadline,
+                });
 
-                // Self::env().emit_event::<crate::yellow_button::ContractEventBase>(ButtonCreated {
-                //     start: now,
-                //     deadline,
-                // });
-
-                // Self::env().emit_event::<crate::yellow_button::ContractEventBase::Type>(
-                //     ButtonCreated {
-                //         start: now,
-                //         deadline,
-                //     },
-                // );
-
-                // Self::env().emit_event::<BaseEvent>(ButtonCreated(ButtonCreated {
-                //     start: now,
-                //     deadline,
-                // }));
-
-                //
+                event.emit(Self::env());
             })
         }
 
@@ -295,7 +299,7 @@ mod yellow_button {
                     Ok(())
                 });
 
-            self.env().emit_event(ButtonDeath {});
+            YellowButtonEvent::ButtonDeath(ButtonDeath {}).emit(self.env());
 
             Ok(())
         }
@@ -364,8 +368,10 @@ mod yellow_button {
                 return Err(Error::NotOwner);
             }
             self.owner = to;
-            self.env()
-                .emit_event(OwnershipTransferred { from: caller, to });
+
+            YellowButtonEvent::OwnershipTransferred(OwnershipTransferred { from: caller, to })
+                .emit(self.env());
+
             Ok(())
         }
 
@@ -409,11 +415,12 @@ mod yellow_button {
             self.deadline = now + self.button_lifetime;
 
             // emit event
-            self.env().emit_event(ButtonPressed {
+            YellowButtonEvent::ButtonPressed(ButtonPressed {
                 from: caller,
                 when: now,
                 new_deadline: self.deadline,
-            });
+            })
+            .emit(self.env());
 
             Ok(())
         }
@@ -427,8 +434,7 @@ mod yellow_button {
 
         #[ink::test]
         fn distributing_rewards() {
-
-            // crate::yellow_button::ContractEventBase::Type
+            let mut erc20 = ButtonToken::new(1000);
 
             // let mut erc20 = Erc20::new(100);
 
