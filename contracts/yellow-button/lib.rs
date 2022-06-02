@@ -152,8 +152,8 @@ mod yellow_button {
     #[derive(Debug)]
     pub struct ButtonCreated {
         #[ink(topic)]
+        button_token: AccountId,
         start: u32,
-        #[ink(topic)]
         deadline: u32,
     }
 
@@ -161,27 +161,6 @@ mod yellow_button {
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonDeath;
-
-    // /// NOTE: emit all contract events via this enum
-    // /// they cannot be used directly
-    // /// as they will be conflated with events imported from button-token
-    // pub enum YellowButtonEvent {
-    //     ButtonPressed(ButtonPressed),
-    //     OwnershipTransferred(OwnershipTransferred),
-    //     ButtonCreated(ButtonCreated),
-    //     ButtonDeath(ButtonDeath),
-    // }
-
-    // impl YellowButtonEvent {
-    //     fn emit<EE: EmitEvent<YellowButton>>(self, x: EE) {
-    //         match self {
-    //             YellowButtonEvent::ButtonPressed(event) => x.emit_event(event),
-    //             YellowButtonEvent::OwnershipTransferred(event) => x.emit_event(event),
-    //             YellowButtonEvent::ButtonCreated(event) => x.emit_event(event),
-    //             YellowButtonEvent::ButtonDeath(event) => x.emit_event(event),
-    //         }
-    //     }
-    // }
 
     impl YellowButton {
         /// Returns the buttons status
@@ -236,6 +215,7 @@ mod yellow_button {
                 let event = Event::ButtonCreated(ButtonCreated {
                     start: now,
                     deadline,
+                    button_token,
                 });
 
                 Self::emit_event(Self::env(), event)
@@ -464,15 +444,17 @@ mod yellow_button {
                     .expect("Can't decode as Event");
 
             match decoded_event {
-                Event::ButtonCreated(button_created_event) => {
-                    println!("{:?}", button_created_event)
+                Event::ButtonCreated(ButtonCreated {
+                    start,
+                    deadline,
+                    button_token,
+                }) => {
+                    assert_eq!(deadline, 900, "Wrong ButtonCreated.deadline");
+                    assert_eq!(start, 0, "Wrong ButtonCreated.start");
+                    assert_eq!(button_token, address, "Wrong ButtonCreated.button_token");
                 }
-                _ => todo!(),
+                _ => panic!("Wrong event emitted"),
             }
-
-            // if let Event::ButtonCreated(ButtonCreated { .. }) = decoded_event {}
-
-            // println!("{:?}", decoded_event);
         }
     }
 }
