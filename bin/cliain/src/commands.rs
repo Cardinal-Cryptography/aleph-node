@@ -56,7 +56,7 @@ pub struct ContractInstantiate {
     #[clap(long, parse(from_os_str))]
     pub metadata_path: PathBuf,
     /// The name of the contract constructor to call
-    #[clap(name = "constructor", long, default_value = "new")]
+    #[clap(long, default_value = "new")]
     pub constructor: String,
     /// The constructor arguments, encoded as strings
     #[clap(long, multiple_values = true)]
@@ -214,24 +214,29 @@ pub enum Command {
     /// Print debug info of storage
     DebugStorage,
 
-    /// Deploys a new contract, returns its code hash and the AccountId of the instance
-    /// contract cannot already exist on-chain
+    /// Deploys a new contract, returns its code hash and the AccountId of the instance.
+    ///
+    /// Contract cannot already exist on-chain
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatewithcodevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code-bytes-data-bytes-salt-bytes
     ContractInstantiateWithCode(ContractInstantiateWithCode),
 
-    /// Uploads new code without instantiating a contract from it
-    /// https://polkadot.js.org/docs/substrate/extrinsics/#uploadcodecode-bytes-storage_deposit_limit-optioncompactu128
+    /// Uploads new code without instantiating a contract from it, returns its code hash.
+    ///
+    /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#uploadcodecode-bytes-storage_deposit_limit-optioncompactu128
     ContractUploadCode(ContractUploadCode),
 
-    ///  Instantiates a contract from a previously deployed wasm binary.
+    ///  Instantiates a contract from a previously deployed wasm binary, returns the AccountId of the instance.
+    ///
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code_hash-h256-data-bytes-salt-bytes
     ContractInstantiate(ContractInstantiate),
 
-    /// Calls a contract
+    /// Calls a contract.
+    ///
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#calldest-multiaddress-value-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-data-bytes
     ContractCall(ContractCall),
 
-    /// Remove the code stored under code_hash and refund the deposit to its owner.
+    /// Removes the code stored under code_hash and refund the deposit to its owner.
+    ///
     /// Code can only be removed by its original uploader (its owner) and only if it is not used by any contract.
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#removecodecode_hash-h256
     ContractRemoveCode(ContractRemoveCode),
