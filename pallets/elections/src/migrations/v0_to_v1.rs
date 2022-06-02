@@ -10,6 +10,16 @@ generate_storage_alias!(
     Elections, Members<T: Config> => Value<Vec<T::AccountId>>
 );
 
+
+/// The assumptions made by this migration:
+///
+/// There is one storage in the pallet elections `Members` containing current set of validators.
+/// After migration the state should be as follows:
+/// - `Members` are no longer present.
+/// - `MembersPerSession` is u32 storage set to size of the `Members` set.
+/// - `ReservedMembers` contains the content of the `Members`
+/// - `NonReservedMembers` are empty
+/// - `ErasMembers` contain tuple of (content of `Members`, empty vector).
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1");
 
