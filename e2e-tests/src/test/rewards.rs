@@ -1,10 +1,10 @@
 use crate::{
-    accounts::{accounts_from_seeds, get_sudo},
+    accounts::{accounts_seeds_to_keys, get_sudo_key, get_validators_keys, get_validators_seeds},
     Config,
 };
 use aleph_client::{
-    change_reserved_members, era_reward_points, get_current_session, wait_for_era_completion,
-    wait_for_finalized_block, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
+    change_reserved_members, era_reward_points, get_current_session, wait_for_finalized_block,
+    wait_for_full_era_completion, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
     SignedConnection,
 };
 use sp_core::Pair;
@@ -17,28 +17,36 @@ const MINIMAL_TEST_SESSION_START: u32 = 9;
 const ELECTION_STARTS: u32 = 6;
 const ERAS: u32 = 4;
 
-fn get_reserved_members() -> Vec<KeyPair> {
-    accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
+fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[0..2].to_vec()
 }
 
-fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
+fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
 
-    let x = vec![
-        "//Julia".to_string(),
-        "//Zbyszko".to_string(),
-        "//Hansu".to_string(),
+    let validators_seeds = get_validators_seeds(config);
+    // this order is determined by pallet_staking::ErasStakers::iter_ker_prefix, so by order in
+    // map which is not guaranteed, however runtime is deterministic, so we can rely on particular order
+    // test needs to be reworked to read order from ErasStakers
+    let non_reserved_nodes_order_from_runtime = vec![
+        validators_seeds[3].clone(),
+        validators_seeds[2].clone(),
+        validators_seeds[4].clone(),
     ];
-    let x_len = x.len();
+    let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
-        non_reserved.push(x[i as usize % x_len].clone());
+        non_reserved.push(
+            non_reserved_nodes_order_from_runtime
+                [i as usize % non_reserved_nodes_order_from_runtime_len]
+                .clone(),
+        );
     }
 
-    accounts_from_seeds(&Some(non_reserved))
+    accounts_seeds_to_keys(&non_reserved)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect()
@@ -61,17 +69,17 @@ fn get_authorities_for_session<C: AnyConnection>(connection: &C, session: u32) -
         .expect("Authorities should always be present")
 }
 
-pub fn points_and_payouts(cfg: &Config) -> anyhow::Result<()> {
-    let node = &cfg.node;
-    let accounts = accounts_from_seeds(&None);
+pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
+    let node = &config.node;
+    let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = SignedConnection::new(node, sender);
 
-    let sudo = get_sudo(cfg);
+    let sudo = get_sudo_key(config);
 
     let root_connection = RootConnection::new(node, sudo);
 
-    let reserved_members: Vec<_> = get_reserved_members()
+    let reserved_members: Vec<_> = get_reserved_members(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
@@ -92,23 +100,29 @@ pub fn points_and_payouts(cfg: &Config) -> anyhow::Result<()> {
     info!("Session at inception: {}", session);
     // If during era 0 we request a controller to be a validator, it becomes one
     // for era 1, so we want to start the test from era 1.
-    wait_for_era_completion(&connection, 2)?;
-    let session = get_current_session(&connection);
-    info!("Session at test start: {}", session);
+    wait_for_full_era_completion(&connection)?;
 
-    while session < ERAS * sessions_per_era {
-        let era = session / sessions_per_era;
-        info!("In era: {}", era);
-        info!("Processing session: {}", session);
-        let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_members_for_session(session);
+    //while session < ERAS * sessions_per_era {
+    loop {
+        let session = get_current_session(&connection);
+        info!("Current session: {}", session);
+        info!("Current session remainder: {}", session % sessions_per_era);
+        if session % sessions_per_era != 0 {
+            let era = session / sessions_per_era;
+            info!("Era: {} | session: {}", era, session);
 
-        let era_reward_points = era_reward_points(&connection, era)
-            .unwrap_or_else(|| panic!("Failed to obtain EraRewardPoints for era {}, session {}", era, session));
-        let validator_reward_points = era_reward_points.individual;
-        validator_reward_points.iter().for_each(|(account_id, reward_points)| info!("Validator {} accumulated {}.", account_id, reward_points));
-        let session = wait_for_session(&connection, session + 1)?;
-        info!("Next session: {}", session);
+            let elected = get_authorities_for_session(&connection, session);
+            let non_reserved = get_non_reserved_members_for_session(config, session);
+
+            let era_reward_points = era_reward_points(&connection, era);
+            let validator_reward_points = era_reward_points.individual;
+            validator_reward_points
+                .iter()
+                .for_each(|(account_id, reward_points)| {
+                    info!("Validator {} accumulated {}.", account_id, reward_points)
+                });
+        }
+        wait_for_session(&connection, session + 1)?;
     }
 
     let block_number = connection

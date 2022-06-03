@@ -1,6 +1,6 @@
-use std::{thread::sleep, time::Duration};
+use std::{collections::BTreeMap, thread::sleep, time::Duration};
 
-use codec::Encode;
+use codec::{Decode, Encode};
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
@@ -298,4 +298,26 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let bytes = storage_key(pallet, call);
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
+}
+
+type RewardPoint = u32;
+
+/// Helper to decode reward points for an era without the need to fill in a generic parameter.
+/// Reward points of an era. Used to split era total payout between validators.
+///
+/// This points will be used to reward validators and their respective nominators.
+#[derive(Clone, Decode)]
+pub struct EraRewardPoints {
+    /// Total number of points. Equals the sum of reward points for each validator.
+    pub total: RewardPoint,
+    /// The reward points earned by a given validator.
+    pub individual: BTreeMap<AccountId, RewardPoint>,
+}
+
+pub fn era_reward_points<C: AnyConnection>(connection: &C, era: u32) -> EraRewardPoints {
+    connection
+        .as_connection()
+        .get_storage_map("Staking", "ErasRewardPoints", era, None)
+        .expect("Failed to obtain ErasRewardPoints.")
+        .unwrap_or_else(|| panic!("Failed to obtain EraRewardPoints for era {}.", era))
 }

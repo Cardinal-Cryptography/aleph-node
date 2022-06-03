@@ -4,6 +4,7 @@ use crate::{
         batch_transactions as test_batch_transactions, change_validators as test_change_validators,
         channeling_fee as test_channeling_fee, fee_calculation as test_fee_calculation,
         finalization as test_finalization, members_rotate,
+        points_and_payouts as test_points_and_payouts,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access,
@@ -19,6 +20,7 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
+        ("points_and_payouts", test_points_and_payouts as TestCase),
         ("finalization", test_finalization as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         ("channeling_fee", test_channeling_fee as TestCase),
