@@ -32,7 +32,9 @@ fn calculate_adjusted_session_points(
     ) * total_possible_reward as u64) as u32
 }
 
-fn compute_validator_scaled_total_rewards<V>(validator_totals: Vec<(V, u128)>) -> Vec<(V, u32)> {
+pub fn compute_validator_scaled_total_rewards<V>(
+    validator_totals: Vec<(V, u128)>,
+) -> Vec<(V, u32)> {
     let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
     if sum_totals == 0 {

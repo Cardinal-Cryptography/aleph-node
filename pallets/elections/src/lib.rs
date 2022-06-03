@@ -38,6 +38,7 @@ use sp_std::{
     prelude::Vec,
 };
 
+pub use impls::compute_validator_scaled_total_rewards;
 pub use pallet::*;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);

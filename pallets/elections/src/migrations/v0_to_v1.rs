@@ -1,4 +1,9 @@
-use crate::{Config, ErasMembers, MembersPerSession, NonReservedMembers, ReservedMembers};
+use crate::{
+    compute_validator_scaled_total_rewards,
+    traits::{EraInfoProvider, ValidatorRewardsHandler},
+    Config, ErasMembers, MembersPerSession, NonReservedMembers, ReservedMembers,
+    ValidatorEraTotalReward, ValidatorTotalRewards,
+};
 use frame_support::{
     generate_storage_alias, log,
     traits::{Get, PalletInfoAccess, StorageVersion},
@@ -25,6 +30,19 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     let members = Members::<T>::get().expect("Members should be present");
     Members::<T>::kill();
 
+    let mut writes = 5;
+    let mut reads = 2;
+
+    if let Some(era) = T::EraInfoProvider::active_era() {
+        let t = T::ValidatorRewardsHandler::validator_totals(era);
+        let st = compute_validator_scaled_total_rewards(t);
+
+        ValidatorEraTotalReward::<T>::put(ValidatorTotalRewards(st.into_iter().collect()));
+
+        writes += 1;
+        reads += 1;
+    }
+
     let members_per_session = members.len() as u32;
 
     MembersPerSession::<T>::put(members_per_session);
@@ -33,5 +51,5 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     ErasMembers::<T>::put((members, Vec::<T::AccountId>::new()));
 
     StorageVersion::new(1).put::<P>();
-    T::DbWeight::get().reads(1) + T::DbWeight::get().writes(5)
+    T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
 }
