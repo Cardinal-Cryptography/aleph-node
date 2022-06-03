@@ -15,7 +15,7 @@ TOTAL_BALANCE=1000
 CONTRACTS_PATH=/home/filip/CloudStation/aleph/aleph-node/contracts
 CLI_PATH=/home/filip/CloudStation/aleph/aleph-node/bin/cliain
 
-## --- DEPLOY GAME TOKEN
+## --- DEPLOY TOKEN CONTRACT
 
 cd $CONTRACTS_PATH/button-token
 cargo +nightly contract build --release
@@ -62,6 +62,11 @@ cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri
 sleep 5
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE1_SEED
+
+## --- TRIGGER DEATH AND REWARD DISTRIBUTION
+sleep 6
+
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
 echo "Done"
 exit $?
