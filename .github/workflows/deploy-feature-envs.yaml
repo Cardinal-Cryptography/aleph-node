@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get Branch Name
         id: get_branch
@@ -67,7 +67,7 @@ jobs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get Branch Name
         id: get_branch
@@ -139,7 +139,7 @@ jobs:
           aws s3 cp s3://fe-alephzero-devnet-eu-central-1-keys-bucket/data/ s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}/data/ --recursive
 
       - name: GIT | Checkout aleph-apps repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -212,7 +212,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get Branch Name
         id: get_branch
@@ -224,7 +224,7 @@ jobs:
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: GIT | Checkout aleph-apps repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -325,7 +325,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get Branch Name
         id: get_branch
@@ -335,7 +335,7 @@ jobs:
         run: echo "##[set-output name=branch;]$(echo ${PR_HEAD#refs/heads/} | tr / -)"
 
       - name: GIT | Checkout aleph-apps repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -430,7 +430,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get Branch Name
         id: get_branch
@@ -440,7 +440,7 @@ jobs:
         run: echo "##[set-output name=branch;]$(echo ${PR_HEAD#refs/heads/} | tr / -)"
       
       - name: GIT | Checkout aleph-apps repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/aleph-apps
           token: ${{ secrets.CI_GH_TOKEN }}
