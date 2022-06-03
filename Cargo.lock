@@ -1622,6 +1622,7 @@ dependencies = [
  "aleph-bft",
  "aleph-bft-rmc",
  "async-trait",
+ "bytes 1.1.0",
  "derive_more",
  "env_logger",
  "futures 0.3.21",
