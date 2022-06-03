@@ -4,18 +4,16 @@ use crate::{
 };
 use aleph_client::{
     change_reserved_members, era_reward_points, get_current_session, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
+    wait_for_full_era_completion, AnyConnection, Header, KeyPair, RewardPoint, RootConnection,
     SignedConnection,
 };
 use sp_core::Pair;
-//use std::collections::HashMap;
+use std::collections::BTreeMap;
 use substrate_api_client::{AccountId, XtStatus};
 
 use log::info;
 
-const MINIMAL_TEST_SESSION_START: u32 = 9;
-const ELECTION_STARTS: u32 = 6;
-const ERAS: u32 = 4;
+const ERAS: u32 = 10;
 
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
@@ -90,7 +88,8 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
 
-    //let mut session_reward_points = HashMap::new();
+    let mut validator_reward_points_previous_session = BTreeMap::new();
+
     let sessions_per_era: u32 = connection
         .as_connection()
         .get_constant("Staking", "SessionsPerEra")
@@ -103,8 +102,7 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
     // so we want to start the test from era 2.
     wait_for_full_era_completion(&connection)?;
 
-    //while session < ERAS * sessions_per_era {
-    loop {
+    while session < ERAS * sessions_per_era {
         let session = get_current_session(&connection);
         let era = session / sessions_per_era;
 
@@ -117,15 +115,24 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             .get_constant::<u32>("Elections", "SessionPeriod")
             .expect("Failed to decode SessionPeriod extrinsic!");
         info!("Waiting for block: {}", (session + 1) * session_period);
-        wait_for_finalized_block(&connection, (session + 1) * session_period);
+        wait_for_finalized_block(&connection, (session + 1) * session_period)?;
 
         let era_reward_points = era_reward_points(&connection, era);
         let validator_reward_points = era_reward_points.individual;
-        validator_reward_points
+        let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> = validator_reward_points
+            .iter()
+            .map( |(account_id, reward_points)| {
+                let reward_points_previous = validator_reward_points_previous_session.get(account_id).unwrap_or(&0);
+                let reward_points_current = reward_points - reward_points_previous;
+                (account_id.clone(), reward_points_current)
+            })
+            .collect();
+        validator_reward_points_current_session
             .iter()
             .for_each(|(account_id, reward_points)| {
-                info!("Validator {} accumulated {}.", account_id, reward_points)
+                info!("in session: {} | validator {} accumulated {}.", session, account_id, reward_points)
             });
+        validator_reward_points_previous_session = validator_reward_points;
     }
 
     let block_number = connection

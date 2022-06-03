@@ -300,7 +300,7 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     hex::encode(storage_key.0)
 }
 
-type RewardPoint = u32;
+pub type RewardPoint = u32;
 
 /// Helper to decode reward points for an era without the need to fill in a generic parameter.
 /// Reward points of an era. Used to split era total payout between validators.
