@@ -58,14 +58,13 @@ pub fn compute_validator_scaled_total_rewards<V>(
 }
 
 fn rotate<T: Clone + PartialEq>(
-    current_era: EraIndex,
     current_session: SessionIndex,
     n_validators: usize,
     reserved: Vec<T>,
     non_reserved: Vec<T>,
 ) -> Option<Vec<T>> {
-    if current_era == 0 {
-        return None;
+    if non_reserved.is_empty() {
+        return Some(reserved);
     }
 
     // The validators for the committee at the session `n` are chosen as follow:
@@ -74,10 +73,6 @@ fn rotate<T: Clone + PartialEq>(
     // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to free number of free
     // seats in the committee after reserved nodes are added.
     let free_seats = n_validators.saturating_sub(reserved.len());
-
-    if free_seats == 0 {
-        return Some(reserved);
-    }
 
     let non_reserved_len = non_reserved.len();
     let first_validator = current_session as usize * free_seats;
@@ -163,21 +158,14 @@ where
     // Choose a subset of all the validators for current era that contains all the
     // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
     fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>> {
-        let current_era = match T::EraInfoProvider::active_era() {
-            Some(ae) if ae > 0 => ae,
-            _ => return None,
-        };
+        if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
+            return None;
+        }
 
         let (reserved, non_reserved) = ErasMembers::<T>::get();
         let n_validators = MembersPerSession::<T>::get() as usize;
 
-        rotate(
-            current_era,
-            current_session,
-            n_validators,
-            reserved,
-            non_reserved,
-        )
+        rotate(current_session, n_validators, reserved, non_reserved)
     }
 
     fn if_era_starts_do<F: Fn()>(era: EraIndex, start_index: SessionIndex, on_era_start: F) {
@@ -302,11 +290,6 @@ mod tests {
     use std::collections::VecDeque;
 
     #[test]
-    fn given_era_zero_when_rotating_committee_then_committee_is_empty() {
-        assert_eq!(None, rotate(0, 0, 4, (0..10).collect(), vec![1, 2, 3, 4]));
-    }
-
-    #[test]
     fn adjusted_session_points_all_blocks_created_are_calculated_correctly() {
         assert_eq!(5000, calculate_adjusted_session_points(5, 30, 30, 25_000));
 
@@ -420,7 +403,6 @@ mod tests {
             assert_eq!(
                 expected_rotated_committee,
                 rotate(
-                    1,
                     session_index,
                     total_validators,
                     reserved.clone(),

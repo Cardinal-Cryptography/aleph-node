@@ -39,8 +39,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
     change_members(
         &connection,
-        new_members[0..2].to_vec(),
-        new_members[2..].to_vec(),
+        Some(new_members[0..2].to_vec()),
+        Some(new_members[2..].to_vec()),
         Some(4),
         XtStatus::InBlock,
     );
@@ -57,8 +57,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         |e: NewMembersEvent| {
             info!("[+] NewMembersEvent: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:#?}", e.reserved, e.non_reserved, e.non_reserved);
 
-            e.reserved == new_members[0..2].to_vec()
-                && e.non_reserved == new_members[2..].to_vec()
+            e.reserved == new_members[0..2]
+                && e.non_reserved == new_members[2..]
                 && e.members_per_session == 4
         },
     )?;

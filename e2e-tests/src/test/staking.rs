@@ -115,8 +115,8 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
 
     change_members(
         &root_connection,
-        convert_authorities_to_account_id(&validator_accounts),
-        vec![],
+        Some(convert_authorities_to_account_id(&validator_accounts)),
+        Some(vec![]),
         Some(4),
         XtStatus::InBlock,
     );
@@ -187,8 +187,8 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     validator_accounts.push(stash);
     change_members(
         &root_connection,
-        convert_authorities_to_account_id(&validator_accounts),
-        vec![],
+        Some(convert_authorities_to_account_id(&validator_accounts)),
+        Some(vec![]),
         Some(5),
         XtStatus::InBlock,
     );

@@ -83,8 +83,8 @@ pub fn members_rotate(config: &Config) -> anyhow::Result<()> {
 
     change_members(
         &root_connection,
-        reserved_members.clone(),
-        non_reserved_members,
+        Some(reserved_members.clone()),
+        Some(non_reserved_members),
         Some(4),
         XtStatus::InBlock,
     );

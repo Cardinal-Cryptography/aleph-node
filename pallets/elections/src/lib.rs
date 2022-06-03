@@ -146,13 +146,17 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn change_members(
             origin: OriginFor<T>,
-            reserved_members: Vec<T::AccountId>,
-            non_reserved_members: Vec<T::AccountId>,
+            reserved_members: Option<Vec<T::AccountId>>,
+            non_reserved_members: Option<Vec<T::AccountId>>,
             members_per_session: Option<u32>,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
             let mps = members_per_session.unwrap_or_else(MembersPerSession::<T>::get);
+            let reserved_members = reserved_members.unwrap_or_else(ReservedMembers::<T>::get);
+            let non_reserved_members =
+                non_reserved_members.unwrap_or_else(NonReservedMembers::<T>::get);
+
             Self::ensure_members_are_ok(
                 reserved_members.clone(),
                 non_reserved_members.clone(),
@@ -161,83 +165,7 @@ pub mod pallet {
 
             NonReservedMembers::<T>::put(non_reserved_members.clone());
             ReservedMembers::<T>::put(reserved_members.clone());
-
-            Self::deposit_event(Event::ChangeMembers(
-                reserved_members,
-                non_reserved_members,
-                mps,
-            ));
-
-            Ok(())
-        }
-
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_members_per_session(
-            origin: OriginFor<T>,
-            members_per_session: u32,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-            let reserved_members = ReservedMembers::<T>::get();
-            let non_reserved_members = NonReservedMembers::<T>::get();
-            Self::ensure_members_are_ok(
-                reserved_members.clone(),
-                non_reserved_members.clone(),
-                members_per_session,
-            )?;
-
-            MembersPerSession::<T>::put(members_per_session);
-
-            Self::deposit_event(Event::ChangeMembers(
-                reserved_members,
-                non_reserved_members,
-                members_per_session,
-            ));
-
-            Ok(())
-        }
-
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn change_reserved_members(
-            origin: OriginFor<T>,
-            reserved_members: Vec<T::AccountId>,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-
-            let non_reserved_members = NonReservedMembers::<T>::get();
-            let mps = MembersPerSession::<T>::get();
-            Self::ensure_members_are_ok(
-                reserved_members.clone(),
-                non_reserved_members.clone(),
-                mps,
-            )?;
-
-            ReservedMembers::<T>::put(reserved_members.clone());
-
-            Self::deposit_event(Event::ChangeMembers(
-                reserved_members,
-                non_reserved_members,
-                mps,
-            ));
-
-            Ok(())
-        }
-
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn change_non_reserved_members(
-            origin: OriginFor<T>,
-            non_reserved_members: Vec<T::AccountId>,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-
-            let reserved_members = ReservedMembers::<T>::get();
-            let mps = MembersPerSession::<T>::get();
-            Self::ensure_members_are_ok(
-                reserved_members.clone(),
-                non_reserved_members.clone(),
-                mps,
-            )?;
-
-            NonReservedMembers::<T>::put(non_reserved_members.clone());
+            MembersPerSession::<T>::put(mps);
 
             Self::deposit_event(Event::ChangeMembers(
                 reserved_members,

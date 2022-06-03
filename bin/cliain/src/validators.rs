@@ -13,8 +13,8 @@ pub fn change_validators(root_connection: RootConnection, validators: Vec<String
 
     change_members(
         &root_connection,
-        validators,
-        vec![],
+        Some(validators),
+        Some(vec![]),
         Some(validators_len),
         XtStatus::Finalized,
     );
