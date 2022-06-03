@@ -45,7 +45,7 @@ jobs:
           docker build --tag ${{ env.FE_ALEPH_NODE_REGISTRY }}:${{ env.IMAGE_TAG }} -f ./docker/Dockerfile .
 
       - name: Login to ECR
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: 573243519133.dkr.ecr.us-east-1.amazonaws.com
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr                        
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: public.ecr.aws
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
