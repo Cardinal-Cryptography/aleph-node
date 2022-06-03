@@ -99,27 +99,25 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
     let session = get_current_session(&connection);
     info!("Session at inception: {}", session);
     // If during era 0 we request a controller to be a validator, it becomes one
-    // for era 1, so we want to start the test from era 1.
+    // for era 1, and payouts can be collected once era 1 ends,
+    // so we want to start the test from era 2.
     wait_for_full_era_completion(&connection)?;
 
     //while session < ERAS * sessions_per_era {
     loop {
         let session = get_current_session(&connection);
         let era = session / sessions_per_era;
-        info!("Before remainder check | Era: {} | session: {}", era, session);
-        info!("Current session remainder: {}", session % sessions_per_era);
-
-        if session % sessions_per_era == 0 {
-            info!("First session in era, waiting for block: {}", session);
-            wait_for_finalized_block(&connection, session + 1);
-        }
-
-        let session_after_check = get_current_session(&connection);
-        let era_after_check = session_after_check / sessions_per_era;
-        info!("After remainder check | Era: {} | session: {}", era_after_check, session_after_check);
 
         let elected = get_authorities_for_session(&connection, session);
         let non_reserved = get_non_reserved_members_for_session(config, session);
+
+        info!("Era: {} | session: {}", era, session);
+        let session_period = connection
+            .as_connection()
+            .get_constant::<u32>("Elections", "SessionPeriod")
+            .expect("Failed to decode SessionPeriod extrinsic!");
+        info!("Waiting for block: {}", (session + 1) * session_period);
+        wait_for_finalized_block(&connection, (session + 1) * session_period);
 
         let era_reward_points = era_reward_points(&connection, era);
         let validator_reward_points = era_reward_points.individual;
@@ -128,8 +126,6 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             .for_each(|(account_id, reward_points)| {
                 info!("Validator {} accumulated {}.", account_id, reward_points)
             });
-
-        wait_for_session(&connection, session + 1)?;
     }
 
     let block_number = connection
