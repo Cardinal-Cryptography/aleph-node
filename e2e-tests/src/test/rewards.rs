@@ -105,23 +105,30 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
     //while session < ERAS * sessions_per_era {
     loop {
         let session = get_current_session(&connection);
-        info!("Current session: {}", session);
+        let era = session / sessions_per_era;
+        info!("Before remainder check | Era: {} | session: {}", era, session);
         info!("Current session remainder: {}", session % sessions_per_era);
-        if session % sessions_per_era != 0 {
-            let era = session / sessions_per_era;
-            info!("Era: {} | session: {}", era, session);
 
-            let elected = get_authorities_for_session(&connection, session);
-            let non_reserved = get_non_reserved_members_for_session(config, session);
-
-            let era_reward_points = era_reward_points(&connection, era);
-            let validator_reward_points = era_reward_points.individual;
-            validator_reward_points
-                .iter()
-                .for_each(|(account_id, reward_points)| {
-                    info!("Validator {} accumulated {}.", account_id, reward_points)
-                });
+        if session % sessions_per_era == 0 {
+            info!("First session in era, waiting for block: {}", session);
+            wait_for_finalized_block(&connection, session + 1);
         }
+
+        let session_after_check = get_current_session(&connection);
+        let era_after_check = session_after_check / sessions_per_era;
+        info!("After remainder check | Era: {} | session: {}", era_after_check, session_after_check);
+
+        let elected = get_authorities_for_session(&connection, session);
+        let non_reserved = get_non_reserved_members_for_session(config, session);
+
+        let era_reward_points = era_reward_points(&connection, era);
+        let validator_reward_points = era_reward_points.individual;
+        validator_reward_points
+            .iter()
+            .for_each(|(account_id, reward_points)| {
+                info!("Validator {} accumulated {}.", account_id, reward_points)
+            });
+
         wait_for_session(&connection, session + 1)?;
     }
 
