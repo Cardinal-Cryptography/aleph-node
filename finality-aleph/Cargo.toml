@@ -1,6 +1,6 @@
 [package]
 name = "finality-aleph"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 
@@ -10,6 +10,7 @@ aleph-bft-rmc = "0.3.0"
 aleph-primitives = { package = "primitives", path = "../primitives" }
 
 async-trait = "0.1"
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 derive_more = "0.99"
 env_logger = "0.9"
 futures = "0.3"
@@ -24,7 +25,6 @@ rand = "0.8"
 serde = "1.0"
 tokio = { version = "1.17", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
 
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
 sp-keystore = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
 sc-network = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }

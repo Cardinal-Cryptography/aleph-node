@@ -1,6 +1,6 @@
 [package]
 name = "aleph-runtime"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 license = "Apache 2.0"
@@ -14,10 +14,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-
-primitives = { path = "../../primitives", default-features = false }
-pallet-aleph = { path = "../../pallets/aleph", default-features = false }
-pallet-elections = { path = "../../pallets/elections", default-features = false }
 
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
@@ -58,6 +54,10 @@ sp-transaction-pool = { default-features = false, git = "https://github.com/pari
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
 # NOTE: these two disabled features collide with std in wasm
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
+
+primitives = { path = "../../primitives", default-features = false }
+pallet-aleph = { path = "../../pallets/aleph", default-features = false }
+pallet-elections = { path = "../../pallets/elections", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
