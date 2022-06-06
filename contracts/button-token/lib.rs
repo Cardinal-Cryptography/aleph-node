@@ -106,7 +106,8 @@ mod button_token {
         /// Returns the account balance for the specified `owner`.
         ///
         /// Returns `0` if the account is non-existent.
-        #[ink(message, selector = 2)]
+        // #[ink(message, selector = 2)]
+        #[ink(message, selector = 0xDEADBEEF)]
         pub fn balance_of(&self, owner: AccountId) -> Balance {
             self.balance_of_impl(&owner)
         }

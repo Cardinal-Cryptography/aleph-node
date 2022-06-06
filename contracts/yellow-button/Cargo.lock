@@ -63,20 +63,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "button_token"
-version = "0.1.0"
-dependencies = [
- "ink_env",
- "ink_lang",
- "ink_lang_codegen",
- "ink_metadata",
- "ink_primitives",
- "ink_storage",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
 name = "byte-slice-cast"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -773,7 +759,6 @@ dependencies = [
 name = "yellow_button"
 version = "0.1.0"
 dependencies = [
- "button_token",
  "ink_env",
  "ink_lang",
  "ink_lang_codegen",

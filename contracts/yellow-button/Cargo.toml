@@ -16,7 +16,7 @@ ink_prelude = { version = "=3.0.1", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
-button_token = { path = "../button-token", default-features = false, features = ["ink-as-dependency"] }
+# button_token = { path = "../button-token", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
 name = "yellow_button"
@@ -37,6 +37,6 @@ std = [
   "ink_lang_codegen/std",    
   "scale/std",
   "scale-info/std",
-  "button_token/std"  
+  # "button_token/std"  
 ]
 ink-as-dependency = []
