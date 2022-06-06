@@ -370,6 +370,40 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
+    pub const PostUnbondPoolsWindow: u32 = 4;
+    pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
+    pub const MinPointsToBalance: u32 = 10;
+}
+
+use sp_runtime::traits::Convert;
+pub struct BalanceToU256;
+impl Convert<Balance, sp_core::U256> for BalanceToU256 {
+    fn convert(balance: Balance) -> sp_core::U256 {
+        sp_core::U256::from(balance)
+    }
+}
+pub struct U256ToBalance;
+impl Convert<sp_core::U256, Balance> for U256ToBalance {
+    fn convert(n: sp_core::U256) -> Balance {
+        n.try_into().unwrap_or(Balance::max_value())
+    }
+}
+
+impl pallet_nomination_pools::Config for Runtime {
+    type WeightInfo = ();
+    type Event = Event;
+    type Currency = Balances;
+    type BalanceToU256 = BalanceToU256;
+    type U256ToBalance = U256ToBalance;
+    type StakingInterface = pallet_staking::Pallet<Self>;
+    type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
+    type MaxMetadataLen = ConstU32<256>;
+    type MaxUnbonding = ConstU32<8>;
+    type PalletId = NominationPoolsPalletId;
+    type MinPointsToBalance = MinPointsToBalance;
+}
+
+parameter_types! {
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
     // this is coupled with weights for payout_stakers() call
@@ -494,6 +528,8 @@ impl pallet_staking::Config for Runtime {
     type MaxUnlockingChunks = ConstU32<16>;
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
+    type CurrencyBalance = Balance;
+    type OnStakerSlash = ();
 }
 
 parameter_types! {
@@ -651,6 +687,9 @@ impl pallet_contracts::Config for Runtime {
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
+    type ContractAccessWeight = pallet_contracts::DefaultContractAccessWeight<BlockWeights>;
+    type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+    type RelaxedMaxCodeLen = ConstU32<{ 256 * 1024 }>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -660,7 +699,7 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+        System: frame_system,
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
         Aura: pallet_aura::{Pallet, Config<T>} = 3,
@@ -679,6 +718,7 @@ construct_runtime!(
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
         Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 18,
+        NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Config<T>, Event<T>} = 19,
     }
 );
 

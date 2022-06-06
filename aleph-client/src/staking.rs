@@ -271,10 +271,10 @@ pub fn bonded<C: AnyConnection>(connection: &C, stash: &KeyPair) -> Option<Accou
         .unwrap_or_else(|_| panic!("Failed to obtain Bonded for account id {}", account_id))
 }
 
-pub fn ledger<C: AnyConnection>(
+pub fn ledger<C: AnyConnection, T: pallet_staking::Config>(
     connection: &C,
     controller: &KeyPair,
-) -> Option<pallet_staking::StakingLedger<AccountId, Balance>> {
+) -> Option<pallet_staking::StakingLedger<T>> {
     let account_id = AccountId::from(controller.public());
     connection
         .as_connection()

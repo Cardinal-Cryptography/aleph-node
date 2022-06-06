@@ -69,7 +69,7 @@ impl FromStr for WsRpcClient {
 pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
-pub type Connection = Api<KeyPair, WsRpcClient>;
+pub type Connection = Api<KeyPair, WsRpcClient, ExtrinsicParams>;
 
 /// 'Castability' to `Connection`.
 ///

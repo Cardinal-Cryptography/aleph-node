@@ -6,11 +6,11 @@ edition = "2021"
 
 [dependencies]
 # client
-substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "polkadot-v0.9.19" }
+substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "polkadot-v0.9.23" }
 
 # Substrate dependencies
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19", features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
+sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
 
 # other dependencies
 serde_json = { version = "1.0" }

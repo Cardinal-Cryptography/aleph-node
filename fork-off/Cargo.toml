@@ -5,9 +5,9 @@ edition = "2021"
 
 [dependencies]
 # Substrate dependencies
-frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
-frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
-pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
+frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
+frame-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
+pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
 
 
 # other

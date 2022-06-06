@@ -190,7 +190,7 @@ fn setup(
                 deny_unsafe,
             };
 
-            Ok(crate::rpc::create_full(deps))
+            crate::rpc::create_full(deps).map_err(Into::into)
         })
     };
 
@@ -200,7 +200,7 @@ fn setup(
         keystore: keystore_container.sync_keystore(),
         task_manager,
         transaction_pool,
-        rpc_extensions_builder,
+        rpc_builder: rpc_extensions_builder,
         backend,
         system_rpc_tx,
         config,
