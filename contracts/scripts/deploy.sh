@@ -52,33 +52,33 @@ cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --ar
 
 ## -- DEBUGGING CALLS
 
-cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow-button
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_button_token --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_button_token --suri $ALICE_SEED
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_balance --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_balance --suri $ALICE_SEED
 
 ## --- WHITELIST ACCOUNTS
 
-# cd $CONTRACTS_PATH/yellow-button
+cd $CONTRACTS_PATH/yellow-button
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE1]" --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE1]" --suri $ALICE_SEED
 
-# ## --- PLAY
+## --- PLAY
 
-# cd $CONTRACTS_PATH/yellow-button
+cd $CONTRACTS_PATH/yellow-button
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
-# sleep 1
+sleep 1
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE1_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE1_SEED
 
-# ## --- TRIGGER DEATH AND REWARD DISTRIBUTION
+## --- TRIGGER DEATH AND REWARD DISTRIBUTION
 
-# sleep 5
+sleep 5
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
 echo "Done"
 exit $?

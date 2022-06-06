@@ -1,12 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use self::button_token::{ButtonToken, ButtonTokenRef, Event};
-
 use ink_lang as ink;
 
 #[ink::contract]
 mod button_token {
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
     #[ink(storage)]
@@ -69,8 +66,6 @@ mod button_token {
 
     /// Result type    
     pub type Result<T> = core::result::Result<T, Error>;
-    /// Event type
-    pub type Event = <ButtonToken as ContractEventBase>::Type;
 
     impl ButtonToken {
         /// Creates a new contract with the specified initial supply.
@@ -106,8 +101,7 @@ mod button_token {
         /// Returns the account balance for the specified `owner`.
         ///
         /// Returns `0` if the account is non-existent.
-        // #[ink(message, selector = 2)]
-        #[ink(message, selector = 0xDEADBEEF)]
+        #[ink(message, selector = 2)]
         pub fn balance_of(&self, owner: AccountId) -> Balance {
             self.balance_of_impl(&owner)
         }

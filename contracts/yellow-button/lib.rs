@@ -8,17 +8,6 @@ use ink_lang as ink;
 /// Pressiah gets 50% of tokens
 /// the game is played until TheButton dies
 
-// DONE : contract holds ERC20 funds
-// DONE : contract distributes funds to all accounts that participated (according to a formula)
-// e.g. :
-// - 50% go to the Pressiah
-// - rest is distributed proportionally to how long has a given user extended TheButtons life for
-// DONE : add sybil protection (only whitelisted accounts can participate)
-// - DONE add / remove whitelisted accounts
-// - DONE add access-control
-// DONE : add getters
-// TODO : refactor access control to an Ownable trait
-
 #[ink::contract]
 mod yellow_button {
 
@@ -129,14 +118,6 @@ mod yellow_button {
     /// Event emitted when TheButton is pressed
     #[ink(event)]
     #[derive(Debug)]
-    pub struct DebugEvent {
-        #[ink(topic)]
-        from: u32,
-    }
-
-    /// Event emitted when TheButton is pressed
-    #[ink(event)]
-    #[derive(Debug)]
     pub struct ButtonPressed {
         #[ink(topic)]
         from: AccountId,
@@ -167,7 +148,11 @@ mod yellow_button {
     /// Even emitted when button death is triggered    
     #[ink(event)]
     #[derive(Debug)]
-    pub struct ButtonDeath;
+    pub struct ButtonDeath {
+        #[ink(topic)]
+        pressiah: Option<AccountId>,
+        pressiah_reward: u128,
+    }
 
     impl YellowButton {
         /// Returns the buttons status
@@ -212,15 +197,11 @@ mod yellow_button {
             let this = self.env().account_id();
             let button_token = self.button_token;
 
-            Self::emit_event(self.env(), Event::DebugEvent(DebugEvent { from: 0 }));
-
             let balance = build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(button_token).gas_limit(5000))
-                // .transferred_value(self.env().transferred_value())
+                .call_type(Call::new().callee(button_token))
                 .exec_input(
                     ExecutionInput::new(
-                        // Selector::new([0, 0, 0, 2]), // balance_of
-                        Selector::new([0xDE, 0xAD, 0xBE, 0xEF]), // balance_of
+                        Selector::new([0, 0, 0, 2]), // balance_of
                     )
                     .push_arg(this),
                 )
@@ -264,29 +245,14 @@ mod yellow_button {
         fn death(&mut self) -> Result<()> {
             self.is_dead = true;
 
-            let this = self.env().account_id();
             let button_token = self.button_token;
-
-            Self::emit_event(self.env(), Event::DebugEvent(DebugEvent { from: 1 }));
-
-            let total_balance = build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(button_token).gas_limit(5000))
-                // .transferred_value(self.env().transferred_value())
-                .exec_input(
-                    ExecutionInput::new(
-                        Selector::new([0, 0, 0, 2]), // balance_of
-                    )
-                    .push_arg(this),
-                )
-                .returns::<Balance>()
-                .fire()?;
+            let total_balance = Self::get_balance(self)?;
 
             // Pressiah gets 50% of supply
             let pressiah_reward = total_balance / 2;
             if let Some(pressiah) = self.last_presser {
                 let _ = build_call::<DefaultEnvironment>()
-                    .call_type(Call::new().callee(button_token).gas_limit(5000))
-                    // .transferred_value(self.env().transferred_value())
+                    .call_type(Call::new().callee(button_token))
                     .exec_input(
                         ExecutionInput::new(
                             Selector::new([0, 0, 0, 4]), // transfer
@@ -308,12 +274,9 @@ mod yellow_button {
                     if let Some(score) = self.presses.get(account_id) {
                         let reward = (score / total) as u128 * remaining_balance;
 
-                        Self::emit_event(self.env(), Event::DebugEvent(DebugEvent { from: 4 }));
-
                         // transfer amount
                         return Ok(build_call::<DefaultEnvironment>()
-                            .call_type(Call::new().callee(button_token).gas_limit(5000))
-                            // .transferred_value(self.env().transferred_value())
+                            .call_type(Call::new().callee(button_token))
                             .exec_input(
                                 ExecutionInput::new(
                                     Selector::new([0, 0, 0, 4]), // transfer
@@ -327,7 +290,11 @@ mod yellow_button {
                     Ok(())
                 });
 
-            let event = Event::ButtonDeath(ButtonDeath {});
+            let event = Event::ButtonDeath(ButtonDeath {
+                pressiah: self.last_presser,
+                pressiah_reward,
+            });
+
             Self::emit_event(self.env(), event);
             Ok(())
         }
@@ -456,6 +423,8 @@ mod yellow_button {
         }
     }
 
+    // TODO : what can we test here actually?
+    // TODO : just pressing I suppose
     // #[cfg(test)]
     // mod tests {
     //     use super::*;
