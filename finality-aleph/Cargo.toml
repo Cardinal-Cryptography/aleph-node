@@ -22,7 +22,7 @@ parity-util-mem = "0.11"
 parking_lot = "0.12"
 rand = "0.8"
 serde = "1.0"
-tokio = { version = "1.17", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
+tokio = { version = "1.19", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
 
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19" }
