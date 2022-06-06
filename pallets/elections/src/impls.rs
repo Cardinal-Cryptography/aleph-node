@@ -200,9 +200,8 @@ where
     }
 
     fn adjust_rewards_for_session() {
-        match T::EraInfoProvider::active_era() {
-            Some(ae) if ae > 0 => {}
-            _ => return,
+        if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
+            return;
         }
 
         let (committee, non_committee) = Self::get_committee_and_non_committee();
