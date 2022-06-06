@@ -119,18 +119,29 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
 
         let era_reward_points = era_reward_points(&connection, era);
         let validator_reward_points = era_reward_points.individual;
-        let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> = validator_reward_points
-            .iter()
-            .map( |(account_id, reward_points)| {
-                let reward_points_previous = validator_reward_points_previous_session.get(account_id).unwrap_or(&0);
-                let reward_points_current = reward_points - reward_points_previous;
-                (account_id.clone(), reward_points_current)
-            })
-            .collect();
+        let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> =
+            validator_reward_points
+                .iter()
+                .map(|(account_id, reward_points)| {
+                    // on era change, there is no previous session within the era,
+                    // no subtraction needed
+                    let reward_points_current = match session % sessions_per_era {
+                        0 => reward_points,
+                        _ => {
+                            reward_points
+                                - validator_reward_points_previous_session.get(account_id)?
+                        }
+                    };
+                    (account_id.clone(), reward_points_current)
+                })
+                .collect();
         validator_reward_points_current_session
             .iter()
             .for_each(|(account_id, reward_points)| {
-                info!("in session: {} | validator {} accumulated {}.", session, account_id, reward_points)
+                info!(
+                    "in session: {} | validator {} accumulated {}.",
+                    session, account_id, reward_points
+                )
             });
         validator_reward_points_previous_session = validator_reward_points;
     }
