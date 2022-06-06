@@ -48,8 +48,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, TOKEN,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MILLISECS_PER_BLOCK,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, TOKEN,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -158,7 +158,7 @@ parameter_types! {
         ::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
     pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
         ::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
-    pub const SS58Prefix: u8 = 42;
+    pub const SS58Prefix: u8 = ADDRESSES_ENCODING;
 }
 
 // Configure FRAME pallets to include in runtime.
