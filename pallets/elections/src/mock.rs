@@ -15,6 +15,7 @@ use sp_runtime::{
     traits::IdentityLookup,
 };
 use sp_staking::{EraIndex, SessionIndex};
+use sp_std::collections::btree_set::BTreeSet;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -101,7 +102,7 @@ parameter_types! {
 pub struct MockProvider;
 
 impl SessionInfoProvider<Test> for MockProvider {
-    fn current_committee() -> Vec<<Test as frame_system::Config>::AccountId> {
+    fn current_committee() -> BTreeSet<<Test as frame_system::Config>::AccountId> {
         todo!()
     }
 }

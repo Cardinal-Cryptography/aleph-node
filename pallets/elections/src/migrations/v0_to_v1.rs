@@ -25,7 +25,7 @@ generate_storage_alias!(
 /// - `NonReservedMembers` are empty
 /// - `ErasMembers` contain tuple of (content of `Members`, empty vector).
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
-    log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1");
+    log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1 for pallet elections");
 
     let members = Members::<T>::get().expect("Members should be present");
     Members::<T>::kill();

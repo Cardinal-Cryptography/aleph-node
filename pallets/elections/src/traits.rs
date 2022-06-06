@@ -1,10 +1,10 @@
 use frame_support::{pallet_prelude::Get, traits::Currency};
 use sp_staking::{EraIndex, SessionIndex};
-use sp_std::vec::Vec;
+use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
 pub trait SessionInfoProvider<T: frame_system::Config> {
-    /// Returns list containing validators that in the current session produce&finalize blocks.
-    fn current_committee() -> Vec<T::AccountId>;
+    /// Returns set containing validators that in the current session produce&finalize blocks.
+    fn current_committee() -> BTreeSet<T::AccountId>;
 }
 
 impl<T> SessionInfoProvider<T> for pallet_session::Pallet<T>
@@ -12,7 +12,7 @@ where
     T: pallet_session::Config,
     T::ValidatorId: Into<T::AccountId>,
 {
-    fn current_committee() -> Vec<T::AccountId> {
+    fn current_committee() -> BTreeSet<T::AccountId> {
         pallet_session::Validators::<T>::get()
             .into_iter()
             .map(|a| a.into())

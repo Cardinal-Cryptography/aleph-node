@@ -38,10 +38,7 @@ pub fn compute_validator_scaled_total_rewards<V>(
     let sum_totals: u128 = validator_totals.iter().map(|(_, t)| t).sum();
 
     if sum_totals == 0 {
-        return validator_totals
-            .into_iter()
-            .map(|(v, t)| (v, t as u32))
-            .collect();
+        return validator_totals.into_iter().map(|(v, _)| (v, 0)).collect();
     }
 
     // scaled_total = total * (MAX_REWARD / sum_totals)
@@ -75,7 +72,7 @@ fn rotate<T: Clone + PartialEq>(
     let free_seats = n_validators.saturating_sub(reserved.len());
 
     let non_reserved_len = non_reserved.len();
-    let first_validator = current_session as usize * free_seats;
+    let first_validator = (current_session as usize).saturating_mul(free_seats) % non_reserved_len;
 
     let committee = reserved
         .into_iter()
@@ -100,14 +97,14 @@ where
     }
 
     fn get_committee_and_non_committee() -> (Vec<T::AccountId>, Vec<T::AccountId>) {
-        let committee: Vec<T::AccountId> = T::SessionInfoProvider::current_committee();
+        let committee = T::SessionInfoProvider::current_committee();
         let non_committee = ErasMembers::<T>::get()
             .1
             .into_iter()
             .filter(|a| !committee.contains(a))
             .collect();
 
-        (committee, non_committee)
+        (committee.into_iter().collect(), non_committee)
     }
 
     fn blocks_to_produce_per_session() -> u32 {
