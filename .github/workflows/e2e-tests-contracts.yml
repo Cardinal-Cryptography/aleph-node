@@ -6,6 +6,25 @@ on: [push, pull_request]
   paths-ignore:
     - '*.md'
 
+on:
+  pull_request:
+    paths:
+      - 'contracts/**'
+    paths-ignore:
+      - '*.md'
+    # branches:
+    #   - main
+    #   - "release-*"
+  push:
+    paths:
+      - 'contracts/**'
+    paths-ignore:
+      - '*.md'
+    # branches:
+    #   - main
+    #   - "release-*"
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
@@ -31,9 +50,9 @@ jobs:
         run: |
           apt-get update && apt-get install binaryen
           cargo install cargo-dylint dylint-link
-          # revision merging Hans's PR changes [fix for node URL parsing ]          
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460          
-        
+          # revision merging Hans's PR changes [fix for node URL parsing ]
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
