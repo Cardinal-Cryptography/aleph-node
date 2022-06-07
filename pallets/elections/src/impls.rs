@@ -11,6 +11,18 @@ use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 const MAX_REWARD: u32 = 1_000_000_000;
 const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
+/// We assume that block `B` ends session nr `S`, and current era index is `E`.
+///
+/// 1. Block `B` initialized
+/// 2. `end_session(S)` is called
+/// -  We update rewards and clear block count for the session `S`.
+/// 4. `start_session(S + 1)` is called.
+/// -  if session `S+1` starts new era we populate totals.
+/// 6. `new_session(S + 2)` is called.
+/// -  If session `S+2` starts new era then we update the reserved and non_reserved members.
+/// -  We rotate the members for session `S + 2` using the information about reserved and non_reserved members.
+///
+
 fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
     blocks_to_produce_per_session: u32,
