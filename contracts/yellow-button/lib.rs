@@ -121,9 +121,10 @@ mod yellow_button {
     pub struct ButtonPressed {
         #[ink(topic)]
         by: AccountId,
-        previous_press: u32,
         score: u32,
+        total_scores: u32,
         when: u32,
+        previous_press: u32,
         new_deadline: u32,
     }
 
@@ -285,7 +286,7 @@ mod yellow_button {
                 .iter()
                 .try_for_each(|account_id| -> Result<()> {
                     if let Some(score) = self.presses.get(account_id) {
-                        let reward = (score / total) as u128 * remaining_balance;
+                        let reward = (score as u128 * remaining_balance) / total as u128;
                         rewards.push((account_id.to_owned(), reward));
 
                         // transfer amount
@@ -435,6 +436,7 @@ mod yellow_button {
                 score,
                 when: now,
                 new_deadline: self.deadline,
+                total_scores: self.total_scores,
             });
             Self::emit_event(self.env(), event);
 
