@@ -31,6 +31,10 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly-2022-04-01
+            override: true
+            components: rustfmt, clippy
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
