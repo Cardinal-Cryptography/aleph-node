@@ -253,10 +253,8 @@ where
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
-        let committee = Self::rotate_committee(new_index);
         Self::populate_members_on_next_era_start(new_index);
-
-        committee
+        Self::rotate_committee(new_index)
     }
 
     fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
