@@ -38,9 +38,9 @@ jobs:
       - name: Install cargo-contract
         run: |
           sudo apt-get update && sudo apt-get install -y binaryen
-          cargo install cargo-dylint dylint-link
+          cargo +nightly install cargo-dylint dylint-link
           # revision merging Hans's PR changes [fix for node URL parsing ]
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
+          cargo +nightly install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -62,6 +62,10 @@ jobs:
       - name: Run consensus party
         shell: bash
         run: ./.github/scripts/run_smartnet.sh &
+
+      - name: Sleep for a while
+        shell: bash
+        run: sleep 2
 
       - name: Run e2e tests
         shell: bash
