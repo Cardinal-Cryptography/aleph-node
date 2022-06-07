@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# source assert.sh
+
 NODE=ws://127.0.0.1:9943
 
 ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
@@ -44,11 +46,11 @@ cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --ar
 
 ## -- MAKE READ CALLS
 
-cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow-button
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_button_token --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_button_token --suri $ALICE_SEED
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_balance --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_balance --suri $ALICE_SEED
 
 ## --- WHITELIST ACCOUNTS
 
@@ -67,6 +69,8 @@ sleep 1
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
 
 ## --- TRIGGER DEATH AND REWARD DISTRIBUTION
+
+cd $CONTRACTS_PATH/yellow-button
 
 sleep 5
 

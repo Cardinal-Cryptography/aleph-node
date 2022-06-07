@@ -145,6 +145,14 @@ mod yellow_button {
         deadline: u32,
     }
 
+    /// Event emitted when account is whitelisted to play the game
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct AccountWhitelisted {
+        #[ink(topic)]
+        player: AccountId,
+    }
+
     /// Even emitted when button death is triggered    
     #[ink(event)]
     #[derive(Debug)]
@@ -309,6 +317,8 @@ mod yellow_button {
             }
 
             self.can_play.insert(player, &true);
+            let event = Event::AccountWhitelisted(AccountWhitelisted { player });
+            Self::emit_event(self.env(), event);
             Ok(())
         }
 
@@ -321,9 +331,9 @@ mod yellow_button {
                 return Err(Error::NotOwner);
             }
 
-            players.iter().for_each(|player| {
-                self.can_play.insert(player, &true);
-            });
+            for player in players {
+                Self::allow(self, player)?;
+            }
 
             Ok(())
         }
