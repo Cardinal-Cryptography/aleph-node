@@ -1,8 +1,6 @@
 name: e2e-tests-contracts
 
 on: [push, pull_request]
-  # branches:
-  #   - main
   paths:
     - 'contracts/**'
   paths-ignore:
