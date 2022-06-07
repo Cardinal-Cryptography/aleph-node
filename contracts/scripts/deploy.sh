@@ -6,15 +6,15 @@ ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 ALICE_SEED=//Alice
 
 # NOTE: needs some balance
-NODE1=5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
-NODE1_SEED=//1
+NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
+NODE0_SEED=//0
 
 LIFETIME=5
 TOTAL_BALANCE=1000
 GAME_BALANCE=900
 
-CONTRACTS_PATH=/home/filip/CloudStation/aleph/aleph-node/contracts
-CLI_PATH=/home/filip/CloudStation/aleph/aleph-node/bin/cliain
+# CONTRACTS_PATH=/home/filip/CloudStation/aleph/aleph-node/contracts
+CONTRACTS_PATH=$(pwd)/contracts
 
 ## --- DEPLOY TOKEN CONTRACT
 
@@ -44,7 +44,7 @@ CODE_HASH=$(echo "$CONTRACT" | grep "Code hash" | tail -1 | cut -c 15-)
 echo "code hash: " $CODE_HASH
 echo "contract address: " $YELLOW_BUTTON
 
-## --- TRANSFER ALL BALANCE TO THE GAME CONTRACT
+## --- TRANSFER BALANCE TO THE GAME CONTRACT
 
 cd $CONTRACTS_PATH/button-token
 
@@ -62,7 +62,7 @@ cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --ar
 
 cd $CONTRACTS_PATH/yellow-button
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE1]" --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
 
 ## --- PLAY
 
@@ -72,13 +72,18 @@ cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri
 
 sleep 1
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE1_SEED
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
 
 ## --- TRIGGER DEATH AND REWARD DISTRIBUTION
 
 sleep 5
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+
+## --- TODO : assert rewards distribution
+
+# 
+
 
 echo "Done"
 exit $?
