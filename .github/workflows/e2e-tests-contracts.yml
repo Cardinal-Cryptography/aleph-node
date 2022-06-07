@@ -1,11 +1,5 @@
 name: e2e-tests-contracts
 
-on: [push, pull_request]
-  paths:
-    - 'contracts/**'
-  paths-ignore:
-    - '*.md'
-
 on:
   pull_request:
     paths:
