@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{str::FromStr, u64};
 
+type BlockNumber = u64;
+
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
@@ -30,7 +32,7 @@ pub struct Config {
 
     /// Max block difference with head.
     #[clap(long, default_value = "10")]
-    pub block_difference: u64,
+    pub block_difference: BlockNumber,
 }
 
 async fn make_request_and_parse_result<T: serde::de::DeserializeOwned>(
@@ -63,7 +65,7 @@ fn construct_json_body(method_name: &str, params: Value) -> Value {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct PeerState {
-    best_number: u64,
+    best_number: BlockNumber,
     peer_id: String,
 }
 
@@ -74,9 +76,9 @@ struct BlockHeader {
 }
 
 impl BlockHeader {
-    fn number(&self) -> Result<u64, std::num::ParseIntError> {
+    fn number(&self) -> Result<BlockNumber, std::num::ParseIntError> {
         // For some reason in this rpc call result is returned in hex encoded decimal, so such ugly conversion is needed
-        u64::from_str_radix(self.number.trim_start_matches("0x"), 16)
+        BlockNumber::from_str_radix(self.number.trim_start_matches("0x"), 16)
     }
 }
 
@@ -125,22 +127,25 @@ async fn main() {
 
     let best_number = best_block_header.number().unwrap();
 
-    if let Some(peer) = connected_peers
+    let peer = connected_peers
         .iter()
         .find(|r| r.peer_id == peer_id.to_string())
-    {
-        if peer.best_number + block_difference < best_number {
-            panic!(
-                "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
-                best_number, peer.best_number
-            )
-        }
-        if best_number + block_difference < peer.best_number {
-            panic!("Peer is too far in the future. Should have {:?} block number. Has {:?} block number", best_number, peer.best_number)
-        }
-    } else {
-        panic!("No peer with peer id {:?}", peer_id);
-    }
+        .unwrap_or_else(|| panic!("No peer with peer id {:?} connected", peer_id));
+
+    assert!(
+        peer.best_number + block_difference < best_number,
+        "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
+        best_number,
+        peer.best_number
+    );
+
+    assert!(
+        best_number + block_difference < peer.best_number,
+        "Peer is too far in the future. Should have {:?} block number. Has {:?} block number",
+        best_number,
+        peer.best_number
+    );
+
     println!(
         "Signature for peer {} is correct and peer is up to date with block creation at {:?}",
         peer_id, best_number
