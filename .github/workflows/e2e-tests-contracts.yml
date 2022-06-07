@@ -45,10 +45,16 @@ jobs:
 
       - name: Install binaryen
         run: |
-          wget -O https://github.com/WebAssembly/binaryen/archive/refs/tags/version_102.tar.gz
-          tar xvzf version_102.tar.gz
-          cd binaryen-version_102
-          cmake . && make && sudo make install
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_104/binaryen-version_104-x86_64-linux.tar.gz
+          tar xvzf binaryen-version_104-x86_64-linux.tar.gz
+          cd binaryen-version_104
+          sudo cp -r bin/* /bin
+          sudo cp -r include/* /usr/include
+          sudo cp -r lib64/* /lib64
+          # wget https://github.com/WebAssembly/binaryen/archive/refs/tags/version_102.tar.gz
+          # tar xvzf version_102.tar.gz
+          # cd binaryen-version_102
+          # cmake . && make && sudo make install
 
       - name: Install cargo-contract
         run: |
