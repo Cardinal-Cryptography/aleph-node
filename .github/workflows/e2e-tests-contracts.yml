@@ -20,9 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test-docker:
-    needs: [build-new-node]
-    name: Build docker image with the test node artifact
+  run-tests:
+    name: Run smart contracts test suite
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
