@@ -1,0 +1,62 @@
+name: e2e-tests-contracts
+
+on: [push, pull_request]
+  # branches:
+  #   - main
+  paths:
+    - 'contracts/**'
+  paths-ignore:
+    - '*.md'
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-docker:
+    needs: [build-new-node]
+    name: Build docker image with the test node artifact
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: full
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v2
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install cargo-contract
+        run: |
+          apt-get update && apt-get install binaryen
+          cargo install cargo-dylint dylint-link
+          # revision merging Hans's PR changes [fix for node URL parsing ]          
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460          
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Run consensus party
+        shell: bash
+        run: ./.github/scripts/run_smartnet.sh &
+
+      - name: Run e2e tests
+        shell: bash
+        run: ./contracts/scripts/deploy.sh
