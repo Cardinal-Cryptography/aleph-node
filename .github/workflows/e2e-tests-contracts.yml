@@ -43,10 +43,15 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
+      - name: Install binaryen
+        run: |
+          wget -O https://github.com/WebAssembly/binaryen/archive/refs/tags/version_102.tar.gz
+          tar xvzf version_102.tar.gz
+          cd binaryen-version_102
+          cmake . && make && sudo make install
+
       - name: Install cargo-contract
         run: |
-          sudo apt-get update && sudo apt-get install -y binaryen
-
           if ! command -v cargo-contract --version &> /dev/null
           then
               echo "cargo-contracts executable could not be found. Installing"
@@ -54,6 +59,10 @@ jobs:
               # revision merging Hans's PR changes [fix for node URL parsing ]
               cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
           fi
+
+      - name: Display binaryen version
+        shell: bash
+        run: wasm-opt --version
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
