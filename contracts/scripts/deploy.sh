@@ -17,7 +17,10 @@ CONTRACTS_PATH=$(pwd)/contracts
 ## --- DEPLOY TOKEN CONTRACT
 
 cd $CONTRACTS_PATH/button-token
-cargo +nightly contract build --release
+
+rustup show
+
+cargo contract build --release
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
 BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
@@ -27,7 +30,7 @@ echo "button token contract address: " $BUTTON_TOKEN
 ## --- DEPLOY GAME CONTRACT
 
 cd $CONTRACTS_PATH/yellow-button
-cargo +nightly contract build --release
+cargo contract build --release
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
 YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
@@ -67,9 +70,11 @@ sleep 5
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
-## --- TODO : assert rewards distribution
+## --- assert rewards distribution
 
-#
+# cd $CONTRACTS_PATH/yellow-button
+
+# TODO
 
 echo "Done"
 exit $?

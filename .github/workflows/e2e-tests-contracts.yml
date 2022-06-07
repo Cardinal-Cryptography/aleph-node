@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
+      RUST_TOOLCHAIN: nightly-2022-04-01
+      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -32,12 +34,15 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly-2022-04-01
+            toolchain: $RUST_TOOLCHAIN
             override: true
-            components: rustfmt, clippy
+            components: rustfmt, clippy, rust-src
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
 
       - name: Install cargo-contract
         run: |
