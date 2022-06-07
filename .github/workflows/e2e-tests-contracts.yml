@@ -4,16 +4,12 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
-    paths-ignore:
-      - '*.md'
     # branches:
     #   - main
     #   - "release-*"
   push:
     paths:
       - 'contracts/**'
-    paths-ignore:
-      - '*.md'
     # branches:
     #   - main
     #   - "release-*"
