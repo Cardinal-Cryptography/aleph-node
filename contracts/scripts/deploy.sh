@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# source assert.sh
+source $(pwd)/.github/scripts/assert.sh
 
 NODE=ws://127.0.0.1:9943
 
@@ -72,14 +72,14 @@ cd $CONTRACTS_PATH/yellow-button
 
 sleep 5
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+EVENT=$(cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
+EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
 
-## --- assert rewards distribution
-cd $CONTRACTS_PATH/yellow-button
+PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
+PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message last_presser --suri $ALICE_SEED
+echo "The Pressiah receives: $PRESSIAH_REWARD"
 
-# TODO
+assert_eq "451" "$PRESSIAH_REWARD"
 
-echo "Done"
 exit $?
