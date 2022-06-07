@@ -62,11 +62,32 @@ fn construct_json_body(method_name: &str, params: Value) -> Value {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Peer {
-    best_hash: String,
+struct PeerState {
     best_number: u64,
     peer_id: String,
-    roles: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct BlockHeader {
+    number: String,
+}
+
+impl BlockHeader {
+    fn number(&self) -> Result<u64, std::num::ParseIntError> {
+        // For some reason in this rpc call result is returned in hex encoded decimal, so such ugly conversion is needed
+        u64::from_str_radix(self.number.trim_start_matches("0x"), 16)
+    }
+}
+
+async fn get_connected_peers(client: &Client, node: &str) -> Vec<PeerState> {
+    let req = construct_json_body("system_peers", Value::Null);
+    make_request_and_parse_result(client, node, req).await
+}
+
+async fn get_best_block_header(client: &Client, node: &str) -> BlockHeader {
+    let block_req = construct_json_body("chain_getHeader", Value::Null);
+    make_request_and_parse_result(client, node, block_req).await
 }
 
 #[tokio::main]
@@ -79,31 +100,6 @@ async fn main() {
         signature,
         block_difference,
     } = Config::parse();
-
-    let req = construct_json_body("system_peers", Value::Null);
-    let block_req = construct_json_body("chain_getBlock", Value::Null);
-
-    let client = Client::new();
-    let res: Vec<Peer> = make_request_and_parse_result(&client, &node, req).await;
-    let block_res: Value = make_request_and_parse_result(&client, &node, block_req).await;
-
-    // For some reason in this rpc call result is returned in hex encoded decimal, so such ugly conversion is needed
-    let block_number = block_res["block"]["header"]["number"].as_str().unwrap();
-    let best_number = u64::from_str_radix(block_number.trim_start_matches("0x"), 16).unwrap();
-
-    if let Some(peer) = res.iter().find(|r| r.peer_id == peer_id) {
-        if peer.best_number + block_difference < best_number {
-            panic!(
-                "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
-                best_number, peer.best_number
-            )
-        }
-        if best_number + block_difference < peer.best_number {
-            panic!("Peer is too far in the future. Should have {:?} block number. Has {:?} block number", best_number, peer.best_number)
-        }
-    } else {
-        panic!("No peer with peer id {:?}", peer_id);
-    }
 
     let peer_id = PeerId::from_str(&peer_id).unwrap();
 
@@ -122,6 +118,29 @@ async fn main() {
         public_key.verify(message.as_bytes(), &signature),
         "Supplied signature is incorrect"
     );
+
+    let client = Client::new();
+    let connected_peers = get_connected_peers(&client, &node).await;
+    let best_block_header = get_best_block_header(&client, &node).await;
+
+    let best_number = best_block_header.number().unwrap();
+
+    if let Some(peer) = connected_peers
+        .iter()
+        .find(|r| r.peer_id == peer_id.to_string())
+    {
+        if peer.best_number + block_difference < best_number {
+            panic!(
+                "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
+                best_number, peer.best_number
+            )
+        }
+        if best_number + block_difference < peer.best_number {
+            panic!("Peer is too far in the future. Should have {:?} block number. Has {:?} block number", best_number, peer.best_number)
+        }
+    } else {
+        panic!("No peer with peer id {:?}", peer_id);
+    }
     println!(
         "Signature for peer {} is correct and peer is up to date with block creation at {:?}",
         peer_id, best_number
