@@ -133,14 +133,14 @@ async fn main() {
         .unwrap_or_else(|| panic!("No peer with peer id {:?} connected", peer_id));
 
     assert!(
-        peer.best_number + block_difference < best_number,
+        best_number <= peer.best_number + block_difference,
         "Peer is not up to date. Should have {:?} block number. Has {:?} block number",
         best_number,
         peer.best_number
     );
 
     assert!(
-        best_number + block_difference < peer.best_number,
+        peer.best_number <= best_number + block_difference,
         "Peer is too far in the future. Should have {:?} block number. Has {:?} block number",
         best_number,
         peer.best_number
