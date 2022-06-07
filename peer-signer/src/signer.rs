@@ -1,6 +1,6 @@
 use clap::Parser;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
-use std::fs;
+use std::{fs, path::Path};
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -11,18 +11,23 @@ pub struct Config {
 
     /// Path to p2p secret.
     #[clap(long)]
-    pub p2p_secret: String,
+    pub p2p_secret_path: String,
 }
 
 fn main() {
     let Config {
         message,
-        p2p_secret: p2p_secret_path,
+        p2p_secret_path,
     } = Config::parse();
 
-    let mut file_content = fs::read(&p2p_secret_path).expect("Can not read from p2p secret path");
+    let path = Path::new(&p2p_secret_path);
+    if !path.exists() {
+        panic!("Can not find p2p secret file: {:?}", p2p_secret_path);
+    }
+
+    let mut file_content = fs::read(&path).expect("Can not read from p2p secret file");
     let secret_key = libp2p_ed25519::SecretKey::from_bytes(&mut file_content)
-        .expect("Incorrect secret. Can't create a secret key.");
+        .expect("Incorrect secret format. Failed to create a secret key.");
 
     let keypair = libp2p_ed25519::Keypair::from(secret_key);
     let public = PublicKey::Ed25519(keypair.public());
