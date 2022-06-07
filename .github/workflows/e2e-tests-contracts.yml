@@ -37,6 +37,10 @@ jobs:
           sudo cp -r include/* /usr/include
           sudo cp -r lib64/* /lib64
 
+      - name: Display binaryen version
+        shell: bash
+        run: wasm-opt --version
+
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -62,10 +66,6 @@ jobs:
               # revision merging Hans's PR changes [fix for node URL parsing ]
               cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
           fi
-
-      - name: Display binaryen version
-        shell: bash
-        run: wasm-opt --version
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1

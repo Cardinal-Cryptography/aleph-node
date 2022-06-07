@@ -16,7 +16,7 @@ mod yellow_button {
         DefaultEnvironment, Error as InkEnvError,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{string::String, vec::Vec};
+    use ink_prelude::{borrow::ToOwned, string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
     /// Error types
@@ -120,7 +120,9 @@ mod yellow_button {
     #[derive(Debug)]
     pub struct ButtonPressed {
         #[ink(topic)]
-        from: AccountId,
+        by: AccountId,
+        previous_press: u32,
+        score: u32,
         when: u32,
         new_deadline: u32,
     }
@@ -160,6 +162,7 @@ mod yellow_button {
         #[ink(topic)]
         pressiah: Option<AccountId>,
         pressiah_reward: u128,
+        rewards: Vec<(AccountId, u128)>,
     }
 
     impl YellowButton {
@@ -233,6 +236,7 @@ mod yellow_button {
 
                 contract.owner = caller;
                 contract.is_dead = false;
+                contract.last_press = now;
                 contract.button_lifetime = button_lifetime;
                 contract.deadline = deadline;
                 contract.button_token = button_token;
@@ -274,6 +278,7 @@ mod yellow_button {
 
             let total = self.total_scores;
             let remaining_balance = total_balance - pressiah_reward;
+            let mut rewards = Vec::new();
             // rewards are distributed to participants proportionally to their score
             let _ = self
                 .press_accounts
@@ -281,6 +286,7 @@ mod yellow_button {
                 .try_for_each(|account_id| -> Result<()> {
                     if let Some(score) = self.presses.get(account_id) {
                         let reward = (score / total) as u128 * remaining_balance;
+                        rewards.push((account_id.to_owned(), reward));
 
                         // transfer amount
                         return Ok(build_call::<DefaultEnvironment>()
@@ -301,6 +307,7 @@ mod yellow_button {
             let event = Event::ButtonDeath(ButtonDeath {
                 pressiah: self.last_presser,
                 pressiah_reward,
+                rewards,
             });
 
             Self::emit_event(self.env(), event);
@@ -389,7 +396,6 @@ mod yellow_button {
             }
 
             let now = self.env().block_number();
-
             if now >= self.deadline {
                 // trigger TheButton's death
                 // at this point is is after the deadline but the death event has not yet been triggered
@@ -411,7 +417,8 @@ mod yellow_button {
             // record press
             // score is the number of blocks the button life was extended for
             // this incentivizes pressing as late as possible in the game (but not too late)
-            let score = now - self.last_press;
+            let previous_press = self.last_press;
+            let score = now - previous_press;
             self.presses.insert(&caller, &score);
             self.press_accounts.push(caller);
             // another
@@ -423,7 +430,9 @@ mod yellow_button {
 
             // emit event
             let event = Event::ButtonPressed(ButtonPressed {
-                from: caller,
+                by: caller,
+                previous_press,
+                score,
                 when: now,
                 new_deadline: self.deadline,
             });
