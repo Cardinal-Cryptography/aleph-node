@@ -79,7 +79,6 @@ PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
 PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
 
 echo "The Pressiah receives: $PRESSIAH_REWARD"
-
-assert_eq "451" "$PRESSIAH_REWARD"
+assert_eq "450" "$PRESSIAH_REWARD"
 
 exit $?
