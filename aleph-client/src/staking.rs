@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use sp_core::Pair;
 use sp_runtime::Perbill;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, Balance, GenericAddress, XtStatus,
+    compose_call, compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 use crate::{
