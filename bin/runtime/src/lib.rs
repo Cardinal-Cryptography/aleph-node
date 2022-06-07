@@ -529,7 +529,7 @@ impl pallet_staking::Config for Runtime {
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
     type CurrencyBalance = Balance;
-    type OnStakerSlash = ();
+    type OnStakerSlash = NominationPools;
 }
 
 parameter_types! {
