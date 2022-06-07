@@ -95,7 +95,9 @@ dependencies = [
 name = "aleph_client"
 version = "1.2.0"
 dependencies = [
+ "ac-primitives",
  "anyhow",
+ "frame-support",
  "hex",
  "log",
  "pallet-aleph",

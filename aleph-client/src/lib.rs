@@ -29,7 +29,7 @@ pub use staking::{
     ledger as staking_ledger, multi_bond as staking_multi_bond, nominate as staking_nominate,
     payout_stakers, payout_stakers_and_assert_locked_balance,
     set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_full_era_completion, wait_for_next_era,
+    wait_for_full_era_completion, wait_for_next_era, StakingLedger,
 };
 pub use system::set_code;
 pub use transfer::{
