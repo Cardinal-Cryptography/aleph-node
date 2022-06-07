@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
-      RUST_TOOLCHAIN: nightly-2022-04-01
       # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
       - name: Checkout Source code
@@ -34,7 +33,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: $RUST_TOOLCHAIN
+            toolchain: nightly-2022-03-14
             override: true
             components: rustfmt, clippy, rust-src
 

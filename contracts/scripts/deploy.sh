@@ -44,6 +44,8 @@ cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --ar
 
 ## -- MAKE READ CALLS
 
+cd $CONTRACTS_PATH/yellow-button
+
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_button_token --suri $ALICE_SEED
 
 cargo contract call --url $NODE --contract $YELLOW_BUTTON --message get_balance --suri $ALICE_SEED
