@@ -190,7 +190,7 @@ fn setup(
                 deny_unsafe,
             };
 
-            crate::rpc::create_full(deps).map_err(Into::into)
+            Ok(crate::rpc::create_full(deps)?)
         })
     };
 
