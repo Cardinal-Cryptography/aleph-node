@@ -38,9 +38,8 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
-    pallet_prelude::ConstU32,
     sp_runtime::Perquintill,
-    traits::{EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
+    traits::{ConstU32, ConstU64, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
 };
@@ -687,7 +686,7 @@ impl pallet_contracts::Config for Runtime {
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
-    type ContractAccessWeight = pallet_contracts::DefaultContractAccessWeight<BlockWeights>;
+    type ContractAccessWeight = ConstU64<0>;
     type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
     type RelaxedMaxCodeLen = ConstU32<{ 256 * 1024 }>;
 }
@@ -700,25 +699,25 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
-        Aura: pallet_aura::{Pallet, Config<T>} = 3,
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 4,
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 6,
-        Authorship: pallet_authorship::{Pallet, Call, Storage} = 7,
-        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
-        History: pallet_session::historical::{Pallet} = 9,
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Aleph: pallet_aleph::{Pallet, Storage} = 11,
-        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
-        Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 18,
-        NominationPools: pallet_nomination_pools::{Pallet, Call, Storage, Config<T>, Event<T>} = 19,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+        Scheduler: pallet_scheduler,
+        Aura: pallet_aura,
+        Timestamp: pallet_timestamp,
+        Balances: pallet_balances,
+        TransactionPayment: pallet_transaction_payment,
+        Authorship: pallet_authorship,
+        Staking: pallet_staking,
+        History: pallet_session::historical,
+        Session: pallet_session,
+        Aleph: pallet_aleph,
+        Elections: pallet_elections,
+        Treasury: pallet_treasury,
+        Vesting: pallet_vesting,
+        Utility: pallet_utility,
+        Multisig: pallet_multisig,
+        Sudo: pallet_sudo,
+        Contracts: pallet_contracts,
+        NominationPools: pallet_nomination_pools,
     }
 );
 

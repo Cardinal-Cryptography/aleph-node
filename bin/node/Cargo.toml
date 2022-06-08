@@ -56,7 +56,6 @@ aleph-primitives = { package = "primitives", path = "../../primitives"}
 
 # These dependencies are used for the node's RPCs
 jsonrpsee = { version = "0.13.0", features = ["server"] }
-jsonrpc-core = "18.0"
 sc-rpc = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
 sp-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
 sc-rpc-api = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23"}
