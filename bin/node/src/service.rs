@@ -245,7 +245,7 @@ pub fn new_authority(
     );
 
     let unit_creation_delay = aleph_config.unit_creation_delay();
-    let unit_saving_path = aleph_config.unit_saving_path();
+    let backup_saving_path = aleph_config.backup_saving_path();
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
@@ -320,7 +320,7 @@ pub fn new_authority(
         justification_rx,
         metrics,
         unit_creation_delay,
-        unit_saving_path,
+        backup_saving_path,
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
@@ -373,7 +373,7 @@ pub fn new_full(
     );
 
     let unit_creation_delay = aleph_config.unit_creation_delay();
-    let unit_saving_path = aleph_config.unit_saving_path();
+    let backup_saving_path = aleph_config.backup_saving_path();
 
     let aleph_config = AlephConfig {
         network,
@@ -386,7 +386,7 @@ pub fn new_full(
         justification_rx,
         metrics,
         unit_creation_delay,
-        unit_saving_path,
+        backup_saving_path,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

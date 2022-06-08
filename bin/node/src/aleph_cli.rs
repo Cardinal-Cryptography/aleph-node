@@ -8,20 +8,16 @@ pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
 
-    /// The directory to save created units to for crash recovery purposes.
+    /// The directory to save created backups for crash recovery purposes.
     ///
-    /// Units created by the node are saved under this directory. When restarted after a crash,
-    /// previously-created units are read back from this directory first, helping prevent
+    /// Backups created by the node are saved under this directory. When restarted after a crash,
+    /// previously-created backups are read back from this directory first, helping prevent
     /// auto-forks. The layout of the directory is unspecified.
     #[clap(
         long,
         value_name = "PATH",
-        required_unless_present("unit-saving"),
-        conflicts_with("unit-saving")
     )]
-    unit_saving_path: Option<PathBuf>,
-    #[clap(long = "no-unit-saving", parse(from_flag = ignore))]
-    _unit_saving: (),
+    backup_saving_path: Option<PathBuf>,
 }
 
 impl AlephCli {
@@ -32,9 +28,7 @@ impl AlephCli {
         )
     }
 
-    pub fn unit_saving_path(&self) -> Option<PathBuf> {
-        self.unit_saving_path.clone()
+    pub fn backup_saving_path(&self) -> Option<PathBuf> {
+        self.backup_saving_path.clone()
     }
 }
-
-fn ignore<T>(_: T) {}

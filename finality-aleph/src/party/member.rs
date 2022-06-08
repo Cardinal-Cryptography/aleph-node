@@ -30,7 +30,7 @@ pub fn task<
     network: NetworkWrapper<AlephNetworkData<B>, ADN>,
     data_provider: impl aleph_bft::DataProvider<AlephData<B>> + Send + 'static,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    unit_saving_path: Option<PathBuf>,
+    backup_saving_path: Option<PathBuf>,
 ) -> Task {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -38,9 +38,9 @@ pub fn task<
     } = subtask_common;
     let (stop, exit) = oneshot::channel();
     let (saver, loader): (Box<dyn Write + Send>, Box<dyn Read + Send>) =
-        if let Some(stash_path) = unit_saving_path.as_deref() {
-            let (saver, loader) = rotate_saved_unit_files(stash_path, session_id)
-                .expect("Error setting up unit saving");
+        if let Some(stash_path) = backup_saving_path.as_deref() {
+            let (saver, loader) = rotate_saved_backup_files(stash_path, session_id)
+                .expect("Error setting up backup saving");
             (Box::new(saver), Box::new(loader))
         } else {
             (Box::new(io::sink()), Box::new(io::empty()))
@@ -60,7 +60,10 @@ pub fn task<
     Task::new(handle, stop)
 }
 
-fn rotate_saved_unit_files(stash_path: &Path, session_id: u32) -> Result<(File, File), io::Error> {
+fn rotate_saved_backup_files(
+    stash_path: &Path,
+    session_id: u32,
+) -> Result<(File, File), io::Error> {
     let extension = ".abfst";
     let session_path = stash_path.join(format!("{}", session_id));
     fs::create_dir_all(&session_path)?;

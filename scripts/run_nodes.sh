@@ -65,9 +65,9 @@ echo "Bootstrapping chain for nodes 0..$((N_VALIDATORS - 1))"
 for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   echo "Bootstrapping node $i"
   account_id=${account_ids[$i]}
-  unit_saving_path="$BASE_PATH/$account_id/unit-stash"
-  [ -e "$unit_saving_path" ] || mkdir "$unit_saving_path"
-  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --unit-saving-path "$unit_saving_path" --account-id "$account_id" --chain-type local
+  backup_saving_path="$BASE_PATH/$account_id/backup-stash"
+  [ -e "$backup_saving_path" ] || mkdir "$backup_saving_path"
+  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --backup-saving-path "$backup_saving_path" --account-id "$account_id" --chain-type local
 done
 
 addresses=()
@@ -101,7 +101,7 @@ run_node() {
     --bootnodes $bootnodes \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
     --unit-creation-delay 500 \
-    --unit-saving-path "$BASE_PATH/$account_id/unit-stash" \
+    --backup-saving-path $BASE_PATH/$account_id/backup-stash \
     --execution Native \
     --rpc-cors=all \
     --no-mdns \

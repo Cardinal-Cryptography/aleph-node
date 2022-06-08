@@ -75,7 +75,7 @@ pub(crate) struct ConsensusPartyParams<B: Block, SC, C, RB> {
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     pub unit_creation_delay: UnitCreationDelay,
-    pub unit_saving_path: Option<PathBuf>,
+    pub backup_saving_path: Option<PathBuf>,
 }
 
 pub(crate) struct ConsensusParty<B, C, BE, SC, RB>
@@ -99,7 +99,7 @@ where
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     unit_creation_delay: UnitCreationDelay,
-    unit_saving_path: Option<PathBuf>,
+    backup_saving_path: Option<PathBuf>,
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
@@ -126,7 +126,7 @@ where
             metrics,
             authority_justification_tx,
             unit_creation_delay,
-            unit_saving_path,
+            backup_saving_path,
         } = params;
         Self {
             session_manager,
@@ -141,7 +141,7 @@ where
             spawn_handle,
             phantom: PhantomData,
             unit_creation_delay,
-            unit_saving_path,
+            backup_saving_path,
         }
     }
 
@@ -206,7 +206,7 @@ where
                 aleph_network.into(),
                 data_provider,
                 ordered_data_interpreter,
-                self.unit_saving_path.clone(),
+                self.backup_saving_path.clone(),
             ),
             aggregator::task(
                 subtask_common.clone(),
@@ -407,8 +407,8 @@ where
         }
 
         {
-            let unit_saving_path = self.unit_saving_path.clone();
-            spawn_blocking(move || remove_session_unit_stash(unit_saving_path, session_id.0));
+            let backup_saving_path = self.backup_saving_path.clone();
+            spawn_blocking(move || remove_session_backup_stash(backup_saving_path, session_id.0));
         }
     }
 
@@ -449,7 +449,7 @@ pub(crate) fn create_aleph_config(
     consensus_config
 }
 
-fn remove_session_unit_stash(stash_path: Option<PathBuf>, session_id: u32) {
+fn remove_session_backup_stash(stash_path: Option<PathBuf>, session_id: u32) {
     let path = match stash_path {
         Some(path) => path.join(format!("{}", session_id)),
         None => return,
@@ -457,7 +457,7 @@ fn remove_session_unit_stash(stash_path: Option<PathBuf>, session_id: u32) {
     if let Err(error) = fs::remove_dir_all(&path) {
         let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
         if error.kind() != io::ErrorKind::NotFound || dir_exists() {
-            warn!(target: "aleph-party", "Error cleaning up unit stash for session {}: {:?}", session_id, error);
+            warn!(target: "aleph-party", "Error cleaning up backup stash for session {}: {:?}", session_id, error);
         }
     }
 }
