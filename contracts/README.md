@@ -3,7 +3,7 @@
 Series of smart contract based games, with varying tokenomics.
 TheButton is based on the famous [game](https://en.wikipedia.org/wiki/The_Button_(Reddit)) on reddit.
 - Button lives for a set time.
-- Pressing the button extends it's life.
+- Pressing the button extends its life.
 - Users are rewarded for playing the game.
 - Everybody can play only once.
 
