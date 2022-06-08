@@ -4,15 +4,13 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
-    # branches:
-    #   - main
-    #   - "release-*"
+    branches:
+      - main
   push:
     paths:
       - 'contracts/**'
-    # branches:
-    #   - main
-    #   - "release-*"
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -46,15 +44,11 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
-        # with:
-        #     toolchain: nightly-2022-03-14
-        #     override: true
-        #     components: rustfmt, clippy, rust-src
 
-      - name: Force update nightly
-        run: |
-          cd contracts/
-          rustup show
+      # - name: Force update nightly
+      #   run: |
+      #     cd contracts/
+      #     rustup show
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
