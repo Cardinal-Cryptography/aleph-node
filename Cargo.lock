@@ -84,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05c73a3ae2090e9a52da0b8943c44c98a595b434dbc626292e2d0885d14b0d50"
+checksum = "f23e3343cb5ea7caadb0907d793d4022c4c0e136b79f39f1559528382060e6b1"
 dependencies = [
  "aleph-bft-rmc",
  "aleph-bft-types",
