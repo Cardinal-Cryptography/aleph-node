@@ -46,15 +46,15 @@ fn force_era_payout(config: &Config) -> anyhow::Result<()> {
     let current_era = current_era + 1;
 
     let starting_session = current_era * DEFAULT_SESSIONS_PER_ERA;
-    wait_for_session(&root_connection, starting_session + 2)?;
+    wait_for_session(&root_connection, starting_session + 1)?;
 
-    // new era will be start in the session `starting_session + 4`
+    // new era will be start in the session `starting_session + 3`
     staking_force_new_era(&root_connection, XtStatus::InBlock);
-    wait_for_session(&root_connection, starting_session + 4)?;
+    wait_for_session(&root_connection, starting_session + 3)?;
 
     let payout = get_payout_for_era(&root_connection, current_era);
     let expected_payout =
-        era_payout((4 * DEFAULT_SESSION_PERIOD) as u64 * DEFAULT_MILLISECS_PER_BLOCK).0;
+        era_payout((3 * DEFAULT_SESSION_PERIOD) as u64 * DEFAULT_MILLISECS_PER_BLOCK).0;
 
     payout_within_two_block_delta(expected_payout, payout);
 
