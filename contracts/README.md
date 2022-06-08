@@ -43,7 +43,7 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 - Blue Tokens are continuously minted at the end of each iteration
 - Players are rewarded for playing, with the ultimate goal of being the Pressiah (the last person to click the button)
 - Reward rules:
-  - If you’re not ThePressiah, you get *k* tokens if you pressed the button as *k-th* person in a row.
+  - If you’re not ThePressiah, you get *k* tokens if you pressed the button as the *k-th* person in a row.
   - ThePressiah of the iteration with *k* button presses gets [k*(k+1)]/2 tokens.
 
 # Development
