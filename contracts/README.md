@@ -66,6 +66,6 @@ Specifically it will:
 - transfer token balance to the game contract
 - whitelist some accounts for playing the game
 - interact with the game from the whitelisted account
-- wait past the game deadline, trigger game end and rewards distribution
+- wait past the game deadline, trigger game end and reward distribution
 - run an assert (simple check whether Pressiah received his reward according to the scheme). No more assertions are implemented at this point, as the hope is to soon start writing Rust-based tools for deployment and interacting with the contracts. 
 
