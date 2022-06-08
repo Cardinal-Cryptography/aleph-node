@@ -108,7 +108,7 @@ benchmarks! {
         for _ in 1..T::HeadersToKeep::get() {
 
             // advance timestamp by 1 second
-            now = now + mul(T::Moment::one (), 1000);
+            now += mul(T::Moment::one (), 1000);
             Timestamp::<T>::set_timestamp(now);
 
             log::info!(target: "runtime-benchmarks::tendermint-lc", "now {:?}", T::TimeProvider::now ());
