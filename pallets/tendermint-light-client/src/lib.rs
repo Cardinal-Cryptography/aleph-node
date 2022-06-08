@@ -10,13 +10,20 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarks;
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod generator;
 
 pub mod types;
 mod utils;
 
+#[allow(unknown_lints)]
+#[allow(clippy::all)]
+pub mod weights;
+
 use frame_support::traits::StorageVersion;
+pub use weights::WeightInfo;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -43,7 +50,7 @@ pub mod pallet {
     };
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + pallet_timestamp::Config {
         /// ubiquitous event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -57,6 +64,9 @@ pub mod pallet {
 
         /// time provider type, used to gauge whether blocks are within the trusting period
         type TimeProvider: UnixTime;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -155,8 +165,9 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // TODO : benchmark & adjust weights
-        #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+        #[pallet::weight(
+	    <T as pallet::Config>::WeightInfo::initialize_client(T::MaxVotesCount::get())
+	)]
         pub fn initialize_client(
             origin: OriginFor<T>,
             options: LightClientOptionsStorage,
@@ -190,9 +201,11 @@ pub mod pallet {
             }
         }
 
-        // TODO : benchmark & adjust weights
         /// Verify a block header against a known state.        
-        #[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+        #[pallet::weight(
+	    <T as pallet::Config>::WeightInfo::update_client(T::MaxVotesCount::get())
+                .max (<T as pallet::Config>::WeightInfo::update_client_with_pruning(T::MaxVotesCount::get()))
+	)]
         pub fn update_client(
             origin: OriginFor<T>,
             untrusted_block: LightBlockStorage,
@@ -291,8 +304,7 @@ pub mod pallet {
             }
         }
 
-        // TODO: This method will need to be called by the pallet itself if it detects a fork.
-        // TODO : weight depends on whether this is a no-op or not
+        // TODO : This method will need to be called by the pallet itself if it detects a fork.
         /// Halt or resume all light client operations
         ///
         /// Can only be called by root

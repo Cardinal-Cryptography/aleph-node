@@ -50,6 +50,9 @@ sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "po
 sp-timestamp = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
 
+# These dependencies are used for runtime benchmarking
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13" }
+
 aleph-runtime = { path = "../runtime"}
 finality-aleph = { path = "../../finality-aleph"}
 aleph-primitives = { package = "primitives", path = "../../primitives"}
@@ -73,4 +76,7 @@ default = []
 short_session = [
     "aleph-runtime/short_session",
     "aleph-primitives/short_session"
+]
+runtime-benchmarks = [
+    "aleph-runtime/runtime-benchmarks",
 ]

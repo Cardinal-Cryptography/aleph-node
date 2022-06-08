@@ -49,7 +49,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib
+          args: --lib --features runtime-benchmarks
 
       - name: Stop sccache
         uses: ./.github/actions/post-cache
