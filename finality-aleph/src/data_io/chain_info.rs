@@ -8,6 +8,7 @@ use sp_runtime::{
 use std::sync::Arc;
 
 pub trait ChainInfoProvider<B: BlockT> {
+    #[allow(clippy::wrong_self_convention)] // sorry not my code, not dealing with this rn
     fn is_block_imported(&mut self, block: &BlockHashNum<B>) -> bool;
 
     fn get_finalized_at(&mut self, number: NumberFor<B>) -> Result<BlockHashNum<B>, ()>;
