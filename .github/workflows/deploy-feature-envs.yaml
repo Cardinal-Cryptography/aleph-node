@@ -172,7 +172,7 @@ jobs:
           sed "s/NODE_IMAGE/$TESTNET_IMAGE/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
     
       - name: GIT | Commit changes to aleph-apps repository.
-        uses: EndBug/add-and-commit@v5.1.0
+        uses: EndBug/add-and-commit@v9.0.0
         env:
           APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
           GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
@@ -258,7 +258,7 @@ jobs:
           sed "s/NODE_IMAGE/$PR_IMAGE/g" $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && mv $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: GIT | Commit changes to aleph-apps repository.
-        uses: EndBug/add-and-commit@v5.1.0
+        uses: EndBug/add-and-commit@v9.0.0
         env:
           IMAGE_TAG: fe-${{ steps.get_branch.outputs.branch }}_${{ steps.get_branch.outputs.sha_short }}
           FE_ALEPH_NODE_REGISTRY: 573243519133.dkr.ecr.us-east-1.amazonaws.com/feature-env-aleph-node
@@ -361,7 +361,7 @@ jobs:
           rm -rf $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: GIT | Commit deletion of the feature environment.
-        uses: EndBug/add-and-commit@v5.1.0
+        uses: EndBug/add-and-commit@v9.0.0
         env:
           APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
           GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
@@ -466,7 +466,7 @@ jobs:
           rm -rf $ALEPH_PATH/aleph-apps/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: GIT | Commit deletion of the feature environment.
-        uses: EndBug/add-and-commit@v5.1.0
+        uses: EndBug/add-and-commit@v9.0.0
         env:
           APP_NAME: fe-${{ steps.get_branch.outputs.branch }}
           GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
