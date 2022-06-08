@@ -68,7 +68,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
         });
 
     // All the above calls influence the next era, so we need to wait that it passes.
-    // this test can be speeded up by fforcing new era twice, and waiting 4 sessions in total instead of almost 10 sessions
+    // this test can be speeded up by forcing new era twice, and waiting 4 sessions in total instead of almost 10 sessions
     let current_era = wait_for_full_era_completion(&connection)?;
     info!(
         "Era {} started, claiming rewards for era {}",

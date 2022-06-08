@@ -286,6 +286,6 @@ pub fn get_payout_for_era<C: AnyConnection>(connection: &C, era: u32) -> u128 {
     connection
         .as_connection()
         .get_storage_map("Staking", "ErasValidatorReward", era, None)
-        .expect("Failed to decode ErasRewa")
-        .expect("sdf")
+        .expect("Failed to decode ErasValidatorReward")
+        .expect("ErasValidatoReward is empty in the storage")
 }
