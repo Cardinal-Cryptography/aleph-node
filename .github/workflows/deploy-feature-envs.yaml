@@ -79,7 +79,7 @@ jobs:
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Start Feature Env Deployment
-        uses: bobheadxi/deployments@v1.1.0
+        uses: bobheadxi/deployments@v1.2.0
         id: deployment
         with:
           step: start
@@ -308,7 +308,7 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Finish Feature Env Deployment
-        uses: bobheadxi/deployments@v1
+        uses: bobheadxi/deployments@v1.2.0
         if: always()
         with:
           step: finish
@@ -410,7 +410,7 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Deactivate deployed environment
-        uses: bobheadxi/deployments@v1
+        uses: bobheadxi/deployments@v1.2.0
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -502,7 +502,7 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Deactivate deployed environment
-        uses: bobheadxi/deployments@v1
+        uses: bobheadxi/deployments@v1.2.0
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
