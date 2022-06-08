@@ -23,7 +23,7 @@ score = deadline - now
 ```
 
 There are two built-in incentives:
-* playing for score: If you clicked in 10'th second of TheButtons life set for example to 900 blocks you get rewarded based on score of 900-10=890 (and the button's life now will end at block 910).
+* playing for score: If you clicked in the 10th second of TheButton's life set for example to 900 blocks you get rewarded based on score of 900-10=890 (and the button's life now will end at block 910).
 * playing to be ThePressiah: the last player to click get's 50% of the total rewards pool.
 
 
