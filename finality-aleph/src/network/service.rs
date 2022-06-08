@@ -444,8 +444,8 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
-                .map(|peer_id| (message.clone(), *peer_id, Protocol::Generic)),
+                .into_iter()
+                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -503,12 +503,12 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
+                .into_iter()
                 .take(opened_authorities_n)
                 .map(|peer_id| {
                     messages
                         .iter()
-                        .map(move |m| (m.clone(), *peer_id, Protocol::Generic))
+                        .map(move |m| (m.clone(), peer_id, Protocol::Generic))
                 })
                 .flatten(),
         );
@@ -665,9 +665,9 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
+                .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), *peer_id, Protocol::Validator)),
+                .map(|peer_id| (message.clone(), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -783,9 +783,9 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
+                .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), *peer_id, Protocol::Validator)),
+                .map(|peer_id| (message.clone(), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -940,9 +940,9 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
+                .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), *peer_id, Protocol::Generic)),
+                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1058,9 +1058,9 @@ mod tests {
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-                .iter()
+                .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), *peer_id, Protocol::Generic)),
+                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);

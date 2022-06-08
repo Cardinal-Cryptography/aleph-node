@@ -261,7 +261,13 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             None => {
                 let (data, data_from_network) =
                     self.start_validator_session(pre_session, addresses).await?;
-                return Ok((ServiceActions{ maybe_command: None, data }, data_from_network));
+                return Ok((
+                    ServiceActions {
+                        maybe_command: None,
+                        data,
+                    },
+                    data_from_network,
+                ));
             }
         };
         let PreValidatorSession {
@@ -576,7 +582,13 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
             .map_err(|_| Error::CommandSend)
     }
 
-    fn send(&self, ServiceActions{ maybe_command, data }: ServiceActions<D, M>) -> Result<(), Error> {
+    fn send(
+        &self,
+        ServiceActions {
+            maybe_command,
+            data,
+        }: ServiceActions<D, M>,
+    ) -> Result<(), Error> {
         if let Some(command) = maybe_command {
             self.send_command(command)?;
         }
@@ -685,7 +697,10 @@ mod tests {
         let mut service = build();
         let (_, verifier) = crypto_basics(NUM_NODES).await;
         let session_id = SessionId(43);
-        let ServiceActions { maybe_command, data } = service
+        let ServiceActions {
+            maybe_command,
+            data,
+        } = service
             .on_command(SessionCommand::StartNonvalidator(session_id, verifier))
             .await
             .unwrap();
@@ -704,7 +719,10 @@ mod tests {
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         let (result_for_user, result_from_service) = oneshot::channel();
-        let ServiceActions { maybe_command, data } = service
+        let ServiceActions {
+            maybe_command,
+            data,
+        } = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
@@ -730,7 +748,10 @@ mod tests {
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         let (result_for_user, result_from_service) = oneshot::channel();
-        let ServiceActions { maybe_command, data } = service
+        let ServiceActions {
+            maybe_command,
+            data,
+        } = service
             .on_command(SessionCommand::StartValidator(
                 session_id,
                 verifier,
@@ -748,7 +769,10 @@ mod tests {
         assert_eq!(service.send_session_data(&session_id, -43), Ok(()));
         let mut data_from_network = result_from_service.await.unwrap();
         assert_eq!(data_from_network.next().await, Some(-43));
-        let ServiceActions { maybe_command, data } = service
+        let ServiceActions {
+            maybe_command,
+            data,
+        } = service
             .on_command(SessionCommand::Stop(session_id))
             .await
             .unwrap();
@@ -787,16 +811,16 @@ mod tests {
             .unwrap();
         let broadcast = match data[0].clone() {
             (NetworkData::Meta(broadcast), DataCommand::Broadcast) => broadcast,
-            _ => panic!(
-                "Expected discovery massage broadcast, got: {:?}",
-                data[0]
-            ),
+            _ => panic!("Expected discovery massage broadcast, got: {:?}", data[0]),
         };
         let addresses = match &broadcast {
             DiscoveryMessage::AuthenticationBroadcast((auth_data, _)) => auth_data.addresses(),
             _ => panic!("Expected an authentication broadcast, got {:?}", broadcast),
         };
-        let ServiceActions{ maybe_command, data } = service.on_discovery_message(broadcast);
+        let ServiceActions {
+            maybe_command,
+            data,
+        } = service.on_discovery_message(broadcast);
         assert_eq!(
             maybe_command,
             Some(ConnectionCommand::AddReserved(
@@ -838,10 +862,7 @@ mod tests {
             .unwrap();
         let broadcast = match data[0].clone() {
             (NetworkData::Meta(broadcast), DataCommand::Broadcast) => broadcast,
-            _ => panic!(
-                "Expected discovery massage broadcast, got: {:?}",
-                data[0]
-            ),
+            _ => panic!("Expected discovery massage broadcast, got: {:?}", data[0]),
         };
         service.on_discovery_message(broadcast);
         let messages = service.on_user_message(2137, session_id, Recipient::Everyone);
