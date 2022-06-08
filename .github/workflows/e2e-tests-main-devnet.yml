@@ -288,7 +288,7 @@ jobs:
         with:
           test-case: era_payout
           follow-up-finalization-check: true
-        timeout-minutes: 8
+        timeout-minutes: 10
 
 
   check-e2e-test-suite-completion:
