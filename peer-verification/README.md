@@ -1,4 +1,4 @@
-# Peer Signer
+# Peer Verification
 This tool is intended to verify a potential candidate for testnet validator.
 Package is split into two parts: `signer` and `verifier`.
 

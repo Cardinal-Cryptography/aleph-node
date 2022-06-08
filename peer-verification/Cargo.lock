@@ -2070,7 +2070,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "peer-signer"
+name = "peer-verification"
 version = "0.1.0"
 dependencies = [
  "clap",
