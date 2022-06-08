@@ -99,6 +99,7 @@ dependencies = [
  "anyhow",
  "clap",
  "env_logger",
+ "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "log",
@@ -1937,6 +1938,7 @@ dependencies = [
 name = "primitives"
 version = "0.3.0"
 dependencies = [
+ "frame-election-provider-support",
  "parity-scale-codec",
  "scale-info",
  "serde",

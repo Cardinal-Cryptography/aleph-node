@@ -3,10 +3,12 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_reserved_members, era_reward_points, get_current_session, wait_for_finalized_block,
+    change_members, era_reward_points, get_current_session, wait_for_finalized_block,
     wait_for_full_era_completion, AnyConnection, Header, KeyPair, RewardPoint, RootConnection,
     SignedConnection,
 };
+use frame_election_provider_support::sp_arithmetic::Perquintill;
+use primitives::{LENIENT_THRESHOLD, MAX_REWARD};
 use sp_core::Pair;
 use std::collections::BTreeMap;
 use substrate_api_client::{AccountId, XtStatus};
@@ -19,6 +21,10 @@ fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
 }
 
+fn get_non_reserved_members(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[2..].to_vec()
+}
+
 fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
@@ -26,14 +32,7 @@ fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<Ac
     let mut non_reserved = vec![];
 
     let validators_seeds = get_validators_seeds(config);
-    // this order is determined by pallet_staking::ErasStakers::iter_ker_prefix, so by order in
-    // map which is not guaranteed, however runtime is deterministic, so we can rely on particular order
-    // test needs to be reworked to read order from ErasStakers
-    let non_reserved_nodes_order_from_runtime = vec![
-        validators_seeds[3].clone(),
-        validators_seeds[2].clone(),
-        validators_seeds[4].clone(),
-    ];
+    let non_reserved_nodes_order_from_runtime = validators_seeds[2..].to_vec();
     let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
@@ -82,9 +81,16 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    change_reserved_members(
+    let non_reserved_members = get_non_reserved_members(config)
+        .iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect();
+
+    change_members(
         &root_connection,
-        reserved_members.clone(),
+        Some(reserved_members.clone()),
+        Some(non_reserved_members),
+        Some(4),
         XtStatus::InBlock,
     );
 
@@ -94,6 +100,7 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         .as_connection()
         .get_constant("Staking", "SessionsPerEra")
         .expect("Failed to decode SessionsPerEra extrinsic!");
+    info!("Sessions per era: {}", sessions_per_era);
 
     let session = get_current_session(&connection);
     info!("Session at inception: {}", session);
@@ -106,22 +113,41 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         let session = get_current_session(&connection);
         let era = session / sessions_per_era;
 
-        let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_members_for_session(config, session);
+        let reserved = get_reserved_members(config);
+        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
+        non_reserved_for_session
+            .iter()
+            .for_each(|account_id| info!("Non-reserved member {}", account_id));
 
         info!("Era: {} | session: {}", era, session);
+        info!("Sessions per era: {}", sessions_per_era);
         let session_period = connection
             .as_connection()
             .get_constant::<u32>("Elections", "SessionPeriod")
             .expect("Failed to decode SessionPeriod extrinsic!");
+
+        let members_per_session = connection
+            .as_connection()
+            .get_storage_value::<u32>("Elections", "MembersPerSession", None)
+            .expect("Failed to decode MembersPerSession extrinsic!")
+            .unwrap_or_else(|| {
+                panic!("Failed to obtain MembersPerSession for session {}", session)
+            });
+        assert_eq!(
+            (reserved.len() + non_reserved_for_session.len()) as u32,
+            members_per_session
+        );
+        info!("Members per session: {}", members_per_session);
+
         info!("Waiting for block: {}", (session + 1) * session_period);
         wait_for_finalized_block(&connection, (session + 1) * session_period)?;
 
         let era_reward_points = era_reward_points(&connection, era);
-        let validator_reward_points = era_reward_points.individual;
+        let validator_reward_points_current_era = era_reward_points.individual;
         let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> =
-            validator_reward_points
-                .iter()
+            validator_reward_points_current_era
+                .clone()
+                .into_iter()
                 .map(|(account_id, reward_points)| {
                     // on era change, there is no previous session within the era,
                     // no subtraction needed
@@ -129,10 +155,12 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
                         0 => reward_points,
                         _ => {
                             reward_points
-                                - validator_reward_points_previous_session.get(account_id)?
+                                - validator_reward_points_previous_session
+                                    .get(&account_id)
+                                    .unwrap_or(&0)
                         }
                     };
-                    (account_id.clone(), reward_points_current)
+                    (account_id, reward_points_current)
                 })
                 .collect();
         validator_reward_points_current_session
@@ -143,7 +171,38 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
                     session, account_id, reward_points
                 )
             });
-        validator_reward_points_previous_session = validator_reward_points;
+        non_reserved_for_session.iter().for_each(|account_id| {
+            let block_count: u32 = connection
+                .as_connection()
+                .get_storage_map("Elections", "SessionValidatorBlockCount", account_id, None)
+                .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Failed to obtain SessionValidatorBlockCount for session {}, validator {}.",
+                        session, account_id
+                    )
+                });
+            info!("Block count {} for validator {}", block_count, account_id);
+            let performance = block_count / session_period;
+            let lenient_performance =
+                match Perquintill::from_percent(performance as u64) > LENIENT_THRESHOLD {
+                    true => 1.,
+                    false => performance as f64,
+                };
+            let exposure: u128 = connection
+                .as_connection()
+                .get_storage_double_map("Staking", "ErasStakers", era, account_id, None)
+                .expect("Failed to decode ErasStakers extrinsic!")
+                .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for session {}.", session));
+            info!("Exposure {} for validator {}", exposure, account_id);
+            let reward_points_per_session =
+                lenient_performance * exposure as f64 / sessions_per_era as f64;
+            info!(
+                "Account {}, adjusted points per session {}",
+                account_id, reward_points_per_session
+            );
+        });
+        validator_reward_points_previous_session = validator_reward_points_current_era;
     }
 
     let block_number = connection

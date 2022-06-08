@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed)]
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode};
+use frame_election_provider_support::sp_arithmetic::Perquintill;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
 pub use sp_staking::SessionIndex;
@@ -114,3 +115,7 @@ pub mod staking {
         };
     }
 }
+
+// rewards per stake and uptime config
+pub const MAX_REWARD: u32 = 1_000_000_000;
+pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);

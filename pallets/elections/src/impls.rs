@@ -5,11 +5,9 @@ use crate::{
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::pallet_prelude::Get;
+use primitives::{LENIENT_THRESHOLD, MAX_REWARD};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
-
-const MAX_REWARD: u32 = 1_000_000_000;
-const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
