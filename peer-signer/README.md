@@ -1,6 +1,6 @@
 # Peer Signer
 This tool is intended to verify a potential candidate for testnet validator.
-Package can be split into two parts, `signer` and `verifier`.
+Package is split into two parts: `signer` and `verifier`.
 
 
 Signer part will be used by the candidate.
@@ -11,11 +11,17 @@ Verifier part will be used by Aleph Zero team.
 With this program we are going to check whether supplied public key derives to supplied peer id, signature of secret message is correct and this peer is connected and up to date with our network.
 
 ## Step one: signature generation by Validator candidate
-To generate signature, candidate needs a generated p2p address.
+To generate signature, candidate needs a generated p2p secret.
 For whole process to work they also need to have a node set up with up to date block creation and public p2p port, so it can be added as a peer.
 To generate signature:
 ```console
-$ signer --message "secret message" --p2p-secret "some_path_to_p2p_secret/p2p_secret"
+$ signer --message "secret message" --p2p-secret-path "some_path_to_p2p_secret/p2p_secret"
+Public key: 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a
+Signed message: 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
+```
+Or alternatively with building:
+```console
+$ cargo run --bin signer -- --message "secret message" --p2p-secret-path "some_path_to_p2p_secret/p2p_secret"
 Public key: 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a
 Signed message: 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 ```
@@ -35,6 +41,11 @@ Also for this process to work we need to have candidate in our peers, so to make
 Now we call `verifier` to verify peer and the signature:
 ```console
 $ verifier --node "http://127.0.0.1:9933" --block-difference=10 --peer-id "12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM" --message "secret message" --public-key 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a --signature 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
+Signature for peer 12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM is correct and peer is up to date with block creation at 1386065
+```
+Or alternatively with building:
+```console
+$ cargo run --bin verifier -- --node "http://127.0.0.1:9933" --block-difference=10 --peer-id "12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM" --message "secret message" --public-key 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a --signature 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 Signature for peer 12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM is correct and peer is up to date with block creation at 1386065
 ```
 
