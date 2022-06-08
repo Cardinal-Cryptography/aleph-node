@@ -29,7 +29,7 @@ There are two built-in incentives:
 
 ## Yellow button
 
-Similar to button red, but in that scenario the awards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
+Similar to Red Button, but in this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
 
 ```
 score = now - start
