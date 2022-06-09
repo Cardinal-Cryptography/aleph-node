@@ -45,11 +45,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
-      # - name: Force update nightly
-      #   run: |
-      #     cd contracts/
-      #     rustup show
-
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
@@ -62,7 +57,7 @@ jobs:
           then
               echo "cargo-contracts executable could not be found. Installing"
               cd contracts/
-              cargo install cargo-dylint dylint-link
+              cargo install cargo-dylint dylint-link --force
               # revision merging Hans's PR changes [fix for node URL parsing ]
               cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460
           fi

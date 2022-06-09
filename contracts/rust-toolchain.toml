@@ -1,0 +1,5 @@
+[toolchain]
+channel = "nightly-2022-03-14" # root nightly is too old for cargo-contract and ink!, we override it here
+components = [ "rustfmt", "clippy", "rust-src"]
+targets = [ "wasm32-unknown-unknown" ]
+profile = "minimal"
