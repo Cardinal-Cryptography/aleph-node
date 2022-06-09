@@ -1,13 +1,13 @@
 name: "Restore rust cache"
 description: |
   Restore/save rust caches.
-  
+
   This action combines 3 caches:
-  
+
     1. The ~/.cargo cache
     2. The ./target cache
     3. The sccache cache along with starting the sccache server
-  
+
   All caches are keyed with cache-version along with a hash of all Cargo.lock files in the project. As a fallback they
   take the newest cache with any hash of Cargo.lock files to rebuild from a partial cache in case of a Cargo.lock change.
 
@@ -43,6 +43,7 @@ inputs:
 
 runs:
   using: "composite"
+  timeout-minutes: 5
 
   steps:
     - name: Restore cargo cache
@@ -69,12 +70,12 @@ runs:
       run: |
         LINK=https://github.com/mozilla/sccache/releases/download
         SCCACHE_FILE=sccache-${{ inputs.sccache-version }}-x86_64-unknown-linux-musl
-        
+
         mkdir -p $HOME/.local/bin
         curl -L "$LINK/${{ inputs.sccache-version }}/$SCCACHE_FILE.tar.gz" | tar xz
         mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
         chmod +x $HOME/.local/bin/sccache
-        
+
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Restore sccache
