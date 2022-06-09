@@ -1,13 +1,14 @@
 use std::{thread::sleep, time::Duration};
 
+use ac_primitives::SubstrateDefaultSignedExtra;
 use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 pub use substrate_api_client;
 use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult, RpcClient,
-    UncheckedExtrinsicV4, XtStatus,
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
+    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
 };
 
 pub use account::{get_free_balance, locks};
@@ -28,7 +29,7 @@ pub use staking::{
     ledger as staking_ledger, multi_bond as staking_multi_bond, nominate as staking_nominate,
     payout_stakers, payout_stakers_and_assert_locked_balance,
     set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_full_era_completion, wait_for_next_era,
+    wait_for_full_era_completion, wait_for_next_era, StakingLedger,
 };
 pub use system::set_code;
 pub use transfer::{
@@ -69,14 +70,15 @@ impl FromStr for WsRpcClient {
 pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
-pub type Connection = Api<KeyPair, WsRpcClient>;
+pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
+pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
 
 /// 'Castability' to `Connection`.
 ///
 /// Direct casting is often more handy than generic `.into()`. Justification: `Connection` objects
 /// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
 /// information for type inferring required for `Into<Connection>`.
-pub trait AnyConnection: Clone {
+pub trait AnyConnection: Clone + Send {
     fn as_connection(&self) -> Connection;
 }
 
@@ -103,9 +105,12 @@ impl SignedConnection {
     }
 
     /// Semantically equivalent to `connection.set_signer(signer)`.
-    pub fn from_any_connection<C: AnyConnection>(connection: C, signer: KeyPair) -> Self {
+    pub fn from_any_connection<C: AnyConnection>(connection: &C, signer: KeyPair) -> Self {
         Self {
-            inner: connection.as_connection().set_signer(signer.clone()),
+            inner: connection
+                .clone()
+                .as_connection()
+                .set_signer(signer.clone()),
             signer,
         }
     }
@@ -129,7 +134,7 @@ impl TryFrom<Connection> for SignedConnection {
 
     fn try_from(connection: Connection) -> Result<Self, Self::Error> {
         if let Some(signer) = connection.signer.clone() {
-            Ok(Self::from_any_connection(connection, signer))
+            Ok(Self::from_any_connection(&connection, signer))
         } else {
             Err("Connection should be signed.")
         }
@@ -207,10 +212,10 @@ fn ensure_protocol(address: &str) -> String {
 
 pub fn create_custom_connection<Client: FromStr + RpcClient>(
     address: &str,
-) -> Result<Api<sr25519::Pair, Client>, <Client as FromStr>::Err> {
+) -> Result<Api<sr25519::Pair, Client, PlainTipExtrinsicParams>, <Client as FromStr>::Err> {
     loop {
         let client = Client::from_str(&ensure_protocol(address))?;
-        match Api::<sr25519::Pair, _>::new(client) {
+        match Api::<sr25519::Pair, _, _>::new(client) {
             Ok(api) => return Ok(api),
             Err(why) => {
                 warn!(
@@ -226,7 +231,7 @@ pub fn create_custom_connection<Client: FromStr + RpcClient>(
 /// `panic`able utility wrapper for `try_send_xt`.
 pub fn send_xt<T: Encode, C: AnyConnection>(
     connection: &C,
-    xt: UncheckedExtrinsicV4<T>,
+    xt: Extrinsic<T>,
     xt_name: Option<&'static str>,
     xt_status: XtStatus,
 ) -> Option<H256> {
@@ -241,7 +246,7 @@ pub fn send_xt<T: Encode, C: AnyConnection>(
 /// Recoverable.
 pub fn try_send_xt<T: Encode, C: AnyConnection>(
     connection: &C,
-    xt: UncheckedExtrinsicV4<T>,
+    xt: Extrinsic<T>,
     xt_name: Option<&'static str>,
     xt_status: XtStatus,
 ) -> ApiResult<Option<H256>> {

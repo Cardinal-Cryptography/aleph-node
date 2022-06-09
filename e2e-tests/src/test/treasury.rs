@@ -5,16 +5,16 @@ use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
 use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{
-    compose_extrinsic, AccountId, Balance, GenericAddress, UncheckedExtrinsicV4, XtStatus,
+    compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 use aleph_client::{
     balances_transfer, get_free_balance, get_tx_fee_info, send_xt, wait_for_event, AnyConnection,
-    RootConnection, SignedConnection,
+    Extrinsic, RootConnection, SignedConnection,
 };
 
 use crate::{
-    accounts::{accounts_from_seeds, get_sudo},
+    accounts::{get_sudo_key, get_validators_keys},
     config::Config,
     transfer::setup_for_transfer,
 };
@@ -124,21 +124,17 @@ fn check_treasury_balance(
 }
 
 pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
-    let Config {
-        ref node, seeds, ..
-    } = config;
-
-    let proposer = accounts_from_seeds(seeds)[0].clone();
+    let proposer = get_validators_keys(config)[0].clone();
     let beneficiary = AccountId::from(proposer.public());
-    let connection = SignedConnection::new(node, proposer);
+    let connection = SignedConnection::new(&config.node, proposer);
 
     propose_treasury_spend(10u128, &beneficiary, &connection);
     propose_treasury_spend(100u128, &beneficiary, &connection);
     let proposals_counter = get_proposals_counter(&connection);
     assert!(proposals_counter >= 2, "Proposal was not created");
 
-    let sudo = get_sudo(config);
-    let connection = RootConnection::new(node, sudo);
+    let sudo = get_sudo_key(config);
+    let connection = RootConnection::new(&config.node, sudo);
 
     treasury_approve(proposals_counter - 2, &connection)?;
     treasury_reject(proposals_counter - 1, &connection)?;
@@ -155,11 +151,10 @@ fn get_total_issuance<C: AnyConnection>(connection: &C) -> u128 {
 }
 
 fn get_treasury_account() -> AccountId32 {
-    PalletId(*b"a0/trsry").into_account()
+    PalletId(*b"a0/trsry").into_account_truncating()
 }
 
-type ProposalTransaction =
-    UncheckedExtrinsicV4<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
+type ProposalTransaction = Extrinsic<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
 fn propose_treasury_spend(
     value: u128,
     beneficiary: &AccountId32,
@@ -189,7 +184,7 @@ fn get_proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
         .unwrap()
 }
 
-type GovernanceTransaction = UncheckedExtrinsicV4<([u8; 2], Compact<u32>)>;
+type GovernanceTransaction = Extrinsic<([u8; 2], Compact<u32>)>;
 
 fn send_treasury_approval(proposal_id: u32, connection: &RootConnection) -> GovernanceTransaction {
     let xt = compose_extrinsic!(

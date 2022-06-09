@@ -4,7 +4,9 @@ use crate::{
 use codec::{Decode, Encode};
 use log::info;
 use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, AccountId, FromHexString, XtStatus};
+use substrate_api_client::{
+    compose_call, compose_extrinsic, AccountId, ExtrinsicParams, FromHexString, XtStatus,
+};
 
 // Using custom struct and rely on default Encode trait from Parity's codec
 // it works since byte arrays are encoded in a straight forward way, it as-is
@@ -39,15 +41,19 @@ impl TryFrom<String> for Keys {
 
 pub fn change_members(
     sudo_connection: &RootConnection,
-    new_members: Vec<AccountId>,
+    new_reserved_members: Option<Vec<AccountId>>,
+    new_non_reserved_members: Option<Vec<AccountId>>,
+    members_per_session: Option<u32>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New members {:#?}", new_members);
+    info!(target: "aleph-client", "New members: reserved: {:#?}, non_reserved: {:#?}, members_per_session: {:?}", new_reserved_members, new_non_reserved_members, members_per_session);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
         "change_members",
-        new_members
+        new_reserved_members,
+        new_non_reserved_members,
+        members_per_session
     );
     let xt = compose_extrinsic!(
         sudo_connection.as_connection(),
@@ -56,28 +62,15 @@ pub fn change_members(
         call,
         0_u64
     );
-    send_xt(sudo_connection, xt, Some("sudo_unchecked_weight"), status);
+    send_xt(sudo_connection, xt, Some("change_members"), status);
 }
+
 pub fn change_reserved_members(
     sudo_connection: &RootConnection,
     new_members: Vec<AccountId>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New reserved members {:#?}", new_members);
-    let call = compose_call!(
-        sudo_connection.as_connection().metadata,
-        "Elections",
-        "change_reserved_members",
-        new_members
-    );
-    let xt = compose_extrinsic!(
-        sudo_connection.as_connection(),
-        "Sudo",
-        "sudo_unchecked_weight",
-        call,
-        0_u64
-    );
-    send_xt(sudo_connection, xt, Some("change_reserved_members"), status);
+    change_members(sudo_connection, Some(new_members), None, None, status)
 }
 
 pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus) {
