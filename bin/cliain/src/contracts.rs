@@ -1,14 +1,12 @@
-use crate::{
-    commands::{
-        ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
-        ContractRemoveCode, ContractUploadCode,
-    },
-    ContractMessageTranscoder,
+use crate::commands::{
+    ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
+    ContractRemoveCode, ContractUploadCode,
 };
 use aleph_client::{send_xt, wait_for_event, AnyConnection, SignedConnection};
 use anyhow::anyhow;
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
+use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, H256};
