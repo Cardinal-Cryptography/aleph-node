@@ -26,7 +26,7 @@ pub type AuthorityId = app::Public;
 
 pub type Balance = u128;
 
-pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
+pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
 // Quick sessions for testing purposes
 #[cfg(feature = "short_session")]
