@@ -14,7 +14,7 @@ path = "src/verifier.rs"
 [dependencies]
 clap = {version = "3.0", features = ["derive"]}
 hex = "0.4"
-libp2p = "0.40"
+libp2p = "0.44"
 reqwest = { version = "0.11", features = ["json"] }
 serde = "1"
 serde_json = { version = "1.0" }
