@@ -12,21 +12,21 @@ With this program we are going to check whether supplied public key derives to s
 
 ## Step one: signature generation by Validator candidate
 To generate signature, candidate needs a generated p2p secret.
-For whole process to work they also need to have a node set up with up to date block creation and public p2p port, so it can be added as a peer.
+For whole process to work they also need to have a node set up with up to date block creation and public p2p port, so it can be discovered by other nodes as a peer.
 To generate signature:
 ```console
 $ signer --message "secret message" --p2p-secret-path "some_path_to_p2p_secret/p2p_secret"
 Public key: 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a
 Signed message: 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 ```
-Or alternatively with building:
+Or, alternatively, using cargo, if for some reason the pre-built binary is unavailable:
 ```console
 $ cargo run --bin signer -- --message "secret message" --p2p-secret-path "some_path_to_p2p_secret/p2p_secret"
 Public key: 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a
 Signed message: 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 ```
 After that candidate needs to send the generated public key and signature to Aleph Zero team.
-So in this case needs to send:
+So in this case one would send the following:
 ```
 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a
 
@@ -43,13 +43,13 @@ Now we call `verifier` to verify peer and the signature:
 $ verifier --node "http://127.0.0.1:9933" --block-difference=10 --peer-id "12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM" --message "secret message" --public-key 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a --signature 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 Signature for peer 12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM is correct and peer is up to date with block creation at 1386065
 ```
-Or alternatively with building:
+Or, alternatively, using cargo, if for some reason the pre-built binary is unavailable:
 ```console
 $ cargo run --bin verifier -- --node "http://127.0.0.1:9933" --block-difference=10 --peer-id "12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM" --message "secret message" --public-key 08011220c94d0593359ea30451f3aaf61040756c1bfdb7bb779489d4dafda00cce038c0a --signature 7ef2490075425bcd9fc77a994069183a21746f0be3561d464ae6a89e4b9bdaf26d9cb75c0b11325ae54e66c8ce8a9156a8b8e1d0120309fafe6971db53d6c104
 Signature for peer 12D3KooWPNAEZ9Xru6SgaKoXj4XGeDeVbUjYQHoc3DXpHJ9eeQeM is correct and peer is up to date with block creation at 1386065
 ```
 
-Arguments are:
+Available arguments:
 *  `--node` address of a node that we will send unsafe rpc calls to. By default set to `http://127.0.0.1:9933`
 * `--block-difference` max block difference with head of our node and head of candidate node. By default set to `10`
 * `--peer-id` peer id of node of candidate we want  to verify

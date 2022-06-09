@@ -31,7 +31,7 @@ fn main() {
 
     let path = Path::new(&p2p_secret_path);
     if !path.exists() {
-        panic!("Can not find p2p secret file: {:?}", p2p_secret_path);
+        panic!("Could not find p2p secret file: {:?}", p2p_secret_path);
     }
 
     let file_content = fs::read(&path).expect("Can not read from p2p secret file");
