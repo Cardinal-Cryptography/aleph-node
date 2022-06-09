@@ -131,10 +131,10 @@ pub fn native_version() -> NativeVersion {
 pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
 pub const BLOCKS_PER_HOUR: u32 = 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
 
-pub const MILLI: Balance = TOKEN / 1000;
-pub const MICRO: Balance = MILLI / 1000;
-pub const NANO: Balance = MICRO / 1000;
-pub const PICO: Balance = NANO / 1000;
+pub const MILLI_AZERO: Balance = TOKEN / 1000;
+pub const MICRO_AZERO: Balance = MILLI_AZERO / 1000;
+pub const NANO_AZERO: Balance = MICRO_AZERO / 1000;
+pub const PICO_AZERO: Balance = NANO_AZERO / 1000;
 
 // 75% block weight is dedicated to normal extrinsics
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
@@ -145,7 +145,7 @@ pub const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 // The storage deposit is roughly 1 TOKEN per 1kB
-pub const DEPOSIT_PER_BYTE: Balance = MILLI;
+pub const DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -233,7 +233,7 @@ impl pallet_authorship::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500 * PICO;
+    pub const ExistentialDeposit: u128 = 500 * PICO_AZERO;
     pub const MaxLocks: u32 = 50;
 }
 
@@ -546,7 +546,7 @@ where
 }
 
 parameter_types! {
-    pub const MinVestedTransfer: Balance = MICRO;
+    pub const MinVestedTransfer: Balance = MICRO_AZERO;
 }
 
 impl pallet_vesting::Config for Runtime {
