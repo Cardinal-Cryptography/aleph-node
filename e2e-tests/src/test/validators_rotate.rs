@@ -1,41 +1,44 @@
 use crate::{
-    accounts::{accounts_from_seeds, get_sudo},
+    accounts::{accounts_seeds_to_keys, get_sudo_key, get_validators_keys, get_validators_seeds},
     Config,
 };
 use aleph_client::{
-    change_next_era_reserved_validators, get_current_session, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
-    SignedConnection,
+    change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
+    wait_for_session, AnyConnection, Header, KeyPair, RootConnection, SignedConnection,
 };
 use sp_core::Pair;
 use std::collections::HashMap;
 use substrate_api_client::{AccountId, XtStatus};
 
-const MINIMAL_TEST_SESSION_START: u32 = 9;
-const ELECTION_STARTS: u32 = 6;
+const TEST_LENGTH: u32 = 5;
 
-fn get_next_era_reserved_validators() -> Vec<KeyPair> {
-    accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
+fn get_reserved_validators(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[0..2].to_vec()
 }
 
-fn get_non_reserved_validators_for_session(session: u32) -> Vec<AccountId> {
+fn get_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[2..].to_vec()
+}
+
+fn get_non_reserved_validators_for_session(config: &Config, session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
 
-    let x = vec![
-        "//Julia".to_string(),
-        "//Zbyszko".to_string(),
-        "//Hansu".to_string(),
-    ];
-    let x_len = x.len();
+    let validators_seeds = get_validators_seeds(config);
+    let non_reserved_nodes_order_from_runtime = validators_seeds[2..].to_vec();
+    let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
-        non_reserved.push(x[i as usize % x_len].clone());
+        non_reserved.push(
+            non_reserved_nodes_order_from_runtime
+                [i as usize % non_reserved_nodes_order_from_runtime_len]
+                .clone(),
+        );
     }
 
-    accounts_from_seeds(&Some(non_reserved))
+    accounts_seeds_to_keys(&non_reserved)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect()
@@ -58,45 +61,48 @@ fn get_authorities_for_session<C: AnyConnection>(connection: &C, session: u32) -
         .expect("Authorities should always be present")
 }
 
-pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
-    let node = &cfg.node;
-    let accounts = accounts_from_seeds(&None);
+pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
+    let node = &config.node;
+    let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = SignedConnection::new(node, sender);
 
-    let sudo = get_sudo(cfg);
+    let sudo = get_sudo_key(config);
 
     let root_connection = RootConnection::new(node, sudo);
-
-    let next_era_reserved_validators: Vec<_> = get_next_era_reserved_validators()
+    let reserved_validators: Vec<_> = get_reserved_validators(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    change_next_era_reserved_validators(
+    let non_reserved_validators = get_non_reserved_validators(config)
+        .iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect();
+
+    change_validators(
         &root_connection,
-        next_era_reserved_validators.clone(),
+        Some(reserved_validators.clone()),
+        Some(non_reserved_validators),
+        Some(4),
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&connection)?;
 
-    let mut current_session = get_current_session(&connection);
-    if current_session < MINIMAL_TEST_SESSION_START {
-        wait_for_session(&connection, MINIMAL_TEST_SESSION_START)?;
-        current_session = MINIMAL_TEST_SESSION_START;
-    }
+    let current_session = get_current_session(&connection);
+    wait_for_session(&connection, current_session + TEST_LENGTH)?;
 
     let mut non_reserved_count = HashMap::new();
 
-    for session in ELECTION_STARTS..current_session {
+    for session in current_session..current_session + TEST_LENGTH {
         let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_validators_for_session(session);
+        let non_reserved = get_non_reserved_validators_for_session(config, session);
 
         for nr in non_reserved.clone() {
             *non_reserved_count.entry(nr).or_insert(0) += 1;
         }
 
-        let reserved_included = next_era_reserved_validators
+        let reserved_included = reserved_validators
             .clone()
             .iter()
             .all(|reserved| elected.contains(reserved));
@@ -105,9 +111,9 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
             .iter()
             .all(|non_reserved| elected.contains(non_reserved));
 
-        let only_expected_members = elected.iter().all(|elected| {
-            next_era_reserved_validators.contains(elected) || non_reserved.contains(elected)
-        });
+        let only_expected_validators = elected
+            .iter()
+            .all(|elected| reserved_validators.contains(elected) || non_reserved.contains(elected));
 
         assert!(
             reserved_included,
@@ -120,8 +126,8 @@ pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
             session
         );
         assert!(
-            only_expected_members,
-            "Only expected members should be present, session #{}",
+            only_expected_validators,
+            "Only expected validators should be present, session #{}",
             session
         );
     }

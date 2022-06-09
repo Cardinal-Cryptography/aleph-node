@@ -378,9 +378,9 @@ fn generate_genesis_config(
             key: Some(sudo_account),
         },
         elections: ElectionsConfig {
-            members: accounts_config.members.clone(),
+            non_reserved_validators: accounts_config.members.clone(),
             committee_size: DEFAULT_COMMITTEE_SIZE,
-            next_era_reserved_validators: vec![],
+            reserved_validators: vec![],
         },
         session: SessionConfig {
             keys: accounts_config.keys,

@@ -4,14 +4,14 @@
 //!
 //! ### Terminology
 //! For definition of session, era, staking see pallet_session and pallet_staking.
-//! - Committee: Set of nodes that produce and finalize blocks in the era.
+//! - Committee: Set of nodes that produce and finalize blocks in the session.
 //! - Validator: Node that can become a member of committee (or already is) via rotation.
-//! - (TODO: remove this to remove confusion) Member: Usually same as validator, sometimes means member of the committee
 //! - ReservedValidators: Validators that are chosen to be in committee every single session.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod impls;
+mod migrations;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -21,11 +21,15 @@ mod traits;
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
 use scale_info::TypeInfo;
-use sp_std::{collections::btree_map::BTreeMap, prelude::Vec};
+use sp_std::{
+    collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+    prelude::Vec,
+};
 
+pub use impls::compute_validator_scaled_total_rewards;
 pub use pallet::*;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
@@ -40,8 +44,11 @@ pub mod pallet {
     use frame_election_provider_support::{
         ElectionDataProvider, ElectionProvider, Support, Supports,
     };
-    use frame_support::{pallet_prelude::*, traits::Get};
-    use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use frame_support::{log, pallet_prelude::*, traits::Get};
+    use frame_system::{
+        ensure_root,
+        pallet_prelude::{BlockNumberFor, OriginFor},
+    };
     use pallet_session::SessionManager;
     use primitives::DEFAULT_COMMITTEE_SIZE;
 
@@ -69,7 +76,7 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        ChangeMembers(Vec<T::AccountId>),
+        ChangeValidators(Vec<T::AccountId>, Vec<T::AccountId>, u32),
     }
 
     #[pallet::pallet]
@@ -77,12 +84,28 @@ pub mod pallet {
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
-    /// List of possible validators, used during elections.
-    /// Can be modified via `change_members` call that requires sudo.
-    #[pallet::storage]
-    #[pallet::getter(fn members)]
-    pub type Members<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
-
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
+            T::DbWeight::get().reads(1)
+                + match on_chain {
+                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == StorageVersion::new(0) => {
+                        // migrations::v0_to_v1::migrate::<T, Self>()
+                        0
+                    }
+                    _ => {
+                        log::warn!(
+                            target: "pallet_elections",
+                            "On chain storage version of pallet elections is {:?} but it should not be bigger than 1",
+                            on_chain
+                        );
+                        0
+                    }
+                }
+        }
+    }
     /// Desirable size of a committee. When new session is planned, first reserved validators are
     /// added to the committee. Then remaining slots are filled from total validators list excluding
     /// reserved validators
@@ -97,7 +120,12 @@ pub mod pallet {
     /// Current's era list of reserved validators. This is populated from `NextEraReservedValidators`
     /// at the time of planning the first session of the era.
     #[pallet::storage]
-    pub type CurrentEraReservedValidators<T: Config> =
+    pub type CurrentEraValidators<T: Config> =
+        StorageValue<_, (Vec<T::AccountId>, Vec<T::AccountId>), ValueQuery>;
+
+    /// List of possible validators that are not re.
+    #[pallet::storage]
+    pub type NextEraNonReservedValidators<T: Config> =
         StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     /// Count per validator, how many blocks did the validator produced
@@ -113,29 +141,34 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn change_members(origin: OriginFor<T>, members: Vec<T::AccountId>) -> DispatchResult {
-            ensure_root(origin)?;
-            Members::<T>::put(members.clone());
-            Self::deposit_event(Event::ChangeMembers(members));
-
-            Ok(())
-        }
-
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_committee_size(origin: OriginFor<T>, committee_size: u32) -> DispatchResult {
-            ensure_root(origin)?;
-            CommitteeSize::<T>::put(committee_size);
-
-            Ok(())
-        }
-
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn change_next_era_reserved_validators(
+        pub fn change_validators(
             origin: OriginFor<T>,
-            next_era_reserved_validators: Vec<T::AccountId>,
+            reserved_validators: Option<Vec<T::AccountId>>,
+            non_reserved_validators: Option<Vec<T::AccountId>>,
+            committee_size: Option<u32>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            NextEraReservedValidators::<T>::put(next_era_reserved_validators);
+            let committee_size = committee_size.unwrap_or_else(CommitteeSize::<T>::get);
+            let reserved_validators =
+                reserved_validators.unwrap_or_else(NextEraReservedValidators::<T>::get);
+            let non_reserved_validators =
+                non_reserved_validators.unwrap_or_else(NextEraNonReservedValidators::<T>::get);
+
+            Self::ensure_validators_are_ok(
+                reserved_validators.clone(),
+                non_reserved_validators.clone(),
+                committee_size,
+            )?;
+
+            NextEraNonReservedValidators::<T>::put(non_reserved_validators.clone());
+            NextEraReservedValidators::<T>::put(reserved_validators.clone());
+            CommitteeSize::<T>::put(committee_size);
+
+            Self::deposit_event(Event::ChangeValidators(
+                reserved_validators,
+                non_reserved_validators,
+                committee_size,
+            ));
 
             Ok(())
         }
@@ -143,8 +176,8 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub members: Vec<T::AccountId>,
-        pub next_era_reserved_validators: Vec<T::AccountId>,
+        pub non_reserved_validators: Vec<T::AccountId>,
+        pub reserved_validators: Vec<T::AccountId>,
         pub committee_size: u32,
     }
 
@@ -152,8 +185,8 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
-                members: Vec::new(),
-                next_era_reserved_validators: Vec::new(),
+                non_reserved_validators: Vec::new(),
+                reserved_validators: Vec::new(),
                 committee_size: DEFAULT_COMMITTEE_SIZE,
             }
         }
@@ -162,35 +195,75 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <Members<T>>::put(&self.members);
+            <NextEraNonReservedValidators<T>>::put(&self.reserved_validators);
             <CommitteeSize<T>>::put(&self.committee_size);
-            <NextEraReservedValidators<T>>::put(&self.next_era_reserved_validators);
+            <NextEraReservedValidators<T>>::put(&self.non_reserved_validators);
         }
     }
 
-    impl<T: Config> Pallet<T> {}
+    impl<T: Config> Pallet<T> {
+        fn ensure_validators_are_ok(
+            reserved_validators: Vec<T::AccountId>,
+            non_reserved_validators: Vec<T::AccountId>,
+            committee_size: u32,
+        ) -> DispatchResult {
+            let reserved_len = reserved_validators.len() as u32;
+            let non_reserved_len = non_reserved_validators.len() as u32;
+            let validators_size = reserved_len + non_reserved_len;
+
+            ensure!(
+                committee_size >= reserved_len,
+                Error::<T>::TooManyReservedValidators
+            );
+            ensure!(
+                committee_size <= validators_size,
+                Error::<T>::NotEnoughValidators
+            );
+
+            let member_set: BTreeSet<_> = reserved_validators
+                .into_iter()
+                .chain(non_reserved_validators.into_iter())
+                .collect();
+
+            ensure!(
+                member_set.len() as u32 == validators_size,
+                Error::<T>::NonUniqueListOfValidators
+            );
+
+            Ok(())
+        }
+    }
 
     #[derive(Debug)]
-    pub enum Error {
+    pub enum ElectionError {
         DataProvider(&'static str),
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        TooManyReservedValidators,
+        NotEnoughValidators,
+        NonUniqueListOfValidators,
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {
         type AccountId = T::AccountId;
         type BlockNumber = T::BlockNumber;
-        type Error = Error;
+        type Error = ElectionError;
         type DataProvider = T::DataProvider;
 
-        // The elections are PoA so only the nodes listed in the Members will be elected as validators.
+        // The elections are PoA so only the nodes listed in the Validators will be elected as validators.
         // We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            let voters = Self::DataProvider::electing_voters(None).map_err(Error::DataProvider)?;
-            let members = Pallet::<T>::members();
+            let voters =
+                Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
+            let members = NextEraReservedValidators::<T>::get()
+                .into_iter()
+                .chain(NextEraNonReservedValidators::<T>::get().into_iter());
             let mut supports: BTreeMap<_, _> = members
-                .iter()
                 .map(|id| {
                     (
-                        id.clone(),
+                        id,
                         Support {
                             total: 0,
                             voters: Vec::new(),

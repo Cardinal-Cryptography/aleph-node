@@ -15,6 +15,7 @@ use sp_runtime::{
     traits::IdentityLookup,
 };
 use sp_staking::{EraIndex, SessionIndex};
+use sp_std::collections::btree_set::BTreeSet;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -101,20 +102,12 @@ parameter_types! {
 pub struct MockProvider;
 
 impl SessionInfoProvider<Test> for MockProvider {
-    fn current_session_index() -> SessionIndex {
-        todo!()
-    }
-
-    fn current_committee() -> Vec<<Test as frame_system::Config>::AccountId> {
+    fn current_committee() -> BTreeSet<<Test as frame_system::Config>::AccountId> {
         todo!()
     }
 }
 
 impl ValidatorRewardsHandler<Test> for MockProvider {
-    fn all_era_validators(_era: EraIndex) -> Vec<<Test as frame_system::Config>::AccountId> {
-        todo!()
-    }
-
     fn validator_totals(_era: EraIndex) -> Vec<(<Test as frame_system::Config>::AccountId, u128)> {
         todo!()
     }
@@ -178,24 +171,31 @@ impl ElectionDataProvider for StakingMock {
 }
 
 pub fn new_test_ext(
-    members: Vec<AccountId>,
-    next_era_reserved_validators: Vec<AccountId>,
+    reserved_validators: Vec<AccountId>,
+    non_reserved_validators: Vec<AccountId>,
 ) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
 
-    let balances: Vec<_> = (0..members.len()).map(|i| (i as u64, 10_000_000)).collect();
+    let validators: Vec<_> = non_reserved_validators
+        .iter()
+        .chain(reserved_validators.iter())
+        .collect();
+
+    let balances: Vec<_> = (0..validators.len())
+        .map(|i| (i as u64, 10_000_000))
+        .collect();
 
     pallet_balances::GenesisConfig::<Test> { balances }
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let committee_size = members.len() as u32;
+    let committee_size = validators.len() as u32;
     crate::GenesisConfig::<Test> {
-        members,
+        non_reserved_validators,
         committee_size,
-        next_era_reserved_validators,
+        reserved_validators,
     }
     .assimilate_storage(&mut t)
     .unwrap();

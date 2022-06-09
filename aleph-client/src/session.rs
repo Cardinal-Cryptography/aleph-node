@@ -37,17 +37,21 @@ impl TryFrom<String> for Keys {
     }
 }
 
-pub fn change_members(
+pub fn change_validators(
     sudo_connection: &RootConnection,
-    new_members: Vec<AccountId>,
+    new_reserved_validators: Option<Vec<AccountId>>,
+    new_non_reserved_validators: Option<Vec<AccountId>>,
+    validators_per_session: Option<u32>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New members {:#?}", new_members);
+    info!(target: "aleph-client", "New validators: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:?}", new_reserved_validators, new_non_reserved_validators, validators_per_session);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
-        "change_members",
-        new_members
+        "change_validators",
+        new_reserved_validators,
+        new_non_reserved_validators,
+        validators_per_session
     );
     let xt = compose_extrinsic!(
         sudo_connection.as_connection(),
@@ -56,33 +60,15 @@ pub fn change_members(
         call,
         0_u64
     );
-    send_xt(sudo_connection, xt, Some("sudo_unchecked_weight"), status);
+    send_xt(sudo_connection, xt, Some("change_validators"), status);
 }
+
 pub fn change_next_era_reserved_validators(
     sudo_connection: &RootConnection,
-    new_members: Vec<AccountId>,
+    new_validators: Vec<AccountId>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New reserved validators {:#?}", new_members);
-    let call = compose_call!(
-        sudo_connection.as_connection().metadata,
-        "Elections",
-        "change_next_era_reserved_validators",
-        new_members
-    );
-    let xt = compose_extrinsic!(
-        sudo_connection.as_connection(),
-        "Sudo",
-        "sudo_unchecked_weight",
-        call,
-        0_u64
-    );
-    send_xt(
-        sudo_connection,
-        xt,
-        Some("change_next_era_reserved_validators"),
-        status,
-    );
+    change_validators(sudo_connection, Some(new_validators), None, None, status)
 }
 
 pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus) {
