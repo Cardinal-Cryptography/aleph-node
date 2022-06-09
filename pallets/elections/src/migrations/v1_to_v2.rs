@@ -1,4 +1,7 @@
-use crate::Config;
+use crate::{
+    CommitteeSize, Config, CurrentEraValidators, NextEraNonReservedValidators,
+    NextEraReservedValidators,
+};
 use frame_support::{
     log, storage_alias,
     traits::{Get, PalletInfoAccess, StorageVersion},
@@ -6,8 +9,6 @@ use frame_support::{
 };
 use sp_std::vec::Vec;
 
-#[storage_alias]
-type Members<T> = StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
 #[storage_alias]
 pub type MembersPerSession = StorageValue<Elections, u32>;
 #[storage_alias]
@@ -29,8 +30,23 @@ type ErasMembers<T> = StorageValue<
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1 for pallet elections");
 
-    let mut writes = 5;
-    let mut reads = 2;
+    let writes = 5;
+    let reads = 4;
+
+    let mps = MembersPerSession::get().expect("");
+    let reserved = ReservedMembers::<T>::get().expect("");
+    let non_reserved = NonReservedMembers::<T>::get().expect("");
+    let eras_members = ErasMembers::<T>::get().expect("");
+
+    CommitteeSize::<T>::put(mps);
+    NextEraReservedValidators::<T>::put(reserved);
+    NextEraNonReservedValidators::<T>::put(non_reserved);
+    CurrentEraValidators::<T>::put(eras_members);
+
+    MembersPerSession::kill();
+    ReservedMembers::<T>::kill();
+    NonReservedMembers::<T>::kill();
+    ErasMembers::<T>::kill();
 
     StorageVersion::new(2).put::<P>();
     T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)

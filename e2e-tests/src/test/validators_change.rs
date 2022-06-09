@@ -18,22 +18,22 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let reserved_before: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "ReservedMembers", None)?
+        .get_storage_value("Elections", "NextEraReservedValidators", None)?
         .unwrap();
 
     let non_reserved_before: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "NonReservedMembers", None)?
+        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
         .unwrap();
 
-    let validators_per_session_before: u32 = connection
+    let committee_size_before: u32 = connection
         .as_connection()
-        .get_storage_value("Elections", "MembersPerSession", None)?
+        .get_storage_value("Elections", "CommitteeSize", None)?
         .unwrap();
 
     info!(
-        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:#?}",
-        reserved_before, non_reserved_before, validators_per_session_before
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
+        reserved_before, non_reserved_before, committee_size_before
     );
 
     let new_validators: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
@@ -65,27 +65,27 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let reserved_after: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "ReservedMembers", None)?
+        .get_storage_value("Elections", "NextEraReservedValidators", None)?
         .unwrap();
 
     let non_reserved_after: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "NonReservedMembers", None)?
+        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
         .unwrap();
 
-    let validators_per_session_after: u32 = connection
+    let committee_size_after: u32 = connection
         .as_connection()
-        .get_storage_value("Elections", "MembersPerSession", None)?
+        .get_storage_value("Elections", "CommitteeSize", None)?
         .unwrap();
 
     info!(
-        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:#?}",
-        reserved_after, non_reserved_after, validators_per_session_after
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
+        reserved_after, non_reserved_after, committee_size_after
     );
 
     assert_eq!(new_validators[..2], reserved_after);
     assert_eq!(new_validators[2..], non_reserved_after);
-    assert_eq!(4, validators_per_session_after);
+    assert_eq!(4, committee_size_after);
 
     let block_number = connection
         .as_connection()
