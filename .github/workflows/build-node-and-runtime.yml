@@ -36,7 +36,8 @@ jobs:
         with:
           target-key: release
           cache-version: v1
-
+        timeout-minutes: 5
+          
       - name: Build binary and runtime
         run: cargo build --release -p aleph-node
 

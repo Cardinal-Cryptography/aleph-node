@@ -56,6 +56,7 @@ jobs:
           cargo-key: excluded
           cache-version: v1
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
+        timeout-minutes: 5
 
       - name: Check excluded packages
         env:

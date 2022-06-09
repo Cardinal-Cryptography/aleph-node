@@ -107,6 +107,7 @@ jobs:
           cargo-key: e2e
           cache-version: v1
           cargo-targets: e2e-tests/target/
+        timeout-minutes: 5
 
       - name: Build binary and docker image
         run: |
@@ -460,6 +461,7 @@ jobs:
           target-key: runtime-update
           cache-version: v1
           cargo-targets: bin/cliain/target/
+        timeout-minutes: 5
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
@@ -502,6 +504,7 @@ jobs:
           target-key: runtime-update
           cache-version: v1
           cargo-targets: bin/cliain/target/
+        timeout-minutes: 5
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2

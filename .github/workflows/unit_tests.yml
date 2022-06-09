@@ -38,6 +38,7 @@ jobs:
         with:
           target-key: debug
           cache-version: v1
+        timeout-minutes: 5
 
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
