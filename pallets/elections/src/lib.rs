@@ -29,7 +29,7 @@ use sp_std::{
 pub use impls::compute_validator_scaled_total_rewards;
 pub use pallet::*;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
@@ -92,8 +92,11 @@ pub mod pallet {
                 + match on_chain {
                     _ if on_chain == STORAGE_VERSION => 0,
                     _ if on_chain == StorageVersion::new(0) => {
-                        // migrations::v0_to_v1::migrate::<T, Self>()
-                        0
+                        migrations::v0_to_v1::migrate::<T, Self>()
+                            + migrations::v1_to_v2::migrate::<T, Self>()
+                    }
+                    _ if on_chain == StorageVersion::new(1) => {
+                        migrations::v1_to_v2::migrate::<T, Self>()
                     }
                     _ => {
                         log::warn!(
