@@ -18,6 +18,14 @@ pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch =
 aleph_client = { path = "../../aleph-client" }
 primitives = { path = "../../primitives", default-features = false }
 
+contract-metadata = { git = "https://github.com/paritytech/cargo-contract.git", tag = "v1.4.0"}
+ink_metadata = { version = "3.0", features = ["derive"] }
+contract-transcode = { version = "0.1.0" }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
+anyhow = "1.0"
+
+
 [features]
 default = ["std"]
 std = [

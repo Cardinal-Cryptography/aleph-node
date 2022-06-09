@@ -14,7 +14,9 @@ use std::{
     fs::{self, File},
     path::Path,
 };
-use substrate_api_client::{compose_extrinsic, AccountId, GenericAddress, XtStatus};
+use substrate_api_client::{
+    compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
+};
 
 #[derive(Debug, Decode, Clone)]
 pub struct ContractCodeRemovedEvent {
