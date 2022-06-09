@@ -1,37 +1,44 @@
-use crate::{accounts::accounts_from_seeds, Config};
+use crate::{
+    accounts::{accounts_seeds_to_keys, get_sudo_key, get_validators_keys, get_validators_seeds},
+    Config,
+};
 use aleph_client::{
-    get_current_session, wait_for_finalized_block, wait_for_session, AnyConnection, Header,
-    KeyPair, SignedConnection,
+    change_members, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
+    wait_for_session, AnyConnection, Header, KeyPair, RootConnection, SignedConnection,
 };
 use sp_core::Pair;
 use std::collections::HashMap;
-use substrate_api_client::AccountId;
+use substrate_api_client::{AccountId, XtStatus};
 
-const MINIMAL_TEST_SESSION_START: u32 = 9;
-const ELECTION_STARTS: u32 = 6;
+const TEST_LENGTH: u32 = 5;
 
-fn get_reserved_members() -> Vec<KeyPair> {
-    accounts_from_seeds(&Some(vec!["//Damian".to_string(), "//Tomasz".to_string()]))
+fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[0..2].to_vec()
 }
 
-fn get_non_reserved_members_for_session(session: u32) -> Vec<AccountId> {
+fn get_non_reserved_members(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[2..].to_vec()
+}
+
+fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
 
-    let x = vec![
-        "//Julia".to_string(),
-        "//Zbyszko".to_string(),
-        "//Hansu".to_string(),
-    ];
-    let x_len = x.len();
+    let validators_seeds = get_validators_seeds(config);
+    let non_reserved_nodes_order_from_runtime = validators_seeds[2..].to_vec();
+    let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
-        non_reserved.push(x[i as usize % x_len].clone());
+        non_reserved.push(
+            non_reserved_nodes_order_from_runtime
+                [i as usize % non_reserved_nodes_order_from_runtime_len]
+                .clone(),
+        );
     }
 
-    accounts_from_seeds(&Some(non_reserved))
+    accounts_seeds_to_keys(&non_reserved)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect()
@@ -54,28 +61,43 @@ fn get_authorities_for_session<C: AnyConnection>(connection: &C, session: u32) -
         .expect("Authorities should always be present")
 }
 
-pub fn validators_rotate(cfg: &Config) -> anyhow::Result<()> {
-    let node = &cfg.node;
-    let accounts = accounts_from_seeds(&None);
+pub fn members_rotate(config: &Config) -> anyhow::Result<()> {
+    let node = &config.node;
+    let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = SignedConnection::new(node, sender);
 
-    let mut current_session = get_current_session(&connection);
-    if current_session < MINIMAL_TEST_SESSION_START {
-        wait_for_session(&connection, MINIMAL_TEST_SESSION_START)?;
-        current_session = MINIMAL_TEST_SESSION_START;
-    }
+    let sudo = get_sudo_key(config);
 
-    let reserved_members: Vec<_> = get_reserved_members()
+    let root_connection = RootConnection::new(node, sudo);
+
+    let reserved_members: Vec<_> = get_reserved_members(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
+    let non_reserved_members = get_non_reserved_members(config)
+        .iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect();
+
+    change_members(
+        &root_connection,
+        Some(reserved_members.clone()),
+        Some(non_reserved_members),
+        Some(4),
+        XtStatus::InBlock,
+    );
+    wait_for_full_era_completion(&connection)?;
+
+    let current_session = get_current_session(&connection);
+    wait_for_session(&connection, current_session + TEST_LENGTH)?;
+
     let mut non_reserved_count = HashMap::new();
 
-    for session in ELECTION_STARTS..current_session {
+    for session in current_session..current_session + TEST_LENGTH {
         let elected = get_authorities_for_session(&connection, session);
-        let non_reserved = get_non_reserved_members_for_session(session);
+        let non_reserved = get_non_reserved_members_for_session(config, session);
 
         for nr in non_reserved.clone() {
             *non_reserved_count.entry(nr).or_insert(0) += 1;

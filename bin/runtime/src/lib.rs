@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 14,
+    spec_version: 15,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 6,
@@ -337,10 +337,13 @@ parameter_types! {
 }
 
 impl pallet_elections::Config for Runtime {
+    type EraInfoProvider = Staking;
     type Event = Event;
     type DataProvider = Staking;
+    type SessionInfoProvider = Session;
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
+    type ValidatorRewardsHandler = Staking;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}

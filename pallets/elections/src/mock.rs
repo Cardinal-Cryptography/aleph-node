@@ -3,6 +3,7 @@
 use super::*;
 use crate as pallet_elections;
 
+use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
 use frame_election_provider_support::{data_provider, ElectionDataProvider, VoteWeight};
 use frame_support::{
     construct_runtime, parameter_types, sp_io, traits::GenesisBuild, weights::RuntimeDbWeight,
@@ -13,6 +14,8 @@ use sp_runtime::{
     testing::{Header, TestXt},
     traits::IdentityLookup,
 };
+use sp_staking::{EraIndex, SessionIndex};
+use sp_std::collections::btree_set::BTreeSet;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -96,11 +99,48 @@ parameter_types! {
     pub const SessionPeriod: u32 = 5;
 }
 
+pub struct MockProvider;
+
+impl SessionInfoProvider<Test> for MockProvider {
+    fn current_committee() -> BTreeSet<<Test as frame_system::Config>::AccountId> {
+        todo!()
+    }
+}
+
+impl ValidatorRewardsHandler<Test> for MockProvider {
+    fn validator_totals(_era: EraIndex) -> Vec<(<Test as frame_system::Config>::AccountId, u128)> {
+        todo!()
+    }
+
+    fn add_rewards(
+        _rewards: impl IntoIterator<Item = (<Test as frame_system::Config>::AccountId, u32)>,
+    ) {
+        todo!()
+    }
+}
+
+impl EraInfoProvider for MockProvider {
+    fn active_era() -> Option<EraIndex> {
+        todo!()
+    }
+
+    fn era_start_session_index(_era: EraIndex) -> Option<SessionIndex> {
+        todo!()
+    }
+
+    fn sessions_per_era() -> SessionIndex {
+        todo!()
+    }
+}
+
 impl Config for Test {
+    type EraInfoProvider = MockProvider;
     type Event = Event;
     type DataProvider = StakingMock;
     type SessionPeriod = SessionPeriod;
     type SessionManager = ();
+    type SessionInfoProvider = MockProvider;
+    type ValidatorRewardsHandler = MockProvider;
 }
 
 type AccountIdBoundedVec = BoundedVec<AccountId, ()>;
@@ -130,10 +170,18 @@ impl ElectionDataProvider for StakingMock {
     }
 }
 
-pub fn new_test_ext(members: Vec<AccountId>) -> sp_io::TestExternalities {
+pub fn new_test_ext(
+    reserved_members: Vec<AccountId>,
+    non_reserved_members: Vec<AccountId>,
+) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
+
+    let members: Vec<_> = non_reserved_members
+        .iter()
+        .chain(reserved_members.iter())
+        .collect();
 
     let balances: Vec<_> = (0..members.len()).map(|i| (i as u64, 10_000_000)).collect();
 
@@ -143,8 +191,9 @@ pub fn new_test_ext(members: Vec<AccountId>) -> sp_io::TestExternalities {
 
     let members_per_session = members.len() as u32;
     crate::GenesisConfig::<Test> {
-        members,
+        non_reserved_members,
         members_per_session,
+        reserved_members,
     }
     .assimilate_storage(&mut t)
     .unwrap();
