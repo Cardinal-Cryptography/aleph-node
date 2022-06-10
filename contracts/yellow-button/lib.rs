@@ -445,7 +445,7 @@ mod yellow_button {
         use ink_lang as ink;
 
         #[ink::test]
-        fn distributing_rewards() {
+        fn play_the_game() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
             let alice = accounts.alice;
@@ -529,7 +529,6 @@ mod yellow_button {
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
             assert!(game.press().is_ok(), "Press call failed");
-
             // NOTE : we cannot test reward distribution, cross-contract calls are not yet supported in the test environment
 
             // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
@@ -541,11 +540,6 @@ mod yellow_button {
             // ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
             // ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
             // assert!(game.press().is_ok(), "Press call failed");
-
-            println!(
-                "event counter {:?}",
-                ink_env::test::recorded_events().count()
-            );
         }
     }
 }
