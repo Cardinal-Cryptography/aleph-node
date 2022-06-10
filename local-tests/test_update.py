@@ -55,6 +55,9 @@ chain.set_flags('validator',
                 unit_creation_delay=200,
                 execution='Native')
 
+addresses = [n.address() for n in chain]
+chain.set_flags(public_addr=addresses)
+
 print('Starting the chain with old binary')
 chain.start('old')
 
