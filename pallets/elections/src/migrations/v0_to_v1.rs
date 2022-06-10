@@ -39,7 +39,14 @@ type ErasMembers<T> = StorageValue<
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1 for pallet elections");
 
-    let members = Members::<T>::get().expect("Members should be present");
+    let members = match Members::<T>::get() {
+        Some(m) => m,
+        None => {
+            log::error!(target: "pallet_elections", "Migration failed, no Members storage");
+            return T::DbWeight::get().reads(1);
+        }
+    };
+
     Members::<T>::kill();
 
     let mut writes = 5;

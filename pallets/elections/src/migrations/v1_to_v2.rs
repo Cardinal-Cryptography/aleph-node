@@ -49,18 +49,25 @@ type CurrentEraValidators<T> = StorageValue<
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 1 to 2 for pallet elections");
 
-    let writes = 5;
+    let mut writes = 1;
     let reads = 4;
 
-    let mps = MembersPerSession::get().expect("");
-    let reserved = ReservedMembers::<T>::get().expect("");
-    let non_reserved = NonReservedMembers::<T>::get().expect("");
-    let eras_members = ErasMembers::<T>::get().expect("");
-
-    CommitteeSize::put(mps);
-    NextEraReservedValidators::<T>::put(reserved);
-    NextEraNonReservedValidators::<T>::put(non_reserved);
-    CurrentEraValidators::<T>::put(eras_members);
+    if let Some(mps) = MembersPerSession::get() {
+        CommitteeSize::put(mps);
+        writes += 1;
+    }
+    if let Some(reserved) = ReservedMembers::<T>::get() {
+        NextEraReservedValidators::<T>::put(reserved);
+        writes += 1;
+    }
+    if let Some(non_reserved) = NonReservedMembers::<T>::get() {
+        NextEraNonReservedValidators::<T>::put(non_reserved);
+        writes += 1;
+    }
+    if let Some(eras_members) = ErasMembers::<T>::get() {
+        CurrentEraValidators::<T>::put(eras_members);
+        writes += 1;
+    }
 
     MembersPerSession::kill();
     ReservedMembers::<T>::kill();
