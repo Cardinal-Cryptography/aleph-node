@@ -101,12 +101,26 @@ impl From<io::Error> for BackupLoadError {
 
 impl std::error::Error for BackupLoadError {}
 
+/// Loads the existing backups, and opens a new backup file to write to.
+///
+/// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
+///
+/// Returns the newly-created file (opened for writing), and the concatenation of the contents of
+/// all existing files.
+///
+/// Current directory structure (this is an implementation detail, not part of the public API):
+///   backup-stash/      - the main directory, backup_path/--backup-saving-path
+///   `-- 18723/         - subdirectory for the current session
+///       |-- 0.abfts    - files containing data
+///       |-- 1.abfts    - each restart after a crash will cause another one to be created
+///       |-- 2.abfts    - these numbers count up sequentially
+///       `-- 3.abfts
 fn rotate_saved_backup_files(
-    stash_path: &Path,
+    backup_path: &Path,
     session_id: u32,
 ) -> Result<(File, Cursor<Vec<u8>>), BackupLoadError> {
-    let extension = ".abfst";
-    let session_path = stash_path.join(format!("{}", session_id));
+    let extension = ".abfts";
+    let session_path = backup_path.join(format!("{}", session_id));
     fs::create_dir_all(&session_path)?;
     let mut session_backups: Vec<_> = fs::read_dir(&session_path)
         .unwrap()

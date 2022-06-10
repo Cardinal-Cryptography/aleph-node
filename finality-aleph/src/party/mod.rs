@@ -408,7 +408,7 @@ where
 
         {
             let backup_saving_path = self.backup_saving_path.clone();
-            spawn_blocking(move || remove_session_backup_stash(backup_saving_path, session_id.0));
+            spawn_blocking(move || remove_session_backup(backup_saving_path, session_id.0));
         }
     }
 
@@ -449,15 +449,28 @@ pub(crate) fn create_aleph_config(
     consensus_config
 }
 
-fn remove_session_backup_stash(stash_path: Option<PathBuf>, session_id: u32) {
-    let path = match stash_path {
-        Some(path) => path.join(format!("{}", session_id)),
+/// Removes the backup directory for a session.
+///
+/// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
+/// If it is `None`, nothing is done.
+///
+/// Any filesystem errors are logged and dropped.
+///
+/// This should be done after the end of the session.
+fn remove_session_backup(backup_path: Option<PathBuf>, session_id: u32) {
+    let path = match backup_path {
+        Some(path) => path.join(session_id.to_string()),
         None => return,
     };
-    if let Err(error) = fs::remove_dir_all(&path) {
-        let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
-        if error.kind() != io::ErrorKind::NotFound || dir_exists() {
-            warn!(target: "aleph-party", "Error cleaning up backup stash for session {}: {:?}", session_id, error);
+    match fs::remove_dir_all(&path) {
+        Ok(()) => {
+            debug!(target: "aleph-party", "Removed backup for session {}", session_id);
+        }
+        Err(error) => {
+            let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
+            if error.kind() != io::ErrorKind::NotFound || dir_exists() {
+                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {:?}", session_id, error);
+            }
         }
     }
 }
