@@ -599,7 +599,7 @@ pub const TREASURY_PROPOSAL_BOND: u32 = 0;
 // The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, 100B tokens}.
 // This should effectively block making proposals.
 pub const TREASURY_MINIMUM_BOND: Balance = 100_000_000_000_000_000_000_000;
-pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
+pub const TREASURY_MAXIMUM_BOND: Balance = 100_000_000_000_000_000_000_000;
 // Every 4h we implement accepted proposals.
 pub fn treasury_spend_period() -> BlockNumber {
     hours_as_block_num(4)
