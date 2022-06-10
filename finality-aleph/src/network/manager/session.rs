@@ -2,7 +2,7 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         manager::{AuthData, Authentication},
-        Multiaddress,
+        Multiaddress, PeerId,
     },
     NodeIndex, SessionId,
 };
@@ -50,20 +50,47 @@ pub enum HandlerError {
     MultiplePeerIds,
 }
 
+enum CommonPeerId<PID: PeerId> {
+    Unknown,
+    Unique(PID),
+    NotUnique,
+}
+
+impl<PID: PeerId> From<CommonPeerId<PID>> for Option<PID> {
+    fn from(cpi: CommonPeerId<PID>) -> Self {
+        use CommonPeerId::*;
+        match cpi {
+            Unique(peer_id) => Some(peer_id),
+            Unknown | NotUnique => None,
+        }
+    }
+}
+
+impl<PID: PeerId> CommonPeerId<PID> {
+    fn aggregate(self, peer_id: PID) -> Self {
+        use CommonPeerId::*;
+        match self {
+            Unknown => Unique(peer_id),
+            Unique(current_peer_id) => match peer_id == current_peer_id {
+                true => Unique(current_peer_id),
+                false => NotUnique,
+            },
+            NotUnique => NotUnique,
+        }
+    }
+}
+
 fn get_common_peer_id<M: Multiaddress>(addresses: &[M]) -> Option<M::PeerId> {
     addresses
         .iter()
-        .try_fold(None, |maybe_peer_id, address| match address.get_peer_id() {
-            Some(peer_id) => match maybe_peer_id {
-                Some(other_peer_id) => match peer_id == other_peer_id {
-                    true => Some(maybe_peer_id),
-                    false => None,
-                },
-                None => Some(Some(peer_id)),
+        .fold(
+            CommonPeerId::Unknown,
+            |common_peer_id, address| match address.get_peer_id() {
+                Some(peer_id) => common_peer_id.aggregate(peer_id),
+                None => CommonPeerId::NotUnique,
             },
-            None => None,
-        })
-        .flatten()
+        )
+        .into()
 }
 
 fn retrieve_peer_id<M: Multiaddress>(addresses: &[M]) -> Result<M::PeerId, HandlerError> {

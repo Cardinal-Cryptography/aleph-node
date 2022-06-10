@@ -107,23 +107,50 @@ impl Decode for Multiaddress {
     }
 }
 
+enum CommonPeerId {
+    Unknown,
+    Unique(PeerId),
+    NotUnique,
+}
+
+impl From<CommonPeerId> for Option<PeerId> {
+    fn from(cpi: CommonPeerId) -> Self {
+        use CommonPeerId::*;
+        match cpi {
+            Unique(peer_id) => Some(peer_id),
+            Unknown | NotUnique => None,
+        }
+    }
+}
+
+impl CommonPeerId {
+    fn aggregate(self, peer_id: PeerId) -> Self {
+        use CommonPeerId::*;
+        match self {
+            Unknown => Unique(peer_id),
+            Unique(current_peer_id) => match peer_id == current_peer_id {
+                true => Unique(current_peer_id),
+                false => NotUnique,
+            },
+            NotUnique => NotUnique,
+        }
+    }
+}
+
 impl MultiaddressT for Multiaddress {
     type PeerId = PeerId;
 
     fn get_peer_id(&self) -> Option<Self::PeerId> {
         self.0
             .iter()
-            .try_fold(None, |maybe_peer_id, protocol| match peer_id(&protocol) {
-                Some(peer_id) => match maybe_peer_id {
-                    Some(other_peer_id) => match peer_id == other_peer_id {
-                        true => Some(maybe_peer_id),
-                        false => None,
-                    },
-                    None => Some(Some(peer_id)),
+            .fold(
+                CommonPeerId::Unknown,
+                |common_peer_id, protocol| match peer_id(&protocol) {
+                    Some(peer_id) => common_peer_id.aggregate(peer_id),
+                    None => common_peer_id,
                 },
-                None => Some(maybe_peer_id),
-            })
-            .flatten()
+            )
+            .into()
     }
 
     fn add_matching_peer_id(mut self, peer_id: Self::PeerId) -> Option<Self> {
