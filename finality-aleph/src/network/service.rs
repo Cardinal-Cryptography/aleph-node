@@ -501,17 +501,14 @@ mod tests {
                 .into_iter(),
         );
 
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .take(opened_authorities_n)
-                .map(|peer_id| {
+        let expected_messages =
+            HashSet::from_iter(peer_ids.into_iter().take(opened_authorities_n).flat_map(
+                |peer_id| {
                     messages
                         .iter()
                         .map(move |m| (m.clone(), peer_id, Protocol::Generic))
-                })
-                .flatten(),
-        );
+                },
+            ));
 
         assert_eq!(broadcasted_messages, expected_messages);
 

@@ -497,8 +497,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         match self
             .sessions
             .get(session_id)
-            .map(|session| session.data_for_user.as_ref())
-            .flatten()
+            .and_then(|session| session.data_for_user.as_ref())
         {
             Some(data_for_user) => data_for_user
                 .unbounded_send(data)
@@ -540,7 +539,7 @@ pub struct IO<D: Data, M: Multiaddress> {
 }
 
 /// Errors that can happen during the network service operations.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     NetworkSend,
     CommandSend,

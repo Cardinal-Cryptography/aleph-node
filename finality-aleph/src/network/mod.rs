@@ -130,14 +130,14 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
 
 /// What do do with a specific piece of data.
 /// Note that broadcast does not specify the protocol, as we only broadcast Generic messages in this sense.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DataCommand<PID: PeerId> {
     Broadcast,
     SendTo(PID, Protocol),
 }
 
 /// Commands for manipulating the reserved peers set.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ConnectionCommand<M: Multiaddress> {
     AddReserved(HashSet<M>),
     DelReserved(HashSet<M::PeerId>),
