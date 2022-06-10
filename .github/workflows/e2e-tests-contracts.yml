@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
-      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
 
       - name: Install binaryen
@@ -40,7 +39,7 @@ jobs:
         run: wasm-opt --version
 
       - name: Checkout Source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
@@ -50,7 +49,12 @@ jobs:
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
-
+        with:
+          target-key: e2e-contracts
+          cargo-key: e2e-contracts
+          cache-version: v1
+          cargo-targets: e2e-tests-contracts/target/
+        
       - name: Install cargo-contract
         run: |
           if ! command -v cargo-contract --version &> /dev/null

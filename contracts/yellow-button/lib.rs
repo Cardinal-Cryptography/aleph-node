@@ -11,6 +11,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod yellow_button {
 
+    use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         DefaultEnvironment, Error as InkEnvError,
@@ -211,20 +212,15 @@ mod yellow_button {
 
             let balance = build_call::<DefaultEnvironment>()
                 .call_type(Call::new().callee(button_token))
-                .exec_input(
-                    ExecutionInput::new(
-                        Selector::new([0, 0, 0, 2]), // balance_of
-                    )
-                    .push_arg(this),
-                )
+                .exec_input(ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR)).push_arg(this))
                 .returns::<Balance>()
                 .fire()?;
 
             Ok(balance)
         }
 
-        fn emit_event<EE: EmitEvent<YellowButton>>(x: EE, event: Event) {
-            x.emit_event(event);
+        fn emit_event<EE: EmitEvent<YellowButton>>(emitter: EE, event: Event) {
+            emitter.emit_event(event);
         }
 
         /// Constructor
@@ -267,11 +263,9 @@ mod yellow_button {
                 let _ = build_call::<DefaultEnvironment>()
                     .call_type(Call::new().callee(button_token))
                     .exec_input(
-                        ExecutionInput::new(
-                            Selector::new([0, 0, 0, 4]), // transfer
-                        )
-                        .push_arg(pressiah)
-                        .push_arg(pressiah_reward),
+                        ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
+                            .push_arg(pressiah)
+                            .push_arg(pressiah_reward),
                     )
                     .returns::<()>()
                     .fire()?;
@@ -293,11 +287,9 @@ mod yellow_button {
                         return Ok(build_call::<DefaultEnvironment>()
                             .call_type(Call::new().callee(button_token))
                             .exec_input(
-                                ExecutionInput::new(
-                                    Selector::new([0, 0, 0, 4]), // transfer
-                                )
-                                .push_arg(account_id)
-                                .push_arg(reward),
+                                ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
+                                    .push_arg(account_id)
+                                    .push_arg(reward),
                             )
                             .returns::<()>()
                             .fire()?);
@@ -446,124 +438,114 @@ mod yellow_button {
 
     // TODO : what can we test here actually?
     // TODO : just pressing I suppose
-    // #[cfg(test)]
-    // mod tests {
-    //     use super::*;
-    //     use button_token::{ButtonToken, Event as ButtonTokenEvent};
-    //     use ink_lang as ink;
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use button_token::{ButtonToken, Event as ButtonTokenEvent};
+        use ink_lang as ink;
 
-    //     #[ink::test]
-    //     fn distributing_rewards() {
-    //         let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+        #[ink::test]
+        fn distributing_rewards() {
+            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
-    //         let alice = accounts.alice;
-    //         let bob = accounts.bob;
-    //         let charlie = accounts.charlie;
+            let alice = accounts.alice;
+            let bob = accounts.bob;
+            let charlie = accounts.charlie;
 
-    //         let button_token_address = accounts.frank; //AccountId::from([0xFA; 32]);
-    //         let game_address = accounts.django; //AccountId::from([0xF9; 32]);
+            let button_token_address = accounts.frank; //AccountId::from([0xFA; 32]);
+            let game_address = accounts.django; //AccountId::from([0xF9; 32]);
 
-    //         // println!("alice {:?}", alice);
+            // alice deploys the token contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
+            let mut button_token = ButtonToken::new(1000);
 
-    //         // println!("bob {:?}", bob);
+            // alice deploys the game contract
+            let button_lifetime = 3;
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            let mut game = YellowButton::new(button_token_address, button_lifetime);
 
-    //         // println!("charlie {:?}", charlie);
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            let button_created_event = &emitted_events[1];
+            let decoded_event: Event =
+                <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
+                    .expect("Can't decode as Event");
 
-    //         // println!("button_token_address {:?}", button_token_address);
+            match decoded_event {
+                Event::ButtonCreated(ButtonCreated {
+                    start,
+                    deadline,
+                    button_token,
+                }) => {
+                    assert_eq!(deadline, button_lifetime, "Wrong ButtonCreated.deadline");
+                    assert_eq!(start, 0, "Wrong ButtonCreated.start");
+                    assert_eq!(
+                        button_token, button_token_address,
+                        "Wrong ButtonCreated.button_token"
+                    );
+                }
+                _ => panic!("Wrong event emitted"),
+            }
 
-    //         // println!("game address {:?}", game_address);
+            // Alice transfer all token balance to the game
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
 
-    //         // alice deploys the token contract
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
-    //         let mut button_token = ButtonToken::new(1000);
+            assert!(
+                button_token.transfer(game_address, 999).is_ok(),
+                "Transfer call failed"
+            );
 
-    //         // alice deploys the game contract
-    //         let button_lifetime = 3;
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-    //         let mut game = YellowButton::new(button_token_address, button_lifetime);
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            let transfer_event = &emitted_events[2];
+            let decoded_event: ButtonTokenEvent =
+                <ButtonTokenEvent as scale::Decode>::decode(&mut &transfer_event.data[..])
+                    .expect("Can't decode as Event");
 
-    //         let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-    //         let button_created_event = &emitted_events[1];
-    //         let decoded_event: Event =
-    //             <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
-    //                 .expect("Can't decode as Event");
+            match decoded_event {
+                ButtonTokenEvent::Transfer(event) => {
+                    assert_eq!(event.value, 999, "Wrong Transfer.value");
+                    assert_eq!(event.from, Some(alice), "Wrong Transfer.from");
+                    assert_eq!(event.to, Some(game_address), "Wrong Transfer.from");
+                }
+                _ => panic!("Wrong event emitted"),
+            }
 
-    //         match decoded_event {
-    //             Event::ButtonCreated(ButtonCreated {
-    //                 start,
-    //                 deadline,
-    //                 button_token,
-    //             }) => {
-    //                 assert_eq!(deadline, button_lifetime, "Wrong ButtonCreated.deadline");
-    //                 assert_eq!(start, 0, "Wrong ButtonCreated.start");
-    //                 assert_eq!(
-    //                     button_token, button_token_address,
-    //                     "Wrong ButtonCreated.button_token"
-    //                 );
-    //             }
-    //             _ => panic!("Wrong event emitted"),
-    //         }
+            // Alice is the owner and whitelists accounts for playing
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(
+                game.bulk_allow(vec![bob, charlie]).is_ok(),
+                "Bulk allow call failed"
+            );
 
-    //         // Alice transfer all token balance to the game
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
 
-    //         assert!(
-    //             button_token.transfer(game_address, 999).is_ok(),
-    //             "Transfer call failed"
-    //         );
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
 
-    //         let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-    //         let transfer_event = &emitted_events[2];
-    //         let decoded_event: ButtonTokenEvent =
-    //             <ButtonTokenEvent as scale::Decode>::decode(&mut &transfer_event.data[..])
-    //                 .expect("Can't decode as Event");
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
 
-    //         match decoded_event {
-    //             ButtonTokenEvent::Transfer(event) => {
-    //                 assert_eq!(event.value, 999, "Wrong Transfer.value");
-    //                 assert_eq!(event.from, Some(alice), "Wrong Transfer.from");
-    //                 assert_eq!(event.to, Some(game_address), "Wrong Transfer.from");
-    //                 // println!("transfer: {:?}", event);
-    //             }
-    //             _ => panic!("Wrong event emitted"),
-    //         }
+            // NOTE : we cannot test reward distribution, cross-contract calls are not yet supported in the test environment
 
-    //         // Alice is the owner and whitelists accounts for playing
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-    //         assert!(
-    //             game.bulk_allow(vec![bob, charlie]).is_ok(),
-    //             "Bulk allow call failed"
-    //         );
+            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
 
-    //         // TODO press
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-    //         assert!(game.press().is_ok(), "Press call failed");
+            // game ends past block 3
+            // alice is not whitelisted but she can still end the game
+            // ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            // ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            // assert!(game.press().is_ok(), "Press call failed");
 
-    //         ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-    //         assert!(game.press().is_ok(), "Press call failed");
-
-    //         ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-    //         ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-    //         ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-
-    //         // game ends past block 3
-    //         // alice is not whitelisted but she can still end the game
-    //         ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-    //         ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-    //         assert!(game.press().is_ok(), "Press call failed");
-
-    //         println!(
-    //             "event counter {:?}",
-    //             ink_env::test::recorded_events().count()
-    //         );
-    //     }
-    // }
+            println!(
+                "event counter {:?}",
+                ink_env::test::recorded_events().count()
+            );
+        }
+    }
 }

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 source $(pwd)/.github/scripts/assert.sh
 
 NODE=ws://127.0.0.1:9943

@@ -1,10 +1,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use button_token::{
+    ButtonToken, ButtonTokenRef, Event, ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR,
+    TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
+};
 use ink_lang as ink;
 
 #[ink::contract]
 mod button_token {
+
+    use ink_lang::reflect::ContractEventBase;
     use ink_storage::{traits::SpreadAllocate, Mapping};
+
+    pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
+    pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
+    pub const ALLOWANCE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
+    pub const TRANSFER_SELECTOR: [u8; 4] = [0, 0, 0, 4];
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -66,6 +77,8 @@ mod button_token {
 
     /// Result type    
     pub type Result<T> = core::result::Result<T, Error>;
+    /// Event type
+    pub type Event = <ButtonToken as ContractEventBase>::Type;
 
     impl ButtonToken {
         /// Creates a new contract with the specified initial supply.
