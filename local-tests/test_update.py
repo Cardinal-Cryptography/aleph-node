@@ -53,7 +53,11 @@ chain.set_flags('validator',
                 ws_port=Seq(9944),
                 rpc_port=Seq(9933),
                 unit_creation_delay=200,
-                execution='Native')
+                execution='Native',
+                pruning='archive')
+
+addresses = [n.address() for n in chain]
+chain.set_flags(public_addr=addresses)
 
 print('Starting the chain with old binary')
 chain.start('old')
@@ -80,9 +84,7 @@ oldver = query_runtime_version(chain)
 
 print('Submitting extrinsic with new runtime')
 subprocess.check_call(
-    [CLIAIN, '--node', 'localhost:9945', '--seed', phrases[0],
-        'update-runtime', '--runtime', runtime],
-    env=dict(os.environ, RUST_LOG="warn"))
+    [CLIAIN, '--node', 'localhost:9945', '--seed', phrases[0], 'update-runtime', '--runtime', runtime])
 
 print('Waiting a bit')
 sleep(10)
