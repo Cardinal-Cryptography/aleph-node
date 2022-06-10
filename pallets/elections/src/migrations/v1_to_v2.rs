@@ -47,7 +47,7 @@ type CurrentEraValidators<T> = StorageValue<
 /// - `NonReservedMembers` -> `NextEraNonReservedMembers`
 /// - `ErasMembers` -> `CurrentEraValidators`
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
-    log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 0 to 1 for pallet elections");
+    log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 1 to 2 for pallet elections");
 
     let writes = 5;
     let reads = 4;

@@ -20,8 +20,8 @@ const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 /// 3. `start_session(S + 1)` is called.
 /// -  if session `S+1` starts new era we populate totals.
 /// 4. `new_session(S + 2)` is called.
-/// -  If session `S+2` starts new era then we update the reserved and non_reserved members.
-/// -  We rotate the members for session `S + 2` using the information about reserved and non_reserved members.
+/// -  If session `S+2` starts new era then we update the reserved and non_reserved validators.
+/// -  We rotate the validators for session `S + 2` using the information about reserved and non_reserved validators.
 ///
 
 fn calculate_adjusted_session_points(

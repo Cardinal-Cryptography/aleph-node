@@ -116,7 +116,7 @@ pub mod pallet {
     pub type CommitteeSize<T> = StorageValue<_, u32, ValueQuery>;
 
     /// List of reserved validators in force from a new era.
-    /// Can be changed via `change_next_era_reserved_validators` call that requires sudo.
+    /// Can be changed via `change_validators` call that requires sudo.
     #[pallet::storage]
     pub type NextEraReservedValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
@@ -126,7 +126,7 @@ pub mod pallet {
     pub type CurrentEraValidators<T: Config> =
         StorageValue<_, (Vec<T::AccountId>, Vec<T::AccountId>), ValueQuery>;
 
-    /// List of possible validators that are not re.
+    /// List of possible validators that are not reserved.
     #[pallet::storage]
     pub type NextEraNonReservedValidators<T: Config> =
         StorageValue<_, Vec<T::AccountId>, ValueQuery>;
@@ -260,10 +260,10 @@ pub mod pallet {
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             let voters =
                 Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
-            let members = NextEraReservedValidators::<T>::get()
+            let validators = NextEraReservedValidators::<T>::get()
                 .into_iter()
                 .chain(NextEraNonReservedValidators::<T>::get().into_iter());
-            let mut supports: BTreeMap<_, _> = members
+            let mut supports: BTreeMap<_, _> = validators
                 .map(|id| {
                     (
                         id,
