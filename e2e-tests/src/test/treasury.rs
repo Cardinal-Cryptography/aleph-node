@@ -128,16 +128,13 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let beneficiary = AccountId::from(proposer.public());
     let connection = SignedConnection::new(&config.node, proposer);
 
+    let proposals_counter_before = get_proposals_counter(&connection);
     propose_treasury_spend(10u128, &beneficiary, &connection);
-    propose_treasury_spend(100u128, &beneficiary, &connection);
-    let proposals_counter = get_proposals_counter(&connection);
-    assert!(proposals_counter >= 2, "Proposal was not created");
-
-    let sudo = get_sudo_key(config);
-    let connection = RootConnection::new(&config.node, sudo);
-
-    treasury_approve(proposals_counter - 2, &connection)?;
-    treasury_reject(proposals_counter - 1, &connection)?;
+    let proposals_counter_after = get_proposals_counter(&connection);
+    assert_eq!(
+        proposals_counter_before, proposals_counter_after,
+        "Proposal was created: deposit was not high enough"
+    );
 
     Ok(())
 }

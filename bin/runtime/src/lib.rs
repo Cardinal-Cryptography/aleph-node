@@ -596,8 +596,9 @@ pub const TREASURY_BURN: u32 = 0;
 // The percentage of the amount of the proposal that the proposer should deposit.
 // We agreed on non-progressive deposit.
 pub const TREASURY_PROPOSAL_BOND: u32 = 0;
-// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
-pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
+// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, 100B tokens}.
+// This should effectively block making proposals.
+pub const TREASURY_MINIMUM_BOND: Balance = 100_000_000_000_000_000_000_000;
 pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
 // Every 4h we implement accepted proposals.
 pub fn treasury_spend_period() -> BlockNumber {
