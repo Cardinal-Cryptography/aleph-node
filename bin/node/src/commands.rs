@@ -5,13 +5,20 @@ use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
 use clap::Parser;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
-use sc_cli::{Error, KeystoreParams};
+use sc_cli::{CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams};
 use sc_keystore::LocalKeystore;
-use sc_service::config::{BasePath, KeystoreConfig};
+use sc_service::{
+    config::{BasePath, KeystoreConfig},
+    DatabaseSource,
+};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_keystore::SyncCryptoStore;
-use std::{fs, io::Write, path::PathBuf};
+use std::{
+    fs,
+    io::{self, Write},
+    path::PathBuf,
+};
 
 /// returns Aura key, if absent a new key is generated
 fn aura_key(keystore: &impl SyncCryptoStore) -> AuraId {
@@ -84,6 +91,25 @@ fn open_keystore(
     }
 }
 
+fn bootstrap_backup(chain_params: &ChainParams, account_id: &AccountId) {
+    let authority = account_id.to_string();
+    let backup_path = chain_params
+        .base_path()
+        .path()
+        .join(authority)
+        .join(chain_params.backup_dir());
+    if backup_path.exists() {
+        if !backup_path.is_dir() {
+            panic!(
+                "Could not create backup directory at {:?}. Path is already a file.",
+                backup_path
+            );
+        }
+    } else {
+        fs::create_dir_all(backup_path).expect("Could not create backup directory.");
+    }
+}
+
 fn authority_keys(
     keystore: &impl SyncCryptoStore,
     chain_params: &ChainParams,
@@ -125,6 +151,7 @@ impl BootstrapChainCmd {
             .account_ids()
             .iter()
             .map(|account_id| {
+                bootstrap_backup(&self.chain_params, account_id);
                 let keystore = open_keystore(&self.keystore_params, &self.chain_params, account_id);
                 authority_keys(&keystore, &self.chain_params, account_id)
             })
@@ -166,6 +193,7 @@ pub struct BootstrapNodeCmd {
 impl BootstrapNodeCmd {
     pub fn run(&self) -> Result<(), Error> {
         let account_id = &self.account_id();
+        bootstrap_backup(&self.chain_params, account_id);
         let keystore = open_keystore(&self.keystore_params, &self.chain_params, account_id);
 
         let authority_keys = authority_keys(&keystore, &self.chain_params, account_id);
@@ -209,6 +237,97 @@ impl ConvertChainspecToRawCmd {
             let _ = std::io::stderr().write_all(b"Error writing to stdout\n");
         }
 
+        Ok(())
+    }
+}
+
+#[derive(Debug, Parser)]
+pub struct PurgeChainCmd {
+    /// Skip interactive prompt by answering yes automatically.
+    #[clap(short = 'y')]
+    pub yes: bool,
+
+    #[allow(missing_docs)]
+    #[clap(flatten)]
+    pub shared_params: SharedParams,
+
+    #[allow(missing_docs)]
+    #[clap(flatten)]
+    pub database_params: DatabaseParams,
+
+    #[clap(flatten)]
+    pub purge_backup: PurgeBackupCmd,
+
+    #[clap(flatten)]
+    pub purge_chain: sc_cli::PurgeChainCmd,
+}
+
+impl PurgeChainCmd {
+    pub fn run(&self, database_config: DatabaseSource) -> Result<(), Error> {
+        self.purge_chain.run(database_config)?;
+        self.purge_backup.run()
+    }
+}
+
+impl CliConfiguration for PurgeChainCmd {
+    fn shared_params(&self) -> &SharedParams {
+        &self.shared_params
+    }
+
+    fn database_params(&self) -> Option<&DatabaseParams> {
+        Some(&self.database_params)
+    }
+}
+
+#[derive(Debug, Parser)]
+pub struct PurgeBackupCmd {
+    /// Skip interactive prompt by answering yes automatically.
+    #[clap(short = 'y')]
+    pub yes: bool,
+    #[clap(flatten)]
+    pub chain_params: ChainParams,
+}
+
+impl PurgeBackupCmd {
+    pub fn run(&self) -> Result<(), Error> {
+        let backup_path = self
+            .chain_params
+            .base_path()
+            .path()
+            .join(self.chain_params.backup_dir());
+
+        if !self.yes {
+            print!(
+                "Are you sure to inside of remove {:?}? [y/N]: ",
+                &backup_path
+            );
+            io::stdout().flush().expect("failed to flush stdout");
+
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let input = input.trim();
+
+            match input.chars().nth(0) {
+                Some('y') | Some('Y') => {}
+                _ => {
+                    println!("Aborted");
+                    return Ok(());
+                }
+            }
+        }
+
+        for entry in fs::read_dir(&backup_path)? {
+            let path = entry?.path();
+            match fs::remove_dir_all(&path) {
+                Ok(_) => {
+                    println!("{:?} removed.", &path);
+                }
+                Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
+                    eprintln!("{:?} did not exist.", &path);
+                }
+                Err(err) => return Result::Err(err.into()),
+            }
+        }
         Ok(())
     }
 }

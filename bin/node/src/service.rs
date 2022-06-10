@@ -245,7 +245,8 @@ pub fn new_authority(
     );
 
     let unit_creation_delay = aleph_config.unit_creation_delay();
-    let backup_saving_path = aleph_config.backup_saving_path();
+    // TODO change it to base_path + backup_dir
+    let backup_saving_path = aleph_config.backup_dir();
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
@@ -373,7 +374,8 @@ pub fn new_full(
     );
 
     let unit_creation_delay = aleph_config.unit_creation_delay();
-    let backup_saving_path = aleph_config.backup_saving_path();
+    // TODO change it to base_path + backup_dir
+    let backup_saving_path = aleph_config.backup_dir();
 
     let aleph_config = AlephConfig {
         network,
