@@ -46,20 +46,20 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     );
 
     #[derive(Debug, Decode, Clone)]
-    struct NewMembersEvent {
+    struct NewValidatorsEvent {
         reserved: Vec<AccountId>,
         non_reserved: Vec<AccountId>,
-        validators_per_session: u32,
+        committee_size: u32,
     }
     wait_for_event(
         &connection,
-        ("Elections", "ChangeMembers"),
-        |e: NewMembersEvent| {
-            info!("[+] NewMembersEvent: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:#?}", e.reserved, e.non_reserved, e.non_reserved);
+        ("Elections", "ChangeValidators"),
+        |e: NewValidatorsEvent| {
+            info!("[+] NewValidatorsEvent: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}", e.reserved, e.non_reserved, e.non_reserved);
 
             e.reserved == new_validators[0..2]
                 && e.non_reserved == new_validators[2..]
-                && e.validators_per_session == 4
+                && e.committee_size == 4
         },
     )?;
 
