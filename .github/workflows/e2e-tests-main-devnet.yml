@@ -183,7 +183,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: treasury_access
-        timeout-minutes: 4
+        timeout-minutes: 10
 
 
   run-e2e-batch-transactions-test:
