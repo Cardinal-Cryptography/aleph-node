@@ -7,21 +7,21 @@ edition = "2021"
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-frame-election-provider-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-pallet-authorship = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-pallet-staking = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
+frame-support = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+frame-system = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+frame-election-provider-support = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+pallet-authorship = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+pallet-balances = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+pallet-session = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+pallet-staking = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+sp-core = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+sp-staking = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+sp-std = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
 
 primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23" }
+sp-runtime = { default-features = false, git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
 
 [features]
 default = ["std"]

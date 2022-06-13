@@ -14,12 +14,12 @@ rayon = "1.5"
 
 substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "polkadot-v0.9.23", features = ["staking-xt"] }
 
-sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false, features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
-system = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", package = "frame-system" }
-pallet-staking = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
-pallet-balances = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.23", default-features = false }
+sp-core = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", default-features = false, features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", default-features = false }
+frame-support = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", default-features = false }
+system = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", package = "frame-system" }
+pallet-staking = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", default-features = false }
+pallet-balances = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr", default-features = false }
 
 aleph_client = { path = "../aleph-client" }
 primitives = { path = "../primitives", features = ["short_session"], default-features = false }
