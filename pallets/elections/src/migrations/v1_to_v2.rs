@@ -24,7 +24,7 @@ type ErasMembers<T> = StorageValue<
 
 // V2 storages
 #[storage_alias]
-pub type CommitteeSize = StorageValue<Elections, u32>;
+type CommitteeSize = StorageValue<Elections, u32>;
 #[storage_alias]
 type NextEraReservedValidators<T> =
     StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;

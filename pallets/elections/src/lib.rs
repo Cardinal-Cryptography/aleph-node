@@ -101,7 +101,7 @@ pub mod pallet {
                     _ => {
                         log::warn!(
                             target: "pallet_elections",
-                            "On chain storage version of pallet elections is {:?} but it should not be bigger than 1",
+                            "On chain storage version of pallet elections is {:?} but it should not be bigger than 2",
                             on_chain
                         );
                         0
@@ -123,10 +123,11 @@ pub mod pallet {
     #[pallet::storage]
     pub type NextEraReservedValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
-    /// Current's era list of reserved validators.
+    /// Current era's list of reserved validators.
     ///
     /// This is populated from `NextEraReservedValidators`
     /// at the time of planning the first session of the era.
+    /// This is a tuple of vectors representing `(reserved, non_reserved)` validators.
     #[pallet::storage]
     pub type CurrentEraValidators<T: Config> =
         StorageValue<_, (Vec<T::AccountId>, Vec<T::AccountId>), ValueQuery>;
