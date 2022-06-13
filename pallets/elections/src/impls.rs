@@ -1,6 +1,6 @@
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSize, Config, CurrentEraValidators, NextEraNonReservedValidators,
+    CommitteeSize, Config, CurrentEraValidators, EraValidators, NextEraNonReservedValidators,
     NextEraReservedValidators, Pallet, SessionValidatorBlockCount, ValidatorEraTotalReward,
     ValidatorTotalRewards,
 };
@@ -112,7 +112,7 @@ where
     fn get_committee_and_non_committee() -> (Vec<T::AccountId>, Vec<T::AccountId>) {
         let committee = T::SessionInfoProvider::current_committee();
         let non_committee = CurrentEraValidators::<T>::get()
-            .1
+            .non_reserved
             .into_iter()
             .filter(|a| !committee.contains(a))
             .collect();
@@ -172,7 +172,10 @@ where
             return None;
         }
 
-        let (reserved, non_reserved) = CurrentEraValidators::<T>::get();
+        let EraValidators {
+            reserved,
+            non_reserved,
+        } = CurrentEraValidators::<T>::get();
         let n_validators = CommitteeSize::<T>::get() as usize;
 
         rotate(current_session, n_validators, reserved, non_reserved)
@@ -197,7 +200,10 @@ where
         Self::if_era_starts_do(active_era + 1, session, || {
             let reserved_validators = NextEraReservedValidators::<T>::get();
             let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
-            CurrentEraValidators::<T>::put((reserved_validators, non_reserved_validators))
+            CurrentEraValidators::<T>::put(EraValidators {
+                reserved: reserved_validators,
+                non_reserved: non_reserved_validators,
+            });
         });
     }
 

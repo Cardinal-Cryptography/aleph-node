@@ -1,4 +1,4 @@
-use crate::Config;
+use crate::{Config, EraValidators};
 use frame_support::{
     log, storage_alias,
     traits::{Get, PalletInfoAccess, StorageVersion},
@@ -32,20 +32,15 @@ type NextEraReservedValidators<T> =
 type NextEraNonReservedValidators<T> =
     StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
 #[storage_alias]
-type CurrentEraValidators<T> = StorageValue<
-    Elections,
-    (
-        Vec<<T as frame_system::Config>::AccountId>,
-        Vec<<T as frame_system::Config>::AccountId>,
-    ),
->;
+type CurrentEraValidators<T> =
+    StorageValue<Elections, EraValidators<<T as frame_system::Config>::AccountId>>;
 
 /// This migration refactor storages as follow:
 ///
 /// - `MembersPerSession` -> `CommitteeSize`
 /// - `ReservedMembers` -> `NextEraReservedMembers`
 /// - `NonReservedMembers` -> `NextEraNonReservedMembers`
-/// - `ErasMembers` -> `CurrentEraValidators`
+/// - `ErasMembers` `(reserved, non_reserved)` -> `CurrentEraValidators` `ErasValidators { reserved, non_reserved}`
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 1 to 2 for pallet elections");
 
@@ -64,8 +59,11 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
         NextEraNonReservedValidators::<T>::put(non_reserved);
         writes += 1;
     }
-    if let Some(eras_members) = ErasMembers::<T>::get() {
-        CurrentEraValidators::<T>::put(eras_members);
+    if let Some((reserved, non_reserved)) = ErasMembers::<T>::get() {
+        CurrentEraValidators::<T>::put(EraValidators {
+            reserved,
+            non_reserved,
+        });
         writes += 1;
     }
 

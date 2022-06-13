@@ -23,7 +23,7 @@ use frame_support::traits::StorageVersion;
 use scale_info::TypeInfo;
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
-    prelude::Vec,
+    prelude::*,
 };
 
 pub use impls::compute_validator_scaled_total_rewards;
@@ -34,6 +34,20 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 pub type BlockCount = u32;
 pub type TotalReward = u32;
 
+#[derive(Decode, Encode, TypeInfo)]
+pub struct EraValidators<AccountId> {
+    pub reserved: Vec<AccountId>,
+    pub non_reserved: Vec<AccountId>,
+}
+
+impl<AccountId> Default for EraValidators<AccountId> {
+    fn default() -> Self {
+        EraValidators {
+            reserved: vec![],
+            non_reserved: vec![],
+        }
+    }
+}
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
@@ -130,7 +144,7 @@ pub mod pallet {
     /// This is a tuple of vectors representing `(reserved, non_reserved)` validators.
     #[pallet::storage]
     pub type CurrentEraValidators<T: Config> =
-        StorageValue<_, (Vec<T::AccountId>, Vec<T::AccountId>), ValueQuery>;
+        StorageValue<_, EraValidators<T::AccountId>, ValueQuery>;
 
     /// List of possible validators that are not reserved.
     #[pallet::storage]
