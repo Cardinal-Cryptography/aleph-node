@@ -27,8 +27,11 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install clippy, wasm and fmt
-        run: rustup component add clippy rustfmt wasm32-unknown-unknown
+      - name: Install clippy and fmt
+        run: rustup component add clippy rustfmt
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
