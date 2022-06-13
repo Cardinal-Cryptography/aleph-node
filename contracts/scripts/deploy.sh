@@ -19,8 +19,6 @@ GAME_BALANCE=900
 CONTRACTS_PATH=$(pwd)/contracts
 
 ## --- COMPILE CONTRACTS
-# cd $CONTRACTS_PATH
-# rustup show
 
 cd $CONTRACTS_PATH/button-token
 cargo contract build --release

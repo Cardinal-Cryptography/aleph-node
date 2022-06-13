@@ -359,16 +359,7 @@ mod button_token {
         /// The total supply was applied.
         #[ink::test]
         fn total_supply_works() {
-            // Constructor works.
             let erc20 = ButtonToken::new(100);
-            // Transfer event triggered during initial construction.
-            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
             // Get the token total supply.
             assert_eq!(erc20.total_supply(), 100);
         }
@@ -586,7 +577,7 @@ mod button_token {
         }
 
         #[ink::test]
-        fn ownership_and_terminating_tests() {
+        fn ownership_tests() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
             let alice = accounts.alice;

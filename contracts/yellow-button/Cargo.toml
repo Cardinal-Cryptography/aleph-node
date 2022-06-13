@@ -22,7 +22,7 @@ button_token = { path = "../button-token", default-features = false, features = 
 name = "yellow_button"
 path = "lib.rs"
 crate-type = [
-# Used for normal contract Wasm blobs.
+  # Used for normal contract Wasm blobs.
   "cdylib",
 ]
 
