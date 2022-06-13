@@ -20,6 +20,7 @@ mod chainspec_combining;
 mod config;
 mod fetching;
 mod fsio;
+mod jsonrpc_client;
 mod types;
 
 #[tokio::main]
@@ -29,13 +30,13 @@ async fn main() -> anyhow::Result<()> {
     info!(target: "fork-off", "{:?}", config);
 
     let Config {
-        http_rpc_endpoint,
+        ws_rpc_endpoint,
         initial_spec_path,
         snapshot_path,
         combined_spec_path,
         use_snapshot_file,
         storage_keep_state,
-        num_workers,
+        max_requests,
         accounts_path,
         balances,
     } = config;
@@ -48,8 +49,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     if !use_snapshot_file {
-        let fetcher = StateFetcher::new(http_rpc_endpoint);
-        let state = fetcher.get_full_state_at_best_block(num_workers).await;
+        let fetcher = StateFetcher::new(ws_rpc_endpoint).await.unwrap();
+        let state = fetcher.get_full_state_at_best_block(max_requests).await;
         save_snapshot_to_file(state, snapshot_path.clone());
     }
     let state = read_snapshot_from_file(snapshot_path);

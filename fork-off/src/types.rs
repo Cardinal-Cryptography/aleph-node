@@ -148,12 +148,6 @@ impl Get for StorageValue {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BlockHash(String);
 
-impl BlockHash {
-    pub fn new<T: ToString + ?Sized>(hash: &T) -> Self {
-        Self(as_hex(hash))
-    }
-}
-
 impl Get for BlockHash {
     fn get(self) -> String {
         as_hex(&self.0)

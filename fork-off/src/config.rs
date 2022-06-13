@@ -7,9 +7,9 @@ use crate::types::{AccountId, Balance, StoragePath};
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
 pub struct Config {
-    /// URL address of the node RPC endpoint for the chain you are forking.
-    #[clap(long, default_value = "http://127.0.0.1:9933")]
-    pub http_rpc_endpoint: String,
+    /// URL address of the node websocket RPC endpoint for the chain you are forking.
+    #[clap(long, default_value = "ws://127.0.0.1:9944")]
+    pub ws_rpc_endpoint: String,
 
     /// Path of the initial chainspec (generated with the `bootstrap-chain` command).
     #[clap(long, default_value = "./initial_chainspec.json")]
@@ -27,10 +27,9 @@ pub struct Config {
     #[clap(long)]
     pub use_snapshot_file: bool,
 
-    /// How many parallel processes to use for downloading snapshot -- note that large values might
-    /// result in bans because of rate-limiting mechanisms.
-    #[clap(long, default_value_t = 5)]
-    pub num_workers: u32,
+    /// Maximum concurrent requests to use while downloading storage values.
+    #[clap(long, default_value_t = 1000)]
+    pub max_requests: u32,
 
     /// Which modules to keep in forked spec.
     #[clap(
