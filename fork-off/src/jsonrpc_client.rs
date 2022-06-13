@@ -1,7 +1,9 @@
 use crate::types::{BlockHash, StorageKey, StorageValue};
+use async_channel::{bounded, Receiver, Sender};
 use jsonrpc_core::Error;
 use jsonrpc_core_client::{transports::ws, RpcError};
 use jsonrpc_derive::rpc;
+use std::future::Future;
 
 #[rpc]
 pub trait Rpc {
@@ -36,6 +38,7 @@ pub struct Client {
 }
 
 const CHUNK_SIZE: usize = 1000usize;
+const STORAGE_CAP: usize = 10 * CHUNK_SIZE;
 
 impl Client {
     /// Connect to the given websocket endpoint (eg. `"wss://ws.test.azero.dev"`).
@@ -47,17 +50,30 @@ impl Client {
 
     /// Find the hash of the best known block.
     pub async fn best_block(&self) -> RpcResult<BlockHash> {
-        Ok(self.client.block_hash(None).await?)
+        self.client.block_hash(None).await
     }
 
-    /// Fetch all keys in the `at` block.
-    pub async fn all_keys(&self, at: &BlockHash) -> RpcResult<Vec<StorageKey>> {
+    /// Fetchers all keys in the `at` block.
+    ///
+    /// Returns a `(Receiver<Storage>, fetcher)` pair. The `fetcher` must be `await`ed on to begin
+    /// fetching. Then, `StorageKeys` can be taken out of the `Receiver`.
+    pub fn stream_all_keys(
+        &self,
+        at: &BlockHash,
+    ) -> (
+        Receiver<StorageKey>,
+        impl Future<Output = RpcResult<()>> + '_,
+    ) {
+        let (sender, receiver) = bounded(STORAGE_CAP);
+        (receiver, self.do_stream_all_keys(sender, at.clone()))
+    }
+
+    async fn do_stream_all_keys(&self, sender: Sender<StorageKey>, at: BlockHash) -> RpcResult<()> {
         let empty_prefix = StorageKey::new("0x");
         let mut start_key = None;
-        let mut keys = vec![];
 
         loop {
-            let new_keys = self
+            let keys = self
                 .client
                 .get_keys(
                     empty_prefix.clone(),
@@ -67,20 +83,23 @@ impl Client {
                 )
                 .await?;
 
-            keys.extend_from_slice(&new_keys);
+            let fetched = keys.len();
+            start_key = keys.last().cloned();
 
-            if new_keys.len() < CHUNK_SIZE {
-                break;
+            for key in keys {
+                sender.send(key).await.unwrap();
             }
 
-            start_key = new_keys.last().map(|x| x.clone());
+            if fetched < CHUNK_SIZE {
+                break;
+            }
         }
 
-        Ok(keys)
+        Ok(())
     }
 
     /// Fetch the value under `key` in the `at` block.
     pub async fn get_storage(&self, key: StorageKey, at: BlockHash) -> RpcResult<StorageValue> {
-        Ok(self.client.get_storage(key, Some(at)).await?)
+        self.client.get_storage(key, Some(at)).await
     }
 }
