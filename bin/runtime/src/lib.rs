@@ -671,9 +671,11 @@ impl pallet_contracts::Config for Runtime {
 }
 
 parameter_types! {
+    // bytes count taken from:
+    // https://github.com/paritytech/polkadot/blob/016dc7297101710db0483ab6ef199e244dff711d/runtime/kusama/src/lib.rs#L995
     pub const BasicDeposit: Balance = 258 * DEPOSIT_PER_BYTE;
     pub const FieldDeposit: Balance = 66 * DEPOSIT_PER_BYTE;
-    pub const SubAccountDeposit: Balance = 85 * DEPOSIT_PER_BYTE;
+    pub const SubAccountDeposit: Balance = 53 * DEPOSIT_PER_BYTE;
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
     pub const MaxRegistrars: u32 = 20;
