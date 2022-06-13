@@ -47,6 +47,9 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Install rust-src
+        run: rustup component add rust-src
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
