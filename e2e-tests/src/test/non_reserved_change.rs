@@ -73,7 +73,7 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     change_members(
         &root_connection,
-        Some(reserved_members.clone()),
+        Some(reserved_members),
         Some(new_non_reserved_members.clone()),
         Some(4),
         XtStatus::InBlock,
