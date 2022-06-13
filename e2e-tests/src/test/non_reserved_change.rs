@@ -4,8 +4,8 @@ use crate::{
 };
 use aleph_client::{
     change_members, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
-    wait_for_session, AnyConnection, Header, KeyPair, RootConnection, SignedConnection,
-    wait_for_next_era,
+    wait_for_next_era, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
+    SignedConnection,
 };
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
@@ -22,12 +22,14 @@ fn get_new_non_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[2..].to_vec()
 }
 
-fn get_pallets_non_reserved(connection: &SignedConnection) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_non_reserved : Vec<AccountId> = connection
+fn get_pallets_non_reserved(
+    connection: &SignedConnection,
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
+    let stored_non_reserved: Vec<AccountId> = connection
         .as_connection()
         .get_storage_value("Elections", "NonReservedMembers", None)?
         .unwrap();
-    let eras_members : (Vec<AccountId>, Vec<AccountId>) = connection
+    let eras_members: (Vec<AccountId>, Vec<AccountId>) = connection
         .as_connection()
         .get_storage_value("Elections", "ErasMembers", None)?
         .unwrap();
@@ -50,12 +52,12 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    let initial_non_reserved_members : Vec<_> = get_initial_non_reserved_members(config)
+    let initial_non_reserved_members: Vec<_> = get_initial_non_reserved_members(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    let new_non_reserved_members : Vec<_> = get_new_non_reserved_members(config)
+    let new_non_reserved_members: Vec<_> = get_new_non_reserved_members(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
