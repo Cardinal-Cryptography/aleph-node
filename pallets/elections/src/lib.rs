@@ -109,18 +109,23 @@ pub mod pallet {
                 }
         }
     }
-    /// Desirable size of a committee. When new session is planned, first reserved validators are
+    /// Desirable size of a committee.
+    ///
+    /// When new session is planned, first reserved validators are
     /// added to the committee. Then remaining slots are filled from total validators list excluding
     /// reserved validators
     #[pallet::storage]
     pub type CommitteeSize<T> = StorageValue<_, u32, ValueQuery>;
 
     /// List of reserved validators in force from a new era.
+    ///
     /// Can be changed via `change_validators` call that requires sudo.
     #[pallet::storage]
     pub type NextEraReservedValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
-    /// Current's era list of reserved validators. This is populated from `NextEraReservedValidators`
+    /// Current's era list of reserved validators.
+    ///
+    /// This is populated from `NextEraReservedValidators`
     /// at the time of planning the first session of the era.
     #[pallet::storage]
     pub type CurrentEraValidators<T: Config> =
@@ -131,12 +136,14 @@ pub mod pallet {
     pub type NextEraNonReservedValidators<T: Config> =
         StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
-    /// Count per validator, how many blocks did the validator produced
+    /// Count per validator, how many blocks did the validator produced.
     #[pallet::storage]
     pub type SessionValidatorBlockCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, BlockCount, ValueQuery>;
 
-    /// Total possible reward per validator for the current era. Scaled to fit in the u32.
+    /// Total possible reward per validator for the current era.
+    ///
+    /// Scaled to fit in the u32.
     #[pallet::storage]
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
