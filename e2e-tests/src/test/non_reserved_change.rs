@@ -15,11 +15,11 @@ fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
 }
 
 fn get_initial_non_reserved_members(config: &Config) -> Vec<KeyPair> {
-    get_validators_keys(config)[1..3].to_vec()
+    get_validators_keys(config)[1..4].to_vec()
 }
 
 fn get_new_non_reserved_members(config: &Config) -> Vec<KeyPair> {
-    get_validators_keys(config)[3..].to_vec()
+    get_validators_keys(config)[2..].to_vec()
 }
 
 fn get_pallets_non_reserved(connection: &SignedConnection) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
@@ -64,7 +64,7 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(initial_non_reserved_members.clone()),
-        Some(3),
+        Some(4),
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&connection)?;
@@ -73,7 +73,7 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(new_non_reserved_members.clone()),
-        Some(3),
+        Some(4),
         XtStatus::InBlock,
     );
 
@@ -82,8 +82,8 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
 
-    assert_eq!(stored_non_reserved, initial_non_reserved_members);
-    assert_eq!(eras_non_reserved, new_non_reserved_members);
+    assert_eq!(stored_non_reserved, new_non_reserved_members);
+    assert_eq!(eras_non_reserved, initial_non_reserved_members);
 
     wait_for_next_era(&connection)?;
 
