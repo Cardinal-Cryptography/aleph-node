@@ -1,5 +1,0 @@
-[toolchain]
-channel = "nightly-2022-05-23" # we override it here, due to compilation problems of cargo-contract using roots nightly version
-components = [ "rustfmt", "clippy", "rust-src"]
-targets = [ "wasm32-unknown-unknown" ]
-profile = "minimal"

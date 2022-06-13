@@ -177,7 +177,6 @@ mod yellow_button {
         /// Returns the current deadline
         #[ink(message)]
         pub fn deadline(&self) -> u32 {
-            // self.deadline
             self.last_press + self.button_lifetime
         }
 

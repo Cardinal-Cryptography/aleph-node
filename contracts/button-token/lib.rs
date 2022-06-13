@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use button_token::{
+pub use crate::button_token::{
     ButtonToken, ButtonTokenRef, Event, ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR,
     TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
 };
@@ -272,6 +272,12 @@ mod button_token {
             self.env()
                 .emit_event(OwnershipTransferred { from: caller, to });
             Ok(())
+        }
+
+        /// Returns the contract owner
+        #[ink(message)]
+        pub fn owner(&self) -> AccountId {
+            self.owner
         }
     }
 
@@ -579,7 +585,30 @@ mod button_token {
             result
         }
 
-        // TODO : terminating tests
-        // TODO : ownership tests
+        #[ink::test]
+        fn ownership_and_terminating_tests() {
+            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+
+            let alice = accounts.alice;
+            let bob = accounts.bob;
+
+            let erc20_address = accounts.frank;
+
+            // alice deploys the contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(erc20_address);
+            let mut erc20 = ButtonToken::new(1000);
+
+            assert_eq!(erc20.owner(), alice, "Wrong initial owner AccountId");
+
+            // alice transfers contract ownership to bob
+
+            assert!(
+                erc20.transfer_ownership(bob).is_ok(),
+                "Ownership transfer failed"
+            );
+
+            assert_eq!(erc20.owner(), bob, "Wrong new owner AccountId");
+        }
     }
 }
