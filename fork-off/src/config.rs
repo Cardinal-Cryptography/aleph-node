@@ -2,7 +2,7 @@ use std::error::Error;
 
 use clap::Parser;
 
-use crate::types::{AccountId, Balance, StoragePath};
+use crate::types::{AccountId, Balance, BlockHash, StoragePath};
 
 #[derive(Debug, Parser)]
 #[clap(version = "1.0")]
@@ -51,6 +51,9 @@ pub struct Config {
         multiple_occurrences(true))
     ]
     pub balances: Option<Vec<(AccountId, Balance)>>,
+
+    #[clap(long)]
+    pub at_block: Option<BlockHash>,
 }
 
 fn parse_balances(s: &str) -> Result<(AccountId, Balance), Box<dyn Error + Send + Sync + 'static>> {

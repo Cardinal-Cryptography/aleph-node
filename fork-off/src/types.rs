@@ -154,6 +154,14 @@ impl Get for BlockHash {
     }
 }
 
+/// Casting from `String`, useful in parsing configuration.
+impl FromStr for BlockHash {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
 /// Content of `chainspec["genesis"]["raw"]["top"]`.
 pub type Storage = HashMap<StorageKey, StorageValue>;
 

@@ -39,6 +39,7 @@ async fn main() -> anyhow::Result<()> {
         max_requests,
         accounts_path,
         balances,
+        at_block,
     } = config;
 
     let mut initial_spec: Value = read_json_from_file(initial_spec_path);
@@ -50,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
 
     if !use_snapshot_file {
         let fetcher = StateFetcher::new(ws_rpc_endpoint).await.unwrap();
-        let state = fetcher.get_full_state_at_best_block(max_requests).await;
+        let state = fetcher.get_full_state(at_block, max_requests).await;
         save_snapshot_to_file(state, snapshot_path.clone());
     }
     let state = read_snapshot_from_file(snapshot_path);

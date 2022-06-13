@@ -43,7 +43,9 @@ impl StateFetcher {
         }
     }
 
-    async fn get_values(&self, block_hash: BlockHash, num_workers: u32) -> Storage {
+    async fn get_full_state_at_block(&self, block_hash: BlockHash, num_workers: u32) -> Storage {
+        info!("Fetching state at block {:?}", block_hash);
+
         let (input, key_fetcher) = self.client.stream_all_keys(&block_hash);
         let output = Arc::new(Mutex::new(HashMap::new()));
         let mut workers = Vec::new();
@@ -64,10 +66,13 @@ impl StateFetcher {
         std::mem::take(&mut guard)
     }
 
-    pub async fn get_full_state_at_best_block(&self, num_workers: u32) -> Storage {
-        let best_block = self.client.best_block().await.unwrap();
-        info!("Fetching state at block {:?}", best_block);
-
-        self.get_values(best_block, num_workers).await
+    pub async fn get_full_state(&self, at_block: Option<BlockHash>, num_workers: u32) -> Storage {
+        match at_block {
+            None => {
+                let best_block = self.client.best_block().await.unwrap();
+                self.get_full_state_at_block(best_block, num_workers).await
+            }
+            Some(block) => self.get_full_state_at_block(block, num_workers).await,
+        }
     }
 }
