@@ -2,7 +2,6 @@ use std::{collections::BTreeMap, thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
 use codec::{Decode, Encode};
-use codec::Encode;
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};

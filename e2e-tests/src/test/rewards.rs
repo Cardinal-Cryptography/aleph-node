@@ -225,17 +225,23 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
 
         let validator_exposures: Vec<(AccountId, u128)> = reserved_members
             .iter()
-            .chain(
-                non_reserved_members
-                    .iter()
-            )
-            .map( |account_id|
-               connection
-                   .as_connection()
-                   .get_storage_double_map("Staking", "ErasStakers", era, account_id, Some(end_of_session_block_hash))
-                   .expect("Failed to decode ErasStakers extrinsic!")
-                   .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for session {}.", session))
-            ).collect();
+            .chain(non_reserved_members.iter())
+            .map(|account_id| {
+                connection
+                    .as_connection()
+                    .get_storage_double_map(
+                        "Staking",
+                        "ErasStakers",
+                        era,
+                        account_id,
+                        Some(end_of_session_block_hash),
+                    )
+                    .expect("Failed to decode ErasStakers extrinsic!")
+                    .unwrap_or_else(|| {
+                        panic!("Failed to obtain ErasStakers for session {}.", session)
+                    })
+            })
+            .collect();
 
         let total_exposure: u128 = validator_exposures
             .iter()
