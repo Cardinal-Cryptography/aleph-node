@@ -1,3 +1,4 @@
+pub use era_payout::era_payouts_calculated_correctly;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
 pub use rewards::points_and_payouts;
@@ -8,6 +9,7 @@ pub use utility::batch_transactions;
 pub use validators_change::change_validators;
 pub use validators_rotate::members_rotate;
 
+mod era_payout;
 mod fee;
 mod finalization;
 mod rewards;
