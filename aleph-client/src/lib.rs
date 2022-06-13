@@ -314,10 +314,10 @@ pub struct EraRewardPoints {
     pub individual: BTreeMap<AccountId, RewardPoint>,
 }
 
-pub fn era_reward_points<C: AnyConnection>(connection: &C, era: u32) -> EraRewardPoints {
+pub fn era_reward_points<C: AnyConnection>(connection: &C, era: u32, block_hash: Option<H256>) -> EraRewardPoints {
     connection
         .as_connection()
-        .get_storage_map("Staking", "ErasRewardPoints", era, None)
+        .get_storage_map("Staking", "ErasRewardPoints", era, block_hash)
         .expect("Failed to obtain ErasRewardPoints.")
         .unwrap_or_else(|| panic!("Failed to obtain EraRewardPoints for era {}.", era))
 }

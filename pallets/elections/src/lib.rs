@@ -15,7 +15,7 @@
 //! - `ReservedMembers` - List of reserved nodes.
 //! - `ErasReserved` - List of reserved nodes for the current era.
 //!   This is populated from `ReservedMembers` at the time of planning the first session of the era.
-//! - `SessionValidatorBlockCount` - Count per validator, how many blocks did the validator produced
+//! - `SessionValidatorBlockCount` - Count per validator, how many blocks the validator has produced
 //!   in the current session.
 //! - `ValidatorEraTotalReward` - Total possible reward per validator for the current era. Scaled to
 //!   fit in the u32.

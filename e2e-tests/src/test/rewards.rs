@@ -81,7 +81,7 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    let non_reserved_members = get_non_reserved_members(config)
+    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
@@ -89,10 +89,16 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
     change_members(
         &root_connection,
         Some(reserved_members.clone()),
-        Some(non_reserved_members),
+        Some(non_reserved_members.clone()),
         Some(4),
         XtStatus::InBlock,
     );
+
+    let reserved_members_performance: Vec<(AccountId, f64)> = reserved_members
+        .clone()
+        .into_iter()
+        .map(|account_id| (account_id, 1.))
+        .collect();
 
     let mut validator_reward_points_previous_session = BTreeMap::new();
 
@@ -100,50 +106,94 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         .as_connection()
         .get_constant("Staking", "SessionsPerEra")
         .expect("Failed to decode SessionsPerEra extrinsic!");
-    info!("Sessions per era: {}", sessions_per_era);
 
-    let session = get_current_session(&connection);
-    info!("Session at inception: {}", session);
+    let session_period: u32 = connection
+        .as_connection()
+        .get_constant("Elections", "SessionPeriod")
+        .expect("Failed to decode SessionPeriod extrinsic!");
+
     // If during era 0 we request a controller to be a validator, it becomes one
     // for era 1, and payouts can be collected once era 1 ends,
     // so we want to start the test from era 2.
     wait_for_full_era_completion(&connection)?;
+    let session = get_current_session(&connection);
 
     while session < ERAS * sessions_per_era {
         let session = get_current_session(&connection);
         let era = session / sessions_per_era;
 
-        let reserved = get_reserved_members(config);
-        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        non_reserved_for_session
-            .iter()
-            .for_each(|account_id| info!("Non-reserved member {}", account_id));
-
-        info!("Era: {} | session: {}", era, session);
+        info!("[+] Era: {} | session: {}", era, session);
         info!("Sessions per era: {}", sessions_per_era);
-        let session_period = connection
-            .as_connection()
-            .get_constant::<u32>("Elections", "SessionPeriod")
-            .expect("Failed to decode SessionPeriod extrinsic!");
 
-        let members_per_session = connection
+        let members_per_session: u32 = connection
             .as_connection()
-            .get_storage_value::<u32>("Elections", "MembersPerSession", None)
+            .get_storage_value("Elections", "MembersPerSession", None)
             .expect("Failed to decode MembersPerSession extrinsic!")
             .unwrap_or_else(|| {
                 panic!("Failed to obtain MembersPerSession for session {}", session)
             });
+
+        reserved_members
+            .iter()
+            .for_each(|account_id| info!("Reserved member: {}", account_id));
+
+        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
+        non_reserved_for_session
+            .iter()
+            .for_each(|account_id| info!("Non-reserved member in committee: {}", account_id));
+
+        let non_reserved_bench = non_reserved_members
+            .iter()
+            .filter(|account_id| !non_reserved_for_session.contains(account_id))
+            .collect::<Vec<_>>();
+        non_reserved_bench
+            .iter()
+            .for_each(|account_id| info!("Non-reserved member on bench: {}", account_id));
+
         assert_eq!(
-            (reserved.len() + non_reserved_for_session.len()) as u32,
+            (reserved_members.len() + non_reserved_for_session.len()) as u32,
             members_per_session
         );
+
         info!("Members per session: {}", members_per_session);
 
-        info!("Waiting for block: {}", (session + 1) * session_period);
-        wait_for_finalized_block(&connection, (session + 1) * session_period)?;
+        let blocks_to_produce_per_session = session_period / members_per_session;
+        info!(
+            "Blocks to produce per session: {}",
+            blocks_to_produce_per_session
+        );
 
-        let era_reward_points = era_reward_points(&connection, era);
+        let end_of_session_block = (session + 1) * session_period;
+        info!("Waiting for block: {}", end_of_session_block);
+        wait_for_finalized_block(&connection, end_of_session_block)?;
+
+        let end_of_session_block_hash = connection
+            .as_connection()
+            .get_block_hash(Some(end_of_session_block))
+            .expect("API call should have succeeded.")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed to obtain block hash for block {}.",
+                    end_of_session_block
+                );
+            });
+        info!("End-of-session block hash: {}.", end_of_session_block_hash);
+
+        let before_end_of_session_block_hash = connection
+            .as_connection()
+            .get_block_hash(Some(end_of_session_block - 1))
+            .expect("API call should have succeeded.")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed to obtain block hash for block {}.",
+                    end_of_session_block
+                );
+            });
+
+        let era_reward_points =
+            era_reward_points(&connection, era, Some(end_of_session_block_hash));
         let validator_reward_points_current_era = era_reward_points.individual;
+
         let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> =
             validator_reward_points_current_era
                 .clone()
@@ -163,45 +213,94 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
                     (account_id, reward_points_current)
                 })
                 .collect();
+
         validator_reward_points_current_session
             .iter()
             .for_each(|(account_id, reward_points)| {
                 info!(
-                    "in session: {} | validator {} accumulated {}.",
+                    "In session {} validator {} accumulated {}.",
                     session, account_id, reward_points
                 )
             });
-        non_reserved_for_session.iter().for_each(|account_id| {
+
+        let validator_exposures: Vec<(AccountId, u128)> = reserved_members
+            .iter()
+            .chain(
+                non_reserved_members
+                    .iter()
+            )
+            .map( |account_id|
+               connection
+                   .as_connection()
+                   .get_storage_double_map("Staking", "ErasStakers", era, account_id, Some(end_of_session_block_hash))
+                   .expect("Failed to decode ErasStakers extrinsic!")
+                   .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for session {}.", session))
+            ).collect();
+
+        let total_exposure: u128 = validator_exposures
+            .iter()
+            .map(|(_, exposure)| exposure)
+            .sum();
+
+        let reward_scaling_factors: Vec<(AccountId, f64)> = validator_exposures
+            .into_iter()
+            .map(|(account_id, exposure)| (account_id, (exposure / total_exposure) as f64))
+            .collect();
+
+        let non_reserved_for_session_performance: Vec<(AccountId, f64)> = non_reserved_for_session.into_iter().map(|account_id| {
             let block_count: u32 = connection
                 .as_connection()
-                .get_storage_map("Elections", "SessionValidatorBlockCount", account_id, None)
+                .get_storage_map(
+                    "Elections",
+                    "SessionValidatorBlockCount",
+                    account_id.clone(),
+                    Some(before_end_of_session_block_hash),
+                )
                 .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
                 .unwrap_or_else(|| {
                     panic!(
-                        "Failed to obtain SessionValidatorBlockCount for session {}, validator {}.",
-                        session, account_id
+                        "Failed to obtain SessionValidatorBlockCount for session {}, validator {}, EOS block hash {}.",
+                        session, account_id, before_end_of_session_block_hash
                     )
                 });
-            info!("Block count {} for validator {}", block_count, account_id);
-            let performance = block_count / session_period;
+            info!(
+                "Block count for validator {} is {:?}, block hash is {}.",
+                account_id, block_count, before_end_of_session_block_hash
+            );
+
+            let performance = (block_count as f64 / blocks_to_produce_per_session as f64).min(1.);
+            info!("Validator {}, performance {}", account_id, performance);
+
             let lenient_performance =
                 match Perquintill::from_percent(performance as u64) > LENIENT_THRESHOLD {
                     true => 1.,
                     false => performance as f64,
                 };
-            let exposure: u128 = connection
-                .as_connection()
-                .get_storage_double_map("Staking", "ErasStakers", era, account_id, None)
-                .expect("Failed to decode ErasStakers extrinsic!")
-                .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for session {}.", session));
-            info!("Exposure {} for validator {}", exposure, account_id);
-            let reward_points_per_session =
-                lenient_performance * exposure as f64 / sessions_per_era as f64;
             info!(
-                "Account {}, adjusted points per session {}",
-                account_id, reward_points_per_session
+                "Validator {}, lenient performance {}",
+                account_id, lenient_performance
             );
-        });
+            (account_id, lenient_performance)
+        }).collect();
+
+        let adjusted_reward_points: Vec<(AccountId, u32)> = reward_scaling_factors
+            .into_iter()
+            .zip(
+                reserved_members_performance
+                    .iter()
+                    .chain(non_reserved_for_session_performance.iter()),
+            )
+            .map(|((account_id, scaling_factor), (_, performance))| {
+                let scaled_points = (scaling_factor * performance * MAX_REWARD as f64
+                    / sessions_per_era as f64) as u32;
+                info!(
+                    "Validator {}, adjusted reward points {}",
+                    account_id, scaled_points
+                );
+                (account_id, scaled_points)
+            })
+            .collect();
+
         validator_reward_points_previous_session = validator_reward_points_current_era;
     }
 
