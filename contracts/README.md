@@ -16,7 +16,7 @@ start   now    deadline
 ## Red Button
 
 There is a pre-minted amount of red tokens (a classic ERC20).
-Users are rewarded for clicking as early on as possible, maximizing TheButton's life.
+Users are rewarded for clicking as early on as possible, which should lead to them pushing the definite end of the game far into the future. 
 
 ```
 score = deadline - now

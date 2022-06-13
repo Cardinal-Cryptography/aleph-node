@@ -83,7 +83,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Run consensus party
+      - name: Run one-node smartnet
         shell: bash
         run: ./.github/scripts/run_smartnet.sh &
 

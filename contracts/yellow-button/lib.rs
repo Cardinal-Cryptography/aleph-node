@@ -98,8 +98,8 @@ mod yellow_button {
         button_lifetime: u32,
         /// is The Button dead
         is_dead: bool,
-        /// block number at which the game ends
-        deadline: u32,
+        // /// block number at which the game ends
+        // deadline: u32,
         /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
         presses: Mapping<AccountId, u32>,
         /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated! so we might need Map<u32, AccountId>
@@ -177,7 +177,8 @@ mod yellow_button {
         /// Returns the current deadline
         #[ink(message)]
         pub fn deadline(&self) -> u32 {
-            self.deadline
+            // self.deadline
+            self.last_press + self.button_lifetime
         }
 
         /// Returns the user score
@@ -235,7 +236,7 @@ mod yellow_button {
                 contract.is_dead = false;
                 contract.last_press = now;
                 contract.button_lifetime = button_lifetime;
-                contract.deadline = deadline;
+                // contract.deadline = deadline;
                 contract.button_token = button_token;
 
                 let event = Event::ButtonCreated(ButtonCreated {
@@ -389,7 +390,7 @@ mod yellow_button {
             }
 
             let now = self.env().block_number();
-            if now >= self.deadline {
+            if now > self.deadline() {
                 // trigger TheButton's death
                 // at this point is is after the deadline but the death event has not yet been triggered
                 // to distribute the awards
@@ -412,14 +413,12 @@ mod yellow_button {
             // this incentivizes pressing as late as possible in the game (but not too late)
             let previous_press = self.last_press;
             let score = now - previous_press;
+            let new_deadline = now + self.button_lifetime;
             self.presses.insert(&caller, &score);
             self.press_accounts.push(caller);
-            // another
             self.last_presser = Some(caller);
             self.last_press = now;
             self.total_scores += score;
-            // reset button lifetime
-            self.deadline = now + self.button_lifetime;
 
             // emit event
             let event = Event::ButtonPressed(ButtonPressed {
@@ -427,7 +426,7 @@ mod yellow_button {
                 previous_press,
                 score,
                 when: now,
-                new_deadline: self.deadline,
+                new_deadline,
                 total_scores: self.total_scores,
             });
             Self::emit_event(self.env(), event);
@@ -529,17 +528,8 @@ mod yellow_button {
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
             assert!(game.press().is_ok(), "Press call failed");
+
             // NOTE : we cannot test reward distribution, cross-contract calls are not yet supported in the test environment
-
-            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-            // ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-
-            // game ends past block 3
-            // alice is not whitelisted but she can still end the game
-            // ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            // ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            // assert!(game.press().is_ok(), "Press call failed");
         }
     }
 }
