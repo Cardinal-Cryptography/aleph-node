@@ -33,15 +33,15 @@
                      # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
                      enableJemalloc = true;
                    }
-, setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = false; }
+, setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = true; }
 , cargoHomePath ? ""
 , customBuildCommand ? ""
+, versions ? import ./nix/versions.nix {}
 }:
 let
   providedCargoHome = cargoHomePath != "";
   cargoHome = builtins.path { path = builtins.toPath cargoHomePath; name = "cargo-home"; };
 
-  versions = import ./nix/versions.nix;
   nixpkgs = versions.nixpkgs;
   rustToolchain = versions.rustToolchain;
 
