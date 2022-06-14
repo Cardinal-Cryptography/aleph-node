@@ -3,13 +3,15 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_members, era_reward_points, get_current_session, wait_for_finalized_block,
+    change_members, get_current_session, get_era_reward_points, wait_for_finalized_block,
     wait_for_full_era_completion, AnyConnection, Header, KeyPair, RewardPoint, RootConnection,
     SignedConnection,
 };
+use codec::HasCompact;
 use frame_election_provider_support::sp_arithmetic::Perquintill;
+use pallet_staking::{Exposure, IndividualExposure};
 use primitives::{LENIENT_THRESHOLD, MAX_REWARD};
-use sp_core::Pair;
+use sp_core::{Pair, H256};
 use std::collections::BTreeMap;
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -64,6 +66,19 @@ fn get_authorities_for_session<C: AnyConnection>(connection: &C, session: u32) -
         .get_storage_value("Session", "Validators", Some(block))
         .expect("Api call should succeed")
         .expect("Authorities should always be present")
+}
+
+pub fn get_exposure<C: AnyConnection>(
+    connection: &C,
+    era: u32,
+    account_id: &AccountId,
+    block_hash: Option<H256>,
+) -> Exposure<AccountId, u128> {
+    connection
+        .as_connection()
+        .get_storage_double_map("Staking", "ErasStakers", era, account_id, block_hash)
+        .expect("Failed to decode ErasStakers extrinsic!")
+        .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for era {}.", era))
 }
 
 pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
@@ -130,7 +145,10 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             .get_storage_value("Elections", "MembersPerSession", None)
             .expect("Failed to decode MembersPerSession extrinsic!")
             .unwrap_or_else(|| {
-                panic!("Failed to obtain MembersPerSession for session {}", session)
+                panic!(
+                    "Failed to obtain MembersPerSession for session {}.",
+                    session
+                )
             });
 
         reserved_members
@@ -191,7 +209,7 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             });
 
         let era_reward_points =
-            era_reward_points(&connection, era, Some(end_of_session_block_hash));
+            get_era_reward_points(&connection, era, Some(end_of_session_block_hash));
         let validator_reward_points_current_era = era_reward_points.individual;
 
         let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> =
@@ -224,22 +242,18 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             });
 
         let validator_exposures: Vec<(AccountId, u128)> = reserved_members
-            .iter()
-            .chain(non_reserved_members.iter())
+            .clone()
+            .into_iter()
+            .chain(non_reserved_members.clone().into_iter())
             .map(|account_id| {
-                connection
-                    .as_connection()
-                    .get_storage_double_map(
-                        "Staking",
-                        "ErasStakers",
-                        era,
-                        account_id,
-                        Some(end_of_session_block_hash),
-                    )
-                    .expect("Failed to decode ErasStakers extrinsic!")
-                    .unwrap_or_else(|| {
-                        panic!("Failed to obtain ErasStakers for session {}.", session)
-                    })
+                let exposure: Exposure<AccountId, u128> = get_exposure(
+                    &connection,
+                    era,
+                    &account_id,
+                    Some(end_of_session_block_hash),
+                );
+                info!("Account {} has own exposure {}", account_id, exposure.own);
+                (account_id, exposure.own)
             })
             .collect();
 
