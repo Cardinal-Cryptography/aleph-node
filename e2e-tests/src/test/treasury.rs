@@ -42,7 +42,7 @@ fn calculate_staking_treasury_addition<C: AnyConnection>(connection: &C) -> u128
     treasury_era_payout_from_staking
 }
 
-pub fn channeling_fee(config: &Config) -> anyhow::Result<()> {
+pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
     let (connection, to) = setup_for_transfer(config);
     let treasury = get_treasury_account();
 
