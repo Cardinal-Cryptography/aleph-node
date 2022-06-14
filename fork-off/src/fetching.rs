@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, iter::repeat_with, sync::Arc};
 
 use crate::{jsonrpc_client::Client, Storage};
 use anyhow::Result;
@@ -48,17 +48,13 @@ impl StateFetcher {
 
         let (input, key_fetcher) = self.client.stream_all_keys(&block_hash);
         let output = Arc::new(Mutex::new(HashMap::new()));
-        let mut workers = Vec::new();
 
-        for _ in 0..(num_workers as usize) {
-            workers.push(self.value_fetching_worker(
-                block_hash.clone(),
-                input.clone(),
-                output.clone(),
-            ));
-        }
+        let workers = repeat_with(|| {
+            self.value_fetching_worker(block_hash.clone(), input.clone(), output.clone())
+        })
+        .take(num_workers as usize);
 
-        info!("Started {} workers to download values.", workers.len());
+        info!("Started {} workers to download values.", num_workers);
         let (res, _) = join!(key_fetcher, join_all(workers));
         res.unwrap();
 
@@ -67,12 +63,11 @@ impl StateFetcher {
     }
 
     pub async fn get_full_state(&self, at_block: Option<BlockHash>, num_workers: u32) -> Storage {
-        match at_block {
-            None => {
-                let best_block = self.client.best_block().await.unwrap();
-                self.get_full_state_at_block(best_block, num_workers).await
-            }
-            Some(block) => self.get_full_state_at_block(block, num_workers).await,
-        }
+        let block = match at_block {
+            None => self.client.best_block().await.unwrap(),
+            Some(block) => block,
+        };
+
+        self.get_full_state_at_block(block, num_workers).await
     }
 }

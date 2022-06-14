@@ -8,7 +8,7 @@ use std::future::Future;
 #[rpc]
 pub trait Rpc {
     #[rpc(name = "chain_getBlockHash")]
-    fn block_hash(&self, block_number: Option<u32>) -> Result<BlockHash, Error>;
+    fn get_block_hash(&self, block_number: Option<u32>) -> Result<BlockHash, Error>;
 
     #[rpc(name = "state_getStorage")]
     fn get_storage(
@@ -18,7 +18,7 @@ pub trait Rpc {
     ) -> Result<StorageValue, Error>;
 
     #[rpc(name = "state_getKeysPaged")]
-    fn get_keys(
+    fn get_keys_paged(
         &self,
         prefix: StorageKey,
         count: usize,
@@ -50,7 +50,7 @@ impl Client {
 
     /// Find the hash of the best known block.
     pub async fn best_block(&self) -> RpcResult<BlockHash> {
-        self.client.block_hash(None).await
+        self.client.get_block_hash(None).await
     }
 
     /// Fetchers all keys in the `at` block.
@@ -75,7 +75,7 @@ impl Client {
         loop {
             let keys = self
                 .client
-                .get_keys(
+                .get_keys_paged(
                     empty_prefix.clone(),
                     CHUNK_SIZE,
                     start_key,
