@@ -1,0 +1,76 @@
+name: 'cargo under nix'
+description: 'Call cargo under nix-build (provided by the naersk tool)'
+
+inputs:
+  cargo-command:
+    description: 'subcommand of cargo to execute'
+    required: false
+    default: ''
+  cargo-toml:
+    description: 'path to Cargo.toml file'
+    required: false
+    default: 'Cargo.toml'
+  nix-shell-file:
+    description: 'shell.nix file for nix-shell'
+    required: false
+    default: 'shell.nix'
+  cargo-home-dir:
+    description: 'path to cached cargo-home'
+    required: false
+    default: '~/.cargo'
+  nix-sandbox:
+    description: 'indicates if we should use nix sandbox'
+    required: false
+    default: true
+  single-step:
+    description: 'indicates if rust derivation should use nix caching mechanism'
+    required: false
+    default: false
+  copy-bin-to:
+    description: 'where should we copy artifacts from $out/bin'
+    required: false
+    default: ''
+  copy-lib-to:
+    description: 'where should we copy artifacts from $out/lib'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore cargo-home cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ inputs.cargo-home-dir }}
+        key: ${{ runner.os }}-cargo-home-v0-${{ inputs.cargo-toml }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install and restore nix
+      uses: ./.github/actions/cache_install_nix
+      with:
+        cache-key: ${{ runner.os }}-nix-store-v0-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Call `cargo fetch` command under nix-shell
+      shell: bash
+      run: |
+        nix-shell --pure --run 'CARGO_HOME=${{ inputs.cargo-home-dir }} cargo fetch --locked --manifest-path ${{ inputs.cargo-toml }}' ${{ inputs.nix-shell-file }}
+
+    - name: Call cargo's command under nix-build
+      if: ${{ inputs.output-file != '' }}
+      shell: bash
+      run: |
+        nix-build --max-jobs auto --option sandbox ${{ inputs.nix-sandbox }} --arg cargoHomePath '${{ inputs.cargo-home-dir }}' --arg customBuildCommand '${{ inputs.cargo-command }}' --arg singleStep '${{ inputs.single-step }}' default.nix
+
+    - name: Copy bin
+      if: ${{ inputs.copy-bin-to != '' }}
+      shell: bash
+      run: |
+        mkdir -p "${{ inputs.copy-bin-to }}"
+        cp result/bin/* ${{ inputs.copy-bin-to }}
+
+    - name: Copy lib
+      if: ${{ inputs.copy-lib-to != '' }}
+      shell: bash
+      run: |
+        mkdir -p "${{ inputs.copy-lib-to }}"
+        cp result/lib/* ${{ inputs.copy-lib-to }}
