@@ -11,7 +11,7 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
-    get_validators_keys(config)[0..1].to_vec()
+    get_validators_keys(config)[..1].to_vec()
 }
 
 fn get_initial_non_reserved_members(config: &Config) -> Vec<KeyPair> {
@@ -28,11 +28,11 @@ fn get_pallets_non_reserved(
     let stored_non_reserved: Vec<AccountId> = connection
         .as_connection()
         .get_storage_value("Elections", "NonReservedMembers", None)?
-        .unwrap();
+        .expect("Member storage values should be present.");
     let eras_members: (Vec<AccountId>, Vec<AccountId>) = connection
         .as_connection()
         .get_storage_value("Elections", "ErasMembers", None)?
-        .unwrap();
+        .expect("Member storage values should be present.");
 
     Ok((stored_non_reserved, eras_members.1))
 }
@@ -84,15 +84,27 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
 
-    assert_eq!(stored_non_reserved, new_non_reserved_members);
-    assert_eq!(eras_non_reserved, initial_non_reserved_members);
+    assert_eq!(
+        stored_non_reserved, new_non_reserved_members,
+        "Non-reserved members' storage not properly updated after change_members."
+    );
+    assert_eq!(
+        eras_non_reserved, initial_non_reserved_members,
+        "Non-reseved members set has been updated too early."
+    );
 
     wait_for_next_era(&connection)?;
 
     let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
 
-    assert_eq!(stored_non_reserved, new_non_reserved_members);
-    assert_eq!(eras_non_reserved, new_non_reserved_members);
+    assert_eq!(
+        stored_non_reserved, new_non_reserved_members,
+        "Non-reserved members' storage not properly updated after change_members."
+    );
+    assert_eq!(
+        eras_non_reserved, new_non_reserved_members,
+        "Non-reserved members set is not properly updated in the next era."
+    );
 
     let block_number = connection
         .as_connection()
