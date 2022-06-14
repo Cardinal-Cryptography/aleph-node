@@ -122,8 +122,7 @@ fn rotate_saved_backup_files(
     let extension = ".abfts";
     let session_path = backup_path.join(format!("{}", session_id));
     fs::create_dir_all(&session_path)?;
-    let mut session_backups: Vec<_> = fs::read_dir(&session_path)
-        .unwrap()
+    let mut session_backups: Vec<_> = fs::read_dir(&session_path)?
         .filter_map(|r| r.ok())
         .filter_map(|x| x.file_name().into_string().ok())
         .filter_map(|s| usize::from_str(s.strip_suffix(extension)?).ok())
