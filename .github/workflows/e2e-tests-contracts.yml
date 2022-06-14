@@ -60,14 +60,17 @@ jobs:
 
       - name: Install cargo-contract
         run: |
-          if ! command -v cargo-contract --version &> /dev/null
-          then
-              echo "cargo-contracts executable could not be found. Installing"
-              cd contracts/
               cargo install cargo-dylint dylint-link --force
               # revision merging Hans's PR changes [fix for node URL parsing ]
-              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
-          fi
+              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force          
+          # if ! command -v cargo-contract --version &> /dev/null
+          # then
+          #     echo "cargo-contracts executable could not be found. Installing"
+          #     cd contracts/
+          #     cargo install cargo-dylint dylint-link --force
+          #     # revision merging Hans's PR changes [fix for node URL parsing ]
+          #     cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
+          # fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
