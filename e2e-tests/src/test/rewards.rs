@@ -161,7 +161,8 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             .for_each(|account_id| info!("Non-reserved member in committee: {}", account_id));
 
         let non_reserved_bench = non_reserved_members
-            .iter()
+            .clone()
+            .into_iter()
             .filter(|account_id| !non_reserved_for_session.contains(account_id))
             .collect::<Vec<_>>();
         non_reserved_bench
@@ -252,7 +253,16 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
                     &account_id,
                     Some(end_of_session_block_hash),
                 );
-                info!("Account {} has own exposure {}", account_id, exposure.own);
+                info!(
+                    "Validator {} has own exposure {}.",
+                    account_id, exposure.own
+                );
+                exposure.others.iter().for_each(|individual_exposure| {
+                    info!(
+                        "Validator {} has nominator {} exposure {}.",
+                        account_id, individual_exposure.who, individual_exposure.value
+                    )
+                });
                 (account_id, exposure.own)
             })
             .collect();
@@ -262,9 +272,18 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             .map(|(_, exposure)| exposure)
             .sum();
 
+        info!("Total exposure {}", total_exposure);
+
         let reward_scaling_factors: Vec<(AccountId, f64)> = validator_exposures
             .into_iter()
-            .map(|(account_id, exposure)| (account_id, (exposure / total_exposure) as f64))
+            .map(|(account_id, exposure)| {
+                let scaling_factor = exposure as f64 / total_exposure as f64;
+                info!(
+                    "Validator {}, scaling factor {:?}.",
+                    account_id, scaling_factor
+                );
+                (account_id, scaling_factor)
+            })
             .collect();
 
         let non_reserved_for_session_performance: Vec<(AccountId, f64)> = non_reserved_for_session.into_iter().map(|account_id| {
@@ -302,6 +321,22 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
             );
             (account_id, lenient_performance)
         }).collect();
+
+        let non_reserved_bench_performance: Vec<(AccountId, f64)> = non_reserved_bench
+            .clone()
+            .into_iter()
+            .map(|account_id| (account_id, 1.))
+            .collect();
+
+        let mut performance = BTreeMap::new();
+        reserved_members_performance
+            .clone()
+            .into_iter()
+            .chain(non_reserved_for_session_performance.clone().into_iter())
+            .chain(non_reserved_bench_performance.clone().into_iter())
+            .for_each(|(account_id, perf)| {
+                performance.insert(account_id, perf);
+            });
 
         let adjusted_reward_points: Vec<(AccountId, u32)> = reward_scaling_factors
             .into_iter()
