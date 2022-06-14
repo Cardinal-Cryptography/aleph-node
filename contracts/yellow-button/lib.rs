@@ -17,7 +17,7 @@ mod yellow_button {
         DefaultEnvironment, Error as InkEnvError,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{borrow::ToOwned, string::String, vec::Vec};
+    use ink_prelude::{string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
     /// Error types
@@ -248,27 +248,30 @@ mod yellow_button {
             })
         }
 
+        fn transfer_tx(&self, to: AccountId, value: u128) -> core::result::Result<(), InkEnvError> {
+            build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.button_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
+                        .push_arg(to)
+                        .push_arg(value),
+                )
+                .returns::<()>()
+                .fire()
+        }
+
         /// End of the game logic
         ///
         /// distributes the rewards to the participants
         fn death(&mut self) -> Result<()> {
             self.is_dead = true;
 
-            let button_token = self.button_token;
             let total_balance = Self::get_balance(self)?;
 
             // Pressiah gets 50% of supply
             let pressiah_reward = total_balance / 2;
             if let Some(pressiah) = self.last_presser {
-                let _ = build_call::<DefaultEnvironment>()
-                    .call_type(Call::new().callee(button_token))
-                    .exec_input(
-                        ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
-                            .push_arg(pressiah)
-                            .push_arg(pressiah_reward),
-                    )
-                    .returns::<()>()
-                    .fire()?;
+                self.transfer_tx(pressiah, pressiah_reward)?;
             }
 
             let total = self.total_scores;
@@ -281,18 +284,9 @@ mod yellow_button {
                 .try_for_each(|account_id| -> Result<()> {
                     if let Some(score) = self.presses.get(account_id) {
                         let reward = (score as u128 * remaining_balance) / total as u128;
-                        rewards.push((account_id.to_owned(), reward));
-
+                        rewards.push((*account_id, reward));
                         // transfer amount
-                        return Ok(build_call::<DefaultEnvironment>()
-                            .call_type(Call::new().callee(button_token))
-                            .exec_input(
-                                ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
-                                    .push_arg(account_id)
-                                    .push_arg(reward),
-                            )
-                            .returns::<()>()
-                            .fire()?);
+                        return Ok(self.transfer_tx(*account_id, reward)?);
                     }
                     Ok(())
                 });
