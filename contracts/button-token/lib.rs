@@ -317,10 +317,6 @@ mod button_token {
                     prefix: b"ButtonToken::Transfer::to",
                     value: &expected_to,
                 }),
-                encoded_into_hash(&PrefixedValue {
-                    prefix: b"ButtonToken::Transfer::value",
-                    value: &expected_value,
-                }),
             ];
 
             let topics = event.topics.clone();
