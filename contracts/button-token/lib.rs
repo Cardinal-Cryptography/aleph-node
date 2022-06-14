@@ -38,7 +38,7 @@ mod button_token {
         #[ink(topic)]
         pub from: Option<AccountId>,
         #[ink(topic)]
-        pub to: Option<AccountId>,
+        pub to: AccountId,
         pub value: Balance,
     }
 
@@ -100,7 +100,7 @@ mod button_token {
 
             Self::env().emit_event(Transfer {
                 from: None,
-                to: Some(caller),
+                to: caller,
                 value: initial_supply,
             });
         }
@@ -241,13 +241,14 @@ mod button_token {
             self.balances.insert(to, &(to_balance + value));
             self.env().emit_event(Transfer {
                 from: Some(*from),
-                to: Some(*to),
+                to: *to,
                 value,
             });
             Ok(())
         }
 
-        /// terminates the contract
+        /// Terminates the contract.
+        ///
         /// can only be called by the contract owner
         #[ink(message, selector = 7)]
         pub fn terminate(&mut self) -> Result<()> {
@@ -274,7 +275,7 @@ mod button_token {
             Ok(())
         }
 
-        /// Returns the contract owner
+        /// Returns the contract owner.
         #[ink(message)]
         pub fn owner(&self) -> AccountId {
             self.owner
@@ -291,7 +292,7 @@ mod button_token {
         fn assert_transfer_event(
             event: &ink_env::test::EmittedEvent,
             expected_from: Option<AccountId>,
-            expected_to: Option<AccountId>,
+            expected_to: AccountId,
             expected_value: Balance,
         ) {
             let decoded_event = <Event as scale::Decode>::decode(&mut &event.data[..])
@@ -348,12 +349,7 @@ mod button_token {
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             assert_eq!(1, emitted_events.len());
 
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
+            assert_transfer_event(&emitted_events[0], None, AccountId::from([0x01; 32]), 100);
         }
 
         /// The total supply was applied.
@@ -371,12 +367,7 @@ mod button_token {
             let erc20 = ButtonToken::new(100);
             // Transfer event triggered during initial construction
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
+            assert_transfer_event(&emitted_events[0], None, AccountId::from([0x01; 32]), 100);
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
             // Alice owns all the tokens on contract instantiation
             assert_eq!(erc20.balance_of(accounts.alice), 100);
@@ -400,17 +391,12 @@ mod button_token {
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             assert_eq!(emitted_events.len(), 2);
             // Check first transfer event related to ERC-20 instantiation.
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
+            assert_transfer_event(&emitted_events[0], None, AccountId::from([0x01; 32]), 100);
             // Check the second transfer event relating to the actual trasfer.
             assert_transfer_event(
                 &emitted_events[1],
                 Some(AccountId::from([0x01; 32])),
-                Some(AccountId::from([0x02; 32])),
+                AccountId::from([0x02; 32]),
                 10,
             );
         }
@@ -441,12 +427,7 @@ mod button_token {
             // Transfer event triggered during initial construction.
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             assert_eq!(emitted_events.len(), 1);
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
+            assert_transfer_event(&emitted_events[0], None, AccountId::from([0x01; 32]), 100);
         }
 
         #[ink::test]
@@ -483,17 +464,12 @@ mod button_token {
             // Check all transfer events that happened during the previous calls:
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             assert_eq!(emitted_events.len(), 3);
-            assert_transfer_event(
-                &emitted_events[0],
-                None,
-                Some(AccountId::from([0x01; 32])),
-                100,
-            );
+            assert_transfer_event(&emitted_events[0], None, AccountId::from([0x01; 32]), 100);
             // The second event `emitted_events[1]` is an Approve event that we skip checking.
             assert_transfer_event(
                 &emitted_events[2],
                 Some(AccountId::from([0x01; 32])),
-                Some(AccountId::from([0x05; 32])),
+                AccountId::from([0x05; 32]),
                 10,
             );
         }
