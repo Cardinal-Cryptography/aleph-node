@@ -26,17 +26,8 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
-
       - name: Build binary and runtime
-        run: |
-          nix-build --max-jobs auto --option sandbox true ./default.nix
+        uses: ./.github/actions/cargo_under_nix
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -55,8 +46,9 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: |
-          nix-build --max-jobs auto --option sandbox true --arg crates '{ "aleph-node" = ["short_session"] }' ./default.nix
+        uses: ./.github/actions/cargo_under_nix
+        with:
+          cargo-command: cargo build --release --locked --package aleph-node --features "short_session"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

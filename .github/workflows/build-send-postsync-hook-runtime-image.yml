@@ -30,23 +30,18 @@ jobs:
           echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
-
-      - name: Run nix-shell
-        run: |
-          nix-shell --pure --file shell.nix
-
       - name: Build binary
-        uses: ./.github/actions/cargo_nix_shell
+        uses: ./.github/actions/cargo_under_nix
         with:
-          command: |
-            pushd bin/cliain
+          cargo-toml: bin/cliain/Cargo.toml
+          cargo-command: |
+            cd bin/cliain
             cargo build --release --locked
-            popd
-          output-file: bin/cliain/target/release/cliain
+
+      -name: Copy binary to a predefined folder (required by docker-runtime-hook/Dockerfile)
+       run: |
+         mkdir -p bin/cliain/target/release/cliain
+         cp result/bin/cliain bin/cliain/target/release/cliain
 
       - name: Build runtime-update-hook
         run: |

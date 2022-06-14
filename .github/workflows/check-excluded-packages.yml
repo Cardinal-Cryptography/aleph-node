@@ -51,12 +51,9 @@ jobs:
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
-        uses: ./.github/actions/cargo_nix_shell
-        env:
-          RUSTC_WRAPPER: ""
-          RUSTC_WORKSPACE_WRAPPER: sccache
+        uses: ./.github/actions/cargo_under_nix
         with:
-          command: |
+          cargo-command: |
             packages="${{ steps.format_output.outputs.packages }}"
             ROOT=$(pwd)
             for p in ${packages[@]}
