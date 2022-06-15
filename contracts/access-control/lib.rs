@@ -22,8 +22,8 @@ mod access_control {
         Admin,
         /// Indicates account can terminate a contract.
         Owner,
-        /// Indicates account can initialize a contract.
-        Initializer,
+        /// Indicates account can initialize a contract from a given code hash.
+        Initializer(Hash),
     }
 
     #[ink(storage)]
@@ -100,7 +100,6 @@ mod access_control {
             Ok(())
         }
 
-        // TODO : emit event
         #[ink(message)]
         pub fn revoke_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
