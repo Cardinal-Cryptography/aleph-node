@@ -92,17 +92,15 @@ mod yellow_button {
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct YellowButton {
-        /// access control
+        /// contract owner
         owner: AccountId,
         /// How long does TheButton live for?
         button_lifetime: u32,
         /// is The Button dead
         is_dead: bool,
-        // /// block number at which the game ends
-        // deadline: u32,
         /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
         presses: Mapping<AccountId, u32>,
-        /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated! so we might need Map<u32, AccountId>
+        /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<u32, AccountId> if it grows out of proportion
         press_accounts: Vec<AccountId>,
         /// stores total sum of user scores
         total_scores: u32,
@@ -428,8 +426,6 @@ mod yellow_button {
         }
     }
 
-    // TODO : what can we test here actually?
-    // TODO : just pressing I suppose
     #[cfg(test)]
     mod tests {
         use super::*;
