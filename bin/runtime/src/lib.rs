@@ -582,6 +582,7 @@ parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(0);
     // The minimal deposit for proposal. This value effectively disables treasury.
     pub const ProposalBondMinimum: Balance = 100_000_000_000 * TOKEN;
+    // The upper bound of the deposit for the proposal.
     pub const ProposalBondMaximum: Balance = 100_000_000_000 * TOKEN;
     // Maximum number of approvals that can wait in the spending queue.
     pub const MaxApprovals: u32 = 20;
