@@ -26,8 +26,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 pub use frame_support::{
-    log,
-    construct_runtime, parameter_types,
+    construct_runtime, log, parameter_types,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
         OnUnbalanced, Randomness, ValidatorSet,

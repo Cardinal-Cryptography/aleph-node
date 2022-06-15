@@ -3,7 +3,7 @@ use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
 
-use aleph_node::{new_authority, new_full, new_partial, ExecutorDispatch, Cli, Subcommand};
+use aleph_node::{new_authority, new_full, new_partial, Cli, ExecutorDispatch, Subcommand};
 use clap::Parser;
 
 fn main() -> sc_cli::Result<()> {
@@ -80,19 +80,17 @@ fn main() -> sc_cli::Result<()> {
             let runner = cli.create_runner(cmd)?;
             runner.async_run(|config| {
                 let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-                let task_manager = sc_service::TaskManager::new(
-                    config.tokio_handle.clone(),
-                    registry,
-                ).map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+                let task_manager =
+                    sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
+                        .map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
                 Ok((cmd.run::<Block, ExecutorDispatch>(config), task_manager))
             })
         }
         #[cfg(not(feature = "try-runtime"))]
-        Some(Subcommand::TryRuntime) => {
-            Err("TryRuntime wasn't enabled when building the node. \
-        You can enable it with `--features try-runtime`.".into())
-        }
+        Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
+        You can enable it with `--features try-runtime`."
+            .into()),
         None => {
             let runner = cli.create_runner(&cli.run)?;
             let aleph_cli_config = cli.aleph;
