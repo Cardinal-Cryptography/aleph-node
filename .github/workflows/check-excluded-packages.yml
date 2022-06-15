@@ -1,7 +1,14 @@
 name: Check excluded packages
 
 on:
-  pull_request
+  pull_request:
+    branches:
+      - '**'
+  push:
+    paths-ignore:
+      - '*.md'
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -22,6 +29,9 @@ jobs:
 
       - name: Install clippy and fmt
         run: rustup component add clippy rustfmt
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
@@ -45,6 +55,9 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
+          target-key: excluded
+          cargo-key: excluded
+          cache-version: v1
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
@@ -58,9 +71,9 @@ jobs:
             echo "Checking package $p..."
             pushd "$p"
             cargo fmt --all --check
-            cargo clippy --all-targets --all-features -- --no-deps -D warnings
+            cargo clippy --all-features -- --no-deps -D warnings
             popd
           done
 
-      - name: Stop cache
+      - name: Cleanup cache
         uses: ./.github/actions/post-cache
