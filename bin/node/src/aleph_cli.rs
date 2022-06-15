@@ -18,7 +18,7 @@ pub struct AlephCli {
         value_name = "PATH",
     )]
     // TOmaybeDO change it to just PathBuf?
-    backup_dir: Option<PathBuf>,
+    backup_path: Option<PathBuf>,
 }
 
 impl AlephCli {
@@ -29,7 +29,7 @@ impl AlephCli {
         )
     }
 
-    pub fn backup_dir(&self) -> Option<PathBuf> {
-        self.backup_dir.clone()
+    pub fn backup_path(&self) -> Option<PathBuf> {
+        self.backup_path.clone()
     }
 }

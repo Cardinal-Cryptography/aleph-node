@@ -318,7 +318,7 @@ pub fn new_authority(
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
         // TODO change it to base_path + backup_dir
-        backup_saving_path: aleph_config.backup_dir(),
+        backup_saving_path: aleph_config.backup_path(),
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
@@ -382,7 +382,7 @@ pub fn new_full(
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
         // TODO change it to base_path + backup_dir
-        backup_saving_path: aleph_config.backup_dir(),
+        backup_saving_path: aleph_config.backup_path(),
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

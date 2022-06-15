@@ -52,12 +52,12 @@ validator_ids_string="${validator_ids[*]}"
 validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
 echo "Bootstrapping chain for nodes 0..$((N_VALIDATORS - 1))"
-./target/release/aleph-node bootstrap-chain --base-path "$BASE_PATH" --backup-dir "backup-stash" --account-ids "$validator_ids_string" --chain-type local > "$BASE_PATH/chainspec.json"
+./target/release/aleph-node bootstrap-chain --base-path "$BASE_PATH" --account-ids "$validator_ids_string" --chain-type local > "$BASE_PATH/chainspec.json"
 
 for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   echo "Bootstrapping node $i"
   account_id=${account_ids[$i]}
-  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --backup-dir "backup-stash" --account-id "$account_id" --chain-type local
+  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --account-id "$account_id" --chain-type local
 done
 
 addresses=()
@@ -79,7 +79,7 @@ run_node() {
 
   [[ $is_validator = true ]] && validator=--validator || validator=""
 
-  ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --backup-dir "backup-stash" --chain $BASE_PATH/chainspec.json -y
+  ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
   ./target/release/aleph-node \
     $validator \
     --chain $BASE_PATH/chainspec.json \
@@ -91,7 +91,7 @@ run_node() {
     --bootnodes $bootnodes \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
     --unit-creation-delay 500 \
-    --backup-dir $BASE_PATH/$account_id/backup-stash \
+    --backup-path $BASE_PATH/$account_id/backup-stash \
     --execution Native \
     --rpc-cors=all \
     --no-mdns \
