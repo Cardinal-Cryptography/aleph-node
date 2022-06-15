@@ -13,10 +13,7 @@ pub struct AlephCli {
     /// Backups created by the node are saved under this directory. When restarted after a crash,
     /// previously-created backups are read back from this directory first, helping prevent
     /// auto-forks. The layout of the directory is unspecified.
-    #[clap(
-        long,
-        value_name = "PATH",
-    )]
+    #[clap(long, value_name = "PATH")]
     // TOmaybeDO change it to just PathBuf?
     backup_path: Option<PathBuf>,
 }
