@@ -25,25 +25,25 @@ rand = "0.8"
 serde = "1.0"
 tokio = { version = "1.17", features = [ "sync", "macros", "time", "rt-multi-thread" ] }
 
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-keystore = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-network = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-telemetry = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-service = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-application-crypto = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-core = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-runtime = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-state-machine = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-trie = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-utils = {  git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-api = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-blockchain = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-consensus = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-consensus = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-client-api = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sp-io = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-keystore = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-network = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-telemetry = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-service = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-application-crypto = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-state-machine = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-trie = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-utils = {  git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-api = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-blockchain = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-consensus = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-consensus = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-client-api = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-io = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 
 [dev-dependencies]
-substrate-test-runtime-client = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-substrate-test-runtime = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-sc-block-builder = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+substrate-test-runtime-client = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+substrate-test-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sc-block-builder = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }

@@ -17,6 +17,6 @@ serde_json = "1"
 tokio = { version = "1.0", features = ["full"] }
 parking_lot = "0.12.0"
 
-frame-support = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-frame-system = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
-pallet-balances = { git = "https://github.com/timorl/substrate.git", branch = "A0-558-walukr" }
+frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+frame-system = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
