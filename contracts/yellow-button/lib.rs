@@ -233,7 +233,6 @@ mod yellow_button {
                 contract.is_dead = false;
                 contract.last_press = now;
                 contract.button_lifetime = button_lifetime;
-                // contract.deadline = deadline;
                 contract.button_token = button_token;
 
                 let event = Event::ButtonCreated(ButtonCreated {
