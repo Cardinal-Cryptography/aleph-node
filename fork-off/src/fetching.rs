@@ -1,7 +1,6 @@
 use std::{collections::HashMap, iter::repeat_with, sync::Arc};
 
 use crate::{jsonrpc_client::Client, Storage};
-use anyhow::Result;
 use async_channel::Receiver;
 use futures::{future::join_all, join};
 use log::info;
@@ -14,10 +13,10 @@ pub struct StateFetcher {
 }
 
 impl StateFetcher {
-    pub async fn new(ws_rpc_endpoint: String) -> Result<Self> {
-        Ok(StateFetcher {
+    pub async fn new(ws_rpc_endpoint: String) -> Self {
+        StateFetcher {
             client: Client::new(&ws_rpc_endpoint).await.unwrap(),
-        })
+        }
     }
 
     async fn value_fetching_worker(
@@ -58,8 +57,7 @@ impl StateFetcher {
         let (res, _) = join!(key_fetcher, join_all(workers));
         res.unwrap();
 
-        let mut guard = output.lock();
-        std::mem::take(&mut guard)
+        Arc::try_unwrap(output).unwrap().into_inner()
     }
 
     pub async fn get_full_state(&self, at_block: Option<BlockHash>, num_workers: u32) -> Storage {

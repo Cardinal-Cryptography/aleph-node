@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     if !use_snapshot_file {
-        let fetcher = StateFetcher::new(ws_rpc_endpoint).await.unwrap();
+        let fetcher = StateFetcher::new(ws_rpc_endpoint).await;
         let state = fetcher.get_full_state(at_block, max_requests).await;
         save_snapshot_to_file(state, snapshot_path.clone());
     }
