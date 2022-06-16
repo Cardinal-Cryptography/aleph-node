@@ -1,10 +1,12 @@
 use crate::{
     config::Config,
     test::{
-        batch_transactions as test_batch_transactions, change_validators as test_change_validators,
+        batch_transactions as test_batch_transactions,
+        change_non_reserved as test_change_non_reserved,
+        change_validators as test_change_validators,
         channeling_fee_and_tip as test_channeling_fee_and_tip,
-        change_non_reserved as test_change_non_reserved, era_payouts_calculated_correctly as test_era_payout,
-        fee_calculation as test_fee_calculation, finalization as test_finalization, members_rotate,
+        era_payouts_calculated_correctly as test_era_payout,
+        fee_calculation as test_fee_calculation, finalization as test_finalization,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
