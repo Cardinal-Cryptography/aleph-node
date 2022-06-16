@@ -85,6 +85,9 @@ mod access_control {
 
         // TODO : no-op if role exists?
         #[ink(message, selector = 1)]
+        /// gives a role to an account
+        ///
+        /// Can only be called by an admin role on this contract                
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
             self.check_role(caller, Role::Admin)?;
@@ -101,6 +104,9 @@ mod access_control {
         }
 
         #[ink(message, selector = 2)]
+        /// revokes a role from an account
+        ///
+        /// Can only be called by an admin role on this contract        
         pub fn revoke_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
             self.check_role(caller, Role::Admin)?;
@@ -117,6 +123,7 @@ mod access_control {
         }
 
         #[ink(message, selector = 3)]
+        /// returns true if account has a role
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
             self.priviledges.get((account, role)).is_some()
         }
@@ -127,7 +134,8 @@ mod access_control {
         #[ink(message, selector = 4)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            self.check_role(caller, Role::Admin)?;
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Owner(this))?;
             self.env().terminate_contract(caller)
         }
 
