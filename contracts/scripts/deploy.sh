@@ -7,14 +7,14 @@ set -euo pipefail
 source $(pwd)/.github/scripts/assert.sh
 
 function link_bytecode() {
-  CONTRACT=$1
-  PLACEHOLDER=$2
-  REPLACEMENT=$3
+  local CONTRACT=$1
+  local PLACEHOLDER=$2
+  local REPLACEMENT=$3
 
-  sed -i 's/$PLACEHOLDER/$REPLACEMENT/' target/ink/$CONTRACT.contract  
+  sed -i 's/'$PLACEHOLDER'/'$REPLACEMENT'/' target/ink/$CONTRACT.contract
 }
 
-# --- CONSTANTS
+# --- GLOBAL CONSTANTS
 
 NODE=ws://127.0.0.1:9943
 
@@ -32,38 +32,45 @@ CONTRACTS_PATH=$(pwd)/contracts
 
 ## --- COMPILE CONTRACTS
 
-cd $CONTRACTS_PATH/access-control
+cd $CONTRACTS_PATH/access_control
 cargo contract build --release
 
-cd $CONTRACTS_PATH/button-token
+cd $CONTRACTS_PATH/button_token
 cargo contract build --release
 
-cd $CONTRACTS_PATH/yellow-button
+cd $CONTRACTS_PATH/yellow_button
 cargo contract build --release
 
 ## --- DEPLOY ACCESS CONTROL CONTRACT
-cd $CONTRACTS_PATH/access-control
+cd $CONTRACTS_PATH/access_control
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --suri $ALICE_SEED)
 ACCESS_CONTROL=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+ACCESS_CONTROL_PUBKEY=$(subkey inspect $ACCESS_CONTROL | grep hex | cut -c 23- | cut -c 3-)
+
+echo "access control contract address: " $ACCESS_CONTROL
+echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 
 ## --- DEPLOY TOKEN CONTRACT
-cd $CONTRACTS_PATH/button-token
-link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 c8289e01bb596595ebb6135366f9a0705b51c305108ccd466cad810a020fd5b8
+cd $CONTRACTS_PATH/button_token
+link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/button_token.wasm
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
-BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
+# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+# BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
 
-echo "button token contract address: " $BUTTON_TOKEN
-echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
+# echo "button token contract address: " $BUTTON_TOKEN
+# echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
-## --- GRANT PROVILEDGES
+## --- GRANT PRIVILEDGES
 
+# alice is owner of the access-controller contract
+# alice is initializer of the button-token contract
 
 
 # ## --- DEPLOY GAME CONTRACT
-# cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow_button
 
 # CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
 # YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
@@ -72,16 +79,16 @@ echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
 # ## --- TRANSFER BALANCE TO THE GAME CONTRACT
 
-# cd $CONTRACTS_PATH/button-token
+# cd $CONTRACTS_PATH/button_token
 # cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $YELLOW_BUTTON $GAME_BALANCE --suri $ALICE_SEED
 
 # ## --- WHITELIST ACCOUNTS
-# cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow_button
 
 # cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
 
 # ## --- PLAY
-# cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow_button
 
 # cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
 
@@ -90,7 +97,7 @@ echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 # cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
 
 # ## --- TRIGGER DEATH AND REWARDS DISTRIBUTION
-# cd $CONTRACTS_PATH/yellow-button
+# cd $CONTRACTS_PATH/yellow_button
 
 # sleep $(($LIFETIME + 1))
 
