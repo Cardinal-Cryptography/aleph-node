@@ -55,15 +55,16 @@ echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 cd $CONTRACTS_PATH/button_token
 link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
 
-# TODO : hexToWASM
 rm target/ink/button_token.wasm
+# NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
+node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
 
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
-# BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-# BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
 
-# echo "button token contract address: " $BUTTON_TOKEN
-# echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
+echo "button token contract address: " $BUTTON_TOKEN
+echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
 ## --- GRANT PRIVILEDGES
 
