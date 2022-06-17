@@ -9,6 +9,9 @@ use std::{
     mem::size_of,
 };
 
+type Version = u16;
+type ByteCount = u16;
+
 /// Old format of justifications, needed for backwards compatibility.
 /// Used an old format of signature which unnecessarily contained the signer ID.
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
@@ -34,18 +37,31 @@ impl From<AlephJustificationV1> for AlephJustification {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum VersionedAlephJustification {
     // Most likely from the future.
-    Other(u32, Vec<u8>),
+    Other(Version, Vec<u8>),
     V1(AlephJustificationV1),
     V2(AlephJustification),
+}
+
+fn encode_with_version(version: Version, mut payload: Vec<u8>) -> Vec<u8> {
+    let mut result = version.encode();
+    // This will produce rubbish if we ever try encodings that have more than u16::MAX bytes. We
+    // expect this won't happen, since we will switch to proper multisignatures before proofs get
+    // that big.
+    let num_bytes = payload.len() as ByteCount;
+    result.append(&mut num_bytes.encode());
+    result.append(&mut payload);
+    result
 }
 
 impl Encode for VersionedAlephJustification {
     fn size_hint(&self) -> usize {
         use VersionedAlephJustification::*;
-        let version_and_bytes_size = 2 * size_of::<u32>();
-        version_and_bytes_size
+        let version_size = size_of::<Version>();
+        let byte_count_size = size_of::<ByteCount>();
+        version_size
+            + byte_count_size
             + match self {
-                Other(_, payload) => payload.size_hint(),
+                Other(_, payload) => payload.len(),
                 V1(justification) => justification.size_hint(),
                 V2(justification) => justification.size_hint(),
             }
@@ -54,30 +70,9 @@ impl Encode for VersionedAlephJustification {
     fn encode(&self) -> Vec<u8> {
         use VersionedAlephJustification::*;
         match self {
-            Other(version, payload) => {
-                let mut result = version.encode();
-                let mut payload = payload.encode();
-                let num_bytes = payload.len() as u32;
-                result.append(&mut num_bytes.encode());
-                result.append(&mut payload);
-                result
-            }
-            V1(justification) => {
-                let mut result = (1_u32).encode();
-                let mut justification = justification.encode();
-                let num_bytes = justification.len() as u32;
-                result.append(&mut num_bytes.encode());
-                result.append(&mut justification);
-                result
-            }
-            V2(justification) => {
-                let mut result = (2_u32).encode();
-                let mut justification = justification.encode();
-                let num_bytes = justification.len() as u32;
-                result.append(&mut num_bytes.encode());
-                result.append(&mut justification);
-                result
-            }
+            Other(version, payload) => encode_with_version(*version, payload.clone()),
+            V1(justification) => encode_with_version(1, justification.encode()),
+            V2(justification) => encode_with_version(2, justification.encode()),
         }
     }
 }
@@ -85,23 +80,13 @@ impl Encode for VersionedAlephJustification {
 impl Decode for VersionedAlephJustification {
     fn decode<I: CodecInput>(input: &mut I) -> Result<Self, CodecError> {
         use VersionedAlephJustification::*;
-        let version = u32::decode(input)?;
-        let num_bytes = u32::decode(input)?;
+        let version = Version::decode(input)?;
+        let num_bytes = ByteCount::decode(input)?;
         match version {
             1 => Ok(V1(AlephJustificationV1::decode(input)?)),
             2 => Ok(V2(AlephJustification::decode(input)?)),
             _ => {
-                // TODO: figure out some limit for `num_bytes` and error out if this alloc would be
-                // too big
-                let num_bytes: usize = match num_bytes.try_into() {
-                    Ok(num_bytes) => num_bytes,
-                    Err(_) => {
-                        return Err(
-                            "Too many bytes in encoded justification, likely old format".into()
-                        )
-                    }
-                };
-                let mut payload = vec![0; num_bytes];
+                let mut payload = vec![0; num_bytes.into()];
                 input.read(payload.as_mut_slice())?;
                 Ok(Other(version, payload))
             }
@@ -112,7 +97,7 @@ impl Decode for VersionedAlephJustification {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     BadFormat,
-    UnknownVersion(u32),
+    UnknownVersion(Version),
 }
 
 impl Display for Error {
@@ -167,14 +152,14 @@ pub fn versioned_encode(justification: AlephJustification) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use super::{backwards_compatible_decode, AlephJustificationV1};
+    use super::{backwards_compatible_decode, AlephJustificationV1, VersionedAlephJustification};
     use crate::{
         crypto::{Signature, SignatureV1},
         justification::AlephJustification,
     };
     use aleph_bft::{NodeCount, PartialMultisignature, SignatureSet};
     use aleph_primitives::{AuthorityPair, AuthoritySignature};
-    use codec::Encode;
+    use codec::{Decode, Encode};
     use sp_core::Pair;
 
     #[test]
@@ -216,6 +201,14 @@ mod test {
         let encoded_just: Vec<u8> = just_v2.encode();
         let decoded = backwards_compatible_decode(encoded_just);
         assert_eq!(decoded, Ok(just_v2));
+    }
+
+    #[test]
+    fn correctly_decodes_other() {
+        let other = VersionedAlephJustification::Other(43, vec![21, 37]);
+        let encoded = other.encode();
+        let decoded = VersionedAlephJustification::decode(&mut encoded.as_slice());
+        assert_eq!(decoded, Ok(other));
     }
 
     #[test]
