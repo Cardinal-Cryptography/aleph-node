@@ -3,18 +3,17 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_members, get_current_session, get_era_reward_points, wait_for_finalized_block,
+    change_validators, get_current_session, get_era_reward_points, wait_for_finalized_block,
     wait_for_full_era_completion, AnyConnection, Header, KeyPair, RewardPoint, RootConnection,
     SignedConnection,
 };
-use codec::HasCompact;
-use frame_election_provider_support::sp_arithmetic::Perquintill;
-use pallet_staking::{Exposure, IndividualExposure};
+use pallet_staking::Exposure;
 use primitives::{LENIENT_THRESHOLD, MAX_REWARD};
 use sp_core::{Pair, H256};
 use std::collections::BTreeMap;
 use substrate_api_client::{AccountId, XtStatus};
 
+use frame_election_provider_support::sp_arithmetic::Perquintill;
 use log::info;
 
 const ERAS: u32 = 10;
@@ -101,7 +100,7 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
         .map(|pair| AccountId::from(pair.public()))
         .collect();
 
-    change_members(
+    change_validators(
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
@@ -142,11 +141,11 @@ pub fn points_and_payouts(config: &Config) -> anyhow::Result<()> {
 
         let members_per_session: u32 = connection
             .as_connection()
-            .get_storage_value("Elections", "MembersPerSession", None)
-            .expect("Failed to decode MembersPerSession extrinsic!")
+            .get_storage_value("Elections", "CommitteeSize", None)
+            .expect("Failed to decode CommitteeSize extrinsic!")
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed to obtain MembersPerSession for session {}.",
+                    "Failed to obtain CommitteeSize for session {}.",
                     session
                 )
             });
