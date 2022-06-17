@@ -54,6 +54,8 @@ echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 ## --- DEPLOY TOKEN CONTRACT
 cd $CONTRACTS_PATH/button_token
 link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+
+# TODO : hexToWASM
 rm target/ink/button_token.wasm
 
 # CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
