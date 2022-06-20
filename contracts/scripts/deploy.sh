@@ -19,6 +19,7 @@ function link_bytecode() {
 NODE=ws://127.0.0.1:9943
 
 ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+ALICE_HEX=b64a6f4c3b5f102473c0e7ce91e5b1a6f13818a800bf3e9087ae15a5ecfa7d39
 ALICE_SEED=//Alice
 
 NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
@@ -27,6 +28,10 @@ NODE0_SEED=//0
 LIFETIME=5
 TOTAL_BALANCE=1000
 GAME_BALANCE=900
+
+ADMIN=00
+OWNER=01
+INITIALIZER=02
 
 CONTRACTS_PATH=$(pwd)/contracts
 
@@ -67,8 +72,12 @@ echo "button token contract address: " $BUTTON_TOKEN
 echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
 ## --- GRANT PRIVILEDGES
+cd $CONTRACTS_PATH/access_control
 
 # alice is owner of the access-controller contract
+# TODO : fails 
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE,$OWNER$ACCESS_CONTROL_PUBKEY --suri $ALICE_SEED
+
 # alice is initializer of the button-token contract
 
 
