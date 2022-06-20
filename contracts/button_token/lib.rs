@@ -30,7 +30,7 @@ mod button_token {
         /// Mapping of the token amount which an account is allowed to withdraw
         /// from another account.
         allowances: Mapping<(AccountId, AccountId), Balance>,
-        /// access control
+        /// access control contract
         access_control: AccountId,
     }
 

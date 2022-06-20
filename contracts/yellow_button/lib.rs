@@ -8,6 +8,8 @@ use ink_lang as ink;
 /// Pressiah gets 50% of tokens
 /// the game is played until TheButton dies
 
+// TODO: getter / setter for access-controll
+
 #[ink::contract]
 mod yellow_button {
 
@@ -113,6 +115,8 @@ mod yellow_button {
         button_token: AccountId,
         /// accounts whitelisted to play the game
         can_play: Mapping<AccountId, bool>,
+        /// access control contract
+        access_control: AccountId,
     }
 
     /// Event emitted when TheButton is pressed
@@ -156,7 +160,7 @@ mod yellow_button {
         player: AccountId,
     }
 
-    /// Even emitted when button death is triggered    
+    /// Even emitted when button death is triggered
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonDeath {
@@ -228,28 +232,15 @@ mod yellow_button {
         #[ink(constructor)]
         pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
             let caller = Self::env().caller();
+            let code_hash = Self::env()
+                .own_code_hash()
+                .expect("Called new on a contract with no code hash");
 
-            // can caller initialize the contract
-            if let Ok(code_hash) = Self::env().own_code_hash() {
-                match build_call::<DefaultEnvironment>()
-                    .call_type(Call::new().callee(AccountId::from(ACCESS_CONTROL_PUBKEY)))
-                    .exec_input(
-                        ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
-                            .push_arg(caller)
-                            .push_arg(Role::Initializer(code_hash)),
-                    )
-                    .returns::<bool>()
-                    .fire()
-                {
-                    Ok(true) => ink_lang::utils::initialize_contract(|contract| {
-                        Self::new_init(contract, button_token, button_lifetime)
-                    }),
-                    Ok(false) => panic!("Caller is missing a role"),
-                    Err(why) => panic!("AccessControl call has failed {:?}", why),
-                }
-            } else {
-                // we should never get here
-                panic!("contract has no code hash");
+            match Self::check_role(caller, Role::Initializer(code_hash)) {
+                Ok(_) => ink_lang::utils::initialize_contract(|contract| {
+                    Self::new_init(contract, button_token, button_lifetime)
+                }),
+                Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
 
@@ -257,6 +248,7 @@ mod yellow_button {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
+            self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.is_dead = false;
             self.last_press = now;
             self.button_lifetime = button_lifetime;
@@ -324,7 +316,7 @@ mod yellow_button {
             Ok(())
         }
 
-        fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
+        fn check_role(account: AccountId, role: Role) -> Result<()> {
             match build_call::<DefaultEnvironment>()
                 .call_type(Call::new().callee(AccountId::from(ACCESS_CONTROL_PUBKEY)))
                 .exec_input(
@@ -340,7 +332,7 @@ mod yellow_button {
                     false => Err(Error::MissingRole),
                 },
                 Err(why) => Err(Error::ContractCall(format!(
-                    "Calling access controller has failed: {:?}",
+                    "Calling access control has failed: {:?}",
                     why,
                 ))),
             }
