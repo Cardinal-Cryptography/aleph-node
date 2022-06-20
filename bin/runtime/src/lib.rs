@@ -361,6 +361,12 @@ impl pallet_session::historical::Config for Runtime {
     type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
 }
 
+impl pallet_offences::Config for Runtime {
+    type Event = Event;
+    type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+    type OnOffenceHandler = Staking;
+}
+
 parameter_types! {
     pub const PostUnbondPoolsWindow: u32 = 4;
     pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
@@ -720,6 +726,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
+        Offences: pallet_offences,
     }
 );
 
