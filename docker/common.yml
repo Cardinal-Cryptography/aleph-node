@@ -19,7 +19,6 @@ services:
       # key derived from "//0"
       - BASE_PATH=/data/5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
       - NODE_KEY_PATH=/data/5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH/p2p_secret
-      - BACKUP_PATH=/data/5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH/backup-stash
 
   AlephNonBootNode:
     extends: AlephNodeService
