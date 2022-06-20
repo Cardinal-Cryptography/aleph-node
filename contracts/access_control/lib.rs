@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use crate::access_control::{Role, HAS_ROLE_SELECTOR};
 use ink_lang as ink;
 
 #[ink::contract]
@@ -12,7 +13,9 @@ mod access_control {
     };
     use scale::{Decode, Encode};
 
-    #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout)]
+    pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
+
+    #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
     #[cfg_attr(
         feature = "std",
         derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
@@ -161,7 +164,7 @@ mod access_control {
         use ink_lang as ink;
 
         #[ink::test]
-        fn play_the_game() {
+        fn access_control() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
             let alice = accounts.alice;

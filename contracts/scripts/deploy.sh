@@ -19,7 +19,7 @@ function link_bytecode() {
 NODE=ws://127.0.0.1:9943
 
 ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-ALICE_HEX=b64a6f4c3b5f102473c0e7ce91e5b1a6f13818a800bf3e9087ae15a5ecfa7d39
+ALICE_HEX=d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
 ALICE_SEED=//Alice
 
 NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
@@ -28,10 +28,6 @@ NODE0_SEED=//0
 LIFETIME=5
 TOTAL_BALANCE=1000
 GAME_BALANCE=900
-
-ADMIN=00
-OWNER=01
-INITIALIZER=02
 
 CONTRACTS_PATH=$(pwd)/contracts
 
@@ -68,26 +64,30 @@ CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTA
 BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
 
+# echo "$CONTRACT" | grep hash
+
 echo "button token contract address: " $BUTTON_TOKEN
 echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
 ## --- GRANT PRIVILEDGES
 cd $CONTRACTS_PATH/access_control
 
-# alice is owner of the access-controller contract
-# TODO : fails 
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE,$OWNER$ACCESS_CONTROL_PUBKEY --suri $ALICE_SEED
-
 # alice is initializer of the button-token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE  'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
 
+# alice is an admin of the button-token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE  'Admin('$BUTTON_TOKEN')' --suri $ALICE_SEED
 
-# ## --- DEPLOY GAME CONTRACT
-# cd $CONTRACTS_PATH/yellow_button
+## --- DEPLOY GAME CONTRACT
+cd $CONTRACTS_PATH/yellow_button
+link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/yellow_button.wasm
+node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
 
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
-# YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
+YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-# echo "game contract address: " $YELLOW_BUTTON
+echo "game contract address: " $YELLOW_BUTTON
 
 # ## --- TRANSFER BALANCE TO THE GAME CONTRACT
 

@@ -18,7 +18,7 @@ mod button_token {
     pub const TRANSFER_SELECTOR: [u8; 4] = [0, 0, 0, 4];
 
     // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
-    pub const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
+    const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -84,7 +84,6 @@ mod button_token {
             })
         }
 
-        // TODO : init access controller
         /// Default initializes the contract with the specified initial supply.
         fn new_init(&mut self, initial_supply: Balance) {
             let caller = Self::env().caller();

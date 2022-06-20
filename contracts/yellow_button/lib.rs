@@ -11,14 +11,17 @@ use ink_lang as ink;
 #[ink::contract]
 mod yellow_button {
 
+    use access_control::{Role, HAS_ROLE_SELECTOR};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         DefaultEnvironment, Error as InkEnvError,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{string::String, vec::Vec};
+    use ink_prelude::{format, string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
+
+    const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
 
     /// Error types
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -30,10 +33,10 @@ mod yellow_button {
         AfterDeadline,
         /// Account not whitelisted to play
         NotWhitelisted,
-        /// Returned when an account which is not the owner calls a method with access control
-        NotOwner,
         /// Returned if a call to another contract has failed
         ContractCall(String),
+        /// Returned if a call is made from an account with missing access conrol priviledges
+        MissingRole,
     }
 
     /// Result type
@@ -92,8 +95,6 @@ mod yellow_button {
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct YellowButton {
-        /// contract owner
-        owner: AccountId,
         /// How long does TheButton live for?
         button_lifetime: u32,
         /// is The Button dead
@@ -222,27 +223,52 @@ mod yellow_button {
         }
 
         /// Constructor
+        ///
+        /// Will revert with CalleeTrapped if called from an account without proper access control priviledges
         #[ink(constructor)]
         pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
-            ink_lang::utils::initialize_contract(|contract: &mut Self| {
-                let now = Self::env().block_number();
-                let caller = Self::env().caller();
-                let deadline = now + button_lifetime;
+            let caller = Self::env().caller();
 
-                contract.owner = caller;
-                contract.is_dead = false;
-                contract.last_press = now;
-                contract.button_lifetime = button_lifetime;
-                contract.button_token = button_token;
+            // can caller initialize the contract
+            if let Ok(code_hash) = Self::env().own_code_hash() {
+                match build_call::<DefaultEnvironment>()
+                    .call_type(Call::new().callee(AccountId::from(ACCESS_CONTROL_PUBKEY)))
+                    .exec_input(
+                        ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
+                            .push_arg(caller)
+                            .push_arg(Role::Initializer(code_hash)),
+                    )
+                    .returns::<bool>()
+                    .fire()
+                {
+                    Ok(true) => ink_lang::utils::initialize_contract(|contract| {
+                        Self::new_init(contract, button_token, button_lifetime)
+                    }),
+                    Ok(false) => panic!("Caller is missing a role"),
+                    Err(why) => panic!("AccessControl call has failed {:?}", why),
+                }
+            } else {
+                // we should never get here
+                panic!("contract has no code hash");
+            }
+        }
 
-                let event = Event::ButtonCreated(ButtonCreated {
-                    start: now,
-                    deadline,
-                    button_token,
-                });
+        fn new_init(&mut self, button_token: AccountId, button_lifetime: u32) {
+            let now = Self::env().block_number();
+            let deadline = now + button_lifetime;
 
-                Self::emit_event(Self::env(), event)
-            })
+            self.is_dead = false;
+            self.last_press = now;
+            self.button_lifetime = button_lifetime;
+            self.button_token = button_token;
+
+            let event = Event::ButtonCreated(ButtonCreated {
+                start: now,
+                deadline,
+                button_token,
+            });
+
+            Self::emit_event(Self::env(), event)
         }
 
         fn transfer_tx(&self, to: AccountId, value: u128) -> core::result::Result<(), InkEnvError> {
@@ -298,14 +324,55 @@ mod yellow_button {
             Ok(())
         }
 
+        fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
+            match build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(AccountId::from(ACCESS_CONTROL_PUBKEY)))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
+                        .push_arg(account)
+                        .push_arg(role),
+                )
+                .returns::<bool>()
+                .fire()
+            {
+                Ok(has_role) => match has_role {
+                    true => Ok(()),
+                    false => Err(Error::MissingRole),
+                },
+                Err(why) => Err(Error::ContractCall(format!(
+                    "Calling access controller has failed: {:?}",
+                    why,
+                ))),
+            }
+        }
+
         /// Whitelists given AccountId to participate in the game
         ///
         /// returns an error if called by someone else but the owner
         #[ink(message)]
         pub fn allow(&mut self, player: AccountId) -> Result<()> {
-            if Self::env().caller() != self.owner {
-                return Err(Error::NotOwner);
-            }
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Admin(this);
+
+            // match build_call::<DefaultEnvironment>()
+            //     .call_type(Call::new().callee(AccountId::from(ACCESS_CONTROL_PUBKEY)))
+            //     .exec_input(
+            //         ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
+            //             .push_arg(caller)
+            //             .push_arg(required_role),
+            //     )
+            //     .returns::<bool>()
+            //     .fire()?
+            // {
+            //     false => Err(Error::MissingRole),
+            //     true => {
+            //         self.can_play.insert(player, &true);
+            //         let event = Event::AccountWhitelisted(AccountWhitelisted { player });
+            //         Self::emit_event(self.env(), event);
+            //         Ok(())
+            //     }
+            // }
 
             self.can_play.insert(player, &true);
             let event = Event::AccountWhitelisted(AccountWhitelisted { player });
@@ -318,9 +385,9 @@ mod yellow_button {
         /// returns an error if called by someone else but the owner
         #[ink(message)]
         pub fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
-            if Self::env().caller() != self.owner {
-                return Err(Error::NotOwner);
-            }
+            // if Self::env().caller() != self.owner {
+            //     return Err(Error::NotOwner);
+            // }
 
             for player in players {
                 Self::allow(self, player)?;
@@ -334,10 +401,10 @@ mod yellow_button {
         /// returns an error if called by someone else but the owner
         #[ink(message)]
         pub fn disallow(&mut self, player: AccountId) -> Result<()> {
-            let caller = Self::env().caller();
-            if caller != self.owner {
-                return Err(Error::NotOwner);
-            }
+            let caller = self.env().caller();
+            // if caller != self.owner {
+            //     return Err(Error::NotOwner);
+            // }
             self.can_play.insert(player, &false);
             Ok(())
         }
@@ -348,29 +415,29 @@ mod yellow_button {
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            if caller != self.owner {
-                return Err(Error::NotOwner);
-            }
+            // if caller != self.owner {
+            //     return Err(Error::NotOwner);
+            // }
 
             self.env().terminate_contract(caller)
         }
 
-        /// Transfers ownership of the contract to a new account
-        ///
-        /// Can only be called by the current owner
-        #[ink(message)]
-        pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
-            let caller = Self::env().caller();
-            if caller != self.owner {
-                return Err(Error::NotOwner);
-            }
-            self.owner = to;
+        // /// Transfers ownership of the contract to a new account
+        // ///
+        // /// Can only be called by the current owner
+        // #[ink(message)]
+        // pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
+        //     let caller = Self::env().caller();
+        //     // if caller != self.owner {
+        //     //     return Err(Error::NotOwner);
+        //     // }
+        //     // self.owner = to;
 
-            let event = Event::OwnershipTransferred(OwnershipTransferred { from: caller, to });
-            Self::emit_event(self.env(), event);
+        //     let event = Event::OwnershipTransferred(OwnershipTransferred { from: caller, to });
+        //     Self::emit_event(self.env(), event);
 
-            Ok(())
-        }
+        //     Ok(())
+        // }
 
         /// Button press logic
         #[ink(message)]
