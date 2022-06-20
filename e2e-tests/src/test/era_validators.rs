@@ -13,38 +13,46 @@ use substrate_api_client::{AccountId, XtStatus};
 
 #[derive(Decode)]
 struct EraValidators {
-    pub _reserved: Vec<AccountId>,
+    pub reserved: Vec<AccountId>,
     pub non_reserved: Vec<AccountId>,
 }
 
-fn get_reserved_validators(config: &Config) -> Vec<KeyPair> {
-    get_validators_keys(config)[..1].to_vec()
+fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[..2].to_vec()
 }
 
 fn get_initial_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
-    get_validators_keys(config)[1..4].to_vec()
-}
-
-fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[2..].to_vec()
 }
 
-fn get_pallets_non_reserved(
+fn get_new_reserved_validators(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[3..].to_vec()
+}
+
+fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
+    get_validators_keys(config)[..3].to_vec()
+}
+
+fn get_pallets_validators(
     connection: &SignedConnection,
-) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>, Vec<AccountId>, Vec<AccountId>)> {
+    let stored_reserved: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "NextEraReservedValidators", None)?
+        .expect("Validator storage values should be present in pallet Elections.");
     let stored_non_reserved: Vec<AccountId> = connection
         .as_connection()
         .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
         .expect("Validator storage values should be present in pallet Elections.");
-    let era_validators: EraValidators = connection
+    let eras_validators: EraValidators = connection
         .as_connection()
         .get_storage_value("Elections", "CurrentEraValidators", None)?
         .expect("Validator storage values should be present in pallet Elections.");
 
-    Ok((stored_non_reserved, era_validators.non_reserved))
+    Ok((stored_reserved, eras_validators.reserved, stored_non_reserved, eras_validators.non_reserved))
 }
 
-pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
+pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     let node = &config.node;
     let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
@@ -54,7 +62,7 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     let root_connection = RootConnection::new(node, sudo);
 
-    let reserved_validators: Vec<_> = get_reserved_validators(config)
+    let initial_reserved_validators: Vec<_> = get_initial_reserved_validators(config)
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
@@ -68,10 +76,14 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
         .iter()
         .map(|pair| AccountId::from(pair.public()))
         .collect();
+    let new_reserved_validators: Vec<_> = get_new_reserved_validators(config)
+        .iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect();
 
     change_validators(
         &root_connection,
-        Some(reserved_validators.clone()),
+        Some(initial_reserved_validators.clone()),
         Some(initial_non_reserved_validators.clone()),
         Some(4),
         XtStatus::InBlock,
@@ -80,7 +92,7 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     change_validators(
         &root_connection,
-        Some(reserved_validators),
+        Some(new_reserved_validators.clone()),
         Some(new_non_reserved_validators.clone()),
         Some(4),
         XtStatus::InBlock,
@@ -89,7 +101,16 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
     let current_session = get_current_session(&connection);
     wait_for_session(&connection, current_session + 1)?;
 
-    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
+    let (stored_reserved, eras_reserved, stored_non_reserved, eras_non_reserved) = get_pallets_validators(&connection)?;
+
+    assert_eq!(
+        stored_reserved, new_reserved_validators,
+        "Reserved validators' storage not properly updated after change_validators."
+    );
+    assert_eq!(
+        eras_reserved, initial_reserved_validators,
+        "Reserved validators set has been updated too early."
+    );
 
     assert_eq!(
         stored_non_reserved, new_non_reserved_validators,
@@ -102,7 +123,16 @@ pub fn change_non_reserved(config: &Config) -> anyhow::Result<()> {
 
     wait_for_next_era(&connection)?;
 
-    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
+    let (stored_reserved, eras_reserved, stored_non_reserved, eras_non_reserved) = get_pallets_validators(&connection)?;
+
+    assert_eq!(
+        stored_reserved, new_reserved_validators,
+        "Reserved validators' storage not properly updated after change_validators."
+    );
+    assert_eq!(
+        eras_reserved, new_reserved_validators,
+        "Reserved validators set is not properly updated in the next era."
+    );
 
     assert_eq!(
         stored_non_reserved, new_non_reserved_validators,

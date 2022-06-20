@@ -1,7 +1,7 @@
 pub use era_payout::era_payouts_calculated_correctly;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
-pub use non_reserved_change::change_non_reserved;
+pub use era_validators::era_validators;
 pub use staking::{staking_era_payouts, staking_new_validator};
 pub use transfer::token_transfer;
 pub use treasury::{channeling_fee_and_tip, treasury_access};
@@ -12,7 +12,7 @@ pub use validators_rotate::validators_rotate;
 mod era_payout;
 mod fee;
 mod finalization;
-mod non_reserved_change;
+mod era_validators;
 mod staking;
 mod transfer;
 mod treasury;
