@@ -13,6 +13,7 @@ services:
       - DISCOVER_LOCAL=true
       - NAME=Smartnode
       - NODE_KEY_PATH=/data/$NODE_ID/p2p_secret
+      - BACKUP_PATH=/data/$NODE_ID/backup-stash
       - PORT=30333
       - PURGE_BEFORE_START=true
       - RPC_PORT=9933
