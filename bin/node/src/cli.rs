@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand as ClapSubcommand};
 use sc_cli::{ChainSpec, RunCmd, RuntimeVersion, SubstrateCli};
 
 #[derive(Debug, Parser)]
+#[clap(subcommand_negates_reqs(true))]
 pub struct Cli {
     #[clap(subcommand)]
     pub subcommand: Option<Subcommand>,
