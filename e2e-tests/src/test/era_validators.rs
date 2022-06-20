@@ -33,18 +33,24 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..3].to_vec()
 }
 
-fn get_pallets_validators(
+fn get_pallets_reserved(
     connection: &SignedConnection,
-) -> anyhow::Result<(
-    Vec<AccountId>,
-    Vec<AccountId>,
-    Vec<AccountId>,
-    Vec<AccountId>,
-)> {
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_reserved: Vec<AccountId> = connection
         .as_connection()
         .get_storage_value("Elections", "NextEraReservedValidators", None)?
         .expect("Validator storage values should be present in pallet Elections.");
+    let eras_validators: EraValidators = connection
+        .as_connection()
+        .get_storage_value("Elections", "CurrentEraValidators", None)?
+        .expect("Validator storage values should be present in pallet Elections.");
+
+    Ok((stored_reserved, eras_validators.reserved))
+}
+
+fn get_pallets_non_reserved(
+    connection: &SignedConnection,
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_non_reserved: Vec<AccountId> = connection
         .as_connection()
         .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
@@ -54,12 +60,7 @@ fn get_pallets_validators(
         .get_storage_value("Elections", "CurrentEraValidators", None)?
         .expect("Validator storage values should be present in pallet Elections.");
 
-    Ok((
-        stored_reserved,
-        eras_validators.reserved,
-        stored_non_reserved,
-        eras_validators.non_reserved,
-    ))
+    Ok((stored_non_reserved, eras_validators.non_reserved))
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {
@@ -111,8 +112,8 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     let current_session = get_current_session(&connection);
     wait_for_session(&connection, current_session + 1)?;
 
-    let (stored_reserved, eras_reserved, stored_non_reserved, eras_non_reserved) =
-        get_pallets_validators(&connection)?;
+    let (stored_reserved, eras_reserved) = get_pallets_reserved(&connection)?;
+    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -134,8 +135,8 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
 
     wait_for_next_era(&connection)?;
 
-    let (stored_reserved, eras_reserved, stored_non_reserved, eras_non_reserved) =
-        get_pallets_validators(&connection)?;
+    let (stored_reserved, eras_reserved) = get_pallets_reserved(&connection)?;
+    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
