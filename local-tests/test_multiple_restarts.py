@@ -30,17 +30,10 @@ chain.set_flags(port=Seq(30334),
 
 chain.set_flags_validator('validator')
 
-# AlephBFT needs to know the address up front, otherwise it waits for a while
-# and retries; and while the retry does succeed, that's time we don't want to
-# take.
-for node in chain:
-	port = node.flags['port']
-	node.flags['public-addr'] = f'/ip4/127.0.0.1/tcp/{port}'
-
 print('Starting the chain')
 chain.start('aleph')
 
-for run_duration, stop_duration, catch_up_duration in [[120, 20, 30], [5, 15, 20], [5, 15, 20]]:
+for run_duration, stop_duration, catch_up_duration in [[150, 20, 30], [5, 15, 20], [5, 15, 20]]:
 	print(f'Waiting {run_duration}s')
 	sleep(run_duration)
 
