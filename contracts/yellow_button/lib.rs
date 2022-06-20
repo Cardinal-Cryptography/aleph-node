@@ -8,7 +8,7 @@ use ink_lang as ink;
 /// Pressiah gets 50% of tokens
 /// the game is played until TheButton dies
 
-// TODO: getter / setter for access-controll
+// TODO: getter / setter for access-control
 
 #[ink::contract]
 mod yellow_button {

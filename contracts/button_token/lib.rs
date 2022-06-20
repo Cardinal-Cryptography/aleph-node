@@ -1,10 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::button_token::{
-    ButtonToken, ButtonTokenRef, Event, ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR,
-    TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
+    Event, ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
 };
 use ink_lang as ink;
+
+// TODO: setter for access-control
 
 #[ink::contract]
 mod button_token {
