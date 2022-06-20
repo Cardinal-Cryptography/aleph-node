@@ -15,10 +15,12 @@ pub use scheduler::{
     JustificationRequestScheduler, JustificationRequestSchedulerImpl, SchedulerActions,
 };
 
-/// A proof of block finality, currently in the form of a sufficiently long list of signatures.
+/// A proof of block finality, currently in the form of a sufficiently long list of signatures or a
+/// sudo signature of a block for emergency finalization.
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
-pub struct AlephJustification {
-    pub signature: SignatureSet<Signature>,
+pub enum AlephJustification {
+    CommitteeMultisignature(SignatureSet<Signature>),
+    //SudoSignature(TODOFigureOutType),
 }
 
 pub trait Verifier<B: BlockT> {

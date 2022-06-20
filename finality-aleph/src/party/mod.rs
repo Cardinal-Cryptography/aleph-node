@@ -44,9 +44,11 @@ mod task;
 
 impl<B: Block> Verifier<B> for AuthorityVerifier {
     fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
-        if !self.is_complete(&hash.encode()[..], &justification.signature) {
-            warn!(target: "aleph-justification", "Bad justification for block hash #{:?} {:?}", hash, justification);
-            return false;
+        match justification {
+            AlephJustification::CommitteeMultisignature(multisignature) => if !self.is_complete(&hash.encode()[..], multisignature) {
+                warn!(target: "aleph-justification", "Bad multisignature for block hash #{:?} {:?}", hash, multisignature);
+                return false;
+            },
         }
         true
     }

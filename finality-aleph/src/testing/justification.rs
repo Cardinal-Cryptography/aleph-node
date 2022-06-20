@@ -44,9 +44,7 @@ type Environment = (
 
 fn create_justification_notification_for(block: TBlock) -> JustificationNotification<TBlock> {
     JustificationNotification {
-        justification: AlephJustification {
-            signature: SignatureSet::with_size(0.into()),
-        },
+        justification: AlephJustification::CommitteeMultisignature(SignatureSet::with_size(0.into())),
         hash: block.hash(),
         number: block.header.number,
     }
