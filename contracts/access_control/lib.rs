@@ -19,7 +19,7 @@ mod access_control {
     )]
     pub enum Role {
         /// Indicates a superuser.
-        Admin,
+        Admin(AccountId),
         /// Indicates account can terminate a contract.
         Owner(AccountId),
         /// Indicates account can initialize a contract from a given code hash.
@@ -77,10 +77,12 @@ mod access_control {
 
         /// Initializes the contract.
         ///
-        /// caller is granted admin piviledges
+        /// caller is granted admin and owner piviledges
         fn new_init(&mut self) {
             let caller = Self::env().caller();
-            self.priviledges.insert((caller, Role::Admin), &());
+            let this = self.env().account_id();
+            self.priviledges.insert((caller, Role::Admin(this)), &());
+            self.priviledges.insert((caller, Role::Owner(this)), &());
         }
 
         // TODO : no-op if role exists?
@@ -90,7 +92,8 @@ mod access_control {
         /// Can only be called by an admin role on this contract                
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
-            self.check_role(caller, Role::Admin)?;
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
             self.priviledges.insert((account, role), &());
 
             let event = Event::RoleGranted(RoleGranted {
@@ -109,7 +112,8 @@ mod access_control {
         /// Can only be called by an admin role on this contract        
         pub fn revoke_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
-            self.check_role(caller, Role::Admin)?;
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
             self.priviledges.remove((account, role));
 
             let event = Event::RoleRevoked(RoleRevoked {
@@ -148,6 +152,69 @@ mod access_control {
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use ink_lang as ink;
+
+        #[ink::test]
+        fn play_the_game() {
+            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+
+            let alice = accounts.alice;
+            let bob = accounts.alice;
+            let charlie = accounts.charlie;
+
+            let contract_address = accounts.django; //AccountId::from([0xF9; 32]);
+
+            // alice deploys the access control contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+            let mut access_control = AccessControl::new();
+
+            // alice should be admin
+            assert!(
+                access_control.has_role(alice, Role::Admin(contract_address)),
+                "deployer is not admin"
+            );
+
+            // alice should be owner
+            assert!(
+                access_control.has_role(alice, Role::Owner(contract_address)),
+                "deployer is not admin"
+            );
+
+            // alice grants admin rights to bob
+            assert!(
+                access_control
+                    .grant_role(bob, Role::Admin(contract_address))
+                    .is_ok(),
+                "Alice's grant_role call failed"
+            );
+
+            assert!(
+                access_control.has_role(bob, Role::Admin(contract_address)),
+                "Bob is not admin"
+            );
+
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+
+            // bob grants admin rights to charlier
+            assert!(
+                access_control
+                    .grant_role(charlie, Role::Admin(contract_address))
+                    .is_ok(),
+                "Bob's grant_role by call failed"
+            );
+
+            assert!(
+                access_control.has_role(charlie, Role::Admin(contract_address)),
+                "Charlie is not admin"
+            );
         }
     }
 }
