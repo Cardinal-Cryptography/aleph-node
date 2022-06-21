@@ -10,7 +10,13 @@ use ink_lang as ink;
 #[ink::contract]
 mod button_token {
 
-    use ink_lang::reflect::ContractEventBase;
+    use access_control::{Role, HAS_ROLE_SELECTOR};
+    use ink_env::{
+        call::{build_call, Call, ExecutionInput, Selector},
+        DefaultEnvironment,
+    };
+    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
+    use ink_prelude::{format, string::String};
     use ink_storage::{traits::SpreadAllocate, Mapping};
 
     pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
@@ -65,24 +71,44 @@ mod button_token {
         InsufficientBalance,
         /// Returned if not enough allowance to fulfill a request is available.
         InsufficientAllowance,
-        // Returned when an account which is not the access_control calls a method with access control
-        // NotAccess_Control,
+        /// Returned if a call to another contract has failed
+        ContractCall(String),
+        /// Returned if a call is made from an account with missing access conrol priviledges
+        MissingRole, // TODO MissingRole(Role)
     }
 
-    /// Result type    
+    /// Result type
     pub type Result<T> = core::result::Result<T, Error>;
     /// Event type
     pub type Event = <ButtonToken as ContractEventBase>::Type;
 
     impl ButtonToken {
         /// Creates a new contract with the specified initial supply.
+        ///
+        /// Will revert if called from an account without a proper role
         #[ink(constructor)]
         pub fn new(initial_supply: Balance) -> Self {
-            // This call is required in order to correctly initialize the
-            // `Mapping`s of our contract.
-            ink_lang::utils::initialize_contract(|contract| {
-                Self::new_init(contract, initial_supply)
-            })
+            let caller = Self::env().caller();
+            let code_hash = Self::env()
+                .own_code_hash()
+                .expect("Called new on a contract with no code hash");
+            let required_role = Role::Initializer(code_hash);
+
+            match Self::do_check_role(
+                AccountId::from(ACCESS_CONTROL_PUBKEY),
+                caller,
+                required_role,
+            ) {
+                Ok(_) =>
+                // This call is required in order to correctly initialize the
+                // `Mapping`s of our contract.
+                {
+                    ink_lang::utils::initialize_contract(|contract| {
+                        Self::new_init(contract, initial_supply)
+                    })
+                }
+                Err(why) => panic!("Could not initialize the contract {:?}", why),
+            }
         }
 
         /// Default initializes the contract with the specified initial supply.
@@ -91,16 +117,19 @@ mod button_token {
 
             self.balances.insert(&caller, &initial_supply);
             self.total_supply = initial_supply;
-
-            // let from_adr = AccountId::new(ADDR);
-
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
-            Self::env().emit_event(Transfer {
+            let event = Event::Transfer(Transfer {
                 from: None,
                 to: caller,
                 value: initial_supply,
             });
+
+            Self::emit_event(Self::env(), event)
+        }
+
+        fn emit_event<EE: EmitEvent<ButtonToken>>(emitter: EE, event: Event) {
+            emitter.emit_event(event);
         }
 
         /// Returns the total token supply.
@@ -177,11 +206,14 @@ mod button_token {
         pub fn approve(&mut self, spender: AccountId, value: Balance) -> Result<()> {
             let access_control = self.env().caller();
             self.allowances.insert((&access_control, &spender), &value);
-            self.env().emit_event(Approval {
+
+            let event = Event::Approval(Approval {
                 access_control,
                 spender,
                 value,
             });
+            Self::emit_event(self.env(), event);
+
             Ok(())
         }
 
@@ -239,11 +271,14 @@ mod button_token {
             self.balances.insert(from, &(from_balance - value));
             let to_balance = self.balance_of_impl(to);
             self.balances.insert(to, &(to_balance + value));
-            self.env().emit_event(Transfer {
+
+            let event = Event::Transfer(Transfer {
                 from: Some(*from),
                 to: *to,
                 value,
             });
+            Self::emit_event(self.env(), event);
+
             Ok(())
         }
 
@@ -253,36 +288,63 @@ mod button_token {
         #[ink(message, selector = 7)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            // TODO : check access control
-            // if caller != self.access_control {
-            //     return Err(Error::NotAccess_Control);
-            // }
+            let this = self.env().account_id();
+            let required_role = Role::Owner(this);
+
+            self.check_role(caller, required_role)?;
 
             self.env().terminate_contract(caller)
         }
 
-        // /// Transfers access_controlship of the contract to a new account
-        // ///
-        // /// Can only be called by the current access_control
-        // #[ink(message, selector = 8)]
-        // pub fn transfer_access_controlship(&mut self, to: AccountId) -> Result<()> {
-        //     let caller = Self::env().caller();
-        //     if caller != self.access_control {
-        //         return Err(Error::NotAccess_Control);
-        //     }
-        //     self.access_control = to;
-        //     self.env()
-        //         .emit_event(Access_ControlshipTransferred { from: caller, to });
-        //     Ok(())
-        // }
-
-        /// Returns the contract's access_control contract address
+        /// Returns the contract's access control contract address
         #[ink(message, selector = 8)]
         pub fn access_control(&self) -> AccountId {
             self.access_control
         }
+
+        fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
+            Self::do_check_role(self.access_control, account, role)
+        }
+
+        fn do_check_role(access_control: AccountId, account: AccountId, role: Role) -> Result<()> {
+            match build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(access_control))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
+                        .push_arg(account)
+                        .push_arg(role),
+                )
+                .returns::<bool>()
+                .fire()
+            {
+                Ok(has_role) => match has_role {
+                    true => Ok(()),
+                    false => Err(Error::MissingRole),
+                },
+                Err(why) => Err(Error::ContractCall(format!(
+                    "Calling access control has failed: {:?}",
+                    why,
+                ))),
+            }
+        }
+
+        /// Sets new access control contact address
+        ///
+        /// Can only be called by the contract owner
+        #[ink(message)]
+        pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Owner(this);
+
+            self.check_role(caller, required_role)?;
+
+            self.access_control = access_control;
+            Ok(())
+        }
     }
 
+    /*
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -548,39 +610,5 @@ mod button_token {
             result.as_mut()[0..copy_len].copy_from_slice(&hash_output[0..copy_len]);
             result
         }
-
-        #[ink::test]
-        fn access_controlship_tests() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
-
-            let alice = accounts.alice;
-            let bob = accounts.bob;
-
-            let erc20_address = accounts.frank;
-
-            // alice deploys the contract
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(erc20_address);
-            let mut erc20 = ButtonToken::new(1000);
-
-            assert_eq!(
-                erc20.access_control(),
-                alice,
-                "Wrong initial access_control AccountId"
-            );
-
-            // alice transfers contract access_controlship to bob
-
-            assert!(
-                erc20.transfer_access_controlship(bob).is_ok(),
-                "Access_Controlship transfer failed"
-            );
-
-            assert_eq!(
-                erc20.access_control(),
-                bob,
-                "Wrong new access_control AccountId"
-            );
-        }
-    }
+    }*/
 }
