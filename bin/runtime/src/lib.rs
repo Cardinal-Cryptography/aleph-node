@@ -6,8 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-mod chain_extension;
-
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -54,8 +52,6 @@ use primitives::{
 };
 
 pub use pallet_balances::Call as BalancesCall;
-
-use chain_extension::ContractsOwnerInfoOf;
 use pallet_contracts::weights::WeightInfo;
 use pallet_contracts_primitives::{
     CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
@@ -663,7 +659,7 @@ impl pallet_contracts::Config for Runtime {
     type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = ContractsOwnerInfoOf;
+    type ChainExtension = ();
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
