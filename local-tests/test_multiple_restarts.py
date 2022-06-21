@@ -26,14 +26,15 @@ chain.set_flags(port=Seq(30334),
                 ws_port=Seq(9944),
                 rpc_port=Seq(9933),
                 unit_creation_delay=200,
-                execution='Native')
+                execution='Native',
+				pruning='archive')
 
 chain.set_flags_validator('validator')
 
 print('Starting the chain')
 chain.start('aleph')
 
-for run_duration, stop_duration, catch_up_duration in [[150, 20, 30], [5, 15, 20], [5, 15, 20]]:
+for run_duration, stop_duration, catch_up_duration in [[150, 20, 30], [90, 15, 20], [5, 15, 20]]:
 	print(f'Waiting {run_duration}s')
 	sleep(run_duration)
 
