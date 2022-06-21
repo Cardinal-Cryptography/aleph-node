@@ -320,32 +320,10 @@ mod button_token {
             )
         }
 
-        // fn do_check_role(access_control: AccountId, account: AccountId, role: Role) -> Result<()> {
-        //     match build_call::<DefaultEnvironment>()
-        //         .call_type(Call::new().callee(access_control))
-        //         .exec_input(
-        //             ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
-        //                 .push_arg(account)
-        //                 .push_arg(role),
-        //         )
-        //         .returns::<bool>()
-        //         .fire()
-        //     {
-        //         Ok(has_role) => match has_role {
-        //             true => Ok(()),
-        //             false => Err(Error::MissingRole),
-        //         },
-        //         Err(why) => Err(Error::ContractCall(format!(
-        //             "Calling access control has failed: {:?}",
-        //             why,
-        //         ))),
-        //     }
-        // }
-
         /// Sets new access control contact address
         ///
         /// Can only be called by the contract owner
-        #[ink(message)]
+        #[ink(message, selector = 9)]
         pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();

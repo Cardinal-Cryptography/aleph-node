@@ -372,7 +372,7 @@ mod yellow_button {
         /// returns an error if called by someone else but the admin
         #[ink(message)]
         pub fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
-            // NOTE: access controll is done in evey allow call
+            // NOTE: access controll is done in every `allow` call
             for player in players {
                 Self::allow(self, player)?;
             }

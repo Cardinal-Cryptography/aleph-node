@@ -82,6 +82,7 @@ dependencies = [
  "ink_storage",
  "parity-scale-codec",
  "scale-info",
+ "shared",
 ]
 
 [[package]]

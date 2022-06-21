@@ -52,42 +52,49 @@ ACCESS_CONTROL_PUBKEY=$(subkey inspect $ACCESS_CONTROL | grep hex | cut -c 23- |
 echo "access control contract address: " $ACCESS_CONTROL
 echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 
+# TODO : upload and init in two txs
 ## --- DEPLOY TOKEN CONTRACT
-cd $CONTRACTS_PATH/button_token
-link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+# cd $CONTRACTS_PATH/button_token
+# link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
 
-rm target/ink/button_token.wasm
-# NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
-node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
+# rm target/ink/button_token.wasm
+# # NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
+# node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
-BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
+# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+# BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
 
-# echo "$CONTRACT" | grep hash
+# echo "button token contract address: " $BUTTON_TOKEN
+# echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
 
-echo "button token contract address: " $BUTTON_TOKEN
-echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
+# ## --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+# cd $CONTRACTS_PATH/access_control
 
-## --- GRANT PRIVILEDGES
-cd $CONTRACTS_PATH/access_control
+# # alice is the initializer of the button-token contract
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
+# # alice is the admin of the button-token contract
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BUTTON_TOKEN')' --suri $ALICE_SEED
 
-# alice is initializer of the button-token contract
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE  'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
+# # TODO : upload and init in two txs
+# ## --- DEPLOY GAME CONTRACT
+# cd $CONTRACTS_PATH/yellow_button
+# link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
 
-# alice is an admin of the button-token contract
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE  'Admin('$BUTTON_TOKEN')' --suri $ALICE_SEED
+# rm target/ink/yellow_button.wasm
+# node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
 
-## --- DEPLOY GAME CONTRACT
-cd $CONTRACTS_PATH/yellow_button
-link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
-rm target/ink/yellow_button.wasm
-node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
+# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
+# YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# YELLOW_BUTTON_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
-YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# echo "game contract address: " $YELLOW_BUTTON
 
-echo "game contract address: " $YELLOW_BUTTON
+# ## --- GRANT PRIVILEDGES ON THE GAME CONTRACT
+# cd $CONTRACTS_PATH/access_control
+
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$YELLOW_BUTTON_CODE_HASH')' --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$YELLOW_BUTTON')' --suri $ALICE_SEED
 
 # ## --- TRANSFER BALANCE TO THE GAME CONTRACT
 
