@@ -469,7 +469,7 @@ fn remove_session_backup(backup_path: Option<PathBuf>, session_id: u32) {
         Err(error) => {
             let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
             if error.kind() != io::ErrorKind::NotFound || dir_exists() {
-                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {:?}", session_id, error);
+                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, error);
             }
         }
     }

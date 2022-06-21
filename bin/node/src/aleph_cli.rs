@@ -9,8 +9,8 @@ pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
 
-	#[clap(long, value_name = "PRUNING_MODE", required = true)]
-	pub pruning: Option<String>,
+    #[clap(long, value_name = "PRUNING_MODE", required = true)]
+    pub pruning: Option<String>,
 
     /// This flags needs to be provided in case used does not want to create backups.
     /// In case `--no-backup`, node most likely will not be available to continue with the
