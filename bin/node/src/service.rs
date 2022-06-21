@@ -317,7 +317,6 @@ pub fn new_authority(
         justification_rx,
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
-        // TODO change it to base_path + backup_dir
         backup_saving_path: aleph_config.backup_path(),
     };
     task_manager.spawn_essential_handle().spawn_blocking(
@@ -381,7 +380,6 @@ pub fn new_full(
         justification_rx,
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
-        // TODO change it to base_path + backup_dir
         backup_saving_path: aleph_config.backup_path(),
     };
 

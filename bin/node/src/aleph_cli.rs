@@ -9,13 +9,21 @@ pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
 
+	#[clap(long, value_name = "PRUNING_MODE", required = true)]
+	pub pruning: Option<String>,
+
+    /// This flags needs to be provided in case used does not want to create backups.
+    /// In case `--no-backup`, node most likely will not be available to continue with the
+    /// session during which it crashed. It will join AlephBFT consensus in the next session.
     #[clap(long, conflicts_with = "backup-path", group = "backup")]
     no_backup: bool,
-    /// The directory to save created backups for crash recovery purposes.
+    /// The path to save created backups for crash recovery purposes.
     ///
-    /// Backups created by the node are saved under this directory. When restarted after a crash,
+    /// Backups created by the node are saved under this  path in a directory. When restarted after a crash,
     /// previously-created backups are read back from this directory first, helping prevent
-    /// auto-forks. The layout of the directory is unspecified.
+    /// auto-forks. The layout of the directory is unspecified. User is required to provide this path,
+    /// or explicitly say that no backups should be done by providing `--no-backup` flag.
+    /// In case no backups are c, node most likely will not be available to continue with the
     #[clap(
         long,
         value_name = "PATH",
