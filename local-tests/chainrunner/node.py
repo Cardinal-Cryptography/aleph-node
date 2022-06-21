@@ -48,6 +48,22 @@ class Node:
         cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
         subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
+    def rpc_port(self):
+        """Return RPC port for this node. The value is taken from `flags` dictionary.
+        Raises KeyError if not present."""
+        port = self.flags.get('rpc_port', self.flags.get('rpc-port'))
+        if port is None:
+            raise KeyError("RPC port unknown, please set rpc_port flag")
+        return port
+
+    def ws_port(self):
+        """Return WS port for this node. The value is taken from `flags` dictionary.
+        Raises KeyError if not present."""
+        port = self.flags.get('ws_port', self.flags.get('ws-port'))
+        if port is None:
+            raise KeyError("WS port unknown, please set ws_port flag")
+        return port
+
     def greplog(self, regexp):
         """Find in the logs all occurrences of the given regexp. Returns a list of matches."""
         if not self.logfile:
@@ -88,10 +104,7 @@ class Node:
         if not self.running:
             print("cannot RPC because node is not running")
             return None
-        port = self.flags.get('rpc_port', self.flags.get('rpc-port', -1))
-        if port == -1:
-            print("RPC port unknown, please set rpc_port flag")
-            return None
+        port = self.rpc_port()
         resp = requests.post(f'http://localhost:{port}/', json=rpc.request(method, params))
         return rpc.parse(resp.json())
 

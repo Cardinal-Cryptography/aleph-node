@@ -1,5 +1,6 @@
 import os
 import os.path as op
+import shutil
 import subprocess
 
 from .node import Node
@@ -154,3 +155,23 @@ class Chain:
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].purge()
+
+    def fork(self, forkoff_path, ws_endpoint):
+        """Replace the chainspec of this chain with the state forked from the given `ws_endpoint`.
+        This method should be run after bootstrapping the chain, but before starting it.
+        'forkoff_path' should be a path to fork-off binary."""
+        forked = op.join(self.path, 'forked.json')
+        cmd = [check_file(forkoff_path), '--ws-rpc-endpoint', ws_endpoint,
+                '--initial-spec-path', op.join(self.path, 'chainspec.json'),
+                '--snapshot-path', op.join(self.path, 'snapshot.json'),
+                '--combined-spec-path', forked]
+        subprocess.run(cmd, check=True)
+        self.set_chainspec(forked)
+
+    def update_runtime(self, cliain_path, sudo_phrase, runtime):
+        """Send set_code extrinsic with runtime update.
+        Requires a path to `cliain` binary, a path to new WASM runtime and the sudo phrase."""
+        port = self.nodes[0].ws_port()
+        cmd = [check_file(cliain_path), '--node', f'localhost:{port}', '--seed', sudo_phrase,
+                'update-runtime', '--runtime', check_file(runtime)]
+        subprocess.run(cmd, check=True)
