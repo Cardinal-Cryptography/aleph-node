@@ -14,13 +14,14 @@ frame-system = { default-features = false, git = "https://github.com/Cardinal-Cr
 pallet-balances = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 pallet-session = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+sp-staking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 
 primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 pallet-timestamp = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
-sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 
 [features]

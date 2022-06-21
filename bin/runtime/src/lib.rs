@@ -315,6 +315,8 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
+    type ValidatorSet = History;
+    type ReportOffence = Offences;
 }
 
 impl_opaque_keys! {

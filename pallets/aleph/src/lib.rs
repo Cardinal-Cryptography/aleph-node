@@ -17,23 +17,50 @@ use sp_std::prelude::*;
 use frame_support::{
     log,
     sp_runtime::BoundToRuntimeAppPublic,
-    traits::{OneSessionHandler, StorageVersion},
+    traits::{OneSessionHandler, StorageVersion, ValidatorSet, ValidatorSetWithIdentification},
+    weights::Pays,
     Parameter,
 };
 pub use pallet::*;
+use sp_runtime::Perbill;
+use sp_staking::{
+    offence::{DisableStrategy, Kind, Offence, ReportOffence},
+    SessionIndex,
+};
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
+pub type ValidatorId<T> = <<T as Config>::ValidatorSet as ValidatorSet<
+    <T as frame_system::Config>::AccountId,
+>>::ValidatorId;
+
+pub type IdentificationTuple<T> = (
+    ValidatorId<T>,
+    <<T as Config>::ValidatorSet as ValidatorSetWithIdentification<
+        <T as frame_system::Config>::AccountId,
+    >>::Identification,
+);
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
-    use frame_system::pallet_prelude::BlockNumberFor;
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, OriginFor},
+    };
+    use sp_runtime::traits::Convert;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
+        type ValidatorSet: ValidatorSetWithIdentification<Self::AccountId>;
+        type ReportOffence: ReportOffence<
+            Self::AccountId,
+            IdentificationTuple<Self>,
+            AlephOffence<IdentificationTuple<Self>>,
+        >;
     }
 
     #[pallet::pallet]
@@ -43,7 +70,7 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        fn on_runtime_upgrade() -> Weight {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
             T::DbWeight::get().reads(1)
                 + match on_chain {
@@ -70,6 +97,47 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
+
+    #[pallet::error]
+    pub enum Error<T> {
+        IncorrectOffenderIndex,
+        InvalidOffenceProof,
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        #[pallet::weight(1_000_000)]
+        pub fn report_offence(
+            origin: OriginFor<T>,
+            offender_idx: u32,
+            severe: bool,
+            proof: (),
+        ) -> DispatchResultWithPostInfo {
+            let reporter = ensure_signed(origin)?;
+
+            let current_validators = T::ValidatorSet::validators();
+            ensure!(
+                offender_idx < current_validators.len() as u32,
+                Error::<T>::IncorrectOffenderIndex
+            );
+            ensure!(proof.eq(&()), Error::<T>::InvalidOffenceProof);
+
+            let offender_id = current_validators[offender_idx as usize].clone();
+            let offender = <T::ValidatorSet as ValidatorSetWithIdentification<T::AccountId>>::IdentificationOf::convert(
+                offender_id.clone()
+            ).map(|full_id| (offender_id, full_id)).unwrap();
+
+            let offence: AlephOffence<IdentificationTuple<T>> = AlephOffence {
+                session_index: T::ValidatorSet::session_index(),
+                offender,
+                validator_set_count: current_validators.len() as u32,
+                severe,
+            };
+
+            T::ReportOffence::report_offence(vec![reporter], offence).unwrap();
+            Ok(Pays::No.into())
+        }
+    }
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -115,5 +183,45 @@ pub mod pallet {
         }
 
         fn on_disabled(_validator_index: u32) {}
+    }
+}
+
+pub struct AlephOffence<Offender> {
+    pub session_index: SessionIndex,
+    pub offender: Offender,
+    pub validator_set_count: u32,
+    pub severe: bool,
+}
+
+impl<Offender: Clone> Offence<Offender> for AlephOffence<Offender> {
+    const ID: Kind = *b"alephbft-offence";
+
+    type TimeSlot = SessionIndex;
+
+    fn offenders(&self) -> Vec<Offender> {
+        vec![self.offender.clone()]
+    }
+
+    fn session_index(&self) -> SessionIndex {
+        self.session_index
+    }
+
+    fn validator_set_count(&self) -> u32 {
+        self.validator_set_count
+    }
+
+    fn time_slot(&self) -> Self::TimeSlot {
+        self.session_index
+    }
+
+    fn disable_strategy(&self) -> DisableStrategy {
+        match self.severe {
+            true => DisableStrategy::Always,
+            false => DisableStrategy::Never,
+        }
+    }
+
+    fn slash_fraction(_offenders: u32, _validator_set_count: u32) -> Perbill {
+        Perbill::from_percent(33)
     }
 }

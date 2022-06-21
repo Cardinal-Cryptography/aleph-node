@@ -2016,6 +2016,8 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-io 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23)",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23)",
+ "sp-staking",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23)",
 ]
 
