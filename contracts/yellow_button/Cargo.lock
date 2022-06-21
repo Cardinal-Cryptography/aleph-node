@@ -604,6 +604,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "access_control",
+ "ink_env",
+ "ink_lang",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -721,4 +730,5 @@ dependencies = [
  "ink_storage",
  "parity-scale-codec",
  "scale-info",
+ "shared",
 ]

@@ -18,6 +18,7 @@ scale-info = { version = "2", default-features = false, features = ["derive"], o
 
 button_token = { path = "../button_token", default-features = false, features = ["ink-as-dependency"] }
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
+shared = { path = "../shared", default-features = false }
 
 [lib]
 name = "yellow_button"

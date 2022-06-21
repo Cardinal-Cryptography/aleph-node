@@ -8,12 +8,10 @@ use ink_lang as ink;
 /// Pressiah gets 50% of tokens
 /// the game is played until TheButton dies
 
-// TODO: getter / setter for access-control
-
 #[ink::contract]
 mod yellow_button {
 
-    use access_control::{Role, HAS_ROLE_SELECTOR};
+    use access_control::Role;
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
@@ -22,7 +20,9 @@ mod yellow_button {
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
+    use shared::shared::AccessContolled;
 
+    // address placeholder, set in the bytecode
     const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
 
     /// Error types
@@ -170,6 +170,10 @@ mod yellow_button {
         rewards: Vec<(AccountId, u128)>,
     }
 
+    impl AccessContolled for YellowButton {
+        type ContractError = Error;
+    }
+
     impl YellowButton {
         /// Returns the buttons status
         #[ink(message)]
@@ -242,12 +246,19 @@ mod yellow_button {
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
-            match Self::do_check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
+            let role_check = <Self as AccessContolled>::check_role(
+                access_control,
                 caller,
                 required_role,
-            ) {
+                |why: InkEnvError| {
+                    Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+                },
+                || Error::MissingRole,
+            );
+
+            match role_check {
                 Ok(_) => ink_lang::utils::initialize_contract(|contract| {
                     Self::new_init(contract, button_token, button_lifetime)
                 }),
@@ -328,29 +339,15 @@ mod yellow_button {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            Self::do_check_role(self.access_control, account, role)
-        }
-
-        fn do_check_role(access_control: AccountId, account: AccountId, role: Role) -> Result<()> {
-            match build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(access_control))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
-                        .push_arg(account)
-                        .push_arg(role),
-                )
-                .returns::<bool>()
-                .fire()
-            {
-                Ok(has_role) => match has_role {
-                    true => Ok(()),
-                    false => Err(Error::MissingRole),
+            <Self as AccessContolled>::check_role(
+                self.access_control,
+                account,
+                role,
+                |why: InkEnvError| {
+                    Error::ContractCall(format!("Calling access control has failed: {:?}", why))
                 },
-                Err(why) => Err(Error::ContractCall(format!(
-                    "Calling access control has failed: {:?}",
-                    why,
-                ))),
-            }
+                || Error::MissingRole,
+            )
         }
 
         /// Whitelists given AccountId to participate in the game

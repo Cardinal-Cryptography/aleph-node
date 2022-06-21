@@ -5,19 +5,15 @@ pub use crate::button_token::{
 };
 use ink_lang as ink;
 
-// TODO: setter for access-control
-
 #[ink::contract]
 mod button_token {
 
-    use access_control::{Role, HAS_ROLE_SELECTOR};
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        DefaultEnvironment,
-    };
+    use access_control::Role;
+    use ink_env::Error as InkEnvError;
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
     use ink_storage::{traits::SpreadAllocate, Mapping};
+    use shared::shared::AccessContolled;
 
     pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
@@ -82,6 +78,10 @@ mod button_token {
     /// Event type
     pub type Event = <ButtonToken as ContractEventBase>::Type;
 
+    impl AccessContolled for ButtonToken {
+        type ContractError = Error;
+    }
+
     impl ButtonToken {
         /// Creates a new contract with the specified initial supply.
         ///
@@ -94,11 +94,17 @@ mod button_token {
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
 
-            match Self::do_check_role(
+            let role_check = <Self as AccessContolled>::check_role(
                 AccountId::from(ACCESS_CONTROL_PUBKEY),
                 caller,
                 required_role,
-            ) {
+                |why: InkEnvError| {
+                    Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+                },
+                || Error::MissingRole,
+            );
+
+            match role_check {
                 Ok(_) =>
                 // This call is required in order to correctly initialize the
                 // `Mapping`s of our contract.
@@ -303,30 +309,38 @@ mod button_token {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            Self::do_check_role(self.access_control, account, role)
+            <Self as AccessContolled>::check_role(
+                self.access_control,
+                account,
+                role,
+                |why: InkEnvError| {
+                    Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+                },
+                || Error::MissingRole,
+            )
         }
 
-        fn do_check_role(access_control: AccountId, account: AccountId, role: Role) -> Result<()> {
-            match build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(access_control))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
-                        .push_arg(account)
-                        .push_arg(role),
-                )
-                .returns::<bool>()
-                .fire()
-            {
-                Ok(has_role) => match has_role {
-                    true => Ok(()),
-                    false => Err(Error::MissingRole),
-                },
-                Err(why) => Err(Error::ContractCall(format!(
-                    "Calling access control has failed: {:?}",
-                    why,
-                ))),
-            }
-        }
+        // fn do_check_role(access_control: AccountId, account: AccountId, role: Role) -> Result<()> {
+        //     match build_call::<DefaultEnvironment>()
+        //         .call_type(Call::new().callee(access_control))
+        //         .exec_input(
+        //             ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
+        //                 .push_arg(account)
+        //                 .push_arg(role),
+        //         )
+        //         .returns::<bool>()
+        //         .fire()
+        //     {
+        //         Ok(has_role) => match has_role {
+        //             true => Ok(()),
+        //             false => Err(Error::MissingRole),
+        //         },
+        //         Err(why) => Err(Error::ContractCall(format!(
+        //             "Calling access control has failed: {:?}",
+        //             why,
+        //         ))),
+        //     }
+        // }
 
         /// Sets new access control contact address
         ///
