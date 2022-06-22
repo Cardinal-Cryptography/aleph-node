@@ -9,24 +9,19 @@ pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
 
-    /// This flags needs to be provided in case used does not want to create backups.
-    /// In case `--no-backup`, node most likely will not be available to continue with the
-    /// session during which it crashed. It will join AlephBFT consensus in the next session.
-    #[clap(long, conflicts_with = "backup-path", group = "backup")]
-    no_backup: bool,
-    /// The path to save created backups for crash recovery purposes.
+    /// Turn off backups, at the cost of limiting crash recoverability.
     ///
-    /// Backups created by the node are saved under this  path in a directory. When restarted after a crash,
-    /// previously-created backups are read back from this directory first, helping prevent
-    /// auto-forks. The layout of the directory is unspecified. User is required to provide this path,
-    /// or explicitly say that no backups should be done by providing `--no-backup` flag.
-    /// In case no backups are c, node most likely will not be available to continue with the
-    #[clap(
-        long,
-        value_name = "PATH",
-        conflicts_with = "no-backup",
-        group = "backup"
-    )]
+    /// If backups are turned off and the node crashes, it most likely will not be able to continue
+    /// the session during which it crashed. It will join AlephBFT consensus in the next session.
+    #[clap(long, group = "backup")]
+    no_backup: bool,
+    /// The path to save backups to.
+    ///
+    /// Backups created by the node are saved under this path. When restarted after a crash,
+    /// the backups will be used to recover the node's state, helping prevent auto-forks. The layout
+    /// of the directory is unspecified. This flag must be specified unless backups are turned off
+    /// with `--no-backup`, but note that that limits crash recoverability.
+    #[clap(long, value_name = "PATH", group = "backup")]
     backup_path: Option<PathBuf>,
 }
 

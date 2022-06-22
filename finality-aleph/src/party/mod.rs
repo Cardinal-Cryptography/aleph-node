@@ -28,13 +28,14 @@ use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
 use std::{
-    collections::HashSet, default::Default, fs, marker::PhantomData, path::PathBuf, sync::Arc,
+    collections::HashSet, default::Default, marker::PhantomData, path::PathBuf, sync::Arc,
     time::Duration,
 };
 use tokio::task::spawn_blocking;
 
 mod aggregator;
 mod authority;
+mod backup;
 mod chain_tracker;
 mod data_store;
 mod member;
@@ -408,7 +409,7 @@ where
 
         {
             let backup_saving_path = self.backup_saving_path.clone();
-            spawn_blocking(move || remove_session_backup(backup_saving_path, session_id.0));
+            spawn_blocking(move || backup::remove(backup_saving_path, session_id.0));
         }
     }
 
@@ -447,29 +448,6 @@ pub(crate) fn create_aleph_config(
     };
     consensus_config.delay_config = delay_config;
     consensus_config
-}
-
-/// Removes the backup directory for a session.
-///
-/// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
-/// If it is `None`, nothing is done.
-///
-/// Any filesystem errors are logged and dropped.
-///
-/// This should be done after the end of the session.
-fn remove_session_backup(backup_path: Option<PathBuf>, session_id: u32) {
-    let path = match backup_path {
-        Some(path) => path.join(session_id.to_string()),
-        None => return,
-    };
-    match fs::remove_dir_all(&path) {
-        Ok(()) => {
-            debug!(target: "aleph-party", "Removed backup for session {}", session_id);
-        }
-        Err(error) => {
-            warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, error);
-        }
-    }
 }
 
 pub fn exponential_slowdown(
