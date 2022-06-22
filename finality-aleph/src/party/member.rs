@@ -14,7 +14,7 @@ use std::{
     fs::File,
     io,
     io::{Cursor, Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     str::FromStr,
 };
 
@@ -40,24 +40,17 @@ pub fn task<
     let task = {
         let spawn_handle = spawn_handle.clone();
         async move {
-            debug!(target: "aleph-party", "Loading AlephBFT backup for {:?}", session_id);
-            let (saver, loader): (Box<dyn Write + Send>, Box<dyn Read + Send>) =
-                if let Some(stash_path) = backup_saving_path.as_deref() {
-                    let (saver, loader) = match rotate_saved_backup_files(stash_path, session_id) {
-                        Err(err) => {
-                            error!(
-                                target: "AlephBFT-member",
-                                "Error setting up backup saving for session {}: {}",
-                                session_id, err
-                            );
-                            return;
-                        }
-                        Ok((saver, loader)) => (saver, loader),
-                    };
-                    (Box::new(saver), Box::new(loader))
-                } else {
-                    (Box::new(io::sink()), Box::new(io::empty()))
-                };
+            let (saver, loader) = match rotate_saved_backup_files(backup_saving_path, session_id) {
+                Ok((saver, loader)) => (saver, loader),
+                Err(err) => {
+                    error!(
+                        target: "AlephBFT-member",
+                        "Error setting up backup saving for session {}: {}",
+                        session_id, err
+                    );
+                    return;
+                }
+            };
             let local_io = LocalIO::new(data_provider, ordered_data_interpreter, saver, loader);
             debug!(target: "aleph-party", "Running the member task for {:?}", session_id);
             aleph_bft::run_session(config, local_io, network, multikeychain, spawn_handle, exit)
@@ -82,7 +75,7 @@ impl fmt::Display for BackupLoadError {
             BackupLoadError::BackupIncomplete(backups) => {
                 write!(
                     f,
-                    "Backup is not complete. Got backup for sessions {:?}",
+                    "Backup is not complete. Got backup for runs numbered: {:?}",
                     backups
                 )
             }
@@ -116,11 +109,19 @@ impl std::error::Error for BackupLoadError {}
 ///       |-- 2.abfts    - these numbers count up sequentially
 ///       `-- 3.abfts
 fn rotate_saved_backup_files(
-    backup_path: &Path,
+    backup_path: Option<PathBuf>,
     session_id: u32,
-) -> Result<(File, Cursor<Vec<u8>>), BackupLoadError> {
+) -> Result<(Box<dyn Write + Send>, Box<dyn Read + Send>), BackupLoadError> {
+    debug!(target: "aleph-party", "Loading AlephBFT backup for session {:?}", session_id);
+    let backup_path = if let Some(path) = backup_path {
+        path
+    } else {
+        debug!(target: "aleph-party", "Passing empty backup for session {:?} as no backup path was provided", session_id);
+        return Ok((Box::new(io::sink()), Box::new(io::empty())));
+    };
     let extension = ".abfts";
     let session_path = backup_path.join(format!("{}", session_id));
+    debug!(target: "aleph-party", "Loading backup for session {:?} at path {:?}", session_id, session_path);
     fs::create_dir_all(&session_path)?;
     let mut session_backups: Vec<_> = fs::read_dir(&session_path)?
         .filter_map(|r| r.ok())
@@ -129,7 +130,6 @@ fn rotate_saved_backup_files(
         .collect();
     session_backups.sort_unstable();
     if !session_backups.iter().cloned().eq(0..session_backups.len()) {
-        error!(target: "aleph-party", "Session backup is not complete. Got backup for sessions {:?}", session_backups);
         return Err(BackupLoadError::BackupIncomplete(session_backups));
     }
     let mut buffer = Vec::new();
@@ -138,10 +138,13 @@ fn rotate_saved_backup_files(
         let _ = File::open(load_path)?.read_to_end(&mut buffer)?;
     }
     let loader = Cursor::new(buffer);
-    let saver = File::create(session_path.join(format!(
+    let session_backup_path = session_path.join(format!(
         "{}{}",
         session_backups.last().map_or(0, |i| i + 1),
         extension
-    )))?;
-    Ok((saver, loader))
+    ));
+    debug!(target: "aleph-party", "Loaded backup for session {:?}. Creating new backup file at {:?}", session_id, session_backup_path);
+    let saver = File::create(session_backup_path)?;
+    debug!(target: "aleph-party", "Backup rotation done for session {:?}", session_id);
+    Ok((Box::new(saver), Box::new(loader)))
 }
