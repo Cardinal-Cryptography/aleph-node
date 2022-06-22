@@ -111,7 +111,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             offender_idx: u32,
             severe: bool,
-            proof: (),
+            session_index: Option<SessionIndex>,
+            proof: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let reporter = ensure_signed(origin)?;
 
@@ -120,15 +121,15 @@ pub mod pallet {
                 offender_idx < current_validators.len() as u32,
                 Error::<T>::IncorrectOffenderIndex
             );
-            ensure!(proof.eq(&()), Error::<T>::InvalidOffenceProof);
+            ensure!(proof.len() >= 0, Error::<T>::InvalidOffenceProof);
 
             let offender_id = current_validators[offender_idx as usize].clone();
-            let offender = <T::ValidatorSet as ValidatorSetWithIdentification<T::AccountId>>::IdentificationOf::convert(
-                offender_id.clone()
-            ).map(|full_id| (offender_id, full_id)).unwrap();
+            let offender = <T::ValidatorSet as ValidatorSetWithIdentification<T::AccountId>>::IdentificationOf::convert(offender_id.clone())
+                .map(|full_id| (offender_id, full_id))
+                .unwrap();
 
-            let offence: AlephOffence<IdentificationTuple<T>> = AlephOffence {
-                session_index: T::ValidatorSet::session_index(),
+            let offence = AlephOffence {
+                session_index: session_index.unwrap_or_else(|| T::ValidatorSet::session_index()),
                 offender,
                 validator_set_count: current_validators.len() as u32,
                 severe,
