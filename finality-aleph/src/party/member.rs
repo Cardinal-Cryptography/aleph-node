@@ -94,6 +94,9 @@ impl From<io::Error> for BackupLoadError {
 
 impl std::error::Error for BackupLoadError {}
 
+type BackupSaver = Box<dyn Write + Send>;
+type BackupLoader = Box<dyn Read + Send>;
+
 /// Loads the existing backups, and opens a new backup file to write to.
 ///
 /// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
@@ -111,7 +114,7 @@ impl std::error::Error for BackupLoadError {}
 fn rotate_saved_backup_files(
     backup_path: Option<PathBuf>,
     session_id: u32,
-) -> Result<(Box<dyn Write + Send>, Box<dyn Read + Send>), BackupLoadError> {
+) -> Result<(BackupSaver, BackupLoader), BackupLoadError> {
     debug!(target: "aleph-party", "Loading AlephBFT backup for session {:?}", session_id);
     let backup_path = if let Some(path) = backup_path {
         path

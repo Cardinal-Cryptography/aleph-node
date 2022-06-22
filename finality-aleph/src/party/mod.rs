@@ -28,7 +28,7 @@ use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
 use std::{
-    collections::HashSet, default::Default, fs, io, marker::PhantomData, path::PathBuf, sync::Arc,
+    collections::HashSet, default::Default, fs, marker::PhantomData, path::PathBuf, sync::Arc,
     time::Duration,
 };
 use tokio::task::spawn_blocking;
@@ -467,10 +467,7 @@ fn remove_session_backup(backup_path: Option<PathBuf>, session_id: u32) {
             debug!(target: "aleph-party", "Removed backup for session {}", session_id);
         }
         Err(error) => {
-            let dir_exists = || !matches!(fs::metadata(&path), Err(error) if error.kind() == io::ErrorKind::NotFound);
-            if error.kind() != io::ErrorKind::NotFound || dir_exists() {
-                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, error);
-            }
+            warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, error);
         }
     }
 }
