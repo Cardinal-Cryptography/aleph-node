@@ -474,6 +474,14 @@ mod yellow_button {
 
             Ok(())
         }
+
+        /// Returns own code hash
+        #[ink(message)]
+        pub fn code_hash(&self) -> Result<Hash> {
+            Self::env().own_code_hash().map_err(|why| {
+                Error::ContractCall(format!("Calling control has failed: {:?}", why))
+            })
+        }
     }
 
     // NOTE: can't test because off-chain environment does not support `own_code_hash`

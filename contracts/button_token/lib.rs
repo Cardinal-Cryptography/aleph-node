@@ -115,6 +115,10 @@ mod button_token {
                 }
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
+
+            // ink_lang::utils::initialize_contract(|contract| {
+            //     Self::new_init(contract, initial_supply)
+            // })
         }
 
         /// Default initializes the contract with the specified initial supply.
@@ -333,6 +337,14 @@ mod button_token {
 
             self.access_control = access_control;
             Ok(())
+        }
+
+        /// Returns own code hash
+        #[ink(message, selector = 10)]
+        pub fn code_hash(&self) -> Result<Hash> {
+            Self::env().own_code_hash().map_err(|why| {
+                Error::ContractCall(format!("Calling control has failed: {:?}", why))
+            })
         }
     }
 

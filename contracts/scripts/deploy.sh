@@ -43,6 +43,7 @@ cd $CONTRACTS_PATH/yellow_button
 cargo contract build --release
 
 ## --- DEPLOY ACCESS CONTROL CONTRACT
+
 cd $CONTRACTS_PATH/access_control
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --suri $ALICE_SEED)
@@ -52,81 +53,112 @@ ACCESS_CONTROL_PUBKEY=$(subkey inspect $ACCESS_CONTROL | grep hex | cut -c 23- |
 echo "access control contract address: " $ACCESS_CONTROL
 echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 
-# TODO : upload and init in two txs
-## --- DEPLOY TOKEN CONTRACT
-# cd $CONTRACTS_PATH/button_token
-# link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+## --- UPLOAD TOKEN CONTRACT
 
-# rm target/ink/button_token.wasm
-# # NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
-# node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
+cd $CONTRACTS_PATH/button_token
+link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/button_token.wasm
+# NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
+node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
 
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
-# BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-# BUTTON_TOKEN_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
+CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
+BUTTON_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
-# echo "button token contract address: " $BUTTON_TOKEN
-# echo "button token code hash:        " $BUTTON_TOKEN_CODE_HASH
+echo "button token code hash" $BUTTON_TOKEN_CODE_HASH
 
-# ## --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
-# cd $CONTRACTS_PATH/access_control
+## --- GRANT INIT PRIVILEDGES ON THE TOKEN CONTRACT
 
-# # alice is the initializer of the button-token contract
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
-# # alice is the admin of the button-token contract
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BUTTON_TOKEN')' --suri $ALICE_SEED
+cd $CONTRACTS_PATH/access_control
 
-# # TODO : upload and init in two txs
-# ## --- DEPLOY GAME CONTRACT
-# cd $CONTRACTS_PATH/yellow_button
-# link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+# alice is the initializer of the button-token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
 
-# rm target/ink/yellow_button.wasm
-# node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
+## --- INITIALIZE BUTTON TOKEN CONTRACT
 
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
-# YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-# YELLOW_BUTTON_CODE_HASH=$(echo "$CONTRACT" | grep hash | tail -1 | cut -c 15-)
+cd $CONTRACTS_PATH/button_token
 
-# echo "game contract address: " $YELLOW_BUTTON
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+BUTTON_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-# ## --- GRANT PRIVILEDGES ON THE GAME CONTRACT
-# cd $CONTRACTS_PATH/access_control
+echo "button token contract instance address" $BUTTON_TOKEN
 
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$YELLOW_BUTTON_CODE_HASH')' --suri $ALICE_SEED
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$YELLOW_BUTTON')' --suri $ALICE_SEED
+## --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
 
-# ## --- TRANSFER BALANCE TO THE GAME CONTRACT
+cd $CONTRACTS_PATH/access_control
 
-# cd $CONTRACTS_PATH/button_token
-# cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $YELLOW_BUTTON $GAME_BALANCE --suri $ALICE_SEED
+# alice is the admin and the owner of the button-token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BUTTON_TOKEN')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$BUTTON_TOKEN')' --suri $ALICE_SEED
 
-# ## --- WHITELIST ACCOUNTS
-# cd $CONTRACTS_PATH/yellow_button
+## --- UPLOAD GAME CONTRACT
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
+cd $CONTRACTS_PATH/yellow_button
+link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/yellow_button.wasm
+node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
 
-# ## --- PLAY
-# cd $CONTRACTS_PATH/yellow_button
+CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
+YELLOW_BUTTON_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+echo "yellow button code hash" $YELLOW_BUTTON_CODE_HASH
 
-# sleep 1
+## --- GRANT INIT PRIVILEDGES ON THE YELLOW BUTTON CONTRACT
 
-# cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
+cd $CONTRACTS_PATH/access_control
 
-# ## --- TRIGGER DEATH AND REWARDS DISTRIBUTION
-# cd $CONTRACTS_PATH/yellow_button
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$YELLOW_BUTTON_CODE_HASH')' --suri $ALICE_SEED
 
-# sleep $(($LIFETIME + 1))
+## --- INITIALIZE GAME CONTRACT
 
-# EVENT=$(cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
-# EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
+cd $CONTRACTS_PATH/yellow_button
 
-# PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
-# PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
+YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-# echo "The Pressiah receives: $PRESSIAH_REWARD"
-# assert_eq "450" "$PRESSIAH_REWARD"
+echo "yellow button contract instance address" $BUTTON_TOKEN
 
-# exit $?
+## --- GRANT PRIVILEDGES ON THE GAME CONTRACT
+
+cd $CONTRACTS_PATH/access_control
+
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$YELLOW_BUTTON')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$YELLOW_BUTTON')' --suri $ALICE_SEED
+
+## --- TRANSFER BALANCE TO THE GAME CONTRACT
+
+cd $CONTRACTS_PATH/button_token
+
+cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $YELLOW_BUTTON $GAME_BALANCE --suri $ALICE_SEED
+
+## --- WHITELIST ACCOUNTS
+
+cd $CONTRACTS_PATH/yellow_button
+
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
+
+## --- PLAY
+
+cd $CONTRACTS_PATH/yellow_button
+
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+
+sleep 1
+
+cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
+
+## --- TRIGGER DEATH AND REWARDS DISTRIBUTION
+
+cd $CONTRACTS_PATH/yellow_button
+
+sleep $(($LIFETIME + 1))
+
+EVENT=$(cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
+EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
+
+PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
+PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
+
+echo "The Pressiah receives: $PRESSIAH_REWARD"
+assert_eq "450" "$PRESSIAH_REWARD"
+
+exit $?
