@@ -333,7 +333,7 @@ jobs:
   push-image:
     needs: [check-e2e-test-suite-completion]
     name: Push node image to the ECR repository
-    # if: github.event_name == 'push'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: GIT | Checkout Source code
