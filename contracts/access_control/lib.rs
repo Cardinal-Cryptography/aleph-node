@@ -32,7 +32,7 @@ mod access_control {
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct AccessControl {
-        /// Stores a de-facto mapping between user accounts and a list of their roles
+        /// Stores a de-facto hashset between user accounts and a list of their roles
         pub priviledges: Mapping<(AccountId, Role), ()>,
     }
 
