@@ -5,8 +5,8 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-ink_env = { version = "=3.2.0", default-features = false }
-ink_lang = { version = "=3.2.0", default-features = false }
+ink_env = { version = "3.2.0", default-features = false }
+ink_lang = { version = "3.2.0", default-features = false }
 
 access_control = { path = "../access_control", default-features = false }
 
