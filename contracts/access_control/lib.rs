@@ -88,10 +88,10 @@ mod access_control {
             self.priviledges.insert((caller, Role::Owner(this)), &());
         }
 
-        #[ink(message, selector = 1)]
-        /// gives a role to an account
+        /// Gives a role to an account
         ///
-        /// Can only be called by an admin role on this contract                
+        /// Can only be called by an admin role on this contract
+        #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);
             if !self.priviledges.contains(key) {
@@ -111,10 +111,10 @@ mod access_control {
             Ok(())
         }
 
-        #[ink(message, selector = 2)]
-        /// revokes a role from an account
+        /// Revokes a role from an account
         ///
-        /// Can only be called by an admin role on this contract        
+        /// Can only be called by an admin role on this contract
+        #[ink(message, selector = 2)]
         pub fn revoke_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
@@ -131,8 +131,8 @@ mod access_control {
             Ok(())
         }
 
+        /// Returns true if account has a role
         #[ink(message, selector = 3)]
-        /// returns true if account has a role
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
             self.priviledges.get((account, role)).is_some()
         }

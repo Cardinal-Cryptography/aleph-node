@@ -38,7 +38,7 @@ mod yellow_button {
         /// Returned if a call to another contract has failed
         ContractCall(String),
         /// Returned if a call is made from an account with missing access conrol priviledges
-        MissingRole, // TODO MissingRole(Role)
+        MissingRole, // MissingRole(Role)
     }
 
     /// Result type
