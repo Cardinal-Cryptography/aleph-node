@@ -105,20 +105,11 @@ mod button_token {
             );
 
             match role_check {
-                Ok(_) =>
-                // This call is required in order to correctly initialize the
-                // `Mapping`s of our contract.
-                {
-                    ink_lang::utils::initialize_contract(|contract| {
-                        Self::new_init(contract, initial_supply)
-                    })
-                }
+                Ok(_) => ink_lang::utils::initialize_contract(|contract| {
+                    Self::new_init(contract, initial_supply)
+                }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
-
-            // ink_lang::utils::initialize_contract(|contract| {
-            //     Self::new_init(contract, initial_supply)
-            // })
         }
 
         /// Default initializes the contract with the specified initial supply.
@@ -294,7 +285,7 @@ mod button_token {
 
         /// Terminates the contract.
         ///
-        /// can only be called by the contract access_control
+        /// can only be called by the contract's Owner
         #[ink(message, selector = 7)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
@@ -324,9 +315,9 @@ mod button_token {
             )
         }
 
-        /// Sets new access control contact address
+        /// Sets new access control contract address
         ///
-        /// Can only be called by the contract owner
+        /// Can only be called by the contract's Owner
         #[ink(message, selector = 9)]
         pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
             let caller = self.env().caller();

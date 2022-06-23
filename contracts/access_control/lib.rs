@@ -88,23 +88,25 @@ mod access_control {
             self.priviledges.insert((caller, Role::Owner(this)), &());
         }
 
-        // TODO : no-op if role exists?
         #[ink(message, selector = 1)]
         /// gives a role to an account
         ///
         /// Can only be called by an admin role on this contract                
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
-            self.priviledges.insert((account, role), &());
+            let key = (account, role);
+            if !self.priviledges.contains(key) {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                self.check_role(caller, Role::Admin(this))?;
+                self.priviledges.insert(key, &());
 
-            let event = Event::RoleGranted(RoleGranted {
-                by: caller,
-                to: account,
-                role,
-            });
-            Self::emit_event(self.env(), event);
+                let event = Event::RoleGranted(RoleGranted {
+                    by: caller,
+                    to: account,
+                    role,
+                });
+                Self::emit_event(self.env(), event);
+            }
 
             Ok(())
         }
@@ -171,7 +173,7 @@ mod access_control {
             let bob = accounts.alice;
             let charlie = accounts.charlie;
 
-            let contract_address = accounts.django; //AccountId::from([0xF9; 32]);
+            let contract_address = accounts.django;
 
             // alice deploys the access control contract
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);

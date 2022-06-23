@@ -160,7 +160,7 @@ mod yellow_button {
         player: AccountId,
     }
 
-    /// Even emitted when button death is triggered
+    /// Even emitted when button's death is triggered
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonDeath {
