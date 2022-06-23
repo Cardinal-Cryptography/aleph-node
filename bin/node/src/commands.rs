@@ -168,7 +168,7 @@ impl BootstrapChainCmd {
     }
 }
 
-/// The `bootstrap-node` command is used to generate key pairs for a single authority
+/// The `bootstrap-node` command is used to generate key pairs and AlephBFT backup folder for a single authority
 /// private keys are stored in a specified keystore, and the public keys are written to stdout.
 #[derive(Debug, Parser)]
 pub struct BootstrapNodeCmd {
@@ -241,20 +241,10 @@ impl ConvertChainspecToRawCmd {
     }
 }
 
+/// The `purge-chain` command used to remove the whole chain and backup made by AlephBFT.
+/// First runs substrate PurgeChainCmd and after that removes AlephBFT backup.
 #[derive(Debug, Parser)]
 pub struct PurgeChainCmd {
-    /// Skip interactive prompt by answering yes automatically.
-    #[clap(short = 'y')]
-    pub yes: bool,
-
-    #[allow(missing_docs)]
-    #[clap(flatten)]
-    pub shared_params: SharedParams,
-
-    #[allow(missing_docs)]
-    #[clap(flatten)]
-    pub database_params: DatabaseParams,
-
     #[clap(flatten)]
     pub purge_backup: PurgeBackupCmd,
 
@@ -271,11 +261,11 @@ impl PurgeChainCmd {
 
 impl CliConfiguration for PurgeChainCmd {
     fn shared_params(&self) -> &SharedParams {
-        &self.shared_params
+        self.purge_chain.shared_params()
     }
 
     fn database_params(&self) -> Option<&DatabaseParams> {
-        Some(&self.database_params)
+        self.purge_chain.database_params()
     }
 }
 
@@ -325,7 +315,7 @@ impl PurgeBackupCmd {
                 Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
                     eprintln!("{:?} did not exist.", &path);
                 }
-                Err(err) => return Result::Err(err.into()),
+                Err(err) => return Err(err.into()),
             }
         }
         Ok(())
