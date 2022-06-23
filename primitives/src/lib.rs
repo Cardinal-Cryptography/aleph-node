@@ -86,6 +86,10 @@ pub mod staking {
         (validators_payout, rest)
     }
 
+    pub trait OnValidatorDisabled {
+        fn disable_validator(validator_index: u32);
+    }
+
     /// Macro for making a default implementation of non-self methods from given class.
     ///
     /// As an input it expects list of tuples of form

@@ -64,7 +64,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::DEFAULT_COMMITTEE_SIZE;
+    use primitives::{staking::OnValidatorDisabled, DEFAULT_COMMITTEE_SIZE};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -269,6 +269,13 @@ pub mod pallet {
         TooManyReservedValidators,
         NotEnoughValidators,
         NonUniqueListOfValidators,
+    }
+
+    impl<T: Config> OnValidatorDisabled for Pallet<T> {
+        fn disable_validator(_validator_index: u32) {
+            // removing respective entries in most storage containers,
+            // maybe memorizing to ban in future sessions
+        }
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {

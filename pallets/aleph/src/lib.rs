@@ -50,6 +50,7 @@ pub mod pallet {
         ensure_signed,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
+    use primitives::staking::OnValidatorDisabled;
     use sp_runtime::traits::Convert;
 
     #[pallet::config]
@@ -61,6 +62,7 @@ pub mod pallet {
             IdentificationTuple<Self>,
             AlephOffence<IdentificationTuple<Self>>,
         >;
+        type OnValidatorDisabled: OnValidatorDisabled;
     }
 
     #[pallet::pallet]
@@ -121,7 +123,7 @@ pub mod pallet {
                 offender_idx < current_validators.len() as u32,
                 Error::<T>::IncorrectOffenderIndex
             );
-            ensure!(proof.len() >= 0, Error::<T>::InvalidOffenceProof);
+            ensure!(proof.len() > 0, Error::<T>::InvalidOffenceProof);
 
             let offender_id = current_validators[offender_idx as usize].clone();
             let offender = <T::ValidatorSet as ValidatorSetWithIdentification<T::AccountId>>::IdentificationOf::convert(offender_id.clone())
@@ -187,6 +189,8 @@ pub mod pallet {
             let mut authorities = <Authorities<T>>::get();
             authorities.swap_remove(validator_index as usize);
             Self::update_authorities(authorities.as_slice());
+
+            T::OnValidatorDisabled::disable_validator(validator_index);
         }
     }
 }

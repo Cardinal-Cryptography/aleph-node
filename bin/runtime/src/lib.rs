@@ -217,7 +217,7 @@ parameter_types! {
 impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
-    type DisabledValidators = ();
+    type DisabledValidators = Session;
 }
 
 parameter_types! {
@@ -317,6 +317,7 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type ValidatorSet = History;
     type ReportOffence = Offences;
+    type OnValidatorDisabled = Elections;
 }
 
 impl_opaque_keys! {
@@ -405,11 +406,11 @@ impl pallet_nomination_pools::Config for Runtime {
 
 parameter_types! {
     pub const BondingDuration: EraIndex = 3;
-    pub const SlashDeferDuration: EraIndex = 2;
+    pub const SlashDeferDuration: EraIndex = 0;
     // this is coupled with weights for payout_stakers() call
     // see custom implementation of WeightInfo below
     pub const MaxNominatorRewardedPerValidator: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
-    pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
+    pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(75);
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
 }
 
