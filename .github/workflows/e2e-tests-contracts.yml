@@ -66,7 +66,7 @@ jobs:
 
       - name: Install subkey
         run: |
-          cargo install --force subkey --git https://github.com/paritytech/substrate --version 2.0.1 --locked
+          cargo install --force subkey --git https://github.com/paritytech/substrate --version 2.0.2 --locked
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
