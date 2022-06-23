@@ -183,7 +183,11 @@ pub mod pallet {
             }
         }
 
-        fn on_disabled(_validator_index: u32) {}
+        fn on_disabled(validator_index: u32) {
+            let mut authorities = <Authorities<T>>::get();
+            authorities.swap_remove(validator_index as usize);
+            Self::update_authorities(authorities.as_slice());
+        }
     }
 }
 

@@ -404,8 +404,8 @@ impl pallet_nomination_pools::Config for Runtime {
 }
 
 parameter_types! {
-    pub const BondingDuration: EraIndex = 14;
-    pub const SlashDeferDuration: EraIndex = 13;
+    pub const BondingDuration: EraIndex = 3;
+    pub const SlashDeferDuration: EraIndex = 2;
     // this is coupled with weights for payout_stakers() call
     // see custom implementation of WeightInfo below
     pub const MaxNominatorRewardedPerValidator: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
