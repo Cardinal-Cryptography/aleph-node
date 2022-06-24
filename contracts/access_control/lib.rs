@@ -178,6 +178,10 @@ mod access_control {
             // alice deploys the access control contract
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+                contract_address,
+                100,
+            );
             let mut access_control = AccessControl::new();
 
             // alice should be admin
@@ -189,7 +193,7 @@ mod access_control {
             // alice should be owner
             assert!(
                 access_control.has_role(alice, Role::Owner(contract_address)),
-                "deployer is not admin"
+                "deployer is not owner"
             );
 
             // alice grants admin rights to bob
@@ -208,17 +212,33 @@ mod access_control {
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
 
-            // bob grants admin rights to charlier
+            // bob grants admin rights to charlie
             assert!(
                 access_control
                     .grant_role(charlie, Role::Admin(contract_address))
                     .is_ok(),
-                "Bob's grant_role by call failed"
+                "Bob's grant_role call failed"
             );
 
             assert!(
                 access_control.has_role(charlie, Role::Admin(contract_address)),
                 "Charlie is not admin"
+            );
+
+            // test terminating
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+
+            let should_terminate = move || {
+                access_control
+                    .terminate()
+                    .expect("Calling terminate failed")
+            };
+
+            ink_env::test::assert_contract_termination::<ink_env::DefaultEnvironment, _>(
+                should_terminate,
+                alice,
+                100,
             );
         }
     }
