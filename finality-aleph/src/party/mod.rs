@@ -273,9 +273,9 @@ where
 
     async fn run_session(&mut self, session_id: SessionId) {
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
-        if session_id.0 > 0 {
+        if let Some(previous_session_id) = session_id.0.checked_sub(1) {
             let backup_saving_path = self.backup_saving_path.clone();
-            spawn_blocking(move || backup::remove(backup_saving_path, session_id.0 - 1));
+            spawn_blocking(move || backup::remove(backup_saving_path, previous_session_id));
         }
 
         // Early skip attempt -- this will trigger during catching up (initial sync).

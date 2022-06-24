@@ -41,7 +41,9 @@ impl From<io::Error> for BackupLoadError {
 
 impl std::error::Error for BackupLoadError {}
 
-pub type ABFTBackup = (Box<dyn Write + Send>, Box<dyn Read + Send>);
+pub type Saver = Box<dyn Write + Send>;
+pub type Loader = Box<dyn Read + Send>;
+pub type ABFTBackup = (Saver, Loader);
 
 /// Find all `*.abfts` files at `session_path` and return their indexes sorted, if all are present.
 fn get_session_backup_idxs(session_path: &Path) -> Result<Vec<usize>, BackupLoadError> {
@@ -59,10 +61,7 @@ fn get_session_backup_idxs(session_path: &Path) -> Result<Vec<usize>, BackupLoad
 }
 
 /// Load session backup at path `session_path` from all `session_idxs`.
-fn load_backup(
-    session_path: &Path,
-    session_idxs: &[usize],
-) -> Result<Box<dyn Read + Send>, BackupLoadError> {
+fn load_backup(session_path: &Path, session_idxs: &[usize]) -> Result<Loader, BackupLoadError> {
     let mut buffer = Vec::new();
     for index in session_idxs.iter() {
         let load_path = session_path.join(format!("{}{}", index, BACKUP_FILE_EXTENSION));

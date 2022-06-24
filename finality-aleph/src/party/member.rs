@@ -29,11 +29,11 @@ pub fn task<
         session_id,
     } = subtask_common;
     let (stop, exit) = oneshot::channel();
+    let local_io = LocalIO::new(data_provider, ordered_data_interpreter, backup.0, backup.1);
+
     let task = {
         let spawn_handle = spawn_handle.clone();
         async move {
-            let local_io =
-                LocalIO::new(data_provider, ordered_data_interpreter, backup.0, backup.1);
             debug!(target: "aleph-party", "Running the member task for {:?}", session_id);
             aleph_bft::run_session(config, local_io, network, multikeychain, spawn_handle, exit)
                 .await;
