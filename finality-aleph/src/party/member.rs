@@ -2,14 +2,13 @@ use crate::{
     crypto::KeyBox,
     data_io::{AlephData, OrderedDataInterpreter},
     network::{AlephNetworkData, DataNetwork, NetworkWrapper},
-    party::{backup, AuthoritySubtaskCommon, Task},
+    party::{backup::ABFTBackup, AuthoritySubtaskCommon, Task},
 };
 use aleph_bft::{Config, LocalIO, SpawnHandle};
 use futures::channel::oneshot;
-use log::{debug, error};
+use log::debug;
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::Block;
-use std::path::PathBuf;
 
 /// Runs the member within a single session.
 pub fn task<
@@ -23,7 +22,7 @@ pub fn task<
     network: NetworkWrapper<AlephNetworkData<B>, ADN>,
     data_provider: impl aleph_bft::DataProvider<AlephData<B>> + Send + 'static,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    backup_saving_path: Option<PathBuf>,
+    backup: ABFTBackup,
 ) -> Task {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -33,18 +32,8 @@ pub fn task<
     let task = {
         let spawn_handle = spawn_handle.clone();
         async move {
-            let (saver, loader) = match backup::rotate(backup_saving_path, session_id) {
-                Ok((saver, loader)) => (saver, loader),
-                Err(err) => {
-                    error!(
-                        target: "AlephBFT-member",
-                        "Error setting up backup saving for session {}: {}",
-                        session_id, err
-                    );
-                    return;
-                }
-            };
-            let local_io = LocalIO::new(data_provider, ordered_data_interpreter, saver, loader);
+            let local_io =
+                LocalIO::new(data_provider, ordered_data_interpreter, backup.0, backup.1);
             debug!(target: "aleph-party", "Running the member task for {:?}", session_id);
             aleph_bft::run_session(config, local_io, network, multikeychain, spawn_handle, exit)
                 .await;

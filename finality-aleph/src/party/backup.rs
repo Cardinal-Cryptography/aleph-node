@@ -41,8 +41,7 @@ impl From<io::Error> for BackupLoadError {
 
 impl std::error::Error for BackupLoadError {}
 
-pub type Saver = Box<dyn Write + Send>;
-pub type Loader = Box<dyn Read + Send>;
+pub type ABFTBackup = (Box<dyn Write + Send>, Box<dyn Read + Send>);
 
 /// Find all `*.abfts` files at `session_path` and return their indexes sorted, if all are present.
 fn get_session_backup_idxs(session_path: &Path) -> Result<Vec<usize>, BackupLoadError> {
@@ -60,7 +59,10 @@ fn get_session_backup_idxs(session_path: &Path) -> Result<Vec<usize>, BackupLoad
 }
 
 /// Load session backup at path `session_path` from all `session_idxs`.
-fn load_backup(session_path: &Path, session_idxs: &[usize]) -> Result<Loader, BackupLoadError> {
+fn load_backup(
+    session_path: &Path,
+    session_idxs: &[usize],
+) -> Result<Box<dyn Read + Send>, BackupLoadError> {
     let mut buffer = Vec::new();
     for index in session_idxs.iter() {
         let load_path = session_path.join(format!("{}{}", index, BACKUP_FILE_EXTENSION));
@@ -95,7 +97,7 @@ fn get_next_path(session_path: &Path, session_idxs: &[usize]) -> PathBuf {
 pub fn rotate(
     backup_path: Option<PathBuf>,
     session_id: u32,
-) -> Result<(Saver, Loader), BackupLoadError> {
+) -> Result<ABFTBackup, BackupLoadError> {
     debug!(target: "aleph-party", "Loading AlephBFT backup for session {:?}", session_id);
     let session_path = if let Some(path) = backup_path {
         path.join(format!("{}", session_id))
@@ -134,8 +136,10 @@ pub fn remove(path: Option<PathBuf>, session_id: u32) {
         Ok(()) => {
             debug!(target: "aleph-party", "Removed backup for session {}", session_id);
         }
-        Err(error) => {
-            warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, error);
+        Err(err) => {
+            if err.kind() != io::ErrorKind::NotFound {
+                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, err);
+            }
         }
     }
 }

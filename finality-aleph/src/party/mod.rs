@@ -10,6 +10,7 @@ use crate::{
             SubtaskCommon as AuthoritySubtaskCommon, Subtasks as AuthoritySubtasks,
             Task as AuthorityTask,
         },
+        backup::ABFTBackup,
         task::{Handle, Task},
     },
     session_id_from_block_num,
@@ -22,7 +23,7 @@ use aleph_primitives::KEY_TYPE;
 use codec::Encode;
 use futures::channel::mpsc;
 use futures_timer::Delay;
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
@@ -146,6 +147,7 @@ where
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn spawn_authority_subtasks(
         &self,
         node_id: NodeIndex,
@@ -153,6 +155,7 @@ where
         data_network: SessionNetwork<SplitData<B>>,
         session_id: SessionId,
         authorities: Vec<AuthorityId>,
+        backup: ABFTBackup,
         exit_rx: futures::channel::oneshot::Receiver<()>,
     ) -> AuthoritySubtasks {
         debug!(target: "afa", "Authority task {:?}", session_id);
@@ -207,7 +210,7 @@ where
                 aleph_network.into(),
                 data_provider,
                 ordered_data_interpreter,
-                self.backup_saving_path.clone(),
+                backup,
             ),
             aggregator::task(
                 subtask_common.clone(),
@@ -228,6 +231,7 @@ where
         session_id: SessionId,
         node_id: NodeIndex,
         authorities: Vec<AuthorityId>,
+        backup: ABFTBackup,
     ) -> AuthorityTask {
         let authority_verifier = AuthorityVerifier::new(authorities.clone());
         let authority_pen =
@@ -251,6 +255,7 @@ where
                 data_network,
                 session_id,
                 authorities,
+                backup,
                 exit_rx,
             )
             .await;
@@ -268,6 +273,10 @@ where
 
     async fn run_session(&mut self, session_id: SessionId) {
         let last_block = last_block_of_session::<B>(session_id, self.session_period);
+        if session_id.0 > 0 {
+            let backup_saving_path = self.backup_saving_path.clone();
+            spawn_blocking(move || backup::remove(backup_saving_path, session_id.0 - 1));
+        }
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
         if self.client.info().best_number >= last_block {
@@ -307,11 +316,23 @@ where
         let mut maybe_authority_task = if let Some(node_id) =
             get_node_index(&authorities, self.keystore.clone()).await
         {
-            debug!(target: "aleph-party", "Running session {:?} as authority id {:?}", session_id, node_id);
-            Some(
-                self.spawn_authority_task(session_id, node_id, authorities.clone())
-                    .await,
-            )
+            match backup::rotate(self.backup_saving_path.clone(), session_id.0) {
+                Ok(backup) => {
+                    debug!(target: "aleph-party", "Running session {:?} as authority id {:?}", session_id, node_id);
+                    Some(
+                        self.spawn_authority_task(session_id, node_id, authorities.clone(), backup)
+                            .await,
+                    )
+                }
+                Err(err) => {
+                    error!(
+                        target: "AlephBFT-member",
+                        "Error setting up backup saving for session {:?}. Not running the session: {}",
+                        session_id, err
+                    );
+                    return;
+                }
+            }
         } else {
             debug!(target: "afa", "Running session {:?} as non-authority", session_id);
             if let Err(e) = self
@@ -405,11 +426,6 @@ where
         }
         if let Err(e) = self.session_manager.stop_session(session_id) {
             warn!(target: "aleph-party", "Session Manager failed to stop in session {:?}: {:?}", session_id, e)
-        }
-
-        {
-            let backup_saving_path = self.backup_saving_path.clone();
-            spawn_blocking(move || backup::remove(backup_saving_path, session_id.0));
         }
     }
 
