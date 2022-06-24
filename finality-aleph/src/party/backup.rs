@@ -4,9 +4,11 @@ use std::{
     fs::File,
     io,
     io::{Cursor, Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
+
+const BACKUP_FILE_EXTENSION: &str = ".abfts";
 
 #[derive(Debug)]
 pub enum BackupLoadError {
@@ -42,6 +44,40 @@ impl std::error::Error for BackupLoadError {}
 pub type Saver = Box<dyn Write + Send>;
 pub type Loader = Box<dyn Read + Send>;
 
+/// Find all `*.abfts` files at `session_path` and return their indexes sorted, if all are present.
+fn get_session_backup_idxs(session_path: &Path) -> Result<Vec<usize>, BackupLoadError> {
+    fs::create_dir_all(&session_path)?;
+    let mut session_backups: Vec<_> = fs::read_dir(&session_path)?
+        .filter_map(|r| r.ok())
+        .filter_map(|x| x.file_name().into_string().ok())
+        .filter_map(|s| usize::from_str(s.strip_suffix(BACKUP_FILE_EXTENSION)?).ok())
+        .collect();
+    session_backups.sort_unstable();
+    if !session_backups.iter().cloned().eq(0..session_backups.len()) {
+        return Err(BackupLoadError::BackupIncomplete(session_backups));
+    }
+    Ok(session_backups)
+}
+
+/// Load session backup at path `session_path` from all `session_idxs`.
+fn load_backup(session_path: &Path, session_idxs: &[usize]) -> Result<Loader, BackupLoadError> {
+    let mut buffer = Vec::new();
+    for index in session_idxs.iter() {
+        let load_path = session_path.join(format!("{}{}", index, BACKUP_FILE_EXTENSION));
+        File::open(load_path)?.read_to_end(&mut buffer)?;
+    }
+    Ok(Box::new(Cursor::new(buffer)))
+}
+
+/// Get path of next backup file in session.
+fn get_next_path(session_path: &Path, session_idxs: &[usize]) -> PathBuf {
+    session_path.join(format!(
+        "{}{}",
+        session_idxs.last().map_or(0, |i| i + 1),
+        BACKUP_FILE_EXTENSION,
+    ))
+}
+
 /// Loads the existing backups, and opens a new backup file to write to.
 ///
 /// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
@@ -60,46 +96,25 @@ pub fn rotate(
     backup_path: Option<PathBuf>,
     session_id: u32,
 ) -> Result<(Saver, Loader), BackupLoadError> {
-    const BACKUP_FILE_EXTENSION: &str = ".abfts";
-
     debug!(target: "aleph-party", "Loading AlephBFT backup for session {:?}", session_id);
-    let backup_path = if let Some(path) = backup_path {
-        path
+    let session_path = if let Some(path) = backup_path {
+        path.join(format!("{}", session_id))
     } else {
         debug!(target: "aleph-party", "Passing empty backup for session {:?} as no backup path was provided", session_id);
         return Ok((Box::new(io::sink()), Box::new(io::empty())));
     };
-    let session_path = backup_path.join(format!("{}", session_id));
     debug!(target: "aleph-party", "Loading backup for session {:?} at path {:?}", session_id, session_path);
 
-    fs::create_dir_all(&session_path)?;
-    let mut session_backups: Vec<_> = fs::read_dir(&session_path)?
-        .filter_map(|r| r.ok())
-        .filter_map(|x| x.file_name().into_string().ok())
-        .filter_map(|s| usize::from_str(s.strip_suffix(BACKUP_FILE_EXTENSION)?).ok())
-        .collect();
-    session_backups.sort_unstable();
-    if !session_backups.iter().cloned().eq(0..session_backups.len()) {
-        return Err(BackupLoadError::BackupIncomplete(session_backups));
-    }
+    let session_backup_idxs = get_session_backup_idxs(&session_path)?;
 
-    let mut buffer = Vec::new();
-    for index in session_backups.iter() {
-        let load_path = session_path.join(format!("{}{}", index, BACKUP_FILE_EXTENSION));
-        File::open(load_path)?.read_to_end(&mut buffer)?;
-    }
-    let loader = Cursor::new(buffer);
+    let backup_loader = load_backup(&session_path, &session_backup_idxs)?;
 
-    let session_backup_path = session_path.join(format!(
-        "{}{}",
-        session_backups.last().map_or(0, |i| i + 1),
-        BACKUP_FILE_EXTENSION,
-    ));
-    debug!(target: "aleph-party", "Loaded backup for session {:?}. Creating new backup file at {:?}", session_id, session_backup_path);
-    let saver = File::create(session_backup_path)?;
+    let next_backup_path = get_next_path(&session_path, &session_backup_idxs);
+    debug!(target: "aleph-party", "Loaded backup for session {:?}. Creating new backup file at {:?}", session_id, next_backup_path);
+    let backup_saver = Box::new(File::create(next_backup_path)?);
 
     debug!(target: "aleph-party", "Backup rotation done for session {:?}", session_id);
-    Ok((Box::new(saver), Box::new(loader)))
+    Ok((backup_saver, backup_loader))
 }
 
 /// Removes the backup directory for a session.
