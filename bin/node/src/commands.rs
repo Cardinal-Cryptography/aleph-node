@@ -17,7 +17,7 @@ use sp_keystore::SyncCryptoStore;
 use std::{
     fs,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 /// returns Aura key, if absent a new key is generated
@@ -67,6 +67,10 @@ fn p2p_key(chain_params: &ChainParams, account_id: &AccountId) -> SerializablePe
     }
 }
 
+fn backup_path(base_path: &Path, backup_dir: &str) -> PathBuf {
+    base_path.join(backup_dir)
+}
+
 fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_params: &ChainParams,
@@ -92,12 +96,9 @@ fn open_keystore(
 }
 
 fn bootstrap_backup(chain_params: &ChainParams, account_id: &AccountId) {
-    let authority = account_id.to_string();
-    let backup_path = chain_params
-        .base_path()
-        .path()
-        .join(authority)
-        .join(chain_params.backup_dir());
+    let base_path = chain_params.base_path().path().join(account_id.to_string());
+    let backup_path = backup_path(&base_path, chain_params.backup_dir());
+
     if backup_path.exists() {
         if !backup_path.is_dir() {
             panic!(
@@ -280,11 +281,10 @@ pub struct PurgeBackupCmd {
 
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let backup_path = self
-            .chain_params
-            .base_path()
-            .path()
-            .join(self.chain_params.backup_dir());
+        let backup_path = backup_path(
+            self.chain_params.base_path().path(),
+            self.chain_params.backup_dir(),
+        );
 
         if !self.yes {
             print!(
