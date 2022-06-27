@@ -47,8 +47,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
-    MILLISECS_PER_BLOCK, TOKEN,
+    AuthorityId as AlephId, SessionAuthorityData, ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK, TOKEN,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -858,10 +858,6 @@ impl_runtime_apis! {
     }
 
     impl primitives::AlephSessionApi<Block> for Runtime {
-        fn authorities() -> Vec<AlephId> {
-            Aleph::authorities()
-        }
-
         fn millisecs_per_block() -> u64 {
             MILLISECS_PER_BLOCK
         }
@@ -870,11 +866,28 @@ impl_runtime_apis! {
             SessionPeriod::get()
         }
 
+        fn authorities() -> Vec<AlephId> {
+            Aleph::authorities()
+        }
+
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
             Session::queued_keys()
                 .iter()
                 .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()
+        }
+
+        fn authority_data() -> SessionAuthorityData {
+            SessionAuthorityData::new(Aleph::authorities(), Aleph::emergency_finalizer())
+        }
+
+        fn next_session_authority_data() -> Result<SessionAuthorityData, AlephApiError> {
+            Ok(SessionAuthorityData::new(Session::queued_keys()
+                .iter()
+                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
+                .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
+                Aleph::future_emergency_finalizers().0,
+            ))
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::{crypto::Signature, SessionId};
 use aleph_bft::SignatureSet;
+use aleph_primitives::AuthoritySignature;
 use codec::{Decode, Encode};
 use sp_api::{BlockT, NumberFor};
 use std::time::Duration;
@@ -20,7 +21,7 @@ pub use scheduler::{
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 pub enum AlephJustification {
     CommitteeMultisignature(SignatureSet<Signature>),
-    //SudoSignature(TODOFigureOutType),
+    EmergencySignature(AuthoritySignature),
 }
 
 pub trait Verifier<B: BlockT> {

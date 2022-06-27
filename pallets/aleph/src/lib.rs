@@ -71,6 +71,16 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn emergency_finalizer)]
+    pub(super) type EmergencyFinalizer<T: Config> =
+        StorageValue<_, Option<T::AuthorityId>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn future_emergency_finalizers)]
+    pub(super) type FutureEmergencyFinalizers<T: Config> =
+        StorageValue<_, (Option<T::AuthorityId>, Option<T::AuthorityId>), ValueQuery>;
+
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
             if !authorities.is_empty() {
@@ -84,6 +94,19 @@ pub mod pallet {
 
         pub(crate) fn update_authorities(authorities: &[T::AuthorityId]) {
             <Authorities<T>>::put(authorities);
+        }
+
+        pub(crate) fn update_emergency_finalizer() {
+            let mut emergency_finalizers = <FutureEmergencyFinalizers<T>>::get();
+            <EmergencyFinalizer<T>>::put(emergency_finalizers.0);
+            emergency_finalizers.0 = emergency_finalizers.1.clone();
+            <FutureEmergencyFinalizers<T>>::put(emergency_finalizers);
+        }
+
+        pub fn set_emergency_finalizer(emergency_finalizer: Option<T::AuthorityId>) {
+            let mut emergency_finalizers = <FutureEmergencyFinalizers<T>>::get();
+            emergency_finalizers.1 = emergency_finalizer;
+            <FutureEmergencyFinalizers<T>>::put(emergency_finalizers);
         }
     }
 
@@ -108,6 +131,7 @@ pub mod pallet {
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
+            Self::update_emergency_finalizer();
             if changed {
                 let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
                 Self::update_authorities(authorities.as_slice());

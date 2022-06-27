@@ -166,7 +166,10 @@ pub fn versioned_encode(justification: AlephJustification) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use super::{versioned_encode, backwards_compatible_decode, AlephJustificationV1, AlephJustificationV2, VersionedAlephJustification};
+    use super::{
+        backwards_compatible_decode, versioned_encode, AlephJustificationV1, AlephJustificationV2,
+        VersionedAlephJustification,
+    };
     use crate::{
         crypto::{Signature, SignatureV1},
         justification::AlephJustification,
@@ -261,7 +264,12 @@ mod test {
             12, 8, 0,
         ];
         match backwards_compatible_decode(raw) {
-            Ok(AlephJustification::CommitteeMultisignature(signature)) => assert_eq!(signature.size(), NodeCount(4)),
+            Ok(AlephJustification::CommitteeMultisignature(signature)) => {
+                assert_eq!(signature.size(), NodeCount(4))
+            }
+            Ok(AlephJustification::EmergencySignature(_)) => {
+                panic!("decoded V1 as emergency signature")
+            }
             Err(e) => panic!("decoding V1 failed: {}", e),
         }
     }
@@ -291,7 +299,12 @@ mod test {
             68, 94, 254, 77, 39, 172, 255, 145, 10, 0,
         ];
         match backwards_compatible_decode(raw) {
-            Ok(AlephJustification::CommitteeMultisignature(signature)) => assert_eq!(signature.size(), NodeCount(6)),
+            Ok(AlephJustification::CommitteeMultisignature(signature)) => {
+                assert_eq!(signature.size(), NodeCount(6))
+            }
+            Ok(AlephJustification::EmergencySignature(_)) => {
+                panic!("decoded V1 as emergency signature")
+            }
             Err(e) => panic!("decoding V1 failed: {}", e),
         }
     }
