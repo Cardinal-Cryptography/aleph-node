@@ -6,8 +6,9 @@ use crate::{
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         staking_era_payouts as test_staking_era_payouts,
-        staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
-        treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
+        staking_new_validator as test_staking_new_validator, test_disable_node,
+        token_transfer as test_token_transfer, treasury_access as test_treasury_access,
+        validators_rotate as test_validators_rotate,
     },
 };
 
@@ -20,6 +21,7 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
+        ("reward_points_disable_node", test_disable_node as TestCase),
         ("finalization", test_finalization as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         (
