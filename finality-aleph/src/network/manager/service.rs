@@ -9,7 +9,7 @@ use futures::{
     StreamExt,
 };
 use log::{debug, trace, warn};
-use tokio::time::interval;
+use tokio::time::{interval_at, Instant};
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
@@ -77,13 +77,19 @@ impl PreSession {
 pub struct Config {
     discovery_cooldown: Duration,
     maintenance_period: Duration,
+    initial_delay: Duration,
 }
 
 impl Config {
-    fn new(discovery_cooldown: Duration, maintenance_period: Duration) -> Self {
+    fn new(
+        discovery_cooldown: Duration,
+        maintenance_period: Duration,
+        initial_delay: Duration,
+    ) -> Self {
         Config {
             discovery_cooldown,
             maintenance_period,
+            initial_delay,
         }
     }
 
@@ -94,7 +100,8 @@ impl Config {
     ) -> Self {
         let discovery_cooldown =
             Duration::from_millis(millisecs_per_block.0 * session_period.0 as u64 / 5);
-        Config::new(discovery_cooldown, discovery_cooldown / 2)
+        let initial_delay = Duration::from_millis(millisecs_per_block.0 * 5);
+        Config::new(discovery_cooldown, discovery_cooldown / 2, initial_delay)
     }
 }
 
@@ -133,6 +140,7 @@ pub struct Service<NI: NetworkIdentity, D: Data> {
     )>,
     discovery_cooldown: Duration,
     maintenance_period: Duration,
+    initial_delay: Duration,
 }
 
 impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
@@ -141,6 +149,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         let Config {
             discovery_cooldown,
             maintenance_period,
+            initial_delay,
         } = config;
         Service {
             network_identity,
@@ -149,6 +158,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             to_retry: Vec::new(),
             discovery_cooldown,
             maintenance_period,
+            initial_delay,
         }
     }
 
@@ -616,7 +626,10 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
         mut self,
         mut service: Service<NI, D>,
     ) -> Result<(), Error> {
-        let mut maintenance = interval(service.maintenance_period);
+        let mut maintenance = interval_at(
+            Instant::now() + service.initial_delay,
+            service.maintenance_period,
+        );
         loop {
             trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {
