@@ -34,7 +34,7 @@ chain.set_flags_validator('validator')
 print('Starting the chain')
 chain.start('aleph')
 
-for run_duration, stop_duration, catch_up_duration in [[50, 20, 20], [20, 15, 20], [20, 15, 20]]:
+for run_duration, stop_duration, catch_up_duration in [[60, 20, 30], [20, 15, 30], [20, 15, 30]]:
     print(f'Waiting {run_duration}s')
     sleep(run_duration)
 
