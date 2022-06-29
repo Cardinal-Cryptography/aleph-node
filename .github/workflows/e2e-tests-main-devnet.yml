@@ -293,6 +293,20 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
+  run-e2e-era-validators:
+    needs: [build-test-docker, build-test-client]
+    name: Run era validators test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: era_validators
+          follow-up-finalization-check: true
+        timeout-minutes: 10
 
   check-e2e-test-suite-completion:
     needs: [
@@ -306,7 +320,8 @@ jobs:
       run-e2e-change-validators-test,
       run-e2e-fee-calculation,
       run-e2e-validators-rotate,
-      run-e2e-era-payout
+      run-e2e-era-payout,
+      run-e2e-era-validators
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-latest
@@ -549,6 +564,31 @@ jobs:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh
+
+  test-multiple-restarts:
+    name: Test multiple restarts
+    runs-on: ubuntu-latest
+    needs: build-new-node
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Test multiple restarts
+        timeout-minutes: 10
+        env:
+          # Relative to local-tests/ directory
+          ALEPH_NODE_BINARY: aleph-release-node/aleph-node
+        run: ./.github/scripts/test_multiple_restarts.sh
 
   remove-old-artifacts-if-PR:
     name: Remove old node and runtime artifacts

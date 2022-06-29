@@ -82,6 +82,7 @@ run_node() {
   ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
   ./target/release/aleph-node \
     $validator \
+    --pruning=archive \
     --chain $BASE_PATH/chainspec.json \
     --base-path $BASE_PATH/$account_id \
     --name $auth \
@@ -90,6 +91,7 @@ run_node() {
     --port $((30334 + i)) \
     --bootnodes $bootnodes \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
+    --backup-path $BASE_PATH/$account_id/backup-stash \
     --unit-creation-delay 500 \
     --execution Native \
     --rpc-cors=all \

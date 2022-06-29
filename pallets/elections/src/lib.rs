@@ -122,6 +122,14 @@ pub mod pallet {
                     }
                 }
         }
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            Ok(())
+        }
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            Ok(())
+        }
     }
     /// Desirable size of a committee.
     ///
