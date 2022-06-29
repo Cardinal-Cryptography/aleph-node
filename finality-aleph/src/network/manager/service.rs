@@ -700,11 +700,12 @@ mod tests {
     const NUM_NODES: usize = 7;
     const MAINTENANCE_PERIOD: Duration = Duration::from_secs(120);
     const DISCOVERY_PERIOD: Duration = Duration::from_secs(60);
+    const INITIAL_DELAY: Duration = Duration::from_secs(5);
 
     fn build() -> Service<MockNetworkIdentity, i32> {
         Service::new(
             MockNetworkIdentity::new(),
-            Config::new(MAINTENANCE_PERIOD, DISCOVERY_PERIOD),
+            Config::new(MAINTENANCE_PERIOD, DISCOVERY_PERIOD, INITIAL_DELAY),
         )
     }
 
