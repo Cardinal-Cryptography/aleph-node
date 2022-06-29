@@ -1,10 +1,15 @@
+use crate::{try_send_xt, wait_for_event, AnyConnection, RootConnection, SignedConnection};
+use ac_primitives::ExtrinsicParams;
+use codec::Decode;
 use frame_support::PalletId;
 use log::info;
-use sp_runtime::{traits::AccountIdConversion, AccountId32};
-
 use primitives::Balance;
+use sp_core::{Pair, H256};
+use sp_runtime::{traits::AccountIdConversion, AccountId32};
+use std::{thread, thread::sleep, time::Duration};
+use substrate_api_client::{compose_extrinsic, ApiResult, GenericAddress, XtStatus};
 
-use crate::AnyConnection;
+type AnyResult<T> = anyhow::Result<T>;
 
 /// Returns the account of the treasury.
 pub fn treasury_account() -> AccountId32 {
@@ -46,4 +51,119 @@ pub fn staking_treasury_payout<C: AnyConnection>(connection: &C) -> Balance {
         treasury_era_payout_from_staking
     );
     treasury_era_payout_from_staking
+}
+
+/// Creates a proposal of spending treasury's funds.
+///
+/// The intention is to transfer `value` balance to `beneficiary`. The signer of `connection` is the
+/// proposer.
+pub fn propose(
+    connection: &SignedConnection,
+    value: Balance,
+    beneficiary: &AccountId32,
+) -> ApiResult<Option<H256>> {
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Treasury",
+        "propose_spend",
+        Compact(value),
+        GenericAddress::Id(beneficiary.clone())
+    );
+    try_send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury spend"),
+        XtStatus::Finalized,
+    )
+}
+
+#[derive(Debug, Decode, Copy, Clone)]
+struct ProposalRejectedEvent {
+    proposal_id: u32,
+    _slashed: Balance,
+}
+
+fn wait_for_rejection<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyResult<()> {
+    wait_for_event(
+        connection,
+        ("Treasury", "Rejected"),
+        |e: ProposalRejectedEvent| {
+            info!("[+] Rejected proposal {:?}", e.proposal_id);
+            proposal_id.eq(&e.proposal_id)
+        },
+    )
+    .map(|_| ())
+}
+
+fn send_rejection(connection: &RootConnection, proposal_id: u32) -> ApiResult<Option<H256>> {
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Treasury",
+        "reject_proposal",
+        Compact(proposal_id)
+    );
+    try_send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury rejection"),
+        XtStatus::Finalized,
+    )
+}
+
+/// Rejects proposal with id `proposal_id` and waits for the corresponding event.
+///
+/// Fails if either sending extrinsic failed or the expected event has not been observed.
+pub fn reject(connection: &RootConnection, proposal_id: u32) -> AnyResult<()> {
+    let listener = {
+        let (c, p) = (connection.clone(), proposal_id);
+        thread::spawn(move || wait_for_rejection(&c, p))
+    };
+    send_rejection(connection, proposal_id)?;
+    listener
+        .join()
+        .expect("Corresponding event should have been emitted")
+}
+
+fn send_approval(connection: &RootConnection, proposal_id: u32) -> ApiResult<Option<H256>> {
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Treasury",
+        "approve_proposal",
+        Compact(proposal_id)
+    );
+    try_send_xt(
+        connection,
+        xt.clone(),
+        Some("treasury approval"),
+        XtStatus::Finalized,
+    )
+}
+
+fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyResult<()> {
+    loop {
+        let approvals: Vec<u32> = connection
+            .as_connection()
+            .get_storage_value("Treasury", "Approvals", None)
+            .expect("Key `Treasury::Approvals` should be present in storage")
+            .unwrap_or_default();
+        if approvals.contains(&proposal_id) {
+            info!("[+] Proposal {:?} approved successfully", proposal_id);
+            return Ok(());
+        } else {
+            info!(
+                "[+] Still waiting for approval for proposal {:?}",
+                proposal_id
+            );
+            sleep(Duration::from_millis(500))
+        }
+    }
+}
+
+/// Approves proposal with id `proposal_id` and waits (in the loop) until pallet storage is updated.
+///
+/// Unfortunately, pallet treasury does not emit any event (like while rejecting), so we have to
+/// keep reading storage to be sure. Hence, it may be an expensive call.
+pub fn approve(connection: &RootConnection, proposal_id: u32) -> AnyResult<()> {
+    send_approval(connection, proposal_id)?;
+    wait_for_approval(connection, proposal_id)
 }

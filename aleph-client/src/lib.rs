@@ -37,7 +37,9 @@ pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
 };
 pub use treasury::{
-    proposals_counter as treasury_proposals_counter, staking_treasury_payout, treasury_account,
+    approve as approve_treasury_proposal, proposals_counter as treasury_proposals_counter,
+    propose as make_treasury_proposal, reject as reject_treasury_proposal, staking_treasury_payout,
+    treasury_account,
 };
 pub use vesting::{
     get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,

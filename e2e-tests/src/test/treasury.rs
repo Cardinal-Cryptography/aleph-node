@@ -3,19 +3,14 @@
 //! some part of this module is unused (`dead_code`). As soon as proposals are enabled once again,
 //! we should recover original scenario.
 
-use codec::{Compact, Decode};
 use log::info;
 use sp_core::Pair;
-use sp_runtime::{AccountId32, MultiAddress};
-use std::{thread, thread::sleep, time::Duration};
-use substrate_api_client::{
-    compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
-};
+use substrate_api_client::{AccountId, Balance, XtStatus};
 
 use aleph_client::{
-    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, staking_treasury_payout,
-    total_issuance, treasury_account, treasury_proposals_counter, wait_for_event, AnyConnection,
-    Extrinsic, RootConnection, SignedConnection,
+    balances_transfer, get_free_balance, get_tx_fee_info, make_treasury_proposal,
+    staking_treasury_payout, total_issuance, treasury_account, treasury_proposals_counter,
+    SignedConnection,
 };
 
 use crate::{accounts::get_validators_keys, config::Config, transfer::setup_for_tipped_transfer};
@@ -113,7 +108,7 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let connection = SignedConnection::new(&config.node, proposer);
 
     let proposals_counter_before = treasury_proposals_counter(&connection);
-    propose_treasury_spend(10u128, &beneficiary, &connection);
+    make_treasury_proposal(&connection, 10u128, &beneficiary)?;
     let proposals_counter_after = treasury_proposals_counter(&connection);
     assert_eq!(
         proposals_counter_before, proposals_counter_after,
@@ -121,118 +116,4 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     );
 
     Ok(())
-}
-
-type ProposalTransaction = Extrinsic<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
-fn propose_treasury_spend(
-    value: u128,
-    beneficiary: &AccountId32,
-    connection: &SignedConnection,
-) -> ProposalTransaction {
-    let xt = compose_extrinsic!(
-        connection.as_connection(),
-        "Treasury",
-        "propose_spend",
-        Compact(value),
-        GenericAddress::Id(beneficiary.clone())
-    );
-    send_xt(
-        connection,
-        xt.clone(),
-        Some("treasury spend"),
-        XtStatus::Finalized,
-    );
-    xt
-}
-
-#[allow(dead_code)]
-type GovernanceTransaction = Extrinsic<([u8; 2], Compact<u32>)>;
-
-#[allow(dead_code)]
-fn send_treasury_approval(proposal_id: u32, connection: &RootConnection) -> GovernanceTransaction {
-    let xt = compose_extrinsic!(
-        connection.as_connection(),
-        "Treasury",
-        "approve_proposal",
-        Compact(proposal_id)
-    );
-    send_xt(
-        connection,
-        xt.clone(),
-        Some("treasury approval"),
-        XtStatus::Finalized,
-    );
-    xt
-}
-
-#[allow(dead_code)]
-fn treasury_approve(proposal_id: u32, connection: &RootConnection) -> anyhow::Result<()> {
-    send_treasury_approval(proposal_id, connection);
-    wait_for_approval(connection, proposal_id)
-}
-
-#[allow(dead_code)]
-fn send_treasury_rejection(proposal_id: u32, connection: &RootConnection) -> GovernanceTransaction {
-    let xt = compose_extrinsic!(
-        connection.as_connection(),
-        "Treasury",
-        "reject_proposal",
-        Compact(proposal_id)
-    );
-    send_xt(
-        connection,
-        xt.clone(),
-        Some("treasury rejection"),
-        XtStatus::Finalized,
-    );
-    xt
-}
-
-#[allow(dead_code)]
-fn treasury_reject(proposal_id: u32, connection: &RootConnection) -> anyhow::Result<()> {
-    let (c, p) = (connection.clone(), proposal_id);
-    let listener = thread::spawn(move || wait_for_rejection(&c, p));
-    send_treasury_rejection(proposal_id, connection);
-    listener.join().unwrap()
-}
-
-#[allow(dead_code)]
-fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> anyhow::Result<()> {
-    loop {
-        let approvals: Vec<u32> = connection
-            .as_connection()
-            .get_storage_value("Treasury", "Approvals", None)
-            .unwrap()
-            .unwrap();
-        if approvals.contains(&proposal_id) {
-            info!("[+] Proposal {:?} approved successfully", proposal_id);
-            return Ok(());
-        } else {
-            info!(
-                "[+] Still waiting for approval for proposal {:?}",
-                proposal_id
-            );
-            sleep(Duration::from_millis(500))
-        }
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Decode, Copy, Clone)]
-struct ProposalRejectedEvent {
-    proposal_id: u32,
-    _slashed: u128,
-}
-
-#[allow(dead_code)]
-fn wait_for_rejection<C: AnyConnection>(connection: &C, proposal_id: u32) -> anyhow::Result<()> {
-    wait_for_event(
-        connection,
-        ("Treasury", "Rejected"),
-        |e: ProposalRejectedEvent| {
-            info!("[+] Rejected proposal {:?}", e.proposal_id);
-            proposal_id.eq(&e.proposal_id)
-        },
-    )
-    .map(|_| ())
 }
