@@ -9,7 +9,7 @@ use primitives::{Balance, TOKEN};
 
 /// Delegates to `aleph_client::make_treasury_proposal`.
 pub fn propose(connection: SignedConnection, amount_in_tokens: u64, beneficiary: String) {
-    let beneficiary = AccountId::from_ss58check(&to_account).expect("Address should be valid");
+    let beneficiary = AccountId::from_ss58check(&beneficiary).expect("Address should be valid");
     let endowment = amount_in_tokens as Balance * TOKEN;
 
     make_treasury_proposal(&connection, endowment, &beneficiary)
@@ -24,6 +24,6 @@ pub fn approve(connection: RootConnection, proposal_id: u32) {
 
 /// Delegates to `aleph_client::reject_treasury_proposal`.
 pub fn reject(connection: RootConnection, proposal_id: u32) {
-    approve_treasury_proposal(&connection, proposal_id)
+    reject_treasury_proposal(&connection, proposal_id)
         .expect("Should successfully reject the proposal")
 }
