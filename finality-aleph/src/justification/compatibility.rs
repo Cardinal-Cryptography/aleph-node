@@ -32,6 +32,8 @@ impl From<AlephJustificationV1> for AlephJustification {
     }
 }
 
+/// Old format of justifications, needed for backwards compatibility.
+/// Used an old format of signature from before the compatibility changes.
 #[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 struct AlephJustificationV2 {
     pub signature: SignatureSet<Signature>,
