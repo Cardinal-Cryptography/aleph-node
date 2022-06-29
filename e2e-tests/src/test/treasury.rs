@@ -1,8 +1,3 @@
-//! This module contains basic treasury actions testing. However, since currently we need to disable
-//! proposing to treasury on Testnet, `treasury_access` test must have been simplified and thus
-//! some part of this module is unused (`dead_code`). As soon as proposals are enabled once again,
-//! we should recover original scenario.
-
 use log::info;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, Balance, XtStatus};
@@ -10,30 +5,37 @@ use substrate_api_client::{AccountId, Balance, XtStatus};
 use aleph_client::{
     balances_transfer, get_free_balance, get_tx_fee_info, make_treasury_proposal,
     staking_treasury_payout, total_issuance, treasury_account, treasury_proposals_counter,
-    SignedConnection,
+    AnyConnection, SignedConnection,
 };
 
 use crate::{accounts::get_validators_keys, config::Config, transfer::setup_for_tipped_transfer};
 
-pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
-    let tip = 10_000u128;
-    let (connection, to) = setup_for_tipped_transfer(config, tip);
-    let treasury = treasury_account();
-
-    let possibly_treasury_gain_from_staking = staking_treasury_payout(&connection);
-    let treasury_balance_before = get_free_balance(&connection, &treasury);
-    let issuance_before = total_issuance(&connection);
+/// Returns current treasury free funds and total issuance.
+///
+/// Takes two storage reads.
+fn balance_info<C: AnyConnection>(connection: &C) -> (Balance, Balance) {
+    let treasury_balance = get_free_balance(connection, &treasury_account());
+    let issuance = total_issuance(connection);
     info!(
-        "[+] Treasury balance before tx: {}. Total issuance: {}.",
-        treasury_balance_before, issuance_before
+        "[+] Treasury balance: {}. Total issuance: {}.",
+        treasury_balance, issuance
     );
 
-    let tx = balances_transfer(&connection, &to, 1000u128, XtStatus::Finalized);
-    let treasury_balance_after = get_free_balance(&connection, &treasury);
-    let issuance_after = total_issuance(&connection);
-    check_treasury_issuance(
-        possibly_treasury_gain_from_staking,
-        treasury_balance_after,
+    (treasury_balance, issuance)
+}
+
+pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
+    let (transfer_amount, tip) = (1_000u128, 10_000u128);
+    let (connection, to) = setup_for_tipped_transfer(config, tip);
+
+    let (treasury_balance_before, issuance_before) = balance_info(&connection);
+    let tx = balances_transfer(&connection, &to, transfer_amount, XtStatus::Finalized);
+    let (treasury_balance_after, issuance_after) = balance_info(&connection);
+
+    let possible_treasury_gain_from_staking = staking_treasury_payout(&connection);
+
+    check_issuance(
+        possible_treasury_gain_from_staking,
         issuance_before,
         issuance_after,
     );
@@ -41,7 +43,7 @@ pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
     let fee_info = get_tx_fee_info(&connection, &tx);
     let fee = fee_info.fee_without_weight + fee_info.adjusted_weight;
     check_treasury_balance(
-        possibly_treasury_gain_from_staking,
+        possible_treasury_gain_from_staking,
         treasury_balance_before,
         treasury_balance_after,
         fee,
@@ -51,36 +53,29 @@ pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_treasury_issuance(
-    possibly_treasury_gain_from_staking: u128,
-    treasury_balance_after: Balance,
-    issuance_before: u128,
-    issuance_after: u128,
+fn check_issuance(
+    treasury_staking_payout: Balance,
+    issuance_before: Balance,
+    issuance_after: Balance,
 ) {
-    info!(
-        "[+] Treasury balance after tx: {}. Total issuance: {}.",
-        treasury_balance_after, issuance_after
+    assert!(
+        issuance_after >= issuance_before,
+        "Unexpectedly {} was burned",
+        issuance_before - issuance_after,
     );
 
-    if issuance_after > issuance_before {
-        let difference = issuance_after - issuance_before;
-        assert_eq!(
-            difference % possibly_treasury_gain_from_staking,
-            0,
-            "Unexpectedly {} was minted, and it's not related to staking treasury reward which is {}",
-            difference, possibly_treasury_gain_from_staking
-        );
-    }
-
-    assert!(
-        issuance_before <= issuance_after,
-        "Unexpectedly {} was burned",
-        issuance_before - issuance_after
+    let diff = issuance_after - issuance_before;
+    assert_eq!(
+        diff % treasury_staking_payout,
+        0,
+        "Unexpectedly {} was minted, and it's not related to staking treasury reward which is {}",
+        diff,
+        treasury_staking_payout
     );
 }
 
 fn check_treasury_balance(
-    possibly_treasury_gain_from_staking: u128,
+    possibly_treasury_gain_from_staking: Balance,
     treasury_balance_before: Balance,
     treasury_balance_after: Balance,
     fee: Balance,
