@@ -100,8 +100,12 @@ impl Config {
     ) -> Self {
         let discovery_cooldown =
             Duration::from_millis(millisecs_per_block.0 * session_period.0 as u64 / 5);
-        let initial_delay = Duration::from_millis(millisecs_per_block.0 * 5);
-        Config::new(discovery_cooldown, discovery_cooldown / 2, initial_delay)
+        let maintenance_period = discovery_cooldown / 2;
+        let initial_delay = cmp::min(
+            Duration::from_millis(millisecs_per_block.0 * 20),
+            maintenance_period,
+        );
+        Config::new(discovery_cooldown, maintenance_period, initial_delay)
     }
 }
 
@@ -626,6 +630,8 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
         mut self,
         mut service: Service<NI, D>,
     ) -> Result<(), Error> {
+        // Initial delay is needed so that Network is fully set up and we received some first discovery broadcasts from other nodes.
+        // Otherwise this might cause first maintenance never working, as it happens before first broadcasts.
         let mut maintenance = interval_at(
             Instant::now() + service.initial_delay,
             service.maintenance_period,
