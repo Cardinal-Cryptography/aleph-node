@@ -13,7 +13,7 @@ use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
-use tokio::task::spawn_blocking;
+use tokio::{task::spawn_blocking, time::sleep};
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
@@ -432,9 +432,19 @@ where
     }
 
     pub async fn run(mut self) {
-        let last_finalized_number = self.client.info().finalized_number;
-        let starting_session =
-            session_id_from_block_num::<B>(last_finalized_number, self.session_period);
+        let mut finalized_number = self.client.info().finalized_number;
+        let mut previous_finalized_number;
+        let mut starting_session;
+        loop {
+            sleep(Duration::from_secs(1)).await;
+            previous_finalized_number = finalized_number;
+            finalized_number = self.client.info().finalized_number;
+            if finalized_number == previous_finalized_number {
+                starting_session =
+                    session_id_from_block_num::<B>(finalized_number, self.session_period);
+                break;
+            }
+        }
         for curr_id in starting_session.0.. {
             info!(target: "aleph-party", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
