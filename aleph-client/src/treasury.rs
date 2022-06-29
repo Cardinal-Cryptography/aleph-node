@@ -2,7 +2,6 @@ use crate::{try_send_xt, wait_for_event, AnyConnection, RootConnection, SignedCo
 use ac_primitives::ExtrinsicParams;
 use codec::Decode;
 use frame_support::PalletId;
-use log::info;
 use primitives::Balance;
 use sp_core::{Pair, H256};
 use sp_runtime::{traits::AccountIdConversion, AccountId32};
@@ -45,12 +44,7 @@ pub fn staking_treasury_payout<C: AnyConnection>(connection: &C) -> Balance {
         .expect("Constant `Timestamp::MinimumPeriod` should be present");
 
     let millisecs_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
-    let treasury_era_payout_from_staking = primitives::staking::era_payout(millisecs_per_era).1;
-    info!(
-        "[+] Possible treasury gain from staking is {}",
-        treasury_era_payout_from_staking
-    );
-    treasury_era_payout_from_staking
+    primitives::staking::era_payout(millisecs_per_era).1
 }
 
 /// Creates a proposal of spending treasury's funds.
@@ -82,10 +76,7 @@ fn wait_for_rejection<C: AnyConnection>(connection: &C, proposal_id: u32) -> Any
     wait_for_event(
         connection,
         ("Treasury", "Rejected"),
-        |e: ProposalRejectedEvent| {
-            info!("[+] Rejected proposal {:?}", e.proposal_id);
-            proposal_id.eq(&e.proposal_id)
-        },
+        |e: ProposalRejectedEvent| proposal_id.eq(&e.proposal_id),
     )
     .map(|_| ())
 }
@@ -107,7 +98,7 @@ fn send_rejection(connection: &RootConnection, proposal_id: u32) -> ApiResult<Op
 
 /// Rejects proposal with id `proposal_id` and waits for the corresponding event.
 ///
-/// Fails if either sending extrinsic failed or the expected event has not been observed.
+/// Be careful, since execution might never end (we may stuck on waiting for the event forever).
 pub fn reject(connection: &RootConnection, proposal_id: u32) -> AnyResult<()> {
     let listener = {
         let (c, p) = (connection.clone(), proposal_id);
@@ -142,22 +133,19 @@ fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyR
             .expect("Key `Treasury::Approvals` should be present in storage")
             .unwrap_or_default();
         if approvals.contains(&proposal_id) {
-            info!("[+] Proposal {:?} approved successfully", proposal_id);
             return Ok(());
         } else {
-            info!(
-                "[+] Still waiting for approval for proposal {:?}",
-                proposal_id
-            );
             sleep(Duration::from_millis(500))
         }
     }
 }
 
-/// Approves proposal with id `proposal_id` and waits (in the loop) until pallet storage is updated.
+/// Approves proposal with id `proposal_id` and waits (in a loop) until pallet storage is updated.
 ///
 /// Unfortunately, pallet treasury does not emit any event (like while rejecting), so we have to
 /// keep reading storage to be sure. Hence, it may be an expensive call.
+///
+/// Be careful, since execution might never end.
 pub fn approve(connection: &RootConnection, proposal_id: u32) -> AnyResult<()> {
     send_approval(connection, proposal_id)?;
     wait_for_approval(connection, proposal_id)
