@@ -1,3 +1,7 @@
+use crate::{
+    account_from_keypair, create_connection, locks, send_xt, wait_for_session, AnyConnection,
+    BlockNumber, KeyPair, RootConnection, SignedConnection,
+};
 use codec::{Compact, Decode, Encode};
 use frame_support::BoundedVec;
 use log::info;
@@ -7,13 +11,9 @@ use pallet_staking::{
 use rayon::prelude::*;
 use sp_core::{Pair, H256};
 use sp_runtime::Perbill;
+use std::collections::BTreeMap;
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
-};
-
-use crate::{
-    account_from_keypair, create_connection, locks, send_xt, wait_for_session, AnyConnection,
-    BlockNumber, KeyPair, RootConnection, SignedConnection,
 };
 
 pub fn bond(
@@ -324,4 +324,34 @@ pub fn get_exposure<C: AnyConnection>(
         .get_storage_double_map("Staking", "ErasStakers", era, account_id, block_hash)
         .expect("Failed to decode ErasStakers extrinsic!")
         .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for era {}.", era))
+}
+
+pub type RewardPoint = u32;
+
+/// Helper to decode reward points for an era without the need to fill in a generic parameter.
+/// Reward points of an era. Used to split era total payout between validators.
+///
+/// This points will be used to reward validators and their respective nominators.
+#[derive(Clone, Decode, Default)]
+pub struct EraRewardPoints {
+    /// Total number of points. Equals the sum of reward points for each validator.
+    pub total: RewardPoint,
+    /// The reward points earned by a given validator.
+    pub individual: BTreeMap<AccountId, RewardPoint>,
+}
+
+pub fn get_era_reward_points<C: AnyConnection>(
+    connection: &C,
+    era: u32,
+    block_hash: Option<H256>,
+) -> Option<EraRewardPoints> {
+    connection
+        .as_connection()
+        .get_storage_map("Staking", "ErasRewardPoints", era, block_hash)
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to obtain ErasRewardPoints for era {} at block {:?}: {}",
+                era, block_hash, e
+            )
+        })
 }

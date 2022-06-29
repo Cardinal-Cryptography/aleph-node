@@ -1,19 +1,9 @@
-use std::{collections::BTreeMap, thread::sleep, time::Duration};
-
 use ac_primitives::SubstrateDefaultSignedExtra;
-use codec::{Decode, Encode};
-use log::{info, warn};
-use sp_core::{sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
-pub use substrate_api_client;
-use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
-    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
-};
-
 pub use account::{get_free_balance, locks};
+use codec::Encode;
 pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
+use log::{info, warn};
 pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
@@ -24,14 +14,22 @@ pub use session::{
     get_session, get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
+use sp_core::{sr25519, storage::StorageKey, Pair, H256};
+use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
-    get_current_era, get_era, get_exposure, get_payout_for_era, get_sessions_per_era,
-    ledger as staking_ledger, multi_bond as staking_multi_bond, nominate as staking_nominate,
-    payout_stakers, payout_stakers_and_assert_locked_balance,
+    get_current_era, get_era, get_era_reward_points, get_exposure, get_payout_for_era,
+    get_sessions_per_era, ledger as staking_ledger, multi_bond as staking_multi_bond,
+    nominate as staking_nominate, payout_stakers, payout_stakers_and_assert_locked_balance,
     set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_full_era_completion, wait_for_next_era, StakingLedger,
+    wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
+};
+use std::{thread::sleep, time::Duration};
+pub use substrate_api_client;
+use substrate_api_client::{
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
+    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
 };
 pub use system::set_code;
 pub use transfer::{
@@ -302,42 +300,6 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let bytes = storage_key(pallet, call);
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
-}
-
-pub type RewardPoint = u32;
-
-/// Helper to decode reward points for an era without the need to fill in a generic parameter.
-/// Reward points of an era. Used to split era total payout between validators.
-///
-/// This points will be used to reward validators and their respective nominators.
-#[derive(Clone, Decode, Default)]
-pub struct EraRewardPoints {
-    /// Total number of points. Equals the sum of reward points for each validator.
-    pub total: RewardPoint,
-    /// The reward points earned by a given validator.
-    pub individual: BTreeMap<AccountId, RewardPoint>,
-}
-
-pub fn get_era_reward_points<C: AnyConnection>(
-    connection: &C,
-    era: u32,
-    block_hash: Option<H256>,
-) -> EraRewardPoints {
-    connection
-        .as_connection()
-        .get_storage_map("Staking", "ErasRewardPoints", era, block_hash)
-        .expect("Failed to obtain ErasRewardPoints.")
-        .unwrap_or_else(|| panic!("Failed to obtain EraRewardPoints for era {}.", era))
-}
-
-pub fn get_era_reward_points_result<C: AnyConnection>(
-    connection: &C,
-    era: u32,
-    block_hash: Option<H256>,
-) -> ApiResult<Option<EraRewardPoints>> {
-    connection
-        .as_connection()
-        .get_storage_map("Staking", "ErasRewardPoints", era, block_hash)
 }
 
 pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: u32) -> H256 {

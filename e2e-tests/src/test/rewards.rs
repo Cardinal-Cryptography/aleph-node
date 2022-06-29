@@ -4,10 +4,10 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_validators, get_block_hash, get_current_session, get_era_reward_points_result,
-    get_exposure, get_session_period, get_sessions_per_era, wait_for_at_least_session,
-    wait_for_finalized_block, wait_for_full_era_completion, wait_for_next_era, AnyConnection,
-    KeyPair, RewardPoint, SignedConnection,
+    change_validators, get_block_hash, get_current_session, get_era_reward_points, get_exposure,
+    get_session_period, get_sessions_per_era, wait_for_at_least_session, wait_for_finalized_block,
+    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, RewardPoint,
+    SignedConnection,
 };
 use log::info;
 use pallet_staking::Exposure;
@@ -266,14 +266,12 @@ fn check_points(
 
     // get points stored by the Staking pallet
     let validator_reward_points_current_era =
-        get_era_reward_points_result(connection, era, Some(end_of_session_block_hash))
-            .expect("should be able to retrieve EraRewardPoints for `end of session block`")
+        get_era_reward_points(connection, era, Some(end_of_session_block_hash))
             .unwrap_or_default()
             .individual;
 
     let validator_reward_points_previous_session =
-        get_era_reward_points_result(connection, era, Some(beggining_of_session_block_hash))
-            .expect("should be able to retrieve EraRewardPoints for `beggining of session block`")
+        get_era_reward_points(connection, era, Some(beggining_of_session_block_hash))
             .unwrap_or_default()
             .individual;
 
