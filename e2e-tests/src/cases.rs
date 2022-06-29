@@ -2,13 +2,12 @@ use crate::{
     config::Config,
     test::{
         batch_transactions as test_batch_transactions, change_validators as test_change_validators,
-        channeling_fee_and_tip as test_channeling_fee_and_tip,
+        channeling_fee_and_tip as test_channeling_fee_and_tip, disable_node as test_disable_node,
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         staking_era_payouts as test_staking_era_payouts,
-        staking_new_validator as test_staking_new_validator, test_disable_node,
-        token_transfer as test_token_transfer, treasury_access as test_treasury_access,
-        validators_rotate as test_validators_rotate,
+        staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
+        treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
     },
 };
 

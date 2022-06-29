@@ -152,7 +152,7 @@ fn get_node_performance(
     lenient_performance
 }
 
-pub fn test_disable_node(config: &Config) -> anyhow::Result<()> {
+pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.05;
     const VALIDATORS_PER_SESSION: u32 = 4;
 
