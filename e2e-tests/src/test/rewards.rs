@@ -64,10 +64,12 @@ fn check_rewards(
         .sum();
 
     for (account, reward) in validator_reward_points {
-        let retrieved_reward = *retrieved_reward_points.get(&account).expect(&format!(
-            "missing account={} in retrieved collection of reward points",
-            account
-        ));
+        let retrieved_reward = *retrieved_reward_points.get(&account).unwrap_or_else(|| {
+            panic!(
+                "missing account={} in retrieved collection of reward points",
+                account
+            )
+        });
 
         info!(
             "Retrieved reward for {} is {} - calculated reward is {}.",
@@ -206,7 +208,7 @@ pub fn test_disable_node(config: &Config) -> anyhow::Result<()> {
             .iter()
             .chain(non_reserved_for_session.iter())
             .cloned();
-        let members_bench = non_reserved_bench;
+        let members_bench: Vec<_> = non_reserved_bench.collect();
 
         let era = session / sessions_per_era;
         check_points(
@@ -226,8 +228,8 @@ fn check_points(
     connection: &SignedConnection,
     session: u32,
     era: u32,
-    members: impl IntoIterator<Item = AccountId>,
-    members_bench: impl IntoIterator<Item = AccountId>,
+    members: impl IntoIterator<Item = AccountId> + Clone,
+    members_bench: impl IntoIterator<Item = AccountId> + Clone,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let session_period = get_session_period(connection);
@@ -277,7 +279,6 @@ fn check_points(
 
     let validator_reward_points_current_session: HashMap<AccountId, RewardPoint> =
         validator_reward_points_current_era
-            .clone()
             .into_iter()
             .map(|(account_id, reward_points)| {
                 let reward_points_previous_session = validator_reward_points_previous_session
@@ -297,7 +298,7 @@ fn check_points(
         (
             account_id.clone(),
             get_node_performance(
-                &connection,
+                connection,
                 account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
@@ -309,42 +310,16 @@ fn check_points(
         .into_iter()
         .map(|account_id| (account_id, 1.0));
 
-    let mut total_exposure = 0;
-    let uptime_and_exposure: Vec<(AccountId, f64, u128)> = members_uptime
-        .chain(members_bench_uptime)
-        .map(|(account_id, performance)| {
-            let exposure = download_exposure(
-                &connection,
-                era,
-                &account_id,
-                beggining_of_session_block_hash,
-            );
-            total_exposure += exposure;
-            (account_id, performance, exposure)
-        })
-        .collect();
-    info!("Total exposure {}.", total_exposure);
-
-    let adjusted_reward_points = uptime_and_exposure
-        .into_iter()
-        .map(|(account_id, performance, exposure)| {
-            let exposure_scaling = exposure as f64 / total_exposure as f64;
-            info!(
-                "Validator {}, scaling factor {} / {} ({:?}) - performance {}.",
-                account_id, exposure, total_exposure, exposure_scaling, performance
-            );
-
-            let scaled_points = exposure_scaling * performance;
-            info!(
-                "Validator {}, adjusted reward points {}.",
-                account_id, scaled_points
-            );
-            (account_id, scaled_points)
-        })
-        .collect();
+    let mut reward_points: HashMap<_, _> = members_uptime.chain(members_bench_uptime).collect();
+    let members_count = reward_points.len() as f64;
+    for (account_id, reward_points) in reward_points.iter_mut() {
+        let exposure =
+            download_exposure(connection, era, account_id, beggining_of_session_block_hash);
+        *reward_points *= exposure as f64 / members_count;
+    }
 
     check_rewards(
-        adjusted_reward_points,
+        reward_points,
         validator_reward_points_current_session,
         max_relative_difference,
     )

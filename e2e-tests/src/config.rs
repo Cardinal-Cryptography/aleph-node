@@ -29,7 +29,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn node_keys(self: &Self) -> NodeKeys {
+    pub fn node_keys(&self) -> NodeKeys {
         let validator_seed = get_validators_seeds(self)
             .into_iter()
             .next()
@@ -37,7 +37,7 @@ impl Config {
         NodeKeys::from(validator_seed)
     }
 
-    pub fn create_root_connection(self: &Self) -> RootConnection {
+    pub fn create_root_connection(&self) -> RootConnection {
         let sudo_keypair = get_sudo_key(self);
         RootConnection::new(&self.node, sudo_keypair)
     }
