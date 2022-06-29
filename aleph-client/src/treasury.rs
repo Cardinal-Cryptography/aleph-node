@@ -69,12 +69,7 @@ pub fn propose(
         Compact(value),
         GenericAddress::Id(beneficiary.clone())
     );
-    try_send_xt(
-        connection,
-        xt.clone(),
-        Some("treasury spend"),
-        XtStatus::Finalized,
-    )
+    try_send_xt(connection, xt, Some("treasury spend"), XtStatus::Finalized)
 }
 
 #[derive(Debug, Decode, Copy, Clone)]
@@ -104,7 +99,7 @@ fn send_rejection(connection: &RootConnection, proposal_id: u32) -> ApiResult<Op
     );
     try_send_xt(
         connection,
-        xt.clone(),
+        xt,
         Some("treasury rejection"),
         XtStatus::Finalized,
     )
@@ -133,7 +128,7 @@ fn send_approval(connection: &RootConnection, proposal_id: u32) -> ApiResult<Opt
     );
     try_send_xt(
         connection,
-        xt.clone(),
+        xt,
         Some("treasury approval"),
         XtStatus::Finalized,
     )
