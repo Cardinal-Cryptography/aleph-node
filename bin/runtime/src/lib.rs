@@ -315,6 +315,7 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
+    type Event = Event;
 }
 
 impl_opaque_keys! {
@@ -886,7 +887,7 @@ impl_runtime_apis! {
                 .iter()
                 .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
-                Aleph::future_emergency_finalizers().0,
+                Aleph::future_emergency_finalizer(),
             ))
         }
     }
