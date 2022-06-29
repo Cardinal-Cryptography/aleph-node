@@ -4,52 +4,30 @@
 //! we should recover original scenario.
 
 use codec::{Compact, Decode};
-use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
-use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
+use sp_runtime::{AccountId32, MultiAddress};
 use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{
     compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 use aleph_client::{
-    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, wait_for_event, AnyConnection,
+    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, staking_treasury_payout,
+    total_issuance, treasury_account, treasury_proposals_counter, wait_for_event, AnyConnection,
     Extrinsic, RootConnection, SignedConnection,
 };
 
 use crate::{accounts::get_validators_keys, config::Config, transfer::setup_for_tipped_transfer};
 
-fn calculate_staking_treasury_addition<C: AnyConnection>(connection: &C) -> u128 {
-    let sessions_per_era = connection
-        .as_connection()
-        .get_constant::<u32>("Staking", "SessionsPerEra")
-        .unwrap();
-    let session_period = connection
-        .as_connection()
-        .get_constant::<u32>("Elections", "SessionPeriod")
-        .unwrap();
-    let millisecs_per_block = 2 * connection
-        .as_connection()
-        .get_constant::<u64>("Timestamp", "MinimumPeriod")
-        .unwrap();
-    let millisecs_per_era = millisecs_per_block * session_period as u64 * sessions_per_era as u64;
-    let treasury_era_payout_from_staking = primitives::staking::era_payout(millisecs_per_era).1;
-    info!(
-        "[+] Possible treasury gain from staking is {}",
-        treasury_era_payout_from_staking
-    );
-    treasury_era_payout_from_staking
-}
-
 pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
     let tip = 10_000u128;
     let (connection, to) = setup_for_tipped_transfer(config, tip);
-    let treasury = get_treasury_account();
+    let treasury = treasury_account();
 
-    let possibly_treasury_gain_from_staking = calculate_staking_treasury_addition(&connection);
+    let possibly_treasury_gain_from_staking = staking_treasury_payout(&connection);
     let treasury_balance_before = get_free_balance(&connection, &treasury);
-    let issuance_before = get_total_issuance(&connection);
+    let issuance_before = total_issuance(&connection);
     info!(
         "[+] Treasury balance before tx: {}. Total issuance: {}.",
         treasury_balance_before, issuance_before
@@ -57,7 +35,7 @@ pub fn channeling_fee_and_tip(config: &Config) -> anyhow::Result<()> {
 
     let tx = balances_transfer(&connection, &to, 1000u128, XtStatus::Finalized);
     let treasury_balance_after = get_free_balance(&connection, &treasury);
-    let issuance_after = get_total_issuance(&connection);
+    let issuance_after = total_issuance(&connection);
     check_treasury_issuance(
         possibly_treasury_gain_from_staking,
         treasury_balance_after,
@@ -134,27 +112,15 @@ pub fn treasury_access(config: &Config) -> anyhow::Result<()> {
     let beneficiary = AccountId::from(proposer.public());
     let connection = SignedConnection::new(&config.node, proposer);
 
-    let proposals_counter_before = get_proposals_counter(&connection);
+    let proposals_counter_before = treasury_proposals_counter(&connection);
     propose_treasury_spend(10u128, &beneficiary, &connection);
-    let proposals_counter_after = get_proposals_counter(&connection);
+    let proposals_counter_after = treasury_proposals_counter(&connection);
     assert_eq!(
         proposals_counter_before, proposals_counter_after,
         "Proposal was created: deposit was not high enough"
     );
 
     Ok(())
-}
-
-fn get_total_issuance<C: AnyConnection>(connection: &C) -> u128 {
-    connection
-        .as_connection()
-        .get_storage_value("Balances", "TotalIssuance", None)
-        .unwrap()
-        .unwrap()
-}
-
-fn get_treasury_account() -> AccountId32 {
-    PalletId(*b"a0/trsry").into_account_truncating()
 }
 
 type ProposalTransaction = Extrinsic<([u8; 2], Compact<u128>, MultiAddress<AccountId, ()>)>;
@@ -177,14 +143,6 @@ fn propose_treasury_spend(
         XtStatus::Finalized,
     );
     xt
-}
-
-fn get_proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
-    connection
-        .as_connection()
-        .get_storage_value("Treasury", "ProposalCount", None)
-        .unwrap()
-        .unwrap_or(0)
 }
 
 #[allow(dead_code)]
