@@ -90,12 +90,15 @@ pub trait AnyConnection: Clone + Send {
     /// enough information for type inferring required for `Into<Connection>`.
     fn as_connection(&self) -> Connection;
 
+    /// Reads value from storage. Panics if it couldn't be read.
     fn read_storage<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
         self.read_storage_or_else(pallet, key, || {
             panic!("Value is `None` or couldn't have been decoded")
         })
     }
 
+    /// Reads value from storage. In case value is `None` or couldn't have been decoded, result of
+    /// `fallback` is returned.
     fn read_storage_or_else<F: Fn() -> T, T: Decode>(
         &self,
         pallet: &'static str,
@@ -108,6 +111,7 @@ pub trait AnyConnection: Clone + Send {
             .unwrap_or_else(fallback)
     }
 
+    /// Reads pallet's constant from metadata. Panics if it couldn't be read.
     fn read_constant<T: Decode>(&self, pallet: &'static str, constant: &'static str) -> T {
         self.read_constant_or_else(pallet, constant, move || {
             panic!(
@@ -117,6 +121,8 @@ pub trait AnyConnection: Clone + Send {
         })
     }
 
+    /// Reads pallet's constant from metadata. In case value is `None` or couldn't have been
+    /// decoded, result of `fallback` is returned.
     fn read_constant_or_else<F: Fn() -> T, T: Decode>(
         &self,
         pallet: &'static str,
