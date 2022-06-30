@@ -20,8 +20,8 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
-        ("reward_points_disable_node", test_disable_node as TestCase),
         ("finalization", test_finalization as TestCase),
+        ("reward_points_disable_node", test_disable_node as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         (
             "channeling_fee_and_tip",

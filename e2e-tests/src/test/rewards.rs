@@ -1,21 +1,21 @@
 use crate::{
-    accounts::{accounts_seeds_to_keys, get_validators_keys, get_validators_seeds},
-    test::utility::{disable_validator, enable_validator},
+    accounts::get_validators_keys,
+    test::utility::{disable_validator, download_exposure, enable_validator},
     Config,
 };
 use aleph_client::{
-    change_validators, get_block_hash, get_current_session, get_era_reward_points, get_exposure,
-    get_session_period, get_sessions_per_era, wait_for_at_least_session, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, RewardPoint,
-    SignedConnection,
+    account_from_keypair, change_validators, get_block_hash, get_current_session,
+    get_era_reward_points, get_session_period, get_sessions_per_era, wait_for_at_least_session,
+    wait_for_finalized_block, wait_for_full_era_completion, wait_for_next_era, AnyConnection,
+    KeyPair, RewardPoint, SignedConnection,
 };
 use log::info;
-use pallet_staking::Exposure;
-use sp_core::{Pair, H256};
+use pallet_elections::LENIENT_THRESHOLD;
+use primitives::{EraIndex, SessionIndex};
+use sp_core::H256;
+use sp_runtime::Perquintill;
 use std::collections::HashMap;
 use substrate_api_client::{AccountId, XtStatus};
-
-const LENIENT_THRESHOLD: f64 = 0.9;
 
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
@@ -25,14 +25,13 @@ fn get_non_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[2..].to_vec()
 }
 
-fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<AccountId> {
+fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) -> Vec<AccountId> {
     // Test assumption
     const FREE_SEATS: u32 = 2;
 
     let mut non_reserved = vec![];
 
-    let validators_seeds = get_validators_seeds(config);
-    let non_reserved_nodes_order_from_runtime = validators_seeds[2..].to_vec();
+    let non_reserved_nodes_order_from_runtime = get_non_reserved_members(config);
     let non_reserved_nodes_order_from_runtime_len = non_reserved_nodes_order_from_runtime.len();
 
     for i in (FREE_SEATS * session)..(FREE_SEATS * (session + 1)) {
@@ -43,10 +42,7 @@ fn get_non_reserved_members_for_session(config: &Config, session: u32) -> Vec<Ac
         );
     }
 
-    accounts_seeds_to_keys(&non_reserved)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect()
+    non_reserved.iter().map(account_from_keypair).collect()
 }
 
 fn check_rewards(
@@ -89,35 +85,6 @@ fn check_rewards(
     Ok(())
 }
 
-fn download_exposure(
-    connection: &SignedConnection,
-    era: u32,
-    account_id: &AccountId,
-    beginning_of_session_block_hash: H256,
-) -> u128 {
-    let exposure: Exposure<AccountId, u128> = get_exposure(
-        connection,
-        era,
-        account_id,
-        Some(beginning_of_session_block_hash),
-    );
-    info!(
-        "Validator {} has own exposure {}.",
-        account_id, exposure.own
-    );
-    info!(
-        "Validator {} has total exposure {}.",
-        account_id, exposure.total
-    );
-    exposure.others.iter().for_each(|individual_exposure| {
-        info!(
-            "Validator {} has nominator {} exposure {}.",
-            account_id, individual_exposure.who, individual_exposure.value
-        )
-    });
-    exposure.total
-}
-
 fn get_node_performance(
     connection: &SignedConnection,
     account_id: AccountId,
@@ -140,11 +107,12 @@ fn get_node_performance(
     );
     let performance = block_count as f64 / blocks_to_produce_per_session as f64;
     info!("validator {}, performance {:?}.", account_id, performance);
-    let lenient_performance =
-        match performance >= LENIENT_THRESHOLD && blocks_to_produce_per_session >= block_count {
-            true => 1.0,
-            false => performance,
-        };
+    let lenient_performance = match Perquintill::from_float(performance) >= LENIENT_THRESHOLD
+        && blocks_to_produce_per_session >= block_count
+    {
+        true => 1.0,
+        false => performance,
+    };
     info!(
         "Validator {}, lenient performance {:?}.",
         account_id, lenient_performance
@@ -162,11 +130,11 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
     let reserved_members: Vec<_> = get_reserved_members(config)
         .iter()
-        .map(|pair| AccountId::from(pair.public()))
+        .map(account_from_keypair)
         .collect();
     let non_reserved_members: Vec<_> = get_non_reserved_members(config)
         .iter()
-        .map(|pair| AccountId::from(pair.public()))
+        .map(account_from_keypair)
         .collect();
 
     change_validators(
@@ -180,8 +148,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     let era = wait_for_next_era(&root_connection)?;
     let start_session = era * sessions_per_era;
 
-    let controller_connection =
-        SignedConnection::new(&config.node, config.node_keys().controller_key);
+    let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
     disable_validator(&controller_connection)?;
     // force that node to be disabled for around 2 sessions
     let session = get_current_session(&root_connection);
@@ -226,8 +193,8 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
 fn check_points(
     connection: &SignedConnection,
-    session: u32,
-    era: u32,
+    session: SessionIndex,
+    era: EraIndex,
     members: impl IntoIterator<Item = AccountId> + Clone,
     members_bench: impl IntoIterator<Item = AccountId> + Clone,
     max_relative_difference: f64,

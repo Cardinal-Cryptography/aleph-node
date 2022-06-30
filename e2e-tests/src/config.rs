@@ -1,7 +1,6 @@
+use crate::accounts::{get_sudo_key, get_validators_seeds, NodeKeys};
 use aleph_client::RootConnection;
 use clap::Parser;
-
-use crate::accounts::{get_sudo_key, get_validators_seeds, NodeKeys};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -29,6 +28,8 @@ pub struct Config {
 }
 
 impl Config {
+    /// Returns keys associated with the node represented by this Config (first of the validators_seeds).
+    /// Panics if Config is invalid.
     pub fn node_keys(&self) -> NodeKeys {
         let validator_seed = get_validators_seeds(self)
             .into_iter()

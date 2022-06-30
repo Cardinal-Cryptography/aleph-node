@@ -10,8 +10,8 @@ pub use multisig::{
 };
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_next_era_reserved_validators, change_validators, get_current as get_current_session,
-    get_session, get_session_period, set_keys, wait_for as wait_for_session,
+    change_next_era_reserved_validators, change_validators, get_current_session, get_session,
+    get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};

@@ -3,6 +3,7 @@ use crate::{
 };
 use codec::{Decode, Encode};
 use log::info;
+use primitives::SessionIndex;
 use sp_core::{Pair, H256};
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, ExtrinsicParams, FromHexString, XtStatus,
@@ -84,12 +85,11 @@ pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus)
     send_xt(connection, xt, Some("set_keys"), status);
 }
 
-/// Get the number of the current session.
-pub fn get_current<C: AnyConnection>(connection: &C) -> u32 {
+pub fn get_current_session<C: AnyConnection>(connection: &C) -> SessionIndex {
     get_session(connection, None)
 }
 
-pub fn get_session<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -> u32 {
+pub fn get_session<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -> SessionIndex {
     connection
         .as_connection()
         .get_storage_value("Session", "CurrentIndex", block_hash)
@@ -97,7 +97,7 @@ pub fn get_session<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -
         .unwrap_or(0)
 }
 
-pub fn wait_for_predicate<C: AnyConnection, P: Fn(u32) -> bool>(
+pub fn wait_for_predicate<C: AnyConnection, P: Fn(SessionIndex) -> bool>(
     connection: &C,
     session_predicate: P,
 ) -> anyhow::Result<BlockNumber> {
@@ -105,7 +105,7 @@ pub fn wait_for_predicate<C: AnyConnection, P: Fn(u32) -> bool>(
 
     #[derive(Debug, Decode, Clone)]
     struct NewSessionEvent {
-        session_index: u32,
+        session_index: SessionIndex,
     }
     let result = wait_for_event(
         connection,
@@ -121,14 +121,14 @@ pub fn wait_for_predicate<C: AnyConnection, P: Fn(u32) -> bool>(
 
 pub fn wait_for<C: AnyConnection>(
     connection: &C,
-    session_index: u32,
+    session_index: SessionIndex,
 ) -> anyhow::Result<BlockNumber> {
     wait_for_predicate(connection, |session_ix| session_ix == session_index)
 }
 
 pub fn wait_for_at_least<C: AnyConnection>(
     connection: &C,
-    session_index: u32,
+    session_index: SessionIndex,
 ) -> anyhow::Result<BlockNumber> {
     wait_for_predicate(connection, |session_ix| session_ix >= session_index)
 }

@@ -1,13 +1,15 @@
 use crate::{config::Config, transfer::setup_for_transfer};
 use aleph_client::{
-    get_current_session, rotate_keys, set_keys, wait_for_at_least_session, AnyConnection,
-    SessionKeys, SignedConnection,
+    get_current_session, get_exposure, rotate_keys, set_keys, wait_for_at_least_session,
+    AnyConnection, SessionKeys, SignedConnection,
 };
 use codec::Compact;
 use log::info;
-use sp_core::Pair;
+use pallet_staking::Exposure;
+use primitives::EraIndex;
+use sp_core::{Pair, H256};
 use substrate_api_client::{
-    compose_call, compose_extrinsic, ExtrinsicParams, GenericAddress, XtStatus,
+    compose_call, compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
@@ -71,4 +73,29 @@ pub fn enable_validator(controller_connection: &SignedConnection) -> anyhow::Res
     wait_for_at_least_session(controller_connection, current_session + 2)?;
 
     Ok(())
+}
+
+pub fn download_exposure(
+    connection: &SignedConnection,
+    era: EraIndex,
+    account_id: &AccountId,
+    beginning_of_session_block_hash: H256,
+) -> u128 {
+    let exposure: Exposure<AccountId, u128> = get_exposure(
+        connection,
+        era,
+        account_id,
+        Some(beginning_of_session_block_hash),
+    );
+    info!(
+        "Validator {} has own exposure of {} and total of {}.",
+        account_id, exposure.own, exposure.total
+    );
+    exposure.others.iter().for_each(|individual_exposure| {
+        info!(
+            "Validator {} has nominator {} exposure {}.",
+            account_id, individual_exposure.who, individual_exposure.value
+        )
+    });
+    exposure.total
 }

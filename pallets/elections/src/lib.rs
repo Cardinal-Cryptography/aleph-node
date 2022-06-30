@@ -26,7 +26,7 @@ use sp_std::{
     prelude::*,
 };
 
-pub use impls::compute_validator_scaled_total_rewards;
+pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);

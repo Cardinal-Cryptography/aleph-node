@@ -33,32 +33,25 @@ pub fn get_sudo_key(config: &Config) -> KeyPair {
 }
 
 pub struct NodeKeys {
-    pub validator_key: KeyPair,
-    pub controller_key: KeyPair,
-    pub stash_key: KeyPair,
-}
-
-impl From<u32> for NodeKeys {
-    fn from(seed: u32) -> Self {
-        let validator_seed = get_validator_seed(seed);
-        NodeKeys::from(validator_seed)
-    }
+    pub validator: KeyPair,
+    pub controller: KeyPair,
+    pub stash: KeyPair,
 }
 
 impl From<String> for NodeKeys {
     fn from(seed: String) -> Self {
         Self {
-            validator_key: keypair_from_string(&seed[..]),
-            controller_key: keypair_from_string(&get_validators_controller_seed(seed.clone())[..]),
-            stash_key: keypair_from_string(&get_validators_stash_seed(seed.clone())[..]),
+            validator: keypair_from_string(&seed),
+            controller: keypair_from_string(&get_validators_controller_seed(&seed)),
+            stash: keypair_from_string(&get_validators_stash_seed(&seed)),
         }
     }
 }
 
-fn get_validators_controller_seed(seed: String) -> String {
+fn get_validators_controller_seed(seed: &str) -> String {
     format!("{}//Controller", seed)
 }
 
-fn get_validators_stash_seed(seed: String) -> String {
+fn get_validators_stash_seed(seed: &str) -> String {
     format!("{}//stash", seed)
 }

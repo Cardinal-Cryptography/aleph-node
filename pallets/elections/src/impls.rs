@@ -10,7 +10,7 @@ use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 const MAX_REWARD: u32 = 1_000_000_000;
-const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
+pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 /// We assume that block `B` ends session nr `S`, and current era index is `E`.
 ///
