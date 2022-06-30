@@ -3,7 +3,7 @@ use crate::{
     config::Config,
 };
 use aleph_client::{
-    wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
+    read_storage, wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
 };
 use codec::Decode;
 use log::info;
@@ -16,20 +16,13 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let connection = RootConnection::new(&config.node, sudo);
 
-    let reserved_before: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraReservedValidators", None)?
-        .unwrap();
+    let reserved_before: Vec<AccountId> =
+        read_storage(&connection, "Elections", "NextEraReservedValidators");
 
-    let non_reserved_before: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
-        .unwrap();
+    let non_reserved_before: Vec<AccountId> =
+        read_storage(&connection, "Elections", "NextEraNonReservedValidators");
 
-    let committee_size_before: u32 = connection
-        .as_connection()
-        .get_storage_value("Elections", "CommitteeSize", None)?
-        .unwrap();
+    let committee_size_before: u32 = read_storage(&connection, "Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -63,20 +56,13 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         },
     )?;
 
-    let reserved_after: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraReservedValidators", None)?
-        .unwrap();
+    let reserved_after: Vec<AccountId> =
+        read_storage(&connection, "Elections", "NextEraReservedValidators");
 
-    let non_reserved_after: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
-        .unwrap();
+    let non_reserved_after: Vec<AccountId> =
+        read_storage(&connection, "Elections", "NextEraNonReservedValidators");
 
-    let committee_size_after: u32 = connection
-        .as_connection()
-        .get_storage_value("Elections", "CommitteeSize", None)?
-        .unwrap();
+    let committee_size_after: u32 = read_storage(&connection, "Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",

@@ -3,9 +3,9 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
-    wait_for_next_era, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
-    SignedConnection,
+    change_validators, get_current_session, read_storage, wait_for_finalized_block,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, Header,
+    KeyPair, RootConnection, SignedConnection,
 };
 use codec::Decode;
 use sp_core::Pair;
@@ -36,14 +36,10 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
 fn get_pallets_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_reserved: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraReservedValidators", None)?
-        .expect("Validator storage values should be present in pallet Elections.");
-    let eras_validators: EraValidators = connection
-        .as_connection()
-        .get_storage_value("Elections", "CurrentEraValidators", None)?
-        .expect("Validator storage values should be present in pallet Elections.");
+    let stored_reserved: Vec<AccountId> =
+        read_storage(connection, "Elections", "NextEraReservedValidators");
+    let eras_validators: EraValidators =
+        read_storage(connection, "Elections", "CurrentEraValidators");
 
     Ok((stored_reserved, eras_validators.reserved))
 }
@@ -51,14 +47,10 @@ fn get_pallets_reserved(
 fn get_pallets_non_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_non_reserved: Vec<AccountId> = connection
-        .as_connection()
-        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
-        .expect("Validator storage values should be present in pallet Elections.");
-    let eras_validators: EraValidators = connection
-        .as_connection()
-        .get_storage_value("Elections", "CurrentEraValidators", None)?
-        .expect("Validator storage values should be present in pallet Elections.");
+    let stored_non_reserved: Vec<AccountId> =
+        read_storage(connection, "Elections", "NextEraNonReservedValidators");
+    let eras_validators: EraValidators =
+        read_storage(connection, "Elections", "CurrentEraValidators");
 
     Ok((stored_non_reserved, eras_validators.non_reserved))
 }

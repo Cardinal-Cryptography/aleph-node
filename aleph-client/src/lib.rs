@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
-use codec::Encode;
+use codec::{Decode, Encode};
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
@@ -308,4 +308,27 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let bytes = storage_key(pallet, call);
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
+}
+
+pub fn read_storage<C: AnyConnection, T: Decode>(
+    connection: &C,
+    pallet: &'static str,
+    key: &'static str,
+) -> T {
+    read_storage_or_else(connection, pallet, key, || {
+        panic!("Couldn't decode storage value")
+    })
+}
+
+pub fn read_storage_or_else<C: AnyConnection, F: Fn() -> T, T: Decode>(
+    connection: &C,
+    pallet: &'static str,
+    key: &'static str,
+    fallback: F,
+) -> T {
+    connection
+        .as_connection()
+        .get_storage_value(pallet, key, None)
+        .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
+        .unwrap_or_else(fallback)
 }

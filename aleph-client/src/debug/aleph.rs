@@ -1,15 +1,11 @@
 use crate::{
     debug::{element_prompt, entry_prompt, pallet_prompt},
-    AnyConnection,
+    read_storage, AnyConnection,
 };
 use primitives::AuthorityId;
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
-    let authorities: Vec<AuthorityId> = connection
-        .as_connection()
-        .get_storage_value("Aleph", "Authorities", None)
-        .expect("Api call should succeed")
-        .expect("Authorities should always be present");
+    let authorities: Vec<AuthorityId> = read_storage(connection, "Aleph", "Authorities");
 
     println!("{}", pallet_prompt("Aleph"));
     println!("{}", entry_prompt("Authorities"));

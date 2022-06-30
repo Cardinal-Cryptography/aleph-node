@@ -1,4 +1,4 @@
-use crate::{AnyConnection, Extrinsic};
+use crate::{read_storage, AnyConnection, Extrinsic};
 use codec::Encode;
 use substrate_api_client::Balance;
 
@@ -35,9 +35,5 @@ pub fn get_tx_fee_info<C: AnyConnection, Call: Encode>(
 }
 
 pub fn get_next_fee_multiplier<C: AnyConnection>(connection: &C) -> u128 {
-    connection
-        .as_connection()
-        .get_storage_value("TransactionPayment", "NextFeeMultiplier", None)
-        .expect("Should access storage")
-        .expect("Key `NextFeeMultiplier` should be present in storage")
+    read_storage(connection, "TransactionPayment", "NextFeeMultiplier")
 }

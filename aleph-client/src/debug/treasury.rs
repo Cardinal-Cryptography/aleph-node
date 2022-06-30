@@ -1,6 +1,6 @@
 use crate::{
     debug::{element_prompt, entry_prompt, pallet_prompt},
-    AnyConnection,
+    read_storage_or_else, AnyConnection,
 };
 use log::trace;
 use pallet_treasury::{Proposal, ProposalIndex};
@@ -9,15 +9,9 @@ use substrate_api_client::Balance;
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
     let connection = connection.as_connection();
-    let proposal_count: u32 = connection
-        .get_storage_value("Treasury", "ProposalCount", None)
-        .expect("Api call should succeed")
-        .unwrap_or(0);
-
-    let approvals: Vec<ProposalIndex> = connection
-        .get_storage_value("Treasury", "Approvals", None)
-        .expect("Api call should succeed")
-        .unwrap_or_default();
+    let proposal_count: u32 = read_storage_or_else(&connection, "Treasury", "ProposalCount", || 0);
+    let approvals: Vec<ProposalIndex> =
+        read_storage_or_else(&connection, "Treasury", "Approvals", Vec::new);
 
     println!("{}", pallet_prompt("Treasury"));
     println!("{}: {}", entry_prompt("ProposalCount"), proposal_count);
