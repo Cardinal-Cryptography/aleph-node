@@ -9,5 +9,5 @@ pub fn total_issuance<C: AnyConnection>(connection: &C) -> Balance {
         .as_connection()
         .get_storage_value("Balances", "TotalIssuance", None)
         .expect("Key `Balances::TotalIssuance` should be present in storage")
-        .unwrap_or(0)
+        .unwrap()
 }

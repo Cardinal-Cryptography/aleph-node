@@ -133,7 +133,7 @@ fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyR
             .as_connection()
             .get_storage_value("Treasury", "Approvals", None)
             .expect("Key `Treasury::Approvals` should be present in storage")
-            .unwrap_or_default();
+            .unwrap();
         if approvals.contains(&proposal_id) {
             return Ok(());
         } else {
