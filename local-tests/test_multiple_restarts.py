@@ -11,7 +11,7 @@ workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important DON'T use short-session feature):
 binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
 
-phrases = [f'//{i}' for i in range(6)]
+phrases = [f'//{i}' for i in range(5)]
 keys = generate_keys(binary, phrases)
 all_accounts = list(keys.values())
 chain = Chain(workdir)

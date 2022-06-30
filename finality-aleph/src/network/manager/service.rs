@@ -73,7 +73,7 @@ impl PreSession {
 }
 
 /// Configuration for the session manager service. Controls how often the maintenance and
-/// rebroadcasts are triggerred.
+/// rebroadcasts are triggerred. Also controls when maintenance starts.
 pub struct Config {
     discovery_cooldown: Duration,
     maintenance_period: Duration,
