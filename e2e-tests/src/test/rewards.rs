@@ -4,10 +4,10 @@ use crate::{
     Config,
 };
 use aleph_client::{
-    account_from_keypair, change_validators, get_block_hash, get_current_session,
-    get_era_reward_points, get_session_period, get_sessions_per_era, wait_for_at_least_session,
-    wait_for_finalized_block, wait_for_full_era_completion, wait_for_next_era, AnyConnection,
-    KeyPair, RewardPoint, SignedConnection,
+    account_from_keypair, change_validators, get_block_hash, get_era_reward_points,
+    get_session_period, get_sessions_per_era, wait_for_finalized_block,
+    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, RewardPoint,
+    SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
@@ -151,9 +151,6 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
     // this should `disable` this node by setting invalid session_keys
     set_invalid_keys_for_validator(&controller_connection)?;
-    // force that node to be disabled for around 2 sessions
-    let session = get_current_session(&root_connection);
-    wait_for_at_least_session(&root_connection, session + 2)?;
     // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
     reset_validator_keys(&controller_connection)?;
 
