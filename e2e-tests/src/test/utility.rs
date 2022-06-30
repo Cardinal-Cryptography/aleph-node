@@ -45,9 +45,11 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Changes keys of the first node described by the `validator_seeds` list to some `zero` values,
+/// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
-pub fn disable_validator(controller_connection: &SignedConnection) -> anyhow::Result<()> {
+pub fn set_invalid_keys_for_validator(
+    controller_connection: &SignedConnection,
+) -> anyhow::Result<()> {
     const ZERO_SESSION_KEYS: SessionKeys = SessionKeys {
         aura: [0; 32],
         aleph: [0; 32],
@@ -61,9 +63,8 @@ pub fn disable_validator(controller_connection: &SignedConnection) -> anyhow::Re
     Ok(())
 }
 
-/// Rotates the keys of the first node described by the `validator_seeds` list,
-/// making it able to rejoin the `consensus`.
-pub fn enable_validator(controller_connection: &SignedConnection) -> anyhow::Result<()> {
+/// Rotates session_keys of a given `controller`, making it able to rejoin the `consensus`.
+pub fn reset_validator_keys(controller_connection: &SignedConnection) -> anyhow::Result<()> {
     let validator_keys =
         rotate_keys(controller_connection).expect("Failed to retrieve keys from chain");
     set_keys(controller_connection, validator_keys, XtStatus::InBlock);

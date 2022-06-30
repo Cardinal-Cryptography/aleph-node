@@ -1,6 +1,6 @@
 use crate::{
     accounts::get_validators_keys,
-    test::utility::{disable_validator, download_exposure, enable_validator},
+    test::utility::{download_exposure, reset_validator_keys, set_invalid_keys_for_validator},
     Config,
 };
 use aleph_client::{
@@ -149,11 +149,13 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     let start_session = era * sessions_per_era;
 
     let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
-    disable_validator(&controller_connection)?;
+    // this should `disable` this node by setting invalid session_keys
+    set_invalid_keys_for_validator(&controller_connection)?;
     // force that node to be disabled for around 2 sessions
     let session = get_current_session(&root_connection);
     wait_for_at_least_session(&root_connection, session + 2)?;
-    enable_validator(&controller_connection)?;
+    // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
+    reset_validator_keys(&controller_connection)?;
 
     let era = wait_for_full_era_completion(&root_connection)?;
 
