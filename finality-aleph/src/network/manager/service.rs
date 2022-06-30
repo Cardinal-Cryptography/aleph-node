@@ -102,7 +102,7 @@ impl Config {
             Duration::from_millis(millisecs_per_block.0 * session_period.0 as u64 / 5);
         let maintenance_period = discovery_cooldown / 2;
         let initial_delay = cmp::min(
-            Duration::from_millis(millisecs_per_block.0 * 20),
+            Duration::from_millis(millisecs_per_block.0 * 10),
             maintenance_period,
         );
         Config::new(discovery_cooldown, maintenance_period, initial_delay)
