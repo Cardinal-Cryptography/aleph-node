@@ -1,13 +1,9 @@
-use crate::{
-    accounts::get_validators_keys,
-    test::utility::{download_exposure, reset_validator_keys, set_invalid_keys_for_validator},
-    Config,
-};
+use crate::{accounts::get_validators_keys, test::utility::download_exposure, Config};
 use aleph_client::{
-    account_from_keypair, change_validators, get_block_hash, get_era_reward_points,
-    get_session_period, get_sessions_per_era, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, RewardPoint,
-    SignedConnection,
+    account_from_keypair, change_validators, get_block_hash, get_current_session,
+    get_era_reward_points, get_session_period, get_sessions_per_era, rotate_keys, set_keys,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
+    wait_for_next_era, AnyConnection, KeyPair, RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
@@ -120,76 +116,6 @@ fn get_node_performance(
     lenient_performance
 }
 
-pub fn disable_node(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.05;
-    const VALIDATORS_PER_SESSION: u32 = 4;
-
-    let root_connection = config.create_root_connection();
-
-    let sessions_per_era = get_sessions_per_era(&root_connection);
-
-    let reserved_members: Vec<_> = get_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
-    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
-
-    change_validators(
-        &root_connection,
-        Some(reserved_members.clone()),
-        Some(non_reserved_members.clone()),
-        Some(VALIDATORS_PER_SESSION),
-        XtStatus::Finalized,
-    );
-
-    let era = wait_for_next_era(&root_connection)?;
-    let start_session = era * sessions_per_era;
-
-    let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
-    // this should `disable` this node by setting invalid session_keys
-    set_invalid_keys_for_validator(&controller_connection)?;
-    // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
-    reset_validator_keys(&controller_connection)?;
-
-    let era = wait_for_full_era_completion(&root_connection)?;
-
-    let end_session = era * sessions_per_era;
-
-    info!(
-        "Checking rewards for sessions {}..{}.",
-        start_session, end_session
-    );
-
-    for session in start_session..end_session {
-        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let non_reserved_bench = non_reserved_members
-            .iter()
-            .filter(|account_id| !non_reserved_for_session.contains(*account_id))
-            .cloned();
-
-        let members = reserved_members
-            .iter()
-            .chain(non_reserved_for_session.iter())
-            .cloned();
-        let members_bench: Vec<_> = non_reserved_bench.collect();
-
-        let era = session / sessions_per_era;
-        check_points(
-            &controller_connection,
-            session,
-            era,
-            members,
-            members_bench,
-            MAX_DIFFERENCE,
-        )?;
-    }
-
-    Ok(())
-}
-
 fn check_points(
     connection: &SignedConnection,
     session: SessionIndex,
@@ -287,4 +213,103 @@ fn check_points(
         validator_reward_points_current_session,
         max_relative_difference,
     )
+}
+
+/// Changes session_keys used by a given `controller` to some `zero`/invalid value,
+/// making it impossible to create new legal blocks.
+fn set_invalid_keys_for_validator(controller_connection: &SignedConnection) -> anyhow::Result<()> {
+    const ZERO_SESSION_KEYS: SessionKeys = SessionKeys {
+        aura: [0; 32],
+        aleph: [0; 32],
+    };
+
+    set_keys(controller_connection, ZERO_SESSION_KEYS, XtStatus::InBlock);
+    // wait until our node is forced to use new keys, i.e. current session + 2
+    let current_session = get_current_session(controller_connection);
+    wait_for_at_least_session(controller_connection, current_session + 2)?;
+
+    Ok(())
+}
+
+/// Rotates session_keys of a given `controller`, making it able to rejoin the `consensus`.
+fn reset_validator_keys(controller_connection: &SignedConnection) -> anyhow::Result<()> {
+    let validator_keys =
+        rotate_keys(controller_connection).expect("Failed to retrieve keys from chain");
+    set_keys(controller_connection, validator_keys, XtStatus::InBlock);
+
+    // wait until our node is forced to use new keys, i.e. current session + 2
+    let current_session = get_current_session(controller_connection);
+    wait_for_at_least_session(controller_connection, current_session + 2)?;
+
+    Ok(())
+}
+
+pub fn disable_node(config: &Config) -> anyhow::Result<()> {
+    const MAX_DIFFERENCE: f64 = 0.05;
+    const VALIDATORS_PER_SESSION: u32 = 4;
+
+    let root_connection = config.create_root_connection();
+
+    let sessions_per_era = get_sessions_per_era(&root_connection);
+
+    let reserved_members: Vec<_> = get_reserved_members(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+
+    change_validators(
+        &root_connection,
+        Some(reserved_members.clone()),
+        Some(non_reserved_members.clone()),
+        Some(VALIDATORS_PER_SESSION),
+        XtStatus::Finalized,
+    );
+
+    let era = wait_for_next_era(&root_connection)?;
+    let start_session = era * sessions_per_era;
+
+    let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
+    // this should `disable` this node by setting invalid session_keys
+    set_invalid_keys_for_validator(&controller_connection)?;
+    // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
+    reset_validator_keys(&controller_connection)?;
+
+    let era = wait_for_full_era_completion(&root_connection)?;
+
+    let end_session = era * sessions_per_era;
+
+    info!(
+        "Checking rewards for sessions {}..{}.",
+        start_session, end_session
+    );
+
+    for session in start_session..end_session {
+        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
+        let non_reserved_bench = non_reserved_members
+            .iter()
+            .filter(|account_id| !non_reserved_for_session.contains(*account_id))
+            .cloned();
+
+        let members = reserved_members
+            .iter()
+            .chain(non_reserved_for_session.iter())
+            .cloned();
+        let members_bench: Vec<_> = non_reserved_bench.collect();
+
+        let era = session / sessions_per_era;
+        check_points(
+            &controller_connection,
+            session,
+            era,
+            members,
+            members_bench,
+            MAX_DIFFERENCE,
+        )?;
+    }
+
+    Ok(())
 }

@@ -1,8 +1,5 @@
 use crate::{config::Config, transfer::setup_for_transfer};
-use aleph_client::{
-    get_current_session, get_exposure, rotate_keys, set_keys, wait_for_at_least_session,
-    AnyConnection, SessionKeys, SignedConnection,
-};
+use aleph_client::{get_exposure, AnyConnection, SignedConnection};
 use codec::Compact;
 use log::info;
 use pallet_staking::Exposure;
@@ -41,37 +38,6 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
         "[+] A batch of {} transactions was included in finalized {} block.",
         NUMBER_OF_TRANSACTIONS, finalized_block_hash
     );
-
-    Ok(())
-}
-
-/// Changes session_keys used by a given `controller` to some `zero`/invalid value,
-/// making it impossible to create new legal blocks.
-pub fn set_invalid_keys_for_validator(
-    controller_connection: &SignedConnection,
-) -> anyhow::Result<()> {
-    const ZERO_SESSION_KEYS: SessionKeys = SessionKeys {
-        aura: [0; 32],
-        aleph: [0; 32],
-    };
-
-    set_keys(controller_connection, ZERO_SESSION_KEYS, XtStatus::InBlock);
-    // wait until our node is forced to use new keys, i.e. current session + 2
-    let current_session = get_current_session(controller_connection);
-    wait_for_at_least_session(controller_connection, current_session + 2)?;
-
-    Ok(())
-}
-
-/// Rotates session_keys of a given `controller`, making it able to rejoin the `consensus`.
-pub fn reset_validator_keys(controller_connection: &SignedConnection) -> anyhow::Result<()> {
-    let validator_keys =
-        rotate_keys(controller_connection).expect("Failed to retrieve keys from chain");
-    set_keys(controller_connection, validator_keys, XtStatus::InBlock);
-
-    // wait until our node is forced to use new keys, i.e. current session + 2
-    let current_session = get_current_session(controller_connection);
-    wait_for_at_least_session(controller_connection, current_session + 2)?;
 
     Ok(())
 }
