@@ -1,17 +1,18 @@
-use crate::{
-    debug::{element_prompt, entry_prompt, pallet_prompt},
-    read_storage_or_else, AnyConnection,
-};
 use log::trace;
 use pallet_treasury::{Proposal, ProposalIndex};
 use sp_core::crypto::AccountId32;
 use substrate_api_client::Balance;
 
+use crate::{
+    debug::{element_prompt, entry_prompt, pallet_prompt},
+    AnyConnection,
+};
+
 pub fn print_storage<C: AnyConnection>(connection: &C) {
     let connection = connection.as_connection();
-    let proposal_count: u32 = read_storage_or_else(&connection, "Treasury", "ProposalCount", || 0);
+    let proposal_count: u32 = connection.read_storage_or_else("Treasury", "ProposalCount", || 0);
     let approvals: Vec<ProposalIndex> =
-        read_storage_or_else(&connection, "Treasury", "Approvals", Vec::new);
+        connection.read_storage_or_else("Treasury", "Approvals", Vec::new);
 
     println!("{}", pallet_prompt("Treasury"));
     println!("{}: {}", entry_prompt("ProposalCount"), proposal_count);

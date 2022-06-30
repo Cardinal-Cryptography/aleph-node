@@ -10,8 +10,8 @@ use substrate_api_client::{
 };
 
 use crate::{
-    account_from_keypair, create_connection, locks, read_storage, send_xt, wait_for_session,
-    AnyConnection, BlockNumber, KeyPair, RootConnection, SignedConnection,
+    account_from_keypair, create_connection, locks, send_xt, wait_for_session, AnyConnection,
+    BlockNumber, KeyPair, RootConnection, SignedConnection,
 };
 
 pub fn bond(
@@ -98,7 +98,7 @@ pub fn force_new_era(connection: &RootConnection, status: XtStatus) {
 }
 
 pub fn get_current_era<C: AnyConnection>(connection: &C) -> u32 {
-    let current_era = read_storage(connection, "Staking", "ActiveEra");
+    let current_era = connection.read_storage("Staking", "ActiveEra");
     info!(target: "aleph-client", "Current era is {}", current_era);
     current_era
 }

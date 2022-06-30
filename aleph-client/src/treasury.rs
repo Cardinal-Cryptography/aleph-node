@@ -1,7 +1,4 @@
-use crate::{
-    read_storage, read_storage_or_else, try_send_xt, wait_for_event, AnyConnection, RootConnection,
-    SignedConnection,
-};
+use crate::{try_send_xt, wait_for_event, AnyConnection, RootConnection, SignedConnection};
 use ac_primitives::ExtrinsicParams;
 use codec::Decode;
 use frame_support::PalletId;
@@ -20,7 +17,7 @@ pub fn treasury_account() -> AccountId32 {
 
 /// Returns how many treasury proposals have ever been created.
 pub fn proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
-    read_storage_or_else(connection, "Treasury", "ProposalCount", || 0)
+    connection.read_storage_or_else("Treasury", "ProposalCount", || 0)
 }
 
 /// Calculates how much balance will be paid out to the treasury after each era.
@@ -128,7 +125,7 @@ fn send_approval(connection: &RootConnection, proposal_id: u32) -> ApiResult<Opt
 
 fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyResult<()> {
     loop {
-        let approvals: Vec<u32> = read_storage(connection, "Treasury", "Approvals");
+        let approvals: Vec<u32> = connection.read_storage("Treasury", "Approvals");
         if approvals.contains(&proposal_id) {
             return Ok(());
         } else {

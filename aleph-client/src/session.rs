@@ -1,6 +1,5 @@
 use crate::{
-    read_storage_or_else, send_xt, waiting::wait_for_event, AnyConnection, BlockNumber,
-    RootConnection, SignedConnection,
+    send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection, SignedConnection,
 };
 use codec::{Decode, Encode};
 use log::info;
@@ -87,7 +86,7 @@ pub fn set_keys(connection: &SignedConnection, new_keys: Keys, status: XtStatus)
 
 /// Get the number of the current session.
 pub fn get_current<C: AnyConnection>(connection: &C) -> u32 {
-    read_storage_or_else(connection, "Session", "CurrentIndex", || 0)
+    connection.read_storage_or_else("Session", "CurrentIndex", || 0)
 }
 
 pub fn wait_for<C: AnyConnection>(

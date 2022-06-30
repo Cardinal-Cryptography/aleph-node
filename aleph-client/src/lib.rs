@@ -81,13 +81,30 @@ pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
 pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
 
-/// 'Castability' to `Connection`.
-///
-/// Direct casting is often more handy than generic `.into()`. Justification: `Connection` objects
-/// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
-/// information for type inferring required for `Into<Connection>`.
+/// Common abstraction for different types of connections.
 pub trait AnyConnection: Clone + Send {
+    /// 'Castability' to `Connection`.
+    ///
+    /// Direct casting is often more handy than generic `.into()`. Justification: `Connection`
+    /// objects are often passed to some macro like `compose_extrinsic!` and thus there is not
+    /// enough information for type inferring required for `Into<Connection>`.
     fn as_connection(&self) -> Connection;
+
+    fn read_storage<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
+        self.read_storage_or_else(pallet, key, || panic!("Couldn't decode storage value"))
+    }
+
+    fn read_storage_or_else<F: Fn() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_storage_value(pallet, key, None)
+            .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
+            .unwrap_or_else(fallback)
+    }
 }
 
 impl AnyConnection for Connection {
@@ -308,27 +325,4 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let bytes = storage_key(pallet, call);
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
-}
-
-pub fn read_storage<C: AnyConnection, T: Decode>(
-    connection: &C,
-    pallet: &'static str,
-    key: &'static str,
-) -> T {
-    read_storage_or_else(connection, pallet, key, || {
-        panic!("Couldn't decode storage value")
-    })
-}
-
-pub fn read_storage_or_else<C: AnyConnection, F: Fn() -> T, T: Decode>(
-    connection: &C,
-    pallet: &'static str,
-    key: &'static str,
-    fallback: F,
-) -> T {
-    connection
-        .as_connection()
-        .get_storage_value(pallet, key, None)
-        .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
-        .unwrap_or_else(fallback)
 }

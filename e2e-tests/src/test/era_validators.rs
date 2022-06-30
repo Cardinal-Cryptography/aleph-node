@@ -1,15 +1,17 @@
+use codec::Decode;
+use sp_core::Pair;
+use substrate_api_client::{AccountId, XtStatus};
+
+use aleph_client::{
+    change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
+    wait_for_next_era, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
+    SignedConnection,
+};
+
 use crate::{
     accounts::{get_sudo_key, get_validators_keys},
     Config,
 };
-use aleph_client::{
-    change_validators, get_current_session, read_storage, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, Header,
-    KeyPair, RootConnection, SignedConnection,
-};
-use codec::Decode;
-use sp_core::Pair;
-use substrate_api_client::{AccountId, XtStatus};
 
 #[derive(Decode)]
 struct EraValidators {
@@ -37,9 +39,9 @@ fn get_pallets_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_reserved: Vec<AccountId> =
-        read_storage(connection, "Elections", "NextEraReservedValidators");
+        connection.read_storage("Elections", "NextEraReservedValidators");
     let eras_validators: EraValidators =
-        read_storage(connection, "Elections", "CurrentEraValidators");
+        connection.read_storage("Elections", "CurrentEraValidators");
 
     Ok((stored_reserved, eras_validators.reserved))
 }
@@ -48,9 +50,9 @@ fn get_pallets_non_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_non_reserved: Vec<AccountId> =
-        read_storage(connection, "Elections", "NextEraNonReservedValidators");
+        connection.read_storage("Elections", "NextEraNonReservedValidators");
     let eras_validators: EraValidators =
-        read_storage(connection, "Elections", "CurrentEraValidators");
+        connection.read_storage("Elections", "CurrentEraValidators");
 
     Ok((stored_non_reserved, eras_validators.non_reserved))
 }
