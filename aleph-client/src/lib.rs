@@ -91,7 +91,9 @@ pub trait AnyConnection: Clone + Send {
     fn as_connection(&self) -> Connection;
 
     fn read_storage<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
-        self.read_storage_or_else(pallet, key, || panic!("Couldn't decode storage value"))
+        self.read_storage_or_else(pallet, key, || {
+            panic!("Value is `None` or couldn't have been decoded")
+        })
     }
 
     fn read_storage_or_else<F: Fn() -> T, T: Decode>(
@@ -104,6 +106,26 @@ pub trait AnyConnection: Clone + Send {
             .get_storage_value(pallet, key, None)
             .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
             .unwrap_or_else(fallback)
+    }
+
+    fn read_constant<T: Decode>(&self, pallet: &'static str, constant: &'static str) -> T {
+        self.read_constant_or_else(pallet, constant, move || {
+            panic!(
+                "Constant `{}::{}` should be present and decodable",
+                pallet, constant
+            )
+        })
+    }
+
+    fn read_constant_or_else<F: Fn() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        constant: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_constant(pallet, constant)
+            .unwrap_or_else(|_| fallback())
     }
 }
 

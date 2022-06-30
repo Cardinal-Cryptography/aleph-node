@@ -22,14 +22,8 @@ pub fn proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
 
 /// Calculates how much balance will be paid out to the treasury after each era.
 pub fn staking_treasury_payout<C: AnyConnection>(connection: &C) -> Balance {
-    let sessions_per_era = connection
-        .as_connection()
-        .get_constant::<u32>("Staking", "SessionsPerEra")
-        .expect("Constant `Staking::SessionsPerEra` should be present");
-    let session_period = connection
-        .as_connection()
-        .get_constant::<u32>("Elections", "SessionPeriod")
-        .expect("Constant `Elections::SessionPeriod` should be present");
+    let sessions_per_era: u32 = connection.read_constant("Staking", "SessionsPerEra");
+    let session_period: u32 = connection.read_constant("Elections", "SessionPeriod");
     let millisecs_per_era = MILLISECS_PER_BLOCK * session_period as u64 * sessions_per_era as u64;
     primitives::staking::era_payout(millisecs_per_era).1
 }
