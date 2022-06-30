@@ -574,11 +574,11 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
-#[cfg(not(feature = "treasury_proposals"))]
+#[cfg(not(feature = "enable_treasury_proposals"))]
 // This value effectively disables treasury.
 pub const TREASURY_PROPOSAL_BOND: Balance = 100_000_000_000 * TOKEN;
 
-#[cfg(feature = "treasury_proposals")]
+#[cfg(feature = "enable_treasury_proposals")]
 pub const TREASURY_PROPOSAL_BOND: Balance = 100 * TOKEN;
 
 parameter_types! {

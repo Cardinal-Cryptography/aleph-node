@@ -74,6 +74,6 @@ short_session = [
     "aleph-runtime/short_session",
     "aleph-primitives/short_session"
 ]
-treasury_proposals = [
-    "aleph-runtime/treasury_proposals"
+enable_treasury_proposals = [
+    "aleph-runtime/enable_treasury_proposals"
 ]
