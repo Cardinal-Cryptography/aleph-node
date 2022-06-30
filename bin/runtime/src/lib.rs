@@ -29,7 +29,7 @@ pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
-        OnUnbalanced, Randomness, U128CurrencyToVote, ValidatorSet,
+        OnUnbalanced, Randomness, ValidatorSet,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -38,9 +38,8 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
-    pallet_prelude::ConstU32,
     sp_runtime::Perquintill,
-    traits::{EqualPrivilegeOnly, SortedMembers},
+    traits::{ConstU32, ConstU64, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
 };
@@ -48,8 +47,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, DEFAULT_MILLISECS_PER_BLOCK, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, TOKEN,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+    MILLISECS_PER_BLOCK, TOKEN,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -113,23 +112,12 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 13,
+    spec_version: 21,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 6,
-    state_version: 1,
+    transaction_version: 8,
+    state_version: 0,
 };
-
-pub const MILLISECS_PER_BLOCK: u64 = DEFAULT_MILLISECS_PER_BLOCK;
-
-pub const MILLISECS_PER_MINUTE: u64 = 60_000; // milliseconds
-pub const MILLISECS_PER_HOUR: u64 = MILLISECS_PER_MINUTE * 60;
-pub const MILLISECS_PER_DAY: u64 = MILLISECS_PER_HOUR * 24;
-
-/// Get the number of blocks produced in the period given by `hours`
-pub fn hours_as_block_num(hours: u64) -> BlockNumber {
-    (MILLISECS_PER_HOUR * hours / MILLISECS_PER_BLOCK) as BlockNumber
-}
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -140,16 +128,23 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+pub const BLOCKS_PER_HOUR: u32 = 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
+
+pub const MILLI_AZERO: Balance = TOKEN / 1000;
+pub const MICRO_AZERO: Balance = MILLI_AZERO / 1000;
+pub const NANO_AZERO: Balance = MICRO_AZERO / 1000;
+pub const PICO_AZERO: Balance = NANO_AZERO / 1000;
+
+// 75% block weight is dedicated to normal extrinsics
+pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
-const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
+pub const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
-pub const MILLICENTS: Balance = 100_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // 10^12 is one token, which for now is worth $0.1
-pub const DOLLARS: Balance = 100 * CENTS; // 10_000_000_000
+// The storage deposit is roughly 1 TOKEN per 1kB
+pub const DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -158,7 +153,7 @@ parameter_types! {
         ::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
     pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
         ::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
-    pub const SS58Prefix: u8 = 42;
+    pub const SS58Prefix: u8 = ADDRESSES_ENCODING;
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -233,11 +228,11 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = (Staking,);
+    type EventHandler = (Elections,);
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500;
+    pub const ExistentialDeposit: u128 = 500 * PICO_AZERO;
     pub const MaxLocks: u32 = 50;
 }
 
@@ -253,13 +248,6 @@ impl pallet_balances::Config for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
-    // This value increases the priority of `Operational` transactions by adding
-    // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
-    // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
-    pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -278,8 +266,12 @@ impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
 }
 
 parameter_types! {
+    // This value increases the priority of `Operational` transactions by adding
+    // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
+    // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
+    pub const OperationalFeeMultiplier: u8 = 5;
     // We expect that on average 25% of the normal capacity will be occupied with normal txs.
-    pub TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
+    pub const TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
     // During 20 blocks the fee may not change more than by 100%. This, together with the
     // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
     // formulas please refer to Substrate code at `frame/transaction-payment/src/lib.rs`.
@@ -337,9 +329,13 @@ parameter_types! {
 }
 
 impl pallet_elections::Config for Runtime {
+    type EraInfoProvider = Staking;
     type Event = Event;
     type DataProvider = Staking;
+    type SessionInfoProvider = Session;
     type SessionPeriod = SessionPeriod;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
+    type ValidatorRewardsHandler = Staking;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -348,113 +344,13 @@ parameter_types! {
     pub const Offset: u32 = 0;
 }
 
-fn rotate<T: Clone + PartialEq>(
-    current_era: EraIndex,
-    current_session: SessionIndex,
-    n_validators: usize,
-    all_validators: Vec<T>,
-    reserved: Vec<T>,
-) -> Option<Vec<T>> {
-    if current_era == 0 {
-        return None;
-    }
-
-    let validators_without_reserved: Vec<_> = all_validators
-        .into_iter()
-        .filter(|v| !reserved.contains(v))
-        .collect();
-    let n_all_validators_without_reserved = validators_without_reserved.len();
-
-    // The validators for the committee at the session `n` are chosen as follow:
-    // 1. Reserved validators are always chosen.
-    // 2. Given non-reserved list of validators the chosen ones are from the range:
-    // `n * free_seats` to `(n + 1) * free_seats` where free_seats is equal to number of free
-    // seats in the committee after reserved nodes are added.
-    let free_seats = n_validators.checked_sub(reserved.len()).unwrap();
-    let first_validator = current_session as usize * free_seats;
-    let committee =
-        reserved
-            .into_iter()
-            .chain((first_validator..first_validator + free_seats).map(|i| {
-                validators_without_reserved[i % n_all_validators_without_reserved].clone()
-            }))
-            .collect();
-
-    Some(committee)
-}
-
-// Choose a subset of all the validators for current era that contains all the
-// reserved nodes. Non reserved ones are chosen in consecutive batches for every session
-fn rotate_committee() -> Option<Vec<AccountId>> {
-    let current_era = match Staking::active_era() {
-        Some(ae) if ae.index > 0 => ae.index,
-        _ => return None,
-    };
-    let all_validators: Vec<AccountId> =
-        pallet_staking::ErasStakers::<Runtime>::iter_key_prefix(current_era).collect();
-    let reserved = pallet_elections::ErasReserved::<Runtime>::get();
-    let n_validators = pallet_elections::MembersPerSession::<Runtime>::get() as usize;
-    let current_session = Session::current_index();
-
-    rotate(
-        current_era,
-        current_session,
-        n_validators,
-        all_validators,
-        reserved,
-    )
-}
-
-fn populate_reserved_on_next_era_start(start_index: SessionIndex) {
-    let current_era = match Staking::active_era() {
-        Some(ae) => ae.index,
-        _ => return,
-    };
-    // this will be populated once for the session `n+1` on the start of the session `n` where session
-    // `n+1` starts a new era.
-    if let Some(era_index) = Staking::eras_start_session_index(current_era + 1) {
-        if era_index == start_index {
-            let reserved_validators = pallet_staking::Invulnerables::<Runtime>::get();
-            pallet_elections::ErasReserved::<Runtime>::put(reserved_validators);
-        }
-    }
-}
-
-use primitives::SessionIndex;
-type SM = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
-pub struct ComiteeRotationSessionManager;
-
-impl pallet_session::SessionManager<AccountId> for ComiteeRotationSessionManager {
-    fn new_session(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session(new_index);
-        // new session is always called before the end_session of the previous session
-        // so we need to populate reserved set here not on start_session nor end_session
-        let committee = rotate_committee();
-        populate_reserved_on_next_era_start(new_index);
-
-        committee
-    }
-
-    fn end_session(end_index: SessionIndex) {
-        SM::end_session(end_index)
-    }
-
-    fn start_session(start_index: SessionIndex) {
-        SM::start_session(start_index)
-    }
-
-    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<AccountId>> {
-        SM::new_session_genesis(new_index)
-    }
-}
-
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = ComiteeRotationSessionManager;
+    type SessionManager = Elections;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
@@ -466,23 +362,54 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
+    pub const PostUnbondPoolsWindow: u32 = 4;
+    pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
+    pub const MinPointsToBalance: u32 = 10;
+}
+
+use sp_runtime::traits::Convert;
+pub struct BalanceToU256;
+impl Convert<Balance, sp_core::U256> for BalanceToU256 {
+    fn convert(balance: Balance) -> sp_core::U256 {
+        sp_core::U256::from(balance)
+    }
+}
+pub struct U256ToBalance;
+impl Convert<sp_core::U256, Balance> for U256ToBalance {
+    fn convert(n: sp_core::U256) -> Balance {
+        n.try_into().unwrap_or(Balance::max_value())
+    }
+}
+
+impl pallet_nomination_pools::Config for Runtime {
+    type WeightInfo = ();
+    type Event = Event;
+    type Currency = Balances;
+    type BalanceToU256 = BalanceToU256;
+    type U256ToBalance = U256ToBalance;
+    type StakingInterface = pallet_staking::Pallet<Self>;
+    type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
+    type MaxMetadataLen = ConstU32<256>;
+    type MaxUnbonding = ConstU32<8>;
+    type PalletId = NominationPoolsPalletId;
+    type MinPointsToBalance = MinPointsToBalance;
+}
+
+parameter_types! {
     pub const BondingDuration: EraIndex = 14;
     pub const SlashDeferDuration: EraIndex = 13;
     // this is coupled with weights for payout_stakers() call
     // see custom implementation of WeightInfo below
     pub const MaxNominatorRewardedPerValidator: u32 = MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(33);
-    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
     pub const SessionsPerEra: EraIndex = DEFAULT_SESSIONS_PER_ERA;
 }
 
-pub struct UniformEraPayout {}
+pub struct UniformEraPayout;
 
 impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
-    fn era_payout(_: Balance, _: Balance, _: u64) -> (Balance, Balance) {
-        let miliseconds_per_era =
-            MILLISECS_PER_BLOCK * SessionPeriod::get() as u64 * SessionsPerEra::get() as u64;
-        primitives::staking::era_payout(miliseconds_per_era)
+    fn era_payout(_: Balance, _: Balance, era_duration_millis: u64) -> (Balance, Balance) {
+        primitives::staking::era_payout(era_duration_millis)
     }
 }
 
@@ -590,6 +517,8 @@ impl pallet_staking::Config for Runtime {
     type MaxUnlockingChunks = ConstU32<16>;
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
+    type CurrencyBalance = Balance;
+    type OnStakerSlash = NominationPools;
 }
 
 parameter_types! {
@@ -613,7 +542,7 @@ where
 }
 
 parameter_types! {
-    pub const MinVestedTransfer: Balance = 1_000_000;
+    pub const MinVestedTransfer: Balance = MICRO_AZERO;
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -627,20 +556,11 @@ impl pallet_vesting::Config for Runtime {
     const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
-// at a fixed cost $0.01 per byte, the constants are selected so that
-// the base cost of starting a multisig action is $5
-pub const ALLOCATION_COST: Balance = 412 * CENTS;
-pub const BYTE_COST: Balance = CENTS;
-
-pub const fn deposit(items: u32, bytes: u32) -> Balance {
-    (items as Balance) * ALLOCATION_COST + (bytes as Balance) * BYTE_COST
-}
-
 parameter_types! {
-    // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const DepositBase: Balance = deposit(1, 88);
+    // One storage item; key size is 32+32; value is size 4+4+16+32 bytes = 56 bytes.
+    pub const DepositBase: Balance = 120 * DEPOSIT_PER_BYTE;
     // Additional storage item size of 32 bytes.
-    pub const DepositFactor: Balance = deposit(0, 32);
+    pub const DepositFactor: Balance = 32 * DEPOSIT_PER_BYTE;
     pub const MaxSignatories: u16 = 100;
 }
 
@@ -654,28 +574,27 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
-// We do not burn any money within treasury.
-pub const TREASURY_BURN: u32 = 0;
-// The percentage of the amount of the proposal that the proposer should deposit.
-// We agreed on non-progressive deposit.
-pub const TREASURY_PROPOSAL_BOND: u32 = 0;
-// The proposer should deposit max{`TREASURY_PROPOSAL_BOND`% of the proposal value, $10}.
-pub const TREASURY_MINIMUM_BOND: Balance = 1000 * CENTS;
-pub const TREASURY_MAXIMUM_BOND: Balance = 500 * DOLLARS;
-// Every 4h we implement accepted proposals.
-pub fn treasury_spend_period() -> BlockNumber {
-    hours_as_block_num(4)
-}
-// We allow at most 20 approvals in the queue at once.
-pub const TREASURY_MAX_APPROVALS: u32 = 20;
+#[cfg(not(feature = "enable_treasury_proposals"))]
+// This value effectively disables treasury.
+pub const TREASURY_PROPOSAL_BOND: Balance = 100_000_000_000 * TOKEN;
+
+#[cfg(feature = "enable_treasury_proposals")]
+pub const TREASURY_PROPOSAL_BOND: Balance = 100 * TOKEN;
 
 parameter_types! {
-    pub const Burn: Permill = Permill::from_percent(TREASURY_BURN);
-    pub const ProposalBond: Permill = Permill::from_percent(TREASURY_PROPOSAL_BOND);
-    pub const ProposalBondMinimum: Balance = TREASURY_MINIMUM_BOND;
-    pub const ProposalBondMaximum: Balance = TREASURY_MAXIMUM_BOND;
-    pub const MaxApprovals: u32 = TREASURY_MAX_APPROVALS;
-    pub SpendPeriod: BlockNumber = treasury_spend_period();
+    // We do not burn any money within treasury.
+    pub const Burn: Permill = Permill::from_percent(0);
+    // The fraction of the proposal that the proposer should deposit.
+    // We agreed on non-progressive deposit.
+    pub const ProposalBond: Permill = Permill::from_percent(0);
+    // The minimal deposit for proposal.
+    pub const ProposalBondMinimum: Balance = TREASURY_PROPOSAL_BOND;
+    // The upper bound of the deposit for the proposal.
+    pub const ProposalBondMaximum: Balance = TREASURY_PROPOSAL_BOND;
+    // Maximum number of approvals that can wait in the spending queue.
+    pub const MaxApprovals: u32 = 20;
+    // Every 4 hours we fund accepted proposals.
+    pub const SpendPeriod: BlockNumber = 4 * BLOCKS_PER_HOUR;
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
 }
 
@@ -715,11 +634,13 @@ impl pallet_utility::Config for Runtime {
 const CONTRACTS_DEBUG_OUTPUT: bool = true;
 
 parameter_types! {
-    // The following weights are pulled out of thin air. A separate task to adjust them is already in JIRA.
-    pub const DepositPerItem: Balance = TOKEN / 100;     //  10 milli-AZERO per item
-    pub const DepositPerByte: Balance = TOKEN / 100_000; // ~10 milli-AZERO per kB storage
-    // The lazy deletion runs inside on_initialize.
+    // Refundable deposit per storage item
+    pub const DepositPerItem: Balance = 32 * DEPOSIT_PER_BYTE;
+    // Refundable deposit per byte of storage
+    pub const DepositPerByte: Balance = DEPOSIT_PER_BYTE;
+    // How much weight of each block can be spent on the lazy deletion queue of terminated contracts
     pub DeletionWeightLimit: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block; // 40ms
+    // Maximum size of the lazy deletion queue of terminated contracts.
     // The weight needed for decoding the queue should be less or equal than a tenth
     // of the overall weight dedicated to the lazy deletion.
     pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
@@ -735,7 +656,7 @@ impl pallet_contracts::Config for Runtime {
     type Currency = Balances;
     type Event = Event;
     type Call = Call;
-    /// The safest default is to allow no calls at all. This is unsafe experimental feature with no support in ink!
+    // The safest default is to allow no calls at all. This is unsafe experimental feature with no support in ink!
     type CallFilter = Nothing;
     type DepositPerItem = DepositPerItem;
     type DepositPerByte = DepositPerByte;
@@ -747,6 +668,35 @@ impl pallet_contracts::Config for Runtime {
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
+    type ContractAccessWeight = ConstU64<0>;
+    type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+    type RelaxedMaxCodeLen = ConstU32<{ 256 * 1024 }>;
+}
+
+parameter_types! {
+    // bytes count taken from:
+    // https://github.com/paritytech/polkadot/blob/016dc7297101710db0483ab6ef199e244dff711d/runtime/kusama/src/lib.rs#L995
+    pub const BasicDeposit: Balance = 258 * DEPOSIT_PER_BYTE;
+    pub const FieldDeposit: Balance = 66 * DEPOSIT_PER_BYTE;
+    pub const SubAccountDeposit: Balance = 53 * DEPOSIT_PER_BYTE;
+    pub const MaxSubAccounts: u32 = 100;
+    pub const MaxAdditionalFields: u32 = 100;
+    pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type BasicDeposit = BasicDeposit;
+    type FieldDeposit = FieldDeposit;
+    type SubAccountDeposit = SubAccountDeposit;
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxAdditionalFields = MaxAdditionalFields;
+    type MaxRegistrars = MaxRegistrars;
+    type Slashed = Treasury;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type RegistrarOrigin = EnsureRoot<AccountId>;
+    type WeightInfo = pallet_identity::weights::SubstrateWeight<Self>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -756,25 +706,27 @@ construct_runtime!(
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
-        Aura: pallet_aura::{Pallet, Config<T>} = 3,
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 4,
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 6,
-        Authorship: pallet_authorship::{Pallet, Call, Storage} = 7,
-        Staking: pallet_staking::{Pallet, Call, Storage, Config<T>, Event<T>} = 8,
-        History: pallet_session::historical::{Pallet} = 9,
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-        Aleph: pallet_aleph::{Pallet, Storage} = 11,
-        Elections: pallet_elections::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 13,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
-        Utility: pallet_utility::{Pallet, Call, Storage, Event} = 15,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 16,
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 18,
+        System: frame_system,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+        Scheduler: pallet_scheduler,
+        Aura: pallet_aura,
+        Timestamp: pallet_timestamp,
+        Balances: pallet_balances,
+        TransactionPayment: pallet_transaction_payment,
+        Authorship: pallet_authorship,
+        Staking: pallet_staking,
+        History: pallet_session::historical,
+        Session: pallet_session,
+        Aleph: pallet_aleph,
+        Elections: pallet_elections,
+        Treasury: pallet_treasury,
+        Vesting: pallet_vesting,
+        Utility: pallet_utility,
+        Multisig: pallet_multisig,
+        Sudo: pallet_sudo,
+        Contracts: pallet_contracts,
+        NominationPools: pallet_nomination_pools,
+        Identity: pallet_identity,
     }
 );
 
@@ -977,32 +929,4 @@ impl_runtime_apis! {
 
     }
 
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::rotate;
-
-    #[test]
-    fn test_rotate() {
-        let all_validators = vec![1, 2, 3, 4, 5, 6];
-        let reserved = vec![1, 2];
-
-        assert_eq!(
-            None,
-            rotate(0, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 0, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 5, 6]),
-            rotate(1, 1, 4, all_validators.clone(), reserved.clone())
-        );
-        assert_eq!(
-            Some(vec![1, 2, 3, 4]),
-            rotate(1, 2, 4, all_validators, reserved)
-        );
-    }
 }

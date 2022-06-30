@@ -5,6 +5,7 @@ use crate::{
         first_block_of_session, last_block_of_session, session_id_from_block_num,
         SessionBoundaries, SessionId,
     },
+    substrate_network::protocol_name,
 };
 use aleph_bft::{NodeIndex, TaskHandle};
 use codec::{Decode, Encode};
@@ -20,7 +21,7 @@ use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, path::PathBuf, sync::Arc};
 
 mod aggregation;
 mod crypto;
@@ -35,6 +36,7 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
+mod substrate_network;
 #[cfg(test)]
 pub mod testing;
 
@@ -54,7 +56,7 @@ enum Error {
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSetConfig {
-    let name = protocol.name();
+    let name = protocol_name(&protocol);
 
     let mut config = sc_network::config::NonDefaultSetConfig::new(
         name,
@@ -176,4 +178,5 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
+    pub backup_saving_path: Option<PathBuf>,
 }

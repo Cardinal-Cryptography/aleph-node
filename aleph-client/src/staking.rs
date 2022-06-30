@@ -1,11 +1,12 @@
-use codec::Compact;
+use codec::{Compact, Decode, Encode};
+use frame_support::BoundedVec;
 use log::info;
-use pallet_staking::{RewardDestination, ValidatorPrefs};
+use pallet_staking::{MaxUnlockingChunks, RewardDestination, UnlockChunk, ValidatorPrefs};
 use rayon::prelude::*;
 use sp_core::Pair;
 use sp_runtime::Perbill;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, Balance, GenericAddress, XtStatus,
+    compose_call, compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 use crate::{
@@ -216,12 +217,10 @@ pub fn batch_bond(
     );
 }
 
-pub fn nominate(connection: &SignedConnection, nominee_key_pair: &KeyPair) {
-    let nominee_account_id = AccountId::from(nominee_key_pair.public());
-
+pub fn nominate(connection: &SignedConnection, nominee_account_id: &AccountId) {
     let xt = connection
         .as_connection()
-        .staking_nominate(vec![GenericAddress::Id(nominee_account_id)]);
+        .staking_nominate(vec![GenericAddress::Id(nominee_account_id.clone())]);
     send_xt(connection, xt, Some("nominate"), XtStatus::InBlock);
 }
 
@@ -273,13 +272,32 @@ pub fn bonded<C: AnyConnection>(connection: &C, stash: &KeyPair) -> Option<Accou
         .unwrap_or_else(|_| panic!("Failed to obtain Bonded for account id {}", account_id))
 }
 
-pub fn ledger<C: AnyConnection>(
-    connection: &C,
-    controller: &KeyPair,
-) -> Option<pallet_staking::StakingLedger<AccountId, Balance>> {
+/// Since PR #10982 changed `pallet_staking::StakingLedger` to be generic over
+/// `T: pallet_staking::Config` (somehow breaking consistency with similar structures in other
+/// pallets) we have no easy way of retrieving ledgers from storage. Thus, we chose cloning
+/// (relevant part of) this struct instead of implementing `Config` trait.
+#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
+pub struct StakingLedger {
+    pub stash: AccountId,
+    #[codec(compact)]
+    pub total: Balance,
+    #[codec(compact)]
+    pub active: Balance,
+    pub unlocking: BoundedVec<UnlockChunk<Balance>, MaxUnlockingChunks>,
+}
+
+pub fn ledger<C: AnyConnection>(connection: &C, controller: &KeyPair) -> Option<StakingLedger> {
     let account_id = AccountId::from(controller.public());
     connection
         .as_connection()
         .get_storage_map("Staking", "Ledger", &account_id, None)
         .unwrap_or_else(|_| panic!("Failed to obtain Ledger for account id {}", account_id))
+}
+
+pub fn get_payout_for_era<C: AnyConnection>(connection: &C, era: u32) -> u128 {
+    connection
+        .as_connection()
+        .get_storage_map("Staking", "ErasValidatorReward", era, None)
+        .expect("Failed to decode ErasValidatorReward")
+        .expect("ErasValidatoReward is empty in the storage")
 }

@@ -88,7 +88,7 @@ impl AuthorityVerifier {
     /// node of the given index.
     pub fn verify(&self, msg: &[u8], sgn: &Signature, index: NodeIndex) -> bool {
         match self.authorities.get(index.0) {
-            Some(authority) => authority.verify(&msg.to_vec(), &sgn.0),
+            Some(authority) => authority.verify(&msg, &sgn.0),
             None => false,
         }
     }
@@ -165,7 +165,7 @@ impl MultiKeychain for KeyBox {
     // We probably should do this for them at some point.
     type PartialMultisignature = SignatureSet<Signature>;
 
-    fn from_signature(
+    fn bootstrap_multi(
         &self,
         signature: &Signature,
         index: NodeIndex,

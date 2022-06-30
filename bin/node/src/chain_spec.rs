@@ -1,6 +1,6 @@
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_MEMBERS_PER_SESSION, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_COMMITTEE_SIZE, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
@@ -116,6 +116,9 @@ pub struct ChainParams {
     #[clap(long, default_value = "p2p_secret")]
     node_key_file: String,
 
+    #[clap(long, default_value = "backup-stash")]
+    backup_dir: String,
+
     /// Chain name. Default is "Aleph Zero Development"
     #[clap(long, default_value = "Aleph Zero Development")]
     chain_name: String,
@@ -152,6 +155,10 @@ impl ChainParams {
 
     pub fn node_key_file(&self) -> &str {
         &self.node_key_file
+    }
+
+    pub fn backup_dir(&self) -> &str {
+        &self.backup_dir
     }
 
     pub fn chain_name(&self) -> &str {
@@ -378,8 +385,9 @@ fn generate_genesis_config(
             key: Some(sudo_account),
         },
         elections: ElectionsConfig {
-            members: accounts_config.members.clone(),
-            members_per_session: DEFAULT_MEMBERS_PER_SESSION,
+            non_reserved_validators: accounts_config.members.clone(),
+            committee_size: DEFAULT_COMMITTEE_SIZE,
+            reserved_validators: vec![],
         },
         session: SessionConfig {
             keys: accounts_config.keys,
@@ -389,8 +397,6 @@ fn generate_genesis_config(
             validator_count,
             // to satisfy some e2e tests as this cannot be changed during runtime
             minimum_validator_count: 4,
-            // we set first 2 members as invulnerables for testing purposes
-            invulnerables: accounts_config.members[0..2].to_vec(),
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,
@@ -399,6 +405,8 @@ fn generate_genesis_config(
         },
         treasury: Default::default(),
         vesting: VestingConfig { vesting: vec![] },
+        nomination_pools: Default::default(),
+        transaction_payment: Default::default(),
     }
 }
 

@@ -2,7 +2,9 @@ use anyhow::Result;
 use log::info;
 pub use pallet_vesting::VestingInfo;
 use sp_core::Pair;
-use substrate_api_client::{compose_extrinsic, GenericAddress, XtStatus::Finalized};
+use substrate_api_client::{
+    compose_extrinsic, ExtrinsicParams, GenericAddress, XtStatus::Finalized,
+};
 use thiserror::Error;
 
 use primitives::Balance;
@@ -14,8 +16,6 @@ use crate::{
 /// Gathers errors from this module.
 #[derive(Debug, Error)]
 pub enum VestingError {
-    #[error("🦺❌ Account has no active vesting schedules.")]
-    NotVesting,
     #[error("🦺❌ The connection should be signed.")]
     UnsignedConnection,
 }
@@ -85,18 +85,18 @@ pub fn vested_transfer(
     Ok(())
 }
 
-/// Returns all active schedules of `who`.
+/// Returns all active schedules of `who`. If `who` does not have any active vesting schedules,
+/// an empty container is returned.
 ///
-/// Fails if `who` does not have any active vesting schedules.
+/// Fails if storage could have not been read.
 pub fn get_schedules<C: AnyConnection>(
     connection: &C,
     who: AccountId,
 ) -> Result<Vec<VestingSchedule>> {
     connection
         .as_connection()
-        .get_storage_map::<AccountId, Option<Vec<VestingSchedule>>>(PALLET, "Vesting", who, None)?
-        .flatten()
-        .ok_or_else(|| VestingError::NotVesting.into())
+        .get_storage_map::<AccountId, Vec<VestingSchedule>>(PALLET, "Vesting", who, None)?
+        .map_or_else(|| Ok(vec![]), Ok)
 }
 
 /// Merges two vesting schedules (at indices `idx1` and `idx2`) of the signer of `connection`.

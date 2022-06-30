@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: full
-      # SCCACHE_RECACHE: 1 # to clear cache uncomment this, let the workflow run once, then comment it out again
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -48,7 +47,7 @@ jobs:
       - name: Build test binary
         uses: ./.github/actions/cargo_under_nix
         with:
-          cargo-command: cargo build --release --locked --package aleph-node --features "short_session"
+          cargo-command: cargo build --release --locked --package aleph-node --features "short_session enable_treasury_proposals"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
@@ -66,5 +65,5 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Stop cache
+      - name: Cleanup cache
         uses: ./.github/actions/post-cache

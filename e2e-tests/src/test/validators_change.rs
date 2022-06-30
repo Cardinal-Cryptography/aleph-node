@@ -1,9 +1,9 @@
 use crate::{
-    accounts::{accounts_from_seeds, get_sudo},
+    accounts::{get_sudo_key, get_validators_keys},
     config::Config,
 };
 use aleph_client::{
-    change_members, wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
+    wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
 };
 use codec::Decode;
 use log::info;
@@ -11,48 +11,81 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
-    let Config {
-        ref node, seeds, ..
-    } = config;
+    let accounts = get_validators_keys(config);
+    let sudo = get_sudo_key(config);
 
-    let mut accounts = accounts_from_seeds(seeds);
-    let sudo = get_sudo(config);
+    let connection = RootConnection::new(&config.node, sudo);
 
-    let connection = RootConnection::new(node, sudo);
-
-    let members_before: Vec<AccountId> = connection
+    let reserved_before: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "Members", None)?
+        .get_storage_value("Elections", "NextEraReservedValidators", None)?
         .unwrap();
 
-    info!("[+] members before tx: {:#?}", members_before);
+    let non_reserved_before: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
+        .unwrap();
 
-    accounts.remove(0);
-    let new_members: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
-    change_members(&connection, new_members.clone(), XtStatus::InBlock);
+    let committee_size_before: u32 = connection
+        .as_connection()
+        .get_storage_value("Elections", "CommitteeSize", None)?
+        .unwrap();
+
+    info!(
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
+        reserved_before, non_reserved_before, committee_size_before
+    );
+
+    let new_validators: Vec<AccountId> = accounts.iter().map(|pair| pair.public().into()).collect();
+    aleph_client::change_validators(
+        &connection,
+        Some(new_validators[0..2].to_vec()),
+        Some(new_validators[2..].to_vec()),
+        Some(4),
+        XtStatus::InBlock,
+    );
 
     #[derive(Debug, Decode, Clone)]
-    struct NewMembersEvent {
-        members: Vec<AccountId>,
+    struct NewValidatorsEvent {
+        reserved: Vec<AccountId>,
+        non_reserved: Vec<AccountId>,
+        committee_size: u32,
     }
     wait_for_event(
         &connection,
-        ("Elections", "ChangeMembers"),
-        |e: NewMembersEvent| {
-            info!("[+] NewMembersEvent: members{:?}", e.members);
+        ("Elections", "ChangeValidators"),
+        |e: NewValidatorsEvent| {
+            info!("[+] NewValidatorsEvent: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}", e.reserved, e.non_reserved, e.non_reserved);
 
-            e.members == new_members
+            e.reserved == new_validators[0..2]
+                && e.non_reserved == new_validators[2..]
+                && e.committee_size == 4
         },
     )?;
 
-    let members_after: Vec<AccountId> = connection
+    let reserved_after: Vec<AccountId> = connection
         .as_connection()
-        .get_storage_value("Elections", "Members", None)?
+        .get_storage_value("Elections", "NextEraReservedValidators", None)?
         .unwrap();
 
-    info!("[+] members after tx: {:#?}", members_after);
+    let non_reserved_after: Vec<AccountId> = connection
+        .as_connection()
+        .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
+        .unwrap();
 
-    assert!(new_members.eq(&members_after));
+    let committee_size_after: u32 = connection
+        .as_connection()
+        .get_storage_value("Elections", "CommitteeSize", None)?
+        .unwrap();
+
+    info!(
+        "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
+        reserved_after, non_reserved_after, committee_size_after
+    );
+
+    assert_eq!(new_validators[..2], reserved_after);
+    assert_eq!(new_validators[2..], non_reserved_after);
+    assert_eq!(4, committee_size_after);
 
     let block_number = connection
         .as_connection()
