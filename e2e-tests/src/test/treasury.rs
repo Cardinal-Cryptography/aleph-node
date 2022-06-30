@@ -3,19 +3,19 @@
 //! some part of this module is unused (`dead_code`). As soon as proposals are enabled once again,
 //! we should recover original scenario.
 
+use std::{thread, thread::sleep, time::Duration};
+
+use aleph_client::{
+    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, wait_for_event, AnyConnection,
+    Extrinsic, RootConnection, SignedConnection,
+};
 use codec::{Compact, Decode};
 use frame_support::PalletId;
 use log::info;
 use sp_core::Pair;
 use sp_runtime::{traits::AccountIdConversion, AccountId32, MultiAddress};
-use std::{thread, thread::sleep, time::Duration};
 use substrate_api_client::{
     compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
-};
-
-use aleph_client::{
-    balances_transfer, get_free_balance, get_tx_fee_info, send_xt, wait_for_event, AnyConnection,
-    Extrinsic, RootConnection, SignedConnection,
 };
 
 use crate::{accounts::get_validators_keys, config::Config, transfer::setup_for_tipped_transfer};
