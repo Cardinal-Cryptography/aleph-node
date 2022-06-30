@@ -16,7 +16,6 @@ use frame_support::{
     log,
     sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
-    Parameter,
 };
 pub use pallet::*;
 use sp_std::prelude::*;
