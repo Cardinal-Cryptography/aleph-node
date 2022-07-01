@@ -1,12 +1,10 @@
 use crate::{config::Config, transfer::setup_for_transfer};
-use aleph_client::{get_exposure, AnyConnection, SignedConnection};
+use aleph_client::AnyConnection;
 use codec::Compact;
 use log::info;
-use pallet_staking::Exposure;
-use primitives::EraIndex;
-use sp_core::{Pair, H256};
+use sp_core::Pair;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
+    compose_call, compose_extrinsic, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
@@ -40,29 +38,4 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
     );
 
     Ok(())
-}
-
-pub fn download_exposure(
-    connection: &SignedConnection,
-    era: EraIndex,
-    account_id: &AccountId,
-    beginning_of_session_block_hash: H256,
-) -> u128 {
-    let exposure: Exposure<AccountId, u128> = get_exposure(
-        connection,
-        era,
-        account_id,
-        Some(beginning_of_session_block_hash),
-    );
-    info!(
-        "Validator {} has own exposure of {} and total of {}.",
-        account_id, exposure.own, exposure.total
-    );
-    exposure.others.iter().for_each(|individual_exposure| {
-        info!(
-            "Validator {} has nominator {} exposure {}.",
-            account_id, individual_exposure.who, individual_exposure.value
-        )
-    });
-    exposure.total
 }
