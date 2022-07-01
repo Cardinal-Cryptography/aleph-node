@@ -1,5 +1,8 @@
+use std::{thread::sleep, time::Duration};
+
 use ac_primitives::SubstrateDefaultSignedExtra;
 pub use account::{get_free_balance, locks};
+pub use balances::total_issuance;
 use codec::Encode;
 pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
@@ -25,7 +28,6 @@ pub use staking::{
     set_staking_limits as staking_set_staking_limits, validate as staking_validate,
     wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
 };
-use std::{thread::sleep, time::Duration};
 pub use substrate_api_client;
 use substrate_api_client::{
     rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
@@ -35,6 +37,11 @@ pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
 };
+pub use treasury::{
+    approve as approve_treasury_proposal, proposals_counter as treasury_proposals_counter,
+    propose as make_treasury_proposal, reject as reject_treasury_proposal, staking_treasury_payout,
+    treasury_account,
+};
 pub use vesting::{
     get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,
     VestingSchedule,
@@ -42,6 +49,7 @@ pub use vesting::{
 pub use waiting::{wait_for_event, wait_for_finalized_block};
 
 mod account;
+mod balances;
 mod debug;
 mod fee;
 mod multisig;
@@ -50,6 +58,7 @@ mod session;
 mod staking;
 mod system;
 mod transfer;
+mod treasury;
 mod vesting;
 mod waiting;
 
