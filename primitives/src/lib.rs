@@ -3,7 +3,7 @@
 use codec::{Decode, Encode};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::ConsensusEngineId;
-pub use sp_staking::SessionIndex;
+pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
@@ -64,9 +64,10 @@ sp_api::decl_runtime_apis! {
 }
 
 pub mod staking {
+    use sp_runtime::Perbill;
+
     use super::Balance;
     use crate::TOKEN;
-    use sp_runtime::Perbill;
 
     pub const MIN_VALIDATOR_BOND: u128 = 25_000 * TOKEN;
     pub const MIN_NOMINATOR_BOND: u128 = 100 * TOKEN;
