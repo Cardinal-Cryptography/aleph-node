@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use aleph_client::{
     get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
     rotate_keys, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
@@ -9,7 +11,6 @@ use pallet_staking::Exposure;
 use primitives::{EraIndex, SessionIndex};
 use sp_core::H256;
 use sp_runtime::Perquintill;
-use std::collections::HashMap;
 use substrate_api_client::{AccountId, XtStatus};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,

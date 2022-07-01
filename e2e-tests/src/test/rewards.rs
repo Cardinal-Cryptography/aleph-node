@@ -1,8 +1,3 @@
-use crate::{
-    accounts::get_validators_keys,
-    rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
-    Config,
-};
 use aleph_client::{
     account_from_keypair, change_validators, get_sessions_per_era, wait_for_full_era_completion,
     wait_for_next_era, KeyPair, SignedConnection,
@@ -10,6 +5,12 @@ use aleph_client::{
 use log::info;
 use primitives::SessionIndex;
 use substrate_api_client::{AccountId, XtStatus};
+
+use crate::{
+    accounts::get_validators_keys,
+    rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
+    Config,
+};
 
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()

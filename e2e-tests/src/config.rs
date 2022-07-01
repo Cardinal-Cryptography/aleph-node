@@ -1,6 +1,7 @@
-use crate::accounts::{get_sudo_key, get_validators_seeds, NodeKeys};
 use aleph_client::RootConnection;
 use clap::Parser;
+
+use crate::accounts::{get_sudo_key, get_validators_seeds, NodeKeys};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]

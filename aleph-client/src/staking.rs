@@ -1,7 +1,5 @@
-use crate::{
-    account_from_keypair, create_connection, locks, send_xt, wait_for_session, AnyConnection,
-    BlockNumber, KeyPair, RootConnection, SignedConnection,
-};
+use std::collections::BTreeMap;
+
 use codec::{Compact, Decode, Encode};
 use frame_support::BoundedVec;
 use pallet_staking::{
@@ -11,9 +9,13 @@ use primitives::EraIndex;
 use rayon::prelude::*;
 use sp_core::{Pair, H256};
 use sp_runtime::Perbill;
-use std::collections::BTreeMap;
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
+};
+
+use crate::{
+    account_from_keypair, create_connection, locks, send_xt, wait_for_session, AnyConnection,
+    BlockNumber, KeyPair, RootConnection, SignedConnection,
 };
 
 pub fn bond(
