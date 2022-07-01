@@ -1,8 +1,9 @@
+use std::path::PathBuf;
+
 use aleph_client::BlockNumber;
 use clap::{Args, Subcommand};
 use primitives::Balance;
 use sp_core::H256;
-use std::path::PathBuf;
 use substrate_api_client::AccountId;
 
 #[derive(Debug, Clone, Args)]
@@ -166,6 +167,31 @@ pub enum Command {
         /// SS58 id of target account
         #[clap(long)]
         to_account: String,
+    },
+
+    /// Make a proposal to the treasury.
+    TreasuryPropose {
+        /// How many tokens we intend to give to the beneficiary.
+        #[clap(long)]
+        amount_in_tokens: u64,
+
+        /// SS58 id of the beneficiary account.
+        #[clap(long)]
+        beneficiary: String,
+    },
+
+    /// Approve proposal to the treasury.
+    TreasuryApprove {
+        /// Id of the proposal to be approved.
+        #[clap(long)]
+        proposal_id: u32,
+    },
+
+    /// Reject proposal to the treasury.
+    TreasuryReject {
+        /// Id of the proposal to be rejected.
+        #[clap(long)]
+        proposal_id: u32,
     },
 
     /// Send new runtime (requires sudo account)
