@@ -43,7 +43,7 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
 
 fn get_bench_members(
     non_reserved_members: Vec<AccountId>,
-    non_reserved_members_for_session: &Vec<AccountId>,
+    non_reserved_members_for_session: &[AccountId],
 ) -> Vec<AccountId> {
     non_reserved_members
         .into_iter()
