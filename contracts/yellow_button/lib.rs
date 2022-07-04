@@ -371,9 +371,18 @@ mod yellow_button {
         /// returns an error if called by someone else but the admin
         #[ink(message)]
         pub fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
-            // NOTE: access controll is done in every `allow` call
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Admin(this);
+
+            self.check_role(caller, required_role)?;
+
             for player in players {
-                Self::allow(self, player)?;
+                self.can_play.insert(player, &true);
+                Self::emit_event(
+                    self.env(),
+                    Event::AccountWhitelisted(AccountWhitelisted { player }),
+                );
             }
             Ok(())
         }
