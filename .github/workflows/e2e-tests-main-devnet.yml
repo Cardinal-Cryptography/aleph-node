@@ -308,6 +308,21 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
+  run-e2e-rewards-force-new-era:
+    needs: [build-test-docker, build-test-client]
+    name: Run force new era test to check rewards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: rewards_force_new_era
+          follow-up-finalization-check: true
+        timeout-minutes: 10
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
@@ -321,7 +336,8 @@ jobs:
       run-e2e-fee-calculation,
       run-e2e-validators-rotate,
       run-e2e-era-payout,
-      run-e2e-era-validators
+      run-e2e-era-validators,
+      run-e2e-rewards-force-new-era
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-latest
