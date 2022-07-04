@@ -4,7 +4,7 @@ use aleph_client::{
     wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, SignedConnection,
 };
 use log::info;
-use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex, TOKEN};
+use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
@@ -41,7 +41,20 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
     non_reserved.iter().map(account_from_keypair).collect()
 }
 
-fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<u128>) {
+fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
+    (
+        get_reserved_members(config)
+            .iter()
+            .map(account_from_keypair)
+            .collect(),
+        get_non_reserved_members(config)
+            .iter()
+            .map(account_from_keypair)
+            .collect(),
+    )
+}
+
+fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>) {
     let node = &config.node;
     let root_connection = config.create_root_connection();
 
@@ -59,16 +72,19 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<u128>) {
         .map(account_from_keypair)
         .collect();
 
+    // funds to cover fees
     balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
 
     stash_accounts_key_pairs
         .iter()
         .zip(additional_stakes.iter())
         .for_each(|(key, additional_stake)| {
-            let id = account_from_keypair(key);
+            let validator_id = account_from_keypair(key);
+
+            // Additional TOKEN to cover fees
             balances_transfer(
                 &root_connection.as_signed(),
-                &id,
+                &validator_id,
                 *additional_stake + TOKEN,
                 XtStatus::InBlock,
             );
@@ -76,7 +92,12 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<u128>) {
             let xt = stash_connection
                 .as_connection()
                 .staking_bond_extra(*additional_stake);
-            send_xt(&stash_connection, xt, Some("bond_extra"), XtStatus::InBlock);
+            send_xt(
+                &stash_connection,
+                xt,
+                Some("bond_extra"),
+                XtStatus::Finalized,
+            );
         });
 }
 
@@ -89,14 +110,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     let connection = SignedConnection::new(node, sender);
     let root_connection = config.create_root_connection();
 
-    let reserved_members: Vec<_> = get_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
-    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
+    let (reserved_members, non_reserved_members) = get_member_accounts(config);
 
     change_validators(
         &root_connection,
@@ -170,14 +184,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
     let sessions_per_era = get_sessions_per_era(&root_connection);
 
-    let reserved_members: Vec<_> = get_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
-    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
-        .iter()
-        .map(account_from_keypair)
-        .collect();
+    let (reserved_members, non_reserved_members) = get_member_accounts(config);
 
     change_validators(
         &root_connection,
