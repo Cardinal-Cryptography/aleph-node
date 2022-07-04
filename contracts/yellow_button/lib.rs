@@ -11,7 +11,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod yellow_button {
 
-    use access_control::Role;
+    use access_control::{traits::AccessControlled, Role};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
@@ -20,7 +20,6 @@ mod yellow_button {
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
-    use shared::shared::AccessContolled;
 
     // address placeholder, set in the bytecode
     const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
@@ -37,7 +36,7 @@ mod yellow_button {
         NotWhitelisted,
         /// Returned if a call to another contract has failed
         ContractCall(String),
-        /// Returned if a call is made from an account with missing access conrol priviledges
+        /// Returned if a call is made from an account with missing access control priviledges
         MissingRole, // MissingRole(Role)
     }
 
@@ -170,7 +169,7 @@ mod yellow_button {
         rewards: Vec<(AccountId, u128)>,
     }
 
-    impl AccessContolled for YellowButton {
+    impl AccessControlled for YellowButton {
         type ContractError = Error;
     }
 
@@ -248,7 +247,7 @@ mod yellow_button {
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
-            let role_check = <Self as AccessContolled>::check_role(
+            let role_check = <Self as AccessControlled>::check_role(
                 access_control,
                 caller,
                 required_role,
@@ -339,7 +338,7 @@ mod yellow_button {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            <Self as AccessContolled>::check_role(
+            <Self as AccessControlled>::check_role(
                 self.access_control,
                 account,
                 role,

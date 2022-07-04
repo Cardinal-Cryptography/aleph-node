@@ -8,12 +8,12 @@ use ink_lang as ink;
 #[ink::contract]
 mod button_token {
 
-    use access_control::Role;
+    use access_control::{traits::AccessControlled, Role};
     use ink_env::Error as InkEnvError;
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
     use ink_storage::{traits::SpreadAllocate, Mapping};
-    use shared::shared::AccessContolled;
+    // use shared::shared::AccessControlled;
 
     pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
@@ -28,7 +28,7 @@ mod button_token {
     pub struct ButtonToken {
         /// Total token supply.
         total_supply: Balance,
-        /// Mapping from access_control to number of owned token.
+        /// Mapping from account id to the number of owned token.
         balances: Mapping<AccountId, Balance>,
         /// Mapping of the token amount which an account is allowed to withdraw
         /// from another account.
@@ -78,7 +78,7 @@ mod button_token {
     /// Event type
     pub type Event = <ButtonToken as ContractEventBase>::Type;
 
-    impl AccessContolled for ButtonToken {
+    impl AccessControlled for ButtonToken {
         type ContractError = Error;
     }
 
@@ -94,7 +94,7 @@ mod button_token {
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
 
-            let role_check = <Self as AccessContolled>::check_role(
+            let role_check = <Self as AccessControlled>::check_role(
                 AccountId::from(ACCESS_CONTROL_PUBKEY),
                 caller,
                 required_role,
@@ -304,7 +304,7 @@ mod button_token {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            <Self as AccessContolled>::check_role(
+            <Self as AccessControlled>::check_role(
                 self.access_control,
                 account,
                 role,

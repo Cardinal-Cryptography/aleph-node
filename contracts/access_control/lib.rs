@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::access_control::{Role, HAS_ROLE_SELECTOR};
+pub mod traits;
 use ink_lang as ink;
 
 #[ink::contract]
@@ -32,7 +33,7 @@ mod access_control {
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct AccessControl {
-        /// Stores a de-facto hashset between user accounts and a list of their roles
+        /// Stores a de-facto hashset of user accounts and their roles
         pub priviledges: Mapping<(AccountId, Role), ()>,
     }
 
@@ -90,7 +91,7 @@ mod access_control {
 
         /// Gives a role to an account
         ///
-        /// Can only be called by an admin role on this contract
+        /// Can only be called by an account with an admin role on this contract
         #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);

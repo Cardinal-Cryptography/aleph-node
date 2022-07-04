@@ -82,7 +82,6 @@ dependencies = [
  "ink_storage",
  "parity-scale-codec",
  "scale-info",
- "shared",
 ]
 
 [[package]]
@@ -602,15 +601,6 @@ checksum = "881bf8156c87b6301fc5ca6b27f11eeb2761224c7081e69b409d5a1951a70c86"
 dependencies = [
  "digest",
  "keccak",
-]
-
-[[package]]
-name = "shared"
-version = "0.1.0"
-dependencies = [
- "access_control",
- "ink_env",
- "ink_lang",
 ]
 
 [[package]]
