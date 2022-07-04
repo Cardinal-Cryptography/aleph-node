@@ -1,7 +1,18 @@
 mod nonvalidator_node;
 mod validator_node;
 
+use std::{future::Future, sync::Arc};
+
+use aleph_primitives::{AuthorityId, SessionAuthorityData};
+use codec::Encode;
+use log::warn;
 pub use nonvalidator_node::run_nonvalidator_node;
+use sc_client_api::Backend;
+use sc_network::{ExHashT, NetworkService};
+use sp_runtime::{
+    traits::{Block, Header, NumberFor},
+    RuntimeAppPublic,
+};
 pub use validator_node::run_validator_node;
 
 use crate::{
@@ -17,16 +28,6 @@ use crate::{
     session_map::ReadOnlySessionMap,
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
-use aleph_primitives::{AuthorityId, SessionAuthorityData};
-use codec::Encode;
-use log::warn;
-use sc_client_api::Backend;
-use sc_network::{ExHashT, NetworkService};
-use sp_runtime::{
-    traits::{Block, Header, NumberFor},
-    RuntimeAppPublic,
-};
-use std::{future::Future, sync::Arc};
 
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;

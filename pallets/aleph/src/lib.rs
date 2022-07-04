@@ -12,27 +12,26 @@ mod tests;
 
 mod migrations;
 
-use sp_std::prelude::*;
-
 use frame_support::{
     log,
     sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
-    Parameter,
 };
 pub use pallet::*;
+use sp_std::prelude::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
+
+    use super::*;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
