@@ -1,12 +1,11 @@
-use codec::Decode;
-use sp_core::Pair;
-use substrate_api_client::{AccountId, XtStatus};
-
 use aleph_client::{
     change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
     wait_for_next_era, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
     SignedConnection,
 };
+use codec::Decode;
+use sp_core::Pair;
+use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     accounts::{get_sudo_key, get_validators_keys},
