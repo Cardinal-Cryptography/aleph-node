@@ -38,7 +38,7 @@ clear
 
 
 if $BUILD_ALEPH_NODE ; then
-  cargo build --release -p aleph-node --features "short_session"
+  cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
 fi
 
 declare -a account_ids
@@ -91,6 +91,7 @@ run_node() {
     --port $((30334 + i)) \
     --bootnodes $bootnodes \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
+    --backup-path $BASE_PATH/$account_id/backup-stash \
     --unit-creation-delay 500 \
     --execution Native \
     --rpc-cors=all \

@@ -1,39 +1,46 @@
-use std::{thread::sleep, time::Duration};
+use std::{default::Default, thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
-use codec::Encode;
-use log::{info, warn};
-use sp_core::{sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
-pub use substrate_api_client;
-use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
-    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
-};
-
 pub use account::{get_free_balance, locks};
+pub use balances::total_issuance;
+use codec::{Decode, Encode};
 pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
+use log::{info, warn};
 pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_next_era_reserved_validators, change_validators, get_current as get_current_session,
-    set_keys, wait_for as wait_for_session, Keys as SessionKeys,
+    change_next_era_reserved_validators, change_validators, get_current_session, get_session,
+    get_session_period, set_keys, wait_for as wait_for_session,
+    wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
+use sp_core::{sr25519, storage::StorageKey, Pair, H256};
+use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
-    get_current_era, get_payout_for_era, ledger as staking_ledger,
-    multi_bond as staking_multi_bond, nominate as staking_nominate, payout_stakers,
-    payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
-    validate as staking_validate, wait_for_full_era_completion, wait_for_next_era, StakingLedger,
+    get_current_era, get_era, get_era_reward_points, get_exposure, get_payout_for_era,
+    get_sessions_per_era, ledger as staking_ledger, multi_bond as staking_multi_bond,
+    nominate as staking_nominate, payout_stakers, payout_stakers_and_assert_locked_balance,
+    set_staking_limits as staking_set_staking_limits, validate as staking_validate,
+    wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
+};
+pub use substrate_api_client;
+use substrate_api_client::{
+    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
+    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
 };
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
+};
+pub use treasury::{
+    approve as approve_treasury_proposal, proposals_counter as treasury_proposals_counter,
+    propose as make_treasury_proposal, reject as reject_treasury_proposal, staking_treasury_payout,
+    treasury_account,
 };
 pub use vesting::{
     get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,
@@ -42,6 +49,7 @@ pub use vesting::{
 pub use waiting::{wait_for_event, wait_for_finalized_block};
 
 mod account;
+mod balances;
 mod debug;
 mod fee;
 mod multisig;
@@ -50,6 +58,7 @@ mod session;
 mod staking;
 mod system;
 mod transfer;
+mod treasury;
 mod vesting;
 mod waiting;
 
@@ -73,13 +82,78 @@ pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
 pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
 
-/// 'Castability' to `Connection`.
-///
-/// Direct casting is often more handy than generic `.into()`. Justification: `Connection` objects
-/// are often passed to some macro like `compose_extrinsic!` and thus there is not enough
-/// information for type inferring required for `Into<Connection>`.
+/// Common abstraction for different types of connections.
 pub trait AnyConnection: Clone + Send {
+    /// 'Castability' to `Connection`.
+    ///
+    /// Direct casting is often more handy than generic `.into()`. Justification: `Connection`
+    /// objects are often passed to some macro like `compose_extrinsic!` and thus there is not
+    /// enough information for type inferring required for `Into<Connection>`.
     fn as_connection(&self) -> Connection;
+
+    /// Reads value from storage. Panics if it couldn't be read.
+    fn read_storage_value<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
+        self.read_storage_value_or_else(pallet, key, || {
+            panic!("Value is `None` or couldn't have been decoded")
+        })
+    }
+
+    /// Reads value from storage. In case value is `None` or couldn't have been decoded, result of
+    /// `fallback` is returned.
+    fn read_storage_value_or_else<F: FnOnce() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_storage_value(pallet, key, None)
+            .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
+            .unwrap_or_else(fallback)
+    }
+
+    /// Reads value from storage. In case value is `None` or couldn't have been decoded, the default
+    /// value is returned.
+    fn read_storage_value_or_default<T: Decode + Default>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+    ) -> T {
+        self.read_storage_value_or_else(pallet, key, Default::default)
+    }
+
+    /// Reads pallet's constant from metadata. Panics if it couldn't be read.
+    fn read_constant<T: Decode>(&self, pallet: &'static str, constant: &'static str) -> T {
+        self.read_constant_or_else(pallet, constant, || {
+            panic!(
+                "Constant `{}::{}` should be present and decodable",
+                pallet, constant
+            )
+        })
+    }
+
+    /// Reads pallet's constant from metadata. In case value is `None` or couldn't have been
+    /// decoded, result of `fallback` is returned.
+    fn read_constant_or_else<F: FnOnce() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        constant: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_constant(pallet, constant)
+            .unwrap_or_else(|_| fallback())
+    }
+
+    /// Reads pallet's constant from metadata. In case value is `None` or couldn't have been
+    /// decoded, the default value is returned.
+    fn read_constant_or_default<T: Decode + Default>(
+        &self,
+        pallet: &'static str,
+        constant: &'static str,
+    ) -> T {
+        self.read_constant_or_else(pallet, constant, Default::default)
+    }
 }
 
 impl AnyConnection for Connection {
@@ -300,4 +374,14 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     let bytes = storage_key(pallet, call);
     let storage_key = StorageKey(bytes.into());
     hex::encode(storage_key.0)
+}
+
+pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: u32) -> H256 {
+    connection
+        .as_connection()
+        .get_block_hash(Some(block_number))
+        .expect("API call should have succeeded.")
+        .unwrap_or_else(|| {
+            panic!("Failed to obtain block hash for block {}.", block_number);
+        })
 }

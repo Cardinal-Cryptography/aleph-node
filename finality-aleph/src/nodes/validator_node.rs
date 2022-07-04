@@ -1,3 +1,9 @@
+use log::{debug, error};
+use sc_client_api::Backend;
+use sc_network::ExHashT;
+use sp_consensus::SelectChain;
+use sp_runtime::traits::Block;
+
 use crate::{
     mpsc,
     network::{
@@ -9,11 +15,6 @@ use crate::{
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
     AlephConfig,
 };
-use log::{debug, error};
-use sc_client_api::Backend;
-use sc_network::ExHashT;
-use sp_consensus::SelectChain;
-use sp_runtime::traits::Block;
 
 pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
 where
@@ -35,6 +36,7 @@ where
         session_period,
         millisecs_per_block,
         justification_rx,
+        backup_saving_path,
         ..
     } = aleph_config;
 
@@ -113,6 +115,7 @@ where
         metrics,
         authority_justification_tx,
         unit_creation_delay,
+        backup_saving_path,
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");

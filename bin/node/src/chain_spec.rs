@@ -1,3 +1,5 @@
+use std::{collections::HashSet, path::PathBuf, str::FromStr};
+
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
     AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_COMMITTEE_SIZE, TOKEN, TOKEN_DECIMALS,
@@ -15,7 +17,6 @@ use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair};
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";
@@ -116,6 +117,9 @@ pub struct ChainParams {
     #[clap(long, default_value = "p2p_secret")]
     node_key_file: String,
 
+    #[clap(long, default_value = "backup-stash")]
+    backup_dir: String,
+
     /// Chain name. Default is "Aleph Zero Development"
     #[clap(long, default_value = "Aleph Zero Development")]
     chain_name: String,
@@ -152,6 +156,10 @@ impl ChainParams {
 
     pub fn node_key_file(&self) -> &str {
         &self.node_key_file
+    }
+
+    pub fn backup_dir(&self) -> &str {
+        &self.backup_dir
     }
 
     pub fn chain_name(&self) -> &str {
