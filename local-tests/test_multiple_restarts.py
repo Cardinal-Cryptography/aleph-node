@@ -11,13 +11,13 @@ workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important DON'T use short-session feature):
 binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
 
-phrases = [f'//{i}' for i in range(5)]
+phrases = [f'//{i}' for i in range(6)]
 keys = generate_keys(binary, phrases)
 all_accounts = list(keys.values())
 chain = Chain(workdir)
 print('Bootstrapping the chain with binary')
 chain.bootstrap(binary,
-                all_accounts[:5],
+                all_accounts[:4],
                 nonvalidators=all_accounts[4:],
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local')
