@@ -10,9 +10,9 @@ use crate::{
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
     let connection = connection.as_connection();
-    let proposal_count: u32 = connection.read_storage_or_else("Treasury", "ProposalCount", || 0);
+    let proposal_count: u32 = connection.read_storage_value_or_default("Treasury", "ProposalCount");
     let approvals: Vec<ProposalIndex> =
-        connection.read_storage_or_else("Treasury", "Approvals", Vec::new);
+        connection.read_storage_value_or_default("Treasury", "Approvals");
 
     println!("{}", pallet_prompt("Treasury"));
     println!("{}: {}", entry_prompt("ProposalCount"), proposal_count);

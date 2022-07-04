@@ -19,7 +19,7 @@ pub fn treasury_account() -> AccountId32 {
 
 /// Returns how many treasury proposals have ever been created.
 pub fn proposals_counter<C: AnyConnection>(connection: &C) -> u32 {
-    connection.read_storage_or_else("Treasury", "ProposalCount", || 0)
+    connection.read_storage_value_or_default("Treasury", "ProposalCount")
 }
 
 /// Calculates how much balance will be paid out to the treasury after each era.
@@ -121,7 +121,7 @@ fn send_approval(connection: &RootConnection, proposal_id: u32) -> ApiResult<Opt
 
 fn wait_for_approval<C: AnyConnection>(connection: &C, proposal_id: u32) -> AnyResult<()> {
     loop {
-        let approvals: Vec<u32> = connection.read_storage("Treasury", "Approvals");
+        let approvals: Vec<u32> = connection.read_storage_value("Treasury", "Approvals");
         if approvals.contains(&proposal_id) {
             return Ok(());
         } else {

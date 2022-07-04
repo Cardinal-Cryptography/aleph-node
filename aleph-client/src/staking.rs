@@ -123,10 +123,7 @@ fn wait_for_era_completion<C: AnyConnection>(
 }
 
 pub fn get_sessions_per_era<C: AnyConnection>(connection: &C) -> u32 {
-    connection
-        .as_connection()
-        .get_constant("Staking", "SessionsPerEra")
-        .expect("Failed to decode SessionsPerEra extrinsic!")
+    connection.read_constant("Staking", "SessionsPerEra")
 }
 
 pub fn get_era<C: AnyConnection>(connection: &C, block: Option<H256>) -> EraIndex {

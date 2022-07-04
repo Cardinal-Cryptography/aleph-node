@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn print_storage<C: AnyConnection>(connection: &C) {
-    let members: Vec<AuthorityId> = connection.read_storage("Elections", "Members");
+    let members: Vec<AuthorityId> = connection.read_storage_value("Elections", "Members");
 
     println!("{}", pallet_prompt("Elections"));
     println!("{}", entry_prompt("Members"));

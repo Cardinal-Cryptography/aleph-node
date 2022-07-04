@@ -91,7 +91,11 @@ pub fn get_current_session<C: AnyConnection>(connection: &C) -> SessionIndex {
 }
 
 pub fn get_session<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -> SessionIndex {
-    connection.read_storage_or_else("Session", "CurrentIndex", || 0)
+    connection
+        .as_connection()
+        .get_storage_value("Session", "CurrentIndex", block_hash)
+        .unwrap()
+        .unwrap_or(0)
 }
 
 pub fn wait_for_predicate<C: AnyConnection, P: Fn(SessionIndex) -> bool>(
@@ -131,8 +135,5 @@ pub fn wait_for_at_least<C: AnyConnection>(
 }
 
 pub fn get_session_period<C: AnyConnection>(connection: &C) -> u32 {
-    connection
-        .as_connection()
-        .get_constant("Elections", "SessionPeriod")
-        .expect("Failed to decode SessionPeriod extrinsic!")
+    connection.read_constant("Elections", "SessionPeriod")
 }

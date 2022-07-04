@@ -18,12 +18,12 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let connection = RootConnection::new(&config.node, sudo);
 
     let reserved_before: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraReservedValidators");
+        connection.read_storage_value("Elections", "NextEraReservedValidators");
 
     let non_reserved_before: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraNonReservedValidators");
+        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
 
-    let committee_size_before: u32 = connection.read_storage("Elections", "CommitteeSize");
+    let committee_size_before: u32 = connection.read_storage_value("Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -58,12 +58,12 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     )?;
 
     let reserved_after: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraReservedValidators");
+        connection.read_storage_value("Elections", "NextEraReservedValidators");
 
     let non_reserved_after: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraNonReservedValidators");
+        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
 
-    let committee_size_after: u32 = connection.read_storage("Elections", "CommitteeSize");
+    let committee_size_after: u32 = connection.read_storage_value("Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",

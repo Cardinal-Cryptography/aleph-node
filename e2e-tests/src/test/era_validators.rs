@@ -38,9 +38,9 @@ fn get_pallets_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_reserved: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraReservedValidators");
+        connection.read_storage_value("Elections", "NextEraReservedValidators");
     let eras_validators: EraValidators =
-        connection.read_storage("Elections", "CurrentEraValidators");
+        connection.read_storage_value("Elections", "CurrentEraValidators");
 
     Ok((stored_reserved, eras_validators.reserved))
 }
@@ -49,9 +49,9 @@ fn get_pallets_non_reserved(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_non_reserved: Vec<AccountId> =
-        connection.read_storage("Elections", "NextEraNonReservedValidators");
+        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
     let eras_validators: EraValidators =
-        connection.read_storage("Elections", "CurrentEraValidators");
+        connection.read_storage_value("Elections", "CurrentEraValidators");
 
     Ok((stored_non_reserved, eras_validators.non_reserved))
 }

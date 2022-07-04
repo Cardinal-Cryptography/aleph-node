@@ -36,5 +36,5 @@ pub fn get_tx_fee_info<C: AnyConnection, Call: Encode>(
 }
 
 pub fn get_next_fee_multiplier<C: AnyConnection>(connection: &C) -> u128 {
-    connection.read_storage("TransactionPayment", "NextFeeMultiplier")
+    connection.read_storage_value("TransactionPayment", "NextFeeMultiplier")
 }

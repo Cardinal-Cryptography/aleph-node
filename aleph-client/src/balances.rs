@@ -6,5 +6,5 @@ use crate::AnyConnection;
 ///
 /// Performs a single storage read.
 pub fn total_issuance<C: AnyConnection>(connection: &C) -> Balance {
-    connection.read_storage("Balances", "TotalIssuance")
+    connection.read_storage_value("Balances", "TotalIssuance")
 }
