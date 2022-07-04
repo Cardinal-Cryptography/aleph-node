@@ -1,15 +1,14 @@
 use aleph_client::{
-    account_from_keypair, change_validators, get_sessions_per_era, wait_for_full_era_completion,
-    wait_for_next_era, KeyPair, SignedConnection, balances_batch_transfer, balances_transfer,
-    send_xt, get_session_period, get_block_hash, get_session, get_era, AnyConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, change_validators,
+    get_block_hash, get_era, get_session, get_session_period, get_sessions_per_era, send_xt,
+    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, SignedConnection,
 };
 use log::info;
-use primitives::{SessionIndex, TOKEN};
-use primitives::staking::MIN_VALIDATOR_BOND;
+use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex, TOKEN};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_validators_keys, get_validators_seeds, accounts_seeds_to_keys},
+    accounts::{accounts_seeds_to_keys, get_validators_keys, get_validators_seeds},
     rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
     Config,
 };
@@ -42,12 +41,12 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
     non_reserved.iter().map(account_from_keypair).collect()
 }
 
-fn validators_bond_extra_stakes(config : &Config, additional_stakes : Vec<u128>) {
+fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<u128>) {
     let node = &config.node;
     let root_connection = config.create_root_connection();
 
     let validator_seeds = get_validators_seeds(config);
-    let controller_seeds : Vec<_> = validator_seeds
+    let controller_seeds: Vec<_> = validator_seeds
         .iter()
         .map(|v| format!("{}//Controller", v))
         .collect();
@@ -55,7 +54,7 @@ fn validators_bond_extra_stakes(config : &Config, additional_stakes : Vec<u128>)
     let controller_accounts_key_pairs = accounts_seeds_to_keys(&controller_seeds);
     let stash_accounts_key_pairs = accounts_seeds_to_keys(&validator_seeds);
 
-    let controller_accounts : Vec<AccountId> = controller_accounts_key_pairs
+    let controller_accounts: Vec<AccountId> = controller_accounts_key_pairs
         .iter()
         .map(account_from_keypair)
         .collect();
@@ -67,9 +66,16 @@ fn validators_bond_extra_stakes(config : &Config, additional_stakes : Vec<u128>)
         .zip(additional_stakes.iter())
         .for_each(|(key, additional_stake)| {
             let id = account_from_keypair(key);
-            balances_transfer(&root_connection.as_signed(), &id, *additional_stake + TOKEN, XtStatus::InBlock);
+            balances_transfer(
+                &root_connection.as_signed(),
+                &id,
+                *additional_stake + TOKEN,
+                XtStatus::InBlock,
+            );
             let stash_connection = SignedConnection::new(node, key.clone());
-            let xt = stash_connection.as_connection().staking_bond_extra(*additional_stake);
+            let xt = stash_connection
+                .as_connection()
+                .staking_bond_extra(*additional_stake);
             send_xt(&stash_connection, xt, Some("bond_extra"), XtStatus::InBlock);
         });
 }
@@ -98,9 +104,19 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         Some(non_reserved_members.clone()),
         Some(4),
         XtStatus::InBlock,
-        );
+    );
 
-    validators_bond_extra_stakes(config, [8*MIN_VALIDATOR_BOND, 6*MIN_VALIDATOR_BOND, 4*MIN_VALIDATOR_BOND, 2*MIN_VALIDATOR_BOND, 0].to_vec());
+    validators_bond_extra_stakes(
+        config,
+        [
+            8 * MIN_VALIDATOR_BOND,
+            6 * MIN_VALIDATOR_BOND,
+            4 * MIN_VALIDATOR_BOND,
+            2 * MIN_VALIDATOR_BOND,
+            0,
+        ]
+        .to_vec(),
+    );
 
     let session_period = get_session_period(&connection);
     let sessions_per_era = get_sessions_per_era(&connection);
@@ -140,7 +156,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
             members,
             members_bench,
             MAX_DIFFERENCE,
-            )?
+        )?
     }
 
     Ok(())
