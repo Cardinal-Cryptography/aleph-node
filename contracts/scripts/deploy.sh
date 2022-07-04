@@ -15,6 +15,7 @@ function link_bytecode() {
 }
 
 # --- GLOBAL CONSTANTS
+NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
 NODE=ws://127.0.0.1:9943
 
@@ -47,7 +48,7 @@ cd $CONTRACTS_PATH/access_control
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --suri $ALICE_SEED)
 ACCESS_CONTROL=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-ACCESS_CONTROL_PUBKEY=$(subkey inspect $ACCESS_CONTROL | grep hex | cut -c 23- | cut -c 3-)
+ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
 echo "access control contract address: " $ACCESS_CONTROL
 echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY

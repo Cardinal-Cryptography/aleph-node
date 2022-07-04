@@ -64,10 +64,6 @@ jobs:
               # revision merging Hans's PR changes [fix for node URL parsing ]
               cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
 
-      - name: Install subkey
-        run: |
-          cargo install --force subkey --git https://github.com/paritytech/substrate --version 2.0.2 --locked
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
