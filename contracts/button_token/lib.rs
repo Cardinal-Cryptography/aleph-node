@@ -13,7 +13,6 @@ mod button_token {
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
     use ink_storage::{traits::SpreadAllocate, Mapping};
-    // use shared::shared::AccessControlled;
 
     pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
@@ -70,7 +69,7 @@ mod button_token {
         /// Returned if a call to another contract has failed
         ContractCall(String),
         /// Returned if a call is made from an account with missing access conrol priviledges
-        MissingRole, // MissingRole(Role)
+        MissingRole,
     }
 
     /// Result type

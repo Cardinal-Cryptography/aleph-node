@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use crate::access_control::{Role, HAS_ROLE_SELECTOR};
+pub use crate::access_control::{AccessControlError, Role, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR};
 pub mod traits;
 use ink_lang as ink;
 
@@ -15,6 +15,7 @@ mod access_control {
     use scale::{Decode, Encode};
 
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
+    pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
 
     #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
     #[cfg_attr(
@@ -62,7 +63,7 @@ mod access_control {
     #[derive(Debug, PartialEq, Eq, Encode, Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum AccessControlError {
-        MissingRole,
+        MissingRole(Role),
     }
 
     /// Result type    
@@ -149,9 +150,13 @@ mod access_control {
             self.env().terminate_contract(caller)
         }
 
-        fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
+        /// Result wrapped version of `has_role`
+        ///
+        /// Returns Error variant MissingRole(Role) if the account does not carry a role
+        #[ink(message, selector = 5)]
+        pub fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
             if !self.has_role(account, role) {
-                return Err(AccessControlError::MissingRole);
+                return Err(AccessControlError::MissingRole(role));
             }
             Ok(())
         }

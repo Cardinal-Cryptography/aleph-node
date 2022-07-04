@@ -11,8 +11,8 @@ pub trait AccessControlled {
         access_control: AccountId,
         account: AccountId,
         role: Role,
-        contract_call_error: fn(why: InkEnvError) -> ContractError,
-        access_control_error: fn() -> ContractError,
+        contract_call_error_handler: fn(why: InkEnvError) -> ContractError,
+        access_control_error_handler: fn() -> ContractError,
     ) -> Result<(), ContractError> {
         match build_call::<DefaultEnvironment>()
             .call_type(Call::new().callee(access_control))
@@ -26,9 +26,9 @@ pub trait AccessControlled {
         {
             Ok(has_role) => match has_role {
                 true => Ok(()),
-                false => Err(access_control_error()),
+                false => Err(access_control_error_handler()),
             },
-            Err(why) => Err(contract_call_error(why)),
+            Err(why) => Err(contract_call_error_handler(why)),
         }
     }
 }

@@ -37,7 +37,7 @@ mod yellow_button {
         /// Returned if a call to another contract has failed
         ContractCall(String),
         /// Returned if a call is made from an account with missing access control priviledges
-        MissingRole, // MissingRole(Role)
+        MissingRole,
     }
 
     /// Result type
@@ -487,7 +487,7 @@ mod yellow_button {
         #[ink(message)]
         pub fn code_hash(&self) -> Result<Hash> {
             Self::env().own_code_hash().map_err(|why| {
-                Error::ContractCall(format!("Calling control has failed: {:?}", why))
+                Error::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
             })
         }
     }

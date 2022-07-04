@@ -55,9 +55,12 @@ echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 ## --- UPLOAD TOKEN CONTRACT
 
 cd $CONTRACTS_PATH/button_token
+# replace address placeholder with the on-chain address of the AccessControl contract
 link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+# remove just in case
 rm target/ink/button_token.wasm
-# NOTE: nodejs cli tool: https://github.com/fbielejec/polkadot-cljs
+# NOTE : here we go from hex to binary using a nodejs cli tool
+# availiable from https://github.com/fbielejec/polkadot-cljs
 node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
 
 CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
