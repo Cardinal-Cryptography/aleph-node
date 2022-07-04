@@ -21,6 +21,7 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
         ("finalization", test_finalization as TestCase),
+        ("rewards_disable_node", test_disable_node as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         (
             "channeling_fee_and_tip",
@@ -39,6 +40,5 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("era_payout", test_era_payout as TestCase),
         ("era_validators", test_era_validators as TestCase),
         ("rewards_force_new_era", test_force_new_era as TestCase),
-        ("rewards_disable_node", test_disable_node as TestCase),
     ]
 }
