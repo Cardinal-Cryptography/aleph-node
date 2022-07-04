@@ -134,3 +134,4 @@ try-runtime = [
     "pallet-multisig/try-runtime",
     "pallet-utility/try-runtime",
 ]
+enable_treasury_proposals = []
