@@ -1,13 +1,15 @@
 use aleph_client::{
     account_from_keypair, change_validators, get_sessions_per_era, wait_for_full_era_completion,
-    wait_for_next_era, KeyPair, SignedConnection,
+    wait_for_next_era, KeyPair, SignedConnection, balances_batch_transfer, balances_transfer,
+    send_xt, get_session_period, get_block_hash, get_session, get_era, AnyConnection,
 };
 use log::info;
-use primitives::SessionIndex;
+use primitives::{SessionIndex, TOKEN};
+use primitives::staking::MIN_VALIDATOR_BOND;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::get_validators_keys,
+    accounts::{get_validators_keys, get_validators_seeds, accounts_seeds_to_keys},
     rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
     Config,
 };
@@ -38,6 +40,110 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
     }
 
     non_reserved.iter().map(account_from_keypair).collect()
+}
+
+fn validators_bond_extra_stakes(config : &Config, additional_stakes : Vec<u128>) {
+    let node = &config.node;
+    let root_connection = config.create_root_connection();
+
+    let validator_seeds = get_validators_seeds(config);
+    let controller_seeds : Vec<_> = validator_seeds
+        .iter()
+        .map(|v| format!("{}//Controller", v))
+        .collect();
+
+    let controller_accounts_key_pairs = accounts_seeds_to_keys(&controller_seeds);
+    let stash_accounts_key_pairs = accounts_seeds_to_keys(&validator_seeds);
+
+    let controller_accounts : Vec<AccountId> = controller_accounts_key_pairs
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+
+    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
+
+    stash_accounts_key_pairs
+        .iter()
+        .zip(additional_stakes.iter())
+        .for_each(|(key, additional_stake)| {
+            let id = account_from_keypair(key);
+            balances_transfer(&root_connection.as_signed(), &id, *additional_stake + TOKEN, XtStatus::InBlock);
+            let stash_connection = SignedConnection::new(node, key.clone());
+            let xt = stash_connection.as_connection().staking_bond_extra(*additional_stake);
+            send_xt(&stash_connection, xt, Some("bond_extra"), XtStatus::InBlock);
+        });
+}
+
+pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
+    const MAX_DIFFERENCE: f64 = 0.05;
+
+    let node = &config.node;
+    let accounts = get_validators_keys(config);
+    let sender = accounts.first().expect("Using default accounts").to_owned();
+    let connection = SignedConnection::new(node, sender);
+    let root_connection = config.create_root_connection();
+
+    let reserved_members: Vec<_> = get_reserved_members(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+    let non_reserved_members: Vec<_> = get_non_reserved_members(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+
+    change_validators(
+        &root_connection,
+        Some(reserved_members.clone()),
+        Some(non_reserved_members.clone()),
+        Some(4),
+        XtStatus::InBlock,
+        );
+
+    validators_bond_extra_stakes(config, [8*MIN_VALIDATOR_BOND, 6*MIN_VALIDATOR_BOND, 4*MIN_VALIDATOR_BOND, 2*MIN_VALIDATOR_BOND, 0].to_vec());
+
+    let session_period = get_session_period(&connection);
+    let sessions_per_era = get_sessions_per_era(&connection);
+
+    let era_block = session_period * sessions_per_era * wait_for_next_era(&root_connection)?;
+    let era_block_hash = get_block_hash(&connection, era_block);
+    let start_era_session = get_session(&connection, Some(era_block_hash));
+
+    let next_era_block = session_period * sessions_per_era * wait_for_next_era(&root_connection)?;
+    let next_era_block_hash = get_block_hash(&connection, next_era_block);
+    let end_era_session = get_session(&connection, Some(next_era_block_hash));
+
+    info!(
+        "Checking rewards for sessions {}..{}.",
+        start_era_session, end_era_session
+    );
+
+    let era = get_era(&root_connection, Some(era_block_hash));
+    for session in start_era_session..end_era_session {
+        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
+        let non_reserved_bench = non_reserved_members
+            .clone()
+            .into_iter()
+            .filter(|account_id| !non_reserved_for_session.contains(account_id))
+            .collect::<Vec<_>>();
+        let members = reserved_members
+            .clone()
+            .into_iter()
+            .chain(non_reserved_for_session)
+            .collect::<Vec<_>>();
+        let members_bench = non_reserved_bench;
+
+        check_points(
+            &connection,
+            session,
+            era,
+            members,
+            members_bench,
+            MAX_DIFFERENCE,
+            )?
+    }
+
+    Ok(())
 }
 
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
