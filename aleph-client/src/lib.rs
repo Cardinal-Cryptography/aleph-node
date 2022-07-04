@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{default::Default, thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
 pub use account::{get_free_balance, locks};
@@ -119,10 +119,7 @@ pub trait AnyConnection: Clone + Send {
         pallet: &'static str,
         key: &'static str,
     ) -> T {
-        self.as_connection()
-            .get_storage_value(pallet, key, None)
-            .unwrap_or_else(|_| panic!("Key `{}::{}` should be present in storage", pallet, key))
-            .unwrap_or_default()
+        self.read_storage_value_or_else(pallet, key, Default::default)
     }
 
     /// Reads pallet's constant from metadata. Panics if it couldn't be read.
@@ -155,9 +152,7 @@ pub trait AnyConnection: Clone + Send {
         pallet: &'static str,
         constant: &'static str,
     ) -> T {
-        self.as_connection()
-            .get_constant(pallet, constant)
-            .unwrap_or_default()
+        self.read_constant_or_else(pallet, constant, Default::default)
     }
 }
 
