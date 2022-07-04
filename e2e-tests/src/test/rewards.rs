@@ -86,7 +86,7 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>
                 &root_connection.as_signed(),
                 &validator_id,
                 *additional_stake + TOKEN,
-                XtStatus::InBlock,
+                XtStatus::Finalized,
             );
             let stash_connection = SignedConnection::new(node, key.clone());
             let xt = stash_connection
@@ -117,7 +117,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
         Some(4),
-        XtStatus::InBlock,
+        XtStatus::Finalized,
     );
 
     validators_bond_extra_stakes(
