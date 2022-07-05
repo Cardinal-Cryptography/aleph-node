@@ -320,6 +320,9 @@ impl CliConfiguration for PurgeChainCmd {
 
 #[derive(Debug, Parser)]
 pub struct PurgeBackupCmd {
+    /// Expects a string with an AccountId (hex encoding of an sr2559 public key)
+    #[clap(long)]
+    account_id: String,
     /// Skip interactive prompt by answering yes automatically.
     #[clap(short = 'y')]
     pub yes: bool,
@@ -330,7 +333,11 @@ pub struct PurgeBackupCmd {
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
         let backup_path = backup_path(
-            self.node_params.base_path().path(),
+            &self
+                .node_params
+                .base_path()
+                .path()
+                .join(&self.account_id().to_string()),
             self.node_params.backup_dir(),
         );
 
@@ -367,5 +374,10 @@ impl PurgeBackupCmd {
             }
         }
         Ok(())
+    }
+
+    fn account_id(&self) -> AccountId {
+        AccountId::from_string(&self.account_id.as_str())
+            .expect("Passed string is not a hex encoding of a public key")
     }
 }
