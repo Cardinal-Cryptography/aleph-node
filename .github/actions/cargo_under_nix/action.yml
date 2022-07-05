@@ -5,7 +5,7 @@ inputs:
   cargo-command:
     description: 'subcommand of cargo to execute'
     required: false
-    default: ''
+    default: '""'
   cargo-toml:
     description: 'path to Cargo.toml file'
     required: false
