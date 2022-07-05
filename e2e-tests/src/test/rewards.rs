@@ -1,14 +1,14 @@
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, change_validators,
-    get_block_hash, get_era, get_session, get_session_period, get_sessions_per_era, send_xt,
-    wait_for_full_era_completion, wait_for_next_era, AnyConnection, KeyPair, SignedConnection,
+    get_sessions_per_era, send_xt, wait_for_full_era_completion, wait_for_next_era, AnyConnection,
+    KeyPair, SignedConnection,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{accounts_seeds_to_keys, get_validators_keys, get_validators_seeds},
+    accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
     rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
     Config,
 };
@@ -58,28 +58,22 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>
     let node = &config.node;
     let root_connection = config.create_root_connection();
 
-    let validator_seeds = get_validators_seeds(config);
-    let controller_seeds: Vec<_> = validator_seeds
-        .iter()
-        .map(|v| format!("{}//Controller", v))
+    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
+        .into_iter()
+        .map(|seed| seed.into())
         .collect();
 
-    let controller_accounts_key_pairs = accounts_seeds_to_keys(&controller_seeds);
-    let stash_accounts_key_pairs = accounts_seeds_to_keys(&validator_seeds);
-
-    let controller_accounts: Vec<AccountId> = controller_accounts_key_pairs
+    let controller_accounts: Vec<AccountId> = accounts_keys
         .iter()
-        .map(account_from_keypair)
+        .map(|account_keys| account_from_keypair(&account_keys.controller))
         .collect();
 
     // funds to cover fees
     balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
 
-    stash_accounts_key_pairs
-        .iter()
-        .zip(additional_stakes.iter())
-        .for_each(|(key, additional_stake)| {
-            let validator_id = account_from_keypair(key);
+    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
+        |(account_keys, additional_stake)| {
+            let validator_id = account_from_keypair(&account_keys.validator);
 
             // Additional TOKEN to cover fees
             balances_transfer(
@@ -88,7 +82,7 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>
                 *additional_stake + TOKEN,
                 XtStatus::Finalized,
             );
-            let stash_connection = SignedConnection::new(node, key.clone());
+            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
             let xt = stash_connection
                 .as_connection()
                 .staking_bond_extra(*additional_stake);
@@ -98,7 +92,8 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>
                 Some("bond_extra"),
                 XtStatus::Finalized,
             );
-        });
+        },
+    );
 }
 
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
@@ -132,23 +127,16 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         .to_vec(),
     );
 
-    let session_period = get_session_period(&connection);
     let sessions_per_era = get_sessions_per_era(&connection);
-
-    let era_block = session_period * sessions_per_era * wait_for_next_era(&root_connection)?;
-    let era_block_hash = get_block_hash(&connection, era_block);
-    let start_era_session = get_session(&connection, Some(era_block_hash));
-
-    let next_era_block = session_period * sessions_per_era * wait_for_next_era(&root_connection)?;
-    let next_era_block_hash = get_block_hash(&connection, next_era_block);
-    let end_era_session = get_session(&connection, Some(next_era_block_hash));
+    let era = wait_for_next_era(&root_connection)?;
+    let start_era_session = era * sessions_per_era;
+    let end_era_session = sessions_per_era * wait_for_next_era(&root_connection)?;
 
     info!(
         "Checking rewards for sessions {}..{}.",
         start_era_session, end_era_session
     );
 
-    let era = get_era(&root_connection, Some(era_block_hash));
     for session in start_era_session..end_era_session {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
         let non_reserved_bench = non_reserved_members
