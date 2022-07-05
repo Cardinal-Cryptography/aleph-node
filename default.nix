@@ -202,7 +202,7 @@ with nixpkgs; naersk.buildPackage rec {
       cp ${pathToCompactWasm} $out/lib/
     fi
     echo "setting an interpreter"
-    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter.path}"}
+    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && find $out/bin -type f -exec patchelf --set-interpreter ${setInterpreter.path} {} \;"}
   '';
 
 }
