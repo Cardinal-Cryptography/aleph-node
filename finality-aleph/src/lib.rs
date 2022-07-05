@@ -49,6 +49,7 @@ pub use justification::JustificationNotification;
 pub use network::Protocol;
 pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
+pub use justification::AlephJustification;
 
 pub use crate::metrics::Metrics;
 

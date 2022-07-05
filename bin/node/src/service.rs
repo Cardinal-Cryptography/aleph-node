@@ -43,6 +43,7 @@ pub fn new_partial(
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
             AlephBlockImport<Block, FullBackend, FullClient>,
+            mpsc::UnboundedSender<JustificationNotification<Block>>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
@@ -104,7 +105,7 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let aleph_block_import =
-        AlephBlockImport::new(client.clone() as Arc<_>, justification_tx, metrics.clone());
+        AlephBlockImport::new(client.clone() as Arc<_>, justification_tx.clone(), metrics.clone());
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
@@ -142,7 +143,7 @@ pub fn new_partial(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (aleph_block_import, justification_rx, telemetry, metrics),
+        other: (aleph_block_import, justification_tx, justification_rx, telemetry, metrics),
     })
 }
 
@@ -157,6 +158,7 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
+    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
 ) -> Result<
     (
         RpcHandlers,
@@ -190,6 +192,7 @@ fn setup(
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
+                import_justification_tx: import_justification_tx.clone(),
             };
 
             Ok(crate::rpc::create_full(deps)?)
@@ -225,7 +228,7 @@ pub fn new_authority(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, justification_rx, mut telemetry, metrics),
+        other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
     config
         .network
@@ -259,6 +262,7 @@ pub fn new_authority(
         &mut task_manager,
         client.clone(),
         &mut telemetry,
+        justification_tx,
     )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
@@ -343,7 +347,7 @@ pub fn new_full(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (_, justification_rx, mut telemetry, metrics),
+        other: (_, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
     let (_rpc_handlers, network, network_starter) = setup(
@@ -355,6 +359,7 @@ pub fn new_full(
         &mut task_manager,
         client.clone(),
         &mut telemetry,
+        justification_tx,
     )?;
 
     let session_period = SessionPeriod(

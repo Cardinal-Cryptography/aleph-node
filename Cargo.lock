@@ -159,6 +159,7 @@ dependencies = [
  "primitives",
  "sc-basic-authorship",
  "sc-block-builder",
+ "sc-chain-spec",
  "sc-cli",
  "sc-client-api",
  "sc-consensus",
@@ -188,6 +189,7 @@ dependencies = [
  "sp-transaction-pool",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "thiserror",
 ]
 
 [[package]]

@@ -15,19 +15,24 @@ use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
+use futures::channel::mpsc;
+use finality_aleph::JustificationNotification;
+use sp_api::BlockT;
+
 /// Full client dependencies.
-pub struct FullDeps<C, P> {
+pub struct FullDeps<B: BlockT, C, P> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
+    pub import_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(
-    deps: FullDeps<C, P>,
+pub fn create_full<B, C, P>(
+    deps: FullDeps<B, C, P>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>,
@@ -38,6 +43,7 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
+    B: BlockT,
 {
     use pallet_contracts_rpc::{Contracts, ContractsApiServer};
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
@@ -48,6 +54,7 @@ where
         client,
         pool,
         deny_unsafe,
+        import_justification_tx,
     } = deps;
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
@@ -55,6 +62,9 @@ where
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     module.merge(Contracts::new(client).into_rpc())?;
+
+    use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
+    module.merge(AlephNode::new(import_justification_tx).into_rpc())?;
 
     Ok(module)
 }
