@@ -24,14 +24,11 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
 
-      - name: Run nix-shell
-        run: |
-          nix-shell --pure --file shell.nix
+      - name: Install clippy and fmt
+        run: rustup component add clippy rustfmt
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
@@ -64,19 +61,19 @@ jobs:
           cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
-        uses: ./.github/actions/cargo_under_nix
-        with:
-          cargo-command: |
-            packages="${{ steps.format_output.outputs.packages }}"
-            ROOT=$(pwd)
-            for p in ${packages[@]}
-            do
-              echo "Checking package $p..."
-              pushd "$p"
-              cargo fmt --all --check
-              cargo clippy --all-targets --all-features -- --no-deps -D warnings
-              popd
-            done
+        env:
+          RUSTC_WRAPPER: ""
+          RUSTC_WORKSPACE_WRAPPER: sccache
+        run: |
+          packages="${{ steps.format_output.outputs.packages }}"
+          for p in ${packages[@]}
+          do
+            echo "Checking package $p..."
+            pushd "$p"
+            cargo fmt --all --check
+            cargo clippy --all-features -- --no-deps -D warnings
+            popd
+          done
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache

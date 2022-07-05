@@ -24,14 +24,14 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
 
-      - name: Run nix-shell
-        run: |
-          nix-shell --pure --file shell.nix
+      - name: Install clippy and fmt
+        run: rustup component add clippy rustfmt
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -40,26 +40,26 @@ jobs:
           cache-version: v1
 
       - name: Run Format Checks
-        uses: ./.github/actions/cargo_nix_shell
+        uses: actions-rs/cargo@v1
         with:
-          command: |
-            cargo fmt --all
+          command: fmt
+          args: --all
 
       - name: Run Linter
-        uses: ./.github/actions/cargo_nix_shell
+        uses: actions-rs/cargo@v1
         env:
           # https://github.com/mozilla/sccache/issues/966
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
-          command: |
-            cargo clippy -- --no-deps -D warnings
+          command: clippy
+          args: -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
-        uses: ./.github/actions/cargo_nix_shell
+        uses: actions-rs/cargo@v1
         with:
-          command: |
-            cargo test --lib
+          command: test
+          args: --lib
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
