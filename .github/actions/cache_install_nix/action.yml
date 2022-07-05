@@ -9,15 +9,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Check if already installed
-      id: check
-      shell: bash
-      run: |
-        if [[ ! -f ~/.nix-installed ]]; then
-          exit -1
-        fi
     - name: Prepare nix store
-      if: steps.check.conclusion == 'failure'
+      if: if [[ ! -f ~/.nix-installed ]]; then
       shell: bash
       run: |
         # Create with liberal rights, otherwise cache action will complain
@@ -26,7 +19,7 @@ runs:
         sudo chmod -R 777 /nix
 
     - name: Cache nix store
-      if: steps.check.conclusion == 'failure'
+      if: if [[ ! -f ~/.nix-installed ]]; then
       uses: actions/cache@v2
       with:
         path: |
@@ -42,7 +35,7 @@ runs:
         key: ${{ inputs.cache-key }}
 
     - uses: cachix/install-nix-action@v17
-      if: steps.check.conclusion == 'failure'
+      if: if [[ ! -f ~/.nix-installed ]]; then
       with:
         install_url: https://releases.nixos.org/nix/nix-2.7.0/install
         nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz
@@ -52,6 +45,7 @@ runs:
           keep-derivations = true
 
     - name: Leave some `evidence` after installation
+      if: if [[ ! -f ~/.nix-installed ]]; then
       shell: bash
       run: |
         touch ~/.nix-installed
