@@ -13,7 +13,7 @@ runs:
       id: check
       shell: bash
       run: |
-        if [[ -f ~/.nix-installed ]]; then
+        if [[ ! -f ~/.nix-installed ]]; then
           exit -1
         fi
     - name: Prepare nix store
