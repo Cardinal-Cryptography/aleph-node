@@ -142,7 +142,7 @@ with nixpkgs; naersk.buildPackage rec {
     pkg-config
     llvm.libclang
     protobuf
-  ];
+  ] ++ nixpkgs.lib.optional setInterpreter.substitute patchelf;
   buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuild = customBuild;
   cargoBuildOptions = opts:
@@ -201,8 +201,7 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    echo "setting an interpreter"
-    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && find $out/bin -type f -exec patchelf --set-interpreter ${setInterpreter.path} {} \;"}
+    ${nixpkgs.lib.optionalString setInterpreter.substitute "if [[ -d $out/bin && $(find $out/bin/ -type f | wc -l) > 0 ]]; then find $out/bin -type f | xargs patchelf --set-interpreter ${setInterpreter.path}; fi"}
   '';
 
 }
