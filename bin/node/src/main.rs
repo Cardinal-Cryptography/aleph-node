@@ -1,13 +1,12 @@
 #[cfg(feature = "try-runtime")]
+use aleph_node::ExecutorDispatch;
+use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
+#[cfg(feature = "try-runtime")]
 use aleph_runtime::Block;
+use clap::Parser;
 use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
-
-#[cfg(feature = "try-runtime")]
-use aleph_node::ExecutorDispatch;
-use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
-use clap::Parser;
 
 fn main() -> sc_cli::Result<()> {
     let cli = Cli::parse();
