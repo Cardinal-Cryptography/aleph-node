@@ -185,7 +185,7 @@ pub mod pallet {
             committee_size: Option<u32>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            let committee_size = committee_size.unwrap_or(NextEraCommitteeSize::<T>::get());
+            let committee_size = committee_size.unwrap_or_else(NextEraCommitteeSize::<T>::get);
             let reserved_validators =
                 reserved_validators.unwrap_or_else(NextEraReservedValidators::<T>::get);
             let non_reserved_validators =
