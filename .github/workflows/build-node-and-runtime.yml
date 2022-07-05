@@ -47,7 +47,7 @@ jobs:
       - name: Build test binary
         uses: ./.github/actions/cargo_under_nix
         with:
-          cargo-command: cargo build --release --locked --package aleph-node --features "short_session enable_treasury_proposals"
+          cargo-command: cargo build --release --locked --package aleph-node --features=short_session,enable_treasury_proposals
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
