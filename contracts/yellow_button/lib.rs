@@ -11,7 +11,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod yellow_button {
 
-    use access_control::{traits::AccessControlled, Role};
+    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
@@ -20,9 +20,6 @@ mod yellow_button {
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
-
-    // address placeholder, set in the bytecode
-    const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
 
     /// Error types
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -416,7 +413,7 @@ mod yellow_button {
             self.env().terminate_contract(caller)
         }
 
-        /// Sets new access control contact address
+        /// Sets new access control contract address
         ///
         /// Can only be called by the contract owner
         #[ink(message)]

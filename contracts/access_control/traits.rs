@@ -1,8 +1,9 @@
-use crate::access_control::{Role, HAS_ROLE_SELECTOR};
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
     AccountId, DefaultEnvironment, Error as InkEnvError,
 };
+
+use crate::access_control::{Role, HAS_ROLE_SELECTOR};
 
 pub trait AccessControlled {
     type ContractError;

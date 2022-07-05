@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use crate::access_control::{AccessControlError, Role, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR};
+pub use crate::access_control::{
+    AccessControlError, Role, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
+};
 pub mod traits;
 use ink_lang as ink;
 
@@ -14,6 +16,9 @@ mod access_control {
     };
     use scale::{Decode, Encode};
 
+    // address placeholder, set in the bytecode
+    // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
+    pub const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
     pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
 
@@ -85,7 +90,7 @@ mod access_control {
         /// caller is granted admin and owner piviledges
         fn new_init(&mut self) {
             let caller = Self::env().caller();
-            let this = self.env().account_id();
+            let this = Self::env().account_id();
             self.priviledges.insert((caller, Role::Admin(this)), &());
             self.priviledges.insert((caller, Role::Owner(this)), &());
         }
@@ -136,7 +141,7 @@ mod access_control {
         /// Returns true if account has a role
         #[ink(message, selector = 3)]
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
-            self.priviledges.get((account, role)).is_some()
+            self.priviledges.contains((account, role))
         }
 
         /// Terminates the contract.
@@ -168,17 +173,17 @@ mod access_control {
 
     #[cfg(test)]
     mod tests {
-        use super::*;
         use ink_lang as ink;
+
+        use super::*;
 
         #[ink::test]
         fn access_control() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
 
             let alice = accounts.alice;
-            let bob = accounts.alice;
+            let bob = accounts.bob;
             let charlie = accounts.charlie;
-
             let contract_address = accounts.django;
 
             // alice deploys the access control contract
@@ -215,20 +220,15 @@ mod access_control {
                 "Bob is not admin"
             );
 
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
 
-            // bob grants admin rights to charlie
+            // charlie tries granting admin rights to himself
             assert!(
                 access_control
                     .grant_role(charlie, Role::Admin(contract_address))
-                    .is_ok(),
-                "Bob's grant_role call failed"
-            );
-
-            assert!(
-                access_control.has_role(charlie, Role::Admin(contract_address)),
-                "Charlie is not admin"
+                    .is_err(),
+                "grant_role should fail"
             );
 
             // test terminating

@@ -1,14 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use ink_lang as ink;
+
 pub use crate::button_token::{
     Event, ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
 };
-use ink_lang as ink;
 
 #[ink::contract]
 mod button_token {
 
-    use access_control::{traits::AccessControlled, Role};
+    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
@@ -18,9 +19,6 @@ mod button_token {
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
     pub const ALLOWANCE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0, 0, 0, 4];
-
-    // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
-    const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
