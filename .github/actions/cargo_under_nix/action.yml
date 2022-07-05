@@ -58,7 +58,7 @@ runs:
     - name: Call cargo's command under nix-build
       shell: bash
       run: |
-        nix-build --max-jobs auto --option sandbox ${{ inputs.nix-sandbox }} --arg cargoHomePath '${{ inputs.cargo-home-dir }}' --arg customBuildCommand '${{ inputs.cargo-command }}' --arg singleStep '${{ inputs.single-step }}' default.nix
+        nix-build --max-jobs auto --option sandbox ${{ inputs.nix-sandbox }} --arg cargoHomePath '${{ inputs.cargo-home-dir }}' --arg customBuildCommand '"${{ inputs.cargo-command }}"' --arg singleStep '${{ inputs.single-step }}' default.nix
 
     - name: Copy bin
       if: ${{ inputs.copy-bin-to != '' }}
