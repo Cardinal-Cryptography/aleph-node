@@ -190,15 +190,6 @@ with nixpkgs; naersk.buildPackage rec {
            export CARGO_HOME=${cargoHome}
          ''
        }
-
-      # this is needed so cargo/rust doesn't rebuild all of the dependencies
-      # without it, its fingerprinting mechanism complains about mtime, and forces a rebuild
-      rm -rf target/*/wbuild
-      chmod +w -R target
-      find . -exec touch -cfht 197001010000 {} +
-      find target -exec touch -cfht 197001010001 {} +
-
-      export CARGO_TARGET_DIR=$(pwd)/target
   '';
   # called after successful build - copies aleph-runtime WASM binaries and sets appropriate interpreter (compatibility with other linux distros)
   postInstall = ''
@@ -210,7 +201,8 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && patchelf --set-interpreter ${setInterpreter.path} $out/bin/*"}
+    echo "setting an interpreter"
+    ${nixpkgs.lib.optionalString setInterpreter.substitute "[[ -d $out/bin ]] && find $out/bin/ | xargs patchelf --set-interpreter ${setInterpreter.path}"}
   '';
 
 }
