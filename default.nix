@@ -19,20 +19,7 @@
 , rustflags ? "-C target-cpu=generic"
 # allows to build a custom version of rocksdb instead of using one build by librocksdb-sys
 # our custom version includes couple of changes that should significantly speed it up
-, useCustomRocksDb ? false
-# fine grained configuration of the custom rocksdb
-, rocksDbOptions ? { # defines which version of rocksdb should be downloaded from github
-                     version = "6.29.3";
-                     # allows to disable snappy compression
-                     useSnappy = false;
-                     # disables the verify_checksum feature of rocksdb (rocksdb provided by librocksdb-sys calls crc32 each time it reads from database)
-                     patchVerifyChecksum = true;
-                     # used to patch source code of rocksdb in order to disable its verify_checksum feature
-                     # it's one of the options supported by rocksdb, but unfortunately rust-wrapper doesn't support setting this argument to `false`
-                     patchPath = ./nix/rocksdb.patch;
-                     # forces rocksdb to use jemalloc (librocksdb-sys also forces it)
-                     enableJemalloc = true;
-                   }
+, useCustomRocksDb ? true
 , setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = true; }
 , cargoHomePath ? ""
 , customBuildCommand ? ""
@@ -56,45 +43,7 @@ let
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms, force it to use SSE 4.2 cpu instruction set and disable its `verify_checksum` mechanism
-  customRocksdb = nixpkgs.rocksdb.overrideAttrs (_: {
-
-    src = builtins.fetchGit {
-      url = "https://github.com/facebook/rocksdb.git";
-      ref = "refs/tags/v${rocksDbOptions.version}";
-    };
-
-    version = "${rocksDbOptions.version}";
-
-    patches = nixpkgs.lib.optional rocksDbOptions.patchVerifyChecksum rocksDbOptions.patchPath;
-
-    cmakeFlags = [
-       "-DPORTABLE=0"
-       "-DWITH_JNI=0"
-       "-DWITH_BENCHMARK_TOOLS=0"
-       "-DWITH_TESTS=0"
-       "-DWITH_TOOLS=0"
-       "-DWITH_BZ2=0"
-       "-DWITH_LZ4=0"
-       "-DWITH_SNAPPY=${if rocksDbOptions.useSnappy then "1" else "0"}"
-       "-DWITH_ZLIB=0"
-       "-DWITH_ZSTD=0"
-       "-DWITH_GFLAGS=0"
-       "-DUSE_RTTI=0"
-       "-DFORCE_SSE42=1"
-       "-DROCKSDB_BUILD_SHARED=0"
-       "-DWITH_JEMALLOC=${if rocksDbOptions.enableJemalloc then "1" else "0"}"
-    ];
-
-    propagatedBuildInputs = [];
-
-    buildInputs = nixpkgs.lib.optionals rocksDbOptions.useSnappy [nixpkgs.snappy] ++
-                  nixpkgs.lib.optionals rocksDbOptions.enableJemalloc [nixpkgs.jemalloc] ++
-                 [nixpkgs.git];
-  });
-  rocksDbShellHook = if useCustomRocksDb
-                     then
-                       "export ROCKSDB_LIB_DIR=${customRocksdb}/lib; export ROCKSDB_STATIC=1"
-                     else "";
+  customRocksdb = import ./nix/rocksdb.nix { inherit versions; };
 
   # newer versions of Substrate support providing a version hash by means of an env variable, i.e. SUBSTRATE_CLI_GIT_COMMIT_HASH
   gitFolder = builtins.path { path = ./.git; name = "git-folder"; };
@@ -142,7 +91,7 @@ with nixpkgs; naersk.buildPackage rec {
     llvm.libclang
     protobuf
   ] ++ nixpkgs.lib.optional setInterpreter.substitute patchelf;
-  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
+  propagatedBuildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuild = customBuild;
   cargoBuildOptions = opts:
     packageFlags
@@ -157,8 +106,6 @@ with nixpkgs; naersk.buildPackage rec {
     ++ opts;
   # provides necessary env variables
   shellHook = ''
-    ${rocksDbShellHook}
-
     # this is the way we can pass additional arguments to rustc that is called by cargo, e.g. list of available cpu features
     export RUSTFLAGS="${rustflags}"
 
