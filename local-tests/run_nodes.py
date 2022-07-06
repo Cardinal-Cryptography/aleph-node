@@ -9,31 +9,31 @@ from time import sleep
 
 from chainrunner import Chain, Seq, generate_keys, check_finalized
 
-nodes = 4
-workdir = '.'
-binary = '../target/release/aleph-node'
-port = 30334
-ws_port = 9944
-rpc_port = 9933
+NODES = 4
+WORKDIR = '.'
+BINARY = '../target/release/aleph-node'
+PORT = 30334
+WS_PORT = 9944
+RPC_PORT = 9933
 
-phrases = ['//Alice', '//Bob', '//Charlie', '//Dave', '//Ezekiel', '//Fanny', '//George', '//Hugo']
-keys_dict = generate_keys(binary, phrases)
+PHRASES = ['//Alice', '//Bob', '//Charlie', '//Dave', '//Ezekiel', '//Fanny', '//George', '//Hugo']
+keys_dict = generate_keys(BINARY, PHRASES)
 keys = list(keys_dict.values())
-nodes = min(nodes, len(phrases))
+nodes = min(NODES, len(PHRASES))
 
-chain = Chain(workdir)
+chain = Chain(WORKDIR)
 
 print(f'Bootstrapping chain for {nodes} nodes')
-chain.bootstrap(binary,
+chain.bootstrap(BINARY,
                 keys[:nodes],
                 chain_type='local')
 chain.set_flags('validator',
                 'unsafe-ws-external',
                 'unsafe-rpc-external',
                 'no-mdns',
-                port=Seq(port),
-                ws_port=Seq(ws_port),
-                rpc_port=Seq(rpc_port),
+                port=Seq(PORT),
+                ws_port=Seq(WS_PORT),
+                rpc_port=Seq(RPC_PORT),
                 unit_creation_delay=500,
                 execution='Native',
                 rpc_cors='all',

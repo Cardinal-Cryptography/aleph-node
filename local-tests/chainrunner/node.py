@@ -12,24 +12,26 @@ from .utils import flags_from_dict
 class Node:
     """A class representing a single node of a running blockchain.
     `binary` should be a path to a file with aleph-node binary.
-    `chainspec` should be a path to a file with chainspec,
+    `chainspec` should be a path to a file with chainspec.
+    `account_id` should be a hex encoding of an sr2559 public key.
     `path` should point to a folder where the node's base path is."""
 
-    def __init__(self, binary, chainspec, path, logdir=None):
-        self.chainspec = chainspec
+    def __init__(self, binary, chainspec, account_id, path, logdir=None):
         self.binary = binary
+        self.chainspec = chainspec
+        self.account_id = account_id
         self.path = path
-        self.logdir = logdir or path
+        self.logdir = logdir or op.join(path, account_id)
         self.logfile = None
         self.process = None
         self.flags = {}
         self.running = False
 
     def _stdargs(self):
-        return ['--base-path', self.path, '--chain', self.chainspec]
+        return ['--account_id', self.account_id, '--base-path', self.path, '--chain', self.chainspec]
 
     def start(self, name):
-        """Start the node. `name` is used to name of the logfile and for --name flag."""
+        """Start the node. `name` is used for the name of the logfile and for the --name flag."""
         cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
 
         self.logfile = op.join(self.logdir, name + '.log')
@@ -110,6 +112,6 @@ class Node:
                 port = self.flags['port']
             else:
                 return None
-        cmd = [self.binary, 'key', 'inspect-node-key', '--file', op.join(self.path, 'p2p_secret')]
+        cmd = [self.binary, 'key', 'inspect-node-key', '--file', op.join(self.path, self.account_id, 'p2p_secret')]
         output = subprocess.check_output(cmd).decode().strip()
         return f'/dns4/localhost/tcp/{port}/p2p/{output}'
