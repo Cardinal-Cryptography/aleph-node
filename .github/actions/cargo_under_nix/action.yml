@@ -35,7 +35,7 @@ inputs:
     required: false
     default: ''
   crates:
-    description: 'set of crates with list of enabled features, e.g. { "aleph-node" = ["feature1" "feature2"] }'
+    description: 'set of crates with list of enabled features, e.g. { "aleph-node" = ["feature1" "feature2"]; }'
     required: false
     default: '{ "aleph-node" = []; }'
 
