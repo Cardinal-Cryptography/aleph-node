@@ -1,8 +1,8 @@
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSize, Config, CurrentEraValidators, EraValidators, NextEraNonReservedValidators,
-    NextEraReservedValidators, Pallet, SessionValidatorBlockCount, ValidatorEraTotalReward,
-    ValidatorTotalRewards,
+    CommitteeSize, Config, CurrentEraValidators, EraValidators, NextEraCommitteeSize,
+    NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
+    ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::pallet_prelude::Get;
@@ -200,10 +200,13 @@ where
         Self::if_era_starts_do(active_era + 1, session, || {
             let reserved_validators = NextEraReservedValidators::<T>::get();
             let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
+            let committee_size = NextEraCommitteeSize::<T>::get();
+
             CurrentEraValidators::<T>::put(EraValidators {
                 reserved: reserved_validators,
                 non_reserved: non_reserved_validators,
             });
+            CommitteeSize::<T>::put(committee_size);
         });
     }
 
