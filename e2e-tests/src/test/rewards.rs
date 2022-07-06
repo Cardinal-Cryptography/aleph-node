@@ -1,7 +1,8 @@
 use aleph_client::{
-    account_from_keypair, balances_batch_transfer, balances_transfer, change_validators, get_current_era, get_current_session,
-    get_sessions_per_era, send_xt, staking_force_new_era, wait_for_full_era_completion, wait_for_next_era,
-    wait_for_session, KeyPair, RootConnection, SignedConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, change_validators,
+    get_current_era, get_current_session, get_sessions_per_era, send_xt, staking_force_new_era,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, KeyPair, RootConnection,
+    SignedConnection,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
@@ -41,7 +42,6 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
     non_reserved.iter().map(account_from_keypair).collect()
 }
 
-
 fn get_bench_members(
     non_reserved_members: Vec<AccountId>,
     non_reserved_members_for_session: &[AccountId],
@@ -50,6 +50,7 @@ fn get_bench_members(
         .into_iter()
         .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
         .collect::<Vec<_>>()
+}
 
 fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
     (
