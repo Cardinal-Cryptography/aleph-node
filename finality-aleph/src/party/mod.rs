@@ -439,7 +439,7 @@ where
             sleep(Duration::from_secs(1)).await;
             previous_finalized_number = finalized_number;
             finalized_number = self.client.info().finalized_number;
-            if finalized_number == previous_finalized_number {
+            if finalized_number == previous_finalized_number || !self.block_requester.is_major_syncing() {
                 starting_session =
                     session_id_from_block_num::<B>(finalized_number, self.session_period);
                 break;
