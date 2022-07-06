@@ -171,20 +171,23 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
             era_to_check, session_to_check
         );
 
-        let non_reserved_for_session =
+        let non_reserved_members_for_session =
             get_non_reserved_members_for_session(config, session_to_check);
-        let non_reserved_bench =
-            get_bench_members(non_reserved_members.clone(), &non_reserved_for_session);
+        let members_bench = get_bench_members(
+            non_reserved_members.clone(),
+            &non_reserved_members_for_session,
+        );
+        let members_active = reserved_members
+            .clone()
+            .into_iter()
+            .chain(non_reserved_members_for_session);
 
         check_points(
             &connection,
             session_to_check,
             era_to_check,
-            reserved_members
-                .clone()
-                .into_iter()
-                .chain(non_reserved_for_session),
-            non_reserved_bench,
+            members_active,
+            members_bench,
             MAX_DIFFERENCE,
         )?;
     }
