@@ -47,7 +47,7 @@ runs:
       with:
         path: |
           ${{ inputs.cargo-home-dir }}
-        key: ${{ runner.os }}-cargo-home-v0-${{ inputs.cargo-toml }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-home-v1-${{ inputs.cargo-toml }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Install and restore nix
       uses: ./.github/actions/cache_install_nix
