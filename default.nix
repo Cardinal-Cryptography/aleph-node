@@ -19,7 +19,7 @@
 , rustflags ? "-C target-cpu=generic"
 # allows to build a custom version of rocksdb instead of using one build by librocksdb-sys
 # our custom version includes couple of changes that should significantly speed it up
-, useCustomRocksDb ? true
+, useCustomRocksDb ? false
 , setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = true; }
 , cargoHomePath ? ""
 , customBuildCommand ? ""
