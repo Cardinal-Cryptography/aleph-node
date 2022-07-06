@@ -136,7 +136,6 @@ let
 in
 with nixpkgs; naersk.buildPackage rec {
   inherit src name release singleStep;
-  copyTarget = true;
   nativeBuildInputs = [
     git
     pkg-config
