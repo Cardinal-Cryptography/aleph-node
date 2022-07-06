@@ -5,7 +5,7 @@ let
   versions = import ./nix/versions.nix { inherit rustToolchainFile; };
   nixpkgs = versions.nixpkgs;
   env = versions.stdenv;
-  project = (import ./default.nix {}).override { inherit versions; };
+  project = import ./default.nix ( buildOptions // { inherit versions; } );
   rust = nixpkgs.rust.override {
     extensions = [ "rust-src" ];
   };
