@@ -1,8 +1,8 @@
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, change_validators,
     get_current_era, get_current_session, get_sessions_per_era, send_xt, staking_force_new_era,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, KeyPair, RootConnection,
-    SignedConnection,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, KeyPair,
+    RootConnection, SignedConnection,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
