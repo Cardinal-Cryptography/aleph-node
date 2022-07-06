@@ -64,6 +64,3 @@ jobs:
           path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
