@@ -38,9 +38,9 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ),
         ("change_validators", test_change_validators as TestCase),
         ("fee_calculation", test_fee_calculation as TestCase),
-        ("points_stake_change", test_points_stake_change as TestCase),
         ("era_payout", test_era_payout as TestCase),
         ("era_validators", test_era_validators as TestCase),
         ("rewards_force_new_era", test_force_new_era as TestCase),
+        ("rewards_stake_change", test_points_stake_change as TestCase),
     ]
 }
