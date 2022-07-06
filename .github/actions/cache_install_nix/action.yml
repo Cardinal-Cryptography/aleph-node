@@ -47,10 +47,10 @@ runs:
       with:
         install_url: https://releases.nixos.org/nix/nix-2.7.0/install
         nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/2c162d49cd5b979eb66ff1653aecaeaa01690fcc.tar.gz
-        extra_nix_config: |
-          # keep all store paths necessary to build the outputs
-          keep-outputs = true
-          keep-derivations = true
+        # extra_nix_config: |
+        #   # keep all store paths necessary to build the outputs
+        #   keep-outputs = true
+        #   keep-derivations = true
 
     - name: Leave some `evidence` after installation
       if: steps.check.outcome == 'failure'
