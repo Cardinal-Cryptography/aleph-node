@@ -140,10 +140,9 @@ pub mod pallet {
         fn post_upgrade() -> Result<(), &'static str> {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
             match on_chain {
-                _ if on_chain == STORAGE_VERSION => Ok(()),
-                _ if on_chain == StorageVersion::new(0) || on_chain == StorageVersion::new(1) => {
+                _ if on_chain == STORAGE_VERSION => {
                     migrations::v1_to_v2::post_upgrade::<T, Self>()
-                }
+                },
                 _ => Err("Bad storage version"),
             }
         }
