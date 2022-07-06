@@ -64,4 +64,6 @@ rec {
       };
     in
       import gitignoreSrc { inherit (nixpkgs) lib; };
+
+  customRocksDB = import ./rocksdb.nix { inherit nixpkgs; };
 }

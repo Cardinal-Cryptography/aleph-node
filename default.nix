@@ -43,7 +43,7 @@ let
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
   # we disable all compression algorithms, force it to use SSE 4.2 cpu instruction set and disable its `verify_checksum` mechanism
-  customRocksdb = import ./nix/rocksdb.nix { inherit versions; };
+  customRocksdb = versions.customRocksDB;
 
   # newer versions of Substrate support providing a version hash by means of an env variable, i.e. SUBSTRATE_CLI_GIT_COMMIT_HASH
   gitFolder = builtins.path { path = ./.git; name = "git-folder"; };
