@@ -83,7 +83,6 @@ jobs:
         uses: ./.github/actions/cargo_under_nix
         with:
           crates: '{ "aleph-runtime" = []; }'
-          single-step: true
 
       - name: Compare checksum with artifact
         env:
