@@ -82,8 +82,7 @@ jobs:
       - name: Build runtime
         uses: ./.github/actions/cargo_under_nix
         with:
-          cargo-command: |
-            cargo build --release --locked --package aleph-runtime
+          crates: '{ "aleph-runtime" = []; }'
           single-step: true
 
       - name: Compare checksum with artifact
@@ -104,10 +103,8 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -117,19 +114,10 @@ jobs:
           cache-version: v1
           cargo-targets: e2e-tests/target/
 
-      - name: Build binary
-        uses: ./.github/actions/cargo_nix_shell
-        with:
-          cargo-toml: 'e2e-tests/Cargo.toml'
-          cargo-command: |
-            export CARGO_TARGET_DIR=$(pwd)/target
-            cd e2e-tests/
-            cargo build --release --locked
-          copy-bin-to: target/release/
-
-      - name: Build docker image
+      - name: Build binary and docker image
         run: |
           cd e2e-tests/
+          cargo build --release
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
 
@@ -517,14 +505,8 @@ jobs:
         with:
           ref: '${{ github.base_ref }}' # build send-runtime using code on main
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
-
-      - name: Run nix-shell
-        run: |
-          nix-shell --pure --file shell.nix
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -565,14 +547,8 @@ jobs:
         with:
           ref: '${{ needs.check-runtime-change-if-OTHER.outputs.branch-name }}' # build send-runtime using code on main
 
-      - name: Install and restore nix
-        uses: ./.github/actions/cache_install_nix
-        with:
-          cache-key: ${{ runner.os }}-nix_store-v0-${{ hashFiles('**/rust-toolchain') }} # bump cache version if you need to clear it
-
-      - name: Run nix-shell
-        run: |
-          nix-shell --pure --file shell.nix
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
