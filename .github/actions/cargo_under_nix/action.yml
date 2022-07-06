@@ -55,9 +55,12 @@ runs:
         cache-key: ${{ runner.os }}-nix-store-v0-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Call `cargo fetch` command under nix-shell
-      shell: bash
-      run: |
-        nix-shell --pure --run 'CARGO_HOME=${{ inputs.cargo-home-dir }} cargo fetch --locked --manifest-path ${{ inputs.cargo-toml }}' ${{ inputs.nix-shell-file }}
+      uses: ./.github/actions/command_nix_shell
+      with:
+        command: |
+          cargo fetch --locked --manifest-path ${{ inputs.cargo-toml }}
+        nix-file:
+          ${{ inputs.nix-shell-file }}
 
     - name: Call cargo's command under nix-build
       shell: bash

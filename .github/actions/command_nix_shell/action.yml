@@ -1,0 +1,19 @@
+name: 'command under nix-shell'
+description: 'Calls a given command under nix-shell'
+
+inputs:
+  command:
+    description: 'command to execute'
+    required: true
+  nix-file:
+    description: '.nix file describing a nix-shell, e.g. shell.nix'
+    required: false
+    default: 'shell.nix'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Call cargo command under nix-shell
+      shell: bash
+      run: |
+        nix-shell --pure --run '${{ inputs.command }}' ${{ inputs.nix-file }}
