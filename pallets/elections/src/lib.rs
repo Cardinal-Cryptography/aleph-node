@@ -136,9 +136,9 @@ pub mod pallet {
         CommitteeSize::<T>::get()
     }
 
-    /// Desirable size of a committee in force from a new era.
+    /// Desired size of a committee in effect from a new era.
     ///
-    /// can be change via `change_validators` call that require sudo.
+    /// can be changed via `change_validators` call that requires sudo.
     #[pallet::storage]
     pub type NextEraCommitteeSize<T> =
         StorageValue<_, u32, ValueQuery, DefaultNextEraCommitteeSize<T>>;
