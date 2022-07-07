@@ -44,7 +44,11 @@ jobs:
         run: |
           if [[ ! -f image.tar ]]; then
             docker build -t aleph-node/build -f nix/Dockerfile.build .
-            docker save -o image.tar
+            # build also the test binary
+            export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+            docker run -ti -e CRATES --name build.env --volume=$(pwd):/node/build aleph-node/build
+            docker commit build.env aleph-node/build
+            docker save -o image.tar aleph-node/build
           else
             docker load -i image.tar
           fi
@@ -77,22 +81,11 @@ jobs:
             image_test.tar
           key: ${{ runner.os }}-test-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build or load our `build` docker image for the test binary
-        shell: bash
-        run: |
-          if [[ ! -f image_test.tar ]]; then
-            export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-            docker build -t aleph-node/build_test --build-arg CRATES=${CRATES} -f nix/Dockerfile.build .
-            docker save -o image_test.tar aleph-node/build_test
-          else
-            docker load -i image_test.tar
-          fi
-
       - name: Build test binary
         shell: bash
         run: |
           export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-          docker run -ti -e CRATES --volume=$(pwd):/node/build aleph-node/build_test
+          docker run -ti -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
