@@ -25,11 +25,19 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Restore cargo-home cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            .cargo-home
+          key: ${{ runner.os }}-cargo-home-v1-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Checkout docker image
         uses: actions/cache@v2
         with:
           path: |
             image.tar
+          key: ${{ runner.os }}-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build or load our `build` docker image
         shell: bash
@@ -67,6 +75,7 @@ jobs:
         with:
           path: |
             image_test.tar
+          key: ${{ runner.os }}-test-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build or load our `build` docker image for the test binary
         shell: bash
