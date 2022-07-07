@@ -1,5 +1,5 @@
 [package]
-name = "yellow_button"
+name = "red_button"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -20,7 +20,7 @@ button_token = { path = "../button_token", default-features = false, features = 
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
-name = "yellow_button"
+name = "red_button"
 path = "lib.rs"
 crate-type = [
   # Used for normal contract Wasm blobs.

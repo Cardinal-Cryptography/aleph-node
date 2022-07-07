@@ -39,7 +39,7 @@ cargo contract build --release
 cd $CONTRACTS_PATH/button_token
 cargo contract build --release
 
-cd $CONTRACTS_PATH/yellow_button
+cd $CONTRACTS_PATH/red_button
 cargo contract build --release
 
 ## --- DEPLOY ACCESS CONTROL CONTRACT
@@ -95,67 +95,67 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 ## --- UPLOAD GAME CONTRACT
 
-cd $CONTRACTS_PATH/yellow_button
-link_bytecode yellow_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
-rm target/ink/yellow_button.wasm
-node ../scripts/hex-to-wasm.js target/ink/yellow_button.contract target/ink/yellow_button.wasm
+cd $CONTRACTS_PATH/red_button
+link_bytecode red_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/red_button.wasm
+node ../scripts/hex-to-wasm.js target/ink/red_button.contract target/ink/red_button.wasm
 
 CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
-YELLOW_BUTTON_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+RED_BUTTON_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
-echo "yellow button code hash" $YELLOW_BUTTON_CODE_HASH
+echo "red button code hash" $RED_BUTTON_CODE_HASH
 
-## --- GRANT INIT PRIVILEDGES ON THE YELLOW BUTTON CONTRACT
+## --- GRANT INIT PRIVILEDGES ON THE RED BUTTON CONTRACT
 
 cd $CONTRACTS_PATH/access_control
 
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$YELLOW_BUTTON_CODE_HASH')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$RED_BUTTON_CODE_HASH')' --suri $ALICE_SEED
 
 ## --- INITIALIZE GAME CONTRACT
 
-cd $CONTRACTS_PATH/yellow_button
+cd $CONTRACTS_PATH/red_button
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
-YELLOW_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+RED_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-echo "yellow button contract instance address" $BUTTON_TOKEN
+echo "red button contract instance address" $BUTTON_TOKEN
 
 ## --- GRANT PRIVILEDGES ON THE GAME CONTRACT
 
 cd $CONTRACTS_PATH/access_control
 
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$YELLOW_BUTTON')' --suri $ALICE_SEED
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$YELLOW_BUTTON')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$RED_BUTTON')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$RED_BUTTON')' --suri $ALICE_SEED
 
 ## --- TRANSFER BALANCE TO THE GAME CONTRACT
 
 cd $CONTRACTS_PATH/button_token
 
-cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $YELLOW_BUTTON $GAME_BALANCE --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $RED_BUTTON $GAME_BALANCE --suri $ALICE_SEED
 
 ## --- WHITELIST ACCOUNTS
 
-cd $CONTRACTS_PATH/yellow_button
+cd $CONTRACTS_PATH/red_button
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $RED_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
 
 ## --- PLAY
 
-cd $CONTRACTS_PATH/yellow_button
+cd $CONTRACTS_PATH/red_button
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $ALICE_SEED
 
 sleep 1
 
-cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $NODE0_SEED
+cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $NODE0_SEED
 
 ## --- TRIGGER DEATH AND REWARDS DISTRIBUTION
 
-cd $CONTRACTS_PATH/yellow_button
+cd $CONTRACTS_PATH/red_button
 
 sleep $(($LIFETIME + 1))
 
-EVENT=$(cargo contract call --url $NODE --contract $YELLOW_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
+EVENT=$(cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
 EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
 
 PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)

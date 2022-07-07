@@ -27,7 +27,7 @@ There are two built-in incentives:
 * playing to be ThePressiah: the last player to click gets 50% of the total reward pool.
 
 
-## Yellow button
+## Blue button
 
 Similar to Red Button, but in this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
 
@@ -35,7 +35,7 @@ Similar to Red Button, but in this scenario the rewards are reversed - players g
 score = now - start
 ```
 
-## Blue button
+## Yellow button
 
 Game continues in perpetuity (but in practice as long as there are accounts that can still play it)
 - In each iteration of the game TheButton lives for a number of blocks

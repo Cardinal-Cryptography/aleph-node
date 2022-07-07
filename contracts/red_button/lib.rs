@@ -2,14 +2,15 @@
 
 use ink_lang as ink;
 
-/// This is the YellowButton
-/// Rewards are distributed for extending the life of the button for as long as possible:
+/// This is the RedButton
+/// Larger rewards are distributed for engaging in the game as early as possible:
 /// user_score = deadline - now
-/// Pressiah gets 50% of tokens
+/// On the other hand ThePressiah (the last player to click) gets 50% of tokens
+///
 /// the game is played until TheButton dies
 
 #[ink::contract]
-mod yellow_button {
+mod red_button {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
@@ -40,7 +41,7 @@ mod yellow_button {
     /// Result type
     pub type Result<T> = core::result::Result<T, Error>;
     /// Event type
-    type Event = <YellowButton as ContractEventBase>::Type;
+    type Event = <RedButton as ContractEventBase>::Type;
 
     impl From<InkEnvError> for Error {
         fn from(e: InkEnvError) -> Self {
@@ -92,7 +93,7 @@ mod yellow_button {
     /// Defines the storage
     #[ink(storage)]
     #[derive(SpreadAllocate)]
-    pub struct YellowButton {
+    pub struct RedButton {
         /// How long does TheButton live for?
         button_lifetime: u32,
         /// is The Button dead
@@ -166,11 +167,11 @@ mod yellow_button {
         rewards: Vec<(AccountId, u128)>,
     }
 
-    impl AccessControlled for YellowButton {
+    impl AccessControlled for RedButton {
         type ContractError = Error;
     }
 
-    impl YellowButton {
+    impl RedButton {
         /// Returns the buttons status
         #[ink(message)]
         pub fn is_dead(&self) -> bool {
@@ -228,7 +229,7 @@ mod yellow_button {
             Ok(balance)
         }
 
-        fn emit_event<EE: EmitEvent<YellowButton>>(emitter: EE, event: Event) {
+        fn emit_event<EE: EmitEvent<RedButton>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
         }
 
@@ -517,7 +518,7 @@ mod yellow_button {
             let button_lifetime = 3;
             ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
             ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            let mut game = YellowButton::new(button_token_address, button_lifetime);
+            let mut game = RedButton::new(button_token_address, button_lifetime);
 
             let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
             let button_created_event = &emitted_events[1];
