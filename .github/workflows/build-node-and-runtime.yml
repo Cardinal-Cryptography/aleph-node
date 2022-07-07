@@ -25,8 +25,26 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Checkout docker image
+        uses: actions/cache@v2
+        with:
+          path: |
+            image.tar
+
+      - name: Build or load our `build` docker image
+        shell: bash
+        run: |
+          if [[ ! -f image.tar ]]; then
+            docker build -t aleph-node/build -f nix/Dockerfile.build .
+            docker save -o image.tar
+          else
+            docker load -i image.tar
+          fi
+
       - name: Build binary and runtime
-        uses: ./.github/actions/cargo_under_nix
+        shell: bash
+        run: |
+          docker run -ti --volume=$(pwd):/node/build aleph-node/build
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -44,10 +62,28 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Build test binary
-        uses: ./.github/actions/cargo_under_nix
+      - name: Checkout docker image for the test binary
+        uses: actions/cache@v2
         with:
-          crates: '{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+          path: |
+            image_test.tar
+
+      - name: Build or load our `build` docker image for the test binary
+        shell: bash
+        run: |
+          if [[ ! -f image_test.tar ]]; then
+            export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+            docker build -t aleph-node/build_test --build-arg CRATES=${CRATES} -f nix/Dockerfile.build .
+            docker save -o image_test.tar aleph-node/build_test
+          else
+            docker load -i image_test.tar
+          fi
+
+      - name: Build test binary
+        shell: bash
+        run: |
+          export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+          docker run -ti -e CRATES --volume=$(pwd):/node/build aleph-node/build_test
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

@@ -20,7 +20,6 @@
 # allows to build a custom version of rocksdb instead of using one build by librocksdb-sys
 # our custom version includes couple of changes that should significantly speed it up
 , useCustomRocksDb ? false
-, setInterpreter ? { path = "/lib64/ld-linux-x86-64.so.2"; substitute = true; }
 , cargoHomePath ? ""
 , customBuildCommand ? ""
 , versions ? import ./nix/versions.nix {}
@@ -90,7 +89,7 @@ with nixpkgs; naersk.buildPackage rec {
     pkg-config
     llvm.libclang
     protobuf
-  ] ++ nixpkgs.lib.optional setInterpreter.substitute patchelf;
+  ];
   propagatedBuildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuild = customBuild;
   cargoBuildOptions = opts:
@@ -147,7 +146,6 @@ with nixpkgs; naersk.buildPackage rec {
       mkdir -p $out/lib
       cp ${pathToCompactWasm} $out/lib/
     fi
-    ${nixpkgs.lib.optionalString setInterpreter.substitute "if [[ -d $out/bin && $(find $out/bin/ -type f | wc -l) > 0 ]]; then find $out/bin -type f | xargs patchelf --set-interpreter ${setInterpreter.path}; fi"}
   '';
 
 }
