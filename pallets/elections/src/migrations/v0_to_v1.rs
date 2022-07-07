@@ -99,7 +99,7 @@ pub fn post_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str
         Some(rm) => rm,
         _ => return Err("No `ReservedMembers` in the storage"),
     };
-    let non_reserved_members = match ReservedMembers::<T>::get() {
+    let non_reserved_members = match NonReservedMembers::<T>::get() {
         Some(nrm) => nrm,
         _ => return Err("No `NonReservedMembers` in the storage"),
     };
