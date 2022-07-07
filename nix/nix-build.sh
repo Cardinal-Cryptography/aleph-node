@@ -33,7 +33,7 @@ then
 else
     ARGS=(--arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
     # first we download all dependencies
-    CARGO_HOME="$(realpath .cargo-home)"
+    CARGO_HOME="$(pwd)/.cargo-home"
     echo fetching depedencies...
     nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
     echo building...
