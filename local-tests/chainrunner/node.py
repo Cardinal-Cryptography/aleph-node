@@ -28,7 +28,7 @@ class Node:
         self.running = False
 
     def _stdargs(self):
-        return ['--account_id', self.account_id, '--base-path', self.path, '--chain', self.chainspec]
+        return ['--base-path', self.path, '--chain', self.chainspec]
 
     def start(self, name):
         """Start the node. `name` is used for the name of the logfile and for the --name flag."""
@@ -47,7 +47,7 @@ class Node:
 
     def purge(self):
         """Purge chain (delete the database of the node)."""
-        cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
+        cmd = [self.binary, 'purge-chain', '-y', 'account-id', self.account_id] + self._stdargs()
         subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
     def greplog(self, regexp):
