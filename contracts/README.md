@@ -13,10 +13,10 @@ TheButton is based on the famous [game](https://en.wikipedia.org/wiki/The_Button
 start   now    deadline
 ```
 
-## Red Button
+## Blue Button
 
 There is a pre-minted amount of red tokens (a classic ERC20).
-Users are rewarded for clicking as early on as possible, which should lead to them pushing the definite end of the game far into the future. 
+Users are rewarded for clicking as early on as possible, which should lead to them pushing the definite end of the game far into the future.
 
 ```
 score = deadline - now
@@ -27,15 +27,15 @@ There are two built-in incentives:
 * playing to be ThePressiah: the last player to click gets 50% of the total reward pool.
 
 
-## Blue button
+## Red Button
 
-Similar to Red Button, but in this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
+Similar to the Blue Button, but in this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
 
 ```
 score = now - start
 ```
 
-## Yellow button
+## Yellow Button
 
 Game continues in perpetuity (but in practice as long as there are accounts that can still play it)
 - In each iteration of the game TheButton lives for a number of blocks
@@ -67,5 +67,4 @@ Specifically it will:
 - whitelist some accounts for playing the game
 - interact with the game from the whitelisted account
 - wait past the game deadline, trigger game end and reward distribution
-- run an assert (simple check whether Pressiah received his reward according to the scheme). No more assertions are implemented at this point, as the hope is to soon start writing Rust-based tools for deployment and interacting with the contracts. 
-
+- run an assert (simple check whether Pressiah received his reward according to the scheme). No more assertions are implemented at this point, as the hope is to soon start writing Rust-based tools for deployment and interacting with the contracts.

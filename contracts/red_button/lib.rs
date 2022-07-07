@@ -129,16 +129,6 @@ mod red_button {
         new_deadline: u32,
     }
 
-    /// Event emitted when TheButton owner is changed
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct OwnershipTransferred {
-        #[ink(topic)]
-        from: AccountId,
-        #[ink(topic)]
-        to: AccountId,
-    }
-
     /// Event emitted when TheButton is created
     #[ink(event)]
     #[derive(Debug)]
@@ -460,7 +450,7 @@ mod red_button {
             // this incentivizes pressing as late as possible in the game (but not too late)
             let previous_press = self.last_press;
             let score = now - previous_press;
-            let new_deadline = now + self.button_lifetime;
+
             self.presses.insert(&caller, &score);
             self.press_accounts.push(caller);
             self.last_presser = Some(caller);
@@ -473,7 +463,7 @@ mod red_button {
                 previous_press,
                 score,
                 when: now,
-                new_deadline,
+                new_deadline: now + self.button_lifetime,
                 total_scores: self.total_scores,
             });
             Self::emit_event(self.env(), event);
