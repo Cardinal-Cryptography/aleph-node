@@ -35,7 +35,7 @@ else
 
     # first we download all dependencies
     echo fetching depedencies...
-    CARGO_HOME="$(pwd)/.cargo-home"
+    CARGO_HOME="$(realpath ~/cargo-home)"
     nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
 
     echo building...
