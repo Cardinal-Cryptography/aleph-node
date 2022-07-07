@@ -32,26 +32,28 @@ then
     nix-shell --pure $SHELL_NIX_FILE
 else
     ARGS=(--arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
+
     # first we download all dependencies
-    CARGO_HOME="$(pwd)/.cargo-home"
     echo fetching depedencies...
+    CARGO_HOME="$(pwd)/.cargo-home"
     nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
+
     echo building...
-    nix-build --max-jobs auto --arg cargoHomePath "$CARGO_HOME" $SHELL_NIX_FILE "${ARGS[@]}"
+    nix-build --max-jobs auto --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
+    echo build finished
 
     echo copying results...
-
     cp -Lr result result.copied
     mv result result.tmp
     mv result.copied result
     rm result.tmp
-
     echo results copied
 
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
     # we need it for aleph-node to be run outside nix-shell
     if [ ! -z "$PATH_TO_FIX" ]; then
+        echo patching...
         chmod +w $PATH_TO_FIX
         patchelf --set-interpreter $DYNAMIC_LINKER_PATH $PATH_TO_FIX
     fi
