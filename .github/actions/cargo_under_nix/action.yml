@@ -52,7 +52,7 @@ runs:
     - name: Install and restore nix
       uses: ./.github/actions/cache_install_nix
       with:
-        cache-key: ${{ runner.os }}-nix-store-v0-${{ hashFiles('**/Cargo.lock') }}
+        cache-key: ${{ runner.os }}-nix-store-v1-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Call `cargo fetch` command under nix-shell
       uses: ./.github/actions/command_nix_shell
