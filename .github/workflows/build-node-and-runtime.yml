@@ -25,19 +25,12 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Restore cargo-home cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/cargo-home
-          key: ${{ runner.os }}-cargo-home-v1-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Checkout docker image
         uses: actions/cache@v2
         with:
           path: |
             image.tar
-          key: ${{ runner.os }}-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
 
       - name: Build or load our `build` docker image
         shell: bash
@@ -77,7 +70,7 @@ jobs:
           # we need to clean after previous build
           mv result result.main
           export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-          docker run -name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
+          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
           docker commit build.env aleph-node/build
           docker rm build.env
 

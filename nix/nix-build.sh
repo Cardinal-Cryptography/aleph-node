@@ -36,7 +36,7 @@ else
     # first we download all dependencies
     echo fetching depedencies...
     CARGO_HOME="$(realpath ~/cargo-home)"
-    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
+    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline || CARGO_HOME=$CARGO_HOME cargo fetch --locked"
 
     echo building...
     nix-build --max-jobs auto --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
