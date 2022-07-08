@@ -122,7 +122,7 @@ fn open_keystore(
 }
 
 fn bootstrap_backup(base_path: &Path, backup_dir: &str) {
-    let backup_path = backup_path(&base_path, backup_dir);
+    let backup_path = backup_path(base_path, backup_dir);
 
     if backup_path.exists() {
         if !backup_path.is_dir() {
@@ -235,7 +235,7 @@ impl BootstrapNodeCmd {
         let backup_dir = self.node_params.backup_dir();
         let chain_id = self.chain_params.chain_id();
 
-        bootstrap_backup(&base_path.path(), backup_dir);
+        bootstrap_backup(base_path.path(), backup_dir);
         let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
 
         // Does not rely on the account id in the path
@@ -325,7 +325,7 @@ pub struct PurgeBackupCmd {
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
         let backup_path = backup_path(
-            &self.node_params.base_path().path(),
+            self.node_params.base_path().path(),
             self.node_params.backup_dir(),
         );
 
