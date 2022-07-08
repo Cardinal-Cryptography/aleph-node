@@ -42,14 +42,17 @@ jobs:
       - name: Build or load our `build` docker image
         shell: bash
         run: |
+          # TODO docker build procedure shouldn't attempt to compile everything; we should save image after all steps finished, only if it was not recovered from cache
+          # this way we avoid building binaries twice
           if [[ ! -f image.tar ]]; then
             docker build -t aleph-node/build -f nix/Dockerfile.build .
             # we also build the test binary
-            export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-            docker run -e CRATES --name build.env --volume=$(pwd):/node/build aleph-node/build
+            # export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+            # docker run -e CRATES --name build.env --volume=$(pwd):/node/build aleph-node/build
             # we save the generated container
-            docker commit build.env aleph-node/build
-            docker save -o image.tar aleph-node/build
+            # docker commit build.env aleph-node/build
+            # docker save -o image.tar aleph-node/build
+            # docker rm build.env
           else
             docker load -i image.tar
           fi
@@ -96,3 +99,11 @@ jobs:
           path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
+
+      - name: Save docker image
+        shell: bash
+        run: |
+          docker commit build.env aleph-node/build
+          docker rm build.env
+          docker save -o image.tar aleph-node/build
+

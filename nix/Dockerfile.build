@@ -8,7 +8,7 @@ RUN nix-env -i patchelf && \
 
 WORKDIR /node/build
 RUN nix-shell --pure --run 'echo installed all native pre-requisities' shell.nix
-RUN /node/nix-build.sh
+# RUN /node/nix-build.sh
 
 ENTRYPOINT ["/node/nix-build.sh"]
 CMD []
