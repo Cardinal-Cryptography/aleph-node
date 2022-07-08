@@ -5,6 +5,7 @@ use sp_core::{Pair, H256};
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, ExtrinsicParams, FromHexString, XtStatus,
 };
+use pallet_elections::CommitteeSeats;
 
 use crate::{
     send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection, SignedConnection,
@@ -45,17 +46,17 @@ pub fn change_validators(
     sudo_connection: &RootConnection,
     new_reserved_validators: Option<Vec<AccountId>>,
     new_non_reserved_validators: Option<Vec<AccountId>>,
-    validators_per_session: Option<u32>,
+    committee_size: Option<CommitteeSeats>,
     status: XtStatus,
 ) {
-    info!(target: "aleph-client", "New validators: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:?}", new_reserved_validators, new_non_reserved_validators, validators_per_session);
+    info!(target: "aleph-client", "New validators: reserved: {:#?}, non_reserved: {:#?}, validators_per_session: {:?}", new_reserved_validators, new_non_reserved_validators, committee_size);
     let call = compose_call!(
         sudo_connection.as_connection().metadata,
         "Elections",
         "change_validators",
         new_reserved_validators,
         new_non_reserved_validators,
-        validators_per_session
+        committee_size
     );
     let xt = compose_extrinsic!(
         sudo_connection.as_connection(),

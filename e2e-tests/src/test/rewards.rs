@@ -4,6 +4,7 @@ use aleph_client::{
     KeyPair, SignedConnection,
 };
 use log::info;
+use pallet_elections::CommitteeSeats;
 use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -111,7 +112,10 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::Finalized,
     );
 
@@ -166,7 +170,6 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.05;
-    const VALIDATORS_PER_SESSION: u32 = 4;
 
     let root_connection = config.create_root_connection();
 
@@ -178,7 +181,10 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(VALIDATORS_PER_SESSION),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::Finalized,
     );
 

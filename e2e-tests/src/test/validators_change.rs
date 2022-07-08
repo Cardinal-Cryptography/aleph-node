@@ -3,6 +3,7 @@ use aleph_client::{
 };
 use codec::Decode;
 use log::info;
+use pallet_elections::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -23,7 +24,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let non_reserved_before: Vec<AccountId> =
         connection.read_storage_value("Elections", "NextEraNonReservedValidators");
 
-    let committee_size_before: u32 = connection.read_storage_value("Elections", "CommitteeSize");
+    let committee_size_before: CommitteeSeats =
+        connection.read_storage_value("Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -35,7 +37,10 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         &connection,
         Some(new_validators[0..2].to_vec()),
         Some(new_validators[2..].to_vec()),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::InBlock,
     );
 
@@ -63,7 +68,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let non_reserved_after: Vec<AccountId> =
         connection.read_storage_value("Elections", "NextEraNonReservedValidators");
 
-    let committee_size_after: u32 = connection.read_storage_value("Elections", "CommitteeSize");
+    let committee_size_after: CommitteeSeats =
+        connection.read_storage_value("Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -72,7 +78,13 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     assert_eq!(new_validators[..2], reserved_after);
     assert_eq!(new_validators[2..], non_reserved_after);
-    assert_eq!(4, committee_size_after);
+    assert_eq!(
+        CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2
+        },
+        committee_size_after
+    );
 
     let block_number = connection
         .as_connection()
