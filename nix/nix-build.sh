@@ -57,4 +57,5 @@ else
         chmod +w $PATH_TO_FIX
         patchelf --set-interpreter $DYNAMIC_LINKER_PATH $PATH_TO_FIX
     fi
+    echo nix-build finished
 fi
