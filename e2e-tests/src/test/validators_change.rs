@@ -48,7 +48,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     struct NewValidatorsEvent {
         reserved: Vec<AccountId>,
         non_reserved: Vec<AccountId>,
-        committee_size: u32,
+        committee_size: CommitteeSeats,
     }
     wait_for_event(
         &connection,
@@ -58,7 +58,11 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
             e.reserved == new_validators[0..2]
                 && e.non_reserved == new_validators[2..]
-                && e.committee_size == 4
+                && e.committee_size
+                    == CommitteeSeats {
+                        reserved_seats: 2,
+                        non_reserved_seats: 2,
+                    }
         },
     )?;
 
