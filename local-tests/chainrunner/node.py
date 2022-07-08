@@ -12,16 +12,14 @@ from .utils import flags_from_dict
 class Node:
     """A class representing a single node of a running blockchain.
     `binary` should be a path to a file with aleph-node binary.
-    `chainspec` should be a path to a file with chainspec.
-    `account_id` should be a hex encoding of an sr2559 public key.
+    `chainspec` should be a path to a file with chainspec,
     `path` should point to a folder where the node's base path is."""
 
-    def __init__(self, binary, chainspec, account_id, path, logdir=None):
-        self.binary = binary
+    def __init__(self, binary, chainspec, path, logdir=None):
         self.chainspec = chainspec
-        self.account_id = account_id
+        self.binary = binary
         self.path = path
-        self.logdir = logdir or op.join(path, account_id)
+        self.logdir = logdir or path
         self.logfile = None
         self.process = None
         self.flags = {}
@@ -47,7 +45,7 @@ class Node:
 
     def purge(self):
         """Purge chain (delete the database of the node)."""
-        cmd = [self.binary, 'purge-chain', '-y', 'account-id', self.account_id] + self._stdargs()
+        cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
         subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
     def greplog(self, regexp):
@@ -112,6 +110,6 @@ class Node:
                 port = self.flags['port']
             else:
                 return None
-        cmd = [self.binary, 'key', 'inspect-node-key', '--file', op.join(self.path, self.account_id, 'p2p_secret')]
+        cmd = [self.binary, 'key', 'inspect-node-key', '--file', op.join(self.path, 'p2p_secret')]
         output = subprocess.check_output(cmd).decode().strip()
         return f'/dns4/localhost/tcp/{port}/p2p/{output}'

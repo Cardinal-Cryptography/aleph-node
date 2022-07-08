@@ -47,10 +47,10 @@ class Chain:
         with open(chainspec, 'w', encoding='utf-8') as f:
             subprocess.run(cmd, stdout=f, check=True)
 
-        def account_to_node(account_id):
-            n = Node(binary, chainspec, account_id, self.path, self.path)
-            n.flags['node-key-file'] = op.join(self.path, account_id, 'p2p_secret')
-            n.flags['backup_path'] = op.join(self.path, account_id, 'backup-stash')
+        def account_to_node(account):
+            n = Node(binary, chainspec, op.join(self.path, account), self.path)
+            n.flags['node-key-file'] = op.join(self.path, account, 'p2p_secret')
+            n.flags['backup_path'] = op.join(self.path, account, 'backup-stash')
             n.flags['enable-log-reloading'] = True
             return n
 

@@ -57,7 +57,7 @@ echo "Bootstrapping chain for nodes 0..$((N_VALIDATORS - 1))"
 for i in $(seq "$N_VALIDATORS" "$(( N_VALIDATORS + N_NON_VALIDATORS - 1 ))"); do
   echo "Bootstrapping node $i"
   account_id=${account_ids[$i]}
-  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH" --account-id "$account_id" --chain-type local
+  ./target/release/aleph-node bootstrap-node --base-path "$BASE_PATH/$account_id" --account-id "$account_id" --chain-type local
 done
 
 addresses=()
@@ -79,7 +79,7 @@ run_node() {
 
   [[ $is_validator = true ]] && validator=--validator || validator=""
 
-  ./target/release/aleph-node purge-chain --base-path $BASE_PATH --account-id $account_id --chain $BASE_PATH/chainspec.json -y
+  ./target/release/aleph-node purge-chain --base-path $BASE_PATH/$account_id --chain $BASE_PATH/chainspec.json -y
   ./target/release/aleph-node \
     $validator \
     --pruning=archive \
