@@ -1,20 +1,25 @@
-use frame_support::{log, storage_alias, traits::{Get, PalletInfoAccess, StorageVersion}, weights::Weight};
+use frame_support::{
+    log, storage_alias,
+    traits::{Get, PalletInfoAccess, StorageVersion},
+    weights::Weight,
+};
 use sp_std::vec::Vec;
-use crate::{CommitteeSeats, EraValidators, Config};
+
+use crate::{CommitteeSeats, Config, EraValidators};
 
 // V2 storages
 #[storage_alias]
 type CurrentEraValidators<T> =
-StorageValue<Elections, EraValidators<<T as frame_system::Config>::AccountId>>;
+    StorageValue<Elections, EraValidators<<T as frame_system::Config>::AccountId>>;
 #[storage_alias]
-type NextEraReservedValidators<T> = StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
+type NextEraReservedValidators<T> =
+    StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
 
 // V3 storages
 #[storage_alias]
 type CommitteeSize = StorageValue<Elections, CommitteeSeats>;
 #[storage_alias]
 type NextEraCommitteeSize = StorageValue<Elections, CommitteeSeats>;
-
 
 pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     log::info!(target: "pallet_elections", "Running migration from STORAGE_VERSION 2 to 3 for pallet elections");
@@ -27,16 +32,14 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
         reads += 1;
         match CommitteeSize::translate::<u32, _>(|old: Option<u32>| {
             Some(match old {
-                Some(cs) =>
-                    CommitteeSeats {
-                        reserved_seats: reserved_len as u32,
-                        non_reserved_seats: cs.saturating_sub(reserved_len as u32),
-                    }
-                ,
+                Some(cs) => CommitteeSeats {
+                    reserved_seats: reserved_len as u32,
+                    non_reserved_seats: cs.saturating_sub(reserved_len as u32),
+                },
                 None => CommitteeSeats {
                     reserved_seats: reserved_len as u32,
                     non_reserved_seats: 0,
-                }
+                },
             })
         }) {
             Ok(_) => {
@@ -54,16 +57,14 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
         reads += 1;
         match NextEraCommitteeSize::translate::<u32, _>(|old| {
             Some(match old {
-                Some(cs) =>
-                    CommitteeSeats {
-                        reserved_seats: n_era_reserved_len as u32,
-                        non_reserved_seats: cs.saturating_sub(n_era_reserved_len as u32),
-                    }
-                ,
+                Some(cs) => CommitteeSeats {
+                    reserved_seats: n_era_reserved_len as u32,
+                    non_reserved_seats: cs.saturating_sub(n_era_reserved_len as u32),
+                },
                 None => CommitteeSeats {
                     reserved_seats: n_era_reserved_len as u32,
                     non_reserved_seats: 0,
-                }
+                },
             })
         }) {
             Ok(_) => {
@@ -77,7 +78,6 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     }
 
     StorageVersion::new(3).put::<P>();
-
 
     T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
 }
