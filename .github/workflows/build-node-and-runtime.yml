@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           # we need to clean after previous build
-          rm -rf result
+          mv result result.main
           export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
           docker run -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
