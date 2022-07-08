@@ -79,10 +79,27 @@ jobs:
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           rm -rf "$TARGET_DIR"
 
-      - name: Build runtime
-        uses: ./.github/actions/cargo_under_nix
+      - name: Checkout docker image
+        uses: actions/cache@v2
         with:
-          crates: '{ "aleph-runtime" = []; }'
+          path: |
+            image.tar
+          key: ${{ runner.os }}-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
+
+      - name: Build or load our `build` docker image
+        shell: bash
+        run: |
+          if [[ ! -f image.tar ]]; then
+            docker build -t aleph-node/build -f nix/Dockerfile.build .
+          else
+            docker load -i image.tar
+          fi
+
+      - name: Build runtime
+        shell: bash
+        run: |
+          export CRATES='{ "aleph-runtime" = []; }'
+          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
       - name: Compare checksum with artifact
         env:
@@ -92,6 +109,14 @@ jobs:
           mkdir -p "$TARGET_DIR"
           cp "result/lib/$ARTIFACT" "$TARGET_DIR/"
           sha256sum -c checksum.sha256
+
+      - name: Save docker image
+        shell: bash
+        run: |
+          # save changes
+          docker commit build.env aleph-node/build
+          docker rm build.env
+          docker save -o image.tar aleph-node/build
 
   build-test-client:
     name: Build e2e test client suite
