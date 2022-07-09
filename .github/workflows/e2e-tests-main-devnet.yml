@@ -84,7 +84,7 @@ jobs:
         with:
           path: |
             image.tar
-          key: ${{ runner.os }}-build-docker-v1-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
+          key: ${{ runner.os }}-build-docker-v0-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
 
       - name: Build or load our `build` docker image
         shell: bash
