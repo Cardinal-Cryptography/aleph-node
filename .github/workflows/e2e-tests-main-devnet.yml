@@ -84,7 +84,7 @@ jobs:
         with:
           path: |
             image.tar
-          key: ${{ runner.os }}-build-docker-v0-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
+          key: ${{ runner.os }}-build-docker-runtime-v0-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/rust-toolchain') }}
 
       - name: Build or load our `build` docker image
         shell: bash
@@ -114,9 +114,11 @@ jobs:
         shell: bash
         run: |
           # save changes
-          docker commit build.env aleph-node/build
-          docker rm build.env
-          docker save -o image.tar aleph-node/build
+          if [[ ! -f image.tar ]]; then
+            docker commit build.env aleph-node/build
+            docker rm build.env
+            docker save -o image.tar aleph-node/build
+          fi
 
   build-test-client:
     name: Build e2e test client suite

@@ -45,6 +45,7 @@ jobs:
         shell: bash
         run: |
           docker run --name build.env --volume=$(pwd):/node/build aleph-node/build
+
           docker commit build.env aleph-node/build
           docker rm build.env
 
@@ -71,8 +72,6 @@ jobs:
           mv result result.main
           export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
           docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
-          docker commit build.env aleph-node/build
-          docker rm build.env
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
@@ -93,5 +92,9 @@ jobs:
       - name: Save docker image
         shell: bash
         run: |
-          docker save -o image.tar aleph-node/build
+          if [[ ! -f image.tar ]]; then
+            docker commit build.env aleph-node/build
+            docker rm build.env
+            docker save -o image.tar aleph-node/build
+          fi
 
