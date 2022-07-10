@@ -112,16 +112,6 @@ jobs:
           cp "result/lib/$ARTIFACT" "$TARGET_DIR/"
           sha256sum -c checksum.sha256
 
-      - name: Save docker image
-        shell: bash
-        run: |
-          # save changes
-          if [[ ! -f .image.loaded ]]; then
-            docker commit build.env aleph-node/build
-            docker rm build.env
-            docker save -o image.tar aleph-node/build
-          fi
-
   build-test-client:
     name: Build e2e test client suite
     runs-on: ubuntu-latest
