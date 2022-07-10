@@ -46,7 +46,8 @@ jobs:
       - name: Build binary and runtime
         shell: bash
         run: |
-          docker run --name build.env --volume=$(pwd):/node/build aleph-node/build
+          export CRATES='{ "aleph-node" = []; }'
+          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
           docker commit build.env aleph-node/build
           docker rm build.env
