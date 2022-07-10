@@ -93,6 +93,8 @@ jobs:
             docker build -t aleph-node/build -f nix/Dockerfile.build .
           else
             docker load -i image.tar
+            touch .image.loaded
+            rm image.tar
           fi
 
       - name: Build runtime
@@ -114,7 +116,7 @@ jobs:
         shell: bash
         run: |
           # save changes
-          if [[ ! -f image.tar ]]; then
+          if [[ ! -f .image.loaded ]]; then
             docker commit build.env aleph-node/build
             docker rm build.env
             docker save -o image.tar aleph-node/build
