@@ -39,7 +39,7 @@ else
     nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline || CARGO_HOME=$CARGO_HOME cargo fetch --locked"
 
     echo building...
-    nix-build --max-jobs auto --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
+    nix-build --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
     echo build finished
 
     echo copying results...
