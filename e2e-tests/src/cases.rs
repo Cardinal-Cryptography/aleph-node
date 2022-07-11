@@ -6,7 +6,7 @@ use crate::{
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         force_new_era as test_force_new_era, points_stake_change as test_points_stake_change,
-        staking_era_payouts as test_staking_era_payouts,
+        points_basic as test_points_basic, staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
     },
@@ -40,6 +40,7 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("fee_calculation", test_fee_calculation as TestCase),
         ("era_payout", test_era_payout as TestCase),
         ("era_validators", test_era_validators as TestCase),
+        ("points_basic", test_points_basic as TestCase),
         ("rewards_force_new_era", test_force_new_era as TestCase),
         ("rewards_stake_change", test_points_stake_change as TestCase),
     ]
