@@ -64,18 +64,12 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: aleph-release-runtime
 
-      - name: Build runtime and compare checksum with artifact
+      - name: Compute checksum of aleph-runtime
         env:
           ARTIFACT: aleph_runtime.compact.wasm
           TARGET_DIR: target/release/wbuild/aleph-runtime
@@ -83,10 +77,40 @@ jobs:
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          cargo clean
-          cargo build --release -p aleph-runtime
-          sha256sum -c checksum.sha256
+          rm -rf "$TARGET_DIR"
 
+      - name: Checkout docker image
+        uses: actions/cache@v2
+        with:
+          path: |
+            image.tar
+          key: ${{ runner.os }}-build-docker-image-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh') }}
+
+      - name: Build or load our `build` docker image
+        shell: bash
+        run: |
+          if [[ ! -f image.tar ]]; then
+            docker build -t aleph-node/build -f nix/Dockerfile.build .
+          else
+            docker load -i image.tar
+            rm image.tar
+          fi
+
+      - name: Build runtime
+        shell: bash
+        run: |
+          export CRATES='{ "aleph-runtime" = []; }'
+          export SINGLE_STEP='true'
+          docker run --name build.env -e SINGLE_STEP -e CRATES --volume=$(pwd):/node/build aleph-node/build
+
+      - name: Compare checksum with artifact
+        env:
+          ARTIFACT: aleph_runtime.compact.wasm
+          TARGET_DIR: target/release/wbuild/aleph-runtime
+        run: |
+          mkdir -p "$TARGET_DIR"
+          cp "result/lib/$ARTIFACT" "$TARGET_DIR/"
+          sha256sum -c checksum.sha256
 
   build-test-client:
     name: Build e2e test client suite

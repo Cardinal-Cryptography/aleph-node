@@ -25,26 +25,38 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
+      - name: Checkout docker image
+        uses: actions/cache@v2
         with:
-          target-key: release
-          cache-version: v1
+          path: |
+            image.tar
+          key: ${{ runner.os }}-build-docker-image-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh') }}
+
+      - name: Build or load our `build` docker image
+        shell: bash
+        run: |
+          if [[ ! -f image.tar ]]; then
+            docker build -t aleph-node/build -f nix/Dockerfile.build .
+          else
+            docker load -i image.tar
+            touch .image.loaded
+            rm image.tar
+          fi
 
       - name: Build binary and runtime
-        run: cargo build --release -p aleph-node
+        shell: bash
+        run: |
+          export CRATES='{ "aleph-node" = []; }'
+          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
+
+          docker commit build.env aleph-node/build
+          docker rm build.env
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-node
-          path: target/release/aleph-node
+          path: result/bin/aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -52,18 +64,23 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-release-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
+        shell: bash
+        run: |
+          # we need to clean after previous build
+          mv result result.main
+          export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
+          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-node
-          path: target/release/aleph-node
+          path: result/bin/aleph-node
           if-no-files-found: error
           retention-days: 7
 
@@ -71,9 +88,16 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ inputs.artifact-prefix }}aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
+      - name: Save docker image
+        shell: bash
+        run: |
+          if [[ ! -f .image.loaded ]]; then
+            docker commit build.env aleph-node/build
+            docker rm build.env
+            docker save -o image.tar aleph-node/build
+          fi
+
