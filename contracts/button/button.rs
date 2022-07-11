@@ -1,6 +1,8 @@
 // use ink::codegen::EmitEvent;
 // use core::alloc::Layout;
 
+use access_control::{traits::AccessControlled, Role};
+use ink::codegen::EmitEvent;
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
     AccountId, DefaultEnvironment, Error as InkEnvError,
@@ -128,7 +130,7 @@ pub trait ButtonGame {
     /// Needs to be implemented
     fn get(&self) -> &ButtonData;
 
-    // fn get_mut(&self) -> &mut ButtonData;
+    fn get_mut(&mut self) -> &mut ButtonData;
 
     fn press(&mut self) -> Result<()> {
         todo!()
@@ -159,6 +161,22 @@ pub trait ButtonGame {
         self.get().access_control
     }
 
+    fn set_access_control(
+        &mut self,
+        access_control: AccountId,
+        caller: AccountId,
+        this: AccountId,
+    ) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        let required_role = Role::Owner(this);
+        self.check_role(caller, required_role)?;
+
+        self.get_mut().access_control = access_control;
+        Ok(())
+    }
+
     fn last_presser(&self) -> Option<AccountId> {
         self.get().last_presser
     }
@@ -167,12 +185,12 @@ pub trait ButtonGame {
         Ok(self.get().button_token)
     }
 
-    fn get_balance_of(&self, balance_of_selector: [u8; 4], account: AccountId) -> Result<Balance> {
+    fn get_balance(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance> {
         let button_token = self.get().button_token;
 
         let balance = build_call::<DefaultEnvironment>()
             .call_type(Call::new().callee(button_token))
-            .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(account))
+            .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
             .returns::<Balance>()
             .fire()?;
 
@@ -196,35 +214,48 @@ pub trait ButtonGame {
             .fire()
     }
 
-    // fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-    //     <Self as AccessControlled>::check_role(
-    //         self.access_control,
-    //         account,
-    //         role,
-    //         |why: InkEnvError| {
-    //             Error::ContractCall(format!("Calling access control has failed: {:?}", why))
-    //         },
-    //         || Error::MissingRole,
-    //     )
-    // }
-
-    fn allow(&mut self, player: AccountId) -> Result<()> {
-        let caller = self.env().caller();
-        let this = self.env().account_id();
-        let required_role = Role::Admin(this);
-
-        self.check_role(caller, required_role)?;
-
-        self.can_play.insert(player, &true);
-        let event = Event::AccountWhitelisted(AccountWhitelisted { player });
-        Self::emit_event(self.env(), event);
-        Ok(())
+    fn check_role(&self, account: AccountId, role: Role) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        <Self as AccessControlled>::check_role(
+            self.get().access_control,
+            account,
+            role,
+            |why: InkEnvError| {
+                Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+            },
+            || Error::MissingRole,
+        )
     }
 
+    // TODO: this is harder
+    // fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: E) {
+    //     emitter.emit_event(event);
+    // }
+
+    // TODO: default impl
+    fn allow(&mut self, player: AccountId) -> Result<()>;
+    // {
+    //     let caller = self.env().caller();
+    //     let this = self.env().account_id();
+    //     let required_role = Role::Admin(this);
+
+    //     self.check_role(caller, required_role)?;
+
+    //     self.can_play.insert(player, &true);
+    //     let event = Event::AccountWhitelisted(AccountWhitelisted { player });
+    //     Self::emit_event(self.env(), event);
+    //     Ok(())
+    // }
+
+    // TODO: default impl
     fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
 
+    // TODO: default impl
     fn disallow(&mut self, player: AccountId) -> Result<()>;
 
+    // TODO: default impl
     fn terminate(&mut self) -> Result<()>;
 }
 
@@ -244,4 +275,34 @@ pub trait IButtonGame {
 
     #[ink(message)]
     fn score_of(&self, user: AccountId) -> u32;
+
+    #[ink(message)]
+    fn can_play(&self, user: AccountId) -> bool;
+
+    #[ink(message)]
+    fn access_control(&self) -> AccountId;
+
+    #[ink(message)]
+    fn last_presser(&self) -> Option<AccountId>;
+
+    #[ink(message)]
+    fn get_button_token(&self) -> Result<AccountId>;
+
+    #[ink(message)]
+    fn get_balance(&self) -> Result<Balance>;
+
+    #[ink(message)]
+    fn death(&mut self) -> Result<()>;
+
+    #[ink(message)]
+    fn set_access_control(&mut self, access_control: AccountId) -> Result<()>;
+
+    #[ink(message)]
+    fn allow(&mut self, player: AccountId) -> Result<()>;
+
+    #[ink(message)]
+    fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
+
+    #[ink(message)]
+    fn disallow(&mut self, player: AccountId) -> Result<()>;
 }
