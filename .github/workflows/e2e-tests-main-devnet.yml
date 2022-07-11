@@ -93,7 +93,6 @@ jobs:
             docker build -t aleph-node/build -f nix/Dockerfile.build .
           else
             docker load -i image.tar
-            touch .image.loaded
             rm image.tar
           fi
 
@@ -101,7 +100,8 @@ jobs:
         shell: bash
         run: |
           export CRATES='{ "aleph-runtime" = []; }'
-          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
+          export SINGLE_STEP='true'
+          docker run --name build.env -e SINGLE_STEP -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
       - name: Compare checksum with artifact
         env:
