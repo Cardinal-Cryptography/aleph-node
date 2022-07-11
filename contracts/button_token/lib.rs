@@ -46,12 +46,12 @@ mod button_token {
     }
 
     /// Event emitted when an approval occurs that `spender` is allowed to withdraw
-    /// up to the amount of `value` tokens from `access_control`.
+    /// up to the amount of `value` tokens from `owner`.
     #[ink(event)]
     #[derive(Debug)]
     pub struct Approval {
         #[ink(topic)]
-        access_control: AccountId,
+        owner: AccountId,
         #[ink(topic)]
         spender: AccountId,
         value: Balance,
@@ -136,15 +136,15 @@ mod button_token {
             self.total_supply
         }
 
-        /// Returns the account balance for the specified `access_control`.
+        /// Returns the account balance for the specified `owner`.
         ///
         /// Returns `0` if the account is non-existent.
         #[ink(message, selector = 2)]
-        pub fn balance_of(&self, access_control: AccountId) -> Balance {
-            self.balance_of_impl(&access_control)
+        pub fn balance_of(&self, owner: AccountId) -> Balance {
+            self.balance_of_impl(&owner)
         }
 
-        /// Returns the account balance for the specified `access_control`.
+        /// Returns the account balance for the specified `owner`.
         ///
         /// Returns `0` if the account is non-existent.
         ///
@@ -153,19 +153,19 @@ mod button_token {
         /// Prefer to call this method over `balance_of` since this
         /// works using references which are more efficient in Wasm.
         #[inline]
-        fn balance_of_impl(&self, access_control: &AccountId) -> Balance {
-            self.balances.get(access_control).unwrap_or_default()
+        fn balance_of_impl(&self, owner: &AccountId) -> Balance {
+            self.balances.get(owner).unwrap_or_default()
         }
 
-        /// Returns the amount which `spender` is still allowed to withdraw from `access_control`.
+        /// Returns the amount which `spender` is still allowed to withdraw from `owner`.
         ///
         /// Returns `0` if no allowance has been set.
         #[ink(message, selector = 3)]
-        pub fn allowance(&self, access_control: AccountId, spender: AccountId) -> Balance {
-            self.allowance_impl(&access_control, &spender)
+        pub fn allowance(&self, owner: AccountId, spender: AccountId) -> Balance {
+            self.allowance_impl(&owner, &spender)
         }
 
-        /// Returns the amount which `spender` is still allowed to withdraw from `access_control`.
+        /// Returns the amount which `spender` is still allowed to withdraw from `owner`.
         ///
         /// Returns `0` if no allowance has been set.
         ///
@@ -174,10 +174,8 @@ mod button_token {
         /// Prefer to call this method over `allowance` since this
         /// works using references which are more efficient in Wasm.
         #[inline]
-        fn allowance_impl(&self, access_control: &AccountId, spender: &AccountId) -> Balance {
-            self.allowances
-                .get((access_control, spender))
-                .unwrap_or_default()
+        fn allowance_impl(&self, owner: &AccountId, spender: &AccountId) -> Balance {
+            self.allowances.get((owner, spender)).unwrap_or_default()
         }
 
         /// Transfers `value` amount of tokens from the caller's account to account `to`.
