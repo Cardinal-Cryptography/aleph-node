@@ -106,8 +106,8 @@ impl From<InkEnvError> for Error {
 pub struct ButtonData {
     /// How long does TheButton live for?
     pub button_lifetime: u32,
-    /// is The Button dead
-    pub is_dead: bool,
+    // is The Button dead
+    // pub is_dead: bool,
     /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
     pub presses: Mapping<AccountId, u32>,
     /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<u32, AccountId> if it grows out of proportion
@@ -133,22 +133,16 @@ pub struct ButtonData {
 /// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those as needed.
 pub trait ButtonGame {
     /// Getter for the button data
-    ///
-    /// Needs to be implemented
     fn get(&self) -> &ButtonData;
 
+    /// Mutable getter for the button data
     fn get_mut(&mut self) -> &mut ButtonData;
 
-    // fn press(&mut self) -> Result<()> {
-    //     todo!()
-    // }
+    /// Logic for calculating user score given the particular games rules
+    fn score(&self, now: u32) -> u32;
 
-    // fn death() {
-    //     &mut self
-    // }
-
-    fn is_dead(&self) -> bool {
-        self.get().is_dead
+    fn is_dead(&self, now: u32) -> bool {
+        now > self.deadline()
     }
 
     fn deadline(&self) -> u32 {
@@ -240,28 +234,16 @@ pub trait ButtonGame {
         )
     }
 
-    // TODO: this is hard
-    // fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: E) {
-    //     emitter.emit_event(event);
-    // }
-
     fn allow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
     where
         Self: AccessControlled,
     {
         let required_role = Role::Admin(this);
         self.check_role(caller, required_role)?;
-
         self.get_mut().can_play.insert(player, &true);
-
-        // TODO : emit event
-        // let event = Event::AccountWhitelisted(AccountWhitelisted { player });
-        // Self::emit_event(self.env(), event);
-
         Ok(())
     }
 
-    // TODO: default impl
     fn bulk_allow(
         &mut self,
         players: Vec<AccountId>,
@@ -276,16 +258,10 @@ pub trait ButtonGame {
 
         for player in players {
             self.get_mut().can_play.insert(player, &true);
-            // TODO : emit event
-            // Self::emit_event(
-            //     self.env(),
-            //     Event::AccountWhitelisted(AccountWhitelisted { player }),
-            // );
         }
         Ok(())
     }
 
-    // TODO: default impl
     fn disallow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
     where
         Self: AccessControlled,
@@ -297,9 +273,32 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    // TODO: default impl
-    fn terminate(&mut self) -> Result<()> {
-        todo!()
+    fn press(&mut self, now: u32, caller: AccountId) -> Result<()> {
+        let ButtonData {
+            can_play, presses, ..
+        } = self.get();
+
+        if self.is_dead(now) {
+            return Err(Error::AfterDeadline);
+        }
+
+        if presses.get(&caller).is_some() {
+            return Err(Error::AlreadyParticipated);
+        }
+
+        if !can_play.get(&caller).unwrap_or(false) {
+            return Err(Error::NotWhitelisted);
+        }
+
+        let score = self.score(now);
+
+        self.get_mut().presses.insert(&caller, &score);
+        self.get_mut().press_accounts.push(caller);
+        self.get_mut().last_presser = Some(caller);
+        self.get_mut().last_press = now;
+        self.get_mut().total_scores += score;
+
+        Ok(())
     }
 }
 
@@ -368,13 +367,19 @@ pub trait IButtonGame {
 
     /// Whitelists an array of accounts to participate in the game
     ///
-    /// Should return an error if called by someone else but the Admin    
+    /// Should return an error if called by someone else but the Admin
     #[ink(message)]
     fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
 
     /// Blacklists given AccountId from participating in the game
     ///
-    /// Should return an error if called by someone else but the Admin    
+    /// Should return an error if called by someone else but the Admin
     #[ink(message)]
     fn disallow(&mut self, player: AccountId) -> Result<()>;
+
+    /// Terminates the contract
+    ///
+    /// Should only be called by the contract owner    
+    #[ink(message)]
+    fn terminate(&mut self) -> Result<()>;
 }

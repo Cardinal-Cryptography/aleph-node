@@ -52,6 +52,15 @@ mod blue_button {
         player: AccountId,
     }
 
+    /// Event emitted when TheButton is pressed
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct ButtonPressed {
+        #[ink(topic)]
+        by: AccountId,
+        when: u32,
+    }
+
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct BlueButton {
@@ -71,20 +80,35 @@ mod blue_button {
         fn get_mut(&mut self) -> &mut ButtonData {
             &mut self.data
         }
+
+        fn score(&self, now: u32) -> u32 {
+            let deadline = ButtonGame::deadline(self);
+            deadline - now
+        }
     }
 
     // becasue ink! does not allow generics or trait default implementations
     impl IButtonGame for BlueButton {
         #[ink(message)]
         fn is_dead(&self) -> bool {
-            ButtonGame::is_dead(self)
+            let now = Self::env().block_number();
+            ButtonGame::is_dead(self, now)
         }
 
         // TODO
         #[ink(message)]
         fn press(&mut self) -> Result<()> {
-            // ButtonGame::press(self)
-            todo!()
+            let caller = self.env().caller();
+            let now = Self::env().block_number();
+            ButtonGame::press(self, now, caller)?;
+            Self::emit_event(
+                self.env(),
+                Event::ButtonPressed(ButtonPressed {
+                    by: caller,
+                    when: now,
+                }),
+            );
+            Ok(())
         }
 
         // TODO
@@ -173,6 +197,15 @@ mod blue_button {
             );
             Ok(())
         }
+
+        #[ink(message)]
+        fn terminate(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Owner(this);
+            self.check_role(caller, required_role)?;
+            self.env().terminate_contract(caller)
+        }
     }
 
     impl BlueButton {
@@ -208,7 +241,7 @@ mod blue_button {
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.data.is_dead = false;
+            // self.data.is_dead = false;
             self.data.last_press = now;
             self.data.button_lifetime = button_lifetime;
             self.data.button_token = button_token;
