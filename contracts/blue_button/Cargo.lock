@@ -90,6 +90,7 @@ dependencies = [
 name = "button"
 version = "0.1.0"
 dependencies = [
+ "access_control",
  "ink_env",
  "ink_lang",
  "ink_metadata",

@@ -2,10 +2,10 @@
 // use core::alloc::Layout;
 
 use access_control::{traits::AccessControlled, Role};
-use ink::codegen::EmitEvent;
+use ink::{codegen::EmitEvent, reflect::ContractEventBase};
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Error as InkEnvError,
+    AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
 };
 use ink_lang as ink;
 use ink_prelude::{format, string::String, vec::Vec};
@@ -22,6 +22,8 @@ pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
+
+// type Event = <dyn ButtonGame as ContractEventBase>::Type;
 
 /// Error types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -235,28 +237,36 @@ pub trait ButtonGame {
     // }
 
     // TODO: default impl
-    fn allow(&mut self, player: AccountId) -> Result<()>;
-    // {
-    //     let caller = self.env().caller();
-    //     let this = self.env().account_id();
-    //     let required_role = Role::Admin(this);
+    fn allow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        let required_role = Role::Admin(this);
 
-    //     self.check_role(caller, required_role)?;
+        self.check_role(caller, required_role)?;
 
-    //     self.can_play.insert(player, &true);
-    //     let event = Event::AccountWhitelisted(AccountWhitelisted { player });
-    //     Self::emit_event(self.env(), event);
-    //     Ok(())
-    // }
+        self.get_mut().can_play.insert(player, &true);
 
-    // TODO: default impl
-    fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
+        // let event = Event::AccountWhitelisted(AccountWhitelisted { player });
+        // Self::emit_event(self.env(), event);
 
-    // TODO: default impl
-    fn disallow(&mut self, player: AccountId) -> Result<()>;
+        Ok(())
+    }
 
     // TODO: default impl
-    fn terminate(&mut self) -> Result<()>;
+    fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
+        todo!()
+    }
+
+    // TODO: default impl
+    fn disallow(&mut self, player: AccountId) -> Result<()> {
+        todo!()
+    }
+
+    // TODO: default impl
+    fn terminate(&mut self) -> Result<()> {
+        todo!()
+    }
 }
 
 /// ink trait definition

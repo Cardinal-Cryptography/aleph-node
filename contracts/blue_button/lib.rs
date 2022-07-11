@@ -51,6 +51,10 @@ mod blue_button {
         fn get(&self) -> &ButtonData {
             &self.data
         }
+
+        fn get_mut(&mut self) -> &mut ButtonData {
+            todo!()
+        }
     }
 
     // becasue ink! does not allow generics or trait default implementations
@@ -63,6 +67,66 @@ mod blue_button {
         #[ink(message)]
         fn press(&mut self) -> Result<()> {
             ButtonGame::press(self)
+        }
+
+        #[ink(message)]
+        fn deadline(&self) -> u32 {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn score_of(&self, user: ink_env::AccountId) -> u32 {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn can_play(&self, user: ink_env::AccountId) -> bool {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn access_control(&self) -> ink_env::AccountId {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn last_presser(&self) -> Option<ink_env::AccountId> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn get_button_token(&self) -> Result<ink_env::AccountId> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn get_balance(&self) -> Result<button::button::Balance> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn death(&mut self) -> Result<()> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn set_access_control(&mut self, access_control: ink_env::AccountId) -> Result<()> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn allow(&mut self, player: ink_env::AccountId) -> Result<()> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn bulk_allow(&mut self, players: Vec<ink_env::AccountId>) -> Result<()> {
+            todo!()
+        }
+
+        #[ink(message)]
+        fn disallow(&mut self, player: ink_env::AccountId) -> Result<()> {
+            todo!()
         }
     }
 

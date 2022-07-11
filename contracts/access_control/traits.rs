@@ -8,12 +8,12 @@ use crate::access_control::{Role, HAS_ROLE_SELECTOR};
 pub trait AccessControlled {
     type ContractError;
 
-    fn set_access_control<ContractError>(
-        &mut self,
-        access_control: AccountId,
-    ) -> Result<(), ContractError>;
+    // fn set_access_control<ContractError>(
+    //     &mut self,
+    //     access_control: AccountId,
+    // ) -> Result<(), ContractError>;
 
-    fn access_control(&self) -> AccountId;
+    // fn access_control(&self) -> AccountId;
 
     fn check_role<ContractError>(
         access_control: AccountId,

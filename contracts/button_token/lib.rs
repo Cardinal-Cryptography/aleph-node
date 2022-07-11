@@ -200,11 +200,11 @@ mod button_token {
         /// An `Approval` event is emitted.
         #[ink(message, selector = 5)]
         pub fn approve(&mut self, spender: AccountId, value: Balance) -> Result<()> {
-            let access_control = self.env().caller();
-            self.allowances.insert((&access_control, &spender), &value);
+            let owner = self.env().caller();
+            self.allowances.insert((&owner, &spender), &value);
 
             let event = Event::Approval(Approval {
-                access_control,
+                owner,
                 spender,
                 value,
             });
