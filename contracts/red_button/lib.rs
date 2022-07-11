@@ -377,7 +377,7 @@ mod red_button {
 
         /// Blacklists given AccountId from participating in the game
         ///
-        /// returns an error if called by someone else but the owner
+        /// returns an error if called by someone else but the Admin
         #[ink(message)]
         pub fn disallow(&mut self, player: AccountId) -> Result<()> {
             let caller = self.env().caller();

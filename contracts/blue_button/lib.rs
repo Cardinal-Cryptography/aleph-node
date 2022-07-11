@@ -53,7 +53,7 @@ mod blue_button {
         }
 
         fn get_mut(&mut self) -> &mut ButtonData {
-            todo!()
+            &mut self.data
         }
     }
 
@@ -71,39 +71,41 @@ mod blue_button {
 
         #[ink(message)]
         fn deadline(&self) -> u32 {
-            todo!()
+            ButtonGame::deadline(self)
         }
 
         #[ink(message)]
         fn score_of(&self, user: ink_env::AccountId) -> u32 {
-            todo!()
+            ButtonGame::score_of(self, user)
         }
 
         #[ink(message)]
         fn can_play(&self, user: ink_env::AccountId) -> bool {
-            todo!()
+            ButtonGame::can_play(self, user)
         }
 
         #[ink(message)]
         fn access_control(&self) -> ink_env::AccountId {
-            todo!()
+            ButtonGame::access_control(self)
         }
 
         #[ink(message)]
         fn last_presser(&self) -> Option<ink_env::AccountId> {
-            todo!()
+            ButtonGame::last_presser(self)
         }
 
         #[ink(message)]
-        fn get_button_token(&self) -> Result<ink_env::AccountId> {
-            todo!()
+        fn button_token(&self) -> Result<ink_env::AccountId> {
+            ButtonGame::button_token(self)
         }
 
         #[ink(message)]
-        fn get_balance(&self) -> Result<button::button::Balance> {
-            todo!()
+        fn balance(&self) -> Result<button::button::Balance> {
+            let this = self.env().account_id();
+            ButtonGame::balance(self, BALANCE_OF_SELECTOR, this)
         }
 
+        // TODO
         #[ink(message)]
         fn death(&mut self) -> Result<()> {
             todo!()

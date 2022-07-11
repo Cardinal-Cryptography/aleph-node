@@ -88,6 +88,7 @@ impl From<InkEnvError> for Error {
     }
 }
 
+/// Underlying game contracts storage
 #[derive(
     Debug,
     // PartialEq,
@@ -125,7 +126,10 @@ pub struct ButtonData {
     pub access_control: AccountId,
 }
 
-/// concrete implementation
+/// Concrete implementations of games API
+///
+/// Implementing contract needs to return ButtonData read-only and mutably
+/// remaining methods have default implementations that can be overriden as needed
 pub trait ButtonGame {
     /// Getter for the button data
     ///
@@ -183,11 +187,11 @@ pub trait ButtonGame {
         self.get().last_presser
     }
 
-    fn get_button_token(&self) -> Result<AccountId> {
+    fn button_token(&self) -> Result<AccountId> {
         Ok(self.get().button_token)
     }
 
-    fn get_balance(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance> {
+    fn balance(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance> {
         let button_token = self.get().button_token;
 
         let balance = build_call::<DefaultEnvironment>()
@@ -231,22 +235,21 @@ pub trait ButtonGame {
         )
     }
 
-    // TODO: this is harder
+    // TODO: this is hard
     // fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: E) {
     //     emitter.emit_event(event);
     // }
 
-    // TODO: default impl
     fn allow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
     where
         Self: AccessControlled,
     {
         let required_role = Role::Admin(this);
-
         self.check_role(caller, required_role)?;
 
         self.get_mut().can_play.insert(player, &true);
 
+        // TODO : emit event
         // let event = Event::AccountWhitelisted(AccountWhitelisted { player });
         // Self::emit_event(self.env(), event);
 
@@ -254,13 +257,39 @@ pub trait ButtonGame {
     }
 
     // TODO: default impl
-    fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
-        todo!()
+    fn bulk_allow(
+        &mut self,
+        players: Vec<AccountId>,
+        caller: AccountId,
+        this: AccountId,
+    ) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        let required_role = Role::Admin(this);
+        self.check_role(caller, required_role)?;
+
+        for player in players {
+            self.get_mut().can_play.insert(player, &true);
+            // TODO : emit event
+            // Self::emit_event(
+            //     self.env(),
+            //     Event::AccountWhitelisted(AccountWhitelisted { player }),
+            // );
+        }
+        Ok(())
     }
 
     // TODO: default impl
-    fn disallow(&mut self, player: AccountId) -> Result<()> {
-        todo!()
+    fn disallow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        let required_role = Role::Admin(this);
+        self.check_role(caller, required_role)?;
+
+        self.get_mut().can_play.insert(player, &false);
+        Ok(())
     }
 
     // TODO: default impl
@@ -269,50 +298,78 @@ pub trait ButtonGame {
     }
 }
 
-/// ink trait definition
+/// contract trait definition
+///
+/// This trait defines the game API
+/// You get default concrete implementations by impl ButtonGame trait for the game contract
 #[ink::trait_definition]
 pub trait IButtonGame {
-    /// Button press logic    
+    /// Button press logic
     #[ink(message)]
     fn press(&mut self) -> Result<()>;
 
-    /// Returns the buttons status    
+    /// Returns the buttons status
     #[ink(message)]
     fn is_dead(&self) -> bool;
 
+    /// Returns the current deadline
+    ///
+    /// Deadline is the block number at which the game will end if no more participants
     #[ink(message)]
     fn deadline(&self) -> u32;
 
+    /// Returns the user score
     #[ink(message)]
     fn score_of(&self, user: AccountId) -> u32;
 
+    /// Returns whether given account can play
     #[ink(message)]
     fn can_play(&self, user: AccountId) -> bool;
 
+    /// Returns the current access control contract address
     #[ink(message)]
     fn access_control(&self) -> AccountId;
 
+    /// Returns the current Pressiah
     #[ink(message)]
     fn last_presser(&self) -> Option<AccountId>;
 
+    /// Returns address of the game's ERC20 token
     #[ink(message)]
-    fn get_button_token(&self) -> Result<AccountId>;
+    fn button_token(&self) -> Result<AccountId>;
 
+    /// Returns then game token balance of the game contract
     #[ink(message)]
-    fn get_balance(&self) -> Result<Balance>;
+    fn balance(&self) -> Result<Balance>;
 
+    /// End of the game logic
+    ///
+    /// Distributes the awards
     #[ink(message)]
     fn death(&mut self) -> Result<()>;
 
+    /// Sets new access control contract address
+    ///
+    /// Should only be called by the contract owner
+    /// Implementing contract is responsible for setting up proper AccessControl
     #[ink(message)]
     fn set_access_control(&mut self, access_control: AccountId) -> Result<()>;
 
+    /// Whitelists given AccountId to participate in the game
+    ///
+    /// Should only be called by the contracts Admin
     #[ink(message)]
     fn allow(&mut self, player: AccountId) -> Result<()>;
 
+    /// Whitelists an array of accounts to participate in the game
+    ///
+    /// Should return an error if called by someone else but the Admin    
     #[ink(message)]
     fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
 
+    /// Blacklists given AccountId from participating in the game
+    ///
+    /// Should return an error if called by someone else but the Admin    
     #[ink(message)]
     fn disallow(&mut self, player: AccountId) -> Result<()>;
 }
