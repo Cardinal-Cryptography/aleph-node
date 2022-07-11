@@ -356,7 +356,7 @@ jobs:
 
   run-e2e-rewards-points-basic:
     needs: [build-test-docker, build-test-client]
-    name: Run basic test for point calculation
+    name: Run basic reward points calculation test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
