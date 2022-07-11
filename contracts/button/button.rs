@@ -129,7 +129,8 @@ pub struct ButtonData {
 /// Concrete implementations of games API
 ///
 /// Implementing contract needs to return ButtonData read-only and mutably
-/// remaining methods have default implementations that can be overriden as needed
+/// Remaining methods have default implementations that can be overriden as needed
+/// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those as needed.
 pub trait ButtonGame {
     /// Getter for the button data
     ///
@@ -138,9 +139,13 @@ pub trait ButtonGame {
 
     fn get_mut(&mut self) -> &mut ButtonData;
 
-    fn press(&mut self) -> Result<()> {
-        todo!()
-    }
+    // fn press(&mut self) -> Result<()> {
+    //     todo!()
+    // }
+
+    // fn death() {
+    //     &mut self
+    // }
 
     fn is_dead(&self) -> bool {
         self.get().is_dead
@@ -169,7 +174,7 @@ pub trait ButtonGame {
 
     fn set_access_control(
         &mut self,
-        access_control: AccountId,
+        new_access_control: AccountId,
         caller: AccountId,
         this: AccountId,
     ) -> Result<()>
@@ -179,7 +184,7 @@ pub trait ButtonGame {
         let required_role = Role::Owner(this);
         self.check_role(caller, required_role)?;
 
-        self.get_mut().access_control = access_control;
+        self.get_mut().access_control = new_access_control;
         Ok(())
     }
 
@@ -308,6 +313,12 @@ pub trait IButtonGame {
     #[ink(message)]
     fn press(&mut self) -> Result<()>;
 
+    /// End of the game logic
+    ///
+    /// Distributes the awards
+    #[ink(message)]
+    fn death(&mut self) -> Result<()>;
+
     /// Returns the buttons status
     #[ink(message)]
     fn is_dead(&self) -> bool;
@@ -341,12 +352,6 @@ pub trait IButtonGame {
     /// Returns then game token balance of the game contract
     #[ink(message)]
     fn balance(&self) -> Result<Balance>;
-
-    /// End of the game logic
-    ///
-    /// Distributes the awards
-    #[ink(message)]
-    fn death(&mut self) -> Result<()>;
 
     /// Sets new access control contract address
     ///

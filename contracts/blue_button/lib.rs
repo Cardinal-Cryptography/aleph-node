@@ -36,6 +36,22 @@ mod blue_button {
         deadline: u32,
     }
 
+    /// Event emitted when account is whitelisted to play the game
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct AccountWhitelisted {
+        #[ink(topic)]
+        player: AccountId,
+    }
+
+    /// Event emitted when account is blacklisted from playing the game
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct AccountBlacklisted {
+        #[ink(topic)]
+        player: AccountId,
+    }
+
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct BlueButton {
@@ -64,9 +80,17 @@ mod blue_button {
             ButtonGame::is_dead(self)
         }
 
+        // TODO
         #[ink(message)]
         fn press(&mut self) -> Result<()> {
-            ButtonGame::press(self)
+            // ButtonGame::press(self)
+            todo!()
+        }
+
+        // TODO
+        #[ink(message)]
+        fn death(&mut self) -> Result<()> {
+            todo!()
         }
 
         #[ink(message)]
@@ -105,30 +129,49 @@ mod blue_button {
             ButtonGame::balance(self, BALANCE_OF_SELECTOR, this)
         }
 
-        // TODO
         #[ink(message)]
-        fn death(&mut self) -> Result<()> {
-            todo!()
-        }
-
-        #[ink(message)]
-        fn set_access_control(&mut self, access_control: ink_env::AccountId) -> Result<()> {
-            todo!()
+        fn set_access_control(&mut self, new_access_control: ink_env::AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            ButtonGame::set_access_control(self, new_access_control, caller, this)
         }
 
         #[ink(message)]
         fn allow(&mut self, player: ink_env::AccountId) -> Result<()> {
-            todo!()
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            ButtonGame::allow(self, player, caller, this)?;
+            Self::emit_event(
+                self.env(),
+                Event::AccountWhitelisted(AccountWhitelisted { player }),
+            );
+            Ok(())
         }
 
         #[ink(message)]
         fn bulk_allow(&mut self, players: Vec<ink_env::AccountId>) -> Result<()> {
-            todo!()
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            ButtonGame::bulk_allow(self, players.clone(), caller, this)?;
+            for player in players {
+                Self::emit_event(
+                    self.env(),
+                    Event::AccountWhitelisted(AccountWhitelisted { player }),
+                );
+            }
+            Ok(())
         }
 
         #[ink(message)]
         fn disallow(&mut self, player: ink_env::AccountId) -> Result<()> {
-            todo!()
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            ButtonGame::disallow(self, player, caller, this)?;
+            Self::emit_event(
+                self.env(),
+                Event::AccountBlacklisted(AccountBlacklisted { player }),
+            );
+            Ok(())
         }
     }
 

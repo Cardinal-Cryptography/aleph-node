@@ -383,9 +383,7 @@ mod red_button {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Admin(this);
-
             self.check_role(caller, required_role)?;
-
             self.can_play.insert(player, &false);
             Ok(())
         }
