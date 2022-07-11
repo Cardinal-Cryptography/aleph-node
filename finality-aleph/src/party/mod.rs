@@ -432,21 +432,24 @@ where
     }
 
     pub async fn run(mut self) {
+        let starting_session = self.catch_up().await;
+        for curr_id in starting_session.0.. {
+            info!(target: "aleph-party", "Running session {:?}.", curr_id);
+            self.run_session(SessionId(curr_id)).await;
+        }
+    }
+
+    pub async fn catch_up(&mut self) -> SessionId {
         let mut finalized_number = self.client.info().finalized_number;
         let mut previous_finalized_number = None;
         while self.block_requester.is_major_syncing()
             && Some(finalized_number) != previous_finalized_number
         {
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(500)).await;
             previous_finalized_number = Some(finalized_number);
             finalized_number = self.client.info().finalized_number;
         }
-        let starting_session =
-            session_id_from_block_num::<B>(finalized_number, self.session_period);
-        for curr_id in starting_session.0.. {
-            info!(target: "aleph-party", "Running session {:?}.", curr_id);
-            self.run_session(SessionId(curr_id)).await;
-        }
+        session_id_from_block_num::<B>(finalized_number, self.session_period)
     }
 }
 
