@@ -22,7 +22,6 @@ name = "button"
 path = "lib.rs"
 crate-type = [
   "rlib",
-  # "cdylib"
 ]
 
 [features]

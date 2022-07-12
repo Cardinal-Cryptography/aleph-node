@@ -288,7 +288,6 @@ mod button_token {
             let required_role = Role::Owner(this);
 
             self.check_role(caller, required_role)?;
-
             self.env().terminate_contract(caller)
         }
 
@@ -320,7 +319,6 @@ mod button_token {
             let required_role = Role::Owner(this);
 
             self.check_role(caller, required_role)?;
-
             self.access_control = access_control;
             Ok(())
         }

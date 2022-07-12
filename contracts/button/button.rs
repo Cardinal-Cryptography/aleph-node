@@ -6,10 +6,9 @@ use ink_env::{
 use ink_lang as ink;
 use ink_prelude::{format, string::String, vec::Vec};
 use ink_storage::{
-    traits::{SpreadAllocate, SpreadLayout, StorageLayout},
+    traits::{SpreadAllocate, SpreadLayout},
     Mapping,
 };
-use scale_info::TypeInfo;
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
@@ -79,7 +78,10 @@ impl From<InkEnvError> for Error {
 
 /// Game contracts storage
 #[derive(Debug, SpreadLayout, SpreadAllocate)]
-#[cfg_attr(feature = "std", derive(TypeInfo, StorageLayout,))]
+#[cfg_attr(
+    feature = "std",
+    derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
+)]
 pub struct ButtonData {
     /// How long does TheButton live for?
     pub button_lifetime: u32,

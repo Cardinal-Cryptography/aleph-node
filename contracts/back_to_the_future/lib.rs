@@ -2,29 +2,30 @@
 
 use ink_lang as ink;
 
-/// This is the BlueButton
+/// This is BackToTheFuture
+///
 /// Larger rewards are distributed for postponing playing for as long as possible, but without letting TheButton die:
 /// user_score = now - start
-/// ThePressiah (the last player to click) still gets 50% of tokens
-///
-/// the game is played until TheButton dies
+/// ThePressiah (the last player to click) still gets 50% of the tokens.
 
 #[ink::contract]
-mod blue_button {
+mod back_to_the_future {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-    use ink_env::Error as InkEnvError;
+    use ink_env::{
+        call::{build_call, Call, ExecutionInput, Selector},
+        DefaultEnvironment, Error as InkEnvError,
+    };
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, vec::Vec};
-    use ink_storage::traits::SpreadAllocate;
+    use ink_prelude::{format, string::String, vec::Vec};
+    use ink_storage::{traits::SpreadAllocate, Mapping};
 
-    /// Event type
-    type Event = <BlueButton as ContractEventBase>::Type;
+    type Event = <BackToTheFuture as ContractEventBase>::Type;
 
     /// Event emitted when TheButton is created
     #[ink(event)]
@@ -61,23 +62,22 @@ mod blue_button {
         when: u32,
     }
 
-    /// Even emitted when button's death is triggered
+    /// Event emitted when button's death is triggered
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonDeath {}
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
-    pub struct BlueButton {
+    pub struct BackToTheFuture {
         data: ButtonData,
     }
 
-    impl AccessControlled for BlueButton {
+    impl AccessControlled for BackToTheFuture {
         type ContractError = Error;
     }
 
-    // default concrete implementations
-    impl ButtonGame for BlueButton {
+    impl ButtonGame for BackToTheFuture {
         fn get(&self) -> &ButtonData {
             &self.data
         }
@@ -87,13 +87,12 @@ mod blue_button {
         }
 
         fn score(&self, now: u32) -> u32 {
-            let deadline = ButtonGame::deadline(self);
-            deadline - now
+            now - self.get().last_press
         }
     }
 
     // becasue ink! does not allow generics or trait default implementations
-    impl IButtonGame for BlueButton {
+    impl IButtonGame for BackToTheFuture {
         #[ink(message)]
         fn is_dead(&self) -> bool {
             let now = Self::env().block_number();
@@ -214,7 +213,7 @@ mod blue_button {
         }
     }
 
-    impl BlueButton {
+    impl BackToTheFuture {
         #[ink(constructor)]
         pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
             let caller = Self::env().caller();
@@ -262,9 +261,115 @@ mod blue_button {
 
         fn emit_event<EE>(emitter: EE, event: Event)
         where
-            EE: EmitEvent<BlueButton>,
+            EE: EmitEvent<BackToTheFuture>,
         {
             emitter.emit_event(event);
         }
+
+        /// Returns own code hash
+        #[ink(message)]
+        pub fn code_hash(&self) -> Result<Hash> {
+            Self::env().own_code_hash().map_err(|why| {
+                Error::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
+            })
+        }
     }
+
+    // NOTE: can't test because off-chain environment does not support `own_code_hash`
+    /*
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use button_token::{ButtonToken, Event as ButtonTokenEvent};
+        use ink_lang as ink;
+
+        #[ink::test]
+        fn play_the_game() {
+            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+
+            let alice = accounts.alice;
+            let bob = accounts.bob;
+            let charlie = accounts.charlie;
+
+            let button_token_address = accounts.frank; //AccountId::from([0xFA; 32]);
+            let game_address = accounts.django; //AccountId::from([0xF9; 32]);
+
+            // alice deploys the token contract
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
+            let mut button_token = ButtonToken::new(1000);
+
+            // alice deploys the game contract
+            let button_lifetime = 3;
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            let mut game = RedButton::new(button_token_address, button_lifetime);
+
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            let button_created_event = &emitted_events[1];
+            let decoded_event: Event =
+                <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
+                    .expect("Can't decode as Event");
+
+            match decoded_event {
+                Event::ButtonCreated(ButtonCreated {
+                    start,
+                    deadline,
+                    button_token,
+                }) => {
+                    assert_eq!(deadline, button_lifetime, "Wrong ButtonCreated.deadline");
+                    assert_eq!(start, 0, "Wrong ButtonCreated.start");
+                    assert_eq!(
+                        button_token, button_token_address,
+                        "Wrong ButtonCreated.button_token"
+                    );
+                }
+                _ => panic!("Wrong event emitted"),
+            }
+
+            // Alice transfer all token balance to the game
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
+
+            assert!(
+                button_token.transfer(game_address, 999).is_ok(),
+                "Transfer call failed"
+            );
+
+            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
+            let transfer_event = &emitted_events[2];
+            let decoded_event: ButtonTokenEvent =
+                <ButtonTokenEvent as scale::Decode>::decode(&mut &transfer_event.data[..])
+                    .expect("Can't decode as Event");
+
+            match decoded_event {
+                ButtonTokenEvent::Transfer(event) => {
+                    assert_eq!(event.value, 999, "Wrong Transfer.value");
+                    assert_eq!(event.from, Some(alice), "Wrong Transfer.from");
+                    assert_eq!(event.to, game_address, "Wrong Transfer.from");
+                }
+                _ => panic!("Wrong event emitted"),
+            }
+
+            // Alice is the owner and whitelists accounts for playing
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(
+                game.bulk_allow(vec![bob, charlie]).is_ok(),
+                "Bulk allow call failed"
+            );
+
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
+
+            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
+
+            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
+            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
+            assert!(game.press().is_ok(), "Press call failed");
+
+            // NOTE : we cannot test reward distribution, cross-contract calls are not yet supported in the test environment
+        }
+    }*/
 }

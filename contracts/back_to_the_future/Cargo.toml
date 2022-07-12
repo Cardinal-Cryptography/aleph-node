@@ -1,5 +1,5 @@
 [package]
-name = "red_button"
+name = "back_to_the_future"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -16,11 +16,12 @@ ink_storage = { version = "3.2.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
+button = { path = "../button", default-features = false }
 button_token = { path = "../button_token", default-features = false, features = ["ink-as-dependency"] }
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
-name = "red_button"
+name = "back_to_the_future"
 path = "lib.rs"
 crate-type = [
   # Used for normal contract Wasm blobs.
@@ -32,14 +33,15 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
-  "ink_metadata/std",
+  "button/std",
+  "button_token/std",
   "ink_env/std",
-  "ink_storage/std",
+  "ink_lang_codegen/std",
+  "ink_metadata/std",
   "ink_prelude/std",
   "ink_primitives/std",
-  "ink_lang_codegen/std",
-  "scale/std",
+  "ink_storage/std",
   "scale-info/std",
-  "button_token/std"
+  "scale/std",
 ]
 ink-as-dependency = []

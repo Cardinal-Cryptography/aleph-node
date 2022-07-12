@@ -1,5 +1,5 @@
 [package]
-name = "blue_button"
+name = "early_bird_special"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -21,7 +21,7 @@ button_token = { path = "../button_token", default-features = false, features = 
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
-name = "blue_button"
+name = "early_bird_special"
 path = "lib.rs"
 crate-type = [
   # Used for normal contract Wasm blobs.

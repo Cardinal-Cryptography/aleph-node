@@ -1,7 +1,7 @@
 # TheButton
 
 Series of smart contract based games, with varying tokenomics.
-TheButton is based on the famous [game](https://en.wikipedia.org/wiki/The_Button_(Reddit)) on reddit.
+TheButton is loosely based on the famous [game](https://en.wikipedia.org/wiki/The_Button_(Reddit)) on reddit.
 - Button lives for a set time.
 - Pressing the button extends its life.
 - Users are rewarded for playing the game.
@@ -13,27 +13,29 @@ TheButton is based on the famous [game](https://en.wikipedia.org/wiki/The_Button
 start   now    deadline
 ```
 
-## Blue Button
+## EarlyBirdSpecial
 
-There is a pre-minted amount of red tokens (a classic ERC20).
-Users are rewarded for clicking as early on as possible, which should lead to them pushing the definite end of the game far into the future.
+There is a pre-minted amount of tokens (a classic ERC20 standard).
+Users are rewarded for pressing as early on as possible:
 
 ```
 score = deadline - now
 ```
 
 There are two built-in incentives:
-* playing for score: If you clicked in the 10th second of TheButton's life set for example to 900 blocks you get rewarded based on score of 900-10=890 (and the button's life now will end at block 910).
+* playing for the score: If you clicked in the 10th second of TheButton's life, which is set for example to 900 blocks, you get rewarded based on the score of 900-10=890 (and the button's life now will end at block 910).
 * playing to be ThePressiah: the last player to click gets 50% of the total reward pool.
 
 
-## Red Button
+## BackToTheFuture
 
-Similar to the Blue Button, but in this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
+In this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
 
 ```
 score = now - start
 ```
+
+Just like before The Pressiah gets 50% of the total reward pool.
 
 ## Yellow Button
 
