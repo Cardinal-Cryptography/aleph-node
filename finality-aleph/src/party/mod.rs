@@ -13,10 +13,10 @@ use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
-use tokio::task::spawn_blocking;
+use tokio::{task::spawn_blocking, time::sleep};
 
 use crate::{
-    crypto::{AuthorityPen, AuthorityVerifier, KeyBox},
+    crypto::{AuthorityPen, AuthorityVerifier, Keychain},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     default_aleph_config,
     justification::{AlephJustification, JustificationNotification, Verifier},
@@ -153,7 +153,7 @@ where
     async fn spawn_authority_subtasks(
         &self,
         node_id: NodeIndex,
-        multikeychain: KeyBox,
+        multikeychain: Keychain,
         data_network: SessionNetwork<SplitData<B>>,
         session_id: SessionId,
         authorities: Vec<AuthorityId>,
@@ -241,7 +241,7 @@ where
                 .await
                 .expect("The keys should sign successfully");
 
-        let keybox = KeyBox::new(node_id, authority_verifier.clone(), authority_pen.clone());
+        let keychain = Keychain::new(node_id, authority_verifier.clone(), authority_pen.clone());
 
         let data_network = self
             .session_manager
@@ -253,7 +253,7 @@ where
         let authority_subtasks = self
             .spawn_authority_subtasks(
                 node_id,
-                keybox,
+                keychain,
                 data_network,
                 session_id,
                 authorities,
@@ -282,7 +282,7 @@ where
 
         // Early skip attempt -- this will trigger during catching up (initial sync).
         if self.client.info().best_number >= last_block {
-            // We need to give the JustificationHandler some time to pick up the keybox for the new session,
+            // We need to give the JustificationHandler some time to pick up the keychain for the new session,
             // validate justifications and finalize blocks. We wait 2000ms in total, checking every 200ms
             // if the last block has been finalized.
             for attempt in 0..10 {
@@ -432,13 +432,24 @@ where
     }
 
     pub async fn run(mut self) {
-        let last_finalized_number = self.client.info().finalized_number;
-        let starting_session =
-            session_id_from_block_num::<B>(last_finalized_number, self.session_period);
+        let starting_session = self.catch_up().await;
         for curr_id in starting_session.0.. {
             info!(target: "aleph-party", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
         }
+    }
+
+    async fn catch_up(&mut self) -> SessionId {
+        let mut finalized_number = self.client.info().finalized_number;
+        let mut previous_finalized_number = None;
+        while self.block_requester.is_major_syncing()
+            && Some(finalized_number) != previous_finalized_number
+        {
+            sleep(Duration::from_millis(500)).await;
+            previous_finalized_number = Some(finalized_number);
+            finalized_number = self.client.info().finalized_number;
+        }
+        session_id_from_block_num::<B>(finalized_number, self.session_period)
     }
 }
 
