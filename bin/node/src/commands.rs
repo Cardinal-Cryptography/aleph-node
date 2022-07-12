@@ -73,7 +73,7 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
 }
 
 /// Returns peer id, if not p2p key found under base_path/node-key-file a new private key gets generated
-fn p2p_key(base_path: &PathBuf, node_key_file: &str) -> SerializablePeerId {
+fn p2p_key(base_path: &Path, node_key_file: &str) -> SerializablePeerId {
     let file = base_path.join(node_key_file);
 
     if file.exists() {
@@ -99,7 +99,7 @@ fn backup_path(base_path: &Path, backup_dir: &str) -> PathBuf {
 fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_id: &str,
-    base_path: &PathBuf,
+    base_path: &Path,
 ) -> impl SyncCryptoStore {
     let config_dir = base_path.join("chains").join(chain_id);
     match keystore_params
@@ -179,7 +179,7 @@ impl BootstrapChainCmd {
             .map(|account_id| {
                 let account_base_path = base_path.join(account_id.to_string());
                 let chain_id = self.chain_params.chain_id();
-                bootstrap_backup(&account_base_path.as_path(), backup_dir);
+                bootstrap_backup(account_base_path.as_path(), backup_dir);
                 let keystore = open_keystore(&self.keystore_params, chain_id, &account_base_path);
                 authority_keys(&keystore, &account_base_path, node_key_file, account_id)
             })
@@ -230,11 +230,11 @@ impl BootstrapNodeCmd {
         let chain_id = self.chain_params.chain_id();
 
         bootstrap_backup(base_path.as_path(), backup_dir);
-        let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
+        let keystore = open_keystore(&self.keystore_params, chain_id, base_path);
 
         // Does not rely on the account id in the path
         let account_id = &self.account_id();
-        let authority_keys = authority_keys(&keystore, &base_path, node_key_file, account_id);
+        let authority_keys = authority_keys(&keystore, base_path, node_key_file, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should have succeeded");
         println!("{}", keys_json);
