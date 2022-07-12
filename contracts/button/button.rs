@@ -1,19 +1,15 @@
-// use ink::codegen::EmitEvent;
-// use core::alloc::Layout;
-
 use access_control::{traits::AccessControlled, Role};
-use ink::{codegen::EmitEvent, reflect::ContractEventBase};
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
+    AccountId, DefaultEnvironment, Error as InkEnvError,
 };
 use ink_lang as ink;
 use ink_prelude::{format, string::String, vec::Vec};
-use ink_primitives::KeyPtr;
 use ink_storage::{
     traits::{SpreadAllocate, SpreadLayout, StorageLayout},
     Mapping,
 };
+use scale_info::TypeInfo;
 
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
@@ -83,15 +79,10 @@ impl From<InkEnvError> for Error {
 
 /// Game contracts storage
 #[derive(Debug, SpreadLayout, SpreadAllocate)]
-#[cfg_attr(
-    feature = "std",
-    derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout,)
-)]
+#[cfg_attr(feature = "std", derive(TypeInfo, StorageLayout,))]
 pub struct ButtonData {
     /// How long does TheButton live for?
     pub button_lifetime: u32,
-    // is The Button dead
-    // pub is_dead: bool,
     /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
     pub presses: Mapping<AccountId, u32>,
     /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<u32, AccountId> if it grows out of proportion
@@ -110,11 +101,13 @@ pub struct ButtonData {
     pub access_control: AccountId,
 }
 
-/// Concrete implementations of games API
+/// Concrete implementations of the games API
 ///
 /// Implementing contract needs to return ButtonData read-only and mutably
-/// Remaining methods have default implementations that can be overriden as needed
-/// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those as needed.
+/// as well as implement `score` the logic that based on the current block number and the contract storage state returns a users score.
+/// Remaining methods have default implementations that can be overriden as needed.
+///
+/// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those.
 pub trait ButtonGame {
     /// Getter for the button data
     fn get(&self) -> &ButtonData;
@@ -282,20 +275,12 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    // TODO: Access control
     fn death(
-        &mut self,
+        &self,
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
-        caller: AccountId,
         this: AccountId,
-    ) -> Result<()>
-    where
-        Self: AccessControlled,
-    {
-        let required_role = Role::Admin(this);
-        self.check_role(caller, required_role)?;
-
+    ) -> Result<()> {
         let ButtonData {
             total_scores,
             last_presser,
@@ -313,14 +298,12 @@ pub trait ButtonGame {
         }
 
         let remaining_balance = total_balance - pressiah_reward;
-        // let mut rewards = Vec::new();
         // rewards are distributed to the participants proportionally to their score
         let _ = press_accounts
             .iter()
             .try_for_each(|account_id| -> Result<()> {
                 if let Some(score) = presses.get(account_id) {
                     let reward = (score as u128 * remaining_balance) / *total_scores as u128;
-                    // rewards.push((*account_id, reward));
                     // transfer amount
                     return Ok(self.transfer_tx(transfer_selector, *account_id, reward)?);
                 }
@@ -345,7 +328,7 @@ pub trait IButtonGame {
     ///
     /// Distributes the awards
     #[ink(message)]
-    fn death(&mut self) -> Result<()>;
+    fn death(&self) -> Result<()>;
 
     /// Returns the buttons status
     #[ink(message)]
@@ -353,7 +336,7 @@ pub trait IButtonGame {
 
     /// Returns the current deadline
     ///
-    /// Deadline is the block number at which the game will end if no more participants
+    /// Deadline is the block number at which the game will end if there are no more participants
     #[ink(message)]
     fn deadline(&self) -> u32;
 
@@ -408,7 +391,7 @@ pub trait IButtonGame {
 
     /// Terminates the contract
     ///
-    /// Should only be called by the contract owner    
+    /// Should only be called by the contract Owner    
     #[ink(message)]
     fn terminate(&mut self) -> Result<()>;
 }

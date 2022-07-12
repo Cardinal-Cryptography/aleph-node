@@ -15,13 +15,13 @@ mod blue_button {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        DefaultEnvironment, Error as InkEnvError,
+    use ink_env::Error as InkEnvError;
+    use ink_lang::{
+        codegen::{initialize_contract, EmitEvent},
+        reflect::ContractEventBase,
     };
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{format, string::String, vec::Vec};
-    use ink_storage::{traits::SpreadAllocate, Mapping};
+    use ink_prelude::{format, vec::Vec};
+    use ink_storage::traits::SpreadAllocate;
 
     /// Event type
     type Event = <BlueButton as ContractEventBase>::Type;
@@ -64,12 +64,7 @@ mod blue_button {
     /// Even emitted when button's death is triggered
     #[ink(event)]
     #[derive(Debug)]
-    pub struct ButtonDeath {
-        // #[ink(topic)]
-        // pressiah: Option<AccountId>,
-        // pressiah_reward: u128,
-        // rewards: Vec<(AccountId, u128)>,
-    }
+    pub struct ButtonDeath {}
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -121,10 +116,9 @@ mod blue_button {
         }
 
         #[ink(message)]
-        fn death(&mut self) -> Result<()> {
-            let caller = self.env().caller();
+        fn death(&self) -> Result<()> {
             let this = self.env().account_id();
-            ButtonGame::death(self, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, caller, this)?;
+            ButtonGame::death(self, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, this)?;
             Self::emit_event(self.env(), Event::ButtonDeath(ButtonDeath {}));
             Ok(())
         }
@@ -135,45 +129,45 @@ mod blue_button {
         }
 
         #[ink(message)]
-        fn score_of(&self, user: ink_env::AccountId) -> u32 {
+        fn score_of(&self, user: AccountId) -> u32 {
             ButtonGame::score_of(self, user)
         }
 
         #[ink(message)]
-        fn can_play(&self, user: ink_env::AccountId) -> bool {
+        fn can_play(&self, user: AccountId) -> bool {
             ButtonGame::can_play(self, user)
         }
 
         #[ink(message)]
-        fn access_control(&self) -> ink_env::AccountId {
+        fn access_control(&self) -> AccountId {
             ButtonGame::access_control(self)
         }
 
         #[ink(message)]
-        fn last_presser(&self) -> Option<ink_env::AccountId> {
+        fn last_presser(&self) -> Option<AccountId> {
             ButtonGame::last_presser(self)
         }
 
         #[ink(message)]
-        fn button_token(&self) -> Result<ink_env::AccountId> {
+        fn button_token(&self) -> Result<AccountId> {
             ButtonGame::button_token(self)
         }
 
         #[ink(message)]
-        fn balance(&self) -> Result<button::button::Balance> {
+        fn balance(&self) -> Result<Balance> {
             let this = self.env().account_id();
             ButtonGame::balance(self, BALANCE_OF_SELECTOR, this)
         }
 
         #[ink(message)]
-        fn set_access_control(&mut self, new_access_control: ink_env::AccountId) -> Result<()> {
+        fn set_access_control(&mut self, new_access_control: AccountId) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::set_access_control(self, new_access_control, caller, this)
         }
 
         #[ink(message)]
-        fn allow(&mut self, player: ink_env::AccountId) -> Result<()> {
+        fn allow(&mut self, player: AccountId) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::allow(self, player, caller, this)?;
@@ -185,7 +179,7 @@ mod blue_button {
         }
 
         #[ink(message)]
-        fn bulk_allow(&mut self, players: Vec<ink_env::AccountId>) -> Result<()> {
+        fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::bulk_allow(self, players.clone(), caller, this)?;
@@ -199,7 +193,7 @@ mod blue_button {
         }
 
         #[ink(message)]
-        fn disallow(&mut self, player: ink_env::AccountId) -> Result<()> {
+        fn disallow(&mut self, player: AccountId) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::disallow(self, player, caller, this)?;
@@ -241,7 +235,7 @@ mod blue_button {
             );
 
             match role_check {
-                Ok(_) => ink_lang::utils::initialize_contract(|contract| {
+                Ok(_) => initialize_contract(|contract| {
                     Self::new_init(contract, button_token, button_lifetime)
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
@@ -253,7 +247,6 @@ mod blue_button {
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            // self.data.is_dead = false;
             self.data.last_press = now;
             self.data.button_lifetime = button_lifetime;
             self.data.button_token = button_token;
