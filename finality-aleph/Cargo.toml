@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 aleph-bft = "0.13.0"
 aleph-bft-rmc = "=0.3.0"
+aleph-bft-crypto = "=0.3.1"
 aleph-primitives = { package = "primitives", path = "../primitives" }
 
 async-trait = "0.1"

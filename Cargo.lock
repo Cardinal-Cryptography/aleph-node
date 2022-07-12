@@ -102,9 +102,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-crypto"
-version = "0.3.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7280faeb1459e251813f22863b1272c157ebcd921034273a2ca839c847d49abb"
+checksum = "f311b780dbe4dd2675c91d987c785b11a8c765eeb5c163ca192b45e5a11cc915"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -1693,6 +1693,7 @@ name = "finality-aleph"
 version = "0.4.0"
 dependencies = [
  "aleph-bft",
+ "aleph-bft-crypto",
  "aleph-bft-rmc",
  "async-trait",
  "bytes",
