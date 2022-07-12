@@ -39,7 +39,10 @@ cargo contract build --release
 cd $CONTRACTS_PATH/button_token
 cargo contract build --release
 
-cd $CONTRACTS_PATH/red_button
+cd $CONTRACTS_PATH/early_bird_special
+cargo contract build --release
+
+cd $CONTRACTS_PATH/back_to_the_future
 cargo contract build --release
 
 ## --- DEPLOY ACCESS CONTROL CONTRACT
@@ -95,73 +98,75 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 ## --- UPLOAD GAME CONTRACT
 
-cd $CONTRACTS_PATH/red_button
-link_bytecode red_button 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
-rm target/ink/red_button.wasm
-node ../scripts/hex-to-wasm.js target/ink/red_button.contract target/ink/red_button.wasm
+cd $CONTRACTS_PATH/early_bird_special
+link_bytecode early_bird_special 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+rm target/ink/early_bird_special.wasm
+node ../scripts/hex-to-wasm.js target/ink/early_bird_special.contract target/ink/early_bird_special.wasm
 
 CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
-RED_BUTTON_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+EARLY_BIRD_SPECIAL_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
-echo "red button code hash" $RED_BUTTON_CODE_HASH
+echo "EarlyBirdSpecial contract code hash" $EARLY_BIRD_SPECIAL_CODE_HASH
 
-## --- GRANT INIT PRIVILEDGES ON THE RED BUTTON CONTRACT
+## --- GRANT INIT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL CONTRACT
 
 cd $CONTRACTS_PATH/access_control
 
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$RED_BUTTON_CODE_HASH')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$EARLY_BIRD_SPECIAL_CODE_HASH')' --suri $ALICE_SEED
 
-## --- INITIALIZE GAME CONTRACT
+## --- INITIALIZE EARLY_BIRD_SPECIAL GAME CONTRACT
 
-cd $CONTRACTS_PATH/red_button
+cd $CONTRACTS_PATH/early_bird_special
 
 CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $BUTTON_TOKEN $LIFETIME --suri $ALICE_SEED)
-RED_BUTTON=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+EARLY_BIRD_SPECIAL=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-echo "red button contract instance address" $BUTTON_TOKEN
+echo "EarlyBirdSpecial contract instance address" $EARLY_BIRD_SPECIAL
 
-## --- GRANT PRIVILEDGES ON THE GAME CONTRACT
+## --- GRANT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL GAME CONTRACT
 
 cd $CONTRACTS_PATH/access_control
 
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$RED_BUTTON')' --suri $ALICE_SEED
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$RED_BUTTON')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$EARLY_BIRD_SPECIAL')' --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$EARLY_BIRD_SPECIAL')' --suri $ALICE_SEED
 
 ## --- TRANSFER BALANCE TO THE GAME CONTRACT
 
 cd $CONTRACTS_PATH/button_token
 
-cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $RED_BUTTON $GAME_BALANCE --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $BUTTON_TOKEN --message transfer --args $EARLY_BIRD_SPECIAL $GAME_BALANCE --suri $ALICE_SEED
 
 ## --- WHITELIST ACCOUNTS
 
-cd $CONTRACTS_PATH/red_button
+cd $CONTRACTS_PATH/early_bird_special
 
-cargo contract call --url $NODE --contract $RED_BUTTON --message bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
 
 ## --- PLAY
 
-cd $CONTRACTS_PATH/red_button
+cd $CONTRACTS_PATH/early_bird_special
 
-cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $ALICE_SEED
+cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::press --suri $ALICE_SEED
 
 sleep 1
 
-cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $NODE0_SEED
+cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::press --suri $NODE0_SEED
 
 ## --- TRIGGER DEATH AND REWARDS DISTRIBUTION
 
-cd $CONTRACTS_PATH/red_button
+cd $CONTRACTS_PATH/early_bird_special
 
 sleep $(($LIFETIME + 1))
 
-EVENT=$(cargo contract call --url $NODE --contract $RED_BUTTON --message press --suri $ALICE_SEED | grep ButtonDeath)
-EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
+cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::death --suri $ALICE_SEED
 
-PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
-PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
+# EVENT=$(cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message death --suri $ALICE_SEED | grep ButtonDeath)
+# EVENT=$(echo "$EVENT" | sed 's/^ *//g' | tr " " "\n")
 
-echo "The Pressiah receives: $PRESSIAH_REWARD"
-assert_eq "450" "$PRESSIAH_REWARD"
+# PRESSIAH_REWARD=$(echo "$EVENT" | sed -n '7p' | tail -1)
+# PRESSIAH_REWARD=${PRESSIAH_REWARD::-1}
+
+# echo "The Pressiah receives: $PRESSIAH_REWARD"
+# assert_eq "450" "$PRESSIAH_REWARD"
 
 exit $?

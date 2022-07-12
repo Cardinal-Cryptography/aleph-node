@@ -35,7 +35,7 @@ In this scenario the rewards are reversed - players get rewarded for extending t
 score = now - start
 ```
 
-Just like before The Pressiah gets 50% of the total reward pool.
+The Pressiah gets 50% of the total reward pool.
 
 ## Yellow Button
 

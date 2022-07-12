@@ -13,7 +13,7 @@ mkdir -p docker/data/
 docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${NODE_IMAGE}" -c \
        "aleph-node bootstrap-chain --base-path /data --account-ids $NODE_ID --faucet-account-id $ALICE --sudo-account-id $NODE_ID --chain-id a0smnet --token-symbol SZERO --chain-name 'Aleph Zero Smartnet' > /data/chainspec.smartnet.json"
 
-# Generate bootnode peer id
+# Get bootnode peer id
 export BOOTNODE_PEER_ID=$(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=info "${NODE_IMAGE}" -c "aleph-node key inspect-node-key --file /data/$NODE_ID/p2p_secret")
 
 docker-compose -f docker/smartnet-compose.yml up --remove-orphans 
