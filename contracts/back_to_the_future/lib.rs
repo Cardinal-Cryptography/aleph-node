@@ -14,16 +14,13 @@ mod back_to_the_future {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        DefaultEnvironment, Error as InkEnvError,
-    };
+    use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String, vec::Vec};
-    use ink_storage::{traits::SpreadAllocate, Mapping};
+    use ink_prelude::{format, vec::Vec};
+    use ink_storage::traits::SpreadAllocate;
 
     type Event = <BackToTheFuture as ContractEventBase>::Type;
 
@@ -77,6 +74,7 @@ mod back_to_the_future {
         type ContractError = Error;
     }
 
+    // default concrete implementations
     impl ButtonGame for BackToTheFuture {
         fn get(&self) -> &ButtonData {
             &self.data
