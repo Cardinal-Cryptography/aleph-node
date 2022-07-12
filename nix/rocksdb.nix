@@ -57,7 +57,10 @@ let
       # i.e. ROCKSDB_STATIC=1 and ROCKSDB_LIB_DIR=rocksdb/lib
       # required by the `propagatedBuildInputs` mechanism
       setupHook = nixpkgs.writeText "setup-hook.sh" ''
-        source ${./rocksdb_setup-hook.sh}
+        exportVars() {
+            export ROCKSDB_STATIC=1
+            export ROCKSDB_LIB_DIR=$1/lib
+        }
         addEnvHooks "$hostOffset" exportVars
       '';
     });
