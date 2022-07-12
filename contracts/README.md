@@ -40,7 +40,7 @@ score = now - start
 Game continues in perpetuity (but in practice as long as there are accounts that can still play it)
 - In each iteration of the game TheButton lives for a number of blocks
 - Clicking TheButton resets its countdown timer (extending the button's life further into the future)
-- Blue Tokens are continuously minted at the end of each iteration
+- Tokens are continuously minted at the end of each iteration
 - Players are rewarded for playing, with the ultimate goal of being the Pressiah (the last person to click the button)
 - Reward rules:
   - If you’re not ThePressiah, you get *k* tokens if you pressed the button as the *k-th* person in a row.

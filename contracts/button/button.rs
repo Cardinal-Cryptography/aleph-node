@@ -15,15 +15,8 @@ use ink_storage::{
     Mapping,
 };
 
-// pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0, 0, 0, 1];
-pub const BALANCE_OF_SELECTOR: [u8; 4] = [0, 0, 0, 2];
-// pub const ALLOWANCE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
-// pub const TRANSFER_SELECTOR: [u8; 4] = [0, 0, 0, 4];
-
 pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
-
-// type Event = <dyn ButtonGame as ContractEventBase>::Type;
 
 /// Error types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -88,17 +81,8 @@ impl From<InkEnvError> for Error {
     }
 }
 
-/// Underlying game contracts storage
-#[derive(
-    Debug,
-    // PartialEq,
-    // scale::Encode,
-    // scale::Decode,
-    // Clone,
-    SpreadLayout,
-    // PackedLayout,
-    SpreadAllocate,
-)]
+/// Game contracts storage
+#[derive(Debug, SpreadLayout, SpreadAllocate)]
 #[cfg_attr(
     feature = "std",
     derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout,)
@@ -177,7 +161,6 @@ pub trait ButtonGame {
     {
         let required_role = Role::Owner(this);
         self.check_role(caller, required_role)?;
-
         self.get_mut().access_control = new_access_control;
         Ok(())
     }
@@ -192,13 +175,11 @@ pub trait ButtonGame {
 
     fn balance(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance> {
         let button_token = self.get().button_token;
-
         let balance = build_call::<DefaultEnvironment>()
             .call_type(Call::new().callee(button_token))
             .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
             .returns::<Balance>()
             .fire()?;
-
         Ok(balance)
     }
 
@@ -297,6 +278,54 @@ pub trait ButtonGame {
         self.get_mut().last_presser = Some(caller);
         self.get_mut().last_press = now;
         self.get_mut().total_scores += score;
+
+        Ok(())
+    }
+
+    // TODO: Access control
+    fn death(
+        &mut self,
+        balance_of_selector: [u8; 4],
+        transfer_selector: [u8; 4],
+        caller: AccountId,
+        this: AccountId,
+    ) -> Result<()>
+    where
+        Self: AccessControlled,
+    {
+        let required_role = Role::Admin(this);
+        self.check_role(caller, required_role)?;
+
+        let ButtonData {
+            total_scores,
+            last_presser,
+            press_accounts,
+            presses,
+            ..
+        } = self.get();
+
+        let total_balance = self.balance(balance_of_selector, this)?;
+
+        // Pressiah gets 50% of supply
+        let pressiah_reward = total_balance / 2;
+        if let Some(pressiah) = last_presser {
+            self.transfer_tx(transfer_selector, *pressiah, pressiah_reward)?;
+        }
+
+        let remaining_balance = total_balance - pressiah_reward;
+        // let mut rewards = Vec::new();
+        // rewards are distributed to the participants proportionally to their score
+        let _ = press_accounts
+            .iter()
+            .try_for_each(|account_id| -> Result<()> {
+                if let Some(score) = presses.get(account_id) {
+                    let reward = (score as u128 * remaining_balance) / *total_scores as u128;
+                    // rewards.push((*account_id, reward));
+                    // transfer amount
+                    return Ok(self.transfer_tx(transfer_selector, *account_id, reward)?);
+                }
+                Ok(())
+            });
 
         Ok(())
     }

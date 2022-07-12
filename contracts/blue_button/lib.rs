@@ -61,6 +61,16 @@ mod blue_button {
         when: u32,
     }
 
+    /// Even emitted when button's death is triggered
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct ButtonDeath {
+        // #[ink(topic)]
+        // pressiah: Option<AccountId>,
+        // pressiah_reward: u128,
+        // rewards: Vec<(AccountId, u128)>,
+    }
+
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct BlueButton {
@@ -95,7 +105,6 @@ mod blue_button {
             ButtonGame::is_dead(self, now)
         }
 
-        // TODO
         #[ink(message)]
         fn press(&mut self) -> Result<()> {
             let caller = self.env().caller();
@@ -111,10 +120,13 @@ mod blue_button {
             Ok(())
         }
 
-        // TODO
         #[ink(message)]
         fn death(&mut self) -> Result<()> {
-            todo!()
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            ButtonGame::death(self, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, caller, this)?;
+            Self::emit_event(self.env(), Event::ButtonDeath(ButtonDeath {}));
+            Ok(())
         }
 
         #[ink(message)]
