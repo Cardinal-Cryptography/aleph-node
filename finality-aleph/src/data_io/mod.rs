@@ -7,6 +7,7 @@ use codec::{Decode, Encode};
 use sp_runtime::traits::Block as BlockT;
 
 mod chain_info;
+mod compatibility;
 mod data_interpreter;
 mod data_provider;
 mod data_store;
