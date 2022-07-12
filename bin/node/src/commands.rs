@@ -37,7 +37,7 @@ pub struct NodeParams {
 }
 
 impl NodeParams {
-    pub fn base_path(&self) -> &PathBuf {
+    pub fn base_path(&self) -> &Path {
         &self.base_path
     }
 
@@ -130,7 +130,7 @@ fn bootstrap_backup(base_path: &Path, backup_dir: &str) {
 
 fn authority_keys(
     keystore: &impl SyncCryptoStore,
-    base_path: &PathBuf,
+    base_path: &Path,
     node_key_file: &str,
     account_id: &AccountId,
 ) -> AuthorityKeys {
@@ -177,11 +177,12 @@ impl BootstrapChainCmd {
             .account_ids()
             .iter()
             .map(|account_id| {
-                let account_base_path = base_path.join(account_id.to_string());
+                let base_path_with_account = base_path.join(account_id.to_string());
+                let account_base_path = base_path_with_account.as_path();
                 let chain_id = self.chain_params.chain_id();
-                bootstrap_backup(account_base_path.as_path(), backup_dir);
-                let keystore = open_keystore(&self.keystore_params, chain_id, &account_base_path);
-                authority_keys(&keystore, &account_base_path, node_key_file, account_id)
+                bootstrap_backup(account_base_path, backup_dir);
+                let keystore = open_keystore(&self.keystore_params, chain_id, account_base_path);
+                authority_keys(&keystore, account_base_path, node_key_file, account_id)
             })
             .collect();
 
@@ -229,7 +230,7 @@ impl BootstrapNodeCmd {
         let node_key_file = self.node_params.node_key_file();
         let chain_id = self.chain_params.chain_id();
 
-        bootstrap_backup(base_path.as_path(), backup_dir);
+        bootstrap_backup(base_path, backup_dir);
         let keystore = open_keystore(&self.keystore_params, chain_id, base_path);
 
         // Does not rely on the account id in the path
@@ -319,7 +320,7 @@ pub struct PurgeBackupCmd {
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
         let backup_path = backup_path(
-            self.node_params.base_path().as_path(),
+            self.node_params.base_path(),
             self.node_params.backup_dir(),
         );
 
