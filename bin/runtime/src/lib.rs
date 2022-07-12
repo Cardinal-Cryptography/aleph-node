@@ -57,8 +57,6 @@ use sp_staking::EraIndex;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 /// An index to a block.
@@ -109,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 23,
+    spec_version: 24,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 9,

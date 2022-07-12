@@ -127,6 +127,8 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Sets the emergency finalization key. If called in session `N` the key can be used to
+        /// finalize blocks from session `N+2` onwards, until it gets overridden.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_emergency_finalizer(
             origin: OriginFor<T>,

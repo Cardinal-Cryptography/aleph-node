@@ -149,7 +149,7 @@ where
         backup: ABFTBackup,
         exit_rx: futures::channel::oneshot::Receiver<()>,
     ) -> AuthoritySubtasks {
-        debug!(target: "afa", "Authority task {:?}", session_id);
+        debug!(target: "aleph-party", "Authority task {:?}", session_id);
         let session_boundaries = SessionBoundaries::new(session_id, self.session_period);
         let (blocks_for_aggregator, blocks_from_interpreter) = mpsc::unbounded();
 
@@ -304,7 +304,7 @@ where
         };
         let authorities = authority_data.authorities();
 
-        trace!(target: "afa", "Authority data for session {:?}: {:?}", session_id, authorities);
+        trace!(target: "aleph-party", "Authority data for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
             get_node_index(authorities, self.keystore.clone()).await
         {
@@ -326,7 +326,7 @@ where
                 }
             }
         } else {
-            debug!(target: "afa", "Running session {:?} as non-authority", session_id);
+            debug!(target: "aleph-party", "Running session {:?} as non-authority", session_id);
             if let Err(e) = self
                 .session_manager
                 .start_nonvalidator_session(session_id, AuthorityVerifier::new(authorities.clone()))

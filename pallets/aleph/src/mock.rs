@@ -136,7 +136,7 @@ impl Config for Test {
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {
-    UintAuthorityId(*id).to_public_key::<AuthorityId>()
+    UintAuthorityId(*id).to_public_key()
 }
 
 pub fn to_authorities(authorities: &[u64]) -> Vec<AuthorityId> {
