@@ -11,7 +11,7 @@ use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams};
 use sc_keystore::LocalKeystore;
 use sc_service::{
-    config::{BasePath, KeystoreConfig},
+    config::KeystoreConfig,
     DatabaseSource,
 };
 use sp_application_crypto::{key_types, Ss58Codec};
@@ -40,9 +40,7 @@ pub struct NodeParams {
 }
 
 impl NodeParams {
-    pub fn base_path(&self) -> BasePath {
-        self.base_path.clone().into()
-    }
+    pub fn base_path(&self) -> &PathBuf { &self.base_path }
 
     pub fn node_key_file(&self) -> &str {
         &self.node_key_file
@@ -76,13 +74,8 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
 }
 
 /// Returns peer id, if not p2p key found under base_path/node-key-file a new private key gets generated
-fn p2p_key(node_params: &NodeParams, account_id: &AccountId) -> SerializablePeerId {
-    let authority = account_id.to_string();
-    let file = node_params
-        .base_path()
-        .path()
-        .join(authority)
-        .join(node_params.node_key_file());
+fn p2p_key(base_path: &PathBuf, node_key_file: &str) -> SerializablePeerId {
+    let file = base_path.join(node_key_file);
 
     if file.exists() {
         let mut file_content =
@@ -107,9 +100,9 @@ fn backup_path(base_path: &Path, backup_dir: &str) -> PathBuf {
 fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_id: &str,
-    base_path: &BasePath,
+    base_path: &PathBuf,
 ) -> impl SyncCryptoStore {
-    let config_dir = base_path.config_dir(chain_id);
+    let config_dir = base_path.join("chains").join(chain_id);
     match keystore_params
         .keystore_config(&config_dir)
         .expect("keystore configuration should be available")
@@ -138,12 +131,13 @@ fn bootstrap_backup(base_path: &Path, backup_dir: &str) {
 
 fn authority_keys(
     keystore: &impl SyncCryptoStore,
-    node_params: &NodeParams,
+    base_path: &PathBuf,
+    node_key_file: &str,
     account_id: &AccountId,
 ) -> AuthorityKeys {
     let aura_key = aura_key(keystore);
     let aleph_key = aleph_key(keystore);
-    let peer_id = p2p_key(node_params, account_id);
+    let peer_id = p2p_key(base_path, node_key_file);
 
     let account_id = account_id.clone();
     AuthorityKeys {
@@ -178,17 +172,18 @@ impl BootstrapChainCmd {
         // Assume path: some_path/
         let base_path = self.node_params.base_path();
         let backup_dir = self.node_params.backup_dir();
+        let node_key_file = self.node_params.node_key_file();
         let genesis_authorities = self
             .chain_params
             .account_ids()
             .iter()
             .map(|account_id| {
-                let account_base_path = base_path.path().join(account_id.to_string());
+                let account_base_path = base_path.join(account_id.to_string());
                 let chain_id = self.chain_params.chain_id();
-                bootstrap_backup(&account_base_path, backup_dir);
+                bootstrap_backup(&account_base_path.as_path(), backup_dir);
                 let keystore =
-                    open_keystore(&self.keystore_params, chain_id, &account_base_path.into());
-                authority_keys(&keystore, &self.node_params, account_id)
+                    open_keystore(&self.keystore_params, chain_id, &account_base_path);
+                authority_keys(&keystore, &account_base_path, node_key_file, account_id)
             })
             .collect();
 
@@ -233,14 +228,15 @@ impl BootstrapNodeCmd {
         // Assume path: some_path/account_id/
         let base_path = self.node_params.base_path();
         let backup_dir = self.node_params.backup_dir();
+        let node_key_file = self.node_params.node_key_file();
         let chain_id = self.chain_params.chain_id();
 
-        bootstrap_backup(base_path.path(), backup_dir);
+        bootstrap_backup(base_path.as_path(), backup_dir);
         let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
 
         // Does not rely on the account id in the path
         let account_id = &self.account_id();
-        let authority_keys = authority_keys(&keystore, &self.node_params, account_id);
+        let authority_keys = authority_keys(&keystore, &base_path, node_key_file, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should have succeeded");
         println!("{}", keys_json);
@@ -325,7 +321,7 @@ pub struct PurgeBackupCmd {
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
         let backup_path = backup_path(
-            self.node_params.base_path().path(),
+            self.node_params.base_path().as_path(),
             self.node_params.backup_dir(),
         );
 
