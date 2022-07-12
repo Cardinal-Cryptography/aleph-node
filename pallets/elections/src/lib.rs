@@ -311,15 +311,27 @@ pub mod pallet {
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
 
-        // The elections are PoA so only the nodes listed in the Validators will be elected as validators.
-        // We calculate the supports for them for the sake of eras payouts.
+        /// The elections are PoA so only the nodes listed in the Validators will be elected as
+        /// validators. It applies except `NextEraReservedValidators`, which are chosen no matter
+        /// their stake nor support.
+        ///
+        /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            let voters =
-                Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
-            let validators = NextEraReservedValidators::<T>::get()
+            let staking_validators = Self::DataProvider::electable_targets(None)
+                .map_err(Self::Error::DataProvider)?
                 .into_iter()
-                .chain(NextEraNonReservedValidators::<T>::get().into_iter());
-            let mut supports: BTreeMap<_, _> = validators
+                .collect::<BTreeSet<_>>();
+            let reserved_validators: BTreeSet<_> = NextEraReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+            let nonreserved_validators: BTreeSet<_> = NextEraNonReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+
+            let eligible_validators =
+                &(&staking_validators & &nonreserved_validators) | &reserved_validators;
+            let mut supports = eligible_validators
+                .into_iter()
                 .map(|id| {
                     (
                         id,
@@ -329,10 +341,13 @@ pub mod pallet {
                         },
                     )
                 })
-                .collect();
+                .collect::<BTreeMap<_, _>>();
 
+            let voters =
+                Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
             for (voter, vote, targets) in voters {
-                // The parameter Staking::MAX_NOMINATIONS is set to 1 which guarantees that len(targets) == 1
+                // The parameter `Staking::MAX_NOMINATIONS` is set to 1 which guarantees that
+                // `len(targets) == 1`.
                 let member = &targets[0];
                 if let Some(support) = supports.get_mut(member) {
                     support.total += vote as u128;
