@@ -142,6 +142,22 @@ jobs:
         timeout-minutes: 2
 
 
+  run-e2e-rewards-disable-node-test:
+    needs: [build-test-docker, build-test-client]
+    name: Run e2e reward points - disable node test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: rewards_disable_node
+          follow-up-finalization-check: true
+        timeout-minutes: 10
+
+
   run-e2e-token-transfer-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e token transfer test
@@ -308,9 +324,40 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
+  run-e2e-rewards-force-new-era:
+    needs: [build-test-docker, build-test-client]
+    name: Run force new era test to check rewards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: rewards_force_new_era
+          follow-up-finalization-check: true
+        timeout-minutes: 10
+  
+  run-e2e-rewards-stake-change:
+    needs: [build-test-docker, build-test-client]
+    name: Run reward points with stake changed test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: rewards_stake_change
+          follow-up-finalization-check: true
+        timeout-minutes: 10
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
+      run-e2e-rewards-disable-node-test,
       run-e2e-token-transfer-test,
       run-e2e-channeling-fee-test,
       run-e2e-treasury-access-test,
@@ -321,7 +368,9 @@ jobs:
       run-e2e-fee-calculation,
       run-e2e-validators-rotate,
       run-e2e-era-payout,
-      run-e2e-era-validators
+      run-e2e-era-validators,
+      run-e2e-rewards-force-new-era,
+      run-e2e-rewards-stake-change
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-latest
@@ -378,11 +427,13 @@ jobs:
 
       - name: Push aleph-node Current Image to Public ECR
         env:
-          CURRENT_IMAGE: aleph-node:latest
-          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.sha_short }}
+          CURRENT_IMAGE: aleph-node
+          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
         run: |
-          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
-          docker push ${{ env.ECR_PUSH_IMAGE }}
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
+          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
 
   check-runtime-change-if-PR:
     name: Inspect whether runtime version has been changed
