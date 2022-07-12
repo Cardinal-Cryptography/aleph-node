@@ -138,7 +138,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 
     for session in start_era_session..end_era_session {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let non_reserved_bench = non_reserved_members
+        let members_bench = non_reserved_members
             .clone()
             .into_iter()
             .filter(|account_id| !non_reserved_for_session.contains(account_id))
@@ -148,7 +148,6 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
             .into_iter()
             .chain(non_reserved_for_session)
             .collect::<Vec<_>>();
-        let members_bench = non_reserved_bench;
 
         check_points(
             &connection,
