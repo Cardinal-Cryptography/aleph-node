@@ -324,16 +324,12 @@ pub mod pallet {
             let reserved_validators: BTreeSet<_> = NextEraReservedValidators::<T>::get()
                 .into_iter()
                 .collect::<BTreeSet<_>>();
-            let nonreserved_validators: BTreeSet<_> = NextEraNonReservedValidators::<T>::get()
+            let non_reserved_validators: BTreeSet<_> = NextEraNonReservedValidators::<T>::get()
                 .into_iter()
                 .collect::<BTreeSet<_>>();
 
             let eligible_validators =
-                &(&staking_validators & &nonreserved_validators) | &reserved_validators;
-            println!("{:?}", staking_validators);
-            println!("{:?}", reserved_validators);
-            println!("{:?}", nonreserved_validators);
-            println!("{:?}", eligible_validators);
+                &(&staking_validators & &non_reserved_validators) | &reserved_validators;
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
