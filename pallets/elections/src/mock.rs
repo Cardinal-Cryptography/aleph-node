@@ -11,7 +11,7 @@ use sp_runtime::{
     traits::IdentityLookup,
 };
 use sp_staking::{EraIndex, SessionIndex};
-use sp_std::collections::btree_set::BTreeSet;
+use sp_std::{cell::RefCell, collections::btree_set::BTreeSet};
 
 use super::*;
 use crate as pallet_elections;
@@ -144,6 +144,12 @@ impl Config for Test {
 }
 
 type AccountIdBoundedVec = BoundedVec<AccountId, ()>;
+type Vote = (AccountId, VoteWeight, AccountIdBoundedVec);
+
+thread_local! {
+    static ELECTABLE_TARGETS: RefCell<Vec<AccountId>> = RefCell::new(Default::default());
+    static ELECTING_VOTERS: RefCell<Vec<Vote>> = RefCell::new(Default::default());
+}
 
 pub struct StakingMock;
 impl ElectionDataProvider for StakingMock {
@@ -152,13 +158,11 @@ impl ElectionDataProvider for StakingMock {
     type MaxVotesPerVoter = ();
 
     fn electable_targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
-        Ok(Vec::new())
+        ELECTABLE_TARGETS.with(|et| Ok(et.borrow().clone())).into()
     }
 
-    fn electing_voters(
-        _maybe_max_len: Option<usize>,
-    ) -> data_provider::Result<Vec<(AccountId, VoteWeight, AccountIdBoundedVec)>> {
-        Ok(Vec::new())
+    fn electing_voters(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<Vote>> {
+        ELECTING_VOTERS.with(|ev| Ok(ev.borrow().clone())).into()
     }
 
     fn desired_targets() -> data_provider::Result<u32> {
