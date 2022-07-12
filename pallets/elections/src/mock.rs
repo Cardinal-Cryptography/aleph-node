@@ -2,7 +2,9 @@
 
 use frame_election_provider_support::{data_provider, ElectionDataProvider, VoteWeight};
 use frame_support::{
-    construct_runtime, parameter_types, sp_io, traits::GenesisBuild, weights::RuntimeDbWeight,
+    construct_runtime, parameter_types, sp_io,
+    traits::{ConstU32, GenesisBuild},
+    weights::RuntimeDbWeight,
     BoundedVec,
 };
 use sp_core::H256;
@@ -33,6 +35,7 @@ construct_runtime!(
 );
 
 pub(crate) type AccountId = u64;
+pub(crate) type Balance = u128;
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -62,7 +65,7 @@ impl frame_system::Config for Test {
     type DbWeight = TestDbWeight;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u128>;
+    type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
@@ -72,11 +75,11 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 1;
+    pub const ExistentialDeposit: Balance = 1;
 }
 
 impl pallet_balances::Config for Test {
-    type Balance = u128;
+    type Balance = Balance;
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
     type DustRemoval = ();
@@ -108,7 +111,9 @@ impl SessionInfoProvider<Test> for MockProvider {
 }
 
 impl ValidatorRewardsHandler<Test> for MockProvider {
-    fn validator_totals(_era: EraIndex) -> Vec<(<Test as frame_system::Config>::AccountId, u128)> {
+    fn validator_totals(
+        _era: EraIndex,
+    ) -> Vec<(<Test as frame_system::Config>::AccountId, Balance)> {
         todo!()
     }
 
@@ -143,7 +148,8 @@ impl Config for Test {
     type ValidatorRewardsHandler = MockProvider;
 }
 
-type AccountIdBoundedVec = BoundedVec<AccountId, ()>;
+type MaxVotesPerVoter = ConstU32<1>;
+type AccountIdBoundedVec = BoundedVec<AccountId, MaxVotesPerVoter>;
 type Vote = (AccountId, VoteWeight, AccountIdBoundedVec);
 
 thread_local! {
@@ -151,11 +157,19 @@ thread_local! {
     static ELECTING_VOTERS: RefCell<Vec<Vote>> = RefCell::new(Default::default());
 }
 
+pub fn with_electable_targets(targets: Vec<AccountId>) {
+    ELECTABLE_TARGETS.with(|et| *et.borrow_mut() = targets);
+}
+
+pub fn with_electing_voters(voters: Vec<Vote>) {
+    ELECTING_VOTERS.with(|ev| *ev.borrow_mut() = voters);
+}
+
 pub struct StakingMock;
 impl ElectionDataProvider for StakingMock {
     type AccountId = AccountId;
     type BlockNumber = u64;
-    type MaxVotesPerVoter = ();
+    type MaxVotesPerVoter = MaxVotesPerVoter;
 
     fn electable_targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
         ELECTABLE_TARGETS.with(|et| Ok(et.borrow().clone())).into()

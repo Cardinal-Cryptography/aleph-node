@@ -330,6 +330,10 @@ pub mod pallet {
 
             let eligible_validators =
                 &(&staking_validators & &nonreserved_validators) | &reserved_validators;
+            println!("{:?}", staking_validators);
+            println!("{:?}", reserved_validators);
+            println!("{:?}", nonreserved_validators);
+            println!("{:?}", eligible_validators);
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
