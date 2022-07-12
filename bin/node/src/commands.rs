@@ -10,10 +10,7 @@ use clap::{Args, Parser};
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams};
 use sc_keystore::LocalKeystore;
-use sc_service::{
-    config::KeystoreConfig,
-    DatabaseSource,
-};
+use sc_service::{config::KeystoreConfig, DatabaseSource};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_keystore::SyncCryptoStore;
@@ -40,7 +37,9 @@ pub struct NodeParams {
 }
 
 impl NodeParams {
-    pub fn base_path(&self) -> &PathBuf { &self.base_path }
+    pub fn base_path(&self) -> &PathBuf {
+        &self.base_path
+    }
 
     pub fn node_key_file(&self) -> &str {
         &self.node_key_file
@@ -181,8 +180,7 @@ impl BootstrapChainCmd {
                 let account_base_path = base_path.join(account_id.to_string());
                 let chain_id = self.chain_params.chain_id();
                 bootstrap_backup(&account_base_path.as_path(), backup_dir);
-                let keystore =
-                    open_keystore(&self.keystore_params, chain_id, &account_base_path);
+                let keystore = open_keystore(&self.keystore_params, chain_id, &account_base_path);
                 authority_keys(&keystore, &account_base_path, node_key_file, account_id)
             })
             .collect();
