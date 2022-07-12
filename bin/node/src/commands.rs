@@ -319,10 +319,7 @@ pub struct PurgeBackupCmd {
 
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let backup_path = backup_path(
-            self.node_params.base_path(),
-            self.node_params.backup_dir(),
-        );
+        let backup_path = backup_path(self.node_params.base_path(), self.node_params.backup_dir());
 
         if !self.yes {
             print!(
