@@ -439,7 +439,7 @@ where
         }
     }
 
-    pub async fn catch_up(&mut self) -> SessionId {
+    async fn catch_up(&mut self) -> SessionId {
         let mut finalized_number = self.client.info().finalized_number;
         let mut previous_finalized_number = None;
         while self.block_requester.is_major_syncing()
