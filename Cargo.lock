@@ -84,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f23e3343cb5ea7caadb0907d793d4022c4c0e136b79f39f1559528382060e6b1"
+checksum = "50d30768abf90a58635398266936de1e1bbbe013afd847bce53abe260eb6ce92"
 dependencies = [
  "aleph-bft-rmc",
  "aleph-bft-types",
@@ -94,6 +94,7 @@ dependencies = [
  "derivative",
  "futures",
  "futures-timer",
+ "itertools",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -102,9 +103,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-crypto"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f311b780dbe4dd2675c91d987c785b11a8c765eeb5c163ca192b45e5a11cc915"
+checksum = "ba414eaabb61c300a93267e7d07133a960fc417df394086da804b032ead6b715"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -115,9 +116,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-rmc"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65a4b8bed5caa463c6eb3ca760676d7367988a802b1ea4f8383b3d668aac3f2c"
+checksum = "92107eb3361c4d94b63f4234f314b5816d768c9bb55ae00bfb0fba348ff56740"
 dependencies = [
  "aleph-bft-crypto",
  "async-trait",
@@ -129,9 +130,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-types"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b201a6923a748250a58f9c0164027715d5a8821b770eb902feedb4538a81bb7"
+checksum = "f9d7f162204b57b446b1acef9688ad35dc3b299f22e70f2fc627a317cab9a93e"
 dependencies = [
  "aleph-bft-crypto",
  "async-trait",
@@ -188,6 +189,7 @@ dependencies = [
  "sp-transaction-pool",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "try-runtime-cli",
 ]
 
 [[package]]
@@ -198,6 +200,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
  "pallet-aleph",
  "pallet-aura",
  "pallet-authorship",
@@ -1970,6 +1973,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame-try-runtime"
+version = "0.10.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23#2d85168534f2981a92dfbae78cfa9e48f32c6bfc"
+dependencies = [
+ "frame-support",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "fs-swap"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2631,8 +2645,30 @@ dependencies = [
  "jsonrpsee-http-server",
  "jsonrpsee-proc-macros",
  "jsonrpsee-types",
+ "jsonrpsee-ws-client",
  "jsonrpsee-ws-server",
  "tracing",
+]
+
+[[package]]
+name = "jsonrpsee-client-transport"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26d682f4a55081a2be3e639280c640523070e4aeb8ee2fd8dd9168fdae57a9db"
+dependencies = [
+ "futures-util",
+ "http",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
+ "pin-project 1.0.10",
+ "rustls-native-certs",
+ "soketto",
+ "thiserror",
+ "tokio",
+ "tokio-rustls",
+ "tokio-util",
+ "tracing",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -2643,9 +2679,11 @@ checksum = "6e27462b21279edf9a6a91f46ffbe125e9cdc58b901d2e08bf59b31a47d7d0ab"
 dependencies = [
  "anyhow",
  "arrayvec 0.7.2",
+ "async-lock",
  "async-trait",
  "beef",
  "futures-channel",
+ "futures-timer",
  "futures-util",
  "hyper",
  "jsonrpsee-types",
@@ -2703,6 +2741,17 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "jsonrpsee-ws-client"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76f15180afb3761c7a3a32c0a8b680788176dcfdfe725b24c1758c90b1d1595b"
+dependencies = [
+ "jsonrpsee-client-transport",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
 ]
 
 [[package]]
@@ -5174,6 +5223,23 @@ dependencies = [
  "libc",
  "mach",
  "winapi",
+]
+
+[[package]]
+name = "remote-externalities"
+version = "0.10.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23#2d85168534f2981a92dfbae78cfa9e48f32c6bfc"
+dependencies = [
+ "env_logger",
+ "jsonrpsee",
+ "log",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-version",
 ]
 
 [[package]]
@@ -7932,6 +7998,31 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
+
+[[package]]
+name = "try-runtime-cli"
+version = "0.10.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23#2d85168534f2981a92dfbae78cfa9e48f32c6bfc"
+dependencies = [
+ "clap",
+ "jsonrpsee",
+ "log",
+ "parity-scale-codec",
+ "remote-externalities",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-executor",
+ "sc-service",
+ "serde",
+ "sp-core",
+ "sp-externalities",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-version",
+ "zstd",
+]
 
 [[package]]
 name = "tt-call"
