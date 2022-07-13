@@ -248,13 +248,14 @@ mod back_to_the_future {
             self.data.button_lifetime = button_lifetime;
             self.data.button_token = button_token;
 
-            let event = Event::ButtonCreated(ButtonCreated {
-                start: now,
-                deadline,
-                button_token,
-            });
-
-            Self::emit_event(Self::env(), event)
+            Self::emit_event(
+                Self::env(),
+                Event::ButtonCreated(ButtonCreated {
+                    start: now,
+                    deadline,
+                    button_token,
+                }),
+            )
         }
 
         fn emit_event<EE>(emitter: EE, event: Event)
@@ -267,7 +268,7 @@ mod back_to_the_future {
         /// Returns own code hash
         #[ink(message)]
         pub fn code_hash(&self) -> Result<Hash> {
-            Self::env().own_code_hash().map_err(|why| {
+            self.env().own_code_hash().map_err(|why| {
                 Error::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
             })
         }

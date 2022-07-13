@@ -88,10 +88,10 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 cd $CONTRACTS_PATH/button_token
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4561726C79426972645370656369616C)
 EARLY_BIRD_SPECIAL_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-echo "button token contract instance address" $EARLY_BIRD_SPECIAL_TOKEN
+echo "EarlyBirdSpecial token contract instance address" $EARLY_BIRD_SPECIAL_TOKEN
 
 ## --- GRANT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL TOKEN CONTRACT
 
@@ -173,10 +173,10 @@ cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButton
 
 cd $CONTRACTS_PATH/button_token
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED)
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4261636B546F546865467574757265)
 BACK_TO_THE_FUTURE_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-echo "button token contract instance address" $BACK_TO_THE_FUTURE_TOKEN
+echo "BackToTheFuture token contract instance address" $BACK_TO_THE_FUTURE_TOKEN
 
 ## --- GRANT PRIVILEDGES ON THE BACK_TO_THE_FUTURE TOKEN CONTRACT
 
