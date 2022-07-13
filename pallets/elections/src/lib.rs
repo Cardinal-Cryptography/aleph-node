@@ -20,7 +20,7 @@ mod traits;
 
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
-pub use impls::compute_validator_scaled_total_rewards;
+pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_std::{
@@ -122,6 +122,28 @@ pub mod pallet {
                     }
                 }
         }
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
+            match on_chain {
+                _ if on_chain == STORAGE_VERSION => Ok(()),
+                _ if on_chain == StorageVersion::new(0) => {
+                    migrations::v0_to_v1::pre_upgrade::<T, Self>()
+                }
+                _ if on_chain == StorageVersion::new(1) => {
+                    migrations::v1_to_v2::pre_upgrade::<T, Self>()
+                }
+                _ => Err("Bad storage version"),
+            }
+        }
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
+            match on_chain {
+                _ if on_chain == STORAGE_VERSION => migrations::v1_to_v2::post_upgrade::<T, Self>(),
+                _ => Err("Bad storage version"),
+            }
+        }
     }
     /// Desirable size of a committee.
     ///
@@ -130,6 +152,18 @@ pub mod pallet {
     /// reserved validators
     #[pallet::storage]
     pub type CommitteeSize<T> = StorageValue<_, u32, ValueQuery>;
+
+    #[pallet::type_value]
+    pub fn DefaultNextEraCommitteeSize<T: Config>() -> u32 {
+        CommitteeSize::<T>::get()
+    }
+
+    /// Desired size of a committee in effect from a new era.
+    ///
+    /// can be changed via `change_validators` call that requires sudo.
+    #[pallet::storage]
+    pub type NextEraCommitteeSize<T> =
+        StorageValue<_, u32, ValueQuery, DefaultNextEraCommitteeSize<T>>;
 
     /// List of reserved validators in force from a new era.
     ///
@@ -173,7 +207,7 @@ pub mod pallet {
             committee_size: Option<u32>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            let committee_size = committee_size.unwrap_or_else(CommitteeSize::<T>::get);
+            let committee_size = committee_size.unwrap_or_else(NextEraCommitteeSize::<T>::get);
             let reserved_validators =
                 reserved_validators.unwrap_or_else(NextEraReservedValidators::<T>::get);
             let non_reserved_validators =
@@ -187,7 +221,7 @@ pub mod pallet {
 
             NextEraNonReservedValidators::<T>::put(non_reserved_validators.clone());
             NextEraReservedValidators::<T>::put(reserved_validators.clone());
-            CommitteeSize::<T>::put(committee_size);
+            NextEraCommitteeSize::<T>::put(committee_size);
 
             Self::deposit_event(Event::ChangeValidators(
                 reserved_validators,
@@ -220,9 +254,9 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <NextEraNonReservedValidators<T>>::put(&self.reserved_validators);
+            <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
             <CommitteeSize<T>>::put(&self.committee_size);
-            <NextEraReservedValidators<T>>::put(&self.non_reserved_validators);
+            <NextEraReservedValidators<T>>::put(&self.reserved_validators);
         }
     }
 
