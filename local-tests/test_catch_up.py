@@ -22,7 +22,8 @@ chain.bootstrap(binary,
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local')
 
-chain.set_flags(port=Seq(30334),
+chain.set_flags('no-mdns',
+                port=Seq(30334),
                 ws_port=Seq(9944),
                 rpc_port=Seq(9933),
                 unit_creation_delay=200,
@@ -36,34 +37,34 @@ chain.set_flags_validator('validator')
 print('Starting the chain')
 chain.start('aleph')
 
-print('Waiting 90s')
-sleep(90)
+print('Waiting for finalization')
+chain.wait(0)
 
-finalized_before_kill_per_node = check_finalized(chain)
 print('Killing one validator and one nonvalidator')
-
 chain[3].stop()
 chain[4].stop()
+finalized_before_kill = check_finalized(chain)
 
 print('waiting around 2 sessions')
 sleep(30 * 2)
 
-print('restarting nodes')
-finalized_before_start_per_node = check_finalized(chain)
+finalized_before_start = check_finalized(chain)
 
 # Check if the finalization didn't stop after a kill.
-if finalized_before_start_per_node[0] - finalized_before_kill_per_node[0] < 10:
+if finalized_before_start[0] - finalized_before_kill[0] < 10:
     print('Finalization stalled')
     sys.exit(1)
 
+print('restarting nodes')
 chain.start('aleph', nodes=[3, 4])
+chain.wait(max(finalized_before_start))
 
-print('waiting 45s for catch up')
-sleep(45)
-finalized_after_catch_up_per_node = check_finalized(chain)
+finalized_after = check_finalized(chain)
 
-nonvalidator_diff = finalized_after_catch_up_per_node[4] - finalized_before_start_per_node[4]
-validator_diff = finalized_after_catch_up_per_node[3] - finalized_before_start_per_node[3]
+nonvalidator_diff = finalized_after[4] - finalized_before_start[4]
+validator_diff = finalized_after[3] - finalized_before_start[3]
+
+chain.stop()
 
 ALLOWED_DELTA = 5
 

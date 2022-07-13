@@ -178,3 +178,23 @@ class Chain:
         cmd = [check_file(cliain_path), '--node', f'localhost:{port}', '--seed', sudo_phrase,
                 'update-runtime', '--runtime', check_file(runtime)]
         subprocess.run(cmd, check=True)
+
+    def wait(self, old_finalized, nodes=None, catchup=True, timeout=300, finalized_delta=3, catchup_delta=10):
+        """Wait for finalization to catch up with the newest blocks."""
+        nodes = [self.nodes[i] for i in nodes] if nodes else self.nodes
+        deadline = time.time() + timeout
+        while any((n.highest_block()[1] <= old_finalized + finalized_delta) for n in nodes):
+            time.sleep(5)
+            if time.time() > deadline:
+                raise TimeoutError(f'Block finalization stalled after {timeout} seconds')
+
+        if catchup:
+            def lags(node):
+                r, f = node.highest_block()
+                return r - f > catchup_delta
+            while any(lags(n) for n in nodes):
+                time.sleep(5)
+                if time.time() > deadline:
+                    print(f'Finalization restored, but failed to catch up with recent blocks within {timeout} seconds')
+                    break
+
