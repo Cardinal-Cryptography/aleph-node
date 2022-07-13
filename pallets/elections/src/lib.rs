@@ -48,7 +48,7 @@ impl<AccountId> Default for EraValidators<AccountId> {
     }
 }
 
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq)]
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CommitteeSeats {
     pub reserved_seats: u32,
     pub non_reserved_seats: u32,
@@ -57,15 +57,6 @@ pub struct CommitteeSeats {
 impl CommitteeSeats {
     fn size(&self) -> u32 {
         self.reserved_seats.saturating_add(self.non_reserved_seats)
-    }
-}
-
-impl Default for CommitteeSeats {
-    fn default() -> Self {
-        Self {
-            reserved_seats: 0,
-            non_reserved_seats: 0,
-        }
     }
 }
 
