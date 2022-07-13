@@ -316,10 +316,10 @@ pub trait ButtonGame {
     }
 }
 
-/// contract trait definition
+/// Contract trait definition
 ///
-/// This trait defines the game API
-/// You get default concrete implementations by impl ButtonGame trait for the game contract
+/// This trait defines the game's API
+/// You will get default implementations of the mathcing methods by impl ButtonGame trait for the game contract
 #[ink::trait_definition]
 pub trait IButtonGame {
     /// Button press logic
