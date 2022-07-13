@@ -2,6 +2,7 @@ import os
 import os.path as op
 import shutil
 import subprocess
+import time
 
 from .node import Node
 from .utils import flags_from_dict, check_file
@@ -32,8 +33,8 @@ class Chain:
         return iter(self.nodes)
 
     def bootstrap(self, binary, validators, nonvalidators=None, raw=True, **kwargs):
-        """Bootstrap the chain. `validator_accounts` should be a list of strings.
-        Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
+        """Bootstrap the chain. `validators` and `nonvalidators` should be lists of strings
+        with public keys. Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
         nonvalidators = nonvalidators or []
         cmd = [check_file(binary),
@@ -55,15 +56,9 @@ class Chain:
                    '--account-id', nv]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
-        def account_to_node(account):
-            n = Node(binary, chainspec, op.join(self.path, account), self.path)
-            n.flags['node-key-file'] = op.join(self.path, account, 'p2p_secret')
-            n.flags['backup_path'] = op.join(self.path, account, 'backup-stash')
-            n.flags['enable-log-reloading'] = True
-            return n
-
-        self.validator_nodes = [account_to_node(a) for a in validators]
-        self.nonvalidator_nodes = [account_to_node(a) for a in nonvalidators]
+        new_node = lambda x: Node(binary, chainspec, op.join(self.path, x), self.path)
+        self.validator_nodes = [new_node(a) for a in validators]
+        self.nonvalidator_nodes = [new_node(a) for a in nonvalidators]
 
         self.nodes = self.validator_nodes + self.nonvalidator_nodes
 
@@ -141,13 +136,13 @@ class Chain:
         for i in idx:
             self.nodes[i].set_log_level(target, level)
 
-    def start(self, name, nodes=None):
+    def start(self, name, nodes=None, backup=True):
         """Start the chain. `name` will be used to name logfiles: name0.log, name1.log etc.
         Optional `nodes` argument can be used to specify which nodes are affected and should be
         a list of integer indices (0..N-1). Affects all nodes if omitted."""
         idx = nodes or range(len(self.nodes))
         for i in idx:
-            self.nodes[i].start(name + str(i))
+            self.nodes[i].start(name + str(i), backup)
 
     def stop(self, nodes=None):
         """Stop the chain. Optional `nodes` argument can be used to specify which nodes are affected

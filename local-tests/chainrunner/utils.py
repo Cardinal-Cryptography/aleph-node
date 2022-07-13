@@ -53,6 +53,7 @@ def check_finalized(nodes):
 
     return finalized
 
+
 def check_version(nodes, verbose=False):
     """Query given nodes for aleph-node (host) version and runtime version.
     Print the summary to the standard output and return the runtime version.
@@ -61,7 +62,8 @@ def check_version(nodes, verbose=False):
     for i, node in enumerate(nodes):
         sysver = node.rpc('system_version').result
         resp = node.rpc('state_getRuntimeVersion')
-        if verbose: print(resp)
+        if verbose:
+            print(resp)
         if isinstance(resp, jsonrpcclient.Ok):
             rt = resp.result['specVersion']
             versions.add(rt)

@@ -25,12 +25,18 @@ class Node:
         self.flags = {}
         self.running = False
 
-    def _stdargs(self):
-        return ['--base-path', self.path, '--chain', self.chainspec]
+    def _stdargs(self, backup):
+        res = ['--base-path', self.path,
+               '--chain', self.chainspec,
+               '--node-key-file', op.join(self.path, 'p2p_secret'),
+               '--enable-log-reloading']
+        if backup:
+            res += ['--backup-path', op.join(self.path, 'backup-stash')]
+        return res
 
-    def start(self, name):
-        """Start the node. `name` is used to name of the logfile and for --name flag."""
-        cmd = [self.binary, '--name', name] + self._stdargs() + flags_from_dict(self.flags)
+    def start(self, name, backup=True):
+        """Start the node. `name` is used to name the logfile and for --name flag."""
+        cmd = [self.binary, '--name', name] + self._stdargs(backup) + flags_from_dict(self.flags)
 
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
