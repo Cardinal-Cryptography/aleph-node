@@ -73,7 +73,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         connection.read_storage_value("Elections", "NextEraNonReservedValidators");
 
     let committee_size_after: CommitteeSeats =
-        connection.read_storage_value("Elections", "CommitteeSize");
+        connection.read_storage_value("Elections", "NextEraCommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",

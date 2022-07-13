@@ -246,7 +246,6 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
-    const VALIDATORS_PER_SESSION: u32 = 4;
 
     let node = &config.node;
     let accounts = get_validators_keys(config);
@@ -269,7 +268,10 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(VALIDATORS_PER_SESSION),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::Finalized,
     );
 
