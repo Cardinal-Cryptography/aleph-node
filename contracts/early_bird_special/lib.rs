@@ -2,7 +2,7 @@
 
 use ink_lang as ink;
 
-/// This is EarlyBirdSpecial
+/// This is the EarlyBirdSpecial
 ///
 /// Larger rewards are distributed for engaging in the game as early on as possible:
 /// user_score = deadline - now

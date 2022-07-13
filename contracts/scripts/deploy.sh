@@ -4,8 +4,6 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
-source $(pwd)/.github/scripts/assert.sh
-
 function link_bytecode() {
   local CONTRACT=$1
   local PLACEHOLDER=$2

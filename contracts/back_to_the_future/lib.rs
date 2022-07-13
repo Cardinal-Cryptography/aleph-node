@@ -2,7 +2,7 @@
 
 use ink_lang as ink;
 
-/// This is BackToTheFuture
+/// This is the BackToTheFuture
 ///
 /// Larger rewards are distributed for postponing playing for as long as possible, but without letting TheButton die:
 /// user_score = now - start
