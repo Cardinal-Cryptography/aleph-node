@@ -334,6 +334,12 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Change stake and force new era: checks if reward points are calculated properly
+/// in a scenario in which stakes are changed for each validator, and then a new era is forced.
+///
+/// Expected behaviour: until the next (forced) era, rewards are calculated using old stakes,
+/// and after two sessions (required for a new era to be forced) they are adjusted to the new
+/// stakes.
 pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;
