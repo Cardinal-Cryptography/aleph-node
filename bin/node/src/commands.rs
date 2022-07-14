@@ -99,7 +99,11 @@ fn backup_path(base_path: &Path, backup_dir: &str) -> PathBuf {
     base_path.join(backup_dir)
 }
 
-fn open_keystore(keystore_params: &KeystoreParams, chain_id: &str, base_path: &BasePath) -> impl SyncCryptoStore {
+fn open_keystore(
+    keystore_params: &KeystoreParams,
+    chain_id: &str,
+    base_path: &BasePath,
+) -> impl SyncCryptoStore {
     let config_dir = base_path.config_dir(chain_id);
     match keystore_params
         .keystore_config(&config_dir)
