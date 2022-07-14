@@ -1,10 +1,10 @@
 import json
+import jsonrpcclient
 import os.path as op
 import re
+import requests
 import subprocess
 
-import jsonrpcclient as rpc
-import requests
 
 from .utils import flags_from_dict
 
@@ -117,8 +117,8 @@ class Node:
             print("cannot RPC because node is not running")
             return None
         port = self.rpc_port()
-        resp = requests.post(f'http://localhost:{port}/', json=rpc.request(method, params))
-        return rpc.parse(resp.json())
+        resp = requests.post(f'http://localhost:{port}/', json=jsonrpcclient.request(method, params))
+        return jsonrpcclient.parse(resp.json())
 
     def set_log_level(self, target, level):
         """Change log verbosity of the chosen target.
