@@ -142,7 +142,7 @@ fn check_points_after_force_new_era(
             .chain(non_reserved_members_for_session);
 
         check_points(
-            &connection,
+            connection,
             session_to_check,
             era_to_check,
             members_active,
