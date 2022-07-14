@@ -5,7 +5,7 @@ use aleph_client::{
     RootConnection, SignedConnection,
 };
 use log::info;
-use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
+use primitives::{staking::MIN_VALIDATOR_BOND, Balance, EraIndex, SessionIndex, TOKEN};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
@@ -105,6 +105,52 @@ fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>
             );
         },
     );
+}
+
+fn check_points_after_force_new_era(
+    config: &Config,
+    connection: &SignedConnection,
+    start_session: SessionIndex,
+    start_era: EraIndex,
+    reserved_members: Vec<AccountId>,
+    non_reserved_members: Vec<AccountId>,
+    max_relative_difference: f64,
+) -> anyhow::Result<()> {
+    // Once a new era is forced in session k, the new era does not come into effect until session
+    // k + 2; we test points:
+    // 1) immediately following the call in session k,
+    // 2) in the interim session k + 1,
+    // 3) in session k + 2, the first session of the new era.
+    for idx in 0..3 {
+        let session_to_check = start_session + idx;
+        let era_to_check = start_era + idx / 2;
+
+        info!(
+            "Testing points | era: {}, session: {}",
+            era_to_check, session_to_check
+        );
+
+        let non_reserved_members_for_session =
+            get_non_reserved_members_for_session(config, session_to_check);
+        let members_bench = get_bench_members(
+            non_reserved_members.clone(),
+            &non_reserved_members_for_session,
+        );
+        let members_active = reserved_members
+            .clone()
+            .into_iter()
+            .chain(non_reserved_members_for_session);
+
+        check_points(
+            &connection,
+            session_to_check,
+            era_to_check,
+            members_active,
+            members_bench,
+            max_relative_difference,
+        )?;
+    }
+    Ok(())
 }
 
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
@@ -267,41 +313,15 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
         current_era, current_session
     );
 
-    // Once a new era is forced in session k, the new era does not come into effect until session
-    // k + 2; we test points:
-    // 1) immediately following the call in session k,
-    // 2) in the interim session k + 1,
-    // 3) in session k + 2, the first session of the new era.
-    for idx in 0..3 {
-        let session_to_check = start_session + idx;
-        let era_to_check = start_era + idx / 2;
-
-        info!(
-            "Testing points | era: {}, session: {}",
-            era_to_check, session_to_check
-        );
-
-        let non_reserved_members_for_session =
-            get_non_reserved_members_for_session(config, session_to_check);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_members_for_session,
-        );
-        let members_active = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_members_for_session);
-
-        check_points(
-            &connection,
-            session_to_check,
-            era_to_check,
-            members_active,
-            members_bench,
-            MAX_DIFFERENCE,
-        )?;
-    }
-
+    check_points_after_force_new_era(
+        config,
+        &connection,
+        start_session,
+        start_era,
+        reserved_members,
+        non_reserved_members,
+        MAX_DIFFERENCE,
+    )?;
     Ok(())
 }
 
@@ -346,40 +366,14 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
         current_era, current_session
     );
 
-    // Once a new era is forced in session k, the new era does not come into effect until session
-    // k + 2; we test points:
-    // 1) immediately following the call in session k,
-    // 2) in the interim session k + 1,
-    // 3) in session k + 2, the first session of the new era.
-    for idx in 0..3 {
-        let session_to_check = start_session + idx;
-        let era_to_check = start_era + idx / 2;
-
-        info!(
-            "Testing points | era: {}, session: {}",
-            era_to_check, session_to_check
-        );
-
-        let non_reserved_members_for_session =
-            get_non_reserved_members_for_session(config, session_to_check);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_members_for_session,
-        );
-        let members_active = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_members_for_session);
-
-        check_points(
-            &connection,
-            session_to_check,
-            era_to_check,
-            members_active,
-            members_bench,
-            MAX_DIFFERENCE,
-        )?;
-    }
-
+    check_points_after_force_new_era(
+        config,
+        &connection,
+        start_session,
+        start_era,
+        reserved_members,
+        non_reserved_members,
+        MAX_DIFFERENCE,
+    )?;
     Ok(())
 }
