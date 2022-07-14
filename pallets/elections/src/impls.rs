@@ -68,17 +68,17 @@ pub fn compute_validator_scaled_total_rewards<V>(
         .collect()
 }
 
-fn choose_for_session<T: Clone>(l: Vec<T>, count: usize, session: usize) -> Option<Vec<T>> {
-    if l.is_empty() || count == 0 {
+fn choose_for_session<T: Clone>(validators: Vec<T>, count: usize, session: usize) -> Option<Vec<T>> {
+    if validators.is_empty() || count == 0 {
         return None;
     }
 
-    let l_len = l.len();
-    let first_index = session.saturating_mul(count) % l_len;
+    let validators_len = validators.len();
+    let first_index = session.saturating_mul(count) % validators_len;
     let mut chosen = Vec::new();
 
     for i in 0..count {
-        chosen.push(l[first_index.saturating_add(i) % l_len].clone());
+        chosen.push(validators[first_index.saturating_add(i) % validators_len].clone());
     }
 
     Some(chosen)
