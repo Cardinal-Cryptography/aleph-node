@@ -52,7 +52,7 @@ class Node:
     def purge(self):
         """Purge chain (delete the database of the node)."""
         cmd = [self.binary, 'purge-chain', '-y'] + self._stdargs()
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
+        subprocess.run(cmd, stdout=subprocess.DEVNULL)
 
     def rpc_port(self):
         """Return RPC port for this node. The value is taken from `flags` dictionary.
@@ -80,12 +80,18 @@ class Node:
 
     def highest_block(self):
         """Find in the logs the height of the most recent block.
-        Returns two ints: highest block and highest finalized block."""
+        Return two ints: highest block and highest finalized block."""
         results = self.greplog(r'best: #(\d+) .+ finalized #(\d+)')
         if results:
             a, b = results[-1]
             return int(a), int(b)
         return -1, -1
+
+    def check_authorities(self):
+        """Find in the logs the number of authorities this node is connected to.
+        Return bool indicating if it's connected to all know authorities."""
+        grep = self.greplog(r'(\d+)/(\d+) authorities known for session')
+        return grep[-1][0] == grep[-1][1] if grep else False
 
     def get_hash(self, height):
         """Find the hash of the block with the given height. Requires the node to be running."""

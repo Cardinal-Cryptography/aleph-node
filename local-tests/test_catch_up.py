@@ -39,6 +39,8 @@ chain.start('aleph')
 
 print('Waiting for finalization')
 chain.wait_for_finalization(0)
+print('Waiting for authorities')
+chain.wait_for_authorities()
 
 print('Killing one validator and one nonvalidator')
 chain[3].stop()
@@ -63,8 +65,6 @@ finalized_after = check_finalized(chain)
 
 nonvalidator_diff = finalized_after[4] - finalized_before_start[4]
 validator_diff = finalized_after[3] - finalized_before_start[3]
-
-chain.stop()
 
 ALLOWED_DELTA = 5
 

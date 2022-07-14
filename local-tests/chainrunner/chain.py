@@ -203,3 +203,12 @@ class Chain:
                     print(f'Finalization restored, but failed to catch up with recent blocks within {timeout} seconds')
                     break
 
+    def wait_for_authorities(self, nodes=None, timeout=300):
+        """Wait for the selected `nodes` (all validator nodes if None) to connect to all known authorities.
+        If not successful within the given `timeout` (in seconds), raise TimeoutError."""
+        nodes = [self.nodes[i] for i in nodes] if nodes else self.validator_nodes
+        deadline = time.time() + timeout
+        while not all(n.check_authorities() for n in nodes):
+            time.sleep(5)
+            if time.time() > deadline:
+                raise TimeoutError(f'Failed to connect to all authorities after {timeout} seconds')
