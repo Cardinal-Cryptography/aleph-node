@@ -286,6 +286,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
+    const VALIDATORS_PER_SESSION: u32 = 4;
 
     let node = &config.node;
     let accounts = get_validators_keys(config);
@@ -296,6 +297,14 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     let root_connection = RootConnection::new(node, sudo);
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
+
+    change_validators(
+        &root_connection,
+        Some(reserved_members.clone()),
+        Some(non_reserved_members.clone()),
+        Some(VALIDATORS_PER_SESSION),
+        XtStatus::Finalized,
+    );
 
     wait_for_full_era_completion(&connection)?;
 
