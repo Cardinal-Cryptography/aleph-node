@@ -10,7 +10,10 @@ use clap::{Args, Parser};
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams};
 use sc_keystore::LocalKeystore;
-use sc_service::{config::KeystoreConfig, DatabaseSource};
+use sc_service::{
+    config::{BasePath, KeystoreConfig},
+    DatabaseSource,
+};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_keystore::SyncCryptoStore;
@@ -21,9 +24,8 @@ use crate::chain_spec::{
 
 #[derive(Debug, Args, Clone)]
 pub struct NodeParams {
-    /// Specify custom base path
-    /// For all commands except `bootstrap-chain` it is of the form: some_path/account_id/
-    /// `bootstrap-chain` expects the form: some_path/
+    /// For `bootstrap-node` and `purge-chain` it works with this directory as base.
+    /// For `bootstrap-chain` the base path is appended with an account id for each node.
     #[clap(long, short = 'd', value_name = "PATH", parse(from_os_str))]
     base_path: PathBuf,
 
@@ -32,13 +34,14 @@ pub struct NodeParams {
     #[clap(long, default_value = "p2p_secret")]
     node_key_file: String,
 
+    /// Directory under which AlephBFT backup is stored
     #[clap(long, default_value = "backup-stash")]
     backup_dir: String,
 }
 
 impl NodeParams {
-    pub fn base_path(&self) -> &Path {
-        &self.base_path
+    pub fn base_path(&self) -> BasePath {
+        self.base_path.clone().into()
     }
 
     pub fn node_key_file(&self) -> &str {
@@ -96,12 +99,8 @@ fn backup_path(base_path: &Path, backup_dir: &str) -> PathBuf {
     base_path.join(backup_dir)
 }
 
-fn open_keystore(
-    keystore_params: &KeystoreParams,
-    chain_id: &str,
-    base_path: &Path,
-) -> impl SyncCryptoStore {
-    let config_dir = base_path.join("chains").join(chain_id);
+fn open_keystore(keystore_params: &KeystoreParams, chain_id: &str, base_path: &BasePath) -> impl SyncCryptoStore {
+    let config_dir = base_path.config_dir(chain_id);
     match keystore_params
         .keystore_config(&config_dir)
         .expect("keystore configuration should be available")
@@ -166,23 +165,28 @@ pub struct BootstrapChainCmd {
     pub node_params: NodeParams,
 }
 
+/// Assumes an input path: some_path/, which is appended to finally become: some_path/account_id
 impl BootstrapChainCmd {
     pub fn run(&self) -> Result<(), Error> {
-        // Assume path: some_path/
         let base_path = self.node_params.base_path();
         let backup_dir = self.node_params.backup_dir();
         let node_key_file = self.node_params.node_key_file();
+        let chain_id = self.chain_params.chain_id();
         let genesis_authorities = self
             .chain_params
             .account_ids()
             .iter()
             .map(|account_id| {
-                let base_path_with_account = base_path.join(account_id.to_string());
-                let account_base_path = base_path_with_account.as_path();
-                let chain_id = self.chain_params.chain_id();
-                bootstrap_backup(account_base_path, backup_dir);
-                let keystore = open_keystore(&self.keystore_params, chain_id, account_base_path);
-                authority_keys(&keystore, account_base_path, node_key_file, account_id)
+                let account_base_path: BasePath =
+                    base_path.path().join(account_id.to_string()).into();
+                bootstrap_backup(account_base_path.path(), backup_dir);
+                let keystore = open_keystore(&self.keystore_params, chain_id, &account_base_path);
+                authority_keys(
+                    &keystore,
+                    account_base_path.path(),
+                    node_key_file,
+                    account_id,
+                )
             })
             .collect();
 
@@ -222,20 +226,20 @@ pub struct BootstrapNodeCmd {
     pub node_params: NodeParams,
 }
 
+/// Assumes an input path: some_path/account_id/, which is not appended with an account id
 impl BootstrapNodeCmd {
     pub fn run(&self) -> Result<(), Error> {
-        // Assume path: some_path/account_id/
         let base_path = self.node_params.base_path();
         let backup_dir = self.node_params.backup_dir();
         let node_key_file = self.node_params.node_key_file();
-        let chain_id = self.chain_params.chain_id();
 
-        bootstrap_backup(base_path, backup_dir);
-        let keystore = open_keystore(&self.keystore_params, chain_id, base_path);
+        bootstrap_backup(base_path.path(), backup_dir);
+        let chain_id = self.chain_params.chain_id();
+        let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
 
         // Does not rely on the account id in the path
         let account_id = &self.account_id();
-        let authority_keys = authority_keys(&keystore, base_path, node_key_file, account_id);
+        let authority_keys = authority_keys(&keystore, base_path.path(), node_key_file, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should have succeeded");
         println!("{}", keys_json);
@@ -319,7 +323,10 @@ pub struct PurgeBackupCmd {
 
 impl PurgeBackupCmd {
     pub fn run(&self) -> Result<(), Error> {
-        let backup_path = backup_path(self.node_params.base_path(), self.node_params.backup_dir());
+        let backup_path = backup_path(
+            self.node_params.base_path().path(),
+            self.node_params.backup_dir(),
+        );
 
         if !self.yes {
             print!(
