@@ -26,6 +26,7 @@ use crate::{
 };
 
 mod aggregation;
+mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;

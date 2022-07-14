@@ -7,12 +7,10 @@ use aleph_bft::{PartialMultisignature, SignatureSet};
 use codec::{Decode, DecodeAll, Encode, Error as CodecError, Input as CodecInput};
 
 use crate::{
+    compatibility::{encode_with_version, ByteCount, Version},
     crypto::{Signature, SignatureV1},
     justification::AlephJustification,
 };
-
-type Version = u16;
-type ByteCount = u16;
 
 /// Old format of justifications, needed for backwards compatibility.
 /// Used an old format of signature which unnecessarily contained the signer ID.
@@ -42,17 +40,6 @@ enum VersionedAlephJustification {
     Other(Version, Vec<u8>),
     V1(AlephJustificationV1),
     V2(AlephJustification),
-}
-
-fn encode_with_version(version: Version, mut payload: Vec<u8>) -> Vec<u8> {
-    let mut result = version.encode();
-    // This will produce rubbish if we ever try encodings that have more than u16::MAX bytes. We
-    // expect this won't happen, since we will switch to proper multisignatures before proofs get
-    // that big.
-    let num_bytes = payload.len() as ByteCount;
-    result.append(&mut num_bytes.encode());
-    result.append(&mut payload);
-    result
 }
 
 impl Encode for VersionedAlephJustification {
