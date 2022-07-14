@@ -81,3 +81,49 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
 
     T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
 }
+
+#[cfg(feature = "try-runtime")]
+pub fn pre_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str> {
+    if StorageVersion::get::<P>() == StorageVersion::new(2) {
+        Ok(())
+    } else {
+        Err("Bad storage version")
+    }
+}
+
+#[cfg(feature = "try-runtime")]
+pub fn post_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str> {
+    if let Some(CommitteeSeats { reserved_seats, .. }) = CommitteeSize::get() {
+        if let Some(EraValidators { reserved, .. }) = CurrentEraValidators::<T>::get() {
+            assert_eq!(
+                reserved.len(),
+                reserved_seats as usize,
+                "Reserved seats should be set to reserved set size"
+            );
+        } else {
+            return Err("No era validators present");
+        }
+    } else {
+        return Err("CommitteeSize storage empty");
+    }
+
+    if let Some(CommitteeSeats { reserved_seats, .. }) = NextEraCommitteeSize::get() {
+        if let Some(reserved) = NextEraReservedValidators::<T>::get() {
+            assert_eq!(
+                reserved.len(),
+                reserved_seats as usize,
+                "Reserved seats should be set to reserved set size"
+            );
+        } else {
+            return Err("No next era validators present");
+        }
+    } else {
+        return Err("NextEraCommitteeSize storage empty");
+    }
+
+    if StorageVersion::get::<P>() == StorageVersion::new(3) {
+        Ok(())
+    } else {
+        Err("Bad storage version")
+    }
+}
