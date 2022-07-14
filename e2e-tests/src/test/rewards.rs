@@ -128,21 +128,20 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 
     let sessions_per_era = get_sessions_per_era(&connection);
     let era = wait_for_next_era(&root_connection)?;
-    let start_era_session = era * sessions_per_era;
-    let end_era_session = sessions_per_era * wait_for_next_era(&root_connection)?;
+    let start_new_era_session = era * sessions_per_era;
+    let end_new_era_session = sessions_per_era * wait_for_next_era(&root_connection)?;
 
     info!(
         "Checking rewards for sessions {}..{}.",
-        start_era_session, end_era_session
+        start_new_era_session, end_new_era_session
     );
 
-    for session in start_era_session..end_era_session {
+    for session in start_new_era_session..end_new_era_session {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let members_bench = non_reserved_members
-            .clone()
-            .into_iter()
-            .filter(|account_id| !non_reserved_for_session.contains(account_id))
-            .collect::<Vec<_>>();
+        let members_bench = get_bench_members(
+            non_reserved_members.clone(),
+            &non_reserved_for_session,
+        );
         let members = reserved_members
             .clone()
             .into_iter()
