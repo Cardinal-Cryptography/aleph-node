@@ -138,10 +138,8 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 
     for session in start_new_era_session..end_new_era_session {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_for_session,
-        );
+        let members_bench =
+            get_bench_members(non_reserved_members.clone(), &non_reserved_for_session);
         let members = reserved_members
             .clone()
             .into_iter()
