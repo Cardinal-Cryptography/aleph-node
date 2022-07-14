@@ -68,7 +68,11 @@ pub fn compute_validator_scaled_total_rewards<V>(
         .collect()
 }
 
-fn choose_for_session<T: Clone>(validators: Vec<T>, count: usize, session: usize) -> Option<Vec<T>> {
+fn choose_for_session<T: Clone>(
+    validators: Vec<T>,
+    count: usize,
+    session: usize,
+) -> Option<Vec<T>> {
     if validators.is_empty() || count == 0 {
         return None;
     }
