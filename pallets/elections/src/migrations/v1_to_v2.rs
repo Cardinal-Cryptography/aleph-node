@@ -77,7 +77,6 @@ pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
     T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
 }
 
-#[allow(dead_code)]
 #[cfg(feature = "try-runtime")]
 pub fn pre_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str> {
     match MembersPerSession::get() {
@@ -104,6 +103,7 @@ pub fn pre_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str>
     }
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "try-runtime")]
 pub fn post_upgrade<T: Config, P: PalletInfoAccess>() -> Result<(), &'static str> {
     match CommitteeSize::get() {
