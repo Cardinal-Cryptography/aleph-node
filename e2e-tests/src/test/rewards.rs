@@ -14,6 +14,11 @@ use crate::{
     Config,
 };
 
+// Maximum difference between fractions of total reward that a validator gets.
+// Two values are compared: one calculated in tests and the other one based on data
+// retrieved from pallet Staking.
+const MAX_DIFFERENCE: f64 = 0.07;
+
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
 }
@@ -154,8 +159,6 @@ fn check_points_after_force_new_era(
 }
 
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
-
     let node = &config.node;
     let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
@@ -222,7 +225,6 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 }
 
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;
 
     let root_connection = config.create_root_connection();
@@ -285,7 +287,6 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 }
 
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;
 
     let node = &config.node;
@@ -341,7 +342,6 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 /// and after two sessions (required for a new era to be forced) they are adjusted to the new
 /// stakes.
 pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;
 
     let node = &config.node;
