@@ -38,7 +38,7 @@ print('Starting the chain')
 chain.start('aleph')
 
 print('Waiting for finalization')
-chain.wait(0)
+chain.wait_for_finalization(0)
 
 print('Killing one validator and one nonvalidator')
 chain[3].stop()
@@ -57,7 +57,7 @@ if finalized_before_start[0] - finalized_before_kill[0] < 10:
 
 print('restarting nodes')
 chain.start('aleph', nodes=[3, 4])
-chain.wait(max(finalized_before_start))
+chain.wait_for_finalization(max(finalized_before_start))
 
 finalized_after = check_finalized(chain)
 

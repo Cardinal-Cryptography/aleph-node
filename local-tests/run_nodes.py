@@ -44,7 +44,7 @@ print('Starting the chain')
 chain.start('node')
 
 print('Waiting for finalization')
-chain.wait(0)
+chain.wait_for_finalization(0)
 
 check_finalized(chain)
 

@@ -179,15 +179,20 @@ class Chain:
                 'update-runtime', '--runtime', check_file(runtime)]
         subprocess.run(cmd, check=True)
 
-    def wait(self, old_finalized, nodes=None, catchup=True, timeout=300, finalized_delta=3, catchup_delta=10):
-        """Wait for finalization to catch up with the newest blocks."""
+    def wait_for_finalization(self, old_finalized, nodes=None, timeout=300, finalized_delta=3, catchup=True, catchup_delta=10):
+        """Wait for finalization to catch up with the newest blocks. Requires providing the number
+        of the last finalized block, which will be used as a reference against recently finalized blocks.
+        The finalization is considered "recovered" when all provided `nodes` (all nodes if None)
+        have seen a finalized block higher than `old_finalized` + `finalized_delta`.
+        If `catchup` is True, wait until finalization catches up with the newly produced blocks
+        (within `catchup_delta` blocks). 'timeout' (in seconds) is a global timeout for the whole method
+        to execute. Raise TimeoutError if finalization fails to recover within the given timeout."""
         nodes = [self.nodes[i] for i in nodes] if nodes else self.nodes
         deadline = time.time() + timeout
         while any((n.highest_block()[1] <= old_finalized + finalized_delta) for n in nodes):
             time.sleep(5)
             if time.time() > deadline:
                 raise TimeoutError(f'Block finalization stalled after {timeout} seconds')
-
         if catchup:
             def lags(node):
                 r, f = node.highest_block()
