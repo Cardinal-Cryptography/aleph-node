@@ -3,7 +3,6 @@ name = "fork-off"
 version = "1.3.0"
 edition = "2021"
 license = "Apache 2.0"
-license-file = "./LICENSE"
 
 [dependencies]
 anyhow = "1.0"

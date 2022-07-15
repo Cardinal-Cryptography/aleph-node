@@ -5,8 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 homepage = "https://alephzero.org"
 repository = "https://github.com/aleph-zero-foundation/aleph-node"
-license = "GNU GPL 3.0"
-license-file = "./LICENSE"
+license = "GPL-3.0-or-later"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
