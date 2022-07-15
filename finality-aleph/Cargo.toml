@@ -3,6 +3,8 @@ name = "finality-aleph"
 version = "0.4.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
+license = "Apache 2.0"
+license-file = "./LICENSE"
 
 [dependencies]
 aleph-bft = "0.15.0"
