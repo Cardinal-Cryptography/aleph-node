@@ -5,6 +5,7 @@ pub use account::{get_free_balance, locks};
 pub use balances::total_issuance;
 use codec::{Decode, Encode};
 pub use debug::print_storages;
+pub use elections::{get_committee_size, get_validator_block_count};
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 use log::{info, warn};
 pub use multisig::{
@@ -51,6 +52,7 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod balances;
 mod debug;
+mod elections;
 mod fee;
 mod multisig;
 mod rpc;

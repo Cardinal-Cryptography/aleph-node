@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash,
-    get_current_session, get_era_reward_points, get_exposure, get_session_period, rotate_keys,
-    send_xt, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
-    RewardPoint, SessionKeys, SignedConnection,
+    get_committee_size, get_current_session, get_era_reward_points, get_exposure,
+    get_session_period, get_validator_block_count, rotate_keys, send_xt, set_keys,
+    wait_for_at_least_session, wait_for_finalized_block, AnyConnection, RewardPoint, SessionKeys,
+    SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
@@ -112,20 +113,16 @@ fn check_rewards(
 
 fn get_node_performance(
     connection: &SignedConnection,
-    account_id: AccountId,
+    account_id: &AccountId,
     before_end_of_session_block_hash: H256,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
-    let block_count: u32 = connection
-        .as_connection()
-        .get_storage_map(
-            "Elections",
-            "SessionValidatorBlockCount",
-            account_id.clone(),
-            Some(before_end_of_session_block_hash),
-        )
-        .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
-        .unwrap_or(0);
+    let block_count = get_validator_block_count(
+        connection,
+        account_id,
+        Some(before_end_of_session_block_hash),
+    )
+    .unwrap_or(0);
     info!(
         "Block count for validator {} is {:?}, block hash is {}.",
         account_id, block_count, before_end_of_session_block_hash
@@ -167,15 +164,7 @@ pub fn check_points(
     let before_end_of_session_block_hash = get_block_hash(connection, end_of_session_block - 1);
     info!("End-of-session block hash: {}.", end_of_session_block_hash);
 
-    let members_per_session: u32 = connection
-        .as_connection()
-        .get_storage_value(
-            "Elections",
-            "CommitteeSize",
-            Some(beggining_of_session_block_hash),
-        )
-        .expect("Failed to decode CommitteeSize extrinsic!")
-        .unwrap_or_else(|| panic!("Failed to obtain CommitteeSize for session {}.", session));
+    let members_per_session = get_committee_size(connection, Some(beggining_of_session_block_hash));
 
     info!("Members per session: {}.", members_per_session);
 
@@ -218,7 +207,7 @@ pub fn check_points(
             account_id.clone(),
             get_node_performance(
                 connection,
-                account_id,
+                &account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
