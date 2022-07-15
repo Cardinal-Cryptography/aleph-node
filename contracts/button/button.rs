@@ -1,3 +1,5 @@
+use core::mem::swap;
+
 use access_control::{traits::AccessControlled, Role};
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
@@ -19,6 +21,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     /// Returned if given account already pressed The Button
     AlreadyParticipated,
+    /// Returned if death is called before the deadline
+    BeforeDeadline,
     /// Returned if button is pressed after the deadline
     AfterDeadline,
     /// Account not whitelisted to play
@@ -77,7 +81,7 @@ impl From<InkEnvError> for Error {
 }
 
 /// Game contracts storage
-#[derive(Debug, SpreadLayout, SpreadAllocate)]
+#[derive(Debug, SpreadLayout, SpreadAllocate, Default)]
 #[cfg_attr(
     feature = "std",
     derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
@@ -268,51 +272,68 @@ pub trait ButtonGame {
 
         let score = self.score(now);
 
-        self.get_mut().presses.insert(&caller, &score);
-        self.get_mut().press_accounts.push(caller);
-        self.get_mut().last_presser = Some(caller);
-        self.get_mut().last_press = now;
-        self.get_mut().total_scores += score;
+        let root_key = ::ink_primitives::Key::from([0x00; 32]);
+        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
+
+        state.presses.insert(&caller, &score);
+        state.press_accounts.push(caller);
+        state.last_presser = Some(caller);
+        state.last_press = now;
+        state.total_scores += score;
+        swap(self.get_mut(), &mut state);
 
         Ok(())
     }
 
+    /// Distibutes awards to the participants
+    /// Can only be called after button's deadline
+    ///
+    /// Will return an Error if called before the deadline
     fn death(
         &self,
+        now: u32,
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
         this: AccountId,
     ) -> Result<()> {
-        let ButtonData {
-            total_scores,
-            last_presser,
-            press_accounts,
-            presses,
-            ..
-        } = self.get();
+        if self.is_dead(now) {
+            let ButtonData {
+                total_scores,
+                last_presser,
+                press_accounts,
+                presses,
+                ..
+            } = self.get();
 
-        let total_balance = self.balance(balance_of_selector, this)?;
+            // if there were any players
+            if last_presser.is_some() {
+                let total_balance = self.balance(balance_of_selector, this)?;
 
-        // Pressiah gets 50% of supply
-        let pressiah_reward = total_balance / 2;
-        if let Some(pressiah) = last_presser {
-            self.transfer_tx(transfer_selector, *pressiah, pressiah_reward)?;
-        }
-
-        let remaining_balance = total_balance - pressiah_reward;
-        // rewards are distributed to the participants proportionally to their score
-        let _ = press_accounts
-            .iter()
-            .try_for_each(|account_id| -> Result<()> {
-                if let Some(score) = presses.get(account_id) {
-                    let reward = (score as u128 * remaining_balance) / *total_scores as u128;
-                    // transfer amount
-                    return Ok(self.transfer_tx(transfer_selector, *account_id, reward)?);
+                // Pressiah gets 50% of supply
+                let pressiah_reward = total_balance / 2;
+                if let Some(pressiah) = last_presser {
+                    self.transfer_tx(transfer_selector, *pressiah, pressiah_reward)?;
                 }
-                Ok(())
-            });
 
-        Ok(())
+                let remaining_balance = total_balance - pressiah_reward;
+                // rewards are distributed to the participants proportionally to their score
+                let _ = press_accounts
+                    .iter()
+                    .try_for_each(|account_id| -> Result<()> {
+                        if let Some(score) = presses.get(account_id) {
+                            let reward =
+                                (score as u128 * remaining_balance) / *total_scores as u128;
+                            // transfer amount
+                            return Ok(self.transfer_tx(transfer_selector, *account_id, reward)?);
+                        }
+                        Ok(())
+                    });
+            }
+
+            Ok(())
+        } else {
+            Err(Error::BeforeDeadline)
+        }
     }
 }
 
@@ -393,7 +414,7 @@ pub trait IButtonGame {
 
     /// Terminates the contract
     ///
-    /// Should only be called by the contract Owner    
+    /// Should only be called by the contract Owner
     #[ink(message)]
     fn terminate(&mut self) -> Result<()>;
 }

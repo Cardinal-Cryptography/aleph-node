@@ -115,7 +115,8 @@ mod back_to_the_future {
         #[ink(message)]
         fn death(&self) -> Result<()> {
             let this = self.env().account_id();
-            ButtonGame::death(self, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, this)?;
+            let now = Self::env().block_number();
+            ButtonGame::death(self, now, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, this)?;
             Self::emit_event(self.env(), Event::ButtonDeath(ButtonDeath {}));
             Ok(())
         }
