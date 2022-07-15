@@ -69,7 +69,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Something that provides information about ongoing eras.
-        type EraInfoProvider: EraInfoProvider;
+        type EraInfoProvider: EraInfoProvider<AccountId = Self::AccountId>;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         /// Something that provides data for elections.
         type DataProvider: ElectionDataProvider<

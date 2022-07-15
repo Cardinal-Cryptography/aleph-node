@@ -100,6 +100,7 @@ where
 
 parameter_types! {
     pub const SessionPeriod: u32 = 5;
+    pub const SessionsPerEra: u32 = 5;
 }
 
 pub struct MockProvider;
@@ -124,17 +125,36 @@ impl ValidatorRewardsHandler<Test> for MockProvider {
     }
 }
 
+thread_local! {
+    static ACTIVE_ERA: RefCell<EraIndex> = RefCell::new(Default::default());
+    static ELECTED_VALIDATORS: RefCell<BTreeMap<EraIndex, Vec<AccountId>>> = RefCell::new(Default::default());
+}
+
+pub fn with_active_era(era: EraIndex) {
+    ACTIVE_ERA.with(|ae| *ae.borrow_mut() = era);
+}
+
+pub fn with_elected_validators(era: EraIndex, validators: Vec<AccountId>) {
+    ELECTED_VALIDATORS.with(|ev| *ev.borrow_mut() = BTreeMap::from_iter([(era, validators)]));
+}
+
 impl EraInfoProvider for MockProvider {
+    type AccountId = AccountId;
+
     fn active_era() -> Option<EraIndex> {
-        todo!()
+        Some(ACTIVE_ERA.with(|ae| ae.borrow().clone()))
     }
 
-    fn era_start_session_index(_era: EraIndex) -> Option<SessionIndex> {
-        todo!()
+    fn era_start_session_index(era: EraIndex) -> Option<SessionIndex> {
+        Some(era * SessionsPerEra::get())
     }
 
     fn sessions_per_era() -> SessionIndex {
         todo!()
+    }
+
+    fn elected_validators(era: EraIndex) -> Vec<Self::AccountId> {
+        ELECTED_VALIDATORS.with(|ev| ev.borrow().get(&era).unwrap().clone())
     }
 }
 
