@@ -50,7 +50,7 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 
 # Development
 
-Firstly bootstrap a one-node chain based on our `smartnet` chain:
+Firstly bootstrap a one-node  `smartnet` chain:
 
 ```bash
  ./.github/scripts/run_smartnet.sh
@@ -64,9 +64,9 @@ Secondly `deploy` script takes care of compiling, deploying and interacting with
 
 Specifically it will:
 - deploy the ERC20 token contract
-- deploy the game contract
+- deploy the game contracts
+- set access control
 - transfer token balance to the game contract
-- whitelist some accounts for playing the game
-- interact with the game from the whitelisted account
-- wait past the game deadline, trigger game end and reward distribution
-- run an assert (simple check whether Pressiah received his reward according to the scheme). No more assertions are implemented at this point, as the hope is to soon start writing Rust-based tools for deployment and interacting with the contracts.
+- whitelist some accounts for playing the games
+- interact with the games from the whitelisted accounts
+- wait past the game deadline, trigger the game end and reward distribution

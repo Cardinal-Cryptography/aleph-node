@@ -76,7 +76,6 @@ mod back_to_the_future {
         type ContractError = Error;
     }
 
-    // default concrete implementations
     impl ButtonGame for BackToTheFuture {
         fn get(&self) -> &ButtonData {
             &self.data

@@ -8,7 +8,6 @@ use ink_lang as ink;
 /// user_score = deadline - now
 /// On the other hand ThePressiah (the last player to click) gets 50% of the token pool, which creates two competing strategies.
 
-// #[ink::contract]
 #[ink::contract(env = button::button::ButtonGameEnvironment)]
 mod early_bird_special {
 
@@ -63,7 +62,7 @@ mod early_bird_special {
         when: BlockNumber,
     }
 
-    /// Even emitted when button's death is triggered
+    /// Event emitted when button's death is triggered
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonDeath {}
@@ -78,7 +77,6 @@ mod early_bird_special {
         type ContractError = Error;
     }
 
-    // default concrete implementations
     impl ButtonGame for EarlyBirdSpecial {
         fn get(&self) -> &ButtonData {
             &self.data
