@@ -97,19 +97,23 @@ where
         number: NumberFor<B>,
     ) -> RpcResult<()> {
         let justification: AlephJustification =
-            AlephJustification::EmergencySignature(justification
-                .try_into()
-                .map_err(|_| Error::MalformattedJustificationArg(
+            AlephJustification::EmergencySignature(justification.try_into().map_err(|_| {
+                Error::MalformattedJustificationArg(
                     "Provided justification cannot be converted into correct type".into(),
-                ))?);
+                )
+            })?);
         self.import_justification_tx
             .unbounded_send(JustificationNotification {
                 justification,
                 hash,
                 number,
             })
-            .map_err(|_| Error::FailedJustificationSend(
-                "AlephNodeApiServer failed to send JustifictionNotification via its channel".into(),
-            ).into())
+            .map_err(|_| {
+                Error::FailedJustificationSend(
+                    "AlephNodeApiServer failed to send JustifictionNotification via its channel"
+                        .into(),
+                )
+                .into()
+            })
     }
 }
