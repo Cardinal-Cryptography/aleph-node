@@ -3,7 +3,7 @@ use core::mem::swap;
 use access_control::{traits::AccessControlled, Role};
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Error as InkEnvError,
+    AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
 };
 use ink_lang as ink;
 use ink_prelude::{format, string::String, vec::Vec};
@@ -172,9 +172,12 @@ pub trait ButtonGame {
         Ok(self.get().button_token)
     }
 
-    fn balance(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance> {
+    fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance>
+    where
+        E: Environment<AccountId = AccountId>,
+    {
         let button_token = self.get().button_token;
-        let balance = build_call::<DefaultEnvironment>()
+        let balance = build_call::<E>()
             .call_type(Call::new().callee(button_token))
             .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
             .returns::<Balance>()
@@ -186,7 +189,7 @@ pub trait ButtonGame {
         &self,
         transfer_to_selector: [u8; 4],
         to: AccountId,
-        value: u128,
+        value: Balance,
     ) -> core::result::Result<(), InkEnvError> {
         build_call::<DefaultEnvironment>()
             .call_type(Call::new().callee(self.get().button_token))
@@ -289,13 +292,16 @@ pub trait ButtonGame {
     /// Can only be called after button's deadline
     ///
     /// Will return an Error if called before the deadline
-    fn death(
+    fn death<E>(
         &self,
         now: u32,
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
         this: AccountId,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        E: Environment<AccountId = AccountId>,
+    {
         if self.is_dead(now) {
             let ButtonData {
                 total_scores,
@@ -307,7 +313,7 @@ pub trait ButtonGame {
 
             // if there were any players
             if last_presser.is_some() {
-                let total_balance = self.balance(balance_of_selector, this)?;
+                let total_balance = self.balance::<E>(balance_of_selector, this)?;
 
                 // Pressiah gets 50% of supply
                 let pressiah_reward = total_balance / 2;

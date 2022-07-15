@@ -14,7 +14,7 @@ mod early_bird_special {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-    use ink_env::Error as InkEnvError;
+    use ink_env::{DefaultEnvironment, Error as InkEnvError};
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
@@ -118,7 +118,13 @@ mod early_bird_special {
         fn death(&self) -> Result<()> {
             let this = self.env().account_id();
             let now = Self::env().block_number();
-            ButtonGame::death(self, now, BALANCE_OF_SELECTOR, TRANSFER_SELECTOR, this)?;
+            ButtonGame::death::<DefaultEnvironment>(
+                self,
+                now,
+                BALANCE_OF_SELECTOR,
+                TRANSFER_SELECTOR,
+                this,
+            )?;
             Self::emit_event(self.env(), Event::ButtonDeath(ButtonDeath {}));
             Ok(())
         }
@@ -156,7 +162,7 @@ mod early_bird_special {
         #[ink(message)]
         fn balance(&self) -> Result<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance(self, BALANCE_OF_SELECTOR, this)
+            ButtonGame::balance::<DefaultEnvironment>(self, BALANCE_OF_SELECTOR, this)
         }
 
         #[ink(message)]
