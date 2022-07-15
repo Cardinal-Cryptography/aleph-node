@@ -3,7 +3,7 @@ pub use era_validators::era_validators;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
 pub use rewards::{
-    change_stake_and_force_new_era, disable_node, force_new_era, points_stake_change,
+    change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
 };
 pub use staking::{staking_era_payouts, staking_new_validator};
 pub use transfer::token_transfer;
