@@ -37,7 +37,7 @@ score = now - start
 
 The Pressiah gets 50% of the total reward pool.
 
-## Yellow Button
+## ThePressiahCometh
 
 Game continues in perpetuity (but in practice as long as there are accounts that can still play it)
 - In each iteration of the game TheButton lives for a number of blocks
