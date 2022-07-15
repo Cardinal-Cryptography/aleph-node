@@ -3,10 +3,11 @@ use std::env;
 use aleph_client::{keypair_from_string, print_storages, SignedConnection};
 use clap::Parser;
 use cliain::{
-    bond, call, set_emergency_finalizer, finalize, change_validators, force_new_era, instantiate, instantiate_with_code, nominate,
-    prepare_keys, prompt_password_hidden, remove_code, rotate_keys, set_keys, set_staking_limits,
-    transfer, treasury_approve, treasury_propose, treasury_reject, update_runtime, upload_code,
-    validate, vest, vest_other, vested_transfer, Command, ConnectionConfig,
+    bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
+    nominate, prepare_keys, prompt_password_hidden, remove_code, rotate_keys,
+    set_emergency_finalizer, set_keys, set_staking_limits, transfer, treasury_approve,
+    treasury_propose, treasury_reject, update_runtime, upload_code, validate, vest, vest_other,
+    vested_transfer, Command, ConnectionConfig,
 };
 use log::{error, info};
 use sp_core::Pair;
@@ -60,14 +61,8 @@ fn main() {
             controller_account,
             initial_stake_tokens,
         } => bond(cfg.into(), initial_stake_tokens, controller_account),
-        Command::Finalize {
-            key,
-            block,
-            hash
-        } => finalize(cfg.into(), block, hash, key),
-        Command::SetEmergencyFinalizer {
-            key,
-        } => set_emergency_finalizer(cfg.into(), key),
+        Command::Finalize { key, block, hash } => finalize(cfg.into(), block, hash, key),
+        Command::SetEmergencyFinalizer { key } => set_emergency_finalizer(cfg.into(), key),
         Command::SetKeys { new_keys } => set_keys(cfg.into(), new_keys),
         Command::Validate {
             commission_percentage,

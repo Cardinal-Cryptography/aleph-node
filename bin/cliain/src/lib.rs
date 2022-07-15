@@ -13,7 +13,7 @@ mod vesting;
 use aleph_client::{keypair_from_string, RootConnection, SignedConnection};
 pub use commands::Command;
 pub use contracts::{call, instantiate, instantiate_with_code, remove_code, upload_code};
-pub use finalization::{set_emergency_finalizer, finalize};
+pub use finalization::{finalize, set_emergency_finalizer};
 pub use keys::{prepare_keys, rotate_keys, set_keys};
 pub use runtime::update_runtime;
 pub use secret::prompt_password_hidden;

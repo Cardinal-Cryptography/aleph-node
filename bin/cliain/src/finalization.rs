@@ -1,15 +1,19 @@
+use std::str::FromStr;
+
 use aleph_client::{
-    BlockNumber, SignedConnection, BlockHash, emergency_finalize, finalization_set_emergency_finalizer,
+    emergency_finalize, finalization_set_emergency_finalizer, BlockHash, BlockNumber,
+    SignedConnection,
 };
 use sp_core::{ed25519, Pair};
 use substrate_api_client::XtStatus;
-use std::str::FromStr;
 
 use crate::RootConnection;
 
 /// Sets the emergency finalized, the provided string should be the key phrase of the desired finalizer.
 pub fn set_emergency_finalizer(connection: RootConnection, finalizer: String) {
-    let finalizer = ed25519::Pair::from_string(&finalizer, None).expect("Can parse key as ed25519").public();
+    let finalizer = ed25519::Pair::from_string(&finalizer, None)
+        .expect("Can parse key as ed25519")
+        .public();
     finalization_set_emergency_finalizer(&connection, finalizer.into(), XtStatus::Finalized)
 }
 
