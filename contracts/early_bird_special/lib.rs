@@ -8,13 +8,16 @@ use ink_lang as ink;
 /// user_score = deadline - now
 /// On the other hand ThePressiah (the last player to click) gets 50% of the token pool, which creates two competing strategies.
 
-#[ink::contract]
+// #[ink::contract]
+#[ink::contract(env = button::button::ButtonGameEnvironment)]
 mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result, Score};
+    use button::button::{
+        ButtonData, ButtonGame, ButtonGameEnvironment, Error, IButtonGame, Result, Score,
+    };
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-    use ink_env::{DefaultEnvironment, Error as InkEnvError};
+    use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
@@ -118,7 +121,7 @@ mod early_bird_special {
         fn death(&self) -> Result<()> {
             let this = self.env().account_id();
             let now = Self::env().block_number();
-            ButtonGame::death::<DefaultEnvironment>(
+            ButtonGame::death::<ButtonGameEnvironment>(
                 self,
                 now,
                 BALANCE_OF_SELECTOR,
@@ -162,7 +165,7 @@ mod early_bird_special {
         #[ink(message)]
         fn balance(&self) -> Result<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance::<DefaultEnvironment>(self, BALANCE_OF_SELECTOR, this)
+            ButtonGame::balance::<ButtonGameEnvironment>(self, BALANCE_OF_SELECTOR, this)
         }
 
         #[ink(message)]

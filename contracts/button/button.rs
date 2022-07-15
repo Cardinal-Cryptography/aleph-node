@@ -12,11 +12,24 @@ use ink_storage::{
     Mapping,
 };
 
-pub type BlockNumber = <DefaultEnvironment as ink_env::Environment>::BlockNumber;
+pub type BlockNumber = <ButtonGameEnvironment as ink_env::Environment>::BlockNumber;
 // scores are denominated in block numbers
 pub type Score = BlockNumber;
-pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
+pub type Balance = <ButtonGameEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
+
+pub enum ButtonGameEnvironment {}
+
+impl Environment for ButtonGameEnvironment {
+    const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
+
+    type AccountId = <DefaultEnvironment as Environment>::AccountId;
+    type Balance = <DefaultEnvironment as Environment>::Balance;
+    type Hash = <DefaultEnvironment as Environment>::Hash;
+    type BlockNumber = u64;
+    type Timestamp = <DefaultEnvironment as Environment>::Timestamp;
+    type ChainExtension = <DefaultEnvironment as Environment>::ChainExtension;
+}
 
 /// Error types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
