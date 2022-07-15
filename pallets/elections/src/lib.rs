@@ -312,8 +312,7 @@ pub mod pallet {
         type DataProvider = T::DataProvider;
 
         /// The elections are PoA so only the nodes listed in the Validators will be elected as
-        /// validators. It applies except `NextEraReservedValidators`, which are chosen no matter
-        /// their stake nor support.
+        /// validators.
         ///
         /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
@@ -321,15 +320,15 @@ pub mod pallet {
                 .map_err(Self::Error::DataProvider)?
                 .into_iter()
                 .collect::<BTreeSet<_>>();
-            let reserved_validators: BTreeSet<_> = NextEraReservedValidators::<T>::get()
+            let reserved_validators = NextEraReservedValidators::<T>::get()
                 .into_iter()
                 .collect::<BTreeSet<_>>();
-            let non_reserved_validators: BTreeSet<_> = NextEraNonReservedValidators::<T>::get()
+            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
                 .into_iter()
                 .collect::<BTreeSet<_>>();
 
             let eligible_validators =
-                &(&staking_validators & &non_reserved_validators) | &reserved_validators;
+                &(&reserved_validators | &non_reserved_validators) & &staking_validators;
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
