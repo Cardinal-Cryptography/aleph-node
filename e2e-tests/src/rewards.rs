@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use aleph_client::{
-    account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
-    rotate_keys, send_xt, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash,
+    get_current_session, get_era_reward_points, get_exposure, get_session_period, rotate_keys,
+    send_xt, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
     RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
@@ -13,7 +14,10 @@ use sp_core::H256;
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{accounts::{get_validators_seeds, NodeKeys}, Config};
+use crate::{
+    accounts::{get_validators_seeds, NodeKeys},
+    Config,
+};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
@@ -290,4 +294,3 @@ pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Bala
         },
     );
 }
-

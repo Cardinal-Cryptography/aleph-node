@@ -1,8 +1,7 @@
 use aleph_client::{
-    account_from_keypair, change_validators,
-    get_current_era, get_current_session, get_sessions_per_era, staking_force_new_era,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, KeyPair,
-    RootConnection, SignedConnection,
+    account_from_keypair, change_validators, get_current_era, get_current_session,
+    get_sessions_per_era, staking_force_new_era, wait_for_full_era_completion, wait_for_next_era,
+    wait_for_session, KeyPair, RootConnection, SignedConnection,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex};
@@ -10,7 +9,10 @@ use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     accounts::{get_sudo_key, get_validators_keys},
-    rewards::{check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator, validators_bond_extra_stakes},
+    rewards::{
+        check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator,
+        validators_bond_extra_stakes,
+    },
     Config,
 };
 
