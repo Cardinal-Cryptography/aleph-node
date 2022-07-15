@@ -6,6 +6,7 @@ pub use balances::total_issuance;
 use codec::{Decode, Encode};
 pub use debug::print_storages;
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
+pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
 use log::{info, warn};
 pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
@@ -18,8 +19,10 @@ pub use session::{
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{generic::Header as GenericHeader, traits::{BlakeTwo256, Header as HeaderT}};
-pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
+use sp_runtime::{
+    generic::Header as GenericHeader,
+    traits::{BlakeTwo256, Header as HeaderT},
+};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
@@ -52,8 +55,8 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod balances;
 mod debug;
-mod finalization;
 mod fee;
+mod finalization;
 mod multisig;
 mod rpc;
 mod session;

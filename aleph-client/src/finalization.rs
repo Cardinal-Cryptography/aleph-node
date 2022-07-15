@@ -1,12 +1,14 @@
-use substrate_api_client::{
-    compose_call, compose_extrinsic, ExtrinsicParams, AccountId, XtStatus,
-};
 use sp_core::Pair;
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, ExtrinsicParams, XtStatus};
 
-use crate::{send_xt, RootConnection, AnyConnection};
+use crate::{send_xt, AnyConnection, RootConnection};
 
 /// Sets the emergency finalizer to the provided `AccountId`.
-pub fn set_emergency_finalizer(connection: &RootConnection, finalizer: AccountId, status: XtStatus) {
+pub fn set_emergency_finalizer(
+    connection: &RootConnection,
+    finalizer: AccountId,
+    status: XtStatus,
+) {
     let set_emergency_finalizer_call = compose_call!(
         connection.as_connection().metadata,
         "Aleph",

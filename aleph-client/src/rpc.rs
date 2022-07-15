@@ -1,9 +1,13 @@
-use serde_json::{json, Value};
-use sp_core::{ed25519, Pair, H256, storage::{StorageChangeSet, StorageData}};
-use substrate_api_client::StorageKey;
 use codec::Encode;
+use serde_json::{json, Value};
+use sp_core::{
+    ed25519,
+    storage::{StorageChangeSet, StorageData},
+    Pair, H256,
+};
+use substrate_api_client::StorageKey;
 
-use crate::{AnyConnection, SessionKeys, BlockNumber, BlockHash};
+use crate::{AnyConnection, BlockHash, BlockNumber, SessionKeys};
 
 fn json_req(method: &str, params: Value, id: u32) -> Value {
     json!({
@@ -20,7 +24,11 @@ pub fn author_rotate_keys_json() -> Value {
 
 /// Produces a JSON encoding of an emergency finalization RPC.
 pub fn emergency_finalize_json(number: BlockNumber, hash: BlockHash, signature: Vec<u8>) -> Value {
-    json_req("alephNode_emergencyFinalize", json!([signature, hash, number]), 1)
+    json_req(
+        "alephNode_emergencyFinalize",
+        json!([signature, hash, number]),
+        1,
+    )
 }
 
 fn state_query_storage_at_json(storage_keys: &[StorageKey]) -> Value {
@@ -126,10 +134,21 @@ pub fn rotate_keys_raw_result<C: AnyConnection>(connection: &C) -> Result<String
 }
 
 /// Sends an emergency justification to the node, using the provided key to sign the hash.
-pub fn emergency_finalize<C: AnyConnection>(connection: &C, number: BlockNumber, hash: BlockHash, key: ed25519::Pair) -> Result<(), String> {
+pub fn emergency_finalize<C: AnyConnection>(
+    connection: &C,
+    number: BlockNumber,
+    hash: BlockHash,
+    key: ed25519::Pair,
+) -> Result<(), String> {
     let signature = key.sign(&hash.encode());
     let raw_signature: &[u8] = signature.as_ref();
-    match connection.as_connection().get_request(emergency_finalize_json(number, hash, raw_signature.to_vec())) {
+    match connection
+        .as_connection()
+        .get_request(emergency_finalize_json(
+            number,
+            hash,
+            raw_signature.to_vec(),
+        )) {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Emergency finalize failed: {}", e)),
     }
