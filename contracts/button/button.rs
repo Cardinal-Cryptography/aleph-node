@@ -105,7 +105,7 @@ pub struct ButtonData {
     /// AccountId of the ERC20 ButtonToken instance on-chain
     pub button_token: AccountId,
     /// accounts whitelisted to play the game
-    pub can_play: Mapping<AccountId, bool>,
+    pub can_play: Mapping<AccountId, ()>,
     /// access control contract
     pub access_control: AccountId,
 }
@@ -145,7 +145,9 @@ pub trait ButtonGame {
     }
 
     fn can_play(&self, user: AccountId) -> bool {
-        self.get().can_play.get(&user).unwrap_or(false)
+        self.get().can_play.get(&user).is_some()
+
+        // .unwrap_or(false)
     }
 
     fn access_control(&self) -> AccountId {
@@ -229,7 +231,7 @@ pub trait ButtonGame {
     {
         let required_role = Role::Admin(this);
         self.check_role(caller, required_role)?;
-        self.get_mut().can_play.insert(player, &true);
+        self.get_mut().can_play.insert(player, &());
         Ok(())
     }
 
@@ -246,7 +248,7 @@ pub trait ButtonGame {
         self.check_role(caller, required_role)?;
 
         for player in players {
-            self.get_mut().can_play.insert(player, &true);
+            self.get_mut().can_play.insert(player, &());
         }
         Ok(())
     }
@@ -257,8 +259,7 @@ pub trait ButtonGame {
     {
         let required_role = Role::Admin(this);
         self.check_role(caller, required_role)?;
-
-        self.get_mut().can_play.insert(player, &false);
+        self.get_mut().can_play.remove(&player);
         Ok(())
     }
 
@@ -275,7 +276,7 @@ pub trait ButtonGame {
             return Err(Error::AlreadyParticipated);
         }
 
-        if !can_play.get(&caller).unwrap_or(false) {
+        if can_play.get(&caller).is_none() {
             return Err(Error::NotWhitelisted);
         }
 
