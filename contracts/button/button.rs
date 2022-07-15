@@ -12,7 +12,7 @@ use ink_storage::{
     Mapping,
 };
 
-pub type Balance = <ink_env::DefaultEnvironment as ink_env::Environment>::Balance;
+pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
 
 /// Error types
@@ -185,13 +185,16 @@ pub trait ButtonGame {
         Ok(balance)
     }
 
-    fn transfer_tx(
+    fn transfer_tx<E>(
         &self,
         transfer_to_selector: [u8; 4],
         to: AccountId,
         value: Balance,
-    ) -> core::result::Result<(), InkEnvError> {
-        build_call::<DefaultEnvironment>()
+    ) -> core::result::Result<(), InkEnvError>
+    where
+        E: Environment<AccountId = AccountId>,
+    {
+        build_call::<E>()
             .call_type(Call::new().callee(self.get().button_token))
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_to_selector))
@@ -318,7 +321,7 @@ pub trait ButtonGame {
                 // Pressiah gets 50% of supply
                 let pressiah_reward = total_balance / 2;
                 if let Some(pressiah) = last_presser {
-                    self.transfer_tx(transfer_selector, *pressiah, pressiah_reward)?;
+                    self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
                 }
 
                 let remaining_balance = total_balance - pressiah_reward;
@@ -330,7 +333,11 @@ pub trait ButtonGame {
                             let reward =
                                 (score as u128 * remaining_balance) / *total_scores as u128;
                             // transfer amount
-                            return Ok(self.transfer_tx(transfer_selector, *account_id, reward)?);
+                            return Ok(self.transfer_tx::<E>(
+                                transfer_selector,
+                                *account_id,
+                                reward,
+                            )?);
                         }
                         Ok(())
                     });
