@@ -125,9 +125,14 @@ where
 
     fn get_committee_and_non_committee() -> (Vec<T::AccountId>, Vec<T::AccountId>) {
         let committee = T::SessionInfoProvider::current_committee();
-        let non_committee = CurrentEraValidators::<T>::get()
-            .non_reserved
+        let EraValidators {
+            reserved,
+            non_reserved,
+        } = CurrentEraValidators::<T>::get();
+
+        let non_committee = non_reserved
             .into_iter()
+            .chain(reserved.into_iter())
             .filter(|a| !committee.contains(a))
             .collect();
 
