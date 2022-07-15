@@ -1,16 +1,16 @@
 use aleph_client::{
-    account_from_keypair, balances_batch_transfer, balances_transfer, change_validators,
-    get_current_era, get_current_session, get_sessions_per_era, send_xt, staking_force_new_era,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, KeyPair,
+    account_from_keypair, change_validators,
+    get_current_era, get_current_session, get_sessions_per_era, staking_force_new_era,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, KeyPair,
     RootConnection, SignedConnection,
 };
 use log::info;
-use primitives::{staking::MIN_VALIDATOR_BOND, Balance, SessionIndex, TOKEN};
+use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, NodeKeys},
-    rewards::{check_points, reset_validator_keys, set_invalid_keys_for_validator},
+    accounts::{get_sudo_key, get_validators_keys},
+    rewards::{check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator, validators_bond_extra_stakes},
     Config,
 };
 
@@ -42,16 +42,6 @@ fn get_non_reserved_members_for_session(config: &Config, session: SessionIndex) 
     non_reserved.iter().map(account_from_keypair).collect()
 }
 
-fn get_bench_members(
-    non_reserved_members: Vec<AccountId>,
-    non_reserved_members_for_session: &[AccountId],
-) -> Vec<AccountId> {
-    non_reserved_members
-        .into_iter()
-        .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
-        .collect::<Vec<_>>()
-}
-
 fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
     (
         get_reserved_members(config)
@@ -65,50 +55,11 @@ fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
     )
 }
 
-fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>) {
-    let node = &config.node;
-    let root_connection = config.create_root_connection();
-
-    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
-        .into_iter()
-        .map(|seed| seed.into())
-        .collect();
-
-    let controller_accounts: Vec<AccountId> = accounts_keys
-        .iter()
-        .map(|account_keys| account_from_keypair(&account_keys.controller))
-        .collect();
-
-    // funds to cover fees
-    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
-
-    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
-        |(account_keys, additional_stake)| {
-            let validator_id = account_from_keypair(&account_keys.validator);
-
-            // Additional TOKEN to cover fees
-            balances_transfer(
-                &root_connection.as_signed(),
-                &validator_id,
-                *additional_stake + TOKEN,
-                XtStatus::Finalized,
-            );
-            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
-            let xt = stash_connection
-                .as_connection()
-                .staking_bond_extra(*additional_stake);
-            send_xt(
-                &stash_connection,
-                xt,
-                Some("bond_extra"),
-                XtStatus::Finalized,
-            );
-        },
-    );
-}
-
+/// Runs a chain, bonds extra stakes to validator accounts and checks that reward points
+/// are calculated correctly afterward.
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
+    const VALIDATORS_PER_SESSION: u32 = 4;
 
     let node = &config.node;
     let accounts = get_validators_keys(config);
@@ -122,7 +73,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(4),
+        Some(VALIDATORS_PER_SESSION),
         XtStatus::Finalized,
     );
 
@@ -175,6 +126,8 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Runs a chain, sets invalid session keys for one validator, re-sets the keys to valid ones
+/// and checks that reward points are calculated correctly afterward.
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;
@@ -238,6 +191,10 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Runs a chain, forces a new era to begin, checks that reward points are calculated correctly
+/// for 3 sessions: 1) immediately following the forcing call, 2) in the subsequent, interim
+/// session, when the new era has not yet started, 3) in the next session, second one after
+/// the call, when the new era has already begun.
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
     const VALIDATORS_PER_SESSION: u32 = 4;

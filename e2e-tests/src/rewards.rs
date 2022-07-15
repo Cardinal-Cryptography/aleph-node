@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 
 use aleph_client::{
-    get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
-    rotate_keys, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
+    rotate_keys, send_xt, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
     RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
-use primitives::{EraIndex, SessionIndex};
+use primitives::{Balance, EraIndex, SessionIndex, TOKEN};
 use sp_core::H256;
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
+
+use crate::{accounts::{get_validators_seeds, NodeKeys}, Config};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
@@ -237,3 +239,55 @@ pub fn check_points(
         max_relative_difference,
     )
 }
+pub fn get_bench_members(
+    non_reserved_members: Vec<AccountId>,
+    non_reserved_members_for_session: &[AccountId],
+) -> Vec<AccountId> {
+    non_reserved_members
+        .into_iter()
+        .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
+        .collect::<Vec<_>>()
+}
+
+pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>) {
+    let node = &config.node;
+    let root_connection = config.create_root_connection();
+
+    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
+        .into_iter()
+        .map(|seed| seed.into())
+        .collect();
+
+    let controller_accounts: Vec<AccountId> = accounts_keys
+        .iter()
+        .map(|account_keys| account_from_keypair(&account_keys.controller))
+        .collect();
+
+    // funds to cover fees
+    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
+
+    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
+        |(account_keys, additional_stake)| {
+            let validator_id = account_from_keypair(&account_keys.validator);
+
+            // Additional TOKEN to cover fees
+            balances_transfer(
+                &root_connection.as_signed(),
+                &validator_id,
+                *additional_stake + TOKEN,
+                XtStatus::Finalized,
+            );
+            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
+            let xt = stash_connection
+                .as_connection()
+                .staking_bond_extra(*additional_stake);
+            send_xt(
+                &stash_connection,
+                xt,
+                Some("bond_extra"),
+                XtStatus::Finalized,
+            );
+        },
+    );
+}
+
