@@ -889,7 +889,7 @@ impl_runtime_apis! {
                 .iter()
                 .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
-                Aleph::future_emergency_finalizer(),
+                Aleph::queued_emergency_finalizer(),
             ))
         }
     }

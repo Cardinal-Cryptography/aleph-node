@@ -171,21 +171,21 @@ fn test_emergency_signer() {
 
         run_session(1);
 
-        Aleph::set_next_future_emergency_finalizer(to_authority(&21));
+        Aleph::set_next_emergency_finalizer(to_authority(&21));
 
         assert_eq!(Aleph::emergency_finalizer(), None);
-        assert_eq!(Aleph::future_emergency_finalizer(), None);
+        assert_eq!(Aleph::queued_emergency_finalizer(), None);
 
         run_session(2);
 
-        Aleph::set_next_future_emergency_finalizer(to_authority(&37));
+        Aleph::set_next_emergency_finalizer(to_authority(&37));
 
         assert_eq!(Aleph::emergency_finalizer(), None);
-        assert_eq!(Aleph::future_emergency_finalizer(), Some(to_authority(&21)));
+        assert_eq!(Aleph::queued_emergency_finalizer(), Some(to_authority(&21)));
 
         run_session(3);
 
         assert_eq!(Aleph::emergency_finalizer(), Some(to_authority(&21)));
-        assert_eq!(Aleph::future_emergency_finalizer(), Some(to_authority(&37)));
+        assert_eq!(Aleph::queued_emergency_finalizer(), Some(to_authority(&37)));
     })
 }

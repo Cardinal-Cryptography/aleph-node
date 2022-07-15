@@ -85,12 +85,12 @@ pub mod pallet {
     pub(super) type EmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn future_emergency_finalizer)]
-    pub(super) type FutureEmergencyFinalizer<T: Config> =
+    #[pallet::getter(fn queued_emergency_finalizer)]
+    pub(super) type QueuedEmergencyFinalizer<T: Config> =
         StorageValue<_, T::AuthorityId, OptionQuery>;
 
     #[pallet::storage]
-    type NextFutureEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
+    type NextEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -108,20 +108,20 @@ pub mod pallet {
         }
 
         pub(crate) fn update_emergency_finalizer() {
-            match <FutureEmergencyFinalizer<T>>::get() {
+            match <QueuedEmergencyFinalizer<T>>::get() {
                 Some(emergency_finalizer) => <EmergencyFinalizer<T>>::put(emergency_finalizer),
                 None => (),
             }
-            match <NextFutureEmergencyFinalizer<T>>::get() {
+            match <NextEmergencyFinalizer<T>>::get() {
                 Some(emergency_finalizer) => {
-                    <FutureEmergencyFinalizer<T>>::put(emergency_finalizer)
+                    <QueuedEmergencyFinalizer<T>>::put(emergency_finalizer)
                 }
                 None => (),
             }
         }
 
-        pub(crate) fn set_next_future_emergency_finalizer(emergency_finalizer: T::AuthorityId) {
-            <NextFutureEmergencyFinalizer<T>>::put(emergency_finalizer);
+        pub(crate) fn set_next_emergency_finalizer(emergency_finalizer: T::AuthorityId) {
+            <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
     }
 
@@ -135,7 +135,7 @@ pub mod pallet {
             emergency_finalizer: T::AuthorityId,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            Self::set_next_future_emergency_finalizer(emergency_finalizer.clone());
+            Self::set_next_emergency_finalizer(emergency_finalizer.clone());
             Self::deposit_event(Event::ChangeEmergencyFinalizer(emergency_finalizer));
             Ok(())
         }
