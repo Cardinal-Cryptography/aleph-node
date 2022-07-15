@@ -134,7 +134,7 @@ fn check_points_after_force_new_era(
             "Testing points | era: {}, session: {}",
             era_to_check, session_to_check
         );
-        
+
         let non_reserved_members_for_session =
             get_non_reserved_members_for_session(config, session_to_check);
         let members_bench = get_bench_members(
@@ -157,7 +157,7 @@ fn check_points_after_force_new_era(
     }
     Ok(())
 }
-        
+
 pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     const MAX_DIFFERENCE: f64 = 0.07;
 
