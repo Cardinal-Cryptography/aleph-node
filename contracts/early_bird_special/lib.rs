@@ -158,7 +158,7 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn button_token(&self) -> Result<AccountId> {
+        fn button_token(&self) -> AccountId {
             ButtonGame::button_token(self)
         }
 

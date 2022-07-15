@@ -155,7 +155,7 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn button_token(&self) -> Result<AccountId> {
+        fn button_token(&self) -> AccountId {
             ButtonGame::button_token(self)
         }
 

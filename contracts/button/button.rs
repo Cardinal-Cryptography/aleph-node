@@ -123,10 +123,10 @@ pub struct ButtonData {
     pub access_control: AccountId,
 }
 
-/// Concrete implementations of the games API
+/// Provides default implementations of the games API to be called inside IButtonGame trait methods
 ///
 /// Implementing contract needs to return ButtonData read-only and mutably
-/// as well as implement `score` the logic that based on the current block number and the contract storage state returns a users score.
+/// as well as implement `score`: the logic that based on the current block number and the contract storage state returns a users score.
 /// Remaining methods have default implementations that can be overriden as needed.
 ///
 /// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those.
@@ -159,8 +159,6 @@ pub trait ButtonGame {
 
     fn can_play(&self, user: AccountId) -> bool {
         self.get().can_play.get(&user).is_some()
-
-        // .unwrap_or(false)
     }
 
     fn access_control(&self) -> AccountId {
@@ -186,8 +184,8 @@ pub trait ButtonGame {
         self.get().last_presser
     }
 
-    fn button_token(&self) -> Result<AccountId> {
-        Ok(self.get().button_token)
+    fn button_token(&self) -> AccountId {
+        self.get().button_token
     }
 
     fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance>
@@ -370,7 +368,7 @@ pub trait ButtonGame {
 /// Contract trait definition
 ///
 /// This trait defines the game's API
-/// You will get default implementations of the mathcing methods by impl ButtonGame trait for the game contract
+/// You will get default implementations of the matching methods by impl ButtonGame trait
 #[ink::trait_definition]
 pub trait IButtonGame {
     /// Button press logic
@@ -411,7 +409,7 @@ pub trait IButtonGame {
 
     /// Returns address of the game's ERC20 token
     #[ink(message)]
-    fn button_token(&self) -> Result<AccountId>;
+    fn button_token(&self) -> AccountId;
 
     /// Returns then game token balance of the game contract
     #[ink(message)]
