@@ -1,14 +1,14 @@
 use aleph_client::{
     account_from_keypair, change_validators, get_current_era, get_current_session,
     get_sessions_per_era, staking_force_new_era, wait_for_full_era_completion, wait_for_next_era,
-    wait_for_session, KeyPair, RootConnection, SignedConnection,
+    wait_for_session, KeyPair, SignedConnection,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_sudo_key, get_validators_keys},
+    accounts::get_validators_keys,
     rewards::{
         check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator,
         validators_bond_extra_stakes,
@@ -78,9 +78,9 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     );
 
     let sessions_per_era = get_sessions_per_era(&connection);
-    let era = wait_for_next_era(&root_connection)?;
+    let era = wait_for_next_era(&connection)?;
     let start_new_era_session = era * sessions_per_era;
-    let end_new_era_session = sessions_per_era * wait_for_next_era(&root_connection)?;
+    let end_new_era_session = sessions_per_era * wait_for_next_era(&connection)?;
 
     info!(
         "Checking rewards for sessions {}..{}.",
@@ -91,7 +91,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
         let members_bench =
             get_bench_members(non_reserved_members.clone(), &non_reserved_for_session);
-        let members = reserved_members
+        let members_active = reserved_members
             .clone()
             .into_iter()
             .chain(non_reserved_for_session)
@@ -101,7 +101,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
             &connection,
             session,
             era,
-            members,
+            members_active,
             members_bench,
             MAX_DIFFERENCE,
         )?
@@ -145,9 +145,9 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     );
 
     let sessions_per_era = get_sessions_per_era(&connection);
-    let era = wait_for_next_era(&root_connection)?;
+    let era = wait_for_next_era(&connection)?;
     let start_era_session = era * sessions_per_era;
-    let end_era_session = sessions_per_era * wait_for_next_era(&root_connection)?;
+    let end_era_session = sessions_per_era * wait_for_next_era(&connection)?;
 
     info!(
         "Checking rewards for sessions {}..{}.",
@@ -155,24 +155,23 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     );
 
     for session in start_era_session..end_era_session {
-        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let non_reserved_bench = non_reserved_members
+        let non_reserved_members_for_session =
+            get_non_reserved_members_for_session(config, session);
+        let members_bench = get_bench_members(
+            non_reserved_members.clone(),
+            &non_reserved_members_for_session,
+        );
+        let members_active = reserved_members
             .clone()
             .into_iter()
-            .filter(|account_id| !non_reserved_for_session.contains(account_id))
+            .chain(non_reserved_members_for_session)
             .collect::<Vec<_>>();
-        let members = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_for_session)
-            .collect::<Vec<_>>();
-        let members_bench = non_reserved_bench;
 
         check_points(
             &connection,
             session,
             era,
-            members,
+            members_active,
             members_bench,
             MAX_DIFFERENCE,
         )?
@@ -220,24 +219,23 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let non_reserved_bench = non_reserved_members
+        let non_reserved_members_for_session =
+            get_non_reserved_members_for_session(config, session);
+        let members_bench = get_bench_members(
+            non_reserved_members.clone(),
+            &non_reserved_members_for_session,
+        );
+        let members_active = reserved_members
             .iter()
-            .filter(|account_id| !non_reserved_for_session.contains(*account_id))
+            .chain(non_reserved_members_for_session.iter())
             .cloned();
-
-        let members = reserved_members
-            .iter()
-            .chain(non_reserved_for_session.iter())
-            .cloned();
-        let members_bench: Vec<_> = non_reserved_bench.collect();
 
         let era = session / sessions_per_era;
         check_points(
             &controller_connection,
             session,
             era,
-            members,
+            members_active,
             members_bench,
             MAX_DIFFERENCE,
         )?;
@@ -258,9 +256,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
     let accounts = get_validators_keys(config);
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = SignedConnection::new(node, sender);
-
-    let sudo = get_sudo_key(config);
-    let root_connection = RootConnection::new(node, sudo);
+    let root_connection = config.create_root_connection();
 
     let reserved_members: Vec<_> = get_reserved_members(config)
         .iter()
