@@ -57,6 +57,7 @@ def check_finalized(nodes):
 def check_version(nodes, verbose=False):
     """Query given nodes for aleph-node (host) version and runtime version.
     Print the summary to the standard output and return the runtime version.
+    If multiple runtime versions are reported, print error and return the maximum.
     If `verbose` is True, print the whole RPC response."""
     versions = set()
     for i, node in enumerate(nodes):

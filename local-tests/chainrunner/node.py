@@ -89,7 +89,7 @@ class Node:
 
     def check_authorities(self):
         """Find in the logs the number of authorities this node is connected to.
-        Return bool indicating if it's connected to all know authorities."""
+        Return bool indicating if it's connected to all known authorities."""
         grep = self.greplog(r'(\d+)/(\d+) authorities known for session')
         return grep[-1][0] == grep[-1][1] if grep else False
 

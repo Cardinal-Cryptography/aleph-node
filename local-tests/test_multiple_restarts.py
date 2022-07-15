@@ -42,6 +42,8 @@ chain.wait_for_finalization(0)
 printt('Waiting for authorities')
 chain.wait_for_authorities()
 
+delta = 5
+
 for sleep_duration in [21, 37, 15]:
     printt('Killing one validator')
     chain[3].stop()
@@ -53,7 +55,7 @@ for sleep_duration in [21, 37, 15]:
     finalized_before_start = check_finalized(chain)
 
     # Check if the finalization didn't stop after a kill.
-    if finalized_before_start[0] - finalized_before_kill[0] < 10:
+    if finalized_before_start[0] - finalized_before_kill[0] < delta:
         printt('Finalization stalled')
         sys.exit(1)
 
@@ -65,7 +67,6 @@ for sleep_duration in [21, 37, 15]:
 
     finalized_after = check_finalized(chain)
     diff = finalized_after[3] - finalized_before_start[3]
-    delta = 5
 
     # Check if the murdered node started catching up with reasonable nr of blocks.
     if diff <= delta:
