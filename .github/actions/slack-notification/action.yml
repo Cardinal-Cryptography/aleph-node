@@ -1,5 +1,5 @@
 name: 'Send Slack notifiction'
-description: 'Action used to Send slack notifications to give workflow status in channel specified in SLACK_WEBHOOK'
+description: 'Action used to send Slack notifications about workflow status in channel specified in SLACK_WEBHOOK'
 
 inputs:
   notify-on:
