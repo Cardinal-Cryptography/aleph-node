@@ -12,6 +12,9 @@ use ink_storage::{
     Mapping,
 };
 
+pub type BlockNumber = <DefaultEnvironment as ink_env::Environment>::BlockNumber;
+// scores are denominated in block numbers
+pub type Score = BlockNumber;
 pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -88,17 +91,17 @@ impl From<InkEnvError> for Error {
 )]
 pub struct ButtonData {
     /// How long does TheButton live for?
-    pub button_lifetime: u32,
+    pub button_lifetime: BlockNumber,
     /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
-    pub presses: Mapping<AccountId, u32>,
-    /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<u32, AccountId> if it grows out of proportion
+    pub presses: Mapping<AccountId, BlockNumber>,
+    /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<int, AccountId> if it grows out of proportion
     pub press_accounts: Vec<AccountId>,
     /// stores total sum of user scores
-    pub total_scores: u32,
+    pub total_scores: Score,
     /// stores the last account that pressed The Button
     pub last_presser: Option<AccountId>,
     /// block number of the last press
-    pub last_press: u32,
+    pub last_press: BlockNumber,
     /// AccountId of the ERC20 ButtonToken instance on-chain
     pub button_token: AccountId,
     /// accounts whitelisted to play the game
@@ -122,13 +125,13 @@ pub trait ButtonGame {
     fn get_mut(&mut self) -> &mut ButtonData;
 
     /// Logic for calculating user score given the particular games rules
-    fn score(&self, now: u32) -> u32;
+    fn score(&self, now: BlockNumber) -> Score;
 
-    fn is_dead(&self, now: u32) -> bool {
+    fn is_dead(&self, now: BlockNumber) -> bool {
         now > self.deadline()
     }
 
-    fn deadline(&self) -> u32 {
+    fn deadline(&self) -> BlockNumber {
         let ButtonData {
             last_press,
             button_lifetime,
@@ -137,7 +140,7 @@ pub trait ButtonGame {
         last_press + button_lifetime
     }
 
-    fn score_of(&self, user: AccountId) -> u32 {
+    fn score_of(&self, user: AccountId) -> Score {
         self.get().presses.get(&user).unwrap_or(0)
     }
 
@@ -259,7 +262,7 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    fn press(&mut self, now: u32, caller: AccountId) -> Result<()> {
+    fn press(&mut self, now: BlockNumber, caller: AccountId) -> Result<()> {
         let ButtonData {
             can_play, presses, ..
         } = self.get();
@@ -297,7 +300,7 @@ pub trait ButtonGame {
     /// Will return an Error if called before the deadline
     fn death<E>(
         &self,
-        now: u32,
+        now: BlockNumber,
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
         this: AccountId,
@@ -374,11 +377,11 @@ pub trait IButtonGame {
     ///
     /// Deadline is the block number at which the game will end if there are no more participants
     #[ink(message)]
-    fn deadline(&self) -> u32;
+    fn deadline(&self) -> BlockNumber;
 
     /// Returns the user score
     #[ink(message)]
-    fn score_of(&self, user: AccountId) -> u32;
+    fn score_of(&self, user: AccountId) -> Score;
 
     /// Returns whether given account can play
     #[ink(message)]

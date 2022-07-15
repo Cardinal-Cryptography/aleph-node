@@ -12,7 +12,9 @@ use ink_lang as ink;
 mod back_to_the_future {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
+    use button::button::{
+        BlockNumber as BNumber, ButtonData, ButtonGame, Error, IButtonGame, Result, Score,
+    };
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{DefaultEnvironment, Error as InkEnvError};
     use ink_lang::{
@@ -30,8 +32,8 @@ mod back_to_the_future {
     pub struct ButtonCreated {
         #[ink(topic)]
         button_token: AccountId,
-        start: u32,
-        deadline: u32,
+        start: BlockNumber,
+        deadline: BlockNumber,
     }
 
     /// Event emitted when account is whitelisted to play the game
@@ -56,7 +58,7 @@ mod back_to_the_future {
     pub struct ButtonPressed {
         #[ink(topic)]
         by: AccountId,
-        when: u32,
+        when: BlockNumber,
     }
 
     /// Event emitted when button's death is triggered
@@ -84,7 +86,7 @@ mod back_to_the_future {
             &mut self.data
         }
 
-        fn score(&self, now: u32) -> u32 {
+        fn score(&self, now: BlockNumber) -> Score {
             now - self.get().last_press
         }
     }
@@ -128,12 +130,12 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn deadline(&self) -> u32 {
+        fn deadline(&self) -> BlockNumber {
             ButtonGame::deadline(self)
         }
 
         #[ink(message)]
-        fn score_of(&self, user: AccountId) -> u32 {
+        fn score_of(&self, user: AccountId) -> Score {
             ButtonGame::score_of(self, user)
         }
 
@@ -220,7 +222,7 @@ mod back_to_the_future {
 
     impl BackToTheFuture {
         #[ink(constructor)]
-        pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
+        pub fn new(button_token: AccountId, button_lifetime: BlockNumber) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -246,7 +248,7 @@ mod back_to_the_future {
             }
         }
 
-        fn new_init(&mut self, button_token: AccountId, button_lifetime: u32) {
+        fn new_init(&mut self, button_token: AccountId, button_lifetime: BlockNumber) {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
@@ -280,102 +282,4 @@ mod back_to_the_future {
             })
         }
     }
-
-    // NOTE: can't test because off-chain environment does not support `own_code_hash`
-    /*
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        use button_token::{ButtonToken, Event as ButtonTokenEvent};
-        use ink_lang as ink;
-
-        #[ink::test]
-        fn play_the_game() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
-
-            let alice = accounts.alice;
-            let bob = accounts.bob;
-            let charlie = accounts.charlie;
-
-            let button_token_address = accounts.frank; //AccountId::from([0xFA; 32]);
-            let game_address = accounts.django; //AccountId::from([0xF9; 32]);
-
-            // alice deploys the token contract
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
-            let mut button_token = ButtonToken::new(1000);
-
-            // alice deploys the game contract
-            let button_lifetime = 3;
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            let mut game = RedButton::new(button_token_address, button_lifetime);
-
-            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            let button_created_event = &emitted_events[1];
-            let decoded_event: Event =
-                <Event as scale::Decode>::decode(&mut &button_created_event.data[..])
-                    .expect("Can't decode as Event");
-
-            match decoded_event {
-                Event::ButtonCreated(ButtonCreated {
-                    start,
-                    deadline,
-                    button_token,
-                }) => {
-                    assert_eq!(deadline, button_lifetime, "Wrong ButtonCreated.deadline");
-                    assert_eq!(start, 0, "Wrong ButtonCreated.start");
-                    assert_eq!(
-                        button_token, button_token_address,
-                        "Wrong ButtonCreated.button_token"
-                    );
-                }
-                _ => panic!("Wrong event emitted"),
-            }
-
-            // Alice transfer all token balance to the game
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(button_token_address);
-
-            assert!(
-                button_token.transfer(game_address, 999).is_ok(),
-                "Transfer call failed"
-            );
-
-            let emitted_events = ink_env::test::recorded_events().collect::<Vec<_>>();
-            let transfer_event = &emitted_events[2];
-            let decoded_event: ButtonTokenEvent =
-                <ButtonTokenEvent as scale::Decode>::decode(&mut &transfer_event.data[..])
-                    .expect("Can't decode as Event");
-
-            match decoded_event {
-                ButtonTokenEvent::Transfer(event) => {
-                    assert_eq!(event.value, 999, "Wrong Transfer.value");
-                    assert_eq!(event.from, Some(alice), "Wrong Transfer.from");
-                    assert_eq!(event.to, game_address, "Wrong Transfer.from");
-                }
-                _ => panic!("Wrong event emitted"),
-            }
-
-            // Alice is the owner and whitelists accounts for playing
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            assert!(
-                game.bulk_allow(vec![bob, charlie]).is_ok(),
-                "Bulk allow call failed"
-            );
-
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(bob);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            assert!(game.press().is_ok(), "Press call failed");
-
-            ink_env::test::advance_block::<ink_env::DefaultEnvironment>();
-
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(game_address);
-            assert!(game.press().is_ok(), "Press call failed");
-
-            // NOTE : we cannot test reward distribution, cross-contract calls are not yet supported in the test environment
-        }
-    }*/
 }

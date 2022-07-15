@@ -12,7 +12,7 @@ use ink_lang as ink;
 mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result};
+    use button::button::{ButtonData, ButtonGame, Error, IButtonGame, Result, Score};
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::{DefaultEnvironment, Error as InkEnvError};
     use ink_lang::{
@@ -31,8 +31,8 @@ mod early_bird_special {
     pub struct ButtonCreated {
         #[ink(topic)]
         button_token: AccountId,
-        start: u32,
-        deadline: u32,
+        start: BlockNumber,
+        deadline: BlockNumber,
     }
 
     /// Event emitted when account is whitelisted to play the game
@@ -57,7 +57,7 @@ mod early_bird_special {
     pub struct ButtonPressed {
         #[ink(topic)]
         by: AccountId,
-        when: u32,
+        when: BlockNumber,
     }
 
     /// Even emitted when button's death is triggered
@@ -85,7 +85,7 @@ mod early_bird_special {
             &mut self.data
         }
 
-        fn score(&self, now: u32) -> u32 {
+        fn score(&self, now: BlockNumber) -> Score {
             let deadline = ButtonGame::deadline(self);
             deadline - now
         }
@@ -130,12 +130,12 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn deadline(&self) -> u32 {
+        fn deadline(&self) -> BlockNumber {
             ButtonGame::deadline(self)
         }
 
         #[ink(message)]
-        fn score_of(&self, user: AccountId) -> u32 {
+        fn score_of(&self, user: AccountId) -> Score {
             ButtonGame::score_of(self, user)
         }
 
@@ -222,7 +222,7 @@ mod early_bird_special {
 
     impl EarlyBirdSpecial {
         #[ink(constructor)]
-        pub fn new(button_token: AccountId, button_lifetime: u32) -> Self {
+        pub fn new(button_token: AccountId, button_lifetime: BlockNumber) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -248,7 +248,7 @@ mod early_bird_special {
             }
         }
 
-        fn new_init(&mut self, button_token: AccountId, button_lifetime: u32) {
+        fn new_init(&mut self, button_token: AccountId, button_lifetime: BlockNumber) {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
