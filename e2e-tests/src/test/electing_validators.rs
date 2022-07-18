@@ -8,6 +8,7 @@ use aleph_client::{
     SignedConnection,
 };
 use log::info;
+use pallet_elections::CommitteeSeats;
 use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, TOKEN};
 use sp_core::{storage::StorageKey, Pair};
 use substrate_api_client::{compose_extrinsic, AccountId, XtStatus};
@@ -215,7 +216,10 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_validators),
         Some(non_reserved_validators),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 3,
+            non_reserved_seats: 1,
+        }),
         XtStatus::Finalized,
     );
     info!("Changed validators to a new set");
