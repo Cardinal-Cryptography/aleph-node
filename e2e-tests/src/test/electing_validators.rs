@@ -130,7 +130,11 @@ fn assert_validators_are_elected_stakers<C: AnyConnection>(
         .unwrap_or_else(|_| panic!("Couldn't read storage keys"))
         .unwrap_or_else(|| panic!("Couldn't read `ErasStakers` for era {}", current_era))
         .into_iter()
-        .map(|key| StorageKey(key[2..].as_bytes().to_vec())); // we strip leading `0x`
+        .map(|key| {
+            let mut bytes = [0u8; 84];
+            hex::decode_to_slice(&key[2..], &mut bytes as &mut [u8]).expect("Should decode key");
+            StorageKey(bytes.to_vec())
+        });
     let stakers = BTreeSet::from_iter(stakers);
 
     assert_eq!(
@@ -176,7 +180,7 @@ fn chill(connection: &SignedConnection) {
         connection,
         xt,
         Some("chilling validator"),
-        XtStatus::Finalized,
+        XtStatus::InBlock,
     );
 }
 

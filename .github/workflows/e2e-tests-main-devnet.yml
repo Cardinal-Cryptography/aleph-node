@@ -381,7 +381,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: authorities_are_staking
-          follow-up-finalization-check: true
         timeout-minutes: 15
 
 
