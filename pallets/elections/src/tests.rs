@@ -4,7 +4,7 @@ use frame_election_provider_support::{ElectionProvider, Support};
 use frame_support::bounded_vec;
 use pallet_session::SessionManager;
 
-use crate::mock::*;
+use crate::{mock::*, CommitteeSeats, CommitteeSize};
 
 fn no_support() -> Support<AccountId> {
     Default::default()
@@ -48,6 +48,11 @@ fn validators_are_elected_only_when_staking() {
 fn session_authorities_must_have_been_elected() {
     new_test_ext(vec![1, 2], vec![5, 6]).execute_with(|| {
         let next_era = 41;
+
+        CommitteeSize::<Test>::put(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        });
 
         with_active_era(next_era - 1);
         with_elected_validators(next_era, vec![1, 5]);
