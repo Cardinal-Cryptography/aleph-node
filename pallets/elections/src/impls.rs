@@ -206,8 +206,8 @@ where
                 BTreeSet::from_iter(T::EraInfoProvider::elected_validators(active_era + 1));
 
             let retain_elected = |vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
-                vals.iter()
-                    .filter_map(|v| elected_committee.contains(&v).then_some(v.clone()))
+                vals.into_iter()
+                    .filter(|v| elected_committee.contains(v))
                     .collect()
             };
 
