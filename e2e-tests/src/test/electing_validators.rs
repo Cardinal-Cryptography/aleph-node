@@ -245,8 +245,8 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     );
 
     let mut left_stashes = accounts.stash_accounts;
-    left_stashes.remove(0);
     left_stashes.remove(3);
+    left_stashes.remove(0);
 
     assert_validators_are_elected_stakers(
         &connection,
