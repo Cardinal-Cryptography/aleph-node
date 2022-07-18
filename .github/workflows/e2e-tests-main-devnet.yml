@@ -382,7 +382,7 @@ jobs:
         with:
           test-case: authorities_are_staking
           follow-up-finalization-check: true
-        timeout-minutes: 10
+        timeout-minutes: 15
 
 
   check-e2e-test-suite-completion:
