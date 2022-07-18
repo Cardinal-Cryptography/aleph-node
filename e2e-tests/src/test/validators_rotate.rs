@@ -6,6 +6,7 @@ use aleph_client::{
     change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
     wait_for_session, AnyConnection, Header, KeyPair, RootConnection, SignedConnection,
 };
+use pallet_elections::CommitteeSeats;
 use sp_core::Pair;
 use std::collections::HashMap;
 use substrate_api_client::{AccountId, XtStatus};
@@ -84,7 +85,10 @@ pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_validators.clone()),
         Some(non_reserved_validators),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&connection)?;

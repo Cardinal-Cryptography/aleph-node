@@ -21,6 +21,7 @@ frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git"
 system = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23", package = "frame-system" }
 pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23", default-features = false }
 pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23", default-features = false }
+pallet-elections = { path = "../pallets/elections", default-features = false }
 
 aleph_client = { path = "../aleph-client" }
 primitives = { path = "../primitives", features = ["short_session"], default-features = false }
@@ -30,5 +31,6 @@ default = ["std"]
 std = [
     "pallet-staking/std",
     "pallet-balances/std",
+    "pallet-elections/std",
     "primitives/std"
 ]

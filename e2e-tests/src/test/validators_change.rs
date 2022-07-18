@@ -7,6 +7,7 @@ use aleph_client::{
 };
 use codec::Decode;
 use log::info;
+use pallet_elections::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -26,10 +27,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
         .unwrap();
 
-    let committee_size_before: u32 = connection
-        .as_connection()
-        .get_storage_value("Elections", "CommitteeSize", None)?
-        .unwrap();
+    let committee_size_before: CommitteeSeats =
+        connection.read_storage_value("Elections", "CommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -41,7 +40,10 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         &connection,
         Some(new_validators[0..2].to_vec()),
         Some(new_validators[2..].to_vec()),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2,
+        }),
         XtStatus::InBlock,
     );
 
@@ -49,7 +51,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     struct NewValidatorsEvent {
         reserved: Vec<AccountId>,
         non_reserved: Vec<AccountId>,
-        committee_size: u32,
+        committee_size: CommitteeSeats,
     }
     wait_for_event(
         &connection,
@@ -59,7 +61,11 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
             e.reserved == new_validators[0..2]
                 && e.non_reserved == new_validators[2..]
-                && e.committee_size == 4
+                && e.committee_size
+                    == CommitteeSeats {
+                        reserved_seats: 2,
+                        non_reserved_seats: 2,
+                    }
         },
     )?;
 
@@ -73,10 +79,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         .get_storage_value("Elections", "NextEraNonReservedValidators", None)?
         .unwrap();
 
-    let committee_size_after: u32 = connection
-        .as_connection()
-        .get_storage_value("Elections", "CommitteeSize", None)?
-        .unwrap();
+    let committee_size_after: CommitteeSeats =
+        connection.read_storage_value("Elections", "NextEraCommitteeSize");
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -85,7 +89,13 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     assert_eq!(new_validators[..2], reserved_after);
     assert_eq!(new_validators[2..], non_reserved_after);
-    assert_eq!(4, committee_size_after);
+    assert_eq!(
+        CommitteeSeats {
+            reserved_seats: 2,
+            non_reserved_seats: 2
+        },
+        committee_size_after
+    );
 
     let block_number = connection
         .as_connection()

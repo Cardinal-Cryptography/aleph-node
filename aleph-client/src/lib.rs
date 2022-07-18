@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
-use codec::Encode;
+use codec::{Encode, Decode};
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
@@ -80,6 +80,75 @@ pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtr
 /// information for type inferring required for `Into<Connection>`.
 pub trait AnyConnection: Clone + Send {
     fn as_connection(&self) -> Connection;
+
+    /// Reads value from storage. Panics if it couldn't be read.
+    fn read_storage_value<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
+        self.read_storage_value_or_else(pallet, key, || {
+            panic!("Value is `None` or couldn't have been decoded")
+        })
+    }
+
+    /// Reads value from storage. In case value is `None` or couldn't have been decoded, result of
+    /// `fallback` is returned.
+    fn read_storage_value_or_else<F: FnOnce() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_storage_value(pallet, key, None)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Key `{}::{}` should be present in storage, error {:?}",
+                    pallet, key, e
+                )
+            })
+            .unwrap_or_else(fallback)
+    }
+
+    /// Reads value from storage. In case value is `None` or couldn't have been decoded, the default
+    /// value is returned.
+    fn read_storage_value_or_default<T: Decode + Default>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+    ) -> T {
+        self.read_storage_value_or_else(pallet, key, Default::default)
+    }
+
+    /// Reads pallet's constant from metadata. Panics if it couldn't be read.
+    fn read_constant<T: Decode>(&self, pallet: &'static str, constant: &'static str) -> T {
+        self.read_constant_or_else(pallet, constant, || {
+            panic!(
+                "Constant `{}::{}` should be present and decodable",
+                pallet, constant
+            )
+        })
+    }
+
+    /// Reads pallet's constant from metadata. In case value is `None` or couldn't have been
+    /// decoded, result of `fallback` is returned.
+    fn read_constant_or_else<F: FnOnce() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        constant: &'static str,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_constant(pallet, constant)
+            .unwrap_or_else(|_| fallback())
+    }
+
+    /// Reads pallet's constant from metadata. In case value is `None` or couldn't have been
+    /// decoded, the default value is returned.
+    fn read_constant_or_default<T: Decode + Default>(
+        &self,
+        pallet: &'static str,
+        constant: &'static str,
+    ) -> T {
+        self.read_constant_or_else(pallet, constant, Default::default)
+    }
 }
 
 impl AnyConnection for Connection {

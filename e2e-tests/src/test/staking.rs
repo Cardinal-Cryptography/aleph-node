@@ -13,6 +13,7 @@ use aleph_client::{
     wait_for_full_era_completion, wait_for_session, KeyPair, RootConnection, SignedConnection,
     StakingLedger,
 };
+use pallet_elections::CommitteeSeats;
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
     TOKEN,
@@ -117,7 +118,10 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(convert_authorities_to_account_id(&validator_accounts)),
         Some(vec![]),
-        Some(4),
+        Some(CommitteeSeats {
+            reserved_seats: 4,
+            non_reserved_seats: 0,
+        }),
         XtStatus::InBlock,
     );
 
@@ -187,7 +191,10 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(convert_authorities_to_account_id(&validator_accounts)),
         Some(vec![]),
-        Some(5),
+        Some(CommitteeSeats {
+            reserved_seats: 5,
+            non_reserved_seats: 0,
+        }),
         XtStatus::InBlock,
     );
     let current_session = get_current_session(&root_connection);
