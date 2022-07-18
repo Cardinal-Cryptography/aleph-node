@@ -84,7 +84,7 @@ fn choose_for_session<T: Clone>(
     let first_index = session.saturating_mul(count) % validators_len;
     let mut chosen = Vec::new();
 
-    for i in 0..count.min(validators.len()) {
+    for i in 0..count.min(validators_len) {
         chosen.push(validators[first_index.saturating_add(i) % validators_len].clone());
     }
 
