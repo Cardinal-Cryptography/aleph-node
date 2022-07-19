@@ -1,8 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// pub mod button;
-// pub use button::*;
-
 use core::mem::swap;
 
 use access_control::{traits::AccessControlled, Role};
