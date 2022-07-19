@@ -48,10 +48,10 @@ else
     echo build finished
 
     echo copying results...
-    cp -Lr result result.copied
-    mv result result.tmp
-    mv result.copied result
-    rm result.tmp
+    mv result result.orig
+    cp -Lr result.orig result
+    rm result.orig
+    chmod -R 777 result
     echo results copied
 
     # we need to change the dynamic linker
@@ -62,5 +62,5 @@ else
         chmod +w $PATH_TO_FIX
         patchelf --set-interpreter $DYNAMIC_LINKER_PATH $PATH_TO_FIX
     fi
-    echo nix-build finished
+    echo nix-build.sh finished
 fi
