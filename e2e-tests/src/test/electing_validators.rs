@@ -45,17 +45,15 @@ fn setup_accounts() -> Accounts {
 }
 
 /// Endow validators (stashes and controllers), bond and rotate keys.
-fn prepare_validators(root_connection: &RootConnection, node: &str, accounts: &Accounts) {
+///
+/// Signer of `connection` should have enough balance to endow new accounts.
+fn prepare_validators(connection: &SignedConnection, node: &str, accounts: &Accounts) {
     balances_batch_transfer(
-        &root_connection.as_signed(),
+        connection,
         accounts.stash_accounts.clone(),
         MIN_VALIDATOR_BOND + TOKEN,
     );
-    balances_batch_transfer(
-        &root_connection.as_signed(),
-        accounts.controller_accounts.clone(),
-        TOKEN,
-    );
+    balances_batch_transfer(connection, accounts.controller_accounts.clone(), TOKEN);
 
     for (stash, controller) in accounts
         .stash_keys
@@ -72,7 +70,7 @@ fn prepare_validators(root_connection: &RootConnection, node: &str, accounts: &A
     }
 
     for controller in accounts.controller_keys.iter() {
-        let keys = rotate_keys(root_connection).expect("Failed to retrieve keys from chain");
+        let keys = rotate_keys(connection).expect("Failed to retrieve keys from chain");
         let connection = SignedConnection::new(node, controller.clone());
         set_keys(&connection, keys, XtStatus::Finalized);
         staking_validate(&connection, 10, XtStatus::Finalized);
@@ -204,7 +202,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let root_connection = RootConnection::new(node, sudo);
 
     let accounts = setup_accounts();
-    prepare_validators(&root_connection, node, &accounts);
+    prepare_validators(&root_connection.as_signed(), node, &accounts);
     info!("New validators are set up");
 
     let reserved_validators = accounts.stash_accounts[..3].to_vec();
