@@ -37,18 +37,18 @@ pub trait NodeSessionManager {
         session: SessionId,
         node_id: NodeIndex,
         backup: ABFTBackup,
-        authorithies: Vec<AuthorityId>,
+        authorithies: &[AuthorityId],
     ) -> AuthorityTask;
 
     async fn early_start_validator_session(
         &self,
         session: SessionId,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
     ) -> Result<(), Self::Error>;
     fn start_nonvalidator_session(
         &self,
         session: SessionId,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
     ) -> Result<(), Self::Error>;
     fn stop_session(&self, session: SessionId) -> Result<(), Self::Error>;
     async fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex>;

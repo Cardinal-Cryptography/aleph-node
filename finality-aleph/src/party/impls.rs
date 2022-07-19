@@ -87,14 +87,14 @@ where
     async fn spawn_subtasks(
         &self,
         session_id: SessionId,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
         node_id: NodeIndex,
         exit_rx: oneshot::Receiver<()>,
         backup: ABFTBackup,
     ) -> Subtasks {
         debug!(target: "afa", "Authority task {:?}", session_id);
 
-        let authority_verifier = AuthorityVerifier::new(authorities.clone());
+        let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
             AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
                 .await
@@ -199,7 +199,7 @@ where
         session: SessionId,
         node_id: NodeIndex,
         backup: ABFTBackup,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
     ) -> AuthorityTask {
         let (exit, exit_rx) = futures::channel::oneshot::channel();
         let subtasks = self
@@ -221,13 +221,13 @@ where
     async fn early_start_validator_session(
         &self,
         session: SessionId,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
         let node_id = match self.node_idx(&authorities).await {
             Some(id) => id,
             None => return Err(SessionManagerError::NotAuthority),
         };
-        let authority_verifier = AuthorityVerifier::new(authorities.clone());
+        let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
             AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
                 .await
@@ -240,9 +240,9 @@ where
     fn start_nonvalidator_session(
         &self,
         session: SessionId,
-        authorities: Vec<AuthorityId>,
+        authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
-        let authority_verifier = AuthorityVerifier::new(authorities);
+        let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
 
         self.session_manager
             .start_nonvalidator_session(session, authority_verifier)

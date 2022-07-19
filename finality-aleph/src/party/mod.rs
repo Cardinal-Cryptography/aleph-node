@@ -1,14 +1,10 @@
 use std::{default::Default, marker::PhantomData, path::PathBuf, sync::Arc, time::Duration};
 
-use codec::Encode;
 use futures_timer::Delay;
 use log::{debug, error, info, trace, warn};
-use sp_runtime::traits::Block as BlockT;
 use tokio::{task::spawn_blocking, time::sleep};
 
 use crate::{
-    crypto::AuthorityVerifier,
-    justification::{AlephJustification, Verifier},
     party::{
         authority::SubtaskCommon as AuthoritySubtaskCommon,
         task::{Handle, Task},
@@ -27,16 +23,6 @@ pub mod impls;
 pub(crate) mod member;
 pub(crate) mod task;
 pub mod traits;
-
-impl<B: BlockT> Verifier<B> for AuthorityVerifier {
-    fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
-        if !self.is_complete(&hash.encode()[..], &justification.signature) {
-            warn!(target: "aleph-justification", "Bad justification for block hash #{:?} {:?}", hash, justification);
-            return false;
-        }
-        true
-    }
-}
 
 pub(crate) struct ConsensusPartyParams<B: Block, RB, AC, AS, SI> {
     pub session_authorities: ReadOnlySessionMap,
@@ -140,7 +126,7 @@ where
 
         trace!(target: "aleph-party", "Authority data for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
-            self.authority_tasks.node_idx(&authorities).await
+            self.authority_tasks.node_idx(authorities).await
         {
             match backup::rotate(self.backup_saving_path.clone(), session_id.0) {
                 Ok(backup) => {
@@ -151,7 +137,7 @@ where
                                 session_id,
                                 node_id,
                                 backup,
-                                authorities.clone(),
+                                authorities,
                             )
                             .await,
                     )
@@ -209,8 +195,9 @@ where
                         None => None,
                     }
                 } => {
+                    let next_session_authorities = next_session_authority_data.authorities();
                     match self.authority_tasks.node_idx(&next_session_authorities).await {
-                            if let Err(e) = self
+                         Some(_) => if let Err(e) = self
                                 .authority_tasks
                                 .early_start_validator_session(
                                     next_session_id,
@@ -219,7 +206,6 @@ where
                             {
                                 warn!(target: "aleph-party", "Failed to early start validator session{:?}:{:?}", next_session_id, e);
                             }
-                        }
                         None => {
                             if let Err(e) = self
                                 .authority_tasks
