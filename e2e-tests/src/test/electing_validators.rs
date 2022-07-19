@@ -196,6 +196,18 @@ fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
 /// 2. Wait until they are in force.
 /// 3. 1 reserved and 1 non reserved chill.
 /// 4. Verify only staking validators are in force.
+///
+/// Note:
+///  - `pallet_staking` has `MinValidatorCount` set to 4 (and this cannot be changed on running
+///    chain)
+///  - our e2e tests run with 5 validators
+/// Thus chilling 2 validators (1 reserved and 1 non reserved) is a no go: `pallet_staking` will
+/// protest and won't proceed with a new committee. Therefore we have to create a new, bigger
+/// committee. This is much easier to maintain with a fresh set of accounts. However, after
+/// generating new keys for new members (with `rotate_keys`), **FINALIZATION IS STALLED**. This is
+/// because a single node keeps in its keystore all Aleph keys, which is neither expected nor
+/// handled by our code. Fortunately, Aura handles this gently, so after changing committee block
+/// production keeps working. This is completetly enough for this test.
 pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let node = &config.node;
     let sudo = get_sudo_key(config);
