@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
 use log::{info, warn};
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
