@@ -196,7 +196,7 @@ where
                     }
                 } => {
                     let next_session_authorities = next_session_authority_data.authorities();
-                    match self.authority_tasks.node_idx(&next_session_authorities).await {
+                    match self.authority_tasks.node_idx(next_session_authorities).await {
                          Some(_) => if let Err(e) = self
                                 .authority_tasks
                                 .early_start_validator_session(

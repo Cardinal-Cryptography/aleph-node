@@ -223,7 +223,7 @@ where
         session: SessionId,
         authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
-        let node_id = match self.node_idx(&authorities).await {
+        let node_id = match self.node_idx(authorities).await {
             Some(id) => id,
             None => return Err(SessionManagerError::NotAuthority),
         };
