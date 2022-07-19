@@ -320,48 +320,46 @@ pub trait ButtonGame {
     where
         E: Environment<AccountId = AccountId>,
     {
-        if self.is_dead(now) {
-            let ButtonData {
-                total_scores,
-                last_presser,
-                press_accounts,
-                presses,
-                ..
-            } = self.get();
-
-            // if there were any players
-            if last_presser.is_some() {
-                let total_balance = self.balance::<E>(balance_of_selector, this)?;
-
-                // Pressiah gets 50% of supply
-                let pressiah_reward = total_balance / 2;
-                if let Some(pressiah) = last_presser {
-                    self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
-                }
-
-                let remaining_balance = total_balance - pressiah_reward;
-                // rewards are distributed to the participants proportionally to their score
-                let _ = press_accounts
-                    .iter()
-                    .try_for_each(|account_id| -> Result<()> {
-                        if let Some(score) = presses.get(account_id) {
-                            let reward =
-                                (score as u128 * remaining_balance) / *total_scores as u128;
-                            // transfer amount
-                            return Ok(self.transfer_tx::<E>(
-                                transfer_selector,
-                                *account_id,
-                                reward,
-                            )?);
-                        }
-                        Ok(())
-                    });
-            }
-
-            Ok(())
-        } else {
-            Err(Error::BeforeDeadline)
+        if !self.is_dead(now) {
+            return Err(Error::BeforeDeadline);
         }
+
+        let ButtonData {
+            total_scores,
+            last_presser,
+            press_accounts,
+            presses,
+            ..
+        } = self.get();
+
+        // if there weren't any players
+        if last_presser.is_none() {
+            return Ok(());
+        }
+
+        let total_balance = self.balance::<E>(balance_of_selector, this)?;
+
+        // Pressiah gets 50% of supply
+        let pressiah_reward = total_balance / 2;
+        if let Some(pressiah) = last_presser {
+            self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
+        }
+
+        let remaining_balance = total_balance - pressiah_reward;
+        // rewards are distributed to the participants proportionally to their score
+        // let _ =
+        press_accounts
+            .iter()
+            .try_for_each(|account_id| -> Result<()> {
+                if let Some(score) = presses.get(account_id) {
+                    let reward = (score as u128 * remaining_balance) / *total_scores as u128;
+                    // transfer amount
+                    return Ok(self.transfer_tx::<E>(transfer_selector, *account_id, reward)?);
+                }
+                Ok(())
+            })
+
+        // Ok(())
     }
 }
 
