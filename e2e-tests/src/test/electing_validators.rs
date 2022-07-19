@@ -70,7 +70,7 @@ fn prepare_validators(connection: &SignedConnection, node: &str, accounts: &Acco
     }
 
     for controller in accounts.controller_keys.iter() {
-        let keys = rotate_keys(connection).expect("Failed to retrieve keys from chain");
+        let keys = rotate_keys(connection).expect("Failed to generate new keys");
         let connection = SignedConnection::new(node, controller.clone());
         set_keys(&connection, keys, XtStatus::Finalized);
         staking_validate(&connection, 10, XtStatus::Finalized);
