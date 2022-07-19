@@ -121,10 +121,10 @@ where
             }
         }
 
-        // We need to wait until session-authorities are available for current session.
+        // We need to wait until session authority data is available for current session.
         // This should only be needed for the first ever session as all other session are known
         // at least one session earlier.
-        let authorities = match self
+        let authority_data = match self
             .session_authorities
             .subscribe_to_insertion(session_id)
             .await
@@ -134,10 +134,11 @@ where
                 "Error while receiving the notification about current session {:?}",
                 e
             ),
-            Ok(authorities) => authorities,
+            Ok(authority_data) => authority_data,
         };
+        let authorities = authority_data.authorities();
 
-        trace!(target: "afa", "Authorities for session {:?}: {:?}", session_id, authorities);
+        trace!(target: "aleph-party", "Authority data for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
             self.authority_tasks.node_idx(&authorities).await
         {
@@ -165,7 +166,7 @@ where
                 }
             }
         } else {
-            debug!(target: "afa", "Running session {:?} as non-authority", session_id);
+            debug!(target: "aleph-party", "Running session {:?} as non-authority", session_id);
             if let Err(e) = self
                 .authority_tasks
                 .start_nonvalidator_session(session_id, authorities)
@@ -191,7 +192,7 @@ where
                     }
                     check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
                 },
-                Some(next_session_authorities) = async {
+                Some(next_session_authority_data) = async {
                     match &mut start_next_session_network {
                         Some(notification) => {
                             match notification.await {
@@ -200,8 +201,8 @@ where
                                     start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id).await);
                                     None
                                 },
-                                Ok(next_session_authorities) => {
-                                    Some(next_session_authorities)
+                                Ok(next_session_authority_data) => {
+                                    Some(next_session_authority_data)
                                 }
                             }
                         },
@@ -209,7 +210,6 @@ where
                     }
                 } => {
                     match self.authority_tasks.node_idx(&next_session_authorities).await {
-                        Some(_) => {
                             if let Err(e) = self
                                 .authority_tasks
                                 .early_start_validator_session(
