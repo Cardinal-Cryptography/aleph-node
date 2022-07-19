@@ -185,9 +185,9 @@ fn chill(connection: &SignedConnection) {
     );
 }
 
-/// Chill all validators in `malicious`.
-fn chill_malicious_validators(node: &str, malicious: Vec<KeyPair>) {
-    for validator in malicious.into_iter() {
+/// Chill all validators in `chilling`.
+fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
+    for validator in chilling.into_iter() {
         info!("Chilling validator {:?}", validator.public());
         let connection = SignedConnection::new(node, validator);
         chill(&connection);
@@ -208,9 +208,9 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     info!("New validators are set up");
 
     let reserved_validators = accounts.stash_accounts[..3].to_vec();
-    let malicious_reserved = accounts.controller_keys[0].clone();
+    let chilling_reserved = accounts.controller_keys[0].clone();
     let non_reserved_validators = accounts.stash_accounts[3..].to_vec();
-    let malicious_non_reserved = accounts.controller_keys[3].clone();
+    let chilling_non_reserved = accounts.controller_keys[3].clone();
 
     change_validators(
         &root_connection,
@@ -240,7 +240,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         &BTreeSet::from_iter(accounts.stash_accounts.clone().into_iter()),
     );
 
-    chill_malicious_validators(node, vec![malicious_reserved, malicious_non_reserved]);
+    chill_validators(node, vec![chilling_reserved, chilling_non_reserved]);
 
     let current_era = wait_for_full_era_completion(&connection)?;
     info!(
