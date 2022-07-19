@@ -3,6 +3,7 @@ name = "back_to_the_future"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
+license = "Apache 2.0"
 
 [dependencies]
 ink_env = { version = "3.2.0", default-features = false }
