@@ -8,7 +8,7 @@ let
   fixedSrc = nixpkgs.runCommand "cleanedSrc" {} ''
     mkdir -p $out
     cp -a ${src}/. $out/
-    find $out/ -name "*.rs" | xargs -I {} echo -n "" > {}
+    find $out/ -name "*.rs" | xargs -I {} sh -c "echo -n "" > {}"
   '';
 in
 nixpkgs.runCommand "cargoFetch" { nativeBuildInputs = [rustToolchain.rust nixpkgs.cacert]; } ''
