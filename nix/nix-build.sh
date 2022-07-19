@@ -35,8 +35,13 @@ else
 
     # first we download all dependencies
     echo fetching depedencies...
-    CARGO_HOME="$(realpath ~/cargo-home)"
-    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline || CARGO_HOME=$CARGO_HOME cargo fetch --locked"
+    CARGO_HOME="$(realpath ~/.cargo)"
+    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline"
+    retVal=$?
+    if [[ ! $retVal -eq 0 ]]; then
+        echo need to access network to download dependencies
+        nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
+    fi
 
     echo building...
     nix-build --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
