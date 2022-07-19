@@ -8,11 +8,11 @@ use ink_lang as ink;
 /// user_score = now - start
 /// ThePressiah (the last player to click) still gets 50% of the tokens.
 
-#[ink::contract(env = button::button::ButtonGameEnvironment)]
+#[ink::contract(env = button::ButtonGameEnvironment)]
 mod back_to_the_future {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::button::{
+    use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, Error, IButtonGame, Result, Score,
     };
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};

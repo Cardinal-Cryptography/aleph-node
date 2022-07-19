@@ -8,11 +8,11 @@ use ink_lang as ink;
 /// user_score = deadline - now
 /// On the other hand ThePressiah (the last player to click) gets 50% of the token pool, which creates two competing strategies.
 
-#[ink::contract(env = button::button::ButtonGameEnvironment)]
+#[ink::contract(env = button::ButtonGameEnvironment)]
 mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::button::{
+    use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, Error, IButtonGame, Result, Score,
     };
     use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
