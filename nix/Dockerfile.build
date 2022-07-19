@@ -1,13 +1,12 @@
 FROM nixos/nix@sha256:f0c68f870c655d8d96658ca762a0704a30704de22d16b4956e762a2ddfbccb09
 
-COPY nix/nix-build.sh /node/
-COPY . /node/build
+COPY default.nix shell.nix nix/ .git /node/nix-files
 RUN nix-env -i patchelf && \
     nix-collect-garbage -d && \
-    chmod +x /node/nix-build.sh
+    chmod +x /node/nix-files/nix/nix-build.sh
+
+RUN nix-shell --pure --run 'echo installed all native pre-requisities' /node/nix-files/shell.nix
 
 WORKDIR /node/build
-RUN nix-shell --pure --run 'echo installed all native pre-requisities' shell.nix
-
-ENTRYPOINT ["/node/nix-build.sh"]
+ENTRYPOINT ["/node/nix-files/nix/nix-build.sh"]
 CMD []
