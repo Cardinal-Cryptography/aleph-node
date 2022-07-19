@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SPAWN_SHELL=${SPAWN_SHELL:-false}
-SHELL_NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
+NIX_FILE=${SHELL_NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = []; }'}
 SINGLE_STEP=${SINGLE_STEP:-'false'}
@@ -29,22 +29,18 @@ function usage(){
 
 if [ $SPAWN_SHELL = true ]
 then
-    nix-shell --pure $SHELL_NIX_FILE
+    nix-shell --pure $NIX_FILE
 else
     ARGS=(--arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
 
     # first we download all dependencies
+    # we store all cargo dependencies inside nix-store
     echo fetching depedencies...
-    CARGO_HOME="$(realpath ~/.cargo)"
-    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline"
-    retVal=$?
-    if [[ ! $retVal -eq 0 ]]; then
-        echo need to access network to download dependencies
-        nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
-    fi
+    # we need to turn-off sandbox for it, since it accesses network
+    CARGO_HOME=$(nix-build --option sandbox false --show-trace nix/download_cargo_home.nix)
 
     echo building...
-    nix-build --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" --show-trace $SHELL_NIX_FILE "${ARGS[@]}"
+    nix-build --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" --show-trace $NIX_FILE "${ARGS[@]}"
     echo build finished
 
     echo copying results...
