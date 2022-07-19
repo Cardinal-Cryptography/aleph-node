@@ -371,6 +371,8 @@ pub mod pallet {
                 .map(|id| {
                     (
                         id,
+                        // Under normal circumstances support will never be `0` since 'self-vote'
+                        // is counted in.
                         Support {
                             total: 0,
                             voters: Vec::new(),
