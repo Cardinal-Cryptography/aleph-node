@@ -36,7 +36,7 @@ let
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = versions.llvm;
-  env = if keepDebugInfo then nixpkgs.keepDebugInfo versions.stdenv else versions.stdenv;
+  stdenv = if keepDebugInfo then nixpkgs.keepDebugInfo versions.stdenv else versions.stdenv;
 
   # tool for conveniently building rust projects
   naersk = versions.naersk;
@@ -84,23 +84,14 @@ let
     filter = gitFilter ./.;
     name = "aleph-source";
   };
-  override = if providedCargoHome then _: { cargoconfig = ""; crate_sources = ""; } else nixpkgs.lib.id;
-  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
-  cargoBuild = if customBuildCommand != "" then _: customBuildCommand else nixpkgs.lib.id;
 in
 with nixpkgs; naersk.buildPackage rec {
-  inherit src name release singleStep override buildInputs cargoBuild;
-  # gitDependencies = [];
-  # crateDependencies = [];
-  # override = drv: drv // { cargoconfig = ""; };
-  # overrideMain = drv: builtins.trace drv.cargoconfig drv;
-  # overrideMain = drv: builtins.trace drv.cargoconfig drv;
-  # override = drv: drv // {gitDependencies = []; crateDependencies = [];};
-  # overrideMain = drv: let new = drv // {cargoconfig = "";}; in builtins.trace drv.cargoconfig (builtins.trace new.cargoconfig new);
-  # overrideMain = drv: let new = drv // {gitDependencies = []; crateDependencies = []; cargoconfig = "";}; in builtins.trace new.cargoconfig new;
-  # override = drv: let new = drv // {gitDependencies = []; crateDependencies = []; cargoconfig = ""; crate_sources = ""; }; in builtins.trace drv new;
-  # override = drv: let new = drv // { cargoconfig = ""; crate_sources = ""; }; in builtins.trace drv new;
-  # override = _: { cargoconfig = ""; crate_sources = ""; };
+  inherit src name release singleStep;
+  # this allows to skip naersk's `download-git/crates.io-dependencies` procedure and creation of custom cargo config
+  override = if providedCargoHome then _: { cargoconfig = ""; crate_sources = ""; } else lib.id;
+
+  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
+  cargoBuild = if customBuildCommand != "" then _: customBuildCommand else lib.id;
   nativeBuildInputs = [
     git
     pkg-config
@@ -139,7 +130,7 @@ with nixpkgs; naersk.buildPackage rec {
     # uses LLVM's libclang. To make sure all necessary flags are
     # included we need to look in a few places.
     # https://github.com/rust-lang/rust-bindgen/blob/89032649044d875983a851fff6fbde2d4e2ceaeb/src/lib.rs#L213
-    export BINDGEN_EXTRA_CLANG_ARGS=$(cat ${env.cc}/nix-support/{cc,libc}-cflags)
+    export BINDGEN_EXTRA_CLANG_ARGS=$(cat ${stdenv.cc}/nix-support/{cc,libc}-cflags)
   '';
   preConfigure = ''
     ${shellHook}
