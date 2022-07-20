@@ -39,7 +39,7 @@ let
   env = if keepDebugInfo then nixpkgs.keepDebugInfo versions.stdenv else versions.stdenv;
 
   # tool for conveniently building rust projects
-  naersk = versions.naersk.override { stdenv = env; };
+  naersk = versions.naersk;
 
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
@@ -48,11 +48,14 @@ let
 
   # newer versions of Substrate support providing a version hash by means of an env variable, i.e. SUBSTRATE_CLI_GIT_COMMIT_HASH
   gitFolder = builtins.path { path = ./.git; name = "git-folder"; };
-  gitCommit = builtins.readFile (
-    nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
-      GIT_DIR=${gitFolder} git rev-parse --short HEAD > $out
-    ''
-  );
+  gitCommit = if builtins.pathExists ./.git then
+      builtins.readFile (
+        nixpkgs.runCommand "gitCommit" { nativeBuildInputs = [nixpkgs.git]; } ''
+          GIT_DIR=${gitFolder} git rev-parse --short HEAD > $out
+        ''
+      )
+    else
+      "unknown";
 
   modePath = if release then "release" else "debug";
   pathToWasm = "target/" + modePath + "/wbuild/aleph-runtime/target/wasm32-unknown-unknown/" + modePath + "/aleph_runtime.wasm";
@@ -81,17 +84,29 @@ let
     filter = gitFilter ./.;
     name = "aleph-source";
   };
+  override = if providedCargoHome then _: { cargoconfig = ""; crate_sources = ""; } else nixpkgs.lib.id;
+  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
+  cargoBuild = if customBuildCommand != "" then _: customBuildCommand else nixpkgs.lib.id;
 in
 with nixpkgs; naersk.buildPackage rec {
-  inherit src name release singleStep;
+  inherit src name release singleStep override buildInputs cargoBuild;
+  # gitDependencies = [];
+  # crateDependencies = [];
+  # override = drv: drv // { cargoconfig = ""; };
+  # overrideMain = drv: builtins.trace drv.cargoconfig drv;
+  # overrideMain = drv: builtins.trace drv.cargoconfig drv;
+  # override = drv: drv // {gitDependencies = []; crateDependencies = [];};
+  # overrideMain = drv: let new = drv // {cargoconfig = "";}; in builtins.trace drv.cargoconfig (builtins.trace new.cargoconfig new);
+  # overrideMain = drv: let new = drv // {gitDependencies = []; crateDependencies = []; cargoconfig = "";}; in builtins.trace new.cargoconfig new;
+  # override = drv: let new = drv // {gitDependencies = []; crateDependencies = []; cargoconfig = ""; crate_sources = ""; }; in builtins.trace drv new;
+  # override = drv: let new = drv // { cargoconfig = ""; crate_sources = ""; }; in builtins.trace drv new;
+  # override = _: { cargoconfig = ""; crate_sources = ""; };
   nativeBuildInputs = [
     git
     pkg-config
     llvm.libclang
     protobuf
   ];
-  buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
-  cargoBuild = if customBuildCommand != "" then _: customBuildCommand else lib.id;
   cargoBuildOptions = opts:
     packageFlags
     ++ [featuresFlag]
