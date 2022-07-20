@@ -19,13 +19,13 @@ use crate::{
         aggregator,
         authority::{SubtaskCommon, Subtasks, Task as AuthorityTask},
         backup::ABFTBackup,
-        traits::{AlephClient, Block, NodeSessionManager, SessionInfo},
+        traits::{Block, ChainState, NodeSessionManager, SessionInfo},
     },
     AuthorityId, ClientForAleph, JustificationNotification, Metrics, NodeIndex, SessionBoundaries,
     SessionId, SessionPeriod, SplitData, UnitCreationDelay,
 };
 
-pub struct AuthoritySubtaskImpl<C, SC, B, RB, BE>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -47,7 +47,7 @@ where
     _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE> AuthoritySubtaskImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE> NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -183,7 +183,7 @@ pub enum SessionManagerError {
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE> NodeSessionManager for AuthoritySubtaskImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -271,7 +271,7 @@ where
     }
 }
 
-pub struct AlephClientImpl<B, BE, CFA>
+pub struct ChainStateImpl<B, BE, CFA>
 where
     B: BlockT,
     BE: Backend<B>,
@@ -281,7 +281,7 @@ where
     pub _phantom: PhantomData<(B, BE)>,
 }
 
-impl<B, BE, CFA> AlephClient<B> for AlephClientImpl<B, BE, CFA>
+impl<B, BE, CFA> ChainState<B> for ChainStateImpl<B, BE, CFA>
 where
     B: BlockT,
     BE: Backend<B>,
@@ -290,7 +290,6 @@ where
     fn best_block_number(&self) -> <B as Block>::Number {
         self.client.info().best_number
     }
-
     fn finalized_number(&self) -> <B as Block>::Number {
         self.client.info().finalized_number
     }

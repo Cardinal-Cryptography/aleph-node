@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use log::{debug, error};
 use sc_client_api::Backend;
@@ -14,7 +14,7 @@ use crate::{
     },
     nodes::{setup_justification_handler, JustificationParams},
     party::{
-        impls::{AlephClientImpl, AuthoritySubtaskImpl, SessionInfoImpl},
+        impls::{ChainStateImpl, NodeSessionManagerImpl, SessionInfoImpl},
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
@@ -112,11 +112,11 @@ where
         session_authorities,
         block_requester: block_requester.clone(),
         backup_saving_path,
-        a_client: Arc::new(AlephClientImpl {
+        chain_state: ChainStateImpl {
             client: client.clone(),
             _phantom: PhantomData,
-        }),
-        authority_tasks: AuthoritySubtaskImpl::new(
+        },
+        session_manager: NodeSessionManagerImpl::new(
             client,
             select_chain,
             session_period,
