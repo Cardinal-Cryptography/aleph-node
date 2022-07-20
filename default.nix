@@ -27,19 +27,16 @@
 , versions ? import ./nix/versions.nix {}
 }:
 let
-  providedCargoHome = cargoHomePath != "";
-  cargoHome = builtins.path { path = builtins.toPath cargoHomePath; name = "cargo-home"; };
-
   nixpkgs = versions.nixpkgs;
-  rustToolchain = versions.rustToolchain;
-
   # declares a build environment where C and C++ compilers are delivered by the llvm/clang project
   # in this version build process should rely only on clang, without access to gcc
   llvm = versions.llvm;
   stdenv = if keepDebugInfo then nixpkgs.keepDebugInfo versions.stdenv else versions.stdenv;
-
   # tool for conveniently building rust projects
   naersk = versions.naersk;
+
+  providedCargoHome = cargoHomePath != "";
+  cargoHome = builtins.path { path = builtins.toPath cargoHomePath; name = "cargo-home"; };
 
   # WARNING this custom version of rocksdb is only build when useCustomRocksDb == true
   # we use a newer version of rocksdb than the one provided by nixpkgs
@@ -84,12 +81,13 @@ let
     filter = gitFilter ./.;
     name = "aleph-source";
   };
+  # overrides attributes needed for downloading cargo dependencies by naersk
+  disableDependencyDownload = _: { cargoconfig = ""; crate_sources = ""; };
 in
 with nixpkgs; naersk.buildPackage rec {
   inherit src name release singleStep;
   # this allows to skip naersk's `download-git/crates.io-dependencies` procedure and creation of custom cargo config
-  override = if providedCargoHome then _: { cargoconfig = ""; crate_sources = ""; } else lib.id;
-
+  override = if providedCargoHome then disableDependencyDownload else lib.id;
   buildInputs = nixpkgs.lib.optional useCustomRocksDb customRocksdb;
   cargoBuild = if customBuildCommand != "" then _: customBuildCommand else lib.id;
   nativeBuildInputs = [
