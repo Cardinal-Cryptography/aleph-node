@@ -26,6 +26,7 @@ score = deadline - now
 There are two built-in incentives:
 * playing for the score: If you clicked in the 10th second of TheButton's life, which is set for example to 900 blocks, you get rewarded based on the score of 900-10=890 (and the button's life now will end at block 910).
 * playing to be ThePressiah: the last player to click gets 50% of the total reward pool.
+
 ## BackToTheFuture
 
 In this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:

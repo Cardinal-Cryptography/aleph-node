@@ -4,6 +4,32 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function instrument_game_token {
+
+  local  __resultvar=$1
+  local contract_name=$2
+  local salt=$3
+
+  # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
+
+  cd $CONTRACTS_PATH/$contract_name
+
+  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt $salt)
+  CONTRACT_ADDRESS=$(echo "$CONTRACT_ADDRESS" | grep Contract | tail -1 | cut -c 15-)
+
+  echo $contract_name " token contract instance address: " $CONTRACT_ADDRESS
+
+  # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+
+  cd $CONTRACTS_PATH/access_control
+
+  # alice is the admin and the owner of the contract instance
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
+
+  eval $__resultvar="'$CONTRACT_ADDRESS'"
+}
+
 function deploy_and_instrument_game {
 
   local  __resultvar=$1
@@ -135,22 +161,27 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 # --- EARLY_BIRD_SPECIAL GAME
 #
 
+# TODO : from
+
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
+instrument_game_token EARLY_BIRD_SPECIAL_TOKEN button_token 0x4561726C79426972645370656369616C
 
-cd $CONTRACTS_PATH/button_token
+# cd $CONTRACTS_PATH/button_token
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4561726C79426972645370656369616C)
-EARLY_BIRD_SPECIAL_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4561726C79426972645370656369616C)
+# EARLY_BIRD_SPECIAL_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-echo "EarlyBirdSpecial token contract instance address" $EARLY_BIRD_SPECIAL_TOKEN
+# echo "EarlyBirdSpecial token contract instance address" $EARLY_BIRD_SPECIAL_TOKEN
 
-# --- GRANT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL TOKEN CONTRACT
+# # --- GRANT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL TOKEN CONTRACT
 
-cd $CONTRACTS_PATH/access_control
+# cd $CONTRACTS_PATH/access_control
 
-# alice is the admin and the owner of the contract instance
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
+# # alice is the admin and the owner of the contract instance
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
+
+# TODO : to
 
 deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TOKEN
 
@@ -176,22 +207,24 @@ cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButton
 # --- BACK_TO_THE_FUTURE GAME
 #
 
-# --- INITIALIZE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
+# --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
 
-cd $CONTRACTS_PATH/button_token
+instrument_game_token BACK_TO_THE_FUTURE_TOKEN button_token 0x4261636B546F546865467574757265
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4261636B546F546865467574757265)
-BACK_TO_THE_FUTURE_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+# cd $CONTRACTS_PATH/button_token
 
-echo "BackToTheFuture token contract instance address" $BACK_TO_THE_FUTURE_TOKEN
+# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4261636B546F546865467574757265)
+# BACK_TO_THE_FUTURE_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 
-# --- GRANT PRIVILEDGES ON THE BACK_TO_THE_FUTURE TOKEN CONTRACT
+# echo "BackToTheFuture token contract instance address" $BACK_TO_THE_FUTURE_TOKEN
 
-cd $CONTRACTS_PATH/access_control
+# # --- GRANT PRIVILEDGES ON THE BACK_TO_THE_FUTURE TOKEN CONTRACT
 
-# alice is the admin and the owner of the contract instance
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
+# cd $CONTRACTS_PATH/access_control
+
+# # alice is the admin and the owner of the contract instance
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
+# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
 
 deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TOKEN
 
