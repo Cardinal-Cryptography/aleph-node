@@ -11,6 +11,11 @@ if [ -z ${PATH_TO_FIX+x} ]; then
     PATH_TO_FIX="result/bin/aleph-node"
 fi
 
+function usage(){
+    echo "Usage:
+      ./nix-build.sh [-s - spawn nix-shell]"
+}
+
 while getopts "s" flag
 do
     case "${flag}" in
@@ -22,11 +27,6 @@ do
     esac
 done
 
-function usage(){
-    echo "Usage:
-      ./nix-build.sh [-s - spawn nix-shell]"
-}
-
 if [ $SPAWN_SHELL = true ]
 then
     nix-shell --pure $NIX_FILE
@@ -36,15 +36,19 @@ else
     # we need to download all dependencies
     echo fetching depedencies...
     CARGO_HOME="$(realpath ~/.cargo)"
-    nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline"
-    retVal=$?
-    if [[ ! $retVal -eq 0 ]]; then
-        echo need to access network to download dependencies
-        nix-shell --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
+
+    set +e
+    nix-shell --show-trace --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked --offline"
+    EXITCODE=$?
+    set -e
+
+    if [ ! $EXITCODE -eq 0 ]; then
+        echo need to access network to download rust dependencies
+        nix-shell --show-trace --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
     fi
 
     echo building...
-    nix-build --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" --show-trace $NIX_FILE "${ARGS[@]}"
+    nix-build --show-trace --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" $NIX_FILE "${ARGS[@]}"
     echo build finished
 
     echo copying results...
@@ -57,7 +61,7 @@ else
     # we need to change the dynamic linker
     # otherwise our binary references one that is specific for nix
     # we need it for aleph-node to be run outside nix-shell
-    if [[ ! -z "$PATH_TO_FIX" && -f $PATH_TO_FIX ]]; then
+    if [ ! -z "$PATH_TO_FIX" && -f $PATH_TO_FIX ]; then
         echo patching...
         chmod +w $PATH_TO_FIX
         patchelf --set-interpreter $DYNAMIC_LINKER_PATH $PATH_TO_FIX
