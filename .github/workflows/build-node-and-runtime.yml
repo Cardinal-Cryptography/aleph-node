@@ -30,7 +30,7 @@ jobs:
         with:
           path: |
             image.tar
-          key: ${{ runner.os }}-build-docker-image-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh') }}-v0
+          key: build-docker-image-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh', 'nix/download_cargo_home.nix') }}-v0
 
       - name: Build or load our `build` docker image
         shell: bash
@@ -47,10 +47,10 @@ jobs:
         shell: bash
         run: |
           export CRATES='{ "aleph-node" = []; }'
-          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
+          docker run --name aleph-build -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
-          docker commit build.env aleph-node/build
-          docker rm build.env
+          docker commit aleph-build aleph-node/build
+          docker rm aleph-build
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -74,7 +74,7 @@ jobs:
           # we need to clean after previous build
           mv result result.main
           export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-          docker run --name build.env -e CRATES --volume=$(pwd):/node/build aleph-node/build
+          docker run --name aleph-build -e CRATES --volume=$(pwd):/node/build aleph-node/build
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
@@ -96,8 +96,8 @@ jobs:
         shell: bash
         run: |
           if [[ ! -f .image.loaded ]]; then
-            docker commit build.env aleph-node/build
-            docker rm build.env
+            docker commit aleph-build aleph-node/build
+            docker rm aleph-build
             docker save -o image.tar aleph-node/build
           fi
 
