@@ -9,7 +9,20 @@ use sc_network::config::Role;
 use sc_service::PartialComponents;
 
 fn main() -> sc_cli::Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    match cli.run.import_params.pruning_params.pruning.as_ref() {
+        Some(mode) => {
+            if mode != "archive" {
+                println!("Pruning not supported. Switching to 'archive' mode.");
+                cli.run.import_params.pruning_params.pruning = Some(String::from("archive"));
+            }
+        }
+        None => {
+            cli.run.import_params.pruning_params.pruning = Some(String::from("archive"));
+        }
+    }
+
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
         Some(Subcommand::BootstrapNode(cmd)) => cmd.run(),
