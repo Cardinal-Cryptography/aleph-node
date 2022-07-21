@@ -36,7 +36,6 @@ runs:
 
     - name: Checkout docker image
       id: check_cache
-      if: steps.check_loaded.outputs.loaded == 'false'
       uses: actions/cache@v3
       with:
         path: |
@@ -46,11 +45,13 @@ runs:
     - name: Build
       shell: bash
       run: |
-        if [ "${{ steps.check_cache.outputs.cache-hit }}" == "true" ]; then
-          docker load -i image.tar
-          rm image.tar
-        else
-          docker build -t aleph-build:${{ steps.check_loaded.outputs.cache_key }} -f nix/Dockerfile.build .
+        if [ "${{ steps.check_loaded.outputs.loaded }}" == "false" ]; then
+          if [ "${{ steps.check_cache.outputs.cache-hit }}" == "true" ]; then
+            docker load -i image.tar
+            rm image.tar
+          else
+            docker build -t aleph-build:${{ steps.check_loaded.outputs.cache_key }} -f nix/Dockerfile.build .
+          fi
         fi
 
         export CRATES='${{ inputs.crates }}'
