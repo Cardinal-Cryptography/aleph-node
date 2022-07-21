@@ -14,18 +14,18 @@ function instrument_game_token {
 
   cd $CONTRACTS_PATH/$contract_name
 
-  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt $salt)
+  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $GAME_BALANCE --suri $AUTHORITY_SEED --salt $salt)
   CONTRACT_ADDRESS=$(echo "$CONTRACT_ADDRESS" | grep Contract | tail -1 | cut -c 15-)
 
-  echo $contract_name " token contract instance address: " $CONTRACT_ADDRESS
+  echo $contract_name "token contract instance address: " $CONTRACT_ADDRESS
 
   # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
 
   cd $CONTRACTS_PATH/access_control
 
-  # alice is the admin and the owner of the contract instance
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
+  # set the admin and the owner of the contract instance
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
 
   eval $__resultvar="'$CONTRACT_ADDRESS'"
 }
@@ -43,44 +43,44 @@ function deploy_and_instrument_game {
   rm target/ink/$contract_name.wasm
   node ../scripts/hex-to-wasm.js target/ink/$contract_name.contract target/ink/$contract_name.wasm
 
-  CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
+  CODE_HASH=$(cargo contract upload --url $NODE --suri $AUTHORITY_SEED)
   CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
   # --- GRANT INIT PRIVILEDGES ON THE CONTRACT CODE
 
   cd $CONTRACTS_PATH/access_control
 
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$CODE_HASH')' --suri $ALICE_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$CODE_HASH')' --suri $AUTHORITY_SEED
 
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
   cd $CONTRACTS_PATH/$contract_name
 
-  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $game_token $LIFETIME --suri $ALICE_SEED)
+  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $game_token $LIFETIME --suri $AUTHORITY_SEED)
   CONTRACT_ADDRESS=$(echo "$CONTRACT_ADDRESS" | grep Contract | tail -1 | cut -c 15-)
 
-  echo $contract_name " contract instance address: " $CONTRACT_ADDRESS
+  echo $contract_name "contract instance address: " $CONTRACT_ADDRESS
 
   # --- GRANT PRIVILEDGES ON THE CONTRACT
 
   cd $CONTRACTS_PATH/access_control
 
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$CONTRACT_ADDRESS')' --suri $ALICE_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
 
   # --- TRANSFER TOKENS TO THE CONTRACT
 
   cd $CONTRACTS_PATH/button_token
 
-  cargo contract call --url $NODE --contract $game_token --message transfer --args $CONTRACT_ADDRESS $GAME_BALANCE --suri $ALICE_SEED
+  cargo contract call --url $NODE --contract $game_token --message transfer --args $CONTRACT_ADDRESS $GAME_BALANCE --suri $AUTHORITY_SEED
 
   # --- WHITELIST ACCOUNTS FOR PLAYING
 
   cd $CONTRACTS_PATH/$contract_name
 
-  cargo contract call --url $NODE --contract $CONTRACT_ADDRESS --message IButtonGame::bulk_allow --args "[$ALICE,$NODE0]" --suri $ALICE_SEED
+  cargo contract call --url $NODE --contract $CONTRACT_ADDRESS --message IButtonGame::bulk_allow --args $WHITELIST --suri $AUTHORITY_SEED
 
-    eval $__resultvar="'$CONTRACT_ADDRESS'"
+  eval $__resultvar="'$CONTRACT_ADDRESS'"
 }
 
 function link_bytecode() {
@@ -93,19 +93,22 @@ function link_bytecode() {
 
 # --- GLOBAL CONSTANTS
 
+# TODO : configurable ARGS (source env/dev)
+# TODO : split to deploy and test part
+
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-NODE=ws://127.0.0.1:9943
+# NODE=ws://127.0.0.1:9943
 
-ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-ALICE_SEED=//Alice
+# AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+# AUTHORITY_SEED=//Alice
 
-NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
-NODE0_SEED=//0
+# NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
+# NODE0_SEED=//0
 
-LIFETIME=5
-TOTAL_BALANCE=1000
-GAME_BALANCE=900
+# LIFETIME=5
+# mint this many game tokens
+GAME_BALANCE=1000
 
 CONTRACTS_PATH=$(pwd)/contracts
 
@@ -127,7 +130,7 @@ cargo contract build --release
 
 cd $CONTRACTS_PATH/access_control
 
-CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --suri $ALICE_SEED)
+CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --suri $AUTHORITY_SEED)
 ACCESS_CONTROL=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
@@ -145,7 +148,7 @@ rm target/ink/button_token.wasm
 # availiable from https://github.com/fbielejec/polkadot-cljs
 node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
 
-CODE_HASH=$(cargo contract upload --url $NODE --suri $ALICE_SEED)
+CODE_HASH=$(cargo contract upload --url $NODE --suri $AUTHORITY_SEED)
 BUTTON_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
 echo "button token code hash" $BUTTON_TOKEN_CODE_HASH
@@ -154,54 +157,20 @@ echo "button token code hash" $BUTTON_TOKEN_CODE_HASH
 
 cd $CONTRACTS_PATH/access_control
 
-# alice is the initializer of the button-token contract
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $ALICE_SEED
+# set the initializer of the button-token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri $AUTHORITY_SEED
 
 #
 # --- EARLY_BIRD_SPECIAL GAME
 #
 
-# TODO : from
-
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
+
 instrument_game_token EARLY_BIRD_SPECIAL_TOKEN button_token 0x4561726C79426972645370656369616C
 
-# cd $CONTRACTS_PATH/button_token
-
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4561726C79426972645370656369616C)
-# EARLY_BIRD_SPECIAL_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-
-# echo "EarlyBirdSpecial token contract instance address" $EARLY_BIRD_SPECIAL_TOKEN
-
-# # --- GRANT PRIVILEDGES ON THE EARLY_BIRD_SPECIAL TOKEN CONTRACT
-
-# cd $CONTRACTS_PATH/access_control
-
-# # alice is the admin and the owner of the contract instance
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$EARLY_BIRD_SPECIAL_TOKEN')' --suri $ALICE_SEED
-
-# TODO : to
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 
 deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TOKEN
-
-# --- PLAY EARLY_BIRD_SPECIAL
-
-cd $CONTRACTS_PATH/early_bird_special
-
-cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::press --suri $ALICE_SEED
-
-sleep 1
-
-cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::press --suri $NODE0_SEED
-
-# --- TRIGGER DEATH AND REWARDS DISTRIBUTION
-
-cd $CONTRACTS_PATH/early_bird_special
-
-sleep $(($LIFETIME + 1))
-
-cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButtonGame::death --suri $ALICE_SEED
 
 #
 # --- BACK_TO_THE_FUTURE GAME
@@ -211,39 +180,12 @@ cargo contract call --url $NODE --contract $EARLY_BIRD_SPECIAL --message IButton
 
 instrument_game_token BACK_TO_THE_FUTURE_TOKEN button_token 0x4261636B546F546865467574757265
 
-# cd $CONTRACTS_PATH/button_token
-
-# CONTRACT=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $ALICE_SEED --salt 0x4261636B546F546865467574757265)
-# BACK_TO_THE_FUTURE_TOKEN=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
-
-# echo "BackToTheFuture token contract instance address" $BACK_TO_THE_FUTURE_TOKEN
-
-# # --- GRANT PRIVILEDGES ON THE BACK_TO_THE_FUTURE TOKEN CONTRACT
-
-# cd $CONTRACTS_PATH/access_control
-
-# # alice is the admin and the owner of the contract instance
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Admin('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
-# cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $ALICE 'Owner('$BACK_TO_THE_FUTURE_TOKEN')' --suri $ALICE_SEED
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 
 deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TOKEN
 
-# --- PLAY BACK_TO_THE_FUTURE
-
-cd $CONTRACTS_PATH/back_to_the_future
-
-cargo contract call --url $NODE --contract $BACK_TO_THE_FUTURE --message IButtonGame::press --suri $ALICE_SEED
-
-sleep 1
-
-cargo contract call --url $NODE --contract $BACK_TO_THE_FUTURE --message IButtonGame::press --suri $NODE0_SEED
-
-# --- TRIGGER DEATH AND REWARDS DISTRIBUTION
-
-cd $CONTRACTS_PATH/back_to_the_future
-
-sleep $(($LIFETIME + 1))
-
-cargo contract call --url $NODE --contract $BACK_TO_THE_FUTURE --message IButtonGame::death --suri $ALICE_SEED
-
-exit $?
+# spit adresses to a JSON file
+cd $CONTRACTS_PATH
+jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
+   --arg back_to_the_future $BACK_TO_THE_FUTURE \
+   '{early_bird_special: $early_bird_special, back_to_the_future: $back_to_the_future}' > addresses.json

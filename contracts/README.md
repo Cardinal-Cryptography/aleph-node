@@ -57,18 +57,22 @@ Firstly bootstrap a one-node  `smartnet` chain:
  ./.github/scripts/run_smartnet.sh
 ```
 
-Secondly `deploy` script takes care of compiling, deploying and interacting with the contract(s):
+Secondly `deploy` script takes care of compiling and deploying the contracts. 
 
 ```bash
-./contracts/scripts/deploy.sh
+source contracts/env/dev && ./contracts/scripts/deploy.sh
 ```
 
 Specifically it will:
 
-- deploy the ERC20 token contract
+- deploy the token contracts
 - deploy the game contracts
 - set access control
-- transfer token balance to the game contract
-- whitelist some accounts for playing the games
-- interact with the games from the whitelisted accounts
-- wait past the game deadline, trigger the game end and reward distribution
+- transfer token balances to the game contracts
+- whitelist accounts for playing the games
+
+<!-- - interact with the games from the whitelisted accounts -->
+<!-- - wait past the game deadline, trigger the game end and reward distribution+ -->
+
+
+and interacting
