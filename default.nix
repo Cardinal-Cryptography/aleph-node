@@ -82,7 +82,7 @@ let
     name = "aleph-source";
   };
   # overrides attributes needed for downloading cargo dependencies by naersk
-  disableDependencyDownload = _: { cargoconfig = ""; crate_sources = ""; };
+  disableDependencyDownload = _: { cargoconfig = ""; crate_sources = cargoHome; };
 in
 with nixpkgs; naersk.buildPackage rec {
   inherit src name release singleStep;
