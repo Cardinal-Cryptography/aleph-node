@@ -3,9 +3,12 @@ use std::path::PathBuf;
 use aleph_primitives::DEFAULT_UNIT_CREATION_DELAY;
 use clap::{ArgGroup, Parser};
 use finality_aleph::UnitCreationDelay;
+use sc_service::Configuration;
+
+const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 #[derive(Debug, Parser, Clone)]
-#[clap(group(ArgGroup::new("backup").required(true)))]
+#[clap(group(ArgGroup::new("backup")))]
 pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
@@ -36,5 +39,18 @@ impl AlephCli {
 
     pub fn backup_path(&self) -> Option<PathBuf> {
         self.backup_path.clone()
+    }
+
+    pub fn insert_default_backup_path(&mut self, config: &Configuration) {
+        if !self.no_backup {
+            self.backup_path.get_or_insert(
+                config
+                    .base_path
+                    .as_ref()
+                    .expect("Please specify base path")
+                    .path()
+                    .join(DEFAULT_BACKUP_FOLDER),
+            );
+        }
     }
 }
