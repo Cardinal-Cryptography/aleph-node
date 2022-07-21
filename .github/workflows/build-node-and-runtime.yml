@@ -49,6 +49,7 @@ jobs:
         uses: ./.github/actions/build_with_docker
         with:
           store_result: true
+          store_in_cache_if_new: true
           crates: '{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
 
       - name: Upload test binary

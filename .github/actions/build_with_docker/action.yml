@@ -14,6 +14,10 @@ inputs:
     type: boolean
     required: false
     default: false
+  store_in_cache_if_new:
+    type: boolean
+    required: false
+    default: false
 
 runs:
   using: "composite"
@@ -51,11 +55,11 @@ runs:
 
         export CRATES='${{ inputs.crates }}'
         export SINGLE_STEP='${{ inputs.single_step }}'
+        docker run --name aleph-build -e CRATES -e SINGLE_STEP --volume=$(pwd):/node/build aleph-build:${{ steps.check_loaded.outputs.cache_key }}
         if [ "${{ inputs.store_result }}" == "true" ]; then
-          docker run --name aleph-build -e CRATES -e SINGLE_STEP --volume=$(pwd):/node/build aleph-build:${{ steps.check_loaded.outputs.cache_key }}
           docker commit aleph-build aleph-build:${{ steps.check_loaded.outputs.cache_key }}
-          docker rm aleph-build
+        fi
+        docker rm aleph-build
+        if [ "${{ inputs.store_in_cache_if_new }}" == "true" && "${{ steps.check_cache.outputs.cache-hit }}" == "false" ]; then
           docker save -o image.tar aleph-build:${{ steps.check_loaded.outputs.cache_key }}
-        else
-          docker run --rm --name aleph-build -e CRATES -e SINGLE_STEP --volume=$(pwd):/node/build aleph-build:${{ steps.check_loaded.outputs.cache_key }}
         fi
