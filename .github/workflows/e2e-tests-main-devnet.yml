@@ -86,22 +86,12 @@ jobs:
             image.tar
           key: build-docker-image-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh', 'nix/download_cargo_home.nix') }}-v0
 
-      - name: Build or load our `build` docker image
-        shell: bash
-        run: |
-          if [[ ! -f image.tar ]]; then
-            docker build -t aleph-node/build -f nix/Dockerfile.build .
-          else
-            docker load -i image.tar
-            rm image.tar
-          fi
-
       - name: Build runtime
-        shell: bash
-        run: |
-          export CRATES='{ "aleph-runtime" = []; }'
-          export SINGLE_STEP='true'
-          docker run --name build.env -e SINGLE_STEP -e CRATES --volume=$(pwd):/node/build aleph-node/build
+        uses: ./.github/actions/build_with_docker
+        with:
+          store_result: false
+          crates: '{ "aleph-runtime" = []; }'
+          single_step: true
 
       - name: Compare checksum with artifact
         env:

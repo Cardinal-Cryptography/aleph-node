@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       ref:
-        description: 'The `ref` argument for `actions/checkout@v2`'
+        description: 'The `ref` argument for `actions/checkout@v3`'
         required: false
         type: string
       artifact-prefix:
@@ -17,40 +17,17 @@ jobs:
   build:
     name: Build binary artifacts
     runs-on: ubuntu-latest
-    env:
-      RUST_BACKTRACE: full
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Checkout docker image
-        uses: actions/cache@v2
-        with:
-          path: |
-            image.tar
-          key: build-docker-image-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh', 'nix/download_cargo_home.nix') }}-v0
-
-      - name: Build or load our `build` docker image
-        shell: bash
-        run: |
-          if [[ ! -f image.tar ]]; then
-            docker build -t aleph-node/build -f nix/Dockerfile.build .
-          else
-            docker load -i image.tar
-            touch .image.loaded
-            rm image.tar
-          fi
-
       - name: Build binary and runtime
-        shell: bash
-        run: |
-          export CRATES='{ "aleph-node" = []; }'
-          docker run --name aleph-build -e CRATES --volume=$(pwd):/node/build aleph-node/build
-
-          docker commit aleph-build aleph-node/build
-          docker rm aleph-build
+        uses: ./.github/actions/build_with_docker
+        with:
+          crates: '{ "aleph-node" = []; }'
+          store_result: true
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
@@ -69,12 +46,10 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        shell: bash
-        run: |
-          # we need to clean after previous build
-          mv result result.main
-          export CRATES='{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
-          docker run --name aleph-build -e CRATES --volume=$(pwd):/node/build aleph-node/build
+        uses: ./.github/actions/build_with_docker
+        with:
+          store_result: true
+          crates: '{ "aleph-node" = ["short_session" "enable_treasury_proposals"]; }'
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
@@ -91,13 +66,3 @@ jobs:
           path: result/lib/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
-      - name: Save docker image
-        shell: bash
-        run: |
-          if [[ ! -f .image.loaded ]]; then
-            docker commit aleph-build aleph-node/build
-            docker rm aleph-build
-            docker save -o image.tar aleph-node/build
-          fi
-
