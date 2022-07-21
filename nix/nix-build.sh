@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PARENT_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P)
-
-SPAWN_SHELL=${SPAWN_SHELL:-false}
-NIX_FILE=${NIX_FILE:-"${PARENT_PATH}/../default.nix"}
+NIX_FILE=${NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = []; }'}
 SINGLE_STEP=${SINGLE_STEP:-'false'}
