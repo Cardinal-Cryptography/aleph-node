@@ -14,7 +14,8 @@ use crate::{
     },
     nodes::{setup_justification_handler, JustificationParams},
     party::{
-        impls::{ChainStateImpl, NodeSessionManagerImpl, SessionInfoImpl},
+        impls::{ChainStateImpl, SessionInfoImpl},
+        manager::NodeSessionManagerImpl,
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
@@ -110,7 +111,7 @@ where
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
-        block_requester: block_requester.clone(),
+        sync_state: block_requester.clone(),
         backup_saving_path,
         chain_state: ChainStateImpl {
             client: client.clone(),

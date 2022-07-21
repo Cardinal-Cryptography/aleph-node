@@ -6,45 +6,39 @@ use tokio::{task::spawn_blocking, time::sleep};
 
 use crate::{
     party::{
-        authority::SubtaskCommon as AuthoritySubtaskCommon,
-        task::{Handle, Task},
-        traits::{Block, ChainState, NodeSessionManager, RequestBlock, SessionInfo},
+        manager::{Handle, SubtaskCommon as AuthoritySubtaskCommon, Task},
+        traits::{Block, ChainState, NodeSessionManager, SessionInfo, SyncState},
     },
     session_map::ReadOnlySessionMap,
     SessionId,
 };
 
-pub(crate) mod aggregator;
-pub(crate) mod authority;
 pub(crate) mod backup;
-pub(crate) mod chain_tracker;
-pub(crate) mod data_store;
 pub mod impls;
-pub(crate) mod member;
-pub(crate) mod task;
+pub mod manager;
 pub mod traits;
 
-pub(crate) struct ConsensusPartyParams<B: Block, RB, CS, NSM, SI> {
+pub(crate) struct ConsensusPartyParams<B: Block, ST, CS, NSM, SI> {
     pub session_authorities: ReadOnlySessionMap,
     pub chain_state: CS,
-    pub block_requester: RB,
+    pub sync_state: ST,
     pub backup_saving_path: Option<PathBuf>,
     pub session_manager: NSM,
     pub session_info: SI,
     pub _phantom: PhantomData<B>,
 }
 
-pub(crate) struct ConsensusParty<B, RB, CS, NSM, SI>
+pub(crate) struct ConsensusParty<B, ST, CS, NSM, SI>
 where
     B: Block,
-    RB: RequestBlock<B>,
+    ST: SyncState<B>,
     CS: ChainState<B>,
     NSM: NodeSessionManager,
     SI: SessionInfo<B>,
 {
     session_authorities: ReadOnlySessionMap,
     chain_state: CS,
-    block_requester: RB,
+    sync_state: ST,
     backup_saving_path: Option<PathBuf>,
     session_manager: NSM,
     session_info: SI,
@@ -53,18 +47,18 @@ where
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
 
-impl<B, RB, CS, NSM, SI> ConsensusParty<B, RB, CS, NSM, SI>
+impl<B, ST, CS, NSM, SI> ConsensusParty<B, ST, CS, NSM, SI>
 where
     B: Block,
-    RB: RequestBlock<B>,
+    ST: SyncState<B>,
     CS: ChainState<B>,
     NSM: NodeSessionManager,
     SI: SessionInfo<B>,
 {
-    pub(crate) fn new(params: ConsensusPartyParams<B, RB, CS, NSM, SI>) -> Self {
+    pub(crate) fn new(params: ConsensusPartyParams<B, ST, CS, NSM, SI>) -> Self {
         let ConsensusPartyParams {
             session_authorities,
-            block_requester,
+            sync_state,
             backup_saving_path,
             chain_state,
             session_manager,
@@ -72,7 +66,7 @@ where
             ..
         } = params;
         Self {
-            block_requester,
+            sync_state,
             session_authorities,
             backup_saving_path,
             chain_state,
@@ -248,7 +242,7 @@ where
     async fn catch_up(&mut self) -> SessionId {
         let mut finalized_number = self.chain_state.finalized_number();
         let mut previous_finalized_number = None;
-        while self.block_requester.is_major_syncing()
+        while self.sync_state.is_major_syncing()
             && Some(finalized_number) != previous_finalized_number
         {
             sleep(Duration::from_millis(500)).await;

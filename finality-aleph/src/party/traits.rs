@@ -5,7 +5,7 @@ use sp_runtime::traits::{Block as BlockT, NumberFor};
 
 use crate::{
     network,
-    party::{authority::Task as AuthorityTask, backup::ABFTBackup},
+    party::{backup::ABFTBackup, manager::AuthorityTask},
     AuthorityId, NodeIndex, SessionId,
 };
 
@@ -23,7 +23,6 @@ where
     type Hash = <T as BlockT>::Hash;
 }
 
-#[async_trait]
 /// Abstraction of the chain state.
 pub trait ChainState<B: Block> {
     /// Returns best block number.
@@ -67,7 +66,7 @@ pub trait NodeSessionManager {
     async fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex>;
 }
 
-pub trait RequestBlock<B: Block> {
+pub trait SyncState<B: Block> {
     /// Are we in the process of downloading the chain?
     ///
     /// Like [`RequestBlocks::is_major_syncing`][1].
@@ -76,7 +75,7 @@ pub trait RequestBlock<B: Block> {
     fn is_major_syncing(&self) -> bool;
 }
 
-impl<B: BlockT, RB> RequestBlock<B> for RB
+impl<B: BlockT, RB> SyncState<B> for RB
 where
     RB: network::RequestBlocks<B>,
 {
