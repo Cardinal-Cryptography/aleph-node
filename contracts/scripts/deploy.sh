@@ -14,20 +14,20 @@ function instrument_game_token {
 
   cd $CONTRACTS_PATH/$contract_name
 
-  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $GAME_BALANCE --suri $AUTHORITY_SEED --salt $salt)
-  CONTRACT_ADDRESS=$(echo "$CONTRACT_ADDRESS" | grep Contract | tail -1 | cut -c 15-)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $GAME_BALANCE --suri $AUTHORITY_SEED --salt $salt)
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
-  echo $contract_name "token contract instance address: " $CONTRACT_ADDRESS
+  echo $contract_name "token contract instance address: " $contract_address
 
   # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
 
   cd $CONTRACTS_PATH/access_control
 
   # set the admin and the owner of the contract instance
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$contract_address')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri $AUTHORITY_SEED
 
-  eval $__resultvar="'$CONTRACT_ADDRESS'"
+  eval $__resultvar="'$contract_address'"
 }
 
 function deploy_and_instrument_game {
@@ -43,70 +43,58 @@ function deploy_and_instrument_game {
   rm target/ink/$contract_name.wasm
   node ../scripts/hex-to-wasm.js target/ink/$contract_name.contract target/ink/$contract_name.wasm
 
-  CODE_HASH=$(cargo contract upload --url $NODE --suri $AUTHORITY_SEED)
-  CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+  local code_hash=$(cargo contract upload --url $NODE --suri $AUTHORITY_SEED)
+  local code_hash=$(echo "$code_hash" | grep hash | tail -1 | cut -c 15-)
 
   # --- GRANT INIT PRIVILEDGES ON THE CONTRACT CODE
 
   cd $CONTRACTS_PATH/access_control
 
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$CODE_HASH')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$code_hash')' --suri $AUTHORITY_SEED
 
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
   cd $CONTRACTS_PATH/$contract_name
 
-  CONTRACT_ADDRESS=$(cargo contract instantiate --url $NODE --constructor new --args $game_token $LIFETIME --suri $AUTHORITY_SEED)
-  CONTRACT_ADDRESS=$(echo "$CONTRACT_ADDRESS" | grep Contract | tail -1 | cut -c 15-)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $game_token $LIFETIME --suri $AUTHORITY_SEED)
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
-  echo $contract_name "contract instance address: " $CONTRACT_ADDRESS
+  echo $contract_name "contract instance address: " $contract_address
 
   # --- GRANT PRIVILEDGES ON THE CONTRACT
 
   cd $CONTRACTS_PATH/access_control
 
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$CONTRACT_ADDRESS')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$contract_address')' --suri $AUTHORITY_SEED
 
   # --- TRANSFER TOKENS TO THE CONTRACT
 
   cd $CONTRACTS_PATH/button_token
 
-  cargo contract call --url $NODE --contract $game_token --message transfer --args $CONTRACT_ADDRESS $GAME_BALANCE --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $game_token --message transfer --args $contract_address $GAME_BALANCE --suri $AUTHORITY_SEED
 
   # --- WHITELIST ACCOUNTS FOR PLAYING
 
   cd $CONTRACTS_PATH/$contract_name
 
-  cargo contract call --url $NODE --contract $CONTRACT_ADDRESS --message IButtonGame::bulk_allow --args $WHITELIST --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::bulk_allow --args $WHITELIST --suri $AUTHORITY_SEED
 
-  eval $__resultvar="'$CONTRACT_ADDRESS'"
+  eval $__resultvar="'$contract_address'"
 }
 
 function link_bytecode() {
-  local CONTRACT=$1
-  local PLACEHOLDER=$2
-  local REPLACEMENT=$3
+  local contract=$1
+  local placeholder=$2
+  local replacement=$3
 
-  sed -i 's/'$PLACEHOLDER'/'$REPLACEMENT'/' target/ink/$CONTRACT.contract
+  sed -i 's/'$placeholder'/'$replacement'/' target/ink/$contract.contract
 }
 
 # --- GLOBAL CONSTANTS
 
-# TODO : configurable ARGS (source env/dev)
-# TODO : split to deploy and test part
-
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-# NODE=ws://127.0.0.1:9943
-
-# AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-# AUTHORITY_SEED=//Alice
-
-# NODE0=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
-# NODE0_SEED=//0
-
-# LIFETIME=5
 # mint this many game tokens
 GAME_BALANCE=1000
 
