@@ -37,7 +37,7 @@ pub(crate) struct ConsensusPartyParams<B: Block, RB, CS, NSM, SI> {
 pub(crate) struct ConsensusParty<B, RB, CS, NSM, SI>
 where
     B: Block,
-    RB: RequestBlock<B> + 'static,
+    RB: RequestBlock<B>,
     CS: ChainState<B>,
     NSM: NodeSessionManager,
     SI: SessionInfo<B>,
@@ -56,7 +56,7 @@ const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
 impl<B, RB, CS, NSM, SI> ConsensusParty<B, RB, CS, NSM, SI>
 where
     B: Block,
-    RB: RequestBlock<B> + 'static,
+    RB: RequestBlock<B>,
     CS: ChainState<B>,
     NSM: NodeSessionManager,
     SI: SessionInfo<B>,

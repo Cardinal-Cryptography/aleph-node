@@ -29,7 +29,6 @@ pub struct NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
@@ -51,7 +50,6 @@ impl<C, SC, B, RB, BE> NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
