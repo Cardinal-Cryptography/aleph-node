@@ -85,7 +85,7 @@ where
     }
 }
 
-/// Abstraction over the
+/// Abstraction of the session boundaries.
 pub trait SessionInfo<B: Block> {
     /// Returns session id of the session that block belongs to.
     fn session_id_from_block_num(&self, n: B::Number) -> SessionId;

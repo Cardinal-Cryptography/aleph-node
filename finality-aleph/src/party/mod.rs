@@ -221,7 +221,8 @@ where
                     match maybe_authority_task.as_mut() {
                         Some(task) => Some(task.stopped().await),
                         None => None,
-                    } } => {
+                    }
+                } => {
                     warn!(target: "aleph-party", "Authority task ended prematurely, giving up for this session.");
                     maybe_authority_task = None;
                 },
