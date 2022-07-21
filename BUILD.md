@@ -18,6 +18,10 @@ sudo docker build -t aleph-build -f nix/Dockerfile.build .
 sudo docker run -ti --volume=$(pwd):/node/build aleph-build
 ```
 Binary will be stored at `$(pwd)/result/bin/aleph-node`.
+In order to build just the `aleph-runtime`, execute:
+```
+sudo docker run -ti --volume=$(pwd):/node/build --env CRATES='{ "aleph-runtime" = []; }' aleph-build`.
+```
 
 ## Build with Nix
 
@@ -47,6 +51,8 @@ dependencies. Within it, you can call `cargo build --release -p aleph-node`. Kee
 depend on loader referenced by `nix` and not the default one used by your system. In order to fix it, assuming that your loader
 is stored at `/lib64/ld-linux-x86-64.so.2`, you can execute `patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 <path to
 aleph-node>`.
+
+Note: we recommend using `direnv`.
 
 ## Manual
 These are build dependencies we use in our linux images for `aleph-node`:
