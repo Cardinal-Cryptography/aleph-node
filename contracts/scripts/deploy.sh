@@ -186,6 +186,7 @@ deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FU
 
 # spit adresses to a JSON file
 cd $CONTRACTS_PATH
+
 jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
    --arg back_to_the_future $BACK_TO_THE_FUTURE \
    '{early_bird_special: $early_bird_special, back_to_the_future: $back_to_the_future}' > addresses.json

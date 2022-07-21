@@ -57,7 +57,7 @@ Firstly bootstrap a one-node  `smartnet` chain:
  ./.github/scripts/run_smartnet.sh
 ```
 
-Secondly `deploy` script takes care of compiling and deploying the contracts. 
+Secondly `deploy` script takes care of compiling and deploying the contracts.
 
 ```bash
 source contracts/env/dev && ./contracts/scripts/deploy.sh
@@ -65,14 +65,19 @@ source contracts/env/dev && ./contracts/scripts/deploy.sh
 
 Specifically it will:
 
-- deploy the token contracts
-- deploy the game contracts
-- set access control
-- transfer token balances to the game contracts
-- whitelist accounts for playing the games
+- Deploy the token contracts.
+- Deploy the game contracts.
+- Set access control.
+- Transfer token balances to the game contracts.
+- Whitelist accounts for playing the games.
 
-<!-- - interact with the games from the whitelisted accounts -->
-<!-- - wait past the game deadline, trigger the game end and reward distribution+ -->
+Third `test.sh` script plays the game from two well-known dev addresses.
 
+```bash
+./contracts/scripts/test.sh
+```
 
-and interacting
+It will:
+
+- Interact with the games from the whitelisted accounts.
+- Wait past the game deadline, trigger the game end and reward distribution.
