@@ -1,0 +1,84 @@
+name: Build aleph-node with docker
+
+on:
+  workflow_call:
+    inputs:
+      crates:
+        type: string
+        required: false
+        default: '{ "aleph-node" = []; }'
+      store_image:
+        type: boolean
+        required: false
+        default: true
+      store_result:
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  build:
+    name: Build using docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Build image cache-key
+        id: key
+        shell: bash
+        run: |
+          echo "::set-output name=KEY::build-docker-image-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/*') }}-v0"
+
+      - name: Checkout docker image
+        uses: actions/cache@v3
+        with:
+          path: |
+            image.tar
+          key: steps.key.outputs.KEY
+
+      - name: Check if cached
+        id: cached
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [[ ! -f image.tar ]]; then
+            exit -1
+          fi
+
+      - name: Build docker image for build
+        if: steps.check.outcome == 'failure'
+        shell: bash
+        run: |
+            docker build -t aleph-build -f nix/Dockerfile.build .
+
+      - name: Load docker image
+        shell: bash
+        if: steps.check.outcome == 'success'
+        run: |
+            docker load -i image.tar
+
+      - name: Build
+        shell: bash
+        run: |
+          export CRATES='${{ inputs.crates }}'
+          docker run --name aleph-build -e CRATES --volume=$(pwd):/node/build aleph-build
+
+      - name: Save changes
+        shell: bash
+        if: inputs.store_result
+        run: |
+          docker commit aleph-build aleph-build
+
+      - name: Clean container
+        shell: bash
+        run: |
+          docker rm aleph-build
+
+      - name: Store image
+        if: inputs.store_image && ! inputs.store_result
+        shell: bash
+        run: |
+            docker save -o image.tar aleph-build
