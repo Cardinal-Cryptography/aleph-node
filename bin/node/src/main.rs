@@ -16,11 +16,11 @@ fn main() -> sc_cli::Result<()> {
         .import_params
         .pruning_params
         .pruning
+        .replace(String::from("archive"))
         .map_or(false, |x| x != "archive")
     {
         println!("Pruning not supported. Switching to 'archive' mode.");
     }
-    cli.run.import_params.pruning_params.pruning = Some(String::from("archive"));
 
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
