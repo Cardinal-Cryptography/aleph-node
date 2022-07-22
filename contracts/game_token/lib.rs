@@ -9,8 +9,10 @@ pub mod game_token {
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{contracts::psp22::*, traits::Storage};
 
-    // TODO : AC
-    // TODO : selectors
+    pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0x16, 0x2d, 0xf8, 0xc2];
+    pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
+    pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
+    pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
@@ -49,7 +51,7 @@ pub mod game_token {
                 |why: InkEnvError| {
                     PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
                 },
-                || PSP22Error::Custom(String::from("MissingRole")), //Error::MissingRole,
+                || PSP22Error::Custom(String::from("MissingRole")),
             );
 
             match role_check {
