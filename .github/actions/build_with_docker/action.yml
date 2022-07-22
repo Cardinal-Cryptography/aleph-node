@@ -64,6 +64,6 @@ runs:
           docker commit aleph-build aleph-build:${{ steps.check_loaded.outputs.cache_key }}
         fi
         docker rm aleph-build
-        if [ "${{ inputs.store_in_cache_if_new }}" == "true" && "${{ steps.check_cache.outputs.cache-hit }}" == "false" ]; then
+        if [ "${{ inputs.store_in_cache_if_new }}" == "true" ] && [ "${{ steps.check_cache.outputs.cache-hit }}" == "false" ]; then
           docker save -o image.tar aleph-build:${{ steps.check_loaded.outputs.cache_key }}
         fi

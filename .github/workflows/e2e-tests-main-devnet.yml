@@ -79,13 +79,6 @@ jobs:
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           rm -rf "$TARGET_DIR"
 
-      - name: Checkout docker image
-        uses: actions/cache@v2
-        with:
-          path: |
-            image.tar
-          key: build-docker-image-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/nix-build.sh', 'nix/download_cargo_home.nix') }}-v0
-
       - name: Build runtime
         uses: ./.github/actions/build_with_docker
         with:

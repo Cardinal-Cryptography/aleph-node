@@ -40,7 +40,7 @@ echo results copied
 # we need to change the dynamic linker
 # otherwise our binary references one that is specific for nix
 # we need it for aleph-node to be run outside nix-shell
-if [ ! -z "$PATH_TO_FIX" && -f $PATH_TO_FIX ]; then
+if [ ! -z "${PATH_TO_FIX}" ] && [ -f ${PATH_TO_FIX} ]; then
     echo patching...
     chmod +w $PATH_TO_FIX
     patchelf --set-interpreter $DYNAMIC_LINKER_PATH $PATH_TO_FIX
