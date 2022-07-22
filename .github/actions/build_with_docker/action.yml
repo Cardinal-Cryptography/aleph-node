@@ -48,11 +48,11 @@ runs:
         if [ "${{ steps.check_loaded.outputs.loaded }}" == "false" ]; then
           if [ "${{ steps.check_cache.outputs.cache-hit }}" == "true" ]; then
             docker load -i image.tar
-            rm image.tar
           else
             docker build -t aleph-build:${{ steps.check_loaded.outputs.cache_key }} -f nix/Dockerfile.build .
           fi
         fi
+        rm image.tar 2>/dev/null || true
 
         export CRATES='${{ inputs.crates }}'
         export SINGLE_STEP='${{ inputs.single_step }}'
