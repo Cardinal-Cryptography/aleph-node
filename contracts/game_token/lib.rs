@@ -1,6 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
+pub use crate::game_token::{
+    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
+};
+
 #[openbrush::contract]
 pub mod game_token {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
@@ -59,6 +63,8 @@ pub mod game_token {
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");
+
+                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }

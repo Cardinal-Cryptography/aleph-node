@@ -118,7 +118,7 @@ pub struct ButtonData {
     /// block number of the last press
     pub last_press: BlockNumber,
     /// AccountId of the ERC20 ButtonToken instance on-chain
-    pub button_token: AccountId,
+    pub game_token: AccountId,
     /// accounts whitelisted to play the game
     pub can_play: Mapping<AccountId, ()>,
     /// access control contract
@@ -186,17 +186,17 @@ pub trait ButtonGame {
         self.get().last_presser
     }
 
-    fn button_token(&self) -> AccountId {
-        self.get().button_token
+    fn game_token(&self) -> AccountId {
+        self.get().game_token
     }
 
     fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance>
     where
         E: Environment<AccountId = AccountId>,
     {
-        let button_token = self.get().button_token;
+        let game_token = self.get().game_token;
         let balance = build_call::<E>()
-            .call_type(Call::new().callee(button_token))
+            .call_type(Call::new().callee(game_token))
             .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
             .returns::<Balance>()
             .fire()?;
@@ -213,7 +213,7 @@ pub trait ButtonGame {
         E: Environment<AccountId = AccountId>,
     {
         build_call::<E>()
-            .call_type(Call::new().callee(self.get().button_token))
+            .call_type(Call::new().callee(self.get().game_token))
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_to_selector))
                     .push_arg(to)
@@ -409,7 +409,7 @@ pub trait IButtonGame {
 
     /// Returns address of the game's ERC20 token
     #[ink(message)]
-    fn button_token(&self) -> AccountId;
+    fn game_token(&self) -> AccountId;
 
     /// Returns then game token balance of the game contract
     #[ink(message)]
