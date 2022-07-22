@@ -26,6 +26,8 @@ runs:
       id: check_loaded
       shell: bash
       run: |
+        rm image.tar 2>/dev/null || true
+
         CACHE_KEY="${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/*') }}-v0"
         if [ "$(docker image ls -q aleph-build:${CACHE_KEY})" == "" ]; then
           echo "::set-output name=loaded::false"
