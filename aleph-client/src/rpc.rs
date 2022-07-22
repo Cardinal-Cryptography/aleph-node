@@ -23,7 +23,7 @@ pub fn author_rotate_keys_json() -> Value {
 }
 
 /// Produces a JSON encoding of an emergency finalization RPC.
-pub fn emergency_finalize_json(number: BlockNumber, hash: BlockHash, signature: Vec<u8>) -> Value {
+fn emergency_finalize_json(signature: Vec<u8>, hash: BlockHash, number: BlockNumber) -> Value {
     json_req(
         "alephNode_emergencyFinalize",
         json!([signature, hash, number]),
@@ -145,9 +145,9 @@ pub fn emergency_finalize<C: AnyConnection>(
     match connection
         .as_connection()
         .get_request(emergency_finalize_json(
-            number,
-            hash,
             raw_signature.to_vec(),
+            hash,
+            number
         )) {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Emergency finalize failed: {}", e)),

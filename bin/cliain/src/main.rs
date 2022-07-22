@@ -11,7 +11,8 @@ use cliain::{
 };
 use log::{error, info};
 use sp_core::Pair;
-use substrate_api_client::AccountId;
+use aleph_client::account_from_keypair;
+use aleph_client::{account_from_aleph_keypair, aleph_keypair_from_string};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -54,15 +55,22 @@ fn main() {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
         Command::PrepareKeys => {
             let key = keypair_from_string(&seed);
-            let controller_account_id = AccountId::from(key.public());
+            let controller_account_id = account_from_keypair(&key);
             prepare_keys(cfg.into(), controller_account_id);
         }
         Command::Bond {
             controller_account,
             initial_stake_tokens,
         } => bond(cfg.into(), initial_stake_tokens, controller_account),
-        Command::Finalize { key, block, hash } => finalize(cfg.into(), block, hash, key),
-        Command::SetEmergencyFinalizer { key } => set_emergency_finalizer(cfg.into(), key),
+        Command::Finalize { block, hash } => {
+            let finalizer = aleph_keypair_from_string(&seed);
+            finalize(cfg.into(), block, hash, finalizer);
+        }
+        Command::SetEmergencyFinalizer => {
+            let finalizer = aleph_keypair_from_string(&seed);
+            let finalizer = account_from_aleph_keypair(&finalizer);
+            set_emergency_finalizer(cfg.into(), finalizer);
+        }
         Command::SetKeys { new_keys } => set_keys(cfg.into(), new_keys),
         Command::Validate {
             commission_percentage,

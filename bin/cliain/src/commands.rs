@@ -116,27 +116,19 @@ pub enum Command {
     /// Force new era in staking world. Requires sudo.
     ForceNewEra,
 
-    /// Finalize the specified block.
+    /// Finalize the specified block using seed as emergency finalizer.
     Finalize {
-        /// The emergency finalizer key.
-        #[clap(long)]
-        key: String,
-
         /// Block number to finalize.
         #[clap(long)]
         block: BlockNumber,
 
-        /// Block hash to finalize.
+        /// Block hash to finalize either with or without leading '0x'.
         #[clap(long)]
         hash: String,
     },
 
-    /// Sets the emergency finalizer key. Requires sudo.
-    SetEmergencyFinalizer {
-        /// The emergency finalizer key.
-        #[clap(long)]
-        key: String,
-    },
+    /// Sets seed as the emergency finalizer. Requires sudo.
+    SetEmergencyFinalizer,
 
     /// Declare the desire to nominate target account
     Nominate {

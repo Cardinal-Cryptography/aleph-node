@@ -18,7 +18,7 @@ pub use session::{
     get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
-use sp_core::{sr25519, storage::StorageKey, Pair, H256};
+use sp_core::{sr25519, ed25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{
     generic::Header as GenericHeader,
     traits::{BlakeTwo256, Header as HeaderT},
@@ -85,6 +85,7 @@ pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type BlockHash = <Header as HeaderT>::Hash;
 pub type KeyPair = sr25519::Pair;
+pub type AlephKeyPair = ed25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
 pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
 
@@ -358,6 +359,14 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
 }
 
 pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
+    AccountId::from(keypair.public())
+}
+
+pub fn aleph_keypair_from_string(seed: &str) -> AlephKeyPair {
+    AlephKeyPair::from_string(seed, None).expect("Can't create aleph pair from seed value")
+}
+
+pub fn account_from_aleph_keypair(keypair: &AlephKeyPair) -> AccountId {
     AccountId::from(keypair.public())
 }
 
