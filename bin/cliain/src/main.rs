@@ -26,6 +26,12 @@ struct Config {
     #[clap(long)]
     pub seed: Option<String>,
 
+    /// The seed of the key to use as emergency finalizer key
+    /// If not given, a user is prompted to provide finalizer seed when calling
+    /// associated functions
+    #[clap(long)]
+    pub finalizer_seed: Option<String>,
+
     /// Specific command that executes either a signed transaction or is an auxiliary command
     #[clap(subcommand)]
     pub command: Command,
@@ -37,6 +43,7 @@ fn main() {
     let Config {
         node,
         seed,
+        finalizer_seed,
         command,
     } = Config::parse();
 
@@ -50,6 +57,7 @@ fn main() {
             }
         },
     };
+    let mut finalizer_seed: Option<String> = None;
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
@@ -63,11 +71,29 @@ fn main() {
             initial_stake_tokens,
         } => bond(cfg.into(), initial_stake_tokens, controller_account),
         Command::Finalize { block, hash } => {
-            let finalizer = aleph_keypair_from_string(&seed);
+            finalizer_seed = finalizer_seed.or_else ({ ||
+                match prompt_password_hidden("Provide finalizer seed:") {
+                    Ok(finalizer_seed) => Some(finalizer_seed),
+                    Err(e) => {
+                        error!("Failed to parse prompt with error {:?}! Exiting.", e);
+                        std::process::exit(1);
+                    }
+                }
+            });
+            let finalizer = aleph_keypair_from_string(&finalizer_seed.unwrap());
             finalize(cfg.into(), block, hash, finalizer);
         }
         Command::SetEmergencyFinalizer => {
-            let finalizer = aleph_keypair_from_string(&seed);
+            finalizer_seed = finalizer_seed.or_else ({ ||
+                match prompt_password_hidden("Provide finalizer seed:") {
+                    Ok(finalizer_seed) => Some(finalizer_seed),
+                    Err(e) => {
+                        error!("Failed to parse prompt with error {:?}! Exiting.", e);
+                        std::process::exit(1);
+                    }
+                }
+            });
+            let finalizer = aleph_keypair_from_string(&finalizer_seed.unwrap());
             let finalizer = account_from_aleph_keypair(&finalizer);
             set_emergency_finalizer(cfg.into(), finalizer);
         }
