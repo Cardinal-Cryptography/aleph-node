@@ -5,7 +5,7 @@ export AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 export AUTHORITY_SEED=//Alice
 
 # how long do the games live for (in blocks)
-export LIFETIME=5
+export LIFETIME=20
 
 # initial whitelist of the accounts allowed to play the games
 export WHITELIST="[5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY,5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH]"

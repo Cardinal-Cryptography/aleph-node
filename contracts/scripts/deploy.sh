@@ -14,7 +14,7 @@ function instrument_game_token {
 
   cd $CONTRACTS_PATH/$contract_name
 
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $GAME_BALANCE --suri $AUTHORITY_SEED --salt $salt)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri $AUTHORITY_SEED --salt $salt)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo $contract_name "token contract instance address: " $contract_address
@@ -95,8 +95,9 @@ function link_bytecode() {
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-# mint this many game tokens
-GAME_BALANCE=1000
+# mint this many tokens, 20% go to the future LP on DEX
+TOTAL_BALANCE=1000
+GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
 
 CONTRACTS_PATH=$(pwd)/contracts
 
@@ -154,6 +155,8 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
 
+start=`date +%s.%N`
+
 instrument_game_token EARLY_BIRD_SPECIAL_TOKEN button_token 0x4561726C79426972645370656369616C
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
@@ -178,3 +181,8 @@ cd $CONTRACTS_PATH
 jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
    --arg back_to_the_future $BACK_TO_THE_FUTURE \
    '{early_bird_special: $early_bird_special, back_to_the_future: $back_to_the_future}' > addresses.json
+
+end=`date +%s.%N`
+echo "Time elapsed:" $( echo "$end - $start" | bc -l )
+
+exit $?
