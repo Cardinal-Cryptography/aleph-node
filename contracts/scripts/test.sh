@@ -39,8 +39,6 @@ PLAYER1_SEED=//0
 PLAYER2_SEED=//Alice
 
 GAMES=(early_bird_special back_to_the_future)
-# GAMES=(back_to_the_future)
-# GAMES=(early_bird_special)
 for GAME in "${GAMES[@]}"; do
   (
     play $GAME
