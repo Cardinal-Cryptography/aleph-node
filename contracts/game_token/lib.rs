@@ -1,9 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::game_token::{
-    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TOTAL_SUPPLY_SELECTOR, TRANSFER_SELECTOR,
-};
+pub use crate::game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
 
 #[openbrush::contract]
 pub mod game_token {
@@ -13,9 +11,7 @@ pub mod game_token {
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{contracts::psp22::*, traits::Storage};
 
-    pub const TOTAL_SUPPLY_SELECTOR: [u8; 4] = [0x16, 0x2d, 0xf8, 0xc2];
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
-    pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
 
     #[ink(storage)]

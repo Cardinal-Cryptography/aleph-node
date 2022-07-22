@@ -8,7 +8,7 @@ use ink_env::{
     AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
 };
 use ink_lang as ink;
-use ink_prelude::{format, string::String, vec::Vec};
+use ink_prelude::{format, string::String, vec, vec::Vec};
 use ink_storage::{
     traits::{SpreadAllocate, SpreadLayout},
     Mapping,
@@ -205,7 +205,7 @@ pub trait ButtonGame {
 
     fn transfer_tx<E>(
         &self,
-        transfer_to_selector: [u8; 4],
+        transfer_selector: [u8; 4],
         to: AccountId,
         value: Balance,
     ) -> core::result::Result<(), InkEnvError>
@@ -215,9 +215,10 @@ pub trait ButtonGame {
         build_call::<E>()
             .call_type(Call::new().callee(self.get().game_token))
             .exec_input(
-                ExecutionInput::new(Selector::new(transfer_to_selector))
+                ExecutionInput::new(Selector::new(transfer_selector))
                     .push_arg(to)
-                    .push_arg(value),
+                    .push_arg(value)
+                    .push_arg(vec![0x0]),
             )
             .returns::<()>()
             .fire()
