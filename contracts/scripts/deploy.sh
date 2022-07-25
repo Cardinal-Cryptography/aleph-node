@@ -99,7 +99,7 @@ NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 TOTAL_BALANCE=1000
 GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
 
-"CONTRACTS_PATH"=$(pwd)/contracts
+CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
