@@ -23,6 +23,8 @@ pub mod game_token {
         access_control: AccountId,
     }
 
+    // TODO : emit events
+    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
     impl PSP22 for GameToken {}
 
     impl AccessControlled for GameToken {
@@ -31,6 +33,29 @@ pub mod game_token {
 
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
+
+    /// Event emitted when a token transfer occurs.
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct Transfer {
+        #[ink(topic)]
+        pub from: Option<AccountId>,
+        #[ink(topic)]
+        pub to: Option<AccountId>,
+        pub value: Balance,
+    }
+
+    /// Event emitted when an approval occurs that `spender` is allowed to withdraw
+    /// up to the amount of `value` tokens from `owner`.
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct Approval {
+        #[ink(topic)]
+        owner: AccountId,
+        #[ink(topic)]
+        spender: AccountId,
+        value: Balance,
+    }
 
     impl GameToken {
         /// Creates a new contract with the specified initial supply.
