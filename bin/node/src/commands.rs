@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsStr,
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
@@ -22,12 +23,12 @@ use crate::chain_spec::{
     self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
 };
 
-#[derive(Debug, Args, Clone)]
+#[derive(Debug, Args)]
 pub struct NodeParams {
     /// For `bootstrap-node` and `purge-chain` it works with this directory as base.
     /// For `bootstrap-chain` the base path is appended with an account id for each node.
-    #[clap(long, short = 'd', value_name = "PATH", parse(from_os_str))]
-    base_path: PathBuf,
+    #[clap(long, short = 'd', value_name = "PATH", parse(from_os_str = parse_base_path))]
+    base_path: BasePath,
 
     /// Specify filename to write node private p2p keys to
     /// Resulting keys will be stored at: base_path/account_id/node_key_file for each node
@@ -40,8 +41,8 @@ pub struct NodeParams {
 }
 
 impl NodeParams {
-    pub fn base_path(&self) -> BasePath {
-        self.base_path.clone().into()
+    pub fn base_path(&self) -> &BasePath {
+        &self.base_path
     }
 
     pub fn node_key_file(&self) -> &str {
@@ -51,6 +52,10 @@ impl NodeParams {
     pub fn backup_dir(&self) -> &str {
         &self.backup_dir
     }
+}
+
+fn parse_base_path(path: &OsStr) -> BasePath {
+    BasePath::new(path)
 }
 
 /// returns Aura key, if absent a new key is generated
