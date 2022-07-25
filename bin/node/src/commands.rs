@@ -81,12 +81,10 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
 }
 
 /// Returns peer id, if not p2p key found under base_path/node-key-file a new private key gets generated
-fn p2p_key(base_path: &Path, node_key_file: &str) -> SerializablePeerId {
-    let file = base_path.join(node_key_file);
-
-    if file.exists() {
+fn p2p_key(node_key_path: &Path) -> SerializablePeerId {
+    if node_key_path.exists() {
         let mut file_content =
-            hex::decode(fs::read(&file).unwrap()).expect("failed to decode secret as hex");
+            hex::decode(fs::read(&node_key_path).unwrap()).expect("failed to decode secret as hex");
         let secret =
             libp2p_ed25519::SecretKey::from_bytes(&mut file_content).expect("Bad node key file");
         let keypair = libp2p_ed25519::Keypair::from(secret);
@@ -95,7 +93,7 @@ fn p2p_key(base_path: &Path, node_key_file: &str) -> SerializablePeerId {
         let keypair = libp2p_ed25519::Keypair::generate();
         let secret = keypair.secret();
         let secret_hex = hex::encode(secret.as_ref());
-        fs::write(file, secret_hex).expect("Could not write p2p secret");
+        fs::write(node_key_path, secret_hex).expect("Could not write p2p secret");
         SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).to_peer_id())
     }
 }
@@ -121,8 +119,8 @@ fn open_keystore(
     }
 }
 
-fn bootstrap_backup(base_path: &Path, backup_dir: &str) {
-    let backup_path = backup_path(base_path, backup_dir);
+fn bootstrap_backup(base_path_with_account_id: &Path, backup_dir: &str) {
+    let backup_path = backup_path(base_path_with_account_id, backup_dir);
 
     if backup_path.exists() {
         if !backup_path.is_dir() {
@@ -140,13 +138,13 @@ fn authority_keys(
     keystore: &impl SyncCryptoStore,
     base_path: &Path,
     node_key_file: &str,
-    account_id: &AccountId,
+    account_id: AccountId,
 ) -> AuthorityKeys {
     let aura_key = aura_key(keystore);
     let aleph_key = aleph_key(keystore);
-    let peer_id = p2p_key(base_path, node_key_file);
+    let node_key_path = base_path.join(node_key_file);
+    let peer_id = p2p_key(node_key_path.as_path());
 
-    let account_id = account_id.clone();
     AuthorityKeys {
         account_id,
         aura_key,
@@ -184,7 +182,7 @@ impl BootstrapChainCmd {
         let genesis_authorities = self
             .chain_params
             .account_ids()
-            .iter()
+            .into_iter()
             .map(|account_id| {
                 let account_base_path: BasePath =
                     base_path.path().join(account_id.to_string()).into();
@@ -247,7 +245,7 @@ impl BootstrapNodeCmd {
         let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
 
         // Does not rely on the account id in the path
-        let account_id = &self.account_id();
+        let account_id = self.account_id();
         let authority_keys = authority_keys(&keystore, base_path.path(), node_key_file, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should have succeeded");
