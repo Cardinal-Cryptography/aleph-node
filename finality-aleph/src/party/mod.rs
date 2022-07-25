@@ -18,6 +18,9 @@ pub mod impls;
 pub mod manager;
 pub mod traits;
 
+#[cfg(test)]
+mod mocks;
+
 pub(crate) struct ConsensusPartyParams<B: Block, ST, CS, NSM, SI> {
     pub session_authorities: ReadOnlySessionMap,
     pub chain_state: CS,
@@ -234,6 +237,7 @@ where
     pub async fn run(mut self) {
         let starting_session = self.catch_up().await;
         for curr_id in starting_session.0.. {
+            println!("Running session {:?}.", curr_id);
             info!(target: "aleph-party", "Running session {:?}.", curr_id);
             self.run_session(SessionId(curr_id)).await;
         }
@@ -254,6 +258,124 @@ where
     }
 }
 
-// TODO: :(
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::{collections::HashSet, sync::Arc, time::Duration};
+
+    use aleph_primitives::SessionAuthorityData;
+    use sp_runtime::testing::UintAuthorityId;
+    use tokio::time::sleep;
+
+    use crate::{
+        party::{
+            mocks::{
+                MockChainState, MockNodeSessionManager, MockSessionInfo, MockSyncState, SimpleBlock,
+            },
+            ConsensusParty, ConsensusPartyParams, SESSION_STATUS_CHECK_PERIOD,
+        },
+        session_map::SharedSessionMap,
+        NodeIndex, SessionId,
+    };
+
+    #[derive(Debug)]
+    struct MockController {
+        pub shared_session_map: SharedSessionMap,
+        pub sync_state_mock: Arc<MockSyncState>,
+        pub chain_state_mock: Arc<MockChainState>,
+        pub node_session_manager: Arc<MockNodeSessionManager>,
+    }
+
+    fn create_mocked_consensus_party() -> (
+        ConsensusParty<
+            SimpleBlock,
+            Arc<MockSyncState>,
+            Arc<MockChainState>,
+            Arc<MockNodeSessionManager>,
+            MockSessionInfo,
+        >,
+        MockController,
+    ) {
+        let shared_map = SharedSessionMap::new();
+        let readonly = shared_map.read_only();
+
+        let chain_state = Arc::new(MockChainState::new());
+        let sync_state = Arc::new(MockSyncState::new());
+        let session_manager = Arc::new(MockNodeSessionManager::new());
+        let session_info = MockSessionInfo::new();
+
+        let controller = MockController {
+            shared_session_map: shared_map,
+            sync_state_mock: sync_state.clone(),
+            chain_state_mock: chain_state.clone(),
+            node_session_manager: session_manager.clone(),
+        };
+
+        let params = ConsensusPartyParams {
+            session_authorities: readonly,
+            chain_state,
+            sync_state,
+            backup_saving_path: None,
+            session_manager,
+            session_info,
+            _phantom: Default::default(),
+        };
+
+        (ConsensusParty::new(params), controller)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn well() {
+        let (x, mut controller) = create_mocked_consensus_party();
+
+        controller
+            .node_session_manager
+            .set_node_id(Some(NodeIndex(0)));
+
+        let party_handle = tokio::spawn(x.run());
+
+        controller
+            .shared_session_map
+            .update(
+                SessionId(0),
+                SessionAuthorityData::new(
+                    (0..10)
+                        .map(|id| UintAuthorityId(id).to_public_key())
+                        .collect(),
+                    None,
+                ),
+            )
+            .await;
+        controller
+            .shared_session_map
+            .update(
+                SessionId(1),
+                SessionAuthorityData::new(
+                    (0..10)
+                        .map(|id| UintAuthorityId(id).to_public_key())
+                        .collect(),
+                    None,
+                ),
+            )
+            .await;
+
+        sleep(Duration::from_millis(100)).await;
+
+        controller.chain_state_mock.set_best_block(90);
+        controller.chain_state_mock.set_finalized_block(89);
+
+        // sleep additional 100ms to allow the check to pass
+        sleep(Duration::from_millis(
+            SESSION_STATUS_CHECK_PERIOD.as_millis() as u64 + 100,
+        ))
+        .await;
+        println!("{:?}", controller);
+        assert_eq!(
+            *controller
+                .node_session_manager
+                .validator_session_started
+                .lock()
+                .unwrap(),
+            HashSet::from([SessionId(0), SessionId(1)])
+        );
+    }
+}
