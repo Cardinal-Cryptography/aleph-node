@@ -27,6 +27,8 @@ function play {
 
   echo "calling death for" $contract_name
   cargo contract call --url $NODE --contract $contract_address --message IButtonGame::death --suri $AUTHORITY_SEED
+
+  echo "Done playing" $contract_name
 }
 
 # --- ARGUMENTS
@@ -44,7 +46,5 @@ for GAME in "${GAMES[@]}"; do
     play $GAME
   )&
 done
-
-echo "Done!"
 
 exit $?
