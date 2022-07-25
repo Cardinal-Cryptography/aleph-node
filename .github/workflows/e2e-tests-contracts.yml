@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
-    branches:
-      - main
+    # branches:
+    #   - main
   push:
     paths:
       - 'contracts/**'
-    branches:
-      - main
+    # branches:
+    #   - main
   workflow_dispatch:
 
 concurrency:
