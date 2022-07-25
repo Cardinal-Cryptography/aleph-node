@@ -51,6 +51,13 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 
 # Development
 
+## Prerequisites
+
+- Rust nightly
+- cargo-contract with bug fixes around URL parsing: `cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force`
+
+## Instructions
+
 Firstly bootstrap a one-node  `smartnet` chain:
 
 ```bash
