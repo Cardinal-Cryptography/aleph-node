@@ -336,6 +336,8 @@ mod button_token {
         }
     }
 
+    // SBP-M3 review: fix test
+
     /*
     #[cfg(test)]
     mod tests {

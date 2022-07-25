@@ -4,6 +4,7 @@ version = "0.3.0"
 edition = "2021"
 license = "Apache 2.0"
 license-file = "./LICENSE"
+# SBP-M3 review: missing authors
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }

@@ -101,6 +101,8 @@ mod access_control {
         #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);
+            // SBP-M3 review: how about code reusage?
+            // There is a function `has_role`
             if !self.priviledges.contains(key) {
                 let caller = self.env().caller();
                 let this = self.env().account_id();
@@ -172,6 +174,8 @@ mod access_control {
     }
 
     #[cfg(test)]
+    // SBP-M3 review: I would split this test into specified test cases.
+    // Too many asserts in one test.
     mod tests {
         use ink_lang as ink;
 

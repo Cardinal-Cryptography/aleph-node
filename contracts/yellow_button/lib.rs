@@ -489,6 +489,7 @@ mod yellow_button {
         }
     }
 
+    // SBP-M3 review: skipped tests
     // NOTE: can't test because off-chain environment does not support `own_code_hash`
     /*
     #[cfg(test)]

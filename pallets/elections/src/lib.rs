@@ -223,6 +223,8 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn change_validators(
             origin: OriginFor<T>,
+            // SBP-M3 review: use BoundedVec instead of Vec
+            // It is a serious security issue
             reserved_validators: Option<Vec<T::AccountId>>,
             non_reserved_validators: Option<Vec<T::AccountId>>,
             committee_size: Option<CommitteeSeats>,
@@ -289,6 +291,7 @@ pub mod pallet {
             reserved_validators: Vec<T::AccountId>,
             non_reserved_validators: Vec<T::AccountId>,
             committee_size: CommitteeSeats,
+            // SBP-M3 review: I suggest returning DispatchResult only in extrinsics
         ) -> DispatchResult {
             let CommitteeSeats {
                 reserved_seats: reserved,

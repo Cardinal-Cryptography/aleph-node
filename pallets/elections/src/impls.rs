@@ -1,3 +1,6 @@
+// SBP-M3 review: is it safe to cast u64/u128 into u32?
+// I've seen a lot of casting and I am not sure if it works properly in each case
+
 use frame_election_provider_support::sp_arithmetic::Perquintill;
 use frame_support::pallet_prelude::Get;
 use sp_staking::{EraIndex, SessionIndex};
@@ -38,6 +41,8 @@ fn calculate_adjusted_session_points(
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
 
     // when produced between 90% to 100% expected blocks get 100% possible reward for session
+
+    // SBP-M3 review: I would use pattern matching instead of if clause
     if performance >= LENIENT_THRESHOLD && blocks_to_produce_per_session >= blocks_created {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
             * total_possible_reward as u64) as u32;
