@@ -2,6 +2,7 @@
 name = "pallet-elections"
 version = "0.3.0"
 edition = "2021"
+license = "Apache 2.0"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
