@@ -26,10 +26,10 @@ runs:
       id: check_loaded
       shell: bash
       run: |
-        rm image.tar 2>/dev/null || true
+        rm -f image.tar
 
         CACHE_KEY="${{ hashFiles('**/Cargo.lock', '**/rust-toolchain', 'nix/*') }}-v0"
-        if [ "$(docker image ls -q aleph-build:${CACHE_KEY})" == "" ]; then
+        if [ -z "$(docker image ls -q aleph-build:${CACHE_KEY})" ]; then
           echo "::set-output name=loaded::false"
         else
           echo "::set-output name=loaded::true"
@@ -54,7 +54,7 @@ runs:
             docker build -t aleph-build:${{ steps.check_loaded.outputs.cache_key }} -f nix/Dockerfile.build .
           fi
         fi
-        rm image.tar 2>/dev/null || true
+        rm -f image.tar
 
         export CRATES='${{ inputs.crates }}'
         export SINGLE_STEP='${{ inputs.single_step }}'

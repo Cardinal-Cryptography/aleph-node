@@ -26,6 +26,13 @@ if [ ! $EXITCODE -eq 0 ]; then
     nix-shell --show-trace --pure --run "CARGO_HOME=$CARGO_HOME cargo fetch --locked"
 fi
 
+if [ -f "result" ]; then
+    new_name="result_$(date +%y.%m.%d_%T)"
+    echo moving old build artifacts to $new_name
+    mv result new_name
+    echo old build artifacts moved
+fi
+
 echo building...
 nix-build --show-trace --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" $NIX_FILE "${ARGS[@]}"
 echo build finished
