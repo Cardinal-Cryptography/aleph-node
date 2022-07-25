@@ -2,6 +2,7 @@
 name = "cliain"
 version = "0.4.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 aleph_client = { path = "../../aleph-client" }
@@ -15,6 +16,7 @@ env_logger = "0.8"
 ink_metadata = { version = "3.0", features = ["derive"] }
 log = "0.4"
 pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
+pallet-elections = { path = "../../pallets/elections" }
 primitives = { path = "../../primitives" }
 serde = { version = "1.0.137", features = ["derive"] }
 serde_json = "1.0.81"
