@@ -16,6 +16,7 @@ use rand::random;
 use sp_keystore::{testing::KeyStore, CryptoStore};
 
 use crate::{
+    compatibility::{MessageVersioning, UnrecognizedVersionError},
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
@@ -129,7 +130,29 @@ pub type MockDataCommand = DataCommand<MockPeerId>;
 pub type MockConnectionCommand = ConnectionCommand<MockMultiaddress>;
 pub type MockEvent = Event<MockMultiaddress>;
 
-pub type MockData = Vec<u8>;
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Encode, Decode)]
+pub struct MockData(pub Vec<u8>);
+
+impl From<Vec<u8>> for MockData {
+    fn from(data: Vec<u8>) -> Self {
+        MockData(data)
+    }
+}
+
+// NetworkService requires the data type to be under versioning. Since this is a mock, versioning
+// isn't relevant; for simplicity, implement the trait but use the same (unversioned) type instead
+// of an actual versioned type.
+impl MessageVersioning for MockData {
+    type Versioned = MockData;
+
+    fn into_versioned(self) -> Self {
+        self
+    }
+
+    fn from_versioned(this: Self) -> Result<Self, UnrecognizedVersionError> {
+        Ok(this)
+    }
+}
 
 pub struct MockIO {
     pub messages_for_user: mpsc::UnboundedSender<(MockData, MockDataCommand)>,

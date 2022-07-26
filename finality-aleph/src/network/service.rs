@@ -9,9 +9,12 @@ use log::{debug, error, trace, warn};
 use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 
-use crate::network::{
-    ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network, NetworkSender,
-    Protocol,
+use crate::{
+    compatibility::MessageVersioning,
+    network::{
+        ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
+        NetworkSender, Protocol,
+    },
 };
 
 /// A service managing all the direct interaction with the underlying network implementation. It
@@ -21,7 +24,7 @@ use crate::network::{
 ///   2. Various forms of (dis)connecting, keeping track of all currently connected nodes.
 /// 2. Commands from the network manager, modifying the reserved peer set.
 /// 3. Outgoing messages, sending them out, using 1.2. to broadcast.
-pub struct Service<N: Network, D: Data> {
+pub struct Service<N: Network, D: Data + MessageVersioning> {
     network: N,
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand<N::PeerId>)>,
     messages_for_user: mpsc::UnboundedSender<D>,
@@ -60,7 +63,7 @@ enum SendError {
     SendingFailed,
 }
 
-impl<N: Network, D: Data> Service<N, D> {
+impl<N: Network, D: Data + MessageVersioning> Service<N, D> {
     pub fn new(
         network: N,
         spawn_handle: SpawnTaskHandle,
@@ -425,7 +428,7 @@ mod tests {
         // We do this only to make sure that NotificationStreamOpened events are handled
         test_data.wait_for_events_handled().await;
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
         test_data
             .mock_io
             .messages_for_user
@@ -482,14 +485,14 @@ mod tests {
         // We do this only to make sure that NotificationStreamClosed events are handled
         test_data.wait_for_events_handled().await;
 
-        let messages: Vec<Vec<u8>> = vec![vec![1, 2, 3], vec![4, 5, 6]];
-        messages.iter().for_each(|m| {
+        let messages = [MockData(vec![1, 2, 3]), MockData(vec![4, 5, 6])];
+        for m in messages.iter().cloned() {
             test_data
                 .mock_io
                 .messages_for_user
-                .unbounded_send((m.clone(), DataCommand::Broadcast))
+                .unbounded_send((m, DataCommand::Broadcast))
                 .unwrap();
-        });
+        }
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
@@ -525,7 +528,7 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         test_data
             .network
@@ -570,8 +573,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = MockData(vec![1, 2, 3]);
+        let message_2 = MockData(vec![4, 5, 6]);
 
         test_data
             .network
@@ -628,7 +631,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -688,8 +691,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = MockData(vec![1, 2, 3]);
+        let message_2 = MockData(vec![4, 5, 6]);
 
         test_data
             .network
@@ -746,7 +749,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -800,7 +803,7 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         test_data
             .network
@@ -845,8 +848,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = MockData(vec![1, 2, 3]);
+        let message_2 = MockData(vec![4, 5, 6]);
 
         test_data
             .network
@@ -903,7 +906,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -963,8 +966,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = MockData(vec![1, 2, 3]);
+        let message_2 = MockData(vec![4, 5, 6]);
 
         test_data
             .network
@@ -1021,7 +1024,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -1073,11 +1076,11 @@ mod tests {
     async fn test_notification_received() {
         let mut test_data = TestData::prepare().await;
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = MockData(vec![1, 2, 3]);
 
         test_data
             .network
-            .emit_event(MockEvent::Messages(vec![Vec::encode(&message).into()]));
+            .emit_event(MockEvent::Messages(vec![message.encode().into()]));
 
         assert_eq!(
             test_data

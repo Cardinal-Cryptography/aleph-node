@@ -518,7 +518,7 @@ async fn test_connects_to_others() {
     let mut test_data = prepare_one_session_test_data().await;
     let mut data_network = test_data.start_session(session_id).await;
 
-    let data = vec![1, 2, 3];
+    let data = MockData(vec![1, 2, 3]);
     test_data.emit_notifications_received(vec![MockNetworkData::Data(
         data.clone(),
         SessionId(session_id),
@@ -550,7 +550,7 @@ async fn test_connects_to_others_early_validator() {
         .await;
     let mut data_network = test_data.start_validator_session(0, session_id).await;
 
-    let data = vec![1, 2, 3];
+    let data = MockData(vec![1, 2, 3]);
     test_data.emit_notifications_received(vec![MockNetworkData::Data(
         data.clone(),
         SessionId(session_id),
@@ -604,10 +604,10 @@ async fn test_receives_data_in_correct_session() {
     let mut data_network_1 = test_data.start_session(session_id_1).await;
     let mut data_network_2 = test_data.start_session(session_id_2).await;
 
-    let data_1_1 = vec![1, 2, 3];
-    let data_1_2 = vec![4, 5, 6];
-    let data_2_1 = vec![7, 8, 9];
-    let data_2_2 = vec![10, 11, 12];
+    let data_1_1 = MockData(vec![1, 2, 3]);
+    let data_1_2 = MockData(vec![4, 5, 6]);
+    let data_2_1 = MockData(vec![7, 8, 9]);
+    let data_2_2 = MockData(vec![10, 11, 12]);
     test_data.emit_notifications_received(vec![
         MockNetworkData::Data(data_1_1.clone(), SessionId(session_id_1)),
         MockNetworkData::Data(data_2_1.clone(), SessionId(session_id_2)),
@@ -656,8 +656,8 @@ async fn test_sends_data_to_correct_session() {
 
     let mut expected_data = HashSet::new();
     for node_id in 1..NODES_N {
-        let data_1 = vec![2 * node_id as u8 - 1];
-        let data_2 = vec![2 * node_id as u8];
+        let data_1 = MockData(vec![2 * node_id as u8 - 1]);
+        let data_2 = MockData(vec![2 * node_id as u8]);
 
         expected_data.insert((
             data_1.clone(),
@@ -712,8 +712,8 @@ async fn test_broadcasts_data_to_correct_session() {
     let mut data_network_1 = test_data.start_session(session_id_1).await;
     let mut data_network_2 = test_data.start_session(session_id_2).await;
 
-    let data_1 = vec![1, 2, 3];
-    let data_2 = vec![4, 5, 6];
+    let data_1 = MockData(vec![1, 2, 3]);
+    let data_2 = MockData(vec![4, 5, 6]);
     data_network_1
         .send(data_1.clone(), Recipient::Everyone)
         .expect("Should send");

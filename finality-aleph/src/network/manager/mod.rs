@@ -6,11 +6,13 @@ use crate::{
     NodeIndex, SessionId,
 };
 
+mod compatibility;
 mod connections;
 mod discovery;
 mod service;
 mod session;
 
+pub use compatibility::VersionedNetworkData;
 use connections::Connections;
 pub use discovery::{Discovery, DiscoveryMessage};
 pub use service::{
