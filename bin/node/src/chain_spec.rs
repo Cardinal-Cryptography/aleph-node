@@ -18,6 +18,8 @@ use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair};
 
+use crate::aleph_cli::DEFAULT_BACKUP_FOLDER;
+
 pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";
 pub const CHAINTYPE_LIVE: &str = "live";
@@ -117,7 +119,7 @@ pub struct ChainParams {
     #[clap(long, default_value = "p2p_secret")]
     node_key_file: String,
 
-    #[clap(long, default_value = "backup-stash")]
+    #[clap(long, default_value = DEFAULT_BACKUP_FOLDER)]
     backup_dir: String,
 
     /// Chain name. Default is "Aleph Zero Development"

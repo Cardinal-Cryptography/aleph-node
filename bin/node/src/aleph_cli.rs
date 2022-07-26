@@ -1,11 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use aleph_primitives::DEFAULT_UNIT_CREATION_DELAY;
 use clap::{ArgGroup, Parser};
 use finality_aleph::UnitCreationDelay;
-use sc_service::Configuration;
 
-const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
+pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 #[derive(Debug, Parser, Clone)]
 #[clap(group(ArgGroup::new("backup")))]
@@ -41,16 +40,11 @@ impl AlephCli {
         self.backup_path.clone()
     }
 
-    pub fn insert_default_backup_path(&mut self, config: &Configuration) {
-        if !self.no_backup {
-            let path = self.backup_path.get_or_insert(
-                config
-                    .base_path
-                    .as_ref()
-                    .expect("Please specify base path")
-                    .path()
-                    .join(DEFAULT_BACKUP_FOLDER),
-            );
+    pub fn insert_default_backup_path(&mut self, base_path: &Path) {
+        if !self.no_backup && self.backup_path.is_none() {
+            let path = self
+                .backup_path
+                .insert(base_path.join(DEFAULT_BACKUP_FOLDER));
             eprintln!("No backup path provided, using default path: {:?} for AlephBFT backups. Please do not remove this folder", path);
         }
     }

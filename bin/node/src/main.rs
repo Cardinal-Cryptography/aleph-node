@@ -109,7 +109,13 @@ fn main() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
             let mut aleph_cli_config = cli.aleph;
             runner.run_node_until_exit(|config| async move {
-                aleph_cli_config.insert_default_backup_path(&config);
+                aleph_cli_config.insert_default_backup_path(
+                    config
+                        .base_path
+                        .as_ref()
+                        .expect("Please specify base path")
+                        .path(),
+                );
                 match config.role {
                     Role::Authority => {
                         new_authority(config, aleph_cli_config).map_err(sc_cli::Error::Service)
