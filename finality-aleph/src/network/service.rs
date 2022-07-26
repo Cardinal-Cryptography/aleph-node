@@ -4,6 +4,7 @@ use std::{
     iter,
 };
 
+use codec::Encode;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use sc_service::SpawnTaskHandle;
@@ -24,15 +25,15 @@ use crate::{
 ///   2. Various forms of (dis)connecting, keeping track of all currently connected nodes.
 /// 2. Commands from the network manager, modifying the reserved peer set.
 /// 3. Outgoing messages, sending them out, using 1.2. to broadcast.
-pub struct Service<N: Network, D: Data + MessageVersioning> {
+pub struct Service<N: Network, D: Data + MessageVersioning> where D::Versioned: Data {
     network: N,
     messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand<N::PeerId>)>,
     messages_for_user: mpsc::UnboundedSender<D>,
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<N::Multiaddress>>,
     generic_connected_peers: HashSet<N::PeerId>,
     validator_connected_peers: HashSet<N::PeerId>,
-    generic_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<D>>,
-    validator_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<D>>,
+    generic_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<D::Versioned>>,
+    validator_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<D::Versioned>>,
     spawn_handle: SpawnTaskHandle,
 }
 
@@ -63,7 +64,7 @@ enum SendError {
     SendingFailed,
 }
 
-impl<N: Network, D: Data + MessageVersioning> Service<N, D> {
+impl<N: Network, D: Data + MessageVersioning> Service<N, D> where D::Versioned: Data {
     pub fn new(
         network: N,
         spawn_handle: SpawnTaskHandle,
@@ -91,7 +92,7 @@ impl<N: Network, D: Data + MessageVersioning> Service<N, D> {
         &mut self,
         peer: &N::PeerId,
         protocol: Protocol,
-    ) -> Option<&mut TracingUnboundedSender<D>> {
+    ) -> Option<&mut TracingUnboundedSender<D::Versioned>> {
         match protocol {
             Protocol::Generic => self.generic_peer_senders.get_mut(peer),
             Protocol::Validator => self.validator_peer_senders.get_mut(peer),
@@ -101,7 +102,7 @@ impl<N: Network, D: Data + MessageVersioning> Service<N, D> {
     fn peer_sender(
         &self,
         peer_id: N::PeerId,
-        mut receiver: TracingUnboundedReceiver<D>,
+        mut receiver: TracingUnboundedReceiver<D::Versioned>,
         protocol: Protocol,
     ) -> impl Future<Output = ()> + Send + 'static {
         let network = self.network.clone();
@@ -140,7 +141,7 @@ impl<N: Network, D: Data + MessageVersioning> Service<N, D> {
     ) -> Result<(), SendError> {
         match self.get_sender(&peer, protocol) {
             Some(sender) => {
-                match sender.unbounded_send(data) {
+                match sender.unbounded_send(data.into_versioned()) {
                     Err(e) => {
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here

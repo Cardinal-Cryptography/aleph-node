@@ -28,7 +28,7 @@ pub type ByteCount = u16;
 /// the single version that preceded it), not every historical version.
 ///
 /// [ADR 40]: https://www.notion.so/cardinalcryptography/Message-Compatibility-Quick-solution-ec47e2c4d2894a0387eabf26fcbf0115
-pub trait MessageVersioning: Clone {
+pub trait MessageVersioning: Sized {
     type Versioned;
 
     fn into_versioned(self) -> Self::Versioned;
