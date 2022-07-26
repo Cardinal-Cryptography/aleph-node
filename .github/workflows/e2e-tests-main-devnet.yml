@@ -532,6 +532,149 @@ jobs:
           ALEPH_NODE_BINARY: aleph-release-node/aleph-node
         run: ./.github/scripts/test_multiple_restarts.sh
 
+  check-runtime-change:
+    name: Inspect whether runtime version has been changed (comparing to main)
+    runs-on: ubuntu-latest
+    env:
+      OLD_REPO_PATH: old-repo
+      NEW_REPO_PATH: new-repo
+      OUTPUT_NAME: diff
+    outputs:
+      runtime-updated: ${{ steps.inspect.outputs.diff }}
+    steps:
+      - name: Checkout old source code (main branch)
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+          path: ${{ env.OLD_REPO_PATH }}
+
+      - name: Checkout current source code
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.NEW_REPO_PATH }}
+
+      - name: Inspect versions
+        id: inspect
+        run: |
+          ./${{ env.NEW_REPO_PATH }}/.github/scripts/check_runtime_change.sh \
+              ${{ env.OLD_REPO_PATH }} \
+              ${{ env.NEW_REPO_PATH }} \
+              ${{ env.OUTPUT_NAME }}
+
+  build-old-node:
+    name: Build node artifact (main version)
+    needs: [ check-runtime-change ]
+    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: try-runtime
+          cargo-key: old
+
+      - name: Build old binary
+        run: cargo build --release -p aleph-node --features "short_session"
+
+      - name: Upload old binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: old-aleph-node
+          path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
+  build-new-runtime-and-try_runtime:
+    name: Build new runtime and try_runtime tool
+    needs: [ check-runtime-change ]
+    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: try-runtime
+          cargo-key: new
+
+      - name: Build
+        run: cargo build --release -p aleph-node --features "try-runtime short_session"
+
+      - name: Upload new runtime
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-runtime-try_runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload try-runtime
+        uses: actions/upload-artifact@v3
+        with:
+          name: try_runtime
+          path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
+  test-runtime-update:
+    name: Test runtime update with try-runtime tool
+    runs-on: ubuntu-latest
+    needs: [ build-old-node, build-new-runtime-and-try_runtime ]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Test update
+        timeout-minutes: 20
+        env:
+          OLD_BINARY: old-aleph-release-node/aleph-node
+          NEW_BINARY: aleph-test-node/aleph-node
+          NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
+        working-directory: local-tests/
+        # We have to wait for the 1. era to begin so that all storage is initialized correctly.
+        run: |
+          pip install -r requirements.txt
+          ./test_runtime_update.py \
+              old-aleph-node/aleph-node \
+              aleph-runtime-try_runtime/aleph_runtime.compact.wasm \
+              try_runtime/aleph-node \
+              --wait_for 151 \
+
   slack:
     name: Slack notification
     runs-on: ubuntu-latest
