@@ -4,13 +4,9 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
-    branches:
-      - main
   push:
     paths:
       - 'contracts/**'
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -84,6 +80,11 @@ jobs:
       - name: Run one-node smartnet
         shell: bash
         run: ./.github/scripts/run_smartnet.sh &
+
+        # while docker pull the image and start the node
+      - name: Sleep for a while
+        shell: bash
+        run: sleep 2
 
       - name: Run e2e tests
         shell: bash
