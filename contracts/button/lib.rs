@@ -350,7 +350,6 @@ pub trait ButtonGame {
 
         let remaining_balance = total_balance - pressiah_reward;
         // rewards are distributed to the participants proportionally to their score
-        // let _ =
         press_accounts
             .iter()
             .try_for_each(|account_id| -> Result<()> {
@@ -361,8 +360,6 @@ pub trait ButtonGame {
                 }
                 Ok(())
             })
-
-        // Ok(())
     }
 }
 

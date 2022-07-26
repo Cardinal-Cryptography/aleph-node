@@ -27,10 +27,10 @@ pub mod game_token {
         access_control: AccountId,
     }
 
-    // TODO : emit events
-    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
     impl PSP22 for GameToken {}
 
+    // emit events
+    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
     impl Internal for GameToken {
         fn _emit_transfer_event(
             &self,
