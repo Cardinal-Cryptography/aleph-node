@@ -23,11 +23,12 @@ use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 use scale_info::TypeInfo;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
     prelude::*,
 };
-
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 pub type BlockCount = u32;
@@ -49,6 +50,7 @@ impl<AccountId> Default for EraValidators<AccountId> {
 }
 
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeSeats {
     pub reserved_seats: u32,
     pub non_reserved_seats: u32,
@@ -258,7 +260,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
-        pub committee_size: u32,
+        pub committee_seats: CommitteeSeats,
     }
 
     #[cfg(feature = "std")]
@@ -267,7 +269,10 @@ pub mod pallet {
             Self {
                 non_reserved_validators: Vec::new(),
                 reserved_validators: Vec::new(),
-                committee_size: DEFAULT_COMMITTEE_SIZE,
+                committee_seats: CommitteeSeats {
+                    reserved_seats: DEFAULT_COMMITTEE_SIZE,
+                    non_reserved_seats: 0,
+                },
             }
         }
     }
@@ -276,10 +281,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
-            <CommitteeSize<T>>::put(&CommitteeSeats {
-                reserved_seats: self.committee_size,
-                non_reserved_seats: 0,
-            });
+            <CommitteeSize<T>>::put(&self.committee_seats);
             <NextEraReservedValidators<T>>::put(&self.reserved_validators);
         }
     }

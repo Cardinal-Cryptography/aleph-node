@@ -2059,6 +2059,7 @@ dependencies = [
  "parity-scale-codec",
  "primitives",
  "scale-info",
+ "serde",
  "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23)",
  "sp-staking",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.23)",
