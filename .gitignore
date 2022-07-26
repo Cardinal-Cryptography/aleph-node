@@ -23,3 +23,7 @@ p2p_secret
 # Python
 __pycache__/
 *.py[cod]
+
+# bash scripts
+contracts/addresses.json
+contracts/env/prod

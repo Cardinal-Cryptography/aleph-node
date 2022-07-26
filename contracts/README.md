@@ -26,6 +26,7 @@ score = deadline - now
 There are two built-in incentives:
 * playing for the score: If you clicked in the 10th second of TheButton's life, which is set for example to 900 blocks, you get rewarded based on the score of 900-10=890 (and the button's life now will end at block 910).
 * playing to be ThePressiah: the last player to click gets 50% of the total reward pool.
+
 ## BackToTheFuture
 
 In this scenario the rewards are reversed - players get rewarded for extending the button's life further into the future, i.e.:
@@ -50,24 +51,40 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 
 # Development
 
+## Prerequisites
+
+- Rust nightly
+- cargo-contract with bug fixes around URL parsing: `cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force`
+
+## Instructions
+
 Firstly bootstrap a one-node  `smartnet` chain:
 
 ```bash
  ./.github/scripts/run_smartnet.sh
 ```
 
-Secondly `deploy` script takes care of compiling, deploying and interacting with the contract(s):
+Secondly `deploy` script takes care of compiling and deploying the contracts.
 
 ```bash
-./contracts/scripts/deploy.sh
+source contracts/env/dev && ./contracts/scripts/deploy.sh
 ```
 
 Specifically it will:
 
-- deploy the ERC20 token contract
-- deploy the game contracts
-- set access control
-- transfer token balance to the game contract
-- whitelist some accounts for playing the games
-- interact with the games from the whitelisted accounts
-- wait past the game deadline, trigger the game end and reward distribution
+- Deploy the token contracts.
+- Deploy the game contracts.
+- Set access control.
+- Transfer token balances to the game contracts.
+- Whitelist accounts for playing the games.
+
+Third `test.sh` script plays the game from two well-known dev addresses.
+
+```bash
+./contracts/scripts/test.sh
+```
+
+It will:
+
+- Interact with the games from the whitelisted accounts.
+- Wait past the game deadline, trigger the game end and reward distribution.
