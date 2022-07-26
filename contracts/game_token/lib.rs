@@ -7,6 +7,10 @@ pub use crate::game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
 pub mod game_token {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
+    use ink_lang::{
+        codegen::{EmitEvent, Env},
+        reflect::ContractEventBase,
+    };
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{contracts::psp22::*, traits::Storage};
@@ -27,12 +31,43 @@ pub mod game_token {
     // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
     impl PSP22 for GameToken {}
 
+    impl Internal for GameToken {
+        fn _emit_transfer_event(
+            &self,
+            _from: Option<AccountId>,
+            _to: Option<AccountId>,
+            _amount: Balance,
+        ) {
+            GameToken::emit_event(
+                self.env(),
+                Event::Transfer(Transfer {
+                    from: _from,
+                    to: _to,
+                    value: _amount,
+                }),
+            );
+        }
+
+        fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
+            GameToken::emit_event(
+                self.env(),
+                Event::Approval(Approval {
+                    owner: _owner,
+                    spender: _spender,
+                    value: _amount,
+                }),
+            );
+        }
+    }
+
     impl AccessControlled for GameToken {
         type ContractError = PSP22Error;
     }
 
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
+    /// Event type
+    pub type Event = <GameToken as ContractEventBase>::Type;
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
@@ -89,6 +124,10 @@ pub mod game_token {
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
+        }
+
+        pub fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
+            emitter.emit_event(event);
         }
 
         /// Terminates the contract.
