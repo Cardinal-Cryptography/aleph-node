@@ -242,7 +242,7 @@ impl BootstrapNodeCmd {
 
         bootstrap_backup(base_path.path(), backup_dir);
         let chain_id = self.chain_params.chain_id();
-        let keystore = open_keystore(&self.keystore_params, chain_id, &base_path);
+        let keystore = open_keystore(&self.keystore_params, chain_id, base_path);
 
         // Does not rely on the account id in the path
         let account_id = self.account_id();
