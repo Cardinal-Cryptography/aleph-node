@@ -43,7 +43,7 @@ impl AlephCli {
 
     pub fn insert_default_backup_path(&mut self, config: &Configuration) {
         if !self.no_backup {
-            self.backup_path.get_or_insert(
+            let path = self.backup_path.get_or_insert(
                 config
                     .base_path
                     .as_ref()
@@ -51,6 +51,7 @@ impl AlephCli {
                     .path()
                     .join(DEFAULT_BACKUP_FOLDER),
             );
+            eprintln!("No backup path provided, using default path: {:?} for AlephBFT backups. Please do not remove this folder", path);
         }
     }
 }
