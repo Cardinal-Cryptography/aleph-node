@@ -672,8 +672,7 @@ jobs:
           ./test_runtime_update.py \
               old-aleph-node/aleph-node \
               aleph-runtime-try_runtime/aleph_runtime.compact.wasm \
-              try_runtime/aleph-node \
-              --wait_for 151 \
+              try_runtime/aleph-node
 
   slack:
     name: Slack notification

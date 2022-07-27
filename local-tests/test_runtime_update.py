@@ -31,10 +31,6 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('new_runtime', type=file, help='Path to the new runtime')
     parser.add_argument('try_runtime', type=file, help='Path to the `try-runtime` tool')
 
-    parser.add_argument('--wait_for', type=int, default=1,
-                        help='Wait until this many blocks are finalized before trying update. '
-                             'By default `1`')
-
     return parser.parse_args()
 
 
@@ -56,7 +52,7 @@ def save_runtime_to_chainspec(chainspec_path: Path, runtime_path: Path):
     logging.info(f'✅ Saved updated chainspec to {chainspec_path}')
 
 
-def start_chain(binary: Path, wait_for: int) -> Chain:
+def start_chain(binary: Path) -> Chain:
     logging.info(f'Starting live chain using {binary}...')
 
     phrases = [f'//{i}' for i in range(6)]
@@ -88,7 +84,7 @@ def start_chain(binary: Path, wait_for: int) -> Chain:
     chain.start('aleph')
     logging.info('Live chain started. Waiting for finalization and authorities.')
 
-    chain.wait_for_finalization(wait_for)
+    chain.wait_for_finalization(1)
     chain.wait_for_authorities()
     logging.debug('Initial checks passed, chain seems to be fine')
 
@@ -103,8 +99,8 @@ def test_update(try_runtime: Path, chainspec: Path):
     logging.info('✅ Update has been successful!')
 
 
-def run_test(old_binary: Path, new_runtime: Path, try_runtime: Path, wait_for: int):
-    chain = start_chain(old_binary, wait_for)
+def run_test(old_binary: Path, new_runtime: Path, try_runtime: Path):
+    chain = start_chain(old_binary)
     chainspec = file(os.path.join(WORKDIR, 'chainspec.json'))
     save_runtime_to_chainspec(chainspec, new_runtime)
     test_update(try_runtime, chainspec)
@@ -114,4 +110,4 @@ def run_test(old_binary: Path, new_runtime: Path, try_runtime: Path, wait_for: i
 
 if __name__ == '__main__':
     args = get_args()
-    run_test(args.old_binary, args.new_runtime, args.try_runtime, args.wait_for)
+    run_test(args.old_binary, args.new_runtime, args.try_runtime)
