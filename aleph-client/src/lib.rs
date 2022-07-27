@@ -18,7 +18,7 @@ pub use session::{
     get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
-use sp_core::{sr25519, ed25519, storage::StorageKey, Pair, H256};
+use sp_core::{ed25519, sr25519, storage::StorageKey, Pair, H256};
 use sp_runtime::{
     generic::Header as GenericHeader,
     traits::{BlakeTwo256, Header as HeaderT},
@@ -362,13 +362,13 @@ pub fn aleph_keypair_from_string(seed: &str) -> AlephKeyPair {
     AlephKeyPair::from_string(seed, None).expect("Can't create aleph pair from seed value")
 }
 
-pub fn account_from_keypair<P>(keypair: &P) -> AccountId 
+pub fn account_from_keypair<P>(keypair: &P) -> AccountId
 where
     P: Pair,
-    AccountId: From<<P as Pair>::Public> {
+    AccountId: From<<P as Pair>::Public>,
+{
     AccountId::from(keypair.public())
 }
-
 
 fn storage_key(module: &str, version: &str) -> [u8; 32] {
     let pallet_name = sp_core::hashing::twox_128(module.as_bytes());

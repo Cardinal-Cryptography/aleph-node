@@ -147,7 +147,7 @@ pub fn emergency_finalize<C: AnyConnection>(
         .get_request(emergency_finalize_json(
             raw_signature.to_vec(),
             hash,
-            number
+            number,
         )) {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Emergency finalize failed: {}", e)),
