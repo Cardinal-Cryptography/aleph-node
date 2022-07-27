@@ -21,6 +21,7 @@ use sp_keystore::SyncCryptoStore;
 
 use crate::chain_spec::{
     self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
+    DEFAULT_BACKUP_FOLDER,
 };
 
 #[derive(Debug, Args)]
@@ -36,7 +37,7 @@ pub struct NodeParams {
     node_key_file: String,
 
     /// Directory under which AlephBFT backup is stored
-    #[clap(long, default_value = "backup-stash")]
+    #[clap(long, default_value = DEFAULT_BACKUP_FOLDER)]
     backup_dir: String,
 }
 
