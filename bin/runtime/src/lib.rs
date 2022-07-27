@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 24,
+    spec_version: 27,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 9,
@@ -949,5 +949,15 @@ impl_runtime_apis! {
         fn execute_block_no_check(block: Block) -> frame_support::weights::Weight {
             Executive::execute_block_no_check(block)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::VERSION;
+
+    #[test]
+    fn state_version_must_be_zero() {
+        assert_eq!(0, VERSION.state_version);
     }
 }

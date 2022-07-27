@@ -1,6 +1,9 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
@@ -25,11 +28,24 @@ use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT, Zero},
 };
 
-use crate::{aleph_cli::AlephCli, executor::AlephExecutor};
+use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor};
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+
+fn get_backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
+    if aleph_config.no_backup() {
+        return None;
+    }
+    if let Some(path) = aleph_config.backup_path() {
+        Some(path)
+    } else {
+        let path = base_path.join(DEFAULT_BACKUP_FOLDER);
+        eprintln!("No backup path provided, using default path: {:?} for AlephBFT backups. Please do not remove this folder", path);
+        Some(path)
+    }
+}
 
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
@@ -43,6 +59,7 @@ pub fn new_partial(
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
             AlephBlockImport<Block, FullBackend, FullClient>,
+            mpsc::UnboundedSender<JustificationNotification<Block>>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
@@ -103,8 +120,11 @@ pub fn new_partial(
     });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
-    let aleph_block_import =
-        AlephBlockImport::new(client.clone() as Arc<_>, justification_tx, metrics.clone());
+    let aleph_block_import = AlephBlockImport::new(
+        client.clone() as Arc<_>,
+        justification_tx.clone(),
+        metrics.clone(),
+    );
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
@@ -142,7 +162,13 @@ pub fn new_partial(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (aleph_block_import, justification_rx, telemetry, metrics),
+        other: (
+            aleph_block_import,
+            justification_tx,
+            justification_rx,
+            telemetry,
+            metrics,
+        ),
     })
 }
 
@@ -157,6 +183,7 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
+    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
 ) -> Result<
     (
         RpcHandlers,
@@ -190,6 +217,7 @@ fn setup(
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
+                import_justification_tx: import_justification_tx.clone(),
             };
 
             Ok(crate::rpc::create_full(deps)?)
@@ -225,12 +253,21 @@ pub fn new_authority(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, justification_rx, mut telemetry, metrics),
+        other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
     config
         .network
         .extra_sets
         .push(finality_aleph::peers_set_config(Protocol::Validator));
+
+    let backup_path = get_backup_path(
+        &aleph_config,
+        config
+            .base_path
+            .as_ref()
+            .expect("Please specify base path")
+            .path(),
+    );
 
     let session_period = SessionPeriod(
         client
@@ -259,6 +296,7 @@ pub fn new_authority(
         &mut task_manager,
         client.clone(),
         &mut telemetry,
+        justification_tx,
     )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
@@ -319,7 +357,7 @@ pub fn new_authority(
         justification_rx,
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
-        backup_saving_path: aleph_config.backup_path(),
+        backup_saving_path: backup_path,
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
@@ -343,8 +381,17 @@ pub fn new_full(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (_, justification_rx, mut telemetry, metrics),
+        other: (_, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
+
+    let backup_path = get_backup_path(
+        &aleph_config,
+        config
+            .base_path
+            .as_ref()
+            .expect("Please specify base path")
+            .path(),
+    );
 
     let (_rpc_handlers, network, network_starter) = setup(
         config,
@@ -355,6 +402,7 @@ pub fn new_full(
         &mut task_manager,
         client.clone(),
         &mut telemetry,
+        justification_tx,
     )?;
 
     let session_period = SessionPeriod(
@@ -382,7 +430,7 @@ pub fn new_full(
         justification_rx,
         metrics,
         unit_creation_delay: aleph_config.unit_creation_delay(),
-        backup_saving_path: aleph_config.backup_path(),
+        backup_saving_path: backup_path,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(
