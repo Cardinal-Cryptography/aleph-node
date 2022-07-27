@@ -89,7 +89,7 @@ mod early_bird_special {
         }
 
         fn score(&self, now: BlockNumber) -> Score {
-            let deadline = ButtonGame::deadline(self);
+            let deadline = ButtonGame::deadline(self, now);
             deadline - now
         }
     }
@@ -98,7 +98,7 @@ mod early_bird_special {
     impl IButtonGame for EarlyBirdSpecial {
         #[ink(message)]
         fn is_dead(&self) -> bool {
-            let now = Self::env().block_number();
+            let now = self.env().block_number();
             ButtonGame::is_dead(self, now)
         }
 
@@ -140,7 +140,8 @@ mod early_bird_special {
 
         #[ink(message)]
         fn deadline(&self) -> BlockNumber {
-            ButtonGame::deadline(self)
+            let now = self.env().block_number();
+            ButtonGame::deadline(self, now)
         }
 
         #[ink(message)]
@@ -262,7 +263,6 @@ mod early_bird_special {
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.data.last_press = now;
             self.data.button_lifetime = button_lifetime;
             self.data.game_token = game_token;
 

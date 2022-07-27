@@ -88,7 +88,10 @@ mod back_to_the_future {
         }
 
         fn score(&self, now: BlockNumber) -> Score {
-            now - self.get().last_press
+            if let Some(last_press) = self.get().last_press {
+                return now - last_press;
+            }
+            0
         }
     }
 
@@ -118,7 +121,7 @@ mod back_to_the_future {
         #[ink(message)]
         fn claim_reward(&mut self, for_player: AccountId) -> Result<()> {
             let this = self.env().account_id();
-            let now = Self::env().block_number();
+            let now = self.env().block_number();
 
             ButtonGame::claim_reward::<ButtonGameEnvironment>(
                 self,
@@ -138,7 +141,8 @@ mod back_to_the_future {
 
         #[ink(message)]
         fn deadline(&self) -> BlockNumber {
-            ButtonGame::deadline(self)
+            let now = self.env().block_number();
+            ButtonGame::deadline(self, now)
         }
 
         #[ink(message)]
@@ -260,7 +264,6 @@ mod back_to_the_future {
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.data.last_press = now;
             self.data.button_lifetime = button_lifetime;
             self.data.game_token = game_token;
 

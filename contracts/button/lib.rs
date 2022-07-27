@@ -51,6 +51,8 @@ pub enum Error {
     ContractCall(String),
     /// Returned if a call is made from an account with missing access control priviledges
     MissingRole,
+    /// Returned whenever there was already a press tx recorded in this block
+    BetterLuckNextTime,
 }
 
 impl From<InkEnvError> for Error {
@@ -116,7 +118,7 @@ pub struct ButtonData {
     /// stores the last account that pressed The Button
     pub last_presser: Option<AccountId>,
     /// block number of the last press
-    pub last_press: BlockNumber,
+    pub last_press: Option<BlockNumber>,
     /// AccountId of the ERC20 ButtonToken instance on-chain
     pub game_token: AccountId,
     /// accounts whitelisted to play the game
@@ -145,16 +147,16 @@ pub trait ButtonGame {
     fn score(&self, now: BlockNumber) -> Score;
 
     fn is_dead(&self, now: BlockNumber) -> bool {
-        now > self.deadline()
+        now > self.deadline(now)
     }
 
-    fn deadline(&self) -> BlockNumber {
+    fn deadline(&self, now: BlockNumber) -> BlockNumber {
         let ButtonData {
             last_press,
             button_lifetime,
             ..
         } = self.get();
-        last_press + button_lifetime
+        last_press.unwrap_or(now) + button_lifetime
     }
 
     fn score_of(&self, user: AccountId) -> Score {
@@ -279,9 +281,13 @@ pub trait ButtonGame {
         Ok(())
     }
 
+    // TODO : one press per block
     fn press(&mut self, now: BlockNumber, caller: AccountId) -> Result<()> {
         let ButtonData {
-            can_play, presses, ..
+            can_play,
+            presses,
+            last_press,
+            ..
         } = self.get();
 
         if self.is_dead(now) {
@@ -296,14 +302,23 @@ pub trait ButtonGame {
             return Err(Error::NotWhitelisted);
         }
 
-        let score = self.score(now);
+        // this is to handle a situation when multiple accounts press at the same time (in the same block)
+        // as there can be only one succesfull press recorded per block
+        // the users are effectively competing for this one tx
+        if let Some(last_press) = last_press {
+            if last_press.eq(&now) {
+                return Err(Error::BetterLuckNextTime);
+            }
+        }
 
         let root_key = ::ink_primitives::Key::from([0x00; 32]);
         let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
+        let score = self.score(now);
+
         state.presses.insert(&caller, &score);
         state.last_presser = Some(caller);
-        state.last_press = now;
+        state.last_press = Some(now);
         state.total_scores += score;
         swap(self.get_mut(), &mut state);
 
@@ -353,17 +368,16 @@ pub trait ButtonGame {
                     self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
                 }
 
-                // NOTE: in this design the Pressiah gets *both* his/her reward and the reward for playing
+                // NOTE: in this design the Pressiah gets *both* his/her reward *and* a reward for playing
 
                 if let Some(score) = presses.get(&for_player) {
                     // transfer reward proportional to the score
                     let reward = (score as u128 * remaining_balance) / *total_scores as u128;
                     self.transfer_tx::<E>(transfer_selector, for_player, reward)?;
-                }
 
-                let root_key = ::ink_primitives::Key::from([0x00; 32]);
-                let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
-                state.reward_claimed.insert(&for_player, &());
+                    // pressiah is also marked as having made the claim, because his/her score was recorder
+                    self.get_mut().reward_claimed.insert(&for_player, &());
+                }
 
                 Ok(())
             }
