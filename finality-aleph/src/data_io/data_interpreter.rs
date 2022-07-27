@@ -1,6 +1,5 @@
 use std::{default::Default, sync::Arc};
 
-use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::{debug, error, warn};
 use sc_client_api::HeaderBackend;
@@ -68,36 +67,31 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
     }
 
     fn block_to_finalize_from_data(&mut self, new_data: AlephData<B>) -> Option<BlockHashNum<B>> {
-        match new_data {
-            AlephData::Empty => None,
-            AlephData::HeadProposal(unvalidated_proposal) => {
-                let proposal = match unvalidated_proposal.validate_bounds(&self.session_boundaries)
-                {
-                    Ok(proposal) => proposal,
-                    Err(error) => {
-                        warn!(target: "aleph-finality", "Incorrect proposal {:?} passed through data availability, session bounds: {:?}, error: {:?}", unvalidated_proposal, self.session_boundaries, error);
-                        return None;
-                    }
-                };
+        let unvalidated_proposal = new_data.head_proposal;
+        let proposal = match unvalidated_proposal.validate_bounds(&self.session_boundaries) {
+            Ok(proposal) => proposal,
+            Err(error) => {
+                warn!(target: "aleph-finality", "Incorrect proposal {:?} passed through data availability, session bounds: {:?}, error: {:?}", unvalidated_proposal, self.session_boundaries, error);
+                return None;
+            }
+        };
 
-                // WARNING: If we ever enable pruning, this code (and the code in Data Store) must be carefully analyzed
-                // for possible safety violations.
+        // WARNING: If we ever enable pruning, this code (and the code in Data Store) must be carefully analyzed
+        // for possible safety violations.
 
-                use crate::data_io::proposal::ProposalStatus::*;
-                let status = get_proposal_status(&mut self.chain_info_provider, &proposal, None);
-                match status {
-                    Finalize(block) => Some(block),
-                    Ignore => {
-                        debug!(target: "aleph-finality", "Ignoring proposal {:?} in interpreter.", proposal);
-                        None
-                    }
-                    Pending(pending_status) => {
-                        panic!(
-                            "Pending proposal {:?} with status {:?} encountered in Data.",
-                            proposal, pending_status
-                        );
-                    }
-                }
+        use crate::data_io::proposal::ProposalStatus::*;
+        let status = get_proposal_status(&mut self.chain_info_provider, &proposal, None);
+        match status {
+            Finalize(block) => Some(block),
+            Ignore => {
+                debug!(target: "aleph-finality", "Ignoring proposal {:?} in interpreter.", proposal);
+                None
+            }
+            Pending(pending_status) => {
+                panic!(
+                    "Pending proposal {:?} with status {:?} encountered in Data.",
+                    proposal, pending_status
+                );
             }
         }
     }
