@@ -11,14 +11,15 @@ pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
-pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
+pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_current_session, get_session,
     get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{generic::Header as GenericHeader, traits::BlakeTwo256};
+use sp_runtime::{generic::Header as GenericHeader, traits::{BlakeTwo256, Header as HeaderT}};
+pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
@@ -51,6 +52,7 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod balances;
 mod debug;
+mod finalization;
 mod fee;
 mod multisig;
 mod rpc;
@@ -78,6 +80,7 @@ impl FromStr for WsRpcClient {
 
 pub type BlockNumber = u32;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
+pub type BlockHash = <Header as HeaderT>::Hash;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
 pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
@@ -381,7 +384,7 @@ pub fn get_storage_key(pallet: &str, call: &str) -> String {
     hex::encode(storage_key.0)
 }
 
-pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: u32) -> H256 {
+pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: BlockNumber) -> BlockHash {
     connection
         .as_connection()
         .get_block_hash(Some(block_number))

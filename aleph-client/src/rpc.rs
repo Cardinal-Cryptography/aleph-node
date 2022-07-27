@@ -1,8 +1,9 @@
 use serde_json::{json, Value};
-use sp_core::storage::{StorageChangeSet, StorageData};
+use sp_core::{ed25519, Pair, H256, storage::{StorageChangeSet, StorageData}};
 use substrate_api_client::StorageKey;
+use codec::Encode;
 
-use crate::{AnyConnection, SessionKeys, H256};
+use crate::{AnyConnection, SessionKeys, BlockNumber, BlockHash};
 
 fn json_req(method: &str, params: Value, id: u32) -> Value {
     json!({
@@ -15,6 +16,11 @@ fn json_req(method: &str, params: Value, id: u32) -> Value {
 
 pub fn author_rotate_keys_json() -> Value {
     json_req("author_rotateKeys", Value::Null, 1)
+}
+
+/// Produces a JSON encoding of an emergency finalization RPC.
+pub fn emergency_finalize_json(number: BlockNumber, hash: BlockHash, signature: Vec<u8>) -> Value {
+    json_req("alephNode_emergencyFinalize", json!([signature, hash, number]), 1)
 }
 
 fn state_query_storage_at_json(storage_keys: &[StorageKey]) -> Value {
@@ -117,6 +123,16 @@ pub fn rotate_keys<C: AnyConnection>(connection: &C) -> Result<SessionKeys, &'st
 pub fn rotate_keys_raw_result<C: AnyConnection>(connection: &C) -> Result<String, &'static str> {
     // we need to escape two characters from RPC result which is escaped quote
     rotate_keys_base(connection, |keys| Some(keys.trim_matches('\"').to_string()))
+}
+
+/// Sends an emergency justification to the node, using the provided key to sign the hash.
+pub fn emergency_finalize<C: AnyConnection>(connection: &C, number: BlockNumber, hash: BlockHash, key: ed25519::Pair) -> Result<(), String> {
+    let signature = key.sign(&hash.encode());
+    let raw_signature: &[u8] = signature.as_ref();
+    match connection.as_connection().get_request(emergency_finalize_json(number, hash, raw_signature.to_vec())) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Emergency finalize failed: {}", e)),
+    }
 }
 
 #[cfg(test)]
