@@ -1,6 +1,9 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
@@ -25,28 +28,20 @@ use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT, Zero},
 };
 
-use crate::{
-    aleph_cli::{AlephCli, DEFAULT_BACKUP_FOLDER},
-    executor::AlephExecutor,
-};
+use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor};
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
-fn get_backup_path(aleph_config: &AlephCli, config: &Configuration) -> Option<PathBuf> {
+fn get_backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
     if aleph_config.no_backup() {
         return None;
     }
     if let Some(path) = aleph_config.backup_path() {
         Some(path)
     } else {
-        let path = config
-            .base_path
-            .as_ref()
-            .expect("Please specify base path")
-            .path()
-            .join(DEFAULT_BACKUP_FOLDER);
+        let path = base_path.join(DEFAULT_BACKUP_FOLDER);
         eprintln!("No backup path provided, using default path: {:?} for AlephBFT backups. Please do not remove this folder", path);
         Some(path)
     }
@@ -265,7 +260,14 @@ pub fn new_authority(
         .extra_sets
         .push(finality_aleph::peers_set_config(Protocol::Validator));
 
-    let backup_path = get_backup_path(&aleph_config, &config);
+    let backup_path = get_backup_path(
+        &aleph_config,
+        config
+            .base_path
+            .as_ref()
+            .expect("Please specify base path")
+            .path(),
+    );
 
     let session_period = SessionPeriod(
         client
@@ -382,7 +384,14 @@ pub fn new_full(
         other: (_, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = get_backup_path(&aleph_config, &config);
+    let backup_path = get_backup_path(
+        &aleph_config,
+        config
+            .base_path
+            .as_ref()
+            .expect("Please specify base path")
+            .path(),
+    );
 
     let (_rpc_handlers, network, network_starter) = setup(
         config,

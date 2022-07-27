@@ -4,8 +4,6 @@ use aleph_primitives::DEFAULT_UNIT_CREATION_DELAY;
 use clap::{ArgGroup, Parser};
 use finality_aleph::UnitCreationDelay;
 
-pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
-
 #[derive(Debug, Parser, Clone)]
 #[clap(group(ArgGroup::new("backup")))]
 pub struct AlephCli {
