@@ -1,13 +1,13 @@
 use aleph_client::{
     create_connection, get_current_era, get_payout_for_era, staking_force_new_era,
-    wait_for_next_era, wait_for_session, AnyConnection, RootConnection, SignedConnection,
+    wait_for_next_era, wait_for_session, AnyConnection,
 };
 use primitives::{
     staking::era_payout, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK,
 };
 use substrate_api_client::XtStatus;
 
-use crate::{accounts::get_sudo_key, Config};
+use crate::{connection::{get_root_connection}, Config};
 
 pub fn era_payouts_calculated_correctly(config: &Config) -> anyhow::Result<()> {
     normal_era_payout(config)?;
@@ -39,8 +39,7 @@ fn wait_to_second_era<C: AnyConnection>(connection: &C) -> u32 {
 }
 
 fn force_era_payout(config: &Config) -> anyhow::Result<()> {
-    let root_connection: RootConnection =
-        SignedConnection::new(&config.node, get_sudo_key(config)).into();
+    let root_connection = get_root_connection(config);
     let current_era = wait_to_second_era(&root_connection);
     wait_for_next_era(&root_connection)?;
     let current_era = current_era + 1;
