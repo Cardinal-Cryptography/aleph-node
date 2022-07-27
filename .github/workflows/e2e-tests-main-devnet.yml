@@ -662,17 +662,17 @@ jobs:
       - name: Test update
         timeout-minutes: 20
         env:
-          OLD_BINARY: old-aleph-release-node/aleph-node
-          NEW_BINARY: aleph-test-node/aleph-node
-          NEW_RUNTIME: aleph-test-runtime/aleph_runtime.compact.wasm
+          OLD_BINARY: old-aleph-node/aleph-node
+          NEW_RUNTIME: aleph-runtime-try_runtime/aleph_runtime.compact.wasm
+          TRY_RUNTIME: try_runtime/aleph-node
         working-directory: local-tests/
-        # We have to wait for the 1. era to begin so that all storage is initialized correctly.
         run: |
+          chmod +x ${{ env.OLD_BINARY }} ${{ env.TRY_RUNTIME }}
           pip install -r requirements.txt
           ./test_runtime_update.py \
-              old-aleph-node/aleph-node \
-              aleph-runtime-try_runtime/aleph_runtime.compact.wasm \
-              try_runtime/aleph-node
+              ${{ env.OLD_BINARY }} \
+              ${{ env.NEW_RUNTIME }} \
+              ${{ env.TRY_RUNTIME }}
 
   slack:
     name: Slack notification
