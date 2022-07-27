@@ -61,10 +61,12 @@ mod back_to_the_future {
         when: BlockNumber,
     }
 
-    /// Event emitted when button's death is triggered
+    /// Event emitted when a players reward is claimed
     #[ink(event)]
     #[derive(Debug)]
-    pub struct ButtonDeath {}
+    pub struct RewardClaimed {
+        for_player: AccountId,
+    }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -114,17 +116,23 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn death(&self) -> Result<()> {
+        fn claim_reward(&mut self, for_player: AccountId) -> Result<()> {
             let this = self.env().account_id();
             let now = Self::env().block_number();
-            ButtonGame::death::<ButtonGameEnvironment>(
+
+            ButtonGame::claim_reward::<ButtonGameEnvironment>(
                 self,
                 now,
+                for_player,
                 BALANCE_OF_SELECTOR,
                 TRANSFER_SELECTOR,
                 this,
             )?;
-            Self::emit_event(self.env(), Event::ButtonDeath(ButtonDeath {}));
+
+            Self::emit_event(
+                self.env(),
+                Event::RewardClaimed(RewardClaimed { for_player }),
+            );
             Ok(())
         }
 

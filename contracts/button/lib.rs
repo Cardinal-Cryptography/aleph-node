@@ -43,6 +43,8 @@ pub enum Error {
     BeforeDeadline,
     /// Returned if button is pressed after the deadline
     AfterDeadline,
+    /// Returned if given accunt has already had its reward paid out
+    AlreadyCLaimed,
     /// Account not whitelisted to play
     NotWhitelisted,
     /// Returned if a call to another contract has failed
@@ -109,8 +111,6 @@ pub struct ButtonData {
     pub button_lifetime: BlockNumber,
     /// Stores a mapping between user accounts and the number of blocks they extended The Buttons life for
     pub presses: Mapping<AccountId, BlockNumber>,
-    /// stores keys to `presses` because Mapping is not an Iterator. Heap-allocated so we might need Map<int, AccountId> if it grows out of proportion
-    pub press_accounts: Vec<AccountId>,
     /// stores total sum of user scores
     pub total_scores: Score,
     /// stores the last account that pressed The Button
@@ -121,6 +121,8 @@ pub struct ButtonData {
     pub game_token: AccountId,
     /// accounts whitelisted to play the game
     pub can_play: Mapping<AccountId, ()>,
+    /// stores a set of acounts that already collected their rewards
+    pub reward_claimed: Mapping<AccountId, ()>,
     /// access control contract
     pub access_control: AccountId,
 }
@@ -300,7 +302,6 @@ pub trait ButtonGame {
         let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
         state.presses.insert(&caller, &score);
-        state.press_accounts.push(caller);
         state.last_presser = Some(caller);
         state.last_press = now;
         state.total_scores += score;
@@ -309,13 +310,14 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    /// Distibutes awards to the participants
-    /// Can only be called after button's deadline
+    /// Pays award to a participant
     ///
-    /// Will return an Error if called before the deadline
-    fn death<E>(
-        &self,
+    /// Can be called by any account on behalf of a player
+    /// Can only be called after button's deadline
+    fn claim_reward<E>(
+        &mut self,
         now: BlockNumber,
+        for_player: AccountId,
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
         this: AccountId,
@@ -323,43 +325,49 @@ pub trait ButtonGame {
     where
         E: Environment<AccountId = AccountId>,
     {
+        let ButtonData {
+            reward_claimed,
+            last_presser,
+            presses,
+            total_scores,
+            ..
+        } = self.get();
+
         if !self.is_dead(now) {
             return Err(Error::BeforeDeadline);
         }
 
-        let ButtonData {
-            total_scores,
-            last_presser,
-            press_accounts,
-            presses,
-            ..
-        } = self.get();
-
-        // if there weren't any players
-        if last_presser.is_none() {
-            return Ok(());
+        if reward_claimed.get(&for_player).is_some() {
+            return Err(Error::AlreadyCLaimed);
         }
 
-        let total_balance = self.balance::<E>(balance_of_selector, this)?;
+        match last_presser {
+            None => Ok(()), // there weren't any players
+            Some(pressiah) => {
+                let total_balance = self.balance::<E>(balance_of_selector, this)?;
+                let pressiah_reward = total_balance / 2;
+                let remaining_balance = total_balance - pressiah_reward;
 
-        // Pressiah gets 50% of supply
-        let pressiah_reward = total_balance / 2;
-        if let Some(pressiah) = last_presser {
-            self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
-        }
-
-        let remaining_balance = total_balance - pressiah_reward;
-        // rewards are distributed to the participants proportionally to their score
-        press_accounts
-            .iter()
-            .try_for_each(|account_id| -> Result<()> {
-                if let Some(score) = presses.get(account_id) {
-                    let reward = (score as u128 * remaining_balance) / *total_scores as u128;
-                    // transfer amount
-                    return Ok(self.transfer_tx::<E>(transfer_selector, *account_id, reward)?);
+                if &for_player == pressiah {
+                    // Pressiah gets 50% of supply
+                    self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
                 }
+
+                // NOTE: in this design the Pressiah gets *both* his/her reward and the reward for playing
+
+                if let Some(score) = presses.get(&for_player) {
+                    // transfer reward proportional to the score
+                    let reward = (score as u128 * remaining_balance) / *total_scores as u128;
+                    self.transfer_tx::<E>(transfer_selector, for_player, reward)?;
+                }
+
+                let root_key = ::ink_primitives::Key::from([0x00; 32]);
+                let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
+                state.reward_claimed.insert(&for_player, &());
+
                 Ok(())
-            })
+            }
+        }
     }
 }
 
@@ -373,11 +381,9 @@ pub trait IButtonGame {
     #[ink(message)]
     fn press(&mut self) -> Result<()>;
 
-    /// End of the game logic
-    ///
-    /// Distributes the awards
+    /// Pays out the award
     #[ink(message)]
-    fn death(&self) -> Result<()>;
+    fn claim_reward(&mut self, for_player: AccountId) -> Result<()>;
 
     /// Returns the buttons status
     #[ink(message)]

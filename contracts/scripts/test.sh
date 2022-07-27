@@ -25,8 +25,9 @@ function play {
 
   sleep $(($LIFETIME + 1))
 
-  echo "calling death for" $contract_name
-  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::death --suri $AUTHORITY_SEED
+  echo "claiming rewards for" $contract_name
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER1 --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER2 --suri $AUTHORITY_SEED
 
   echo "Done playing" $contract_name
 }
@@ -35,9 +36,9 @@ function play {
 
 CONTRACTS_PATH=$(pwd)/contracts
 
-# 5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
+PLAYER1=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
 PLAYER1_SEED=//0
-# 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+PLAYER2=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 PLAYER2_SEED=//Alice
 
 GAMES=(early_bird_special back_to_the_future)
