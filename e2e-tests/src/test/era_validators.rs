@@ -1,7 +1,7 @@
 use aleph_client::{
-    change_validators, get_current_session, wait_for_finalized_block, wait_for_full_era_completion,
-    wait_for_next_era, wait_for_session, AnyConnection, Header, KeyPair, RootConnection,
-    SignedConnection,
+    change_validators, get_current_block_number, get_current_session, wait_for_finalized_block,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, KeyPair,
+    RootConnection, SignedConnection,
 };
 use codec::Decode;
 use pallet_elections::CommitteeSeats;
@@ -35,7 +35,7 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..3].to_vec()
 }
 
-fn get_pallets_reserved(
+fn get_current_and_next_era_reserved_validators(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_reserved: Vec<AccountId> =
@@ -43,10 +43,10 @@ fn get_pallets_reserved(
     let eras_validators: EraValidators =
         connection.read_storage_value("Elections", "CurrentEraValidators");
 
-    Ok((stored_reserved, eras_validators.reserved))
+    Ok((eras_validators.reserved, stored_reserved))
 }
 
-fn get_pallets_non_reserved(
+fn get_current_and_next_era_non_reserved_validators(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let stored_non_reserved: Vec<AccountId> =
@@ -54,7 +54,7 @@ fn get_pallets_non_reserved(
     let eras_validators: EraValidators =
         connection.read_storage_value("Elections", "CurrentEraValidators");
 
-    Ok((stored_non_reserved, eras_validators.non_reserved))
+    Ok((eras_validators.non_reserved, stored_non_reserved))
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {
@@ -112,8 +112,10 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     let current_session = get_current_session(&connection);
     wait_for_session(&connection, current_session + 1)?;
 
-    let (stored_reserved, eras_reserved) = get_pallets_reserved(&connection)?;
-    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
+    let (eras_reserved, stored_reserved) =
+        get_current_and_next_era_reserved_validators(&connection)?;
+    let (eras_non_reserved, stored_non_reserved) =
+        get_current_and_next_era_non_reserved_validators(&connection)?;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -135,8 +137,10 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
 
     wait_for_next_era(&connection)?;
 
-    let (stored_reserved, eras_reserved) = get_pallets_reserved(&connection)?;
-    let (stored_non_reserved, eras_non_reserved) = get_pallets_non_reserved(&connection)?;
+    let (eras_reserved, stored_reserved) =
+        get_current_and_next_era_reserved_validators(&connection)?;
+    let (eras_non_reserved, stored_non_reserved) =
+        get_current_and_next_era_non_reserved_validators(&connection)?;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -156,12 +160,7 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
         "Non-reserved validators set is not properly updated in the next era."
     );
 
-    let block_number = connection
-        .as_connection()
-        .get_header::<Header>(None)
-        .expect("Could not fetch header")
-        .expect("Block exists; qed")
-        .number;
+    let block_number = get_current_block_number(&connection);
     wait_for_finalized_block(&connection, block_number)?;
 
     Ok(())

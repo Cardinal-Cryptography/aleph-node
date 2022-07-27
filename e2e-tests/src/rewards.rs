@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash,
-    get_committee_size, get_current_session, get_era_reward_points, get_exposure,
+    get_committee_seats, get_current_session, get_era_reward_points, get_exposure,
     get_session_period, get_validator_block_count, rotate_keys, send_xt, set_keys,
     wait_for_at_least_session, wait_for_finalized_block, AnyConnection, RewardPoint, SessionKeys,
     SignedConnection,
 };
 use log::info;
-use pallet_elections::{CommitteeSeats, LENIENT_THRESHOLD};
+use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
 use primitives::{Balance, EraIndex, SessionIndex, TOKEN};
 use sp_core::H256;
@@ -164,16 +164,7 @@ pub fn check_points(
     let before_end_of_session_block_hash = get_block_hash(connection, end_of_session_block - 1);
     info!("End-of-session block hash: {}.", end_of_session_block_hash);
 
-    let committee_seats: CommitteeSeats = connection
-        .as_connection()
-        .get_storage_value(
-            "Elections",
-            "CommitteeSize",
-            Some(beggining_of_session_block_hash),
-        )
-        .expect("Failed to decode CommitteeSize extrinsic!")
-        .unwrap_or_else(|| panic!("Failed to obtain CommitteeSize for session {}.", session));
-
+    let committee_seats = get_committee_seats(connection, Some(beggining_of_session_block_hash));
     let members_per_session = committee_seats.non_reserved_seats + committee_seats.reserved_seats;
 
     info!("Members per session: {}.", members_per_session);

@@ -5,7 +5,7 @@ pub use account::{get_free_balance, locks};
 pub use balances::total_issuance;
 use codec::{Decode, Encode};
 pub use debug::print_storages;
-pub use elections::{get_committee_size, get_validator_block_count};
+pub use elections::{get_committee_seats, get_validator_block_count};
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 use log::{info, warn};
 pub use multisig::{
@@ -14,8 +14,8 @@ pub use multisig::{
 };
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_next_era_reserved_validators, change_validators, get_current_session, get_session,
-    get_session_period, set_keys, wait_for as wait_for_session,
+    change_next_era_reserved_validators, change_validators, get_authorities_for_session,
+    get_current_session, get_session, get_session_period, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
@@ -392,4 +392,13 @@ pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: u32) -> H2
         .unwrap_or_else(|| {
             panic!("Failed to obtain block hash for block {}.", block_number);
         })
+}
+
+pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> u32 {
+    connection
+        .as_connection()
+        .get_header::<Header>(None)
+        .expect("Could not fetch header")
+        .expect("Block exists; qed")
+        .number
 }

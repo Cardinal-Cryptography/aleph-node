@@ -30,7 +30,7 @@ pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
 
     // The target saturation level is set to 25%, so unless we cross this limit,
     // the fees should not increase. Note that effectively it is 18.75% of the whole block.
-    let root_connection = RootConnection::from(connection.clone());
+    let root_connection = config.create_root_connection();
     fill_blocks(15, 5, &root_connection);
     let (actual_multiplier, fee_info) = check_current_fees(&connection, &tx);
     assert_no_scaling(

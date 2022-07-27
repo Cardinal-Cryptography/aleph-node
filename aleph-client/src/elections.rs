@@ -1,9 +1,13 @@
+use pallet_elections::CommitteeSeats;
 use sp_core::H256;
 use substrate_api_client::AccountId;
 
 use crate::AnyConnection;
 
-pub fn get_committee_size<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -> u32 {
+pub fn get_committee_seats<C: AnyConnection>(
+    connection: &C,
+    block_hash: Option<H256>,
+) -> CommitteeSeats {
     connection
         .as_connection()
         .get_storage_value("Elections", "CommitteeSize", block_hash)

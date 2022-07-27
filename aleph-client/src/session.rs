@@ -138,3 +138,23 @@ pub fn wait_for_at_least<C: AnyConnection>(
 pub fn get_session_period<C: AnyConnection>(connection: &C) -> u32 {
     connection.read_constant("Elections", "SessionPeriod")
 }
+
+pub fn get_authorities_for_session<C: AnyConnection>(
+    connection: &C,
+    session: u32,
+    session_period: u32,
+) -> Vec<AccountId> {
+    let first_block = session_period * session;
+
+    let block = connection
+        .as_connection()
+        .get_block_hash(Some(first_block))
+        .expect("Api call should succeed")
+        .expect("Session already started so the first block should be present");
+
+    connection
+        .as_connection()
+        .get_storage_value("Session", "Validators", Some(block))
+        .expect("Api call should succeed")
+        .expect("Authorities should always be present")
+}

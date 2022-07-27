@@ -4,12 +4,13 @@ use aleph_client::{
     wait_for_session, KeyPair, SignedConnection,
 };
 use log::info;
-use primitives::{staking::MIN_VALIDATOR_BOND, SessionIndex};
 use pallet_elections::CommitteeSeats;
+use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     accounts::get_validators_keys,
+    connection::get_signed_connection,
     rewards::{
         check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator,
         validators_bond_extra_stakes,
@@ -65,10 +66,7 @@ fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
 
 /// Runs a chain, checks that reward points are calculated correctly .
 pub fn points_basic(config: &Config) -> anyhow::Result<()> {
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
+    let connection = get_signed_connection(config);
     let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
@@ -313,8 +311,7 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
     let sender = accounts.first().expect("Using default accounts").to_owned();
     let connection = SignedConnection::new(node, sender);
 
-    let sudo = get_sudo_key(config);
-    let root_connection = RootConnection::new(node, sudo);
+    let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
 

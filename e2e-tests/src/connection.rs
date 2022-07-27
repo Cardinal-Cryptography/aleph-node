@@ -1,12 +1,6 @@
-use aleph_client::{RootConnection, SignedConnection};
+use aleph_client::SignedConnection;
 
-use crate::{accounts::{get_sudo_key, get_validators_keys}, Config};
-
-pub fn get_root_connection(config: &Config) -> RootConnection {
-    let node = &config.node;
-    let sudo = get_sudo_key(config);
-    RootConnection::new(node, sudo)
-}
+use crate::{accounts::get_validators_keys, Config};
 
 pub fn get_signed_connection(config: &Config) -> SignedConnection {
     let node = &config.node;
