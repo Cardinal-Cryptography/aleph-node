@@ -115,7 +115,7 @@ struct ChainInfo<B: BlockT> {
 
 /// ChainTracker keeps track of the best_block in a given session and allows to generate `AlephData`.
 /// Internally it frequently updates a `data_to_propose` field that is shared with a `DataProvider`, which
-/// in turn is a tiny wrapper around this single shared resource that outputs `data_to_propose` whenever
+/// in turn is a tiny wrapper around this single shared resource that takes out `data_to_propose` whenever
 /// `get_data` is called.
 pub struct ChainTracker<B, SC, C>
 where

@@ -31,7 +31,6 @@ pub struct AlephData<B: BlockT> {
 // Need to be implemented manually, as deriving does not work (`BlockT` is not `Hash`).
 impl<B: BlockT> Hash for AlephData<B> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (1u8).hash(state);
         self.head_proposal.hash(state);
     }
 }
