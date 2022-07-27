@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -eu
-
 if [ $# -ne 3 ]; then
   echo "Expected 3 arguments (paths to the repositories and the output name)"
   exit 2
