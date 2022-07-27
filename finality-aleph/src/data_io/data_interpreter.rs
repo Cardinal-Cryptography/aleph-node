@@ -103,11 +103,10 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
     }
 }
 
-#[async_trait]
 impl<B: BlockT, C: HeaderBackend<B> + Send + 'static> aleph_bft::FinalizationHandler<AlephData<B>>
     for OrderedDataInterpreter<B, C>
 {
-    async fn data_finalized(&mut self, data: AlephData<B>) {
+    fn data_finalized(&mut self, data: AlephData<B>) {
         if let Some(block) = self.block_to_finalize_from_data(data) {
             self.last_finalized_by_aleph = block.clone();
             self.chain_info_provider
