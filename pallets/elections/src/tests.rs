@@ -23,9 +23,9 @@ fn support(total: Balance, voters: Vec<(AccountId, Balance)>) -> Support<Account
 
 #[test]
 fn storage_is_initialized_already_in_genesis() {
-    static RESERVED: [AccountId; 3] = [1, 2, 3];
-    static NON_RESERVED: [AccountId; 2] = [4, 5];
-    static COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
+    const RESERVED: [AccountId; 3] = [1, 2, 3];
+    const NON_RESERVED: [AccountId; 2] = [4, 5];
+    const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
         reserved_seats: 3,
         non_reserved_seats: 2,
     };
