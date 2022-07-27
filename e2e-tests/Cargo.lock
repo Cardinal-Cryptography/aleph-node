@@ -1793,6 +1793,7 @@ dependencies = [
  "parity-scale-codec",
  "primitives",
  "scale-info",
+ "serde",
  "sp-core",
  "sp-staking",
  "sp-std",

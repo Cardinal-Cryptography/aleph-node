@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_COMMITTEE_SIZE, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
@@ -388,7 +388,7 @@ fn generate_genesis_config(
         },
         elections: ElectionsConfig {
             non_reserved_validators: accounts_config.members.clone(),
-            committee_size: DEFAULT_COMMITTEE_SIZE,
+            committee_seats: Default::default(),
             reserved_validators: vec![],
         },
         session: SessionConfig {
