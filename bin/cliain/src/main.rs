@@ -1,6 +1,9 @@
 use std::env;
 
-use aleph_client::{keypair_from_string, print_storages, SignedConnection};
+use aleph_client::{
+    account_from_keypair, aleph_keypair_from_string, keypair_from_string, print_storages,
+    SignedConnection,
+};
 use clap::Parser;
 use cliain::{
     bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
@@ -11,8 +14,6 @@ use cliain::{
 };
 use log::{error, info};
 use sp_core::Pair;
-use aleph_client::account_from_keypair;
-use aleph_client::{account_from_aleph_keypair, aleph_keypair_from_string};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -26,15 +27,22 @@ struct Config {
     #[clap(long)]
     pub seed: Option<String>,
 
-    /// The seed of the key to use as emergency finalizer key
-    /// If not given, a user is prompted to provide finalizer seed when calling
-    /// associated functions
-    #[clap(long)]
-    pub finalizer_seed: Option<String>,
-
     /// Specific command that executes either a signed transaction or is an auxiliary command
     #[clap(subcommand)]
     pub command: Command,
+}
+
+fn read_secret(secret: Option<String>, message: &str) -> String {
+    match secret {
+        Some(secret) => secret,
+        None => match prompt_password_hidden(message) {
+            Ok(secret) => secret,
+            Err(e) => {
+                error!("Failed to parse prompt with error {:?}! Exiting.", e);
+                std::process::exit(1);
+            }
+        },
+    }
 }
 
 fn main() {
@@ -43,21 +51,10 @@ fn main() {
     let Config {
         node,
         seed,
-        finalizer_seed,
         command,
     } = Config::parse();
 
-    let seed = match seed {
-        Some(seed) => seed,
-        None => match prompt_password_hidden("Provide seed for the signer account:") {
-            Ok(seed) => seed,
-            Err(e) => {
-                error!("Failed to parse prompt with error {:?}! Exiting.", e);
-                std::process::exit(1);
-            }
-        },
-    };
-    let mut finalizer_seed: Option<String> = None;
+    let seed = read_secret(seed, "Provide seed for the signer account:");
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
@@ -70,31 +67,19 @@ fn main() {
             controller_account,
             initial_stake_tokens,
         } => bond(cfg.into(), initial_stake_tokens, controller_account),
-        Command::Finalize { block, hash } => {
-            finalizer_seed = finalizer_seed.or_else ({ ||
-                match prompt_password_hidden("Provide finalizer seed:") {
-                    Ok(finalizer_seed) => Some(finalizer_seed),
-                    Err(e) => {
-                        error!("Failed to parse prompt with error {:?}! Exiting.", e);
-                        std::process::exit(1);
-                    }
-                }
-            });
-            let finalizer = aleph_keypair_from_string(&finalizer_seed.unwrap());
+        Command::Finalize {
+            block,
+            hash,
+            finalizer_seed,
+        } => {
+            let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
+            let finalizer = aleph_keypair_from_string(&finalizer_seed);
             finalize(cfg.into(), block, hash, finalizer);
         }
-        Command::SetEmergencyFinalizer => {
-            finalizer_seed = finalizer_seed.or_else ({ ||
-                match prompt_password_hidden("Provide finalizer seed:") {
-                    Ok(finalizer_seed) => Some(finalizer_seed),
-                    Err(e) => {
-                        error!("Failed to parse prompt with error {:?}! Exiting.", e);
-                        std::process::exit(1);
-                    }
-                }
-            });
-            let finalizer = aleph_keypair_from_string(&finalizer_seed.unwrap());
-            let finalizer = account_from_aleph_keypair(&finalizer);
+        Command::SetEmergencyFinalizer { finalizer_seed } => {
+            let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
+            let finalizer = aleph_keypair_from_string(&finalizer_seed);
+            let finalizer = account_from_keypair(&finalizer);
             set_emergency_finalizer(cfg.into(), finalizer);
         }
         Command::SetKeys { new_keys } => set_keys(cfg.into(), new_keys),
