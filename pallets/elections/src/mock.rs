@@ -7,6 +7,7 @@ use frame_support::{
     weights::RuntimeDbWeight,
     BoundedVec,
 };
+use primitives::CommitteeSeats;
 use sp_core::H256;
 use sp_runtime::{
     testing::{Header, TestXt},

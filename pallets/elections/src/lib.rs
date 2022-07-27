@@ -22,10 +22,7 @@ use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
-use primitives::DEFAULT_COMMITTEE_SIZE;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
     prelude::*,
@@ -51,28 +48,6 @@ impl<AccountId> Default for EraValidators<AccountId> {
     }
 }
 
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct CommitteeSeats {
-    pub reserved_seats: u32,
-    pub non_reserved_seats: u32,
-}
-
-impl CommitteeSeats {
-    fn size(&self) -> u32 {
-        self.reserved_seats.saturating_add(self.non_reserved_seats)
-    }
-}
-
-impl Default for CommitteeSeats {
-    fn default() -> Self {
-        CommitteeSeats {
-            reserved_seats: DEFAULT_COMMITTEE_SIZE,
-            non_reserved_seats: 0,
-        }
-    }
-}
-
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
@@ -87,6 +62,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
+    use primitives::CommitteeSeats;
 
     use super::*;
     use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};

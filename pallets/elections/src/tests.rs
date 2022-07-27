@@ -3,14 +3,15 @@
 use frame_election_provider_support::{ElectionProvider, Support};
 use frame_support::bounded_vec;
 use pallet_session::SessionManager;
+use primitives::CommitteeSeats;
 
 use crate::{
     mock::{
         with_active_era, with_electable_targets, with_elected_validators, with_electing_voters,
         AccountId, Balance, Elections, SessionsPerEra, Test, TestExtBuilder,
     },
-    CommitteeSeats, CommitteeSize, CurrentEraValidators, NextEraCommitteeSize,
-    NextEraNonReservedValidators, NextEraReservedValidators,
+    CommitteeSize, CurrentEraValidators, NextEraCommitteeSize, NextEraNonReservedValidators,
+    NextEraReservedValidators,
 };
 
 fn no_support() -> Support<AccountId> {
