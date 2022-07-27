@@ -15,7 +15,7 @@ mod back_to_the_future {
     use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, Error, IButtonGame, Result, Score,
     };
-    use button_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
+    use game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
@@ -31,7 +31,7 @@ mod back_to_the_future {
     #[derive(Debug)]
     pub struct ButtonCreated {
         #[ink(topic)]
-        button_token: AccountId,
+        game_token: AccountId,
         start: BlockNumber,
         deadline: BlockNumber,
     }
@@ -154,8 +154,8 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn button_token(&self) -> AccountId {
-            ButtonGame::button_token(self)
+        fn game_token(&self) -> AccountId {
+            ButtonGame::game_token(self)
         }
 
         #[ink(message)]
@@ -221,7 +221,7 @@ mod back_to_the_future {
 
     impl BackToTheFuture {
         #[ink(constructor)]
-        pub fn new(button_token: AccountId, button_lifetime: BlockNumber) -> Self {
+        pub fn new(game_token: AccountId, button_lifetime: BlockNumber) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -241,27 +241,27 @@ mod back_to_the_future {
 
             match role_check {
                 Ok(_) => initialize_contract(|contract| {
-                    Self::new_init(contract, button_token, button_lifetime)
+                    Self::new_init(contract, game_token, button_lifetime)
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
 
-        fn new_init(&mut self, button_token: AccountId, button_lifetime: BlockNumber) {
+        fn new_init(&mut self, game_token: AccountId, button_lifetime: BlockNumber) {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.last_press = now;
             self.data.button_lifetime = button_lifetime;
-            self.data.button_token = button_token;
+            self.data.game_token = game_token;
 
             Self::emit_event(
                 Self::env(),
                 Event::ButtonCreated(ButtonCreated {
                     start: now,
                     deadline,
-                    button_token,
+                    game_token,
                 }),
             )
         }

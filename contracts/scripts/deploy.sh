@@ -25,7 +25,7 @@ function instrument_game_token {
 
   # set the admin and the owner of the contract instance
   cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$contract_address')' --suri "$AUTHORITY_SEED"
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
 
   eval $__resultvar="'$contract_address'"
 }
@@ -63,16 +63,16 @@ function deploy_and_instrument_game {
 
   # --- GRANT PRIVILEDGES ON THE CONTRACT
 
-  cd $CONTRACTS_PATH/access_control
+  cd "$CONTRACTS_PATH"/access_control
 
   cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
   cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Admin('$contract_address')' --suri "$AUTHORITY_SEED"
 
   # --- TRANSFER TOKENS TO THE CONTRACT
 
-  cd "$CONTRACTS_PATH"/button_token
+  cd "$CONTRACTS_PATH"/game_token
 
-  cargo contract call --url $NODE --contract $game_token --message transfer --args $contract_address $GAME_BALANCE --suri "$AUTHORITY_SEED"
+  cargo contract call --url $NODE --contract $game_token --message PSP22::transfer --args $contract_address $GAME_BALANCE "[0]" --suri "$AUTHORITY_SEED"
 
   # --- WHITELIST ACCOUNTS FOR PLAYING
 
@@ -106,7 +106,7 @@ CONTRACTS_PATH=$(pwd)/contracts
 cd "$CONTRACTS_PATH"/access_control
 cargo contract build --release
 
-cd "$CONTRACTS_PATH"/button_token
+cd "$CONTRACTS_PATH"/game_token
 cargo contract build --release
 
 cd "$CONTRACTS_PATH"/early_bird_special
@@ -128,26 +128,26 @@ echo "access control contract public key (hex): " $ACCESS_CONTROL_PUBKEY
 
 # --- UPLOAD TOKEN CONTRACT CODE
 
-cd "$CONTRACTS_PATH"/button_token
+cd "$CONTRACTS_PATH"/game_token
 # replace address placeholder with the on-chain address of the AccessControl contract
-link_bytecode button_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+link_bytecode game_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
 # remove just in case
-rm target/ink/button_token.wasm
+rm target/ink/game_token.wasm
 # NOTE : here we go from hex to binary using a nodejs cli tool
 # availiable from https://github.com/fbielejec/polkadot-cljs
-node ../scripts/hex-to-wasm.js target/ink/button_token.contract target/ink/button_token.wasm
+node ../scripts/hex-to-wasm.js target/ink/game_token.contract target/ink/game_token.wasm
 
 CODE_HASH=$(cargo contract upload --url $NODE --suri "$AUTHORITY_SEED")
-BUTTON_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+GAME_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
-echo "button token code hash" $BUTTON_TOKEN_CODE_HASH
+echo "button token code hash" $GAME_TOKEN_CODE_HASH
 
 # --- GRANT INIT PRIVILEDGES ON THE TOKEN CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/access_control
 
-# set the initializer of the button-token contract
-cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$BUTTON_TOKEN_CODE_HASH')' --suri "$AUTHORITY_SEED"
+# set the initializer of the token contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$GAME_TOKEN_CODE_HASH')' --suri "$AUTHORITY_SEED"
 
 #
 # --- EARLY_BIRD_SPECIAL GAME
@@ -157,7 +157,7 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 start=`date +%s.%N`
 
-instrument_game_token EARLY_BIRD_SPECIAL_TOKEN button_token 0x4561726C79426972645370656369616C
+instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token 0x4561726C79426972645370656369616C
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 
@@ -169,7 +169,7 @@ deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPE
 
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
 
-instrument_game_token BACK_TO_THE_FUTURE_TOKEN button_token 0x4261636B546F546865467574757265
+instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token 0x4261636B546F546865467574757265
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 

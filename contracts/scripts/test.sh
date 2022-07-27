@@ -7,9 +7,9 @@ set -euo pipefail
 function play {
 
   local contract_name=$1
-  local contract_address=$(cat $CONTRACTS_PATH/addresses.json | jq --raw-output ".$contract_name")
+  local contract_address=$(cat "$CONTRACTS_PATH"/addresses.json | jq --raw-output ".$contract_name")
 
-  cd $CONTRACTS_PATH/$contract_name
+  cd "$CONTRACTS_PATH"/$contract_name
 
   echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
 
