@@ -27,6 +27,8 @@ pub const DEFAULT_CHAIN_ID: &str = "a0dnet1";
 // Alice is the default sudo holder.
 pub const DEFAULT_SUDO_ACCOUNT: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
+pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
+
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
