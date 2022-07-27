@@ -358,17 +358,17 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
     KeyPair::from_string(seed, None).expect("Can't create pair from seed value")
 }
 
-pub fn account_from_keypair(keypair: &KeyPair) -> AccountId {
-    AccountId::from(keypair.public())
-}
-
 pub fn aleph_keypair_from_string(seed: &str) -> AlephKeyPair {
     AlephKeyPair::from_string(seed, None).expect("Can't create aleph pair from seed value")
 }
 
-pub fn account_from_aleph_keypair(keypair: &AlephKeyPair) -> AccountId {
+pub fn account_from_keypair<P>(keypair: &P) -> AccountId 
+where
+    P: Pair,
+    AccountId: From<<P as Pair>::Public> {
     AccountId::from(keypair.public())
 }
+
 
 fn storage_key(module: &str, version: &str) -> [u8; 32] {
     let pallet_name = sp_core::hashing::twox_128(module.as_bytes());
