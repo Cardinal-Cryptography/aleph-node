@@ -19,11 +19,7 @@ mod tests;
 mod traits;
 
 use codec::{Decode, Encode};
-use frame_support::{
-    dispatch::Weight,
-    log,
-    traits::{OnRuntimeUpgrade, StorageVersion},
-};
+use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 use scale_info::TypeInfo;
@@ -32,7 +28,7 @@ use sp_std::{
     prelude::*,
 };
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
@@ -124,10 +120,6 @@ pub mod pallet {
                     }
                     _ if on_chain == StorageVersion::new(2) => {
                         migrations::v2_to_v3::Migration::<T, Self>::migrate()
-                    }
-                    _ if on_chain == StorageVersion::new(3) => {
-                        V3ToV4Migration::<T, Self>::migrate()
-                            + V4ToV5Migration::<T, Self>::migrate()
                     }
                     _ => {
                         log::warn!(
@@ -371,55 +363,5 @@ pub mod pallet {
 
             Ok(supports.into_iter().collect())
         }
-    }
-}
-
-use frame_support::traits::PalletInfoAccess;
-
-use crate::migrations::StorageMigration;
-
-struct V3ToV4Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
-
-impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for V3ToV4Migration<T, P> {
-    fn on_runtime_upgrade() -> Weight {
-        log::error!("V3 to V4");
-        Default::default()
-    }
-
-    #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<(), &'static str> {
-        log::error!("PRE V3 to V4");
-        Ok(())
-    }
-
-    #[cfg(feature = "try-runtime")]
-    fn post_upgrade() -> Result<(), &'static str> {
-        log::error!("POST V3 to V4");
-        Ok(())
-    }
-}
-
-impl<T: Config, P: PalletInfoAccess> StorageMigration for V3ToV4Migration<T, P> {}
-
-struct V4ToV5Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
-
-impl<T: Config, P: PalletInfoAccess> StorageMigration for V4ToV5Migration<T, P> {}
-
-impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for V4ToV5Migration<T, P> {
-    fn on_runtime_upgrade() -> Weight {
-        log::error!("V4 to V5");
-        Default::default()
-    }
-
-    #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<(), &'static str> {
-        log::error!("PRE V4 to V5");
-        Ok(())
-    }
-
-    #[cfg(feature = "try-runtime")]
-    fn post_upgrade() -> Result<(), &'static str> {
-        log::error!("POST V4 to V5");
-        Ok(())
     }
 }
