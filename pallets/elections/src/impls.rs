@@ -1,5 +1,6 @@
 use frame_election_provider_support::sp_arithmetic::Perquintill;
-use frame_support::pallet_prelude::Get;
+use frame_support::{log::debug, pallet_prelude::Get};
+use primitives::CommitteeSeats;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -8,9 +9,9 @@ use sp_std::{
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSeats, CommitteeSize, Config, CurrentEraValidators, EraValidators,
-    NextEraCommitteeSize, NextEraNonReservedValidators, NextEraReservedValidators, Pallet,
-    SessionValidatorBlockCount, ValidatorEraTotalReward, ValidatorTotalRewards,
+    CommitteeSize, Config, CurrentEraValidators, EraValidators, NextEraCommitteeSize,
+    NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
+    ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -328,7 +329,8 @@ where
         Self::adjust_rewards_for_session();
 
         // clear block count
-        SessionValidatorBlockCount::<T>::remove_all(None);
+        let result = SessionValidatorBlockCount::<T>::clear(u32::MAX, None);
+        debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
     }
 
     fn start_session(start_index: SessionIndex) {
