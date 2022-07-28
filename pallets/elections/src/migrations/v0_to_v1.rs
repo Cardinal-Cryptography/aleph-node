@@ -31,9 +31,6 @@ type ErasMembers<T> = StorageValue<
     ),
 >;
 
-#[cfg(feature = "try-runtime")]
-const MIGRATION_STORAGE_PREFIX: &[u8] = b"PALLET_ELECTIONS::V0_TO_V1_MIGRATION";
-
 /// The assumptions made by this migration:
 ///
 /// There is one storage in the pallet elections `Members` containing current set of validators.
@@ -45,11 +42,9 @@ const MIGRATION_STORAGE_PREFIX: &[u8] = b"PALLET_ELECTIONS::V0_TO_V1_MIGRATION";
 /// - `ErasMembers` contain tuple of (content of `Members`, empty vector).
 pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
 
-#[cfg(feature = "try-runtime")]
-impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgradeHelpersExt for Migration<T, P> {
-    fn storage_key(ident: &str) -> [u8; 32] {
-        storage_prefix(MIGRATION_STORAGE_PREFIX, ident.as_bytes())
-    }
+impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {
+    #[cfg(feature = "try-runtime")]
+    const MIGRATION_STORAGE_PREFIX: &'static [u8] = b"PALLET_ELECTIONS::V0_TO_V1_MIGRATION";
 }
 
 impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
@@ -98,7 +93,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         );
 
         let members = Members::<T>::get().ok_or("No `Members` storage")?;
-        Self::set_temp_storage(members, "members");
+        Self::store_temp("members", members);
 
         Ok(())
     }
@@ -117,7 +112,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             NonReservedMembers::<T>::get().ok_or("No `NonReservedMembers` in the storage")?;
         let eras_members = ErasMembers::<T>::get().ok_or("No `ErasMembers` in the storage")?;
 
-        let old_members = Self::get_temp_storage("members");
+        let old_members = Self::read_temp("members");
 
         ensure!(
             reserved_members == old_members,
@@ -143,5 +138,3 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         Ok(())
     }
 }
-
-impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {}

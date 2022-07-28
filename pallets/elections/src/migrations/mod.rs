@@ -1,3 +1,7 @@
+#[cfg(feature = "try-runtime")]
+use codec::{Decode, Encode};
+#[cfg(feature = "try-runtime")]
+use frame_support::storage::storage_prefix;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 
 pub mod v0_to_v1;
@@ -9,6 +13,9 @@ pub mod v2_to_v3;
 ///
 /// This way, `try-runtime` no longer triggers checks. We do it by hand.
 pub trait StorageMigration: OnRuntimeUpgrade {
+    #[cfg(feature = "try-runtime")]
+    const MIGRATION_STORAGE_PREFIX: &'static [u8];
+
     #[allow(clippy::let_and_return)]
     fn migrate() -> Weight {
         #[cfg(feature = "try-runtime")]
@@ -20,5 +27,35 @@ pub trait StorageMigration: OnRuntimeUpgrade {
         Self::post_upgrade().expect("Post upgrade should succeed");
 
         weight
+    }
+
+    /// Wrapper for `OnRuntimeUpgradeHelpersExt::set_temp_storage`.
+    ///
+    /// Together with the associated const `MIGRATION_STORAGE_PREFIX` they form a shortcut for:
+    /// ```rust
+    /// #[cfg(feature = "try-runtime")]
+    /// const MIGRATION_STORAGE_PREFIX: &[u8] = b"...";
+    ///
+    /// #[cfg(feature = "try-runtime")]
+    /// impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgradeHelpersExt for Migration<T, P> {
+    ///     fn storage_key(ident: &str) -> [u8; 32] {
+    ///         storage_prefix(MIGRATION_STORAGE_PREFIX, ident.as_bytes())
+    ///     }
+    /// }
+    /// ```
+    /// which would be required for every implementor of `StorageMigration`.
+    #[cfg(feature = "try-runtime")]
+    fn store_temp<T: Encode>(storage_key: &str, data: T) {
+        let full_key = storage_prefix(Self::MIGRATION_STORAGE_PREFIX, storage_key.as_bytes());
+        sp_io::storage::set(&full_key, &data.encode());
+    }
+
+    /// Wrapper for `OnRuntimeUpgradeHelpersExt::get_temp_storage`.
+    ///
+    /// Analogous to `Self::store_temp`.
+    #[cfg(feature = "try-runtime")]
+    fn read_temp<T: Decode>(storage_key: &str) -> Option<T> {
+        let full_key = storage_prefix(Self::MIGRATION_STORAGE_PREFIX, storage_key.as_bytes());
+        sp_io::storage::get(&full_key).and_then(|bytes| Decode::decode(&mut &*bytes).ok())
     }
 }
