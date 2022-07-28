@@ -1,12 +1,17 @@
 #[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
 #[cfg(feature = "try-runtime")]
-use frame_support::storage::storage_prefix;
+use frame_support::{
+    pallet_prelude::StorageVersion, storage::storage_prefix, traits::PalletInfoAccess,
+};
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+use sp_std::vec::Vec;
 
 pub mod v0_to_v1;
 pub mod v1_to_v2;
 pub mod v2_to_v3;
+
+type ValidatorsVec<T> = Vec<<T as frame_system::Config>::AccountId>;
 
 /// In order to run both pre- and post- checks around every migration, we entangle methods of
 /// `OnRuntimeUpgrade` into the desired flow and expose it with `migrate` method.
@@ -59,5 +64,14 @@ pub trait StorageMigration: OnRuntimeUpgrade {
         sp_io::storage::get(&full_key)
             .and_then(|bytes| Decode::decode(&mut &*bytes).ok())
             .expect(format!("No `{storage_key}` in the temp storage"))
+    }
+}
+
+#[cfg(feature = "try-runtime")]
+fn ensure_storage_version<P: PalletInfoAccess>(version: u16) -> Result<(), &'static str> {
+    if StorageVersion::get::<P>() == StorageVersion::new(version) {
+        Ok(())
+    } else {
+        Err("Bad storage version")
     }
 }

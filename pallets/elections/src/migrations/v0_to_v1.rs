@@ -7,14 +7,14 @@ use frame_support::{
 };
 use sp_std::vec::Vec;
 
+#[cfg(feature = "try-runtime")]
+use crate::migrations::ensure_storage_version;
 use crate::{
     compute_validator_scaled_total_rewards,
-    migrations::StorageMigration,
+    migrations::{StorageMigration, ValidatorsVec},
     traits::{EraInfoProvider, ValidatorRewardsHandler},
     Config, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
-
-type ValidatorsVec<T> = Vec<<T as frame_system::Config>::AccountId>;
 
 #[storage_alias]
 type Members<T> = StorageValue<Elections, ValidatorsVec<T>>;
@@ -83,10 +83,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
-        ensure!(
-            StorageVersion::get::<P>() == StorageVersion::new(0),
-            "Bad storage version"
-        );
+        ensure_storage_version::<P>(0)?;
 
         let members = Members::<T>::get().ok_or("No `Members` storage")?;
         Self::store_temp("members", members);
@@ -96,10 +93,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn post_upgrade() -> Result<(), &'static str> {
-        ensure!(
-            StorageVersion::get::<P>() == StorageVersion::new(1),
-            "Bad storage version"
-        );
+        ensure_storage_version::<P>(1)?;
 
         let mps = MembersPerSession::get().ok_or("No `MembersPerSession` in the storage")?;
         let reserved_members =

@@ -5,11 +5,13 @@ use frame_support::{
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
-use sp_std::vec::Vec;
 
-use crate::{migrations::StorageMigration, Config, EraValidators};
-
-type ValidatorsVec<T> = Vec<<T as frame_system::Config>::AccountId>;
+#[cfg(feature = "try-runtime")]
+use crate::migrations::ensure_storage_version;
+use crate::{
+    migrations::{StorageMigration, ValidatorsVec},
+    Config, EraValidators,
+};
 
 // V1 storages
 #[storage_alias]
@@ -83,10 +85,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
-        ensure!(
-            StorageVersion::get::<P>() == StorageVersion::new(1),
-            "Bad storage version"
-        );
+        ensure_storage_version::<P>(1)?;
 
         let members_per_session =
             MembersPerSession::get().ok_or("No `MembersPerSession` in the storage")?;
@@ -108,10 +107,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn post_upgrade() -> Result<(), &'static str> {
-        ensure!(
-            StorageVersion::get::<P>() == StorageVersion::new(2),
-            "Bad storage version"
-        );
+        ensure_storage_version::<P>(2)?;
 
         let committee_size = CommitteeSize::get().ok_or("No `CommitteeSize` in the storage")?;
         let next_era_reserved_validators = NextEraReservedValidators::get()
