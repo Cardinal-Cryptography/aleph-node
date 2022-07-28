@@ -38,8 +38,15 @@ pub trait StorageMigration: OnRuntimeUpgrade {
     ///
     /// Together with the associated const `MIGRATION_STORAGE_PREFIX` they form a shortcut for:
     /// ```rust
+    /// # use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+    /// # use crate::pallet_elections::Config;
+    /// # use frame_support::storage::storage_prefix;
+    /// # use frame_support::pallet_prelude::PalletInfoAccess;
+    ///
     /// #[cfg(feature = "try-runtime")]
     /// const MIGRATION_STORAGE_PREFIX: &[u8] = b"...";
+    ///
+    /// # struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
     ///
     /// #[cfg(feature = "try-runtime")]
     /// impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgradeHelpersExt for Migration<T, P> {
@@ -63,7 +70,7 @@ pub trait StorageMigration: OnRuntimeUpgrade {
         let full_key = storage_prefix(Self::MIGRATION_STORAGE_PREFIX, storage_key.as_bytes());
         sp_io::storage::get(&full_key)
             .and_then(|bytes| Decode::decode(&mut &*bytes).ok())
-            .expect(format!("No `{storage_key}` in the temp storage"))
+            .expect(&format!("No `{storage_key}` in the temp storage"))
     }
 }
 

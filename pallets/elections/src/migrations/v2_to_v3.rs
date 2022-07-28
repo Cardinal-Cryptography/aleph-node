@@ -120,36 +120,37 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             NextEraCommitteeSize::get().ok_or("No `NextEraCommitteeSize` in the storage")?;
         // The next two are exactly the same as before migration.
         let current_era_validators =
-            CurrentEraValidators::get().ok_or("No `CurrentEraValidators` in the storage")?;
-        let next_era_reserved_validators = NextEraReservedValidators::get()
+            CurrentEraValidators::<T>::get().ok_or("No `CurrentEraValidators` in the storage")?;
+        let next_era_reserved_validators = NextEraReservedValidators::<T>::get()
             .ok_or("No `NextEraReservedValidators` in the storage")?;
 
         let old_committee_size =
-            Self::read_temp::<Option<CommitteeSeats>>("committee_size").unwrap_or_default();
+            Self::read_temp::<Option<u32>>("committee_size").unwrap_or_default();
         let old_next_era_committee_size =
-            Self::read_temp::<Option<CommitteeSeats>>("next_era_committee_size")
-                .unwrap_or_default();
+            Self::read_temp::<Option<u32>>("next_era_committee_size").unwrap_or_default();
 
         let currently_reserved = current_era_validators.reserved.len();
         ensure!(
-            new_committee_size.reserved_seats == currently_reserved,
+            new_committee_size.reserved_seats == currently_reserved as u32,
             "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
         );
         ensure!(
             new_committee_size.non_reserved_seats
-                == old_committee_size.saturating_sub(currently_reserved),
+                == old_committee_size.saturating_sub(currently_reserved as u32),
             "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
         );
 
-        let next_reserved = next_era_reserved_validators.reserved.len();
+        let next_reserved = next_era_reserved_validators.len();
         ensure!(
-            new_next_era_committee_size.reserved_seats == next_reserved,
+            new_next_era_committee_size.reserved_seats == next_reserved as u32,
             "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
         );
         ensure!(
             new_next_era_committee_size.non_reserved_seats
-                == old_next_era_committee_size.saturating_sub(currently_reserved),
+                == old_next_era_committee_size.saturating_sub(currently_reserved as u32),
             "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
         );
+
+        Ok(())
     }
 }

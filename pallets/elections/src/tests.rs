@@ -5,6 +5,8 @@ use frame_support::bounded_vec;
 use pallet_session::SessionManager;
 use primitives::CommitteeSeats;
 
+#[cfg(feature = "try-runtime")]
+use crate::migrations::StorageMigration;
 use crate::{
     mock::{
         with_active_era, with_electable_targets, with_elected_validators, with_electing_voters,
@@ -103,5 +105,16 @@ fn session_authorities_must_have_been_elected() {
 
             authorities.sort();
             assert_eq!(authorities, &[1, 5]);
+        });
+}
+
+#[cfg(feature = "try-runtime")]
+#[test]
+fn migration_v0_to_v1_works() {
+    TestExtBuilder::new(vec![], vec![])
+        .with_storage_version(0)
+        .build()
+        .execute_with(|| {
+            // crate::migrations::v0_to_v1::Migration::<Test, crate::Pallet<Test>>::migrate()
         });
 }

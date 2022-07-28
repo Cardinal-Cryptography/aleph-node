@@ -110,12 +110,12 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         ensure_storage_version::<P>(2)?;
 
         let committee_size = CommitteeSize::get().ok_or("No `CommitteeSize` in the storage")?;
-        let next_era_reserved_validators = NextEraReservedValidators::get()
+        let next_era_reserved_validators = NextEraReservedValidators::<T>::get()
             .ok_or("No `NextEraReservedValidators` in the storage")?;
-        let next_era_non_reserved_validators = NextEraNonReservedValidators::get()
+        let next_era_non_reserved_validators = NextEraNonReservedValidators::<T>::get()
             .ok_or("No `NextEraNonReservedValidators` in the storage")?;
         let current_era_validators =
-            CurrentEraValidators::get().ok_or("No `CurrentEraValidators` in the storage")?;
+            CurrentEraValidators::<T>::get().ok_or("No `CurrentEraValidators` in the storage")?;
 
         let members_per_session = Self::read_temp::<u32>("members_per_session");
         let reserved_members = Self::read_temp::<ValidatorsVec<T>>("reserved_members");
@@ -135,7 +135,11 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             "Mismatch between `NextEraNonReservedValidators` and `NonReservedMembers`"
         );
         ensure!(
-            current_era_validators == eras_members,
+            current_era_validators.reserved == eras_members.0,
+            "Mismatch between `CurrentEraValidators` and `ErasMembers`"
+        );
+        ensure!(
+            current_era_validators.non_reserved == eras_members.1,
             "Mismatch between `CurrentEraValidators` and `ErasMembers`"
         );
 
