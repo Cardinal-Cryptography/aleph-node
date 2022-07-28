@@ -84,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.15.1"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47755c260995ebc0e72df02d992b7acfd1b58813beefed4747fd3b0b912b95a2"
+checksum = "d802f8bc4d40b1acf5c895a27463866eae7537fc30a5f5884cfde7a01464630c"
 dependencies = [
  "aleph-bft-rmc",
  "aleph-bft-types",
@@ -99,19 +99,6 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "rand 0.8.5",
-]
-
-[[package]]
-name = "aleph-bft-crypto"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7280faeb1459e251813f22863b1272c157ebcd921034273a2ca839c847d49abb"
-dependencies = [
- "async-trait",
- "bit-vec",
- "derive_more",
- "log",
- "parity-scale-codec",
 ]
 
 [[package]]
@@ -129,11 +116,11 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-rmc"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65a4b8bed5caa463c6eb3ca760676d7367988a802b1ea4f8383b3d668aac3f2c"
+checksum = "14bb3b9c3729667084ae9c1257e785219e23e1d1ee246f73b18a9457aead6214"
 dependencies = [
- "aleph-bft-crypto 0.3.2",
+ "aleph-bft-crypto",
  "async-trait",
  "futures",
  "futures-timer",
@@ -143,11 +130,11 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-types"
-version = "0.4.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d7f162204b57b446b1acef9688ad35dc3b299f22e70f2fc627a317cab9a93e"
+checksum = "bb9f5b8526b63c76102ef1b36400cf62381f6900585a8258511580af917dd580"
 dependencies = [
- "aleph-bft-crypto 0.4.0",
+ "aleph-bft-crypto",
  "async-trait",
  "futures",
  "parity-scale-codec",
@@ -163,7 +150,7 @@ dependencies = [
  "futures",
  "hex",
  "hex-literal",
- "jsonrpsee 0.13.1",
+ "jsonrpsee",
  "libp2p 0.44.0",
  "log",
  "pallet-contracts-rpc",
@@ -2704,28 +2691,16 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1f2ab5a60e558e74ea93bcf5164ebc47939a7fff8938fa9b5233bbc63e16061"
-dependencies = [
- "jsonrpsee-core 0.13.1",
- "jsonrpsee-http-server 0.13.1",
- "jsonrpsee-types 0.13.1",
- "jsonrpsee-ws-server 0.13.1",
-]
-
-[[package]]
-name = "jsonrpsee"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11e017217fcd18da0a25296d3693153dd19c8a6aadab330b3595285d075385d1"
 dependencies = [
- "jsonrpsee-core 0.14.0",
- "jsonrpsee-http-server 0.14.0",
+ "jsonrpsee-core",
+ "jsonrpsee-http-server",
  "jsonrpsee-proc-macros",
- "jsonrpsee-types 0.14.0",
+ "jsonrpsee-types",
  "jsonrpsee-ws-client",
- "jsonrpsee-ws-server 0.14.0",
+ "jsonrpsee-ws-server",
  "tracing",
 ]
 
@@ -2737,8 +2712,8 @@ checksum = "ce395539a14d3ad4ec1256fde105abd36a2da25d578a291cabe98f45adfdb111"
 dependencies = [
  "futures-util",
  "http",
- "jsonrpsee-core 0.14.0",
- "jsonrpsee-types 0.14.0",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
  "pin-project 1.0.11",
  "rustls-native-certs",
  "soketto",
@@ -2748,31 +2723,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "webpki-roots",
-]
-
-[[package]]
-name = "jsonrpsee-core"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e27462b21279edf9a6a91f46ffbe125e9cdc58b901d2e08bf59b31a47d7d0ab"
-dependencies = [
- "anyhow",
- "arrayvec 0.7.2",
- "async-trait",
- "beef",
- "futures-channel",
- "futures-util",
- "hyper",
- "jsonrpsee-types 0.13.1",
- "parking_lot 0.12.1",
- "rand 0.8.5",
- "rustc-hash",
- "serde",
- "serde_json",
- "soketto",
- "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -2791,7 +2741,7 @@ dependencies = [
  "futures-util",
  "globset",
  "hyper",
- "jsonrpsee-types 0.14.0",
+ "jsonrpsee-types",
  "lazy_static",
  "parking_lot 0.12.1",
  "rand 0.8.5",
@@ -2807,25 +2757,6 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee-http-server"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7178f16eabd7154c094e24d295b9ee355ec1e5f24c328759c56255ff7bbd4548"
-dependencies = [
- "futures-channel",
- "futures-util",
- "globset",
- "hyper",
- "jsonrpsee-core 0.13.1",
- "jsonrpsee-types 0.13.1",
- "lazy_static",
- "serde_json",
- "tokio",
- "tracing",
- "unicase",
-]
-
-[[package]]
-name = "jsonrpsee-http-server"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bdd69efeb3ce2cba767f126872f4eeb4624038a29098e75d77608b2b4345ad03"
@@ -2833,8 +2764,8 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "hyper",
- "jsonrpsee-core 0.14.0",
- "jsonrpsee-types 0.14.0",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
  "serde",
  "serde_json",
  "tokio",
@@ -2851,20 +2782,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "jsonrpsee-types"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd11763134104122ddeb0f97e4bbe393058017dfb077db63fbf44b4dd0dd86e"
-dependencies = [
- "anyhow",
- "beef",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -2888,25 +2805,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee043cb5dd0d51d3eb93432e998d5bae797691a7b10ec4a325e036bcdb48c48a"
 dependencies = [
  "jsonrpsee-client-transport",
- "jsonrpsee-core 0.14.0",
- "jsonrpsee-types 0.14.0",
-]
-
-[[package]]
-name = "jsonrpsee-ws-server"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfb6c21556c551582b56e4e8e6e6249b0bbdb69bb7fa39efe9b9a6b54af9f206"
-dependencies = [
- "futures-channel",
- "futures-util",
- "jsonrpsee-core 0.13.1",
- "jsonrpsee-types 0.13.1",
- "serde_json",
- "soketto",
- "tokio",
- "tokio-util",
- "tracing",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
 ]
 
 [[package]]
@@ -2917,8 +2817,8 @@ checksum = "2bd2e4d266774a671f8def3794255b28eddd09b18d76e0b913fa439f34588c0a"
 dependencies = [
  "futures-channel",
  "futures-util",
- "jsonrpsee-core 0.14.0",
- "jsonrpsee-types 0.14.0",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
  "serde_json",
  "soketto",
  "tokio",
@@ -4865,7 +4765,7 @@ name = "pallet-contracts-rpc"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "pallet-contracts-primitives",
  "pallet-contracts-rpc-runtime-api",
  "parity-scale-codec",
@@ -4892,7 +4792,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
@@ -5080,7 +4980,7 @@ name = "pallet-transaction-payment-rpc"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "sp-api",
@@ -5469,7 +5369,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -5953,7 +5853,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
  "env_logger",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "serde",
@@ -6748,7 +6648,7 @@ source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=alep
 dependencies = [
  "futures",
  "hash-db",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -6777,7 +6677,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
  "futures",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -6800,7 +6700,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
  "futures",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "serde_json",
  "substrate-prometheus-endpoint",
@@ -6818,7 +6718,7 @@ dependencies = [
  "futures",
  "futures-timer",
  "hash-db",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "parity-util-mem",
@@ -8200,7 +8100,7 @@ source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=alep
 dependencies = [
  "frame-system-rpc-runtime-api",
  "futures",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "sc-client-api",
@@ -8775,7 +8675,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
 dependencies = [
  "clap",
- "jsonrpsee 0.14.0",
+ "jsonrpsee",
  "log",
  "parity-scale-codec",
  "remote-externalities",
