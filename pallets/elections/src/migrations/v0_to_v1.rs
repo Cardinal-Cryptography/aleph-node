@@ -1,5 +1,5 @@
 #[cfg(feature = "try-runtime")]
-use frame_support::{ensure, storage::storage_prefix, traits::OnRuntimeUpgradeHelpersExt};
+use frame_support::ensure;
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
@@ -14,22 +14,18 @@ use crate::{
     Config, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 
+type ValidatorsVec<T> = Vec<<T as frame_system::Config>::AccountId>;
+
 #[storage_alias]
-type Members<T> = StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
+type Members<T> = StorageValue<Elections, ValidatorsVec<T>>;
 #[storage_alias]
-pub type MembersPerSession = StorageValue<Elections, u32>;
+type MembersPerSession = StorageValue<Elections, u32>;
 #[storage_alias]
-type ReservedMembers<T> = StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
+type ReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
 #[storage_alias]
-type NonReservedMembers<T> = StorageValue<Elections, Vec<<T as frame_system::Config>::AccountId>>;
+type NonReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
 #[storage_alias]
-type ErasMembers<T> = StorageValue<
-    Elections,
-    (
-        Vec<<T as frame_system::Config>::AccountId>,
-        Vec<<T as frame_system::Config>::AccountId>,
-    ),
->;
+type ErasMembers<T> = StorageValue<Elections, (ValidatorsVec<T>, ValidatorsVec<T>)>;
 
 /// The assumptions made by this migration:
 ///
@@ -112,7 +108,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             NonReservedMembers::<T>::get().ok_or("No `NonReservedMembers` in the storage")?;
         let eras_members = ErasMembers::<T>::get().ok_or("No `ErasMembers` in the storage")?;
 
-        let old_members = Self::read_temp("members");
+        let old_members = Self::read_temp::<ValidatorsVec<T>>("members");
 
         ensure!(
             reserved_members == old_members,

@@ -54,8 +54,10 @@ pub trait StorageMigration: OnRuntimeUpgrade {
     ///
     /// Analogous to `Self::store_temp`.
     #[cfg(feature = "try-runtime")]
-    fn read_temp<T: Decode>(storage_key: &str) -> Option<T> {
+    fn read_temp<T: Decode>(storage_key: &str) -> T {
         let full_key = storage_prefix(Self::MIGRATION_STORAGE_PREFIX, storage_key.as_bytes());
-        sp_io::storage::get(&full_key).and_then(|bytes| Decode::decode(&mut &*bytes).ok())
+        sp_io::storage::get(&full_key)
+            .and_then(|bytes| Decode::decode(&mut &*bytes).ok())
+            .expect(format!("No `{storage_key}` in the temp storage"))
     }
 }
