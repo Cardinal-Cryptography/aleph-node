@@ -19,7 +19,7 @@ mod tests;
 mod traits;
 
 use codec::{Decode, Encode};
-use frame_support::{traits::StorageVersion, weights::Weight};
+use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 use scale_info::TypeInfo;
@@ -28,7 +28,7 @@ use sp_std::{
     prelude::*,
 };
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
@@ -118,7 +118,6 @@ pub mod pallet {
                     _ if on_chain == StorageVersion::new(2) => {
                         migrations::v2_to_v3::migrate::<T, Self>()
                     }
-                    _ if on_chain == StorageVersion::new(3) => v3_to_v4() + v4_to_v5(),
                     _ => {
                         log::warn!(
                             target: "pallet_elections",
@@ -143,21 +142,12 @@ pub mod pallet {
                 _ if on_chain == StorageVersion::new(2) => {
                     migrations::v2_to_v3::pre_upgrade::<T, Self>()
                 }
-                _ if on_chain == StorageVersion::new(3) => {
-                    log::error!("PRE V3 to V4");
-                    Ok(())
-                }
-                _ if on_chain == StorageVersion::new(4) => {
-                    log::error!("PRE V4 to V5");
-                    Ok(())
-                }
                 _ => Err("Bad storage version"),
             }
         }
         #[cfg(feature = "try-runtime")]
         fn post_upgrade() -> Result<(), &'static str> {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            log::error!("POST:: on_chain: {:?}", on_chain);
             match on_chain {
                 _ if on_chain == STORAGE_VERSION => migrations::v2_to_v3::post_upgrade::<T, Self>(),
                 _ => Err("Bad storage version"),
@@ -396,14 +386,4 @@ pub mod pallet {
             Ok(supports.into_iter().collect())
         }
     }
-}
-
-fn v3_to_v4() -> Weight {
-    log::error!("V3 to V4");
-    Default::default()
-}
-
-fn v4_to_v5() -> Weight {
-    log::error!("V4 to V5");
-    Default::default()
 }

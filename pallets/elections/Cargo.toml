@@ -7,7 +7,7 @@ license = "Apache 2.0"
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-log = "0.4.17"
+
 frame-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 frame-system = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }
 frame-election-provider-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.23" }

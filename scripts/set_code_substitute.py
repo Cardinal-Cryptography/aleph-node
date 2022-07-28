@@ -34,7 +34,7 @@ def update_chainspec(old_chainspec: Path, new_chainspec: Path, block_number: int
         substitute = substitute.read().hex()
     logging.info(f'✅ Read runtime from {runtime}')
 
-    chainspec['genesis']['runtime']['system']['code'] = f'0x{substitute}'
+    chainspec['codeSubstitutes'] = {block_number: f'0x{substitute}'}
 
     with open(new_chainspec, mode='w', encoding='utf-8') as chainspec_out:
         chainspec_out.write(json.dumps(chainspec, indent=2))
