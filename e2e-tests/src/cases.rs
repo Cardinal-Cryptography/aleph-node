@@ -25,35 +25,35 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
-        // ("finalization", test_finalization as TestCase),
-        // ("rewards_disable_node", test_disable_node as TestCase),
-        // ("token_transfer", test_token_transfer as TestCase),
-        // (
-        //     "channeling_fee_and_tip",
-        //     test_channeling_fee_and_tip as TestCase,
-        // ),
-        // ("treasury_access", test_treasury_access as TestCase),
-        // ("batch_transactions", test_batch_transactions as TestCase),
-        // ("staking_era_payouts", test_staking_era_payouts as TestCase),
-        // ("validators_rotate", test_validators_rotate as TestCase),
-        // (
-        //     "staking_new_validator",
-        //     test_staking_new_validator as TestCase,
-        // ),
-        // ("change_validators", test_change_validators as TestCase),
+        ("finalization", test_finalization as TestCase),
+        ("rewards_disable_node", test_disable_node as TestCase),
+        ("token_transfer", test_token_transfer as TestCase),
+        (
+            "channeling_fee_and_tip",
+            test_channeling_fee_and_tip as TestCase,
+        ),
+        ("treasury_access", test_treasury_access as TestCase),
+        ("batch_transactions", test_batch_transactions as TestCase),
+        ("staking_era_payouts", test_staking_era_payouts as TestCase),
+        ("validators_rotate", test_validators_rotate as TestCase),
+        (
+            "staking_new_validator",
+            test_staking_new_validator as TestCase,
+        ),
+        ("change_validators", test_change_validators as TestCase),
         ("fee_calculation", test_fee_calculation as TestCase),
-        // ("era_payout", test_era_payout as TestCase),
-        // ("era_validators", test_era_validators as TestCase),
-        // (
-        //     "rewards_change_stake_and_force_new_era",
-        //     test_change_stake_and_force_new_era as TestCase,
-        // ),
-        // ("points_basic", test_points_basic as TestCase),
-        // ("rewards_force_new_era", test_force_new_era as TestCase),
-        // ("rewards_stake_change", test_points_stake_change as TestCase),
-        // (
-        //     "authorities_are_staking",
-        //     test_authorities_are_staking as TestCase,
-        // ),
+        ("era_payout", test_era_payout as TestCase),
+        ("era_validators", test_era_validators as TestCase),
+        (
+            "rewards_change_stake_and_force_new_era",
+            test_change_stake_and_force_new_era as TestCase,
+        ),
+        ("points_basic", test_points_basic as TestCase),
+        ("rewards_force_new_era", test_force_new_era as TestCase),
+        ("rewards_stake_change", test_points_stake_change as TestCase),
+        (
+            "authorities_are_staking",
+            test_authorities_are_staking as TestCase,
+        ),
     ]
 }
