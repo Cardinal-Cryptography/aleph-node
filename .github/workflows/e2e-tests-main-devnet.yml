@@ -535,68 +535,23 @@ jobs:
   check-runtime-change:
     name: Inspect whether runtime version has been changed (comparing to main)
     runs-on: ubuntu-latest
-    env:
-      OLD_REPO_PATH: old-repo
-      NEW_REPO_PATH: new-repo
-      OUTPUT_NAME: diff
     outputs:
       runtime-updated: ${{ steps.inspect.outputs.diff }}
     steps:
-      - name: Checkout old source code (main branch)
+      - name: Checkout current and old source code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.base_ref }}
-          path: ${{ env.OLD_REPO_PATH }}
-
-      - name: Checkout current source code
-        uses: actions/checkout@v3
-        with:
-          path: ${{ env.NEW_REPO_PATH }}
+          fetch-depth: 0
 
       - name: Inspect versions
         id: inspect
         run: |
-          ./${{ env.NEW_REPO_PATH }}/.github/scripts/check_runtime_change.sh \
-              ${{ env.OLD_REPO_PATH }} \
-              ${{ env.NEW_REPO_PATH }} \
-              ${{ env.OUTPUT_NAME }}
-
-  build-old-node:
-    name: Build node artifact (main version)
-    needs: [ check-runtime-change ]
-    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.base_ref }}
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: try-runtime
-          cargo-key: old
-
-      - name: Build old binary
-        run: cargo build --release -p aleph-node --features "short_session"
-
-      - name: Upload old binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: old-aleph-node
-          path: target/release/aleph-node
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
+          if ! git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: '
+          then
+            echo "::set-output name=diff::1"
+          else
+            echo "::set-output name=diff::0"            
+          fi
 
   build-new-runtime-and-try_runtime:
     name: Build new runtime and try_runtime tool
@@ -644,7 +599,7 @@ jobs:
   test-runtime-update:
     name: Test runtime update with try-runtime tool
     runs-on: ubuntu-latest
-    needs: [ build-old-node, build-new-runtime-and-try_runtime ]
+    needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -662,15 +617,15 @@ jobs:
       - name: Test update
         timeout-minutes: 20
         env:
-          OLD_BINARY: old-aleph-node/aleph-node
           NEW_RUNTIME: aleph-runtime-try_runtime/aleph_runtime.compact.wasm
           TRY_RUNTIME: try_runtime/aleph-node
         working-directory: local-tests/
         run: |
-          chmod +x ${{ env.OLD_BINARY }} ${{ env.TRY_RUNTIME }}
+          chmod +x ${{ env.TRY_RUNTIME }}
           pip install -r requirements.txt
           ./test_runtime_update.py \
-              ${{ env.OLD_BINARY }} \
+              wss://ws.test.azero.dev:443 \
+              ../bin/node/src/resources/testnet_chainspec.json \
               ${{ env.NEW_RUNTIME }} \
               ${{ env.TRY_RUNTIME }}
 

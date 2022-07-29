@@ -27,15 +27,16 @@ def file(filepath: str) -> Path:
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Test runtime update with `try-runtime`')
 
-    parser.add_argument('old_binary', type=file, help='Path to the old binary (live chain version)')
+    parser.add_argument('live_chain', type=str, help='Address to the live chain')
+    parser.add_argument('chainspec', type=file, help='Path to the original raw chainspec')
     parser.add_argument('new_runtime', type=file, help='Path to the new runtime')
     parser.add_argument('try_runtime', type=file, help='Path to the `try-runtime` tool')
 
     return parser.parse_args()
 
 
-def save_runtime_to_chainspec(chainspec_path: Path, runtime_path: Path):
-    logging.info(f'Setting `code` in {chainspec_path} to the content of {runtime_path}...')
+def save_runtime_to_chainspec(chainspec_path: Path, new_chainspec_path: Path, runtime_path: Path):
+    logging.info(f'Setting code to the content of {runtime_path}...')
 
     with open(chainspec_path, mode='r', encoding='utf-8') as chainspec_file:
         chainspec = json.loads(chainspec_file.read())
@@ -45,69 +46,27 @@ def save_runtime_to_chainspec(chainspec_path: Path, runtime_path: Path):
         runtime = runtime_file.read().hex()
     logging.debug(f'✅ Read runtime from {runtime_path}')
 
-    chainspec['genesis']['runtime']['system']['code'] = f'0x{runtime}'
+    chainspec['genesis']['raw']['top']['0x3a636f6465'] = f'0x{runtime}'
 
-    with open(chainspec_path, mode='w', encoding='utf-8') as chainspec_file:
+    with open(new_chainspec_path, mode='w', encoding='utf-8') as chainspec_file:
         chainspec_file.write(json.dumps(chainspec, indent=2))
-    logging.info(f'✅ Saved updated chainspec to {chainspec_path}')
+    logging.info(f'✅ Saved updated chainspec to {new_chainspec_path}')
 
 
-def start_chain(binary: Path) -> Chain:
-    logging.info(f'Starting live chain using {binary}...')
-
-    phrases = [f'//{i}' for i in range(6)]
-    keys = generate_keys(binary, phrases)
-    all_accounts = list(keys.values())
-
-    chain = Chain(WORKDIR)
-
-    logging.debug(f'Bootstrapping the chain with binary {binary}...')
-    chain.bootstrap(binary,
-                    all_accounts[:4],
-                    nonvalidators=all_accounts[4:],
-                    sudo_account_id=keys[phrases[0]],
-                    chain_type='local',
-                    raw=False)
-
-    chain.set_flags('no-mdns',
-                    port=Seq(30334),
-                    ws_port=Seq(9944),
-                    rpc_port=Seq(9933),
-                    unit_creation_delay=200,
-                    execution='Native',
-                    pruning='archive')
-    addresses = [n.address() for n in chain]
-    chain.set_flags(bootnodes=addresses[0], public_addr=addresses)
-
-    chain.set_flags_validator('validator')
-
-    chain.start('aleph')
-    logging.info('Live chain started. Waiting for finalization and authorities.')
-
-    chain.wait_for_finalization(1)
-    chain.wait_for_authorities()
-    logging.debug('Initial checks passed, chain seems to be fine')
-
-    return chain
-
-
-def test_update(try_runtime: Path, chainspec: Path):
+def test_update(try_runtime: Path, chainspec: Path, address: str):
     cmd = [try_runtime, 'try-runtime', '--chain', chainspec, 'on-runtime-upgrade', 'live',
-           '--uri', 'ws://localhost:9944']
+           '--uri', address]
     logging.info('Running `try-runtime` check...')
     subprocess.run(cmd, check=True)
     logging.info('✅ Update has been successful!')
 
 
-def run_test(old_binary: Path, new_runtime: Path, try_runtime: Path):
-    chain = start_chain(old_binary)
-    chainspec = file(os.path.join(WORKDIR, 'chainspec.json'))
-    save_runtime_to_chainspec(chainspec, new_runtime)
-    test_update(try_runtime, chainspec)
-    chain.stop()
-    chain.purge()
+def run_test(live_chain: str, chainspec: Path, new_runtime: Path, try_runtime: Path):
+    new_chainspec = Path(os.path.join(WORKDIR, 'chainspec.json'))
+    save_runtime_to_chainspec(chainspec, new_chainspec, new_runtime)
+    test_update(try_runtime, chainspec, live_chain)
 
 
 if __name__ == '__main__':
     args = get_args()
-    run_test(args.old_binary, args.new_runtime, args.try_runtime)
+    run_test(args.live_chain, args.chainspec, args.new_runtime, args.try_runtime)
