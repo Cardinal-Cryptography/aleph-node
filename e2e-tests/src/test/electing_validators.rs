@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use ac_primitives::ExtrinsicParams;
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, change_validators, get_current_session,
-    keypair_from_string, rotate_keys, send_xt, set_keys, staking_bond, staking_validate,
-    wait_for_full_era_completion, wait_for_session, AnyConnection, KeyPair, RootConnection,
-    SignedConnection,
+    get_stakers_as_storage_keys, keypair_from_string, rotate_keys, send_xt, set_keys, staking_bond,
+    staking_validate, wait_for_full_era_completion, wait_for_session, AnyConnection, KeyPair,
+    RootConnection, SignedConnection,
 };
 use log::info;
 use pallet_elections::CommitteeSeats;
@@ -95,23 +95,6 @@ fn get_eras_stakers_storage_key(era: EraIndex) -> StorageKey {
     bytes.extend(era_key);
 
     StorageKey(bytes)
-}
-
-fn stakers_as_storage_keys<C: AnyConnection>(
-    connection: &C,
-    accounts: &[AccountId],
-    era: EraIndex,
-) -> BTreeSet<StorageKey> {
-    accounts
-        .iter()
-        .map(|acc| {
-            connection
-                .as_connection()
-                .metadata
-                .storage_double_map_key("Staking", "ErasStakers", era, acc)
-                .unwrap()
-        })
-        .collect()
 }
 
 /// Verify that `pallet_staking::ErasStakers` contain all target validators.
@@ -243,7 +226,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     assert_validators_are_elected_stakers(
         &connection,
         current_era,
-        &stakers_as_storage_keys(&connection, &accounts.stash_accounts, current_era),
+        &get_stakers_as_storage_keys(&connection, &accounts.stash_accounts, current_era),
     );
     assert_validators_are_used_as_authorities(
         &connection,
@@ -265,7 +248,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     assert_validators_are_elected_stakers(
         &connection,
         current_era,
-        &stakers_as_storage_keys(&connection, &left_stashes, current_era),
+        &get_stakers_as_storage_keys(&connection, &left_stashes, current_era),
     );
     assert_validators_are_used_as_authorities(
         &connection,

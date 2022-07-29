@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use aleph_client::{
     change_validators, get_authorities_for_session, get_current_block_number, get_current_session,
-    wait_for_finalize,
+    wait_for_finalized_block, wait_for_full_era_completion, wait_for_session,
 };
 use pallet_elections::CommitteeSeats;
 use sp_core::Pair;

@@ -1,9 +1,9 @@
 use aleph_client::{
-    change_validators, get_current_block_number, get_current_session, wait_for_finalized_block,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection, KeyPair,
-    RootConnection, SignedConnection,
+    change_validators, get_current_block_number, get_current_era_non_reserved_validators,
+    get_current_era_reserved_validators, get_current_session, get_next_era_non_reserved_validators,
+    get_next_era_reserved_validators, wait_for_finalized_block, wait_for_full_era_completion,
+    wait_for_next_era, wait_for_session, KeyPair, RootConnection, SignedConnection,
 };
-use codec::Decode;
 use pallet_elections::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
@@ -12,12 +12,6 @@ use crate::{
     accounts::{get_sudo_key, get_validators_keys},
     Config,
 };
-
-#[derive(Decode)]
-struct EraValidators {
-    pub reserved: Vec<AccountId>,
-    pub non_reserved: Vec<AccountId>,
-}
 
 fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..2].to_vec()
@@ -38,23 +32,19 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
 fn get_current_and_next_era_reserved_validators(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_reserved: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraReservedValidators");
-    let eras_validators: EraValidators =
-        connection.read_storage_value("Elections", "CurrentEraValidators");
+    let stored_reserved = get_next_era_reserved_validators(connection)?;
+    let current_reserved = get_current_era_reserved_validators(connection)?;
 
-    Ok((eras_validators.reserved, stored_reserved))
+    Ok((current_reserved, stored_reserved))
 }
 
 fn get_current_and_next_era_non_reserved_validators(
     connection: &SignedConnection,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_non_reserved: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
-    let eras_validators: EraValidators =
-        connection.read_storage_value("Elections", "CurrentEraValidators");
+    let stored_non_reserved = get_next_era_non_reserved_validators(connection)?;
+    let current_non_reserved = get_current_era_non_reserved_validators(connection)?;
 
-    Ok((eras_validators.non_reserved, stored_non_reserved))
+    Ok((current_non_reserved, stored_non_reserved))
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {

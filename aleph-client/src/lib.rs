@@ -1,4 +1,4 @@
-use std::{default::Default, thread::sleep, time::Duration};
+use std::{collections::BTreeSet, default::Default, thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
 pub use account::{get_free_balance, locks};
@@ -12,6 +12,7 @@ pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
+use primitives::EraIndex;
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_authorities_for_session,
@@ -401,4 +402,73 @@ pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> u32 {
         .expect("Could not fetch header")
         .expect("Block exists; qed")
         .number
+}
+
+pub fn get_stakers_as_storage_keys<C: AnyConnection>(
+    connection: &C,
+    accounts: &[AccountId],
+    era: EraIndex,
+) -> BTreeSet<StorageKey> {
+    accounts
+        .iter()
+        .map(|acc| {
+            connection
+                .as_connection()
+                .metadata
+                .storage_double_map_key("Staking", "ErasStakers", era, acc)
+                .unwrap()
+        })
+        .collect()
+}
+
+#[derive(Decode)]
+pub struct EraValidators {
+    pub reserved: Vec<AccountId>,
+    pub non_reserved: Vec<AccountId>,
+}
+
+pub fn get_current_era_validators(
+    connection: &SignedConnection,
+) -> anyhow::Result<Vec<AccountId>> {
+    let eras_validators: EraValidators =
+        connection.read_storage_value("Elections", "CurrentEraValidators");
+    let eras_validators: Vec<AccountId> = eras_validators.reserved
+        .into_iter()
+        .chain(
+            eras_validators.non_reserved
+                .into_iter()
+        ).collect();
+    Ok(eras_validators)
+}
+
+pub fn get_current_era_reserved_validators(
+    connection: &SignedConnection,
+) -> anyhow::Result<Vec<AccountId>> {
+    let eras_validators: EraValidators =
+        connection.read_storage_value("Elections", "CurrentEraValidators");
+    Ok(eras_validators.reserved)
+}
+
+pub fn get_current_era_non_reserved_validators(
+    connection: &SignedConnection,
+) -> anyhow::Result<Vec<AccountId>> {
+    let eras_validators: EraValidators =
+        connection.read_storage_value("Elections", "CurrentEraValidators");
+    Ok(eras_validators.non_reserved)
+}
+
+pub fn get_next_era_reserved_validators(
+    connection: &SignedConnection,
+) -> anyhow::Result<Vec<AccountId>> {
+    let stored_reserved: Vec<AccountId> =
+        connection.read_storage_value("Elections", "NextEraReservedValidators");
+    Ok(stored_reserved)
+}
+
+pub fn get_next_era_non_reserved_validators(
+    connection: &SignedConnection,
+) -> anyhow::Result<Vec<AccountId>> {
+    let stored_non_reserved: Vec<AccountId> =
+        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
+    Ok(stored_non_reserved)
 }
