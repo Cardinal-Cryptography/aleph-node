@@ -572,13 +572,12 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target-key: try-runtime
-          cargo-key: new
 
       - name: Build try-runtime
-        run: cargo build --release -p aleph-node --features "try-runtime short_session"
+        run: cargo build --release -p aleph-node --features "try-runtime"
 
       - name: Build runtime
-        run: cargo build --release -p aleph-runtime --features "try-runtime short_session"
+        run: cargo build --release -p aleph-runtime --features "try-runtime"
 
       - name: Upload try-runtime
         uses: actions/upload-artifact@v3

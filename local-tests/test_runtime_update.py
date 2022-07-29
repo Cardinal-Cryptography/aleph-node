@@ -64,7 +64,7 @@ def test_update(try_runtime: Path, chainspec: Path, address: str):
 def run_test(live_chain: str, chainspec: Path, new_runtime: Path, try_runtime: Path):
     new_chainspec = Path(os.path.join(WORKDIR, 'chainspec.json'))
     save_runtime_to_chainspec(chainspec, new_chainspec, new_runtime)
-    test_update(try_runtime, chainspec, live_chain)
+    test_update(try_runtime, new_chainspec, live_chain)
 
 
 if __name__ == '__main__':
