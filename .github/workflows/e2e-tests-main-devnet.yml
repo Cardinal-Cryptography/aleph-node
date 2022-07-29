@@ -546,10 +546,15 @@ jobs:
       - name: Inspect versions
         id: inspect
         run: |
+          echo $(git diff HEAD origin/main -- bin/runtime/src/lib.rs)
+          echo $(git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: ')
+          
           if [ ! $(git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: ') ]
           then
+            echo "1"
             echo "::set-output name=diff::1"
           else
+            echo "0"
             echo "::set-output name=diff::0"            
           fi
 
@@ -559,6 +564,7 @@ jobs:
     if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     runs-on: ubuntu-latest
     steps:
+      - run: echo ${{ needs.check-runtime-change.outputs.runtime-updated }}
       - name: Checkout source code
         uses: actions/checkout@v3
 
