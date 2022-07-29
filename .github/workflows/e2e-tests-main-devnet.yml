@@ -546,7 +546,7 @@ jobs:
       - name: Inspect versions
         id: inspect
         run: |
-          if ! git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: '
+          if [ ! $(git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: ') ]
           then
             echo "::set-output name=diff::1"
           else
