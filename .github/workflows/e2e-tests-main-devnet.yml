@@ -551,11 +551,11 @@ jobs:
           
           if [ ! $(git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep -q ' spec_version: ') ]
           then
-            echo "1"
-            echo "::set-output name=diff::1"
-          else
             echo "0"
-            echo "::set-output name=diff::0"            
+            echo "::set-output name=diff::0"
+          else
+            echo "1"
+            echo "::set-output name=diff::1"            
           fi
 
   build-new-runtime-and-try_runtime:
