@@ -13,7 +13,7 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
 )
 
-WORKDIR = os.path.abspath(os.getenv('WORKDIR', '/tmp/workdir'))
+WORKDIR = os.path.abspath(os.getenv('WORKDIR', '/tmp'))
 
 
 def file(filepath: str) -> Path:
