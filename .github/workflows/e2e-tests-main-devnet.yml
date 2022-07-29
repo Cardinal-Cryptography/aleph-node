@@ -559,7 +559,6 @@ jobs:
     if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo ${{ needs.check-runtime-change.outputs.runtime-updated }}
       - name: Checkout source code
         uses: actions/checkout@v3
 
