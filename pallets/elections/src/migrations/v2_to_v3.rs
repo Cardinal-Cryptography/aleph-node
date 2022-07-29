@@ -100,6 +100,11 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
+        #[storage_alias]
+        type CommitteeSize = StorageValue<Elections, u32>;
+        #[storage_alias]
+        type NextEraCommitteeSize = StorageValue<Elections, u32>;
+
         ensure_storage_version::<P>(2)?;
 
         let committee_size = CommitteeSize::get();
@@ -143,12 +148,12 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         let next_reserved = next_era_reserved_validators.len();
         ensure!(
             new_next_era_committee_size.reserved_seats == next_reserved as u32,
-            "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
+            "Mismatch between `NextEraReservedValidators` and `NextEraCommitteeSize`"
         );
         ensure!(
             new_next_era_committee_size.non_reserved_seats
-                == old_next_era_committee_size.saturating_sub(currently_reserved as u32),
-            "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
+                == old_next_era_committee_size.saturating_sub(next_reserved as u32),
+            "Mismatch between `NextEraReservedValidators` and `NextEraCommitteeSize`"
         );
 
         Ok(())

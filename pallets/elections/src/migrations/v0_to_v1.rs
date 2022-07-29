@@ -117,7 +117,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             "Mismatch between `ReservedMembers` and `ErasMembers`"
         );
         ensure!(
-            reserved_members == eras_members.1,
+            non_reserved_members == eras_members.1,
             "Mismatch between `NonReservedMembers` and `ErasMembers`"
         );
         ensure!(

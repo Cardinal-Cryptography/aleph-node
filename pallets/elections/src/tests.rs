@@ -109,12 +109,52 @@ fn session_authorities_must_have_been_elected() {
 }
 
 #[cfg(feature = "try-runtime")]
-#[test]
-fn migration_v0_to_v1_works() {
-    TestExtBuilder::new(vec![], vec![])
-        .with_storage_version(0)
-        .build()
-        .execute_with(|| {
-            // crate::migrations::v0_to_v1::Migration::<Test, crate::Pallet<Test>>::migrate()
-        });
+mod migration_tests {
+    use frame_support::migration::put_storage_value;
+
+    use super::*;
+
+    const MODULE: &[u8] = b"Elections";
+
+    #[test]
+    fn migration_v0_to_v1_works() {
+        TestExtBuilder::new(vec![], vec![])
+            .with_storage_version(0)
+            .build()
+            .execute_with(|| {
+                put_storage_value::<Vec<AccountId>>(MODULE, b"Members", &[], vec![1, 2]);
+                crate::migrations::v0_to_v1::Migration::<Test, crate::Pallet<Test>>::migrate()
+            });
+    }
+
+    #[test]
+    fn migration_v1_to_v2_works() {
+        TestExtBuilder::new(vec![], vec![])
+            .with_storage_version(1)
+            .build()
+            .execute_with(|| {
+                put_storage_value::<u32>(MODULE, b"MembersPerSession", &[], 2);
+                put_storage_value::<Vec<AccountId>>(MODULE, b"ReservedMembers", &[], vec![1]);
+                put_storage_value::<Vec<AccountId>>(MODULE, b"NonReservedMembers", &[], vec![2]);
+                put_storage_value::<(Vec<AccountId>, Vec<AccountId>)>(
+                    MODULE,
+                    b"ErasMembers",
+                    &[],
+                    (vec![1], vec![2]),
+                );
+                crate::migrations::v1_to_v2::Migration::<Test, crate::Pallet<Test>>::migrate()
+            });
+    }
+
+    #[test]
+    fn migration_v2_to_v3_works() {
+        TestExtBuilder::new(vec![1, 2], vec![3])
+            .with_storage_version(2)
+            .build()
+            .execute_with(|| {
+                put_storage_value::<u32>(MODULE, b"CommitteeSize", &[], 2);
+                put_storage_value::<u32>(MODULE, b"NextEraCommitteeSize", &[], 3);
+                crate::migrations::v2_to_v3::Migration::<Test, crate::Pallet<Test>>::migrate()
+            });
+    }
 }

@@ -116,7 +116,7 @@ impl ValidatorRewardsHandler<Test> for MockProvider {
     fn validator_totals(
         _era: EraIndex,
     ) -> Vec<(<Test as frame_system::Config>::AccountId, Balance)> {
-        todo!()
+        Default::default()
     }
 
     fn add_rewards(
