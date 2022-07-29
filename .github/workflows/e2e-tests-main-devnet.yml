@@ -574,22 +574,25 @@ jobs:
           target-key: try-runtime
           cargo-key: new
 
-      - name: Build
+      - name: Build try-runtime
         run: cargo build --release -p aleph-node --features "try-runtime short_session"
 
-      - name: Upload new runtime
-        uses: actions/upload-artifact@v3
-        with:
-          name: aleph-runtime-try_runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
-          if-no-files-found: error
-          retention-days: 7
+      - name: Build runtime
+        run: cargo build --release -p aleph-runtime --features "try-runtime short_session"
 
       - name: Upload try-runtime
         uses: actions/upload-artifact@v3
         with:
           name: try_runtime
           path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload new runtime
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-runtime-try_runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
