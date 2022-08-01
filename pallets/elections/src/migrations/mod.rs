@@ -70,7 +70,7 @@ pub trait StorageMigration: OnRuntimeUpgrade {
         let full_key = storage_prefix(Self::MIGRATION_STORAGE_PREFIX, storage_key.as_bytes());
         sp_io::storage::get(&full_key)
             .and_then(|bytes| Decode::decode(&mut &*bytes).ok())
-            .expect(&format!("No `{storage_key}` in the temp storage"))
+            .unwrap_or_else(|| panic!("No `{storage_key}` in the temp storage"))
     }
 }
 
