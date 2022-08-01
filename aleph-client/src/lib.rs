@@ -15,7 +15,6 @@ pub use multisig::{
 };
 use primitives::EraIndex;
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
-pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_authorities_for_session,
     get_current_session, get_session, get_session_period, set_keys, wait_for as wait_for_session,
@@ -443,17 +442,14 @@ pub struct EraValidators {
     pub non_reserved: Vec<AccountId>,
 }
 
-pub fn get_current_era_validators(
-    connection: &SignedConnection,
-) -> anyhow::Result<Vec<AccountId>> {
+pub fn get_current_era_validators(connection: &SignedConnection) -> anyhow::Result<Vec<AccountId>> {
     let eras_validators: EraValidators =
         connection.read_storage_value("Elections", "CurrentEraValidators");
-    let eras_validators: Vec<AccountId> = eras_validators.reserved
+    let eras_validators: Vec<AccountId> = eras_validators
+        .reserved
         .into_iter()
-        .chain(
-            eras_validators.non_reserved
-                .into_iter()
-        ).collect();
+        .chain(eras_validators.non_reserved.into_iter())
+        .collect();
     Ok(eras_validators)
 }
 
