@@ -4,8 +4,9 @@ use aleph_client::{
     wait_for_session, KeyPair, SignedConnection,
 };
 use log::info;
-use pallet_elections::CommitteeSeats;
-use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
+use primitives::{
+    staking::MIN_VALIDATOR_BOND, Balance, CommitteeSeats, EraIndex, SessionIndex, TOKEN,
+};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
