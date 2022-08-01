@@ -1,4 +1,4 @@
-use pallet_elections::CommitteeSeats;
+use primitives::CommitteeSeats;
 use sp_core::H256;
 use substrate_api_client::AccountId;
 
