@@ -11,7 +11,7 @@ pub mod v0_to_v1;
 pub mod v1_to_v2;
 pub mod v2_to_v3;
 
-type ValidatorsVec<T> = Vec<<T as frame_system::Config>::AccountId>;
+type Validators<T> = Vec<<T as frame_system::Config>::AccountId>;
 
 /// In order to run both pre- and post- checks around every migration, we entangle methods of
 /// `OnRuntimeUpgrade` into the desired flow and expose it with `migrate` method.

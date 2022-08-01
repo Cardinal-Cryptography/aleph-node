@@ -9,7 +9,7 @@ use frame_support::{
 #[cfg(feature = "try-runtime")]
 use crate::migrations::ensure_storage_version;
 use crate::{
-    migrations::{StorageMigration, ValidatorsVec},
+    migrations::{StorageMigration, Validators},
     Config, EraValidators,
 };
 
@@ -17,19 +17,19 @@ use crate::{
 #[storage_alias]
 pub type MembersPerSession = StorageValue<Elections, u32>;
 #[storage_alias]
-type ReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type ReservedMembers<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
-type NonReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type NonReservedMembers<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
-type ErasMembers<T> = StorageValue<Elections, (ValidatorsVec<T>, ValidatorsVec<T>)>;
+type ErasMembers<T> = StorageValue<Elections, (Validators<T>, Validators<T>)>;
 
 // V2 storages
 #[storage_alias]
 type CommitteeSize = StorageValue<Elections, u32>;
 #[storage_alias]
-type NextEraReservedValidators<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type NextEraReservedValidators<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
-type NextEraNonReservedValidators<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type NextEraNonReservedValidators<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
 type CurrentEraValidators<T> =
     StorageValue<Elections, EraValidators<<T as frame_system::Config>::AccountId>>;
@@ -118,9 +118,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             CurrentEraValidators::<T>::get().ok_or("No `CurrentEraValidators` in the storage")?;
 
         let members_per_session = Self::read_temp::<u32>("members_per_session");
-        let reserved_members = Self::read_temp::<ValidatorsVec<T>>("reserved_members");
-        let non_reserved_members = Self::read_temp::<ValidatorsVec<T>>("non_reserved_members");
-        let eras_members = Self::read_temp::<(ValidatorsVec<T>, ValidatorsVec<T>)>("eras_members");
+        let reserved_members = Self::read_temp::<Validators<T>>("reserved_members");
+        let non_reserved_members = Self::read_temp::<Validators<T>>("non_reserved_members");
+        let eras_members = Self::read_temp::<(Validators<T>, Validators<T>)>("eras_members");
 
         ensure!(
             committee_size == members_per_session,

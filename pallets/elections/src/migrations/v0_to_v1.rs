@@ -11,21 +11,21 @@ use sp_std::vec::Vec;
 use crate::migrations::ensure_storage_version;
 use crate::{
     compute_validator_scaled_total_rewards,
-    migrations::{StorageMigration, ValidatorsVec},
+    migrations::{StorageMigration, Validators},
     traits::{EraInfoProvider, ValidatorRewardsHandler},
     Config, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 
 #[storage_alias]
-type Members<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type Members<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
 type MembersPerSession = StorageValue<Elections, u32>;
 #[storage_alias]
-type ReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type ReservedMembers<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
-type NonReservedMembers<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type NonReservedMembers<T> = StorageValue<Elections, Validators<T>>;
 #[storage_alias]
-type ErasMembers<T> = StorageValue<Elections, (ValidatorsVec<T>, ValidatorsVec<T>)>;
+type ErasMembers<T> = StorageValue<Elections, (Validators<T>, Validators<T>)>;
 
 /// The assumptions made by this migration:
 ///
@@ -102,7 +102,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             NonReservedMembers::<T>::get().ok_or("No `NonReservedMembers` in the storage")?;
         let eras_members = ErasMembers::<T>::get().ok_or("No `ErasMembers` in the storage")?;
 
-        let old_members = Self::read_temp::<ValidatorsVec<T>>("members");
+        let old_members = Self::read_temp::<Validators<T>>("members");
 
         ensure!(
             reserved_members == old_members,

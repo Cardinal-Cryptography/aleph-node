@@ -10,7 +10,7 @@ use primitives::CommitteeSeats;
 #[cfg(feature = "try-runtime")]
 use crate::migrations::ensure_storage_version;
 use crate::{
-    migrations::{StorageMigration, ValidatorsVec},
+    migrations::{StorageMigration, Validators},
     Config, EraValidators,
 };
 
@@ -19,7 +19,7 @@ use crate::{
 type CurrentEraValidators<T> =
     StorageValue<Elections, EraValidators<<T as frame_system::Config>::AccountId>>;
 #[storage_alias]
-type NextEraReservedValidators<T> = StorageValue<Elections, ValidatorsVec<T>>;
+type NextEraReservedValidators<T> = StorageValue<Elections, Validators<T>>;
 
 // V3 storages
 #[storage_alias]
