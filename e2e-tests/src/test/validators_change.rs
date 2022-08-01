@@ -7,10 +7,7 @@ use primitives::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{
-    accounts::get_validators_keys,
-    config::Config,
-};
+use crate::{accounts::get_validators_keys, config::Config};
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let accounts = get_validators_keys(config);

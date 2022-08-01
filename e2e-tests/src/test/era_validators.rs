@@ -9,11 +9,7 @@ use primitives::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{
-    accounts::get_validators_keys,
-    connection::get_signed_connection,
-    Config,
-};
+use crate::{accounts::get_validators_keys, connection::get_signed_connection, Config};
 
 fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..2].to_vec()
