@@ -2,14 +2,15 @@ use aleph_client::{
     change_validators, get_current_block_number, get_current_era_non_reserved_validators,
     get_current_era_reserved_validators, get_current_session, get_next_era_non_reserved_validators,
     get_next_era_reserved_validators, wait_for_finalized_block, wait_for_full_era_completion,
-    wait_for_next_era, wait_for_session, KeyPair, RootConnection, SignedConnection,
+    wait_for_next_era, wait_for_session, KeyPair, SignedConnection,
 };
 use pallet_elections::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_sudo_key, get_validators_keys},
+    accounts::get_validators_keys,
+    connection::get_signed_connection,
     Config,
 };
 
@@ -48,14 +49,8 @@ fn get_current_and_next_era_non_reserved_validators(
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
-
-    let sudo = get_sudo_key(config);
-
-    let root_connection = RootConnection::new(node, sudo);
+    let connection = get_signed_connection(config);
+    let root_connection = config.create_root_connection();
 
     let initial_reserved_validators: Vec<_> = get_initial_reserved_validators(config)
         .iter()

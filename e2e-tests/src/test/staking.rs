@@ -2,7 +2,7 @@ use aleph_client::{
     balances_batch_transfer, change_validators, get_current_session, keypair_from_string,
     payout_stakers_and_assert_locked_balance, rotate_keys, set_keys, staking_bond, staking_bonded,
     staking_ledger, staking_multi_bond, staking_nominate, staking_validate,
-    wait_for_full_era_completion, wait_for_session, KeyPair, RootConnection, SignedConnection,
+    wait_for_full_era_completion, wait_for_session, KeyPair, SignedConnection,
     StakingLedger,
 };
 use frame_support::BoundedVec;
@@ -19,7 +19,8 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{accounts_seeds_to_keys, get_sudo_key, get_validators_seeds},
+    accounts::{accounts_seeds_to_keys, get_validators_seeds},
+    connection::get_signed_connection,
     config::Config,
 };
 
@@ -51,8 +52,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
     let (stashes_accounts_key_pairs, validator_accounts) = get_validator_stashes_key_pairs(config);
 
     let node = &config.node;
-    let sender = validator_accounts[0].clone();
-    let connection = SignedConnection::new(node, sender);
+    let connection = get_signed_connection(config);
     let stashes_accounts = convert_authorities_to_account_id(&stashes_accounts_key_pairs);
 
     balances_batch_transfer(&connection, stashes_accounts, MIN_NOMINATOR_BOND + TOKEN);
@@ -111,7 +111,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     let _ = validator_accounts.remove(0);
     // signer of this connection is sudo, the same node which in this test is used as the new one
     // it's essential since keys from rotate_keys() needs to be run against that node
-    let root_connection: RootConnection = SignedConnection::new(node, get_sudo_key(config)).into();
+    let root_connection = config.create_root_connection();
 
     change_validators(
         &root_connection,

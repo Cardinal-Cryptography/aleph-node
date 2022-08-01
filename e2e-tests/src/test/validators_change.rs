@@ -1,5 +1,5 @@
 use aleph_client::{
-    wait_for_event, wait_for_finalized_block, AnyConnection, Header, RootConnection,
+    get_current_block_number, wait_for_event, wait_for_finalized_block, AnyConnection,
 };
 use codec::Decode;
 use log::info;
@@ -8,15 +8,13 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_sudo_key, get_validators_keys},
+    accounts::get_validators_keys,
     config::Config,
 };
 
 pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let accounts = get_validators_keys(config);
-    let sudo = get_sudo_key(config);
-
-    let connection = RootConnection::new(&config.node, sudo);
+    let connection = config.create_root_connection();
 
     let reserved_before: Vec<AccountId> =
         connection.read_storage_value("Elections", "NextEraReservedValidators");
@@ -90,12 +88,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         committee_size_after
     );
 
-    let block_number = connection
-        .as_connection()
-        .get_header::<Header>(None)
-        .expect("Could not fetch header")
-        .expect("Block exists; qed")
-        .number;
+    let block_number = get_current_block_number(&connection);
     wait_for_finalized_block(&connection, block_number)?;
 
     Ok(())
