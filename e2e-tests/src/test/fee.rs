@@ -9,7 +9,7 @@ use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
-use crate::{accounts::get_sudo_key, config::Config, transfer::setup_for_transfer};
+use crate::{config::Config, transfer::setup_for_transfer};
 
 pub fn fee_calculation(config: &Config) -> anyhow::Result<()> {
     // An initial transfer is needed to establish the fee multiplier.

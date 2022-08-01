@@ -4,7 +4,6 @@ use aleph_client::{
     get_next_era_reserved_validators, wait_for_finalized_block, wait_for_full_era_completion,
     wait_for_next_era, wait_for_session, KeyPair, SignedConnection,
 };
-use codec::Decode;
 use primitives::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
