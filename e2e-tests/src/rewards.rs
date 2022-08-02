@@ -233,7 +233,7 @@ pub fn get_bench_members(
     non_reserved_members_for_session: &[AccountId],
 ) -> Vec<AccountId> {
     non_reserved_members
-        .into_iter()
+        .iter()
         .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
         .cloned()
         .collect::<Vec<_>>()
@@ -309,7 +309,6 @@ pub fn setup_validators(
         .iter()
         .map(account_from_keypair)
         .collect();
-    // let members = get_session_validators(&root_connection, 0);
     let members_size = members.len();
     let reserved_count = std::cmp::min(members_size / 2, 2);
     let reserved_members = &members[0..reserved_count];

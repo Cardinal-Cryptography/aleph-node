@@ -68,8 +68,8 @@ fn check_points_after_force_new_era(
     connection: &SignedConnection,
     start_session: SessionIndex,
     start_era: EraIndex,
-    reserved_members: &Vec<AccountId>,
-    non_reserved_members: &Vec<AccountId>,
+    reserved_members: Vec<AccountId>,
+    non_reserved_members: Vec<AccountId>,
     members_per_session: u32,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
@@ -280,8 +280,8 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
         &connection,
         start_session,
         start_era,
-        &era_validators.reserved,
-        &era_validators.non_reserved,
+        era_validators.reserved,
+        era_validators.non_reserved,
         committee_size,
         MAX_DIFFERENCE,
     )?;
@@ -332,8 +332,8 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
         &connection,
         start_session,
         start_era,
-        &era_validators.reserved,
-        &era_validators.non_reserved,
+        era_validators.reserved,
+        era_validators.non_reserved,
         committee_size,
         MAX_DIFFERENCE,
     )?;
