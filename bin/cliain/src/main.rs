@@ -54,7 +54,14 @@ fn main() {
         command,
     } = Config::parse();
 
-    let seed = read_secret(seed, "Provide seed for the signer account:");
+    let seed = match command {
+        Command::Finalize { block: _, hash: _, finalizer_seed: _} => {
+            String::new()
+        }
+        _ => {
+            read_secret(seed, "Provide seed for the signer account:")
+        }
+    };
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
