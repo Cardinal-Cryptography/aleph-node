@@ -74,8 +74,8 @@ fn check_points_after_force_new_era(
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let era_validators = EraValidators {
-        reserved: reserved_members.clone(),
-        non_reserved: non_reserved_members.clone(),
+        reserved: reserved_members,
+        non_reserved: non_reserved_members,
     };
     // Once a new era is forced in session k, the new era does not come into effect until session
     // k + 2; we test points:
