@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
-    account_from_keypair, change_validators, get_block_hash, get_current_session, get_era,
-    get_era_reward_points, get_era_validators, get_exposure, get_session_period,
-    get_session_validators, get_validator_block_count, rotate_keys, set_keys,
+    account_from_keypair, change_validators, get_block_hash, get_committee_seats,
+    get_current_session, get_era, get_era_reward_points, get_era_validators, get_exposure,
+    get_session_period, get_session_validators, get_validator_block_count, rotate_keys, set_keys,
     wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
     AnyConnection, EraValidators, RewardPoint, SessionKeys, SignedConnection,
 };
@@ -317,25 +317,42 @@ pub fn setup_validators(
     let reserved_seats = reserved_members.len().try_into().unwrap();
     let non_reserved_seats = (non_reserved_members.len() - 1).try_into().unwrap();
     let members_per_session = reserved_seats + non_reserved_seats;
+    let seats = CommitteeSeats {
+        reserved_seats,
+        non_reserved_seats,
+    };
+
+    let session = get_current_session(&root_connection);
+    let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
+    let block_number = session * get_session_period(&root_connection);
+    let block_hash = get_block_hash(&root_connection, block_number);
+    let network_seats = get_committee_seats(&root_connection, Some(block_hash));
+
+    let era_validators = EraValidators {
+        reserved: reserved_members.to_vec(),
+        non_reserved: non_reserved_members.to_vec(),
+    };
+
+    if network_reserved == reserved_members
+        && network_non_reserved == non_reserved_members
+        && network_seats == seats
+    {
+        // nothing to do here
+        let era = get_era(&root_connection, Some(block_hash));
+        return Ok((era_validators, members_per_session, era));
+    }
 
     change_validators(
         &root_connection,
         Some(reserved_members.into()),
         Some(non_reserved_members.into()),
-        Some(CommitteeSeats {
-            reserved_seats,
-            non_reserved_seats,
-        }),
+        Some(seats),
         XtStatus::InBlock,
     );
 
     let era = wait_for_full_era_completion(&root_connection)?;
     let session = get_current_session(&root_connection);
 
-    let era_validators = EraValidators {
-        reserved: reserved_members.to_vec(),
-        non_reserved: non_reserved_members.to_vec(),
-    };
     let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
     let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
     let network_reserved: HashSet<_> = network_reserved.into_iter().collect();
