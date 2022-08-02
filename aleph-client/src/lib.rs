@@ -5,6 +5,10 @@ pub use account::{get_free_balance, locks};
 pub use balances::total_issuance;
 use codec::{Decode, Encode};
 pub use debug::print_storages;
+pub use elections::{
+    get_committee_seats, get_era_validators, get_validator_block_count, CommitteeSeats,
+    EraValidators,
+};
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 use log::{info, warn};
 pub use multisig::{
@@ -14,7 +18,7 @@ pub use multisig::{
 pub use rpc::{rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_current_session, get_session,
-    get_session_period, set_keys, wait_for as wait_for_session,
+    get_session_period, get_session_validators, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{sr25519, storage::StorageKey, Pair, H256};
@@ -26,7 +30,8 @@ pub use staking::{
     get_sessions_per_era, ledger as staking_ledger, multi_bond as staking_multi_bond,
     nominate as staking_nominate, payout_stakers, payout_stakers_and_assert_locked_balance,
     set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
+    wait_for_era_completion, wait_for_full_era_completion, wait_for_next_era, RewardPoint,
+    StakingLedger,
 };
 pub use substrate_api_client;
 use substrate_api_client::{
@@ -51,6 +56,7 @@ pub use waiting::{wait_for_event, wait_for_finalized_block};
 mod account;
 mod balances;
 mod debug;
+mod elections;
 mod fee;
 mod multisig;
 mod rpc;
@@ -77,6 +83,7 @@ impl FromStr for WsRpcClient {
 }
 
 pub type BlockNumber = u32;
+pub type Hash = H256;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type KeyPair = sr25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
@@ -98,6 +105,18 @@ pub trait AnyConnection: Clone + Send {
         })
     }
 
+    /// Reads value from storage. Panics if it couldn't be read.
+    fn read_storage_value_from_block<T: Decode>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+        block_hash: Option<H256>,
+    ) -> Option<T> {
+        self.as_connection()
+            .get_storage_value(pallet, key, block_hash)
+            .unwrap_or_else(|e| panic!("Unable to retrieve a storage value: {}", e))
+    }
+
     /// Reads value from storage. In case value is `None` or couldn't have been decoded, result of
     /// `fallback` is returned.
     fn read_storage_value_or_else<F: FnOnce() -> T, T: Decode>(
@@ -106,14 +125,7 @@ pub trait AnyConnection: Clone + Send {
         key: &'static str,
         fallback: F,
     ) -> T {
-        self.as_connection()
-            .get_storage_value(pallet, key, None)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Key `{}::{}` should be present in storage, error {:?}",
-                    pallet, key, e
-                )
-            })
+        self.read_storage_value_from_block(pallet, key, None)
             .unwrap_or_else(fallback)
     }
 

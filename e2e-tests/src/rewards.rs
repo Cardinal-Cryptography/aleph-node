@@ -1,17 +1,21 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
-    get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
-    rotate_keys, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
-    RewardPoint, SessionKeys, SignedConnection,
+    account_from_keypair, change_validators, get_block_hash, get_current_session, get_era,
+    get_era_reward_points, get_era_validators, get_exposure, get_session_period,
+    get_session_validators, get_validator_block_count, rotate_keys, set_keys,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
+    AnyConnection, CommitteeSeats, EraValidators, RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
-use pallet_elections::{CommitteeSeats, LENIENT_THRESHOLD};
+use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
 use primitives::{EraIndex, SessionIndex};
 use sp_core::H256;
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
+
+use crate::{accounts::get_validators_keys, Config};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
@@ -106,20 +110,16 @@ fn check_rewards(
 
 fn get_node_performance(
     connection: &SignedConnection,
-    account_id: AccountId,
+    account_id: &AccountId,
     before_end_of_session_block_hash: H256,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
-    let block_count: u32 = connection
-        .as_connection()
-        .get_storage_map(
-            "Elections",
-            "SessionValidatorBlockCount",
-            account_id.clone(),
-            Some(before_end_of_session_block_hash),
-        )
-        .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
-        .unwrap_or(0);
+    let block_count = get_validator_block_count(
+        connection,
+        account_id,
+        Some(before_end_of_session_block_hash),
+    )
+    .unwrap_or(0);
     info!(
         "Block count for validator {} is {:?}, block hash is {}.",
         account_id, block_count, before_end_of_session_block_hash
@@ -145,6 +145,7 @@ pub fn check_points(
     era: EraIndex,
     members: impl IntoIterator<Item = AccountId> + Clone,
     members_bench: impl IntoIterator<Item = AccountId> + Clone,
+    members_per_session: u32,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let session_period = get_session_period(connection);
@@ -160,18 +161,6 @@ pub fn check_points(
     let end_of_session_block_hash = get_block_hash(connection, end_of_session_block);
     let before_end_of_session_block_hash = get_block_hash(connection, end_of_session_block - 1);
     info!("End-of-session block hash: {}.", end_of_session_block_hash);
-
-    let committee_seats: CommitteeSeats = connection
-        .as_connection()
-        .get_storage_value(
-            "Elections",
-            "CommitteeSize",
-            Some(beggining_of_session_block_hash),
-        )
-        .expect("Failed to decode CommitteeSize extrinsic!")
-        .unwrap_or_else(|| panic!("Failed to obtain CommitteeSize for session {}.", session));
-
-    let members_per_session = committee_seats.non_reserved_seats + committee_seats.reserved_seats;
 
     info!("Members per session: {}.", members_per_session);
 
@@ -214,7 +203,7 @@ pub fn check_points(
             account_id.clone(),
             get_node_performance(
                 connection,
-                account_id,
+                &account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
@@ -238,4 +227,127 @@ pub fn check_points(
         validator_reward_points_current_session,
         max_relative_difference,
     )
+}
+pub fn get_bench_members(
+    non_reserved_members: &[AccountId],
+    non_reserved_members_for_session: &[AccountId],
+) -> Vec<AccountId> {
+    non_reserved_members
+        .into_iter()
+        .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
+        .cloned()
+        .collect::<Vec<_>>()
+}
+
+pub fn get_member_accounts<C: AnyConnection>(
+    connection: &C,
+    session_index: SessionIndex,
+) -> (Vec<AccountId>, Vec<AccountId>) {
+    let validators = get_era_validators(connection, session_index);
+    (validators.reserved, validators.non_reserved)
+}
+
+fn get_non_reserved_members_for_session(
+    nodes_per_session: u32,
+    era_validators: &EraValidators<AccountId>,
+    session: SessionIndex,
+) -> Vec<AccountId> {
+    let non_reserved_len = era_validators.non_reserved.len();
+    let free_seats = nodes_per_session - u32::try_from(era_validators.reserved.len()).unwrap();
+
+    let mut non_reserved = Vec::new();
+
+    for i in (free_seats * session)..(free_seats * (session + 1)) {
+        non_reserved.push(era_validators.non_reserved[i as usize % non_reserved_len].clone());
+    }
+
+    non_reserved
+}
+
+pub fn get_era_from_session<C: AnyConnection>(connection: &C, session: SessionIndex) -> EraIndex {
+    let session_period = get_session_period(connection);
+    let block = session_period * session;
+    let block_hash = get_block_hash(connection, block);
+    get_era(connection, Some(block_hash))
+}
+
+pub fn get_members_for_session<C: AnyConnection>(
+    connection: &C,
+    members_per_session: u32,
+    era_validators: &EraValidators<AccountId>,
+    session: SessionIndex,
+) -> (Vec<AccountId>, Vec<AccountId>) {
+    let non_reserved_members_for_session =
+        get_non_reserved_members_for_session(members_per_session, era_validators, session);
+    let members_bench = get_bench_members(
+        &era_validators.non_reserved,
+        &non_reserved_members_for_session,
+    );
+    let members_active: Vec<_> = era_validators
+        .reserved
+        .iter()
+        .cloned()
+        .chain(non_reserved_members_for_session)
+        .collect();
+
+    let members_active_set: HashSet<_> = members_active.iter().cloned().collect();
+    let network_members: HashSet<_> = get_session_validators(connection, session)
+        .into_iter()
+        .collect();
+
+    assert_eq!(members_active_set, network_members);
+
+    (members_active, members_bench)
+}
+
+pub fn setup_validators(
+    config: &Config,
+) -> anyhow::Result<(EraValidators<AccountId>, u32, EraIndex)> {
+    let root_connection = config.create_root_connection();
+
+    let members: Vec<_> = get_validators_keys(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+    // let members = get_session_validators(&root_connection, 0);
+    let members_size = members.len();
+    let reserved_count = std::cmp::min(members_size / 2, 2);
+    let reserved_members = &members[0..reserved_count];
+    let non_reserved_members = &members[reserved_count..];
+
+    let reserved_seats = reserved_members.len().try_into().unwrap();
+    let non_reserved_seats = (non_reserved_members.len() - 1).try_into().unwrap();
+    let members_per_session = reserved_seats + non_reserved_seats;
+
+    change_validators(
+        &root_connection,
+        Some(reserved_members.into()),
+        Some(non_reserved_members.into()),
+        Some(CommitteeSeats {
+            reserved_seats,
+            non_reserved_seats,
+        }),
+        XtStatus::InBlock,
+    );
+
+    let era = wait_for_full_era_completion(&root_connection)?;
+    let session = get_current_session(&root_connection);
+
+    let era_validators = EraValidators {
+        reserved: reserved_members.to_vec(),
+        non_reserved: non_reserved_members.to_vec(),
+    };
+    let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
+    let network_members: HashSet<_> = get_session_validators(&root_connection, session)
+        .into_iter()
+        .collect();
+    let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
+    let network_reserved: HashSet<_> = network_reserved.into_iter().collect();
+    let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();
+    let network_non_reserved: HashSet<_> = network_non_reserved.into_iter().collect();
+
+    assert_eq!(reserved, network_reserved);
+    assert_eq!(non_reserved, network_non_reserved);
+
+    Ok((era_validators, members_per_session, era))
 }

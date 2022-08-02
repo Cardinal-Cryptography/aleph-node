@@ -8,7 +8,8 @@ use substrate_api_client::{
 };
 
 use crate::{
-    send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection, SignedConnection,
+    get_block_hash, send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection,
+    SignedConnection,
 };
 
 // Using custom struct and rely on default Encode trait from Parity's codec
@@ -137,4 +138,16 @@ pub fn wait_for_at_least<C: AnyConnection>(
 
 pub fn get_session_period<C: AnyConnection>(connection: &C) -> u32 {
     connection.read_constant("Elections", "SessionPeriod")
+}
+
+pub fn get_session_validators<C: AnyConnection>(
+    connection: &C,
+    session_index: SessionIndex,
+) -> Vec<AccountId> {
+    let session_period = get_session_period(connection);
+    let block_number = session_period * session_index;
+    let block_hash = get_block_hash(connection, block_number);
+    connection
+        .read_storage_value_from_block("Session", "Validators", Some(block_hash))
+        .expect("Session/Validators should be set some value")
 }

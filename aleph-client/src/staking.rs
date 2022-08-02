@@ -112,7 +112,7 @@ pub fn wait_for_next_era<C: AnyConnection>(connection: &C) -> anyhow::Result<Era
     wait_for_era_completion(connection, get_current_era(connection) + 1)
 }
 
-fn wait_for_era_completion<C: AnyConnection>(
+pub fn wait_for_era_completion<C: AnyConnection>(
     connection: &C,
     next_era_index: EraIndex,
 ) -> anyhow::Result<EraIndex> {
