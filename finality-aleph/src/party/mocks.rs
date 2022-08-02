@@ -3,9 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use aleph_primitives::SessionAuthorityData;
 use async_trait::async_trait;
-use sp_runtime::testing::UintAuthorityId;
 
 use crate::{
     oneshot,
@@ -13,9 +11,7 @@ use crate::{
         backup::ABFTBackup,
         manager::AuthorityTask,
         traits::{Block, ChainState, NodeSessionManager, SessionInfo, SyncState},
-        ConsensusParty, ConsensusPartyParams,
     },
-    session_map::SharedSessionMap,
     AuthorityId, NodeIndex, SessionId,
 };
 
@@ -47,24 +43,24 @@ impl MockChainState {
     }
 
     pub fn set_finalized_block(&self, finalized_block: u32) {
-        *self.best_block.lock().unwrap() = finalized_block;
+        *self.finalized_block.lock().unwrap() = finalized_block;
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct MockSyncState {
-    pub is_syncing: AMutex<bool>,
+    pub _is_syncing: AMutex<bool>,
 }
 
 impl MockSyncState {
     pub fn new() -> Self {
         Self {
-            is_syncing: Arc::new(Mutex::new(false)),
+            _is_syncing: Arc::new(Mutex::new(false)),
         }
     }
 
-    pub fn set_is_syncing(&self, is_syncing: bool) {
-        *self.is_syncing.lock().unwrap() = is_syncing;
+    pub fn _set_is_syncing(&self, is_syncing: bool) {
+        *self._is_syncing.lock().unwrap() = is_syncing;
     }
 }
 
@@ -74,7 +70,7 @@ pub struct MockNodeSessionManager {
     pub validator_session_started: AMutex<HashSet<SessionId>>,
     pub session_stopped: AMutex<HashSet<SessionId>>,
     pub session_early_started: AMutex<HashSet<SessionId>>,
-    pub node_id: AMutex<Option<NodeIndex>>,
+    pub node_id: AMutex<Option<AuthorityId>>,
 }
 
 impl MockNodeSessionManager {
@@ -88,7 +84,7 @@ impl MockNodeSessionManager {
         }
     }
 
-    pub fn set_node_id(&self, node_id: Option<NodeIndex>) {
+    pub fn set_node_id(&self, node_id: Option<AuthorityId>) {
         *self.node_id.lock().unwrap() = node_id;
     }
 }
@@ -99,7 +95,7 @@ pub struct MockSessionInfo {
 
 impl MockSessionInfo {
     pub fn new() -> Self {
-        Self { session_period: 90 }
+        Self { session_period: 30 }
     }
 }
 
@@ -115,7 +111,7 @@ impl ChainState<SimpleBlock> for Arc<MockChainState> {
 
 impl SyncState<SimpleBlock> for Arc<MockSyncState> {
     fn is_major_syncing(&self) -> bool {
-        *self.is_syncing.lock().unwrap()
+        *self._is_syncing.lock().unwrap()
     }
 }
 
@@ -171,8 +167,19 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         Ok(())
     }
 
-    async fn node_idx(&self, _authorities: &[AuthorityId]) -> Option<NodeIndex> {
-        *self.node_id.lock().unwrap()
+    async fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex> {
+        let id = &*self.node_id.lock().unwrap();
+
+        if let Some(id) = id {
+            if authorities.contains(id) {
+                // doesnt mather for tests what nodeindex we are
+                return Some(NodeIndex(0));
+            }
+
+            return None;
+        }
+
+        None
     }
 }
 
