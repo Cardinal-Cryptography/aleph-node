@@ -73,6 +73,21 @@ impl Default for CommitteeSeats {
     }
 }
 
+#[derive(Decode, Encode, TypeInfo, Eq, PartialEq)]
+pub struct EraValidators<AccountId> {
+    pub reserved: Vec<AccountId>,
+    pub non_reserved: Vec<AccountId>,
+}
+
+impl<AccountId> Default for EraValidators<AccountId> {
+    fn default() -> Self {
+        Self {
+            reserved: vec![],
+            non_reserved: vec![],
+        }
+    }
+}
+
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
 pub enum ApiError {
     DecodeKey,

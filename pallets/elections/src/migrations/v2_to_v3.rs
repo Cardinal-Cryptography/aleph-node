@@ -5,13 +5,13 @@ use frame_support::{
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
-use primitives::CommitteeSeats;
+use primitives::{CommitteeSeats, EraValidators};
 
 #[cfg(feature = "try-runtime")]
 use crate::migrations::ensure_storage_version;
 use crate::{
     migrations::{StorageMigration, Validators},
-    Config, EraValidators,
+    Config,
 };
 
 // V2 storages

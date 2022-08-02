@@ -33,21 +33,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 pub type BlockCount = u32;
 pub type TotalReward = u32;
 
-#[derive(Decode, Encode, TypeInfo, Eq, PartialEq)]
-pub struct EraValidators<AccountId> {
-    pub reserved: Vec<AccountId>,
-    pub non_reserved: Vec<AccountId>,
-}
-
-impl<AccountId> Default for EraValidators<AccountId> {
-    fn default() -> Self {
-        Self {
-            reserved: vec![],
-            non_reserved: vec![],
-        }
-    }
-}
-
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
@@ -62,7 +47,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::CommitteeSeats;
+    use primitives::{CommitteeSeats, EraValidators};
 
     use super::*;
     use crate::{
