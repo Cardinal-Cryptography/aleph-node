@@ -23,7 +23,8 @@ struct Config {
     pub node: String,
 
     /// The seed of the key to use for signing calls
-    /// If not given, a user is prompted to provide seed
+    /// If not given and the command is not rpc call,
+    /// a user is prompted to provide seed
     #[clap(long)]
     pub seed: Option<String>,
 
