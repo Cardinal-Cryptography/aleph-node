@@ -56,12 +56,12 @@ fn main() {
     } = Config::parse();
 
     let seed = match command {
-        Command::Finalize { block: _, hash: _, finalizer_seed: _} => {
-            String::new()
-        }
-        _ => {
-            read_secret(seed, "Provide seed for the signer account:")
-        }
+        Command::Finalize {
+            block: _,
+            hash: _,
+            finalizer_seed: _,
+        } => String::new(),
+        _ => read_secret(seed, "Provide seed for the signer account:"),
     };
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
