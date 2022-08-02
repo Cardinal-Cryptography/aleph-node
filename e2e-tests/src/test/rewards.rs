@@ -11,7 +11,7 @@ use substrate_api_client::{AccountId, XtStatus};
 use crate::{
     accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
     rewards::{
-        check_points, get_era_from_session, get_members_for_session, reset_validator_keys,
+        check_points, get_era_for_session, get_members_for_session, reset_validator_keys,
         set_invalid_keys_for_validator, setup_validators,
     },
     Config,
@@ -132,7 +132,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
         let (members_active, members_bench) =
             get_members_for_session(&connection, committee_size, &era_validators, session);
 
-        let era = get_era_from_session(&connection, session);
+        let era = get_era_for_session(&connection, session);
 
         check_points(
             &connection,
@@ -232,7 +232,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
             session,
         );
 
-        let era = get_era_from_session(&controller_connection, session);
+        let era = get_era_for_session(&controller_connection, session);
 
         check_points(
             &controller_connection,
