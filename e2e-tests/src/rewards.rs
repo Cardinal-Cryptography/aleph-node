@@ -5,7 +5,7 @@ use aleph_client::{
     get_era_reward_points, get_era_validators, get_exposure, get_session_period,
     get_session_validators, get_validator_block_count, rotate_keys, set_keys,
     wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
-    AnyConnection, CommitteeSeats, EraValidators, RewardPoint, SessionKeys, SignedConnection,
+    AnyConnection, EraValidators, RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
@@ -338,9 +338,6 @@ pub fn setup_validators(
         non_reserved: non_reserved_members.to_vec(),
     };
     let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
-    let network_members: HashSet<_> = get_session_validators(&root_connection, session)
-        .into_iter()
-        .collect();
     let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
     let network_reserved: HashSet<_> = network_reserved.into_iter().collect();
     let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();

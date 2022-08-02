@@ -11,8 +11,8 @@ use substrate_api_client::{AccountId, XtStatus};
 use crate::{
     accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
     rewards::{
-        check_points, get_era_from_session, get_member_accounts, get_members_for_session,
-        reset_validator_keys, set_invalid_keys_for_validator, setup_validators,
+        check_points, get_era_from_session, get_members_for_session, reset_validator_keys,
+        set_invalid_keys_for_validator, setup_validators,
     },
     Config,
 };
@@ -206,7 +206,6 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
     let root_connection = config.create_root_connection();
     let sessions_per_era = get_sessions_per_era(&root_connection);
-    let (reserved_members, non_reserved_members) = get_member_accounts(&root_connection, 0);
 
     let start_session = era * sessions_per_era;
 
