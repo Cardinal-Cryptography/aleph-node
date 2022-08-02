@@ -82,8 +82,8 @@ pub struct EraValidators<AccountId> {
 impl<AccountId> Default for EraValidators<AccountId> {
     fn default() -> Self {
         Self {
-            reserved: vec![],
-            non_reserved: vec![],
+            reserved: Vec::new(),
+            non_reserved: Vec::new(),
         }
     }
 }
