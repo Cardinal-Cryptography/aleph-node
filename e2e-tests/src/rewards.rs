@@ -10,7 +10,7 @@ use aleph_client::{
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
-use primitives::{EraIndex, SessionIndex};
+use primitives::{CommitteeSeats, EraIndex, SessionIndex};
 use sp_core::H256;
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
