@@ -94,7 +94,6 @@ impl FromStr for WsRpcClient {
 }
 
 pub type BlockNumber = u32;
-pub type Hash = H256;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type BlockHash = <Header as HeaderT>::Hash;
 pub type KeyPair = sr25519::Pair;
