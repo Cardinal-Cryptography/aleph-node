@@ -7,9 +7,8 @@ use codec::{Decode, Encode};
 pub use debug::print_storages;
 pub use elections::{
     get_committee_seats, get_current_era_non_reserved_validators,
-    get_current_era_reserved_validators,
-    get_next_era_non_reserved_validators, get_next_era_reserved_validators,
-    get_validator_block_count,
+    get_current_era_reserved_validators, get_next_era_non_reserved_validators,
+    get_next_era_reserved_validators, get_validator_block_count,
 };
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
@@ -418,7 +417,7 @@ pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: BlockNumbe
         })
 }
 
-pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> u32 {
+pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> BlockNumber {
     connection
         .as_connection()
         .get_header::<Header>(None)

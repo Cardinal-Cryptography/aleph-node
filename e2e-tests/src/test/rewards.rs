@@ -22,6 +22,11 @@ use crate::{
 // retrieved from pallet Staking.
 const MAX_DIFFERENCE: f64 = 0.07;
 
+const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
+    reserved_seats: 2,
+    non_reserved_seats: 2,
+};
+
 fn get_reserved_members(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
 }
@@ -74,10 +79,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(CommitteeSeats {
-            reserved_seats: 2,
-            non_reserved_seats: 2,
-        }),
+        Some(COMMITTEE_SEATS),
         XtStatus::Finalized,
     );
 
@@ -126,10 +128,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(CommitteeSeats {
-            reserved_seats: 2,
-            non_reserved_seats: 2,
-        }),
+        Some(COMMITTEE_SEATS),
         XtStatus::Finalized,
     );
 
@@ -192,10 +191,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(CommitteeSeats {
-            reserved_seats: 2,
-            non_reserved_seats: 2,
-        }),
+        Some(COMMITTEE_SEATS),
         XtStatus::Finalized,
     );
 
@@ -257,10 +253,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(CommitteeSeats {
-            reserved_seats: 2,
-            non_reserved_seats: 2,
-        }),
+        Some(COMMITTEE_SEATS),
         XtStatus::Finalized,
     );
 
@@ -308,10 +301,7 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         Some(reserved_members.clone()),
         Some(non_reserved_members.clone()),
-        Some(CommitteeSeats {
-            reserved_seats: 2,
-            non_reserved_seats: 2,
-        }),
+        Some(COMMITTEE_SEATS),
         XtStatus::Finalized,
     );
 

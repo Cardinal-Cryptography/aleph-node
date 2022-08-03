@@ -3,7 +3,8 @@ use aleph_client::{
     wait_for_next_era, wait_for_session, AnyConnection,
 };
 use primitives::{
-    staking::era_payout, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK,
+    staking::era_payout, Balance, EraIndex, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+    MILLISECS_PER_BLOCK,
 };
 use substrate_api_client::XtStatus;
 
@@ -16,7 +17,7 @@ pub fn era_payouts_calculated_correctly(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn payout_within_two_block_delta(expected_payout: u128, payout: u128) {
+fn payout_within_two_block_delta(expected_payout: Balance, payout: Balance) {
     let one_block = era_payout(2 * MILLISECS_PER_BLOCK).0;
 
     let start = expected_payout - one_block;
@@ -29,7 +30,7 @@ fn payout_within_two_block_delta(expected_payout: u128, payout: u128) {
     );
 }
 
-fn wait_to_second_era<C: AnyConnection>(connection: &C) -> u32 {
+fn wait_to_second_era<C: AnyConnection>(connection: &C) -> EraIndex {
     let current_era = get_current_era(connection);
     if current_era < 2 {
         wait_for_next_era(connection).expect("Era is active");

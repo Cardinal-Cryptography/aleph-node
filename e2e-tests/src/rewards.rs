@@ -56,8 +56,8 @@ pub fn download_exposure(
     era: EraIndex,
     account_id: &AccountId,
     beginning_of_session_block_hash: H256,
-) -> u128 {
-    let exposure: Exposure<AccountId, u128> = get_exposure(
+) -> Balance {
+    let exposure: Exposure<AccountId, Balance> = get_exposure(
         connection,
         era,
         account_id,
