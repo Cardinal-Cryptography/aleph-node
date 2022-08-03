@@ -1,13 +1,14 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use codec::{Compact, Decode, Encode};
 use frame_support::BoundedVec;
+use log::info;
 use pallet_staking::{
     Exposure, MaxUnlockingChunks, RewardDestination, UnlockChunk, ValidatorPrefs,
 };
 use primitives::EraIndex;
 use rayon::prelude::*;
-use sp_core::{Pair, H256};
+use sp_core::{storage::StorageKey, Pair, H256};
 use sp_runtime::Perbill;
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, Balance, ExtrinsicParams, GenericAddress, XtStatus,
@@ -348,4 +349,81 @@ pub fn get_era_reward_points<C: AnyConnection>(
                 era, block_hash, e
             )
         })
+}
+
+pub fn get_stakers_as_storage_keys<C: AnyConnection>(
+    connection: &C,
+    accounts: &[AccountId],
+    era: EraIndex,
+) -> BTreeSet<StorageKey> {
+    accounts
+        .iter()
+        .map(|acc| {
+            connection
+                .as_connection()
+                .metadata
+                .storage_double_map_key("Staking", "ErasStakers", era, acc)
+                .unwrap()
+        })
+        .collect()
+}
+
+/// Produce storage key to `ErasStakers::era`.
+///
+/// Since in `substrate-api-client` it seems impossible to get prefix for the first key in double
+/// map, we have to do it by hand.
+pub fn get_eras_stakers_storage_key(era: EraIndex) -> StorageKey {
+    let mut bytes = sp_core::twox_128("Staking".as_bytes()).to_vec();
+    bytes.extend(&sp_core::twox_128("ErasStakers".as_bytes())[..]);
+
+    let era_encoded = codec::Encode::encode(&era);
+    // `pallet_staking::ErasStakers`'s keys are `Twox64Concat`-encoded.
+    let era_key: Vec<u8> = sp_core::twox_64(&era_encoded)
+        .iter()
+        .chain(&era_encoded)
+        .cloned()
+        .collect();
+    bytes.extend(era_key);
+
+    StorageKey(bytes)
+}
+
+/// Get `ErasStakers` as `StorageKey`s based on the manually produced first `StorageKey` in the double map.
+pub fn get_stakers_as_storage_keys_from_storage_key<C: AnyConnection>(
+    connection: &C,
+    current_era: EraIndex,
+    storage_key: StorageKey,
+) -> BTreeSet<StorageKey> {
+    let stakers = connection
+        .as_connection()
+        .get_keys(storage_key, None)
+        .unwrap_or_else(|_| panic!("Couldn't read storage keys"))
+        .unwrap_or_else(|| panic!("Couldn't read `ErasStakers` for era {}", current_era))
+        .into_iter()
+        .map(|key| {
+            let mut bytes = [0u8; 84];
+            hex::decode_to_slice(&key[2..], &mut bytes as &mut [u8]).expect("Should decode key");
+            StorageKey(bytes.to_vec())
+        });
+    BTreeSet::from_iter(stakers)
+}
+
+/// Chill validator.
+pub fn chill_validator(connection: &SignedConnection) {
+    let xt = compose_extrinsic!(connection.as_connection(), "Staking", "chill");
+    send_xt(
+        connection,
+        xt,
+        Some("chilling validator"),
+        XtStatus::InBlock,
+    );
+}
+
+/// Chill all validators in `chilling`.
+pub fn chill_all_validators(node: &str, chilling: Vec<KeyPair>) {
+    for validator in chilling.into_iter() {
+        info!("Chilling validator {:?}", validator.public());
+        let connection = SignedConnection::new(node, validator);
+        chill_validator(&connection);
+    }
 }

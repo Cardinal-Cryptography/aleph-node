@@ -7,7 +7,8 @@ use substrate_api_client::{
 };
 
 use crate::{
-    send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection, SignedConnection,
+    get_block_hash, send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, RootConnection,
+    SignedConnection,
 };
 
 // Using custom struct and rely on default Encode trait from Parity's codec
@@ -144,16 +145,15 @@ pub fn get_authorities_for_session<C: AnyConnection>(
     session_period: u32,
 ) -> Vec<AccountId> {
     let first_block = session_period * session;
-
-    let block = connection
-        .as_connection()
-        .get_block_hash(Some(first_block))
-        .expect("Api call should succeed")
-        .expect("Session already started so the first block should be present");
+    let block = get_block_hash(connection, first_block);
 
     connection
         .as_connection()
         .get_storage_value("Session", "Validators", Some(block))
-        .expect("Api call should succeed")
+        .expect("Failed to decode Validators extrinsic!")
         .expect("Authorities should always be present")
+}
+
+pub fn get_current_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId> {
+    connection.read_storage_value("Session", "Validators")
 }
