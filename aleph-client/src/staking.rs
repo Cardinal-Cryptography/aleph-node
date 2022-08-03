@@ -131,7 +131,7 @@ pub fn get_era<C: AnyConnection>(connection: &C, block: Option<H256>) -> EraInde
     connection
         .as_connection()
         .get_storage_value("Staking", "ActiveEra", block)
-        .expect("Failed to decode ActiveEra extrinsic!")
+        .expect("Failed to obtain ActiveEra extrinsic!")
         .expect("ActiveEra is empty in the storage!")
 }
 
@@ -304,7 +304,7 @@ pub fn get_payout_for_era<C: AnyConnection>(connection: &C, era: EraIndex) -> u1
     connection
         .as_connection()
         .get_storage_map("Staking", "ErasValidatorReward", era, None)
-        .expect("Failed to decode ErasValidatorReward")
+        .expect("Failed to obtain ErasValidatorReward")
         .expect("ErasValidatoReward is empty in the storage")
 }
 
@@ -317,8 +317,8 @@ pub fn get_exposure<C: AnyConnection>(
     connection
         .as_connection()
         .get_storage_double_map("Staking", "ErasStakers", era, account_id, block_hash)
-        .expect("Failed to decode ErasStakers extrinsic!")
-        .unwrap_or_else(|| panic!("Failed to obtain ErasStakers for era {}.", era))
+        .expect("Failed to obtain ErasStakers extrinsic!")
+        .unwrap_or_else(|| panic!("Failed to decode ErasStakers for era {}.", era))
 }
 
 pub type RewardPoint = u32;

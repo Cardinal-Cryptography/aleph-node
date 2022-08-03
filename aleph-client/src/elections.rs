@@ -5,17 +5,19 @@ use substrate_api_client::AccountId;
 
 use crate::{AnyConnection, SignedConnection};
 
+const PALLET: &str = "Elections";
+
 pub fn get_committee_seats<C: AnyConnection>(
     connection: &C,
     block_hash: Option<H256>,
 ) -> CommitteeSeats {
     connection
         .as_connection()
-        .get_storage_value("Elections", "CommitteeSize", block_hash)
-        .expect("Failed to decode CommitteeSize extrinsic!")
+        .get_storage_value(PALLET, "CommitteeSize", block_hash)
+        .expect("Failed to obtain CommitteeSize extrinsic!")
         .unwrap_or_else(|| {
             panic!(
-                "Failed to obtain CommitteeSize for block hash: {:?}.",
+                "Failed to decode CommitteeSize for block hash: {:?}.",
                 block_hash
             )
         })
@@ -29,12 +31,12 @@ pub fn get_validator_block_count<C: AnyConnection>(
     connection
         .as_connection()
         .get_storage_map(
-            "Elections",
+            PALLET,
             "SessionValidatorBlockCount",
             account_id,
             block_hash,
         )
-        .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
+        .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
 }
 
 #[derive(Decode)]
@@ -45,7 +47,7 @@ pub struct EraValidators {
 
 pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators =
-        connection.read_storage_value("Elections", "CurrentEraValidators");
+        connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators
         .reserved
         .into_iter()
@@ -55,20 +57,20 @@ pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountI
 
 pub fn get_current_era_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators =
-        connection.read_storage_value("Elections", "CurrentEraValidators");
+        connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.reserved
 }
 
 pub fn get_current_era_non_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators =
-        connection.read_storage_value("Elections", "CurrentEraValidators");
+        connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.non_reserved
 }
 
 pub fn get_next_era_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
-    connection.read_storage_value("Elections", "NextEraReservedValidators")
+    connection.read_storage_value(PALLET, "NextEraReservedValidators")
 }
 
 pub fn get_next_era_non_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
-    connection.read_storage_value("Elections", "NextEraNonReservedValidators")
+    connection.read_storage_value(PALLET, "NextEraNonReservedValidators")
 }
