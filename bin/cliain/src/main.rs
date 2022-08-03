@@ -22,7 +22,7 @@ struct Config {
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
 
-    /// The seed of the key to use for signing calls
+    /// The seed of the key to use for signing calls.
     /// If not given and the command is not rpc call,
     /// a user is prompted to provide seed
     #[clap(long)]

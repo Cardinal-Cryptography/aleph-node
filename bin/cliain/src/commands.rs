@@ -126,7 +126,7 @@ pub enum Command {
         #[clap(long)]
         hash: String,
 
-        /// The seed of the key to use as emergency finalizer key
+        /// The seed of the key to use as emergency finalizer key.
         /// If not given, a user is prompted to provide finalizer seed
         #[clap(long)]
         finalizer_seed: Option<String>,
@@ -134,7 +134,7 @@ pub enum Command {
 
     /// Sets seed as the emergency finalizer. Requires sudo.
     SetEmergencyFinalizer {
-        /// The seed of the key to use as emergency finalizer key
+        /// The seed of the key to use as emergency finalizer key.
         /// If not given, a user is prompted to provide finalizer seed
         #[clap(long)]
         finalizer_seed: Option<String>,
@@ -162,9 +162,10 @@ pub enum Command {
 
     /// Command to convert given seed to SS58 Account id
     SeedToSS58 {
-        /// Seed which will be converted
+        /// Seed which will be converted.
+        /// If not given, a user is prompted to provide finalizer seed
         #[clap(long)]
-        input: String,
+        input: Option<String>,
     },
 
     /// Sets lower bound for nominator and validator. Requires root account.
