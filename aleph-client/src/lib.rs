@@ -9,7 +9,7 @@ pub use elections::{
     get_committee_seats, get_current_era_non_reserved_validators,
     get_current_era_reserved_validators, get_current_era_validators,
     get_next_era_non_reserved_validators, get_next_era_reserved_validators,
-    get_validator_block_count, EraValidators,
+    get_validator_block_count,
 };
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;

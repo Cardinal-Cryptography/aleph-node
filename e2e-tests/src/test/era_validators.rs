@@ -28,20 +28,18 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
 
 fn get_current_and_next_era_reserved_validators(
     connection: &SignedConnection,
-) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_reserved = get_next_era_reserved_validators(connection)?;
-    let current_reserved = get_current_era_reserved_validators(connection)?;
-
-    Ok((current_reserved, stored_reserved))
+) -> (Vec<AccountId>, Vec<AccountId>) {
+    let stored_reserved = get_next_era_reserved_validators(connection);
+    let current_reserved = get_current_era_reserved_validators(connection);
+    (current_reserved, stored_reserved)
 }
 
 fn get_current_and_next_era_non_reserved_validators(
     connection: &SignedConnection,
-) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let stored_non_reserved = get_next_era_non_reserved_validators(connection)?;
-    let current_non_reserved = get_current_era_non_reserved_validators(connection)?;
-
-    Ok((current_non_reserved, stored_non_reserved))
+) -> (Vec<AccountId>, Vec<AccountId>) {
+    let stored_non_reserved = get_next_era_non_reserved_validators(connection);
+    let current_non_reserved = get_current_era_non_reserved_validators(connection);
+    (current_non_reserved, stored_non_reserved)
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {
@@ -94,9 +92,9 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     wait_for_session(&connection, current_session + 1)?;
 
     let (eras_reserved, stored_reserved) =
-        get_current_and_next_era_reserved_validators(&connection)?;
+        get_current_and_next_era_reserved_validators(&connection);
     let (eras_non_reserved, stored_non_reserved) =
-        get_current_and_next_era_non_reserved_validators(&connection)?;
+        get_current_and_next_era_non_reserved_validators(&connection);
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -119,9 +117,9 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     wait_for_next_era(&connection)?;
 
     let (eras_reserved, stored_reserved) =
-        get_current_and_next_era_reserved_validators(&connection)?;
+        get_current_and_next_era_reserved_validators(&connection);
     let (eras_non_reserved, stored_non_reserved) =
-        get_current_and_next_era_non_reserved_validators(&connection)?;
+        get_current_and_next_era_non_reserved_validators(&connection);
 
     assert_eq!(
         stored_reserved, new_reserved_validators,

@@ -1,4 +1,4 @@
-use codec::Decode;
+use pallet_elections::EraValidators;
 use primitives::CommitteeSeats;
 use sp_core::H256;
 use substrate_api_client::AccountId;
@@ -34,14 +34,8 @@ pub fn get_validator_block_count<C: AnyConnection>(
         .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
 }
 
-#[derive(Decode)]
-pub struct EraValidators {
-    pub reserved: Vec<AccountId>,
-    pub non_reserved: Vec<AccountId>,
-}
-
 pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators =
+    let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators
         .reserved
@@ -51,13 +45,13 @@ pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountI
 }
 
 pub fn get_current_era_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators =
+    let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.reserved
 }
 
 pub fn get_current_era_non_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators =
+    let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.non_reserved
 }
