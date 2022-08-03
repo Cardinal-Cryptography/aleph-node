@@ -128,6 +128,7 @@ fn main() {
             force_new_era(cfg.into());
         }
         Command::SeedToSS58 { input } => info!(
+            let input = read_secret(input, "Provide seed:");
             "SS58 Address: {}",
             keypair_from_string(&input).public().to_string()
         ),
