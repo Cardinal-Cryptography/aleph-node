@@ -161,7 +161,11 @@ pub enum Command {
     },
 
     /// Command to convert given seed to SS58 Account id
-    SeedToSS58,
+    SeedToSS58 {
+        /// Seed which will be converted
+        #[clap(long)]
+        input: String,
+    },
 
     /// Sets lower bound for nominator and validator. Requires root account.
     SetStakingLimits {

@@ -60,7 +60,10 @@ fn main() {
             block: _,
             hash: _,
             finalizer_seed: _,
-        } => String::new(),
+        }
+        | Command::RotateKeys
+        | Command::DebugStorage
+        | Command::SeedToSS58 { input: _ } => String::new(),
         _ => read_secret(seed, "Provide seed for the signer account:"),
     };
     let cfg = ConnectionConfig::new(node, seed.clone());
@@ -120,9 +123,9 @@ fn main() {
         Command::ForceNewEra => {
             force_new_era(cfg.into());
         }
-        Command::SeedToSS58 => info!(
+        Command::SeedToSS58 { input } => info!(
             "SS58 Address: {}",
-            keypair_from_string(&seed).public().to_string()
+            keypair_from_string(&input).public().to_string()
         ),
         Command::DebugStorage => print_storages::<SignedConnection>(&cfg.into()),
         Command::UpdateRuntime { runtime } => update_runtime(cfg.into(), runtime),
