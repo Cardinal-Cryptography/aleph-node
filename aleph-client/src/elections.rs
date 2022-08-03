@@ -34,7 +34,7 @@ pub fn get_validator_block_count<C: AnyConnection>(
         .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
 }
 
-pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountId> {
+pub fn get_current_era_validators(connection: &AnyConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators
@@ -44,22 +44,22 @@ pub fn get_current_era_validators(connection: &SignedConnection) -> Vec<AccountI
         .collect()
 }
 
-pub fn get_current_era_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
+pub fn get_current_era_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.reserved
 }
 
-pub fn get_current_era_non_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
+pub fn get_current_era_non_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
     let eras_validators: EraValidators<AccountId> =
         connection.read_storage_value(PALLET, "CurrentEraValidators");
     eras_validators.non_reserved
 }
 
-pub fn get_next_era_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
+pub fn get_next_era_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
     connection.read_storage_value(PALLET, "NextEraReservedValidators")
 }
 
-pub fn get_next_era_non_reserved_validators(connection: &SignedConnection) -> Vec<AccountId> {
+pub fn get_next_era_non_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
     connection.read_storage_value(PALLET, "NextEraNonReservedValidators")
 }
