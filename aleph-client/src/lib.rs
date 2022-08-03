@@ -17,6 +17,7 @@ pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
+pub use primitives::{BlockHash, BlockNumber, Header};
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_authorities_for_session,
@@ -25,10 +26,6 @@ pub use session::{
     Keys as SessionKeys,
 };
 use sp_core::{ed25519, sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{
-    generic::Header as GenericHeader,
-    traits::{BlakeTwo256, Header as HeaderT},
-};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
     bond as staking_bond, bonded as staking_bonded,
@@ -92,9 +89,6 @@ impl FromStr for WsRpcClient {
     }
 }
 
-pub type BlockNumber = u32;
-pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
-pub type BlockHash = <Header as HeaderT>::Hash;
 pub type KeyPair = sr25519::Pair;
 pub type AlephKeyPair = ed25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;

@@ -10,8 +10,7 @@ use aleph_client::{
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
-use primitives::{Balance, EraIndex, SessionIndex, TOKEN};
-use sp_core::H256;
+use primitives::{Balance, BlockHash, EraIndex, SessionIndex, TOKEN};
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -55,7 +54,7 @@ pub fn download_exposure(
     connection: &SignedConnection,
     era: EraIndex,
     account_id: &AccountId,
-    beginning_of_session_block_hash: H256,
+    beginning_of_session_block_hash: BlockHash,
 ) -> Balance {
     let exposure: Exposure<AccountId, Balance> = get_exposure(
         connection,
@@ -77,8 +76,8 @@ pub fn download_exposure(
 }
 
 fn check_rewards(
-    validator_reward_points: HashMap<AccountId, f64>,
-    retrieved_reward_points: HashMap<AccountId, u32>,
+    validator_reward_points: HashMap<&AccountId, f64>,
+    retrieved_reward_points: HashMap<&AccountId, u32>,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let our_sum: f64 = validator_reward_points
@@ -114,7 +113,7 @@ fn check_rewards(
 fn get_node_performance(
     connection: &SignedConnection,
     account_id: &AccountId,
-    before_end_of_session_block_hash: H256,
+    before_end_of_session_block_hash: BlockHash,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
     let block_count = get_validator_block_count(
@@ -142,12 +141,12 @@ fn get_node_performance(
     lenient_performance
 }
 
-pub fn check_points(
+pub fn check_points<'a>(
     connection: &SignedConnection,
     session: SessionIndex,
     era: EraIndex,
-    members: impl IntoIterator<Item = AccountId> + Clone,
-    members_bench: impl IntoIterator<Item = AccountId> + Clone,
+    members: impl IntoIterator<Item = &'a AccountId> + Clone,
+    members_bench: impl IntoIterator<Item = &'a AccountId> + Clone,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let session_period = get_session_period(connection);
@@ -186,9 +185,9 @@ pub fn check_points(
             .unwrap_or_default()
             .individual;
 
-    let validator_reward_points_current_session: HashMap<AccountId, RewardPoint> =
+    let validator_reward_points_current_session: HashMap<&AccountId, RewardPoint> =
         validator_reward_points_current_era
-            .into_iter()
+            .iter()
             .map(|(account_id, reward_points)| {
                 let reward_points_previous_session = validator_reward_points_previous_session
                     .get(&account_id)
@@ -205,10 +204,10 @@ pub fn check_points(
 
     let members_uptime = members.into_iter().map(|account_id| {
         (
-            account_id.clone(),
+            account_id,
             get_node_performance(
                 connection,
-                &account_id,
+                account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
@@ -233,10 +232,10 @@ pub fn check_points(
         max_relative_difference,
     )
 }
-pub fn get_bench_members(
-    non_reserved_members: Vec<AccountId>,
+pub fn get_bench_members<'a>(
+    non_reserved_members: &'a [AccountId],
     non_reserved_members_for_session: &[AccountId],
-) -> Vec<AccountId> {
+) -> Vec<&'a AccountId> {
     non_reserved_members
         .into_iter()
         .filter(|account_id| !non_reserved_members_for_session.contains(account_id))

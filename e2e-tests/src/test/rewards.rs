@@ -94,13 +94,8 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 
     for session in start_new_era_session..end_new_era_session {
         let non_reserved_for_session = get_non_reserved_members_for_session(config, session);
-        let members_bench =
-            get_bench_members(non_reserved_members.clone(), &non_reserved_for_session);
-        let members_active = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_for_session)
-            .collect::<Vec<_>>();
+        let members_bench = get_bench_members(&non_reserved_members, &non_reserved_for_session);
+        let members_active = reserved_members.iter().chain(&non_reserved_for_session);
 
         check_points(
             &connection,
@@ -156,15 +151,11 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     for session in start_era_session..end_era_session {
         let non_reserved_members_for_session =
             get_non_reserved_members_for_session(config, session);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_members_for_session,
-        );
+        let members_bench =
+            get_bench_members(&non_reserved_members, &non_reserved_members_for_session);
         let members_active = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_members_for_session)
-            .collect::<Vec<_>>();
+            .iter()
+            .chain(&non_reserved_members_for_session);
 
         check_points(
             &connection,
@@ -215,14 +206,11 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     for session in start_session..end_session {
         let non_reserved_members_for_session =
             get_non_reserved_members_for_session(config, session);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_members_for_session,
-        );
+        let members_bench =
+            get_bench_members(&non_reserved_members, &non_reserved_members_for_session);
         let members_active = reserved_members
             .iter()
-            .chain(non_reserved_members_for_session.iter())
-            .cloned();
+            .chain(&non_reserved_members_for_session);
 
         let era = session / sessions_per_era;
         check_points(
@@ -368,14 +356,11 @@ fn check_points_after_force_new_era(
 
         let non_reserved_members_for_session =
             get_non_reserved_members_for_session(config, session_to_check);
-        let members_bench = get_bench_members(
-            non_reserved_members.clone(),
-            &non_reserved_members_for_session,
-        );
+        let members_bench =
+            get_bench_members(&non_reserved_members, &non_reserved_members_for_session);
         let members_active = reserved_members
-            .clone()
-            .into_iter()
-            .chain(non_reserved_members_for_session);
+            .iter()
+            .chain(&non_reserved_members_for_session);
 
         check_points(
             connection,
