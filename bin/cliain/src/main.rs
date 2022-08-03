@@ -127,11 +127,13 @@ fn main() {
         Command::ForceNewEra => {
             force_new_era(cfg.into());
         }
-        Command::SeedToSS58 { input } => info!(
+        Command::SeedToSS58 { input } => {
             let input = read_secret(input, "Provide seed:");
-            "SS58 Address: {}",
-            keypair_from_string(&input).public().to_string()
-        ),
+            info!(
+                "SS58 Address: {}",
+                keypair_from_string(&input).public().to_string()
+            )
+        }
         Command::DebugStorage => print_storages::<SignedConnection>(&cfg.into()),
         Command::UpdateRuntime { runtime } => update_runtime(cfg.into(), runtime),
         Command::Vest => vest(cfg.into()),
