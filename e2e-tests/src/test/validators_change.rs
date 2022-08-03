@@ -1,5 +1,6 @@
 use aleph_client::{
-    get_current_block_number, wait_for_event, wait_for_finalized_block, AnyConnection,
+    get_committee_seats, get_current_block_number, get_next_era_non_reserved_validators,
+    get_next_era_reserved_validators, wait_for_event, wait_for_finalized_block, AnyConnection,
 };
 use codec::Decode;
 use log::info;
@@ -13,14 +14,9 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
     let accounts = get_validators_keys(config);
     let connection = config.create_root_connection();
 
-    let reserved_before: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraReservedValidators");
-
-    let non_reserved_before: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
-
-    let committee_size_before: CommitteeSeats =
-        connection.read_storage_value("Elections", "CommitteeSize");
+    let reserved_before = get_next_era_reserved_validators(&connection);
+    let non_reserved_before = get_next_era_non_reserved_validators(&connection);
+    let committee_size_before = get_committee_seats(&connection, None);
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -61,12 +57,8 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
         },
     )?;
 
-    let reserved_after: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraReservedValidators");
-
-    let non_reserved_after: Vec<AccountId> =
-        connection.read_storage_value("Elections", "NextEraNonReservedValidators");
-
+    let reserved_after = get_next_era_reserved_validators(&connection);
+    let non_reserved_after = get_next_era_non_reserved_validators(&connection);
     let committee_size_after: CommitteeSeats =
         connection.read_storage_value("Elections", "NextEraCommitteeSize");
 

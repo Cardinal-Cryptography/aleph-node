@@ -7,14 +7,17 @@ use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{accounts::get_validators_keys, Config};
 
+/// Get all the reserved validators for the chain.
 pub fn get_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[0..2].to_vec()
 }
 
+/// Get all the non-reserved validators for the chain.
 pub fn get_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[2..].to_vec()
 }
 
+/// Get the non-reserved validators selected for a particular session.
 pub fn get_non_reserved_validators_for_session(
     config: &Config,
     session: SessionIndex,
