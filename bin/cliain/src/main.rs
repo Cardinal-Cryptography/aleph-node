@@ -33,6 +33,20 @@ struct Config {
     pub command: Command,
 }
 
+fn read_seed(command: &Command, seed: Option<String>) -> String {
+    match command {
+        Command::Finalize {
+            block: _,
+            hash: _,
+            finalizer_seed: _,
+        }
+        | Command::RotateKeys
+        | Command::DebugStorage
+        | Command::SeedToSS58 { input: _ } => String::new(),
+        _ => read_secret(seed, "Provide seed for the signer account:"),
+    }
+}
+
 fn read_secret(secret: Option<String>, message: &str) -> String {
     match secret {
         Some(secret) => secret,
@@ -55,17 +69,7 @@ fn main() {
         command,
     } = Config::parse();
 
-    let seed = match command {
-        Command::Finalize {
-            block: _,
-            hash: _,
-            finalizer_seed: _,
-        }
-        | Command::RotateKeys
-        | Command::DebugStorage
-        | Command::SeedToSS58 { input: _ } => String::new(),
-        _ => read_secret(seed, "Provide seed for the signer account:"),
-    };
+    let seed = read_seed(&command, seed);
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
