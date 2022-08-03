@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use aleph_client::{
-    account_from_keypair, balances_batch_transfer, balances_transfer, get_block_hash,
-    get_committee_seats, get_current_session, get_era_reward_points, get_exposure,
-    get_session_period, get_validator_block_count, rotate_keys, send_xt, set_keys,
-    wait_for_at_least_session, wait_for_finalized_block, AnyConnection, RewardPoint, SessionKeys,
+    account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
+    get_block_hash, get_committee_seats, get_current_session, get_era_reward_points, get_exposure,
+    get_session_period, get_validator_block_count, rotate_keys, set_keys,
+    wait_for_at_least_session, wait_for_finalized_block, RewardPoint, SessionKeys,
     SignedConnection,
 };
 use log::info;
@@ -271,15 +271,7 @@ pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balanc
                 XtStatus::Finalized,
             );
             let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
-            let xt = stash_connection
-                .as_connection()
-                .staking_bond_extra(*additional_stake);
-            send_xt(
-                &stash_connection,
-                xt,
-                Some("bond_extra"),
-                XtStatus::Finalized,
-            );
+            bond_extra_stake(&stash_connection, *additional_stake);
         },
     );
 }

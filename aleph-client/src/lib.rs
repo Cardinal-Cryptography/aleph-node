@@ -28,7 +28,7 @@ pub use session::{
 use sp_core::{ed25519, sr25519, storage::StorageKey, Pair, H256};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
-    bond as staking_bond, bonded as staking_bonded,
+    bond as staking_bond, bond_extra_stake, bonded as staking_bonded,
     chill_all_validators as staking_chill_all_validators,
     chill_validator as staking_chill_validator, force_new_era as staking_force_new_era,
     get_current_era, get_era, get_era_reward_points, get_eras_stakers_storage_key, get_exposure,

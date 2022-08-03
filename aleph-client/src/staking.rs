@@ -427,3 +427,11 @@ pub fn chill_all_validators(node: &str, chilling: Vec<KeyPair>) {
         chill_validator(&connection);
     }
 }
+
+/// Given a `SignedConnection`, bond an extra stake equal to `additional_stake`.
+pub fn bond_extra_stake(connection: &SignedConnection, additional_stake: Balance) {
+    let xt = connection
+        .as_connection()
+        .staking_bond_extra(additional_stake);
+    send_xt(connection, xt, Some("bond_extra"), XtStatus::Finalized);
+}
