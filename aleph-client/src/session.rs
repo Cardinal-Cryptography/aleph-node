@@ -140,8 +140,8 @@ pub fn get_session_period<C: AnyConnection>(connection: &C) -> u32 {
 pub fn get_authorities_for_session<C: AnyConnection>(
     connection: &C,
     session: SessionIndex,
-    session_period: u32,
 ) -> Vec<AccountId> {
+    let session_period = get_session_period(connection);
     let first_block = session_period * session;
     let block = get_block_hash(connection, first_block);
 
