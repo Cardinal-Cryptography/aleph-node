@@ -1789,6 +1789,7 @@ dependencies = [
  "pallet-balances",
  "pallet-session",
  "pallet-staking",
+ "pallets-support",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -1915,6 +1916,13 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallets-support"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
 ]
 
 [[package]]
