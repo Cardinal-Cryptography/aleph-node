@@ -49,7 +49,7 @@ pub fn combine_states(
                 removed_per_path_count.bump(path);
                 false
             }
-            None => !well_known_keys::is_child_storage_key(&Into::<Vec<u8>>::into(k)), // remove child keys
+            None => !well_known_keys::is_child_storage_key(&Into::<Vec<u8>>::into(k)), // remove child keys, they are not accepted as part of storage, see https://github.com/Cardinal-Cryptography/substrate/blob/98c2eeea74413044ae8ccfca1b6d56d01b57a76b/client/db/src/lib.rs#L778
         }
     });
 
