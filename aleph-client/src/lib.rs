@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 pub use debug::print_storages;
 pub use elections::{
     get_committee_seats, get_current_era_non_reserved_validators,
-    get_current_era_reserved_validators, get_current_era_validators,
+    get_current_era_reserved_validators,
     get_next_era_non_reserved_validators, get_next_era_reserved_validators,
     get_validator_block_count,
 };

@@ -3,7 +3,7 @@ use primitives::CommitteeSeats;
 use sp_core::H256;
 use substrate_api_client::AccountId;
 
-use crate::{AnyConnection, SignedConnection};
+use crate::AnyConnection;
 
 const PALLET: &str = "Elections";
 
@@ -34,32 +34,22 @@ pub fn get_validator_block_count<C: AnyConnection>(
         .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
 }
 
-pub fn get_current_era_validators(connection: &AnyConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators<AccountId> =
-        connection.read_storage_value(PALLET, "CurrentEraValidators");
-    eras_validators
-        .reserved
-        .into_iter()
-        .chain(eras_validators.non_reserved.into_iter())
-        .collect()
+pub fn get_current_era_validators<C: AnyConnection>(connection: &C) -> EraValidators<AccountId> {
+    connection.read_storage_value(PALLET, "CurrentEraValidators")
 }
 
-pub fn get_current_era_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators<AccountId> =
-        connection.read_storage_value(PALLET, "CurrentEraValidators");
-    eras_validators.reserved
+pub fn get_current_era_reserved_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId> {
+    get_current_era_validators(connection).reserved
 }
 
-pub fn get_current_era_non_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
-    let eras_validators: EraValidators<AccountId> =
-        connection.read_storage_value(PALLET, "CurrentEraValidators");
-    eras_validators.non_reserved
+pub fn get_current_era_non_reserved_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId> {
+    get_current_era_validators(connection).non_reserved
 }
 
-pub fn get_next_era_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
+pub fn get_next_era_reserved_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId> {
     connection.read_storage_value(PALLET, "NextEraReservedValidators")
 }
 
-pub fn get_next_era_non_reserved_validators(connection: &AnyConnection) -> Vec<AccountId> {
+pub fn get_next_era_non_reserved_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId> {
     connection.read_storage_value(PALLET, "NextEraNonReservedValidators")
 }
