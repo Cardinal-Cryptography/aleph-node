@@ -20,8 +20,8 @@ pub use multisig::{
 pub use primitives::{BlockHash, BlockNumber, Header};
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_next_era_reserved_validators, change_validators, get_authorities_for_session,
-    get_current_session, get_current_validators, get_session, get_session_period, set_keys,
+    change_next_era_reserved_validators, change_validators, get_current_session,
+    get_current_validators, get_session, get_session_period, get_validators_for_session, set_keys,
     wait_for as wait_for_session, wait_for_at_least as wait_for_at_least_session,
     Keys as SessionKeys,
 };

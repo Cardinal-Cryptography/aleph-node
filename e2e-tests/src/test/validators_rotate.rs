@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use aleph_client::{
-    change_validators, get_authorities_for_session, get_current_block_number, get_current_session,
+    change_validators, get_current_block_number, get_current_session, get_validators_for_session,
     wait_for_finalized_block, wait_for_full_era_completion, wait_for_session,
 };
 use primitives::CommitteeSeats;
@@ -16,7 +16,6 @@ use crate::{
     Config,
 };
 
-const SESSION_PERIOD: u32 = 30;
 const TEST_LENGTH: u32 = 5;
 
 pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
@@ -47,7 +46,7 @@ pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
     let mut non_reserved_count = HashMap::new();
 
     for session in current_session..current_session + TEST_LENGTH {
-        let elected = get_authorities_for_session(&connection, session, SESSION_PERIOD);
+        let elected = get_validators_for_session(&connection, session);
         let non_reserved = get_non_reserved_validators_for_session(config, session);
 
         for nr in non_reserved.clone() {

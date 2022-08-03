@@ -137,7 +137,7 @@ pub fn get_session_period<C: AnyConnection>(connection: &C) -> u32 {
     connection.read_constant("Elections", "SessionPeriod")
 }
 
-pub fn get_authorities_for_session<C: AnyConnection>(
+pub fn get_validators_for_session<C: AnyConnection>(
     connection: &C,
     session: SessionIndex,
 ) -> Vec<AccountId> {
