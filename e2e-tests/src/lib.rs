@@ -4,7 +4,6 @@ pub use config::Config;
 mod accounts;
 mod cases;
 mod config;
-mod connection;
 mod rewards;
 mod test;
 mod transfer;

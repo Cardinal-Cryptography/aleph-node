@@ -1,7 +1,7 @@
-use aleph_client::RootConnection;
+use aleph_client::{RootConnection, SignedConnection};
 use clap::Parser;
 
-use crate::accounts::{get_sudo_key, get_validators_seeds, NodeKeys};
+use crate::accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, NodeKeys};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -42,5 +42,13 @@ impl Config {
     pub fn create_root_connection(&self) -> RootConnection {
         let sudo_keypair = get_sudo_key(self);
         RootConnection::new(&self.node, sudo_keypair)
+    }
+
+    /// Get a `SignedConnection` where the signer is the first validator.
+    pub fn get_first_signed_connection(&self) -> SignedConnection {
+        let node = &self.node;
+        let accounts = get_validators_keys(self);
+        let sender = accounts.first().expect("Using default accounts").to_owned();
+        SignedConnection::new(node, sender)
     }
 }

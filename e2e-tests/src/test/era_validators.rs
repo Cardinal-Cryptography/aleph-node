@@ -8,7 +8,7 @@ use primitives::CommitteeSeats;
 use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{accounts::get_validators_keys, connection::get_signed_connection, Config};
+use crate::{accounts::get_validators_keys, Config};
 
 fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..2].to_vec()
@@ -43,7 +43,7 @@ fn get_current_and_next_era_non_reserved_validators(
 }
 
 pub fn era_validators(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let initial_reserved_validators: Vec<_> = get_initial_reserved_validators(config)

@@ -9,7 +9,6 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    connection::get_signed_connection,
     validators::{
         get_non_reserved_validators, get_non_reserved_validators_for_session,
         get_reserved_validators,
@@ -21,7 +20,7 @@ const SESSION_PERIOD: u32 = 30;
 const TEST_LENGTH: u32 = 5;
 
 pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let reserved_validators: Vec<_> = get_reserved_validators(config)

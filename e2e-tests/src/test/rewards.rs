@@ -9,7 +9,6 @@ use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     accounts::get_validators_keys,
-    connection::get_signed_connection,
     rewards::{
         check_points, get_bench_members, reset_validator_keys, set_invalid_keys_for_validator,
         validators_bond_extra_stakes,
@@ -70,7 +69,7 @@ fn get_member_accounts(config: &Config) -> (Vec<AccountId>, Vec<AccountId>) {
 
 /// Runs a chain, checks that reward points are calculated correctly .
 pub fn points_basic(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
@@ -119,7 +118,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, bonds extra stakes to validator accounts and checks that reward points
 /// are calculated correctly afterward.
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
@@ -244,7 +243,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 /// session, when the new era has not yet started, 3) in the next session, second one after
 /// the call, when the new era has already begun.
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);
@@ -292,7 +291,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 /// and after two sessions (required for a new era to be forced) they are adjusted to the new
 /// stakes.
 pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let (reserved_members, non_reserved_members) = get_member_accounts(config);

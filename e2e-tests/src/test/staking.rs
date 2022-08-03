@@ -19,7 +19,6 @@ use substrate_api_client::{AccountId, XtStatus};
 use crate::{
     accounts::{accounts_seeds_to_keys, get_validators_seeds},
     config::Config,
-    connection::get_signed_connection,
 };
 
 fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPair>) {
@@ -50,7 +49,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
     let (stashes_accounts_key_pairs, validator_accounts) = get_validator_stashes_key_pairs(config);
 
     let node = &config.node;
-    let connection = get_signed_connection(config);
+    let connection = config.get_first_signed_connection();
     let stashes_accounts = convert_authorities_to_account_id(&stashes_accounts_key_pairs);
 
     balances_batch_transfer(&connection, stashes_accounts, MIN_NOMINATOR_BOND + TOKEN);
