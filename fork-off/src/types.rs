@@ -72,6 +72,21 @@ impl Get for StoragePath {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct StorageKey(String);
 
+// impl<'a, 'b> From<&'a StorageKey> for &'b [u8]
+// where
+//     'a: 'b,
+// {
+//     fn from(k: &'a StorageKey) -> Self {
+//         &hex::decode(strip_hex(&k.0)).expect("Could not decode hex value")
+//     }
+// }
+
+impl From<&StorageKey> for Vec<u8> {
+    fn from(k: &StorageKey) -> Self {
+        hex::decode(strip_hex(&k.0)).expect("Could not decode hex value")
+    }
+}
+
 impl StorageKey {
     pub fn new<T: ToString + ?Sized>(content: &T) -> Self {
         Self(as_hex(content))
