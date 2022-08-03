@@ -19,6 +19,8 @@ use crate::{
     BlockNumber, KeyPair, RootConnection, SignedConnection,
 };
 
+const PALLET: &str = "Staking";
+
 pub fn bond(
     connection: &SignedConnection,
     initial_stake: Balance,
@@ -56,7 +58,7 @@ pub fn validate(
         blocked: false,
         commission: Perbill::from_percent(validator_commission_percentage as u32),
     };
-    let xt = compose_extrinsic!(connection.as_connection(), "Staking", "validate", prefs);
+    let xt = compose_extrinsic!(connection.as_connection(), PALLET, "validate", prefs);
     send_xt(connection, xt, Some("validate"), status);
 }
 
@@ -70,7 +72,7 @@ pub fn set_staking_limits(
 ) {
     let set_staking_limits_call = compose_call!(
         connection.as_connection().metadata,
-        "Staking",
+        PALLET,
         "set_staking_limits",
         minimal_nominator_stake,
         minimal_validator_stake,
@@ -88,11 +90,8 @@ pub fn set_staking_limits(
 }
 
 pub fn force_new_era(connection: &RootConnection, status: XtStatus) {
-    let force_new_era_call = compose_call!(
-        connection.as_connection().metadata,
-        "Staking",
-        "force_new_era"
-    );
+    let force_new_era_call =
+        compose_call!(connection.as_connection().metadata, PALLET, "force_new_era");
     let xt = compose_extrinsic!(
         connection.as_connection(),
         "Sudo",
@@ -117,20 +116,20 @@ fn wait_for_era_completion<C: AnyConnection>(
     connection: &C,
     next_era_index: EraIndex,
 ) -> anyhow::Result<EraIndex> {
-    let sessions_per_era: u32 = connection.read_constant("Staking", "SessionsPerEra");
+    let sessions_per_era: u32 = connection.read_constant(PALLET, "SessionsPerEra");
     let first_session_in_next_era = next_era_index * sessions_per_era;
     wait_for_session(connection, first_session_in_next_era)?;
     Ok(next_era_index)
 }
 
 pub fn get_sessions_per_era<C: AnyConnection>(connection: &C) -> u32 {
-    connection.read_constant("Staking", "SessionsPerEra")
+    connection.read_constant(PALLET, "SessionsPerEra")
 }
 
 pub fn get_era<C: AnyConnection>(connection: &C, block: Option<H256>) -> EraIndex {
     connection
         .as_connection()
-        .get_storage_value("Staking", "ActiveEra", block)
+        .get_storage_value(PALLET, "ActiveEra", block)
         .expect("Failed to obtain ActiveEra extrinsic!")
         .expect("ActiveEra is empty in the storage!")
 }
@@ -146,7 +145,7 @@ pub fn payout_stakers(
 ) {
     let xt = compose_extrinsic!(
         stash_connection.as_connection(),
-        "Staking",
+        PALLET,
         "payout_stakers",
         stash_account,
         era_number
@@ -193,7 +192,7 @@ pub fn batch_bond(
         .map(|(stash_account, controller_account)| {
             let bond_call = compose_call!(
                 metadata,
-                "Staking",
+                PALLET,
                 "bond",
                 GenericAddress::Id(controller_account.clone()),
                 Compact(bond_value),
@@ -242,7 +241,7 @@ pub fn batch_nominate(
         .map(|(nominator, nominee)| {
             let nominate_call = compose_call!(
                 metadata,
-                "Staking",
+                PALLET,
                 "nominate",
                 vec![GenericAddress::Id(nominee.clone())]
             );
@@ -274,7 +273,7 @@ pub fn bonded<C: AnyConnection>(connection: &C, stash: &KeyPair) -> Option<Accou
     let account_id = AccountId::from(stash.public());
     connection
         .as_connection()
-        .get_storage_map("Staking", "Bonded", &account_id, None)
+        .get_storage_map(PALLET, "Bonded", &account_id, None)
         .unwrap_or_else(|_| panic!("Failed to obtain Bonded for account id {}", account_id))
 }
 
@@ -296,16 +295,16 @@ pub fn ledger<C: AnyConnection>(connection: &C, controller: &KeyPair) -> Option<
     let account_id = AccountId::from(controller.public());
     connection
         .as_connection()
-        .get_storage_map("Staking", "Ledger", &account_id, None)
+        .get_storage_map(PALLET, "Ledger", &account_id, None)
         .unwrap_or_else(|_| panic!("Failed to obtain Ledger for account id {}", account_id))
 }
 
 pub fn get_payout_for_era<C: AnyConnection>(connection: &C, era: EraIndex) -> u128 {
     connection
         .as_connection()
-        .get_storage_map("Staking", "ErasValidatorReward", era, None)
+        .get_storage_map(PALLET, "ErasValidatorReward", era, None)
         .expect("Failed to obtain ErasValidatorReward")
-        .expect("ErasValidatoReward is empty in the storage")
+        .expect("ErasValidatoReward is empty in storage")
 }
 
 pub fn get_exposure<C: AnyConnection>(
@@ -316,7 +315,7 @@ pub fn get_exposure<C: AnyConnection>(
 ) -> Exposure<AccountId, u128> {
     connection
         .as_connection()
-        .get_storage_double_map("Staking", "ErasStakers", era, account_id, block_hash)
+        .get_storage_double_map(PALLET, "ErasStakers", era, account_id, block_hash)
         .expect("Failed to obtain ErasStakers extrinsic!")
         .unwrap_or_else(|| panic!("Failed to decode ErasStakers for era {}.", era))
 }
@@ -342,7 +341,7 @@ pub fn get_era_reward_points<C: AnyConnection>(
 ) -> Option<EraRewardPoints> {
     connection
         .as_connection()
-        .get_storage_map("Staking", "ErasRewardPoints", era, block_hash)
+        .get_storage_map(PALLET, "ErasRewardPoints", era, block_hash)
         .unwrap_or_else(|e| {
             panic!(
                 "Failed to obtain ErasRewardPoints for era {} at block {:?}: {}",
@@ -351,6 +350,7 @@ pub fn get_era_reward_points<C: AnyConnection>(
         })
 }
 
+/// Get `ErasStakers` as `StorageKey`s from `pallet_staking`
 pub fn get_stakers_as_storage_keys<C: AnyConnection>(
     connection: &C,
     accounts: &[AccountId],
@@ -362,7 +362,7 @@ pub fn get_stakers_as_storage_keys<C: AnyConnection>(
             connection
                 .as_connection()
                 .metadata
-                .storage_double_map_key("Staking", "ErasStakers", era, acc)
+                .storage_double_map_key(PALLET, "ErasStakers", era, acc)
                 .unwrap()
         })
         .collect()
@@ -373,7 +373,7 @@ pub fn get_stakers_as_storage_keys<C: AnyConnection>(
 /// Since in `substrate-api-client` it seems impossible to get prefix for the first key in double
 /// map, we have to do it by hand.
 pub fn get_eras_stakers_storage_key(era: EraIndex) -> StorageKey {
-    let mut bytes = sp_core::twox_128("Staking".as_bytes()).to_vec();
+    let mut bytes = sp_core::twox_128(PALLET.as_bytes()).to_vec();
     bytes.extend(&sp_core::twox_128("ErasStakers".as_bytes())[..]);
 
     let era_encoded = codec::Encode::encode(&era);
@@ -410,7 +410,7 @@ pub fn get_stakers_as_storage_keys_from_storage_key<C: AnyConnection>(
 
 /// Chill validator.
 pub fn chill_validator(connection: &SignedConnection) {
-    let xt = compose_extrinsic!(connection.as_connection(), "Staking", "chill");
+    let xt = compose_extrinsic!(connection.as_connection(), PALLET, "chill");
     send_xt(
         connection,
         xt,

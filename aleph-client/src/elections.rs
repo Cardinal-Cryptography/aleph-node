@@ -30,12 +30,7 @@ pub fn get_validator_block_count<C: AnyConnection>(
 ) -> Option<u32> {
     connection
         .as_connection()
-        .get_storage_map(
-            PALLET,
-            "SessionValidatorBlockCount",
-            account_id,
-            block_hash,
-        )
+        .get_storage_map(PALLET, "SessionValidatorBlockCount", account_id, block_hash)
         .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
 }
 
