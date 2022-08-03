@@ -17,7 +17,7 @@ use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{accounts_seeds_to_keys, get_validators_seeds},
+    accounts::{account_ids_from_keys, accounts_seeds_to_keys, get_validators_seeds},
     config::Config,
 };
 
@@ -33,13 +33,6 @@ fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPai
     (stashes_accounts_key_pairs, validator_accounts_key_pairs)
 }
 
-fn convert_authorities_to_account_id(authorities: &[KeyPair]) -> Vec<AccountId> {
-    authorities
-        .iter()
-        .map(|key| AccountId::from(key.public()))
-        .collect()
-}
-
 // 0. validators stash and controllers are already endowed, bonded and validated in a genesis block
 // 1. endow nominators stash accounts balances
 // 3. bond controller account to stash account, stash = controller and set controller to StakerStatus::Nominate
@@ -50,7 +43,7 @@ pub fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
 
     let node = &config.node;
     let connection = config.get_first_signed_connection();
-    let stashes_accounts = convert_authorities_to_account_id(&stashes_accounts_key_pairs);
+    let stashes_accounts = account_ids_from_keys(&stashes_accounts_key_pairs);
 
     balances_batch_transfer(&connection, stashes_accounts, MIN_NOMINATOR_BOND + TOKEN);
     staking_multi_bond(node, &stashes_accounts_key_pairs, MIN_NOMINATOR_BOND);
@@ -112,7 +105,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
 
     change_validators(
         &root_connection,
-        Some(convert_authorities_to_account_id(&validator_accounts)),
+        Some(account_ids_from_keys(&validator_accounts)),
         Some(vec![]),
         Some(CommitteeSeats {
             reserved_seats: 4,
@@ -185,7 +178,7 @@ pub fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
     validator_accounts.push(stash);
     change_validators(
         &root_connection,
-        Some(convert_authorities_to_account_id(&validator_accounts)),
+        Some(account_ids_from_keys(&validator_accounts)),
         Some(vec![]),
         Some(CommitteeSeats {
             reserved_seats: 5,

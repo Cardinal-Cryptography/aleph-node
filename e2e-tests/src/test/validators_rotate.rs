@@ -5,10 +5,10 @@ use aleph_client::{
     wait_for_finalized_block, wait_for_full_era_completion, wait_for_session,
 };
 use primitives::CommitteeSeats;
-use sp_core::Pair;
-use substrate_api_client::{AccountId, XtStatus};
+use substrate_api_client::XtStatus;
 
 use crate::{
+    accounts::account_ids_from_keys,
     validators::{
         get_non_reserved_validators, get_non_reserved_validators_for_session,
         get_reserved_validators,
@@ -23,15 +23,11 @@ pub fn validators_rotate(config: &Config) -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
-    let reserved_validators: Vec<_> = get_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
+    let reserved_validators_keys = get_reserved_validators(config);
+    let reserved_validators = account_ids_from_keys(&reserved_validators_keys);
 
-    let non_reserved_validators = get_non_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
+    let non_reserved_validators_keys = get_non_reserved_validators(config);
+    let non_reserved_validators = account_ids_from_keys(&non_reserved_validators_keys);
 
     change_validators(
         &root_connection,

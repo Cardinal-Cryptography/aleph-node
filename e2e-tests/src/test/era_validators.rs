@@ -5,10 +5,12 @@ use aleph_client::{
     wait_for_next_era, wait_for_session, KeyPair, SignedConnection,
 };
 use primitives::CommitteeSeats;
-use sp_core::Pair;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{accounts::get_validators_keys, Config};
+use crate::{
+    accounts::{account_ids_from_keys, get_validators_keys},
+    Config,
+};
 
 fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
     get_validators_keys(config)[..2].to_vec()
@@ -46,24 +48,18 @@ pub fn era_validators(config: &Config) -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
-    let initial_reserved_validators: Vec<_> = get_initial_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
+    let initial_reserved_validators_keys = get_initial_reserved_validators(config);
+    let initial_reserved_validators = account_ids_from_keys(&initial_reserved_validators_keys);
 
-    let initial_non_reserved_validators: Vec<_> = get_initial_non_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
+    let initial_non_reserved_validators_keys = get_initial_non_reserved_validators(config);
+    let initial_non_reserved_validators =
+        account_ids_from_keys(&initial_non_reserved_validators_keys);
 
-    let new_non_reserved_validators: Vec<_> = get_new_non_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
-    let new_reserved_validators: Vec<_> = get_new_reserved_validators(config)
-        .iter()
-        .map(|pair| AccountId::from(pair.public()))
-        .collect();
+    let new_reserved_validators_keys = get_new_reserved_validators(config);
+    let new_reserved_validators = account_ids_from_keys(&new_reserved_validators_keys);
+
+    let new_non_reserved_validators_keys = get_new_non_reserved_validators(config);
+    let new_non_reserved_validators = account_ids_from_keys(&new_non_reserved_validators_keys);
 
     change_validators(
         &root_connection,
