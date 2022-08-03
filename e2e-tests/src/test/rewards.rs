@@ -128,14 +128,13 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 
     validators_bond_extra_stakes(
         config,
-        [
+        &[
             8 * MIN_VALIDATOR_BOND,
             6 * MIN_VALIDATOR_BOND,
             4 * MIN_VALIDATOR_BOND,
             2 * MIN_VALIDATOR_BOND,
             0,
-        ]
-        .to_vec(),
+        ],
     );
 
     let sessions_per_era = get_sessions_per_era(&connection);
@@ -300,14 +299,13 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
 
     validators_bond_extra_stakes(
         config,
-        [
+        &[
             7 * MIN_VALIDATOR_BOND,
             2 * MIN_VALIDATOR_BOND,
             11 * MIN_VALIDATOR_BOND,
             0,
             4 * MIN_VALIDATOR_BOND,
-        ]
-        .to_vec(),
+        ],
     );
 
     staking_force_new_era(&root_connection, XtStatus::Finalized);

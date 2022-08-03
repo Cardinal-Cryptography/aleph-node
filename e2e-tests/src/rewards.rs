@@ -242,7 +242,7 @@ pub fn get_bench_members<'a>(
         .collect::<Vec<_>>()
 }
 
-pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>) {
+pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {
     let node = &config.node;
     let root_connection = config.create_root_connection();
 
