@@ -328,8 +328,6 @@ mod tests {
             controller.chain_state_mock.set_best_block(i);
             controller.chain_state_mock.set_finalized_block(i);
         }
-
-        sleep(Duration::from_millis(1100)).await;
     }
 
     async fn set_authorities_for_sessions(
@@ -398,14 +396,14 @@ mod tests {
 
         let _party_handle = tokio::spawn(x.run());
 
-        let authorithies: Vec<_> = (0..10)
+        let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
         set_authorities_for_sessions(
             &mut controller,
             vec![
-                (SessionId(0), authorithies.clone()),
-                (SessionId(1), authorithies),
+                (SessionId(0), authorities.clone()),
+                (SessionId(1), authorities),
             ],
         )
         .await;
@@ -436,16 +434,16 @@ mod tests {
 
         let _party_handle = tokio::spawn(x.run());
 
-        let authorithies: Vec<_> = (0..10)
+        let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
         set_authorities_for_sessions(
             &mut controller,
             vec![
-                (SessionId(0), authorithies.clone()),
-                (SessionId(1), authorithies.clone()),
-                (SessionId(2), authorithies.clone()),
-                (SessionId(3), authorithies),
+                (SessionId(0), authorities.clone()),
+                (SessionId(1), authorities.clone()),
+                (SessionId(2), authorities.clone()),
+                (SessionId(3), authorities),
             ],
         )
         .await;
@@ -477,16 +475,16 @@ mod tests {
 
         let _party_handle = tokio::spawn(x.run());
 
-        let authorithies: Vec<_> = (0..10)
+        let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
         set_authorities_for_sessions(
             &mut controller,
             vec![
-                (SessionId(0), authorithies.clone()),
-                (SessionId(1), authorithies.clone()),
-                (SessionId(2), authorithies.clone()),
-                (SessionId(3), authorithies),
+                (SessionId(0), authorities.clone()),
+                (SessionId(1), authorities.clone()),
+                (SessionId(2), authorities.clone()),
+                (SessionId(3), authorities),
             ],
         )
         .await;
@@ -523,16 +521,16 @@ mod tests {
 
         let _party_handle = tokio::spawn(x.run());
 
-        let authorithies: Vec<_> = (0..10)
+        let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
         set_authorities_for_sessions(
             &mut controller,
             vec![
-                (SessionId(0), authorithies.clone()),
-                (SessionId(1), authorithies.clone()),
-                (SessionId(2), authorithies.clone()),
-                (SessionId(3), authorithies),
+                (SessionId(0), authorities.clone()),
+                (SessionId(1), authorities.clone()),
+                (SessionId(2), authorities.clone()),
+                (SessionId(3), authorities),
             ],
         )
         .await;
