@@ -245,9 +245,7 @@ pub trait ButtonGame {
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_selector))
                     .push_arg(to)
-                    // TODO : testing
-                    // .push_arg(value)
-                    .push_arg(1)
+                    .push_arg(value)
                     .push_arg(vec![0x0]),
             )
             .returns::<Result<(), PSP22Error>>()
@@ -312,7 +310,7 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    // TODO : add nonce
+    // TODO : add nonce?
     fn press(&mut self, now: BlockNumber, caller: AccountId) -> ButtonResult<()> {
         let ButtonData {
             can_play,
@@ -333,6 +331,7 @@ pub trait ButtonGame {
             return Err(GameError::NotWhitelisted);
         }
 
+        // TODO : instead of this?
         // this is to handle a situation when multiple accounts press at the same time (in the same block)
         // as there can be only one succesfull press recorded per block
         // the users are effectively competing for this one tx

@@ -11,7 +11,7 @@ pub mod game_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String};
+    use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{contracts::psp22::*, traits::Storage};
 
