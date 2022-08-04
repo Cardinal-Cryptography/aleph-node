@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
-    change_validators, get_block_hash, get_committee_seats, get_current_session, get_era,
-    get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
-    get_session_period, get_validator_block_count, get_validators_for_session, rotate_keys,
-    set_keys, wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
+    change_validators, get_block_hash, get_committee_seats, get_current_era, get_current_session,
+    get_era, get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
+    get_session_period, get_validator_block_count, rotate_keys, set_keys, wait_for_at_least_era,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
     AnyConnection, RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
@@ -115,13 +115,13 @@ fn check_rewards(
 
 fn get_node_performance(
     connection: &SignedConnection,
-    account_id: AccountId,
+    account_id: &AccountId,
     before_end_of_session_block_hash: BlockHash,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
     let block_count = get_validator_block_count(
         connection,
-        &account_id,
+        account_id,
         Some(before_end_of_session_block_hash),
     )
     .unwrap_or(0);
@@ -208,7 +208,7 @@ pub fn check_points(
             account_id.clone(),
             get_node_performance(
                 connection,
-                account_id,
+                &account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
@@ -233,80 +233,21 @@ pub fn check_points(
         max_relative_difference,
     )
 }
-pub fn get_bench_members(
-    non_reserved_members: &[AccountId],
-    non_reserved_members_for_session: &[AccountId],
-) -> Vec<AccountId> {
-    non_reserved_members
-        .iter()
-        .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
-        .cloned()
-        .collect::<Vec<_>>()
-}
-
-pub fn get_member_accounts<C: AnyConnection>(
-    connection: &C,
-    session_index: SessionIndex,
-) -> (Vec<AccountId>, Vec<AccountId>) {
-    let validators = get_era_validators(connection, session_index);
-    (validators.reserved, validators.non_reserved)
-}
-
-fn get_non_reserved_members_for_session(
-    nodes_per_session: u32,
-    era_validators: &EraValidators<AccountId>,
-    session: SessionIndex,
-) -> Vec<AccountId> {
-    let non_reserved_len = era_validators.non_reserved.len();
-    let free_seats = nodes_per_session - u32::try_from(era_validators.reserved.len()).unwrap();
-
-    let mut non_reserved = Vec::new();
-
-    for i in (free_seats * session)..(free_seats * (session + 1)) {
-        non_reserved.push(era_validators.non_reserved[i as usize % non_reserved_len].clone());
-    }
-
-    non_reserved
-}
 
 pub fn get_era_for_session<C: AnyConnection>(connection: &C, session: SessionIndex) -> EraIndex {
     let session_first_block = get_session_first_block(connection, session);
     get_era(connection, Some(session_first_block))
 }
 
-pub fn get_members_for_session<C: AnyConnection>(
-    connection: &C,
-    members_per_session: u32,
-    era_validators: &EraValidators<AccountId>,
-    session: SessionIndex,
-) -> (Vec<AccountId>, Vec<AccountId>) {
-    let non_reserved_members_for_session =
-        get_non_reserved_members_for_session(members_per_session, era_validators, session);
-    let members_bench = get_bench_members(
-        &era_validators.non_reserved,
-        &non_reserved_members_for_session,
-    );
-    let members_active: Vec<_> = era_validators
-        .reserved
-        .iter()
-        .cloned()
-        .chain(non_reserved_members_for_session)
-        .collect();
-
-    let members_active_set: HashSet<_> = members_active.iter().cloned().collect();
-    let network_members: HashSet<_> = get_validators_for_session(connection, session)
-        .into_iter()
-        .collect();
-
-    assert_eq!(members_active_set, network_members);
-
-    (members_active, members_bench)
-}
-
 pub fn setup_validators(
     config: &Config,
-) -> anyhow::Result<(EraValidators<AccountId>, u32, EraIndex)> {
+) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, EraIndex)> {
     let root_connection = config.create_root_connection();
+    let era = get_current_era(&root_connection);
+    // we need to wait for at least era 1 since some of the storage items are not available at era 0
+    if era == 0 {
+        wait_for_at_least_era(&root_connection, 1)?;
+    }
 
     let members: Vec<_> = get_validators_keys(config)
         .iter()
@@ -319,14 +260,13 @@ pub fn setup_validators(
 
     let reserved_seats = reserved_members.len().try_into().unwrap();
     let non_reserved_seats = (non_reserved_members.len() - 1).try_into().unwrap();
-    let members_per_session = reserved_seats + non_reserved_seats;
     let seats = CommitteeSeats {
         reserved_seats,
         non_reserved_seats,
     };
 
     let session = get_current_session(&root_connection);
-    let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
+    let network_validators = get_era_validators(&root_connection, session);
     let first_block_in_session = get_session_first_block(&root_connection, session);
     let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
 
@@ -335,14 +275,11 @@ pub fn setup_validators(
         non_reserved: non_reserved_members.to_vec(),
     };
 
-    if network_reserved == reserved_members
-        && network_non_reserved == non_reserved_members
-        && network_seats == seats
-    {
+    if era_validators == network_validators && seats == network_seats {
         // nothing to do here
         let block_hash = get_session_first_block(&root_connection, session);
         let era = get_era(&root_connection, Some(block_hash));
-        return Ok((era_validators, members_per_session, era));
+        return Ok((era_validators, seats, era));
     }
 
     change_validators(
@@ -356,11 +293,11 @@ pub fn setup_validators(
     let era = wait_for_full_era_completion(&root_connection)?;
     let session = get_current_session(&root_connection);
 
-    let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
+    let network_validators = get_era_validators(&root_connection, session);
     let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
-    let network_reserved: HashSet<_> = network_reserved.into_iter().collect();
+    let network_reserved: HashSet<_> = network_validators.reserved.into_iter().collect();
     let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();
-    let network_non_reserved: HashSet<_> = network_non_reserved.into_iter().collect();
+    let network_non_reserved: HashSet<_> = network_validators.non_reserved.into_iter().collect();
     let first_block_in_session = get_session_first_block(&root_connection, session);
     let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
 
@@ -368,7 +305,7 @@ pub fn setup_validators(
     assert_eq!(non_reserved, network_non_reserved);
     assert_eq!(seats, network_seats);
 
-    Ok((era_validators, members_per_session, era))
+    Ok((era_validators, seats, era))
 }
 
 pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {

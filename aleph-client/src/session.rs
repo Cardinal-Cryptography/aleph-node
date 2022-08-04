@@ -1,6 +1,6 @@
 use codec::{Decode, Encode};
 use log::info;
-use primitives::{CommitteeSeats, SessionIndex};
+use primitives::{BlockHash, CommitteeSeats, SessionIndex};
 use sp_core::{Pair, H256};
 use substrate_api_client::{
     compose_call, compose_extrinsic, AccountId, ExtrinsicParams, FromHexString, XtStatus,
@@ -156,7 +156,10 @@ pub fn get_current_validators<C: AnyConnection>(connection: &C) -> Vec<AccountId
     connection.read_storage_value(PALLET, "Validators")
 }
 
-pub fn get_session_first_block<C: AnyConnection>(connection: &C, session: SessionIndex) -> H256 {
+pub fn get_session_first_block<C: AnyConnection>(
+    connection: &C,
+    session: SessionIndex,
+) -> BlockHash {
     let block_number = session * get_session_period(connection);
     get_block_hash(connection, block_number)
 }

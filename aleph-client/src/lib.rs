@@ -37,8 +37,8 @@ pub use staking::{
     get_stakers_as_storage_keys_from_storage_key, ledger as staking_ledger,
     multi_bond as staking_multi_bond, nominate as staking_nominate, payout_stakers,
     payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
-    validate as staking_validate, wait_for_full_era_completion, wait_for_next_era, RewardPoint,
-    StakingLedger,
+    validate as staking_validate, wait_for_at_least_era, wait_for_full_era_completion,
+    wait_for_next_era, RewardPoint, StakingLedger,
 };
 pub use substrate_api_client;
 use substrate_api_client::{
