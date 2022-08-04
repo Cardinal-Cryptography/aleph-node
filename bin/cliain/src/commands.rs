@@ -108,9 +108,21 @@ pub enum Command {
 
     /// Change the validator set for the session after the next
     ChangeValidators {
-        /// The new validators
+        /// The new reserved validators list
         #[clap(long, value_delimiter = ',')]
-        validators: Vec<String>,
+        reserved_validators: Vec<String>,
+
+        /// The new non-reserved validators list
+        #[clap(long, value_delimiter = ',')]
+        non_reserved_validators: Vec<String>,
+
+        /// The new reserved committee size
+        #[clap(long)]
+        reserved_committee_size: Option<u32>,
+
+        /// The new non-reserved committee size
+        #[clap(long)]
+        non_reserved_committee_size: Option<u32>,
     },
 
     /// Force new era in staking world. Requires sudo.
