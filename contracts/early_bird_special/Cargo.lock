@@ -90,6 +90,7 @@ dependencies = [
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
+ "openbrush",
  "parity-scale-codec",
  "scale-info",
 ]

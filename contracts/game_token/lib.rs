@@ -111,7 +111,7 @@ pub mod game_token {
                 |why: InkEnvError| {
                     PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
                 },
-                || PSP22Error::Custom(String::from("MissingRole")),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
             );
 
             match role_check {
@@ -157,7 +157,7 @@ pub mod game_token {
                 |why: InkEnvError| {
                     PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
                 },
-                || PSP22Error::Custom(String::from("MissingRole")),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
             )
         }
 

@@ -13,12 +13,13 @@ use ink_storage::{
     traits::{SpreadAllocate, SpreadLayout},
     Mapping,
 };
+use openbrush::contracts::psp22::PSP22Error;
 
 pub type BlockNumber = <ButtonGameEnvironment as ink_env::Environment>::BlockNumber;
 // scores are denominated in block numbers
 pub type Score = BlockNumber;
 pub type Balance = <ButtonGameEnvironment as ink_env::Environment>::Balance;
-pub type Result<T> = core::result::Result<T, Error>;
+pub type ButtonResult<T> = core::result::Result<T, GameError>;
 
 pub enum ButtonGameEnvironment {}
 
@@ -33,10 +34,10 @@ impl Environment for ButtonGameEnvironment {
     type ChainExtension = <DefaultEnvironment as Environment>::ChainExtension;
 }
 
-/// Error types
+/// GameError types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum Error {
+pub enum GameError {
     /// Returned if given account already pressed The Button
     AlreadyParticipated,
     /// Returned if death is called before the deadline
@@ -47,56 +48,79 @@ pub enum Error {
     AlreadyCLaimed,
     /// Account not whitelisted to play
     NotWhitelisted,
-    /// Returned if a call to another contract has failed
-    ContractCall(String),
     /// Returned if a call is made from an account with missing access control priviledges
-    MissingRole,
+    MissingRole(String),
     /// Returned whenever there was already a press tx recorded in this block
     BetterLuckNextTime,
+    /// Returned if a call to another contract has failed
+    ContractCall(String),
 }
 
-impl From<InkEnvError> for Error {
+impl From<PSP22Error> for GameError {
+    fn from(e: PSP22Error) -> Self {
+        match e {
+            PSP22Error::Custom(message) => GameError::ContractCall(message),
+            PSP22Error::InsufficientBalance => {
+                GameError::ContractCall(String::from("PSP22::InsufficientBalance"))
+            }
+            PSP22Error::InsufficientAllowance => {
+                GameError::ContractCall(String::from("PSP22::InsufficientAllowance"))
+            }
+            PSP22Error::ZeroRecipientAddress => {
+                GameError::ContractCall(String::from("PSP22::ZeroRecipientAddress"))
+            }
+            PSP22Error::ZeroSenderAddress => {
+                GameError::ContractCall(String::from("PSP22::ZeroSenderAddress"))
+            }
+            PSP22Error::SafeTransferCheckFailed(message) => {
+                GameError::ContractCall(format!("PSP22::SafeTransferCheckFailed({})", message))
+            }
+        }
+    }
+}
+
+impl From<InkEnvError> for GameError {
     fn from(e: InkEnvError) -> Self {
         match e {
             InkEnvError::Decode(_e) => {
-                Error::ContractCall(String::from("Contract call failed due to Decode error"))
+                GameError::ContractCall(String::from("Contract call failed due to Decode error"))
             }
-            InkEnvError::CalleeTrapped => Error::ContractCall(String::from(
+            InkEnvError::CalleeTrapped => GameError::ContractCall(String::from(
                 "Contract call failed due to CalleeTrapped error",
             )),
-            InkEnvError::CalleeReverted => Error::ContractCall(String::from(
+            InkEnvError::CalleeReverted => GameError::ContractCall(String::from(
                 "Contract call failed due to CalleeReverted error",
             )),
-            InkEnvError::KeyNotFound => Error::ContractCall(String::from(
+            InkEnvError::KeyNotFound => GameError::ContractCall(String::from(
                 "Contract call failed due to KeyNotFound error",
             )),
-            InkEnvError::_BelowSubsistenceThreshold => Error::ContractCall(String::from(
+            InkEnvError::_BelowSubsistenceThreshold => GameError::ContractCall(String::from(
                 "Contract call failed due to _BelowSubsistenceThreshold error",
             )),
-            InkEnvError::TransferFailed => Error::ContractCall(String::from(
+            InkEnvError::TransferFailed => GameError::ContractCall(String::from(
                 "Contract call failed due to TransferFailed error",
             )),
-            InkEnvError::_EndowmentTooLow => Error::ContractCall(String::from(
+            InkEnvError::_EndowmentTooLow => GameError::ContractCall(String::from(
                 "Contract call failed due to _EndowmentTooLow error",
             )),
-            InkEnvError::CodeNotFound => Error::ContractCall(String::from(
+            InkEnvError::CodeNotFound => GameError::ContractCall(String::from(
                 "Contract call failed due to CodeNotFound error",
             )),
-            InkEnvError::NotCallable => Error::ContractCall(String::from(
+            InkEnvError::NotCallable => GameError::ContractCall(String::from(
                 "Contract call failed due to NotCallable error",
             )),
             InkEnvError::Unknown => {
-                Error::ContractCall(String::from("Contract call failed due to Unknown error"))
+                GameError::ContractCall(String::from("Contract call failed due to Unknown error"))
             }
-            InkEnvError::LoggingDisabled => Error::ContractCall(String::from(
+            InkEnvError::LoggingDisabled => GameError::ContractCall(String::from(
                 "Contract call failed due to LoggingDisabled error",
             )),
-            InkEnvError::EcdsaRecoveryFailed => Error::ContractCall(String::from(
+            InkEnvError::EcdsaRecoveryFailed => GameError::ContractCall(String::from(
                 "Contract call failed due to EcdsaRecoveryFailed error",
             )),
             #[cfg(any(feature = "std", test, doc))]
             InkEnvError::OffChain(_e) => {
-                Error::ContractCall(String::from("Contract call failed due to OffChain error"))
+                GameError::ContractCall(String::from("Contract call failed due to OffChain error"))
             }
         }
     }
@@ -176,7 +200,7 @@ pub trait ButtonGame {
         new_access_control: AccountId,
         caller: AccountId,
         this: AccountId,
-    ) -> Result<()>
+    ) -> ButtonResult<()>
     where
         Self: AccessControlled,
     {
@@ -194,7 +218,7 @@ pub trait ButtonGame {
         self.get().game_token
     }
 
-    fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> Result<Balance>
+    fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> ButtonResult<Balance>
     where
         E: Environment<AccountId = AccountId>,
     {
@@ -212,7 +236,7 @@ pub trait ButtonGame {
         transfer_selector: [u8; 4],
         to: AccountId,
         value: Balance,
-    ) -> core::result::Result<(), InkEnvError>
+    ) -> Result<Result<(), PSP22Error>, InkEnvError>
     where
         E: Environment<AccountId = AccountId>,
     {
@@ -221,14 +245,16 @@ pub trait ButtonGame {
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_selector))
                     .push_arg(to)
-                    .push_arg(value)
+                    // TODO : testing
+                    // .push_arg(value)
+                    .push_arg(1)
                     .push_arg(vec![0x0]),
             )
-            .returns::<()>()
+            .returns::<Result<(), PSP22Error>>()
             .fire()
     }
 
-    fn check_role(&self, account: AccountId, role: Role) -> Result<()>
+    fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()>
     where
         Self: AccessControlled,
     {
@@ -237,13 +263,13 @@ pub trait ButtonGame {
             account,
             role,
             |why: InkEnvError| {
-                Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+                GameError::ContractCall(format!("Calling access control has failed: {:?}", why))
             },
-            || Error::MissingRole,
+            |role: Role| GameError::MissingRole(format!("{:?}", role)),
         )
     }
 
-    fn allow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
+    fn allow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> ButtonResult<()>
     where
         Self: AccessControlled,
     {
@@ -258,7 +284,7 @@ pub trait ButtonGame {
         players: Vec<AccountId>,
         caller: AccountId,
         this: AccountId,
-    ) -> Result<()>
+    ) -> ButtonResult<()>
     where
         Self: AccessControlled,
     {
@@ -271,7 +297,12 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    fn disallow(&mut self, player: AccountId, caller: AccountId, this: AccountId) -> Result<()>
+    fn disallow(
+        &mut self,
+        player: AccountId,
+        caller: AccountId,
+        this: AccountId,
+    ) -> ButtonResult<()>
     where
         Self: AccessControlled,
     {
@@ -281,8 +312,8 @@ pub trait ButtonGame {
         Ok(())
     }
 
-    // TODO : one press per block
-    fn press(&mut self, now: BlockNumber, caller: AccountId) -> Result<()> {
+    // TODO : add nonce
+    fn press(&mut self, now: BlockNumber, caller: AccountId) -> ButtonResult<()> {
         let ButtonData {
             can_play,
             presses,
@@ -291,15 +322,15 @@ pub trait ButtonGame {
         } = self.get();
 
         if self.is_dead(now) {
-            return Err(Error::AfterDeadline);
+            return Err(GameError::AfterDeadline);
         }
 
         if presses.get(&caller).is_some() {
-            return Err(Error::AlreadyParticipated);
+            return Err(GameError::AlreadyParticipated);
         }
 
         if can_play.get(&caller).is_none() {
-            return Err(Error::NotWhitelisted);
+            return Err(GameError::NotWhitelisted);
         }
 
         // this is to handle a situation when multiple accounts press at the same time (in the same block)
@@ -307,7 +338,7 @@ pub trait ButtonGame {
         // the users are effectively competing for this one tx
         if let Some(last_press) = last_press {
             if last_press.eq(&now) {
-                return Err(Error::BetterLuckNextTime);
+                return Err(GameError::BetterLuckNextTime);
             }
         }
 
@@ -336,7 +367,7 @@ pub trait ButtonGame {
         balance_of_selector: [u8; 4],
         transfer_selector: [u8; 4],
         this: AccountId,
-    ) -> Result<()>
+    ) -> ButtonResult<u128>
     where
         E: Environment<AccountId = AccountId>,
     {
@@ -349,15 +380,17 @@ pub trait ButtonGame {
         } = self.get();
 
         if !self.is_dead(now) {
-            return Err(Error::BeforeDeadline);
+            return Err(GameError::BeforeDeadline);
         }
 
         if reward_claimed.get(&for_player).is_some() {
-            return Err(Error::AlreadyCLaimed);
+            return Err(GameError::AlreadyCLaimed);
         }
 
+        let mut total_rewards = 0;
+
         match last_presser {
-            None => Ok(()), // there weren't any players
+            None => Ok(0), // there weren't any players
             Some(pressiah) => {
                 let total_balance = self.balance::<E>(balance_of_selector, this)?;
                 let pressiah_reward = total_balance / 2;
@@ -365,7 +398,8 @@ pub trait ButtonGame {
 
                 if &for_player == pressiah {
                     // Pressiah gets 50% of supply
-                    self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)?;
+                    self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)??;
+                    total_rewards += pressiah_reward;
                 }
 
                 // NOTE: in this design the Pressiah gets *both* his/her reward *and* a reward for playing
@@ -373,13 +407,14 @@ pub trait ButtonGame {
                 if let Some(score) = presses.get(&for_player) {
                     // transfer reward proportional to the score
                     let reward = (score as u128 * remaining_balance) / *total_scores as u128;
-                    self.transfer_tx::<E>(transfer_selector, for_player, reward)?;
+                    self.transfer_tx::<E>(transfer_selector, for_player, reward)??;
 
                     // pressiah is also marked as having made the claim, because his/her score was recorder
                     self.get_mut().reward_claimed.insert(&for_player, &());
+                    total_rewards += reward;
                 }
 
-                Ok(())
+                Ok(total_rewards)
             }
         }
     }
@@ -393,11 +428,11 @@ pub trait ButtonGame {
 pub trait IButtonGame {
     /// Button press logic
     #[ink(message)]
-    fn press(&mut self) -> Result<()>;
+    fn press(&mut self) -> ButtonResult<()>;
 
     /// Pays out the award
     #[ink(message)]
-    fn claim_reward(&mut self, for_player: AccountId) -> Result<()>;
+    fn claim_reward(&mut self, for_player: AccountId) -> ButtonResult<()>;
 
     /// Returns the buttons status
     #[ink(message)]
@@ -431,36 +466,36 @@ pub trait IButtonGame {
 
     /// Returns then game token balance of the game contract
     #[ink(message)]
-    fn balance(&self) -> Result<Balance>;
+    fn balance(&self) -> ButtonResult<Balance>;
 
     /// Sets new access control contract address
     ///
     /// Should only be called by the contract owner
     /// Implementing contract is responsible for setting up proper AccessControl
     #[ink(message)]
-    fn set_access_control(&mut self, access_control: AccountId) -> Result<()>;
+    fn set_access_control(&mut self, access_control: AccountId) -> ButtonResult<()>;
 
     /// Whitelists given AccountId to participate in the game
     ///
     /// Should only be called by the contracts Admin
     #[ink(message)]
-    fn allow(&mut self, player: AccountId) -> Result<()>;
+    fn allow(&mut self, player: AccountId) -> ButtonResult<()>;
 
     /// Whitelists an array of accounts to participate in the game
     ///
     /// Should return an error if called by someone else but the Admin
     #[ink(message)]
-    fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()>;
+    fn bulk_allow(&mut self, players: Vec<AccountId>) -> ButtonResult<()>;
 
     /// Blacklists given AccountId from participating in the game
     ///
     /// Should return an error if called by someone else but the Admin
     #[ink(message)]
-    fn disallow(&mut self, player: AccountId) -> Result<()>;
+    fn disallow(&mut self, player: AccountId) -> ButtonResult<()>;
 
     /// Terminates the contract
     ///
     /// Should only be called by the contract Owner
     #[ink(message)]
-    fn terminate(&mut self) -> Result<()>;
+    fn terminate(&mut self) -> ButtonResult<()>;
 }

@@ -13,7 +13,7 @@ mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::{
-        ButtonData, ButtonGame, ButtonGameEnvironment, Error, IButtonGame, Result, Score,
+        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame, Score,
     };
     use game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::Error as InkEnvError;
@@ -67,6 +67,7 @@ mod early_bird_special {
     #[derive(Debug)]
     pub struct RewardClaimed {
         for_player: AccountId,
+        rewards: u128,
     }
 
     #[ink(storage)]
@@ -76,7 +77,7 @@ mod early_bird_special {
     }
 
     impl AccessControlled for EarlyBirdSpecial {
-        type ContractError = Error;
+        type ContractError = GameError;
     }
 
     impl ButtonGame for EarlyBirdSpecial {
@@ -103,7 +104,7 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn press(&mut self) -> Result<()> {
+        fn press(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let now = Self::env().block_number();
             ButtonGame::press(self, now, caller)?;
@@ -118,11 +119,11 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn claim_reward(&mut self, for_player: AccountId) -> Result<()> {
+        fn claim_reward(&mut self, for_player: AccountId) -> ButtonResult<()> {
             let this = self.env().account_id();
             let now = Self::env().block_number();
 
-            ButtonGame::claim_reward::<ButtonGameEnvironment>(
+            let rewards = ButtonGame::claim_reward::<ButtonGameEnvironment>(
                 self,
                 now,
                 for_player,
@@ -133,7 +134,10 @@ mod early_bird_special {
 
             Self::emit_event(
                 self.env(),
-                Event::RewardClaimed(RewardClaimed { for_player }),
+                Event::RewardClaimed(RewardClaimed {
+                    for_player,
+                    rewards,
+                }),
             );
             Ok(())
         }
@@ -170,20 +174,20 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn balance(&self) -> Result<Balance> {
+        fn balance(&self) -> ButtonResult<Balance> {
             let this = self.env().account_id();
             ButtonGame::balance::<ButtonGameEnvironment>(self, BALANCE_OF_SELECTOR, this)
         }
 
         #[ink(message)]
-        fn set_access_control(&mut self, new_access_control: AccountId) -> Result<()> {
+        fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::set_access_control(self, new_access_control, caller, this)
         }
 
         #[ink(message)]
-        fn allow(&mut self, player: AccountId) -> Result<()> {
+        fn allow(&mut self, player: AccountId) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::allow(self, player, caller, this)?;
@@ -195,7 +199,7 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn bulk_allow(&mut self, players: Vec<AccountId>) -> Result<()> {
+        fn bulk_allow(&mut self, players: Vec<AccountId>) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::bulk_allow(self, players.clone(), caller, this)?;
@@ -209,7 +213,7 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn disallow(&mut self, player: AccountId) -> Result<()> {
+        fn disallow(&mut self, player: AccountId) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::disallow(self, player, caller, this)?;
@@ -221,7 +225,7 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn terminate(&mut self) -> Result<()> {
+        fn terminate(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
@@ -245,9 +249,9 @@ mod early_bird_special {
                 caller,
                 required_role,
                 |why: InkEnvError| {
-                    Error::ContractCall(format!("Calling access control has failed: {:?}", why))
+                    GameError::ContractCall(format!("Calling access control has failed: {:?}", why))
                 },
-                || Error::MissingRole,
+                |role: Role| GameError::MissingRole(format!("{:?}", role)),
             );
 
             match role_check {
@@ -285,9 +289,9 @@ mod early_bird_special {
 
         /// Returns own code hash
         #[ink(message)]
-        pub fn code_hash(&self) -> Result<Hash> {
+        pub fn code_hash(&self) -> ButtonResult<Hash> {
             self.env().own_code_hash().map_err(|why| {
-                Error::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
+                GameError::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
             })
         }
     }
