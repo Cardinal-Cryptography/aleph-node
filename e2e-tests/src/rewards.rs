@@ -1,21 +1,26 @@
 use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
-    account_from_keypair, change_validators, get_block_hash, get_committee_seats,
-    get_current_session, get_era, get_era_reward_points, get_era_validators, get_exposure,
-    get_session_period, get_session_validators, get_validator_block_count, rotate_keys, set_keys,
-    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
-    AnyConnection, EraValidators, RewardPoint, SessionKeys, SignedConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
+    change_validators, get_block_hash, get_committee_seats, get_current_session, get_era,
+    get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
+    get_session_period, get_validator_block_count, get_validators_for_session, rotate_keys,
+    set_keys, wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
+    AnyConnection, RewardPoint, SessionKeys, SignedConnection,
 };
 use log::info;
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
-use primitives::{CommitteeSeats, EraIndex, SessionIndex};
-use sp_core::H256;
+use primitives::{
+    Balance, BlockHash, CommitteeSeats, EraIndex, EraValidators, SessionIndex, TOKEN,
+};
 use sp_runtime::Perquintill;
 use substrate_api_client::{AccountId, XtStatus};
 
-use crate::{accounts::get_validators_keys, Config};
+use crate::{
+    accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
+    Config,
+};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
@@ -52,9 +57,9 @@ pub fn download_exposure(
     connection: &SignedConnection,
     era: EraIndex,
     account_id: &AccountId,
-    beginning_of_session_block_hash: H256,
-) -> u128 {
-    let exposure: Exposure<AccountId, u128> = get_exposure(
+    beginning_of_session_block_hash: BlockHash,
+) -> Balance {
+    let exposure: Exposure<AccountId, Balance> = get_exposure(
         connection,
         era,
         account_id,
@@ -110,13 +115,13 @@ fn check_rewards(
 
 fn get_node_performance(
     connection: &SignedConnection,
-    account_id: &AccountId,
-    before_end_of_session_block_hash: H256,
+    account_id: AccountId,
+    before_end_of_session_block_hash: BlockHash,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
     let block_count = get_validator_block_count(
         connection,
-        account_id,
+        &account_id,
         Some(before_end_of_session_block_hash),
     )
     .unwrap_or(0);
@@ -143,8 +148,8 @@ pub fn check_points(
     connection: &SignedConnection,
     session: SessionIndex,
     era: EraIndex,
-    members: impl IntoIterator<Item = AccountId> + Clone,
-    members_bench: impl IntoIterator<Item = AccountId> + Clone,
+    members: impl IntoIterator<Item = AccountId>,
+    members_bench: impl IntoIterator<Item = AccountId>,
     members_per_session: u32,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
@@ -203,7 +208,7 @@ pub fn check_points(
             account_id.clone(),
             get_node_performance(
                 connection,
-                &account_id,
+                account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
@@ -289,26 +294,13 @@ pub fn get_members_for_session<C: AnyConnection>(
         .collect();
 
     let members_active_set: HashSet<_> = members_active.iter().cloned().collect();
-    let network_members: HashSet<_> = get_session_validators(connection, session)
+    let network_members: HashSet<_> = get_validators_for_session(connection, session)
         .into_iter()
         .collect();
 
     assert_eq!(members_active_set, network_members);
 
     (members_active, members_bench)
-}
-
-fn get_seats_for_session<C: AnyConnection>(
-    connection: &C,
-    session: SessionIndex,
-) -> CommitteeSeats {
-    let session_first_block = get_session_first_block(connection, session);
-    get_committee_seats(connection, Some(session_first_block))
-}
-
-fn get_session_first_block<C: AnyConnection>(connection: &C, session: SessionIndex) -> H256 {
-    let block_number = session * get_session_period(connection);
-    get_block_hash(connection, block_number)
 }
 
 pub fn setup_validators(
@@ -335,7 +327,8 @@ pub fn setup_validators(
 
     let session = get_current_session(&root_connection);
     let (network_reserved, network_non_reserved) = get_member_accounts(&root_connection, session);
-    let network_seats = get_seats_for_session(&root_connection, session);
+    let first_block_in_session = get_session_first_block(&root_connection, session);
+    let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
 
     let era_validators = EraValidators {
         reserved: reserved_members.to_vec(),
@@ -368,11 +361,46 @@ pub fn setup_validators(
     let network_reserved: HashSet<_> = network_reserved.into_iter().collect();
     let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();
     let network_non_reserved: HashSet<_> = network_non_reserved.into_iter().collect();
-    let network_seats = get_seats_for_session(&root_connection, session);
+    let first_block_in_session = get_session_first_block(&root_connection, session);
+    let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
 
     assert_eq!(reserved, network_reserved);
     assert_eq!(non_reserved, network_non_reserved);
     assert_eq!(seats, network_seats);
 
     Ok((era_validators, members_per_session, era))
+}
+
+pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {
+    let node = &config.node;
+    let root_connection = config.create_root_connection();
+
+    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
+        .into_iter()
+        .map(|seed| seed.into())
+        .collect();
+
+    let controller_accounts: Vec<AccountId> = accounts_keys
+        .iter()
+        .map(|account_keys| account_from_keypair(&account_keys.controller))
+        .collect();
+
+    // funds to cover fees
+    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
+
+    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
+        |(account_keys, additional_stake)| {
+            let validator_id = account_from_keypair(&account_keys.validator);
+
+            // Additional TOKEN to cover fees
+            balances_transfer(
+                &root_connection.as_signed(),
+                &validator_id,
+                *additional_stake + TOKEN,
+                XtStatus::Finalized,
+            );
+            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
+            bond_extra_stake(&stash_connection, *additional_stake);
+        },
+    );
 }

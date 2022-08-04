@@ -6,8 +6,10 @@ pub use balances::total_issuance;
 use codec::{Decode, Encode};
 pub use debug::print_storages;
 pub use elections::{
-    get_committee_seats, get_era_validators, get_validator_block_count, CommitteeSeats,
-    EraValidators,
+    get_committee_seats, get_current_era_non_reserved_validators,
+    get_current_era_reserved_validators, get_era_validators, get_next_era_committee_seats,
+    get_next_era_non_reserved_validators, get_next_era_reserved_validators,
+    get_validator_block_count,
 };
 pub use fee::{get_next_fee_multiplier, get_tx_fee_info, FeeInfo};
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
@@ -16,25 +18,26 @@ pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
+pub use primitives::{BlockHash, BlockNumber, Header};
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
-    change_next_era_reserved_validators, change_validators, get_current_session, get_session,
-    get_session_period, get_session_validators, set_keys, wait_for as wait_for_session,
+    change_next_era_reserved_validators, change_validators, get_current_session,
+    get_current_validators, get_session, get_session_first_block, get_session_period,
+    get_validators_for_session, set_keys, wait_for as wait_for_session,
     wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{ed25519, sr25519, storage::StorageKey, Pair, H256};
-use sp_runtime::{
-    generic::Header as GenericHeader,
-    traits::{BlakeTwo256, Header as HeaderT},
-};
 pub use staking::{
     batch_bond as staking_batch_bond, batch_nominate as staking_batch_nominate,
-    bond as staking_bond, bonded as staking_bonded, force_new_era as staking_force_new_era,
-    get_current_era, get_era, get_era_reward_points, get_exposure, get_payout_for_era,
-    get_sessions_per_era, ledger as staking_ledger, multi_bond as staking_multi_bond,
-    nominate as staking_nominate, payout_stakers, payout_stakers_and_assert_locked_balance,
-    set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_era_completion, wait_for_full_era_completion, wait_for_next_era, RewardPoint,
+    bond as staking_bond, bond_extra_stake, bonded as staking_bonded,
+    chill_all_validators as staking_chill_all_validators,
+    chill_validator as staking_chill_validator, force_new_era as staking_force_new_era,
+    get_current_era, get_era, get_era_reward_points, get_eras_stakers_storage_key, get_exposure,
+    get_payout_for_era, get_sessions_per_era, get_stakers_as_storage_keys,
+    get_stakers_as_storage_keys_from_storage_key, ledger as staking_ledger,
+    multi_bond as staking_multi_bond, nominate as staking_nominate, payout_stakers,
+    payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
+    validate as staking_validate, wait_for_full_era_completion, wait_for_next_era, RewardPoint,
     StakingLedger,
 };
 pub use substrate_api_client;
@@ -87,10 +90,6 @@ impl FromStr for WsRpcClient {
     }
 }
 
-pub type BlockNumber = u32;
-pub type Hash = H256;
-pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
-pub type BlockHash = <Header as HeaderT>::Hash;
 pub type KeyPair = sr25519::Pair;
 pub type AlephKeyPair = ed25519::Pair;
 pub type Connection = Api<KeyPair, WsRpcClient, PlainTipExtrinsicParams>;
@@ -412,8 +411,17 @@ pub fn get_block_hash<C: AnyConnection>(connection: &C, block_number: BlockNumbe
     connection
         .as_connection()
         .get_block_hash(Some(block_number))
-        .expect("API call should have succeeded.")
+        .expect("Could not fetch block hash")
         .unwrap_or_else(|| {
             panic!("Failed to obtain block hash for block {}.", block_number);
         })
+}
+
+pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> BlockNumber {
+    connection
+        .as_connection()
+        .get_header::<Header>(None)
+        .expect("Could not fetch header")
+        .expect("Block exists; qed")
+        .number
 }

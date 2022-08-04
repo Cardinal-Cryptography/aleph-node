@@ -1,18 +1,16 @@
 use aleph_client::{
-    account_from_keypair, balances_batch_transfer, balances_transfer, get_current_era,
-    get_current_session, get_sessions_per_era, send_xt, staking_force_new_era,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, AnyConnection,
-    EraValidators, SignedConnection,
+    get_current_era, get_current_session, get_sessions_per_era, staking_force_new_era,
+    wait_for_full_era_completion, wait_for_next_era, wait_for_session, SignedConnection,
 };
 use log::info;
-use primitives::{staking::MIN_VALIDATOR_BOND, Balance, EraIndex, SessionIndex, TOKEN};
+use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, EraValidators, SessionIndex};
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
+    accounts::get_validators_keys,
     rewards::{
         check_points, get_era_for_session, get_members_for_session, reset_validator_keys,
-        set_invalid_keys_for_validator, setup_validators,
+        set_invalid_keys_for_validator, setup_validators, validators_bond_extra_stakes,
     },
     Config,
 };
@@ -21,48 +19,6 @@ use crate::{
 // Two values are compared: one calculated in tests and the other one based on data
 // retrieved from pallet Staking.
 const MAX_DIFFERENCE: f64 = 0.07;
-
-fn validators_bond_extra_stakes(config: &Config, additional_stakes: Vec<Balance>) {
-    let node = &config.node;
-    let root_connection = config.create_root_connection();
-
-    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
-        .into_iter()
-        .map(|seed| seed.into())
-        .collect();
-
-    let controller_accounts: Vec<AccountId> = accounts_keys
-        .iter()
-        .map(|account_keys| account_from_keypair(&account_keys.controller))
-        .collect();
-
-    // funds to cover fees
-    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
-
-    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
-        |(account_keys, additional_stake)| {
-            let validator_id = account_from_keypair(&account_keys.validator);
-
-            // Additional TOKEN to cover fees
-            balances_transfer(
-                &root_connection.as_signed(),
-                &validator_id,
-                *additional_stake + TOKEN,
-                XtStatus::Finalized,
-            );
-            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
-            let xt = stash_connection
-                .as_connection()
-                .staking_bond_extra(*additional_stake);
-            send_xt(
-                &stash_connection,
-                xt,
-                Some("bond_extra"),
-                XtStatus::Finalized,
-            );
-        },
-    );
-}
 
 fn check_points_after_force_new_era(
     connection: &SignedConnection,
@@ -160,14 +116,13 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 
     validators_bond_extra_stakes(
         config,
-        [
+        &[
             8 * MIN_VALIDATOR_BOND,
             6 * MIN_VALIDATOR_BOND,
             4 * MIN_VALIDATOR_BOND,
             2 * MIN_VALIDATOR_BOND,
             0,
-        ]
-        .to_vec(),
+        ],
     );
 
     let sessions_per_era = get_sessions_per_era(&connection);
@@ -257,10 +212,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 
     let (era_validators, committee_size, start_era) = setup_validators(config)?;
 
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let start_session = get_current_session(&connection);
@@ -297,10 +249,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
     let (era_validators, committee_size, start_era) = setup_validators(config)?;
 
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
+    let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
     let start_session = get_current_session(&connection);
@@ -308,14 +257,13 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
 
     validators_bond_extra_stakes(
         config,
-        [
+        &[
             7 * MIN_VALIDATOR_BOND,
             2 * MIN_VALIDATOR_BOND,
             11 * MIN_VALIDATOR_BOND,
             0,
             4 * MIN_VALIDATOR_BOND,
-        ]
-        .to_vec(),
+        ],
     );
 
     staking_force_new_era(&root_connection, XtStatus::Finalized);
