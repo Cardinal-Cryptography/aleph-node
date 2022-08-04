@@ -37,6 +37,7 @@ std = [
     "pallet-staking/std",
     "pallet-treasury/std",
     "pallet-aleph/std",
+    "pallet-elections/std",
     "primitives/std",
     "pallet-balances/std",
     "pallet-multisig/std",
