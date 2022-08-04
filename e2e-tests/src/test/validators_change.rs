@@ -1,6 +1,6 @@
 use aleph_client::{
-    get_committee_seats, get_current_block_number, get_next_era_non_reserved_validators,
-    get_next_era_reserved_validators, wait_for_event, wait_for_finalized_block, AnyConnection,
+    get_current_block_number, get_next_era_committee_seats, get_next_era_non_reserved_validators,
+    get_next_era_reserved_validators, wait_for_event, wait_for_finalized_block,
 };
 use codec::Decode;
 use log::info;
@@ -16,7 +16,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let reserved_before = get_next_era_reserved_validators(&connection);
     let non_reserved_before = get_next_era_non_reserved_validators(&connection);
-    let committee_size_before = get_committee_seats(&connection, None);
+    let committee_size_before = get_next_era_committee_seats(&connection);
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",
@@ -59,8 +59,7 @@ pub fn change_validators(config: &Config) -> anyhow::Result<()> {
 
     let reserved_after = get_next_era_reserved_validators(&connection);
     let non_reserved_after = get_next_era_non_reserved_validators(&connection);
-    let committee_size_after: CommitteeSeats =
-        connection.read_storage_value("Elections", "NextEraCommitteeSize");
+    let committee_size_after = get_next_era_committee_seats(&connection);
 
     info!(
         "[+] state before tx: reserved: {:#?}, non_reserved: {:#?}, committee_size: {:#?}",

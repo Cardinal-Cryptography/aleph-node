@@ -23,6 +23,10 @@ pub fn get_committee_seats<C: AnyConnection>(
         })
 }
 
+pub fn get_next_era_committee_seats<C: AnyConnection>(connection: &C) -> CommitteeSeats {
+    connection.read_storage_value(PALLET, "NextEraCommitteeSize")
+}
+
 pub fn get_validator_block_count<C: AnyConnection>(
     connection: &C,
     account_id: &AccountId,
