@@ -33,7 +33,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 pub type BlockCount = u32;
 pub type TotalReward = u32;
 
-#[derive(Decode, Encode, TypeInfo)]
+#[derive(Decode, Encode, TypeInfo, Eq, PartialEq)]
 pub struct EraValidators<AccountId> {
     pub reserved: Vec<AccountId>,
     pub non_reserved: Vec<AccountId>,
@@ -45,18 +45,6 @@ impl<AccountId> Default for EraValidators<AccountId> {
             reserved: vec![],
             non_reserved: vec![],
         }
-    }
-}
-
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct CommitteeSeats {
-    pub reserved_seats: u32,
-    pub non_reserved_seats: u32,
-}
-
-impl CommitteeSeats {
-    fn size(&self) -> u32 {
-        self.reserved_seats.saturating_add(self.non_reserved_seats)
     }
 }
 
@@ -74,15 +62,18 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::DEFAULT_COMMITTEE_SIZE;
+    use primitives::CommitteeSeats;
 
     use super::*;
-    use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
+    use crate::{
+        migrations::StorageMigration,
+        traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Something that provides information about ongoing eras.
-        type EraInfoProvider: EraInfoProvider;
+        type EraInfoProvider: EraInfoProvider<AccountId = Self::AccountId>;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         /// Something that provides data for elections.
         type DataProvider: ElectionDataProvider<
@@ -119,16 +110,16 @@ pub mod pallet {
                 + match on_chain {
                     _ if on_chain == STORAGE_VERSION => 0,
                     _ if on_chain == StorageVersion::new(0) => {
-                        migrations::v0_to_v1::migrate::<T, Self>()
-                            + migrations::v1_to_v2::migrate::<T, Self>()
-                            + migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v0_to_v1::Migration::<T, Self>::migrate()
+                            + migrations::v1_to_v2::Migration::<T, Self>::migrate()
+                            + migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ if on_chain == StorageVersion::new(1) => {
-                        migrations::v1_to_v2::migrate::<T, Self>()
-                            + migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v1_to_v2::Migration::<T, Self>::migrate()
+                            + migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ if on_chain == StorageVersion::new(2) => {
-                        migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ => {
                         log::warn!(
@@ -139,31 +130,6 @@ pub mod pallet {
                         0
                     }
                 }
-        }
-        #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<(), &'static str> {
-            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            match on_chain {
-                _ if on_chain == STORAGE_VERSION => Ok(()),
-                _ if on_chain == StorageVersion::new(0) => {
-                    migrations::v0_to_v1::pre_upgrade::<T, Self>()
-                }
-                _ if on_chain == StorageVersion::new(1) => {
-                    migrations::v1_to_v2::pre_upgrade::<T, Self>()
-                }
-                _ if on_chain == StorageVersion::new(2) => {
-                    migrations::v2_to_v3::pre_upgrade::<T, Self>()
-                }
-                _ => Err("Bad storage version"),
-            }
-        }
-        #[cfg(feature = "try-runtime")]
-        fn post_upgrade() -> Result<(), &'static str> {
-            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            match on_chain {
-                _ if on_chain == STORAGE_VERSION => migrations::v2_to_v3::post_upgrade::<T, Self>(),
-                _ => Err("Bad storage version"),
-            }
         }
     }
     /// Desirable size of a committee.
@@ -258,7 +224,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
-        pub committee_size: u32,
+        pub committee_seats: CommitteeSeats,
     }
 
     #[cfg(feature = "std")]
@@ -267,7 +233,7 @@ pub mod pallet {
             Self {
                 non_reserved_validators: Vec::new(),
                 reserved_validators: Vec::new(),
-                committee_size: DEFAULT_COMMITTEE_SIZE,
+                committee_seats: Default::default(),
             }
         }
     }
@@ -275,12 +241,14 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
+            <CommitteeSize<T>>::put(&self.committee_seats);
+            <NextEraCommitteeSize<T>>::put(&self.committee_seats);
             <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
-            <CommitteeSize<T>>::put(&CommitteeSeats {
-                reserved_seats: self.committee_size,
-                non_reserved_seats: 0,
-            });
             <NextEraReservedValidators<T>>::put(&self.reserved_validators);
+            <CurrentEraValidators<T>>::put(&EraValidators {
+                reserved: self.reserved_validators.clone(),
+                non_reserved: self.non_reserved_validators.clone(),
+            });
         }
     }
 
@@ -348,28 +316,44 @@ pub mod pallet {
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
 
-        // The elections are PoA so only the nodes listed in the Validators will be elected as validators.
-        // We calculate the supports for them for the sake of eras payouts.
+        /// The elections are PoA so only the nodes listed in the Validators will be elected as
+        /// validators.
+        ///
+        /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            let voters =
-                Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
-            let validators = NextEraReservedValidators::<T>::get()
+            let staking_validators = Self::DataProvider::electable_targets(None)
+                .map_err(Self::Error::DataProvider)?
                 .into_iter()
-                .chain(NextEraNonReservedValidators::<T>::get().into_iter());
-            let mut supports: BTreeMap<_, _> = validators
+                .collect::<BTreeSet<_>>();
+            let reserved_validators = NextEraReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+
+            let eligible_validators =
+                &(&reserved_validators | &non_reserved_validators) & &staking_validators;
+            let mut supports = eligible_validators
+                .into_iter()
                 .map(|id| {
                     (
                         id,
+                        // Under normal circumstances support will never be `0` since 'self-vote'
+                        // is counted in.
                         Support {
                             total: 0,
                             voters: Vec::new(),
                         },
                     )
                 })
-                .collect();
+                .collect::<BTreeMap<_, _>>();
 
+            let voters =
+                Self::DataProvider::electing_voters(None).map_err(Self::Error::DataProvider)?;
             for (voter, vote, targets) in voters {
-                // The parameter Staking::MAX_NOMINATIONS is set to 1 which guarantees that len(targets) == 1
+                // The parameter `Staking::MAX_NOMINATIONS` is set to 1 which guarantees that
+                // `len(targets) == 1`.
                 let member = &targets[0];
                 if let Some(support) = supports.get_mut(member) {
                     support.total += vote as u128;

@@ -116,6 +116,30 @@ pub enum Command {
     /// Force new era in staking world. Requires sudo.
     ForceNewEra,
 
+    /// Finalize the specified block using seed as emergency finalizer.
+    Finalize {
+        /// Block number to finalize.
+        #[clap(long)]
+        block: BlockNumber,
+
+        /// Block hash to finalize either with or without leading '0x'.
+        #[clap(long)]
+        hash: String,
+
+        /// The seed of the key to use as emergency finalizer key.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        finalizer_seed: Option<String>,
+    },
+
+    /// Sets seed as the emergency finalizer. Requires sudo.
+    SetEmergencyFinalizer {
+        /// The seed of the key to use as emergency finalizer key.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        finalizer_seed: Option<String>,
+    },
+
     /// Declare the desire to nominate target account
     Nominate {
         #[clap(long)]
@@ -137,7 +161,12 @@ pub enum Command {
     },
 
     /// Command to convert given seed to SS58 Account id
-    SeedToSS58,
+    SeedToSS58 {
+        /// Seed which will be converted.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        input: Option<String>,
+    },
 
     /// Sets lower bound for nominator and validator. Requires root account.
     SetStakingLimits {
