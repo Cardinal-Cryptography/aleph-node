@@ -190,7 +190,7 @@ pub fn check_points<'a>(
             .iter()
             .map(|(account_id, reward_points)| {
                 let reward_points_previous_session = validator_reward_points_previous_session
-                    .get(&account_id)
+                    .get(account_id)
                     .unwrap_or(&0);
                 let reward_points_current = reward_points - reward_points_previous_session;
 
@@ -237,7 +237,7 @@ pub fn get_bench_members<'a>(
     non_reserved_members_for_session: &[AccountId],
 ) -> Vec<&'a AccountId> {
     non_reserved_members
-        .into_iter()
+        .iter()
         .filter(|account_id| !non_reserved_members_for_session.contains(account_id))
         .collect::<Vec<_>>()
 }
