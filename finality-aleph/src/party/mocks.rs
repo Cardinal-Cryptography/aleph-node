@@ -34,8 +34,8 @@ pub struct MockChainState {
 impl MockChainState {
     pub fn new() -> Self {
         Self {
-            best_block: Arc::new(Mutex::new(Default::default())),
-            finalized_block: Arc::new(Mutex::new(Default::default())),
+            best_block: Default::default(),
+            finalized_block: Default::default(),
         }
     }
 
@@ -93,11 +93,11 @@ pub struct MockNodeSessionManager {
 impl MockNodeSessionManager {
     pub fn new() -> Self {
         Self {
-            nonvalidator_session_started: Arc::new(Mutex::new(Default::default())),
-            validator_session_started: Arc::new(Mutex::new(Default::default())),
-            session_stopped: Arc::new(Mutex::new(Default::default())),
-            session_early_started: Arc::new(Mutex::new(Default::default())),
-            node_id: Arc::new(Mutex::new(Default::default())),
+            nonvalidator_session_started: Default::default(),
+            validator_session_started: Default::default(),
+            session_stopped: Default::default(),
+            session_early_started: Default::default(),
+            node_id: Default::default(),
         }
     }
 
