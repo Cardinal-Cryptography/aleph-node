@@ -9,7 +9,6 @@ use primitives::{
 use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
-    accounts::get_validators_keys,
     elections::get_members_for_session,
     rewards::{
         check_points, get_era_for_session, reset_validator_keys, set_invalid_keys_for_validator,
@@ -23,51 +22,10 @@ use crate::{
 // retrieved from pallet Staking.
 const MAX_DIFFERENCE: f64 = 0.07;
 
-fn check_points_after_force_new_era(
-    connection: &SignedConnection,
-    start_session: SessionIndex,
-    start_era: EraIndex,
-    era_validators: &EraValidators<AccountId>,
-    seats: CommitteeSeats,
-    max_relative_difference: f64,
-) -> anyhow::Result<()> {
-    // Once a new era is forced in session k, the new era does not come into effect until session
-    // k + 2; we test points:
-    // 1) immediately following the call in session k,
-    // 2) in the interim session k + 1,
-    // 3) in session k + 2, the first session of the new era.
-    for idx in 0..3 {
-        let session_to_check = start_session + idx;
-        let era_to_check = start_era + idx / 2;
-
-        info!(
-            "Testing points | era: {}, session: {}",
-            era_to_check, session_to_check
-        );
-
-        let (members_active, members_bench) =
-            get_members_for_session(connection, seats, era_validators, session_to_check);
-
-        check_points(
-            connection,
-            session_to_check,
-            era_to_check,
-            members_active,
-            members_bench,
-            seats.reserved_seats + seats.non_reserved_seats,
-            max_relative_difference,
-        )?;
-    }
-    Ok(())
-}
-
 pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     let (era_validators, committee_size, era) = setup_validators(config)?;
 
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
+    let connection = config.get_first_signed_connection();
 
     let sessions_per_era = get_sessions_per_era(&connection);
     let start_new_era_session = era * sessions_per_era;
@@ -103,10 +61,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     let (era_validators, committee_size, era) = setup_validators(config)?;
 
-    let node = &config.node;
-    let accounts = get_validators_keys(config);
-    let sender = accounts.first().expect("Using default accounts").to_owned();
-    let connection = SignedConnection::new(node, sender);
+    let connection = config.get_first_signed_connection();
 
     validators_bond_extra_stakes(
         config,
@@ -274,5 +229,43 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
         committee_size,
         MAX_DIFFERENCE,
     )?;
+    Ok(())
+}
+
+fn check_points_after_force_new_era(
+    connection: &SignedConnection,
+    start_session: SessionIndex,
+    start_era: EraIndex,
+    era_validators: &EraValidators<AccountId>,
+    seats: CommitteeSeats,
+    max_relative_difference: f64,
+) -> anyhow::Result<()> {
+    // Once a new era is forced in session k, the new era does not come into effect until session
+    // k + 2; we test points:
+    // 1) immediately following the call in session k,
+    // 2) in the interim session k + 1,
+    // 3) in session k + 2, the first session of the new era.
+    for idx in 0..3 {
+        let session_to_check = start_session + idx;
+        let era_to_check = start_era + idx / 2;
+
+        info!(
+            "Testing points | era: {}, session: {}",
+            era_to_check, session_to_check
+        );
+
+        let (members_active, members_bench) =
+            get_members_for_session(connection, seats, era_validators, session_to_check);
+
+        check_points(
+            connection,
+            session_to_check,
+            era_to_check,
+            members_active,
+            members_bench,
+            seats.reserved_seats + seats.non_reserved_seats,
+            max_relative_difference,
+        )?;
+    }
     Ok(())
 }
