@@ -75,9 +75,10 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         ],
     );
 
-    wait_for_next_era(&connection)?;
+    let mut era = get_current_era(&connection);
+    era = wait_for_at_least_era(&connection, era + 1)?;
     let start_session = get_current_session(&connection);
-    wait_for_next_era(&connection)?;
+    wait_for_at_least_era(&connection, era + 1);
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
