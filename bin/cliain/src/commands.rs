@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use aleph_client::BlockNumber;
 use clap::{Args, Subcommand};
@@ -105,6 +108,11 @@ impl std::str::FromStr for ChangeValidatorArgs {
     type Err = serde_json::Error;
 
     fn from_str(change_validator_args: &str) -> Result<Self, Self::Err> {
+        let path = Path::new(change_validator_args);
+        if path.exists() {
+            let file = File::open(&path).expect("Failed to open metadata file");
+            return serde_json::from_reader(file);
+        }
         serde_json::from_str(change_validator_args)
     }
 }
