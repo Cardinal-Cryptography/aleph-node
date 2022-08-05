@@ -109,21 +109,18 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, sets invalid session keys for one validator, re-sets the keys to valid ones
 /// and checks that reward points are calculated correctly afterward.
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
-    let (era_validators, committee_size, era) = setup_validators(config)?;
+    let (era_validators, committee_size, start_session) = setup_validators(config)?;
 
     let root_connection = config.create_root_connection();
-    let sessions_per_era = get_sessions_per_era(&root_connection);
-
-    let start_session = era * sessions_per_era;
-
     let controller_connection = SignedConnection::new(&config.node, config.node_keys().controller);
+
     // this should `disable` this node by setting invalid session_keys
     set_invalid_keys_for_validator(&controller_connection)?;
     // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
     reset_validator_keys(&controller_connection)?;
 
     let era = wait_for_full_era_completion(&root_connection)?;
-    let end_session = era * sessions_per_era;
+    let end_session = get_current_session(&root_connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
     info!(
@@ -159,12 +156,11 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 /// session, when the new era has not yet started, 3) in the next session, second one after
 /// the call, when the new era has already begun.
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
-    let (era_validators, committee_size, start_era) = setup_validators(config)?;
+    let (era_validators, committee_size, start_session) = setup_validators(config)?;
 
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
-    let start_session = get_current_session(&connection);
     info!("Start | era: {}, session: {}", start_era, start_session);
 
     staking_force_new_era(&root_connection, XtStatus::Finalized);
@@ -195,7 +191,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 /// and after two sessions (required for a new era to be forced) they are adjusted to the new
 /// stakes.
 pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
-    let (era_validators, committee_size, start_era) = setup_validators(config)?;
+    let (era_validators, committee_size, start_session) = setup_validators(config)?;
 
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
