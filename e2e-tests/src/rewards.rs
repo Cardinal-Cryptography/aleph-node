@@ -8,7 +8,7 @@ use aleph_client::{
     wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
     AnyConnection, RewardPoint, SessionKeys, SignedConnection,
 };
-use log::info;
+use log::{debug, info};
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
 use primitives::{
@@ -103,6 +103,10 @@ fn check_rewards(
         let reward_ratio = reward / our_sum;
         let retrieved_ratio = retrieved_reward as f64 / retrieved_sum as f64;
 
+        debug!(
+            "{} reward_ratio: {}/{}; retrieved_ratio: {}/{}",
+            account, reward, our_sum, retrieved_reward, retrieved_sum
+        );
         info!(
             "{} reward_ratio: {}; retrieved_ratio: {}.",
             account, reward_ratio, retrieved_ratio

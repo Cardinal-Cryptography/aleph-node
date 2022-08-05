@@ -1,6 +1,7 @@
 use std::{collections::HashSet, iter::empty};
 
 use aleph_client::{get_validators_for_session, AnyConnection};
+use log::debug;
 use primitives::{CommitteeSeats, EraValidators, SessionIndex};
 use substrate_api_client::AccountId;
 
@@ -39,6 +40,16 @@ pub fn get_members_for_session<C: AnyConnection>(
         .into_iter()
         .collect();
 
+    debug!(
+        "expected era validators for session {}: reserved - {:?}, non-reserved - {:?}",
+        session, era_validators.reserved, era_validators.non_reserved
+    );
+    debug!("Seats for session {}: {:?}", session, seats);
+    debug!(
+        "members for session - computed {:?} ; retrieved {:?}",
+        members_active, network_members
+    );
+
     assert_eq!(members_active_set, network_members);
 
     (members_active, members_bench)
@@ -49,16 +60,18 @@ fn get_members_subset_for_session(
     era_validators: &[AccountId],
     session: SessionIndex,
 ) -> Vec<AccountId> {
-    let non_reserved_len = era_validators.len();
-    let free_seats = nodes_per_session - non_reserved_len as u32;
+    let validators_len = era_validators.len();
+    let session: usize = session.try_into().unwrap();
+    let nodes_per_session: usize = nodes_per_session.try_into().unwrap();
+    let first_index = session.saturating_mul(nodes_per_session) % validators_len;
 
-    let mut non_reserved = Vec::new();
-
-    for i in (free_seats * session)..(free_seats * (session + 1)) {
-        non_reserved.push(era_validators[i as usize % non_reserved_len].clone());
-    }
-
-    non_reserved
+    era_validators
+        .iter()
+        .cycle()
+        .skip(first_index)
+        .take(nodes_per_session)
+        .cloned()
+        .collect()
 }
 
 fn get_bench_members(all_members: &[AccountId], members_active: &[AccountId]) -> Vec<AccountId> {
