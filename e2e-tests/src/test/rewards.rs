@@ -151,8 +151,6 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, sets invalid session keys for one validator, re-sets the keys to valid ones
 /// and checks that reward points are calculated correctly afterward.
 pub fn disable_node(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
-
     let (era_validators, committee_size, era) = setup_validators(config)?;
 
     let root_connection = config.create_root_connection();
@@ -203,8 +201,6 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 /// session, when the new era has not yet started, 3) in the next session, second one after
 /// the call, when the new era has already begun.
 pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
-    const MAX_DIFFERENCE: f64 = 0.07;
-
     let (era_validators, committee_size, start_era) = setup_validators(config)?;
 
     let connection = config.get_first_signed_connection();
