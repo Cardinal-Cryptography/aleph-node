@@ -241,7 +241,7 @@ pub fn get_era_for_session<C: AnyConnection>(connection: &C, session: SessionInd
 
 pub fn setup_validators(
     config: &Config,
-) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, EraIndex)> {
+) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, SessionIndex)> {
     let root_connection = config.create_root_connection();
     let era = get_current_era(&root_connection);
     // we need to wait for at least era 1 since some of the storage items are not available at era 0
@@ -279,7 +279,7 @@ pub fn setup_validators(
         // nothing to do here
         let block_hash = get_session_first_block(&root_connection, session);
         let era = get_era(&root_connection, Some(block_hash));
-        return Ok((era_validators, seats, era));
+        return Ok((era_validators, seats, session));
     }
 
     change_validators(
@@ -290,7 +290,7 @@ pub fn setup_validators(
         XtStatus::Finalized,
     );
 
-    let era = wait_for_full_era_completion(&root_connection)?;
+    wait_for_full_era_completion(&root_connection)?;
     let session = get_current_session(&root_connection);
 
     let network_validators = get_era_validators(&root_connection, session);
@@ -305,7 +305,7 @@ pub fn setup_validators(
     assert_eq!(non_reserved, network_non_reserved);
     assert_eq!(seats, network_seats);
 
-    Ok((era_validators, seats, era))
+    Ok((era_validators, seats, session))
 }
 
 pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {

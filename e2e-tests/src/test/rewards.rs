@@ -1,6 +1,7 @@
 use aleph_client::{
     get_current_era, get_current_session, get_sessions_per_era, staking_force_new_era,
-    wait_for_full_era_completion, wait_for_next_era, wait_for_session, SignedConnection,
+    wait_for_at_least_era, wait_for_full_era_completion, wait_for_next_era, wait_for_session,
+    SignedConnection,
 };
 use log::info;
 use primitives::{
@@ -23,13 +24,13 @@ use crate::{
 const MAX_DIFFERENCE: f64 = 0.07;
 
 pub fn points_basic(config: &Config) -> anyhow::Result<()> {
-    let (era_validators, committee_size, era) = setup_validators(config)?;
+    let (era_validators, committee_size, start_session) = setup_validators(config)?;
 
     let connection = config.get_first_signed_connection();
 
-    let sessions_per_era = get_sessions_per_era(&connection);
-    let start_new_era_session = era * sessions_per_era;
-    let end_new_era_session = sessions_per_era * wait_for_next_era(&connection)?;
+    let era = get_current_era(&connection);
+    wait_for_at_least_era(&connection, era + 2);
+    let end_session = get_current_session(&connection)?;
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
     info!(
@@ -37,7 +38,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
         start_new_era_session, end_new_era_session
     );
 
-    for session in start_new_era_session..end_new_era_session {
+    for session in start_session..end_session {
         let era = get_era_for_session(&connection, session);
         let (members_active, members_bench) =
             get_members_for_session(&connection, committee_size, &era_validators, session);
