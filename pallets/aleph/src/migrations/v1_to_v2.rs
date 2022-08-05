@@ -1,8 +1,11 @@
 use frame_support::{
     log, storage_alias,
-    traits::{Get, PalletInfoAccess, StorageVersion},
+    traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
+#[cfg(feature = "try-runtime")]
+use pallets_support::ensure_storage_version;
+use pallets_support::StorageMigration;
 
 use crate::Config;
 
@@ -18,46 +21,70 @@ type SessionPeriod = StorageValue<Aleph, ()>;
 #[storage_alias]
 type Validators = StorageValue<Aleph, ()>;
 
-pub fn migrate<T: Config, P: PalletInfoAccess>() -> Weight {
-    let mut writes = 0;
-    let mut reads = 0;
-    log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 1 to 2");
+/// Removes:
+///   - SessionForValidatorsChange
+///   - MillisecsPerBlock
+///   - SessionPeriod
+///   - Validators
+pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
 
-    if !SessionForValidatorsChange::exists() {
-        log::info!(target: "pallet_aleph", "Storage item SessionForValidatorsChange does not exist!");
-    } else {
+impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {
+    #[cfg(feature = "try-runtime")]
+    const MIGRATION_STORAGE_PREFIX: &'static [u8] = b"PALLET_ALEPH::V1_TO_V2_MIGRATION";
+}
+
+impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
+    fn on_runtime_upgrade() -> Weight {
+        let mut writes = 0;
+        let mut reads = 0;
+        log::info!(target: "pallet_aleph", "Running migration from STORAGE_VERSION 1 to 2");
+
+        if !SessionForValidatorsChange::exists() {
+            log::info!(target: "pallet_aleph", "Storage item SessionForValidatorsChange does not exist!");
+        } else {
+            writes += 1;
+        }
+        SessionForValidatorsChange::kill();
+        reads += 1;
+
+        if !MillisecsPerBlock::exists() {
+            log::info!(target: "pallet_aleph", "Storage item MillisecsPerBlock does not exist!");
+        } else {
+            writes += 1;
+        }
+        MillisecsPerBlock::kill();
+        reads += 1;
+
+        if !SessionPeriod::exists() {
+            log::info!(target: "pallet_aleph", "Storage item SessionPeriod does not exist!");
+        } else {
+            writes += 1;
+        }
+        SessionPeriod::kill();
+        reads += 1;
+
+        if !Validators::exists() {
+            log::info!(target: "pallet_aleph", "Storage item Validators does not exist!");
+        } else {
+            writes += 1;
+        }
+        Validators::kill();
+        reads += 1;
+
+        // store new version
+        StorageVersion::new(2).put::<P>();
         writes += 1;
+
+        T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
     }
-    SessionForValidatorsChange::kill();
-    reads += 1;
 
-    if !MillisecsPerBlock::exists() {
-        log::info!(target: "pallet_aleph", "Storage item MillisecsPerBlock does not exist!");
-    } else {
-        writes += 1;
+    #[cfg(feature = "try-runtime")]
+    fn pre_upgrade() -> Result<(), &'static str> {
+        Ok(())
     }
-    MillisecsPerBlock::kill();
-    reads += 1;
 
-    if !SessionPeriod::exists() {
-        log::info!(target: "pallet_aleph", "Storage item SessionPeriod does not exist!");
-    } else {
-        writes += 1;
+    #[cfg(feature = "try-runtime")]
+    fn post_upgrade() -> Result<(), &'static str> {
+        Ok(())
     }
-    SessionPeriod::kill();
-    reads += 1;
-
-    if !Validators::exists() {
-        log::info!(target: "pallet_aleph", "Storage item Validators does not exist!");
-    } else {
-        writes += 1;
-    }
-    Validators::kill();
-    reads += 1;
-
-    // store new version
-    StorageVersion::new(2).put::<P>();
-    writes += 1;
-
-    T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
 }

@@ -7,6 +7,7 @@ use frame_support::{
     storage_alias,
     traits::{GetStorageVersion, OneSessionHandler, StorageVersion},
 };
+use pallets_support::StorageMigration;
 
 use crate::{migrations, mock::*, pallet};
 
@@ -44,7 +45,7 @@ fn migration_from_v0_to_v1_works() {
             "Storage version before applying migration should be default",
         );
 
-        let _weight = migrations::v0_to_v1::migrate::<Test, Aleph>();
+        let _weight = migrations::v0_to_v1::Migration::<Test, Aleph>::migrate();
 
         let v1 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
 
@@ -85,7 +86,7 @@ fn migration_from_v1_to_v2_works() {
             put_storage_value(b"Aleph", item.as_bytes(), &[], value);
         });
 
-        let _weight = migrations::v1_to_v2::migrate::<Test, Aleph>();
+        let _weight = migrations::v1_to_v2::Migration::<Test, Aleph>::migrate();
 
         let v2 = <pallet::Pallet<Test> as GetStorageVersion>::on_chain_storage_version();
 
