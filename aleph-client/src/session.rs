@@ -146,9 +146,7 @@ pub fn get_validators_for_session<C: AnyConnection>(
     let block = get_block_hash(connection, first_block);
 
     connection
-        .as_connection()
-        .get_storage_value(PALLET, "Validators", Some(block))
-        .expect("Failed to decode Validators extrinsic!")
+        .read_storage_value_from_block(PALLET, "Validators", Some(block))
         .expect("Authorities should always be present")
 }
 

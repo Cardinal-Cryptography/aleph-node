@@ -177,6 +177,18 @@ pub trait AnyConnection: Clone + Send {
     ) -> T {
         self.read_constant_or_else(pallet, constant, Default::default)
     }
+
+    fn read_storage_map<K: Encode, T: Decode + Clone>(
+        &self,
+        pallet: &'static str,
+        map_name: &'static str,
+        map_key: K,
+        block_hash: Option<H256>,
+    ) -> Option<T> {
+        self.as_connection()
+            .get_storage_map(pallet, map_name, map_key, block_hash)
+            .unwrap_or_else(|e| panic!("Unable to retrieve a storage map: {}", e))
+    }
 }
 
 impl AnyConnection for Connection {

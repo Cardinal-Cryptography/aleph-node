@@ -12,9 +12,7 @@ pub fn get_committee_seats<C: AnyConnection>(
     block_hash: Option<H256>,
 ) -> CommitteeSeats {
     connection
-        .as_connection()
-        .get_storage_value(PALLET, "CommitteeSize", block_hash)
-        .expect("Failed to obtain CommitteeSize extrinsic!")
+        .read_storage_value_from_block(PALLET, "CommitteeSize", block_hash)
         .unwrap_or_else(|| {
             panic!(
                 "Failed to decode CommitteeSize for block hash: {:?}.",
@@ -32,10 +30,7 @@ pub fn get_validator_block_count<C: AnyConnection>(
     account_id: &AccountId,
     block_hash: Option<H256>,
 ) -> Option<u32> {
-    connection
-        .as_connection()
-        .get_storage_map(PALLET, "SessionValidatorBlockCount", account_id, block_hash)
-        .expect("Failed to obtain SessionValidatorBlockCount extrinsic!")
+    connection.read_storage_map(PALLET, "SessionValidatorBlockCount", account_id, block_hash)
 }
 
 pub fn get_current_era_validators<C: AnyConnection>(connection: &C) -> EraValidators<AccountId> {
