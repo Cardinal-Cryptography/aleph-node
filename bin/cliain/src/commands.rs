@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use aleph_client::BlockNumber;
 use clap::{Args, Subcommand};
-use primitives::Balance;
+use primitives::{Balance, CommitteeSeats};
+use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use substrate_api_client::AccountId;
 
@@ -93,6 +94,21 @@ pub struct ContractRemoveCode {
     pub code_hash: H256,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ChangeValidatorArgs {
+    pub reserved_validators: Option<Vec<AccountId>>,
+    pub non_reserved_validators: Option<Vec<AccountId>>,
+    pub committee_size: Option<CommitteeSeats>,
+}
+
+impl std::str::FromStr for ChangeValidatorArgs {
+    type Err = serde_json::Error;
+
+    fn from_str(change_validator_args: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(change_validator_args)
+    }
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     /// Staking call to bond stash with controller
@@ -109,20 +125,8 @@ pub enum Command {
     /// Change the validator set for the session after the next
     ChangeValidators {
         /// The new reserved validators list
-        #[clap(long, value_delimiter = ',')]
-        reserved_validators: Vec<String>,
-
-        /// The new non-reserved validators list
-        #[clap(long, value_delimiter = ',')]
-        non_reserved_validators: Vec<String>,
-
-        /// The new reserved committee size
         #[clap(long)]
-        reserved_committee_size: Option<u32>,
-
-        /// The new non-reserved committee size
-        #[clap(long)]
-        non_reserved_committee_size: Option<u32>,
+        change_validators_args: ChangeValidatorArgs,
     },
 
     /// Force new era in staking world. Requires sudo.

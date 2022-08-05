@@ -73,17 +73,8 @@ fn main() {
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
         Command::ChangeValidators {
-            reserved_validators,
-            non_reserved_validators,
-            reserved_committee_size,
-            non_reserved_committee_size,
-        } => change_validators(
-            cfg.into(),
-            reserved_validators,
-            non_reserved_validators,
-            reserved_committee_size,
-            non_reserved_committee_size,
-        ),
+            change_validators_args,
+        } => change_validators(cfg.into(), change_validators_args),
         Command::PrepareKeys => {
             let key = keypair_from_string(&seed);
             let controller_account_id = account_from_keypair(&key);
