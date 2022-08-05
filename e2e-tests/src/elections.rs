@@ -55,7 +55,7 @@ pub fn get_members_for_session<C: AnyConnection>(
     (members_active, members_bench)
 }
 
-fn get_members_subset_for_session(
+pub fn get_members_subset_for_session(
     nodes_per_session: u32,
     era_validators: &[AccountId],
     session: SessionIndex,
@@ -79,5 +79,5 @@ fn get_bench_members(all_members: &[AccountId], members_active: &[AccountId]) ->
         .iter()
         .filter(|account_id| !members_active.contains(account_id))
         .cloned()
-        .collect::<Vec<_>>()
+        .collect()
 }
