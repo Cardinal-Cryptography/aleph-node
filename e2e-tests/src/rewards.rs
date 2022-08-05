@@ -277,8 +277,6 @@ pub fn setup_validators(
 
     if era_validators == network_validators && seats == network_seats {
         // nothing to do here
-        let block_hash = get_session_first_block(&root_connection, session);
-        let era = get_era(&root_connection, Some(block_hash));
         return Ok((era_validators, seats, session));
     }
 

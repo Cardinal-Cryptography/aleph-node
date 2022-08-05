@@ -1,7 +1,6 @@
 use aleph_client::{
-    get_current_era, get_current_session, get_sessions_per_era, staking_force_new_era,
-    wait_for_at_least_era, wait_for_full_era_completion, wait_for_next_era, wait_for_session,
-    SignedConnection,
+    get_current_era, get_current_session, staking_force_new_era, wait_for_at_least_era,
+    wait_for_full_era_completion, wait_for_session, SignedConnection,
 };
 use log::info;
 use primitives::{
@@ -29,13 +28,13 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection();
 
     let era = get_current_era(&connection);
-    wait_for_at_least_era(&connection, era + 2);
-    let end_session = get_current_session(&connection)?;
+    wait_for_at_least_era(&connection, era + 2)?;
+    let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
     info!(
         "Checking rewards for sessions {}..{}.",
-        start_new_era_session, end_new_era_session
+        start_session, end_session
     );
 
     for session in start_session..end_session {
@@ -78,7 +77,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     let mut era = get_current_era(&connection);
     era = wait_for_at_least_era(&connection, era + 1)?;
     let start_session = get_current_session(&connection);
-    wait_for_at_least_era(&connection, era + 1);
+    wait_for_at_least_era(&connection, era + 1)?;
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
@@ -119,7 +118,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
     // this should `re-enable` this node, i.e. by means of the `rotate keys` procedure
     reset_validator_keys(&controller_connection)?;
 
-    let era = wait_for_full_era_completion(&root_connection)?;
+    wait_for_full_era_completion(&root_connection)?;
     let end_session = get_current_session(&root_connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
@@ -160,6 +159,7 @@ pub fn force_new_era(config: &Config) -> anyhow::Result<()> {
 
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
+    let start_era = get_era_for_session(&connection, start_session);
 
     info!("Start | era: {}, session: {}", start_era, start_session);
 
@@ -196,7 +196,7 @@ pub fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection();
     let root_connection = config.create_root_connection();
 
-    let start_session = get_current_session(&connection);
+    let start_era = get_era_for_session(&connection, start_session);
     info!("Start | era: {}, session: {}", start_era, start_session);
 
     validators_bond_extra_stakes(
