@@ -40,11 +40,11 @@ pub use staking::{
     validate as staking_validate, wait_for_at_least_era, wait_for_full_era_completion,
     wait_for_next_era, RewardPoint, StakingLedger,
 };
-pub use substrate_api_client;
 use substrate_api_client::{
-    rpc::ws_client::WsRpcClient, std::error::Error, AccountId, Api, ApiResult,
-    PlainTipExtrinsicParams, RpcClient, UncheckedExtrinsicV4, XtStatus,
+    rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, PlainTipExtrinsicParams,
+    RpcClient, UncheckedExtrinsicV4,
 };
+pub use substrate_api_client::{AccountId, Balance, XtStatus};
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
@@ -103,7 +103,11 @@ pub trait AnyConnection: Clone + Send {
     /// objects are often passed to some macro like `compose_extrinsic!` and thus there is not
     /// enough information for type inferring required for `Into<Connection>`.
     fn as_connection(&self) -> Connection;
+}
 
+impl<C: AnyConnection> AnyConnectionExt for C {}
+
+pub trait AnyConnectionExt: AnyConnection {
     /// Reads value from storage. Panics if it couldn't be read.
     fn read_storage_value<T: Decode>(&self, pallet: &'static str, key: &'static str) -> T {
         self.read_storage_value_or_else(pallet, key, || {

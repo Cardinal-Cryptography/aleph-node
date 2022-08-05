@@ -1,9 +1,8 @@
 use std::{collections::HashSet, iter::empty};
 
-use aleph_client::{get_validators_for_session, AnyConnection};
+use aleph_client::{get_validators_for_session, AccountId, AnyConnection};
 use log::debug;
 use primitives::{CommitteeSeats, EraValidators, SessionIndex};
-use substrate_api_client::AccountId;
 
 pub fn get_members_for_session<C: AnyConnection>(
     connection: &C,

@@ -16,7 +16,7 @@ use substrate_api_client::{
 
 use crate::{
     account_from_keypair, create_connection, get_current_session, locks, send_xt, wait_for_session,
-    AnyConnection, BlockNumber, KeyPair, RootConnection, SignedConnection,
+    AnyConnection, AnyConnectionExt, BlockNumber, KeyPair, RootConnection, SignedConnection,
 };
 
 const PALLET: &str = "Staking";
@@ -112,7 +112,7 @@ pub fn wait_for_next_era<C: AnyConnection>(connection: &C) -> anyhow::Result<Era
     wait_for_era_completion(connection, get_current_era(connection) + 1)
 }
 
-pub fn wait_for_at_least_era<C: AnyConnection>(
+pub fn wait_for_at_least_era<C: AnyConnectionExt>(
     connection: &C,
     era: EraIndex,
 ) -> anyhow::Result<EraIndex> {

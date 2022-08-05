@@ -5,11 +5,10 @@ use substrate_api_client::Balance;
 
 use crate::{
     debug::{element_prompt, entry_prompt, pallet_prompt},
-    AnyConnection,
+    AnyConnectionExt,
 };
 
-pub fn print_storage<C: AnyConnection>(connection: &C) {
-    let connection = connection.as_connection();
+pub fn print_storage<C: AnyConnectionExt>(connection: &C) {
     let proposal_count: u32 = connection.read_storage_value_or_default("Treasury", "ProposalCount");
     let approvals: Vec<ProposalIndex> =
         connection.read_storage_value_or_default("Treasury", "Approvals");
@@ -28,7 +27,7 @@ pub fn print_storage<C: AnyConnection>(connection: &C) {
     println!("{}", entry_prompt("Proposals"));
     for x in 0..=proposal_count {
         let p: Option<Proposal<AccountId32, Balance>> = connection
-            .get_storage_map("Treasury", "Proposals", x, None)
+            .read_storage_map("Treasury", "Proposals", x, None)
             .unwrap();
 
         if let Some(p) = p {

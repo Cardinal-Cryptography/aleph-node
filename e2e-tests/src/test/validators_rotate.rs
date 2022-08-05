@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use aleph_client::{
     change_validators, get_current_block_number, get_current_session, get_validators_for_session,
-    wait_for_finalized_block, wait_for_full_era_completion, wait_for_session,
+    wait_for_finalized_block, wait_for_full_era_completion, wait_for_session, XtStatus,
 };
 use primitives::CommitteeSeats;
-use substrate_api_client::XtStatus;
 
 use crate::{
     accounts::account_ids_from_keys, elections::get_members_subset_for_session,

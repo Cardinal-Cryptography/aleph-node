@@ -1,12 +1,11 @@
 use aleph_client::{
     get_current_era, get_current_session, staking_force_new_era, wait_for_at_least_era,
-    wait_for_full_era_completion, wait_for_session, SignedConnection,
+    wait_for_full_era_completion, wait_for_session, AccountId, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{
     staking::MIN_VALIDATOR_BOND, CommitteeSeats, EraIndex, EraValidators, SessionIndex,
 };
-use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     elections::get_members_for_session,

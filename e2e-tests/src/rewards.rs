@@ -5,8 +5,8 @@ use aleph_client::{
     change_validators, get_block_hash, get_committee_seats, get_current_era, get_current_session,
     get_era, get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
     get_session_period, get_validator_block_count, rotate_keys, set_keys, wait_for_at_least_era,
-    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion,
-    AnyConnection, RewardPoint, SessionKeys, SignedConnection,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_full_era_completion, AccountId,
+    AnyConnection, RewardPoint, SessionKeys, SignedConnection, XtStatus,
 };
 use log::{debug, info};
 use pallet_elections::LENIENT_THRESHOLD;
@@ -15,11 +15,15 @@ use primitives::{
     Balance, BlockHash, CommitteeSeats, EraIndex, EraValidators, SessionIndex, TOKEN,
 };
 use sp_runtime::Perquintill;
-use substrate_api_client::{AccountId, XtStatus};
 
 use crate::{
     accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
     Config,
+};
+
+const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
+    reserved_seats: 2,
+    non_reserved_seats: 2,
 };
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
@@ -262,12 +266,7 @@ pub fn setup_validators(
     let reserved_members = &members[0..reserved_count];
     let non_reserved_members = &members[reserved_count..];
 
-    let reserved_seats = reserved_members.len().try_into().unwrap();
-    let non_reserved_seats = (non_reserved_members.len() - 1).try_into().unwrap();
-    let seats = CommitteeSeats {
-        reserved_seats,
-        non_reserved_seats,
-    };
+    let seats = COMMITTEE_SEATS;
 
     let session = get_current_session(&root_connection);
     let network_validators = get_era_validators(&root_connection, session);
