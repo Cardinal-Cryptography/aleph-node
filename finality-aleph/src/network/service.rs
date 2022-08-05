@@ -4,7 +4,7 @@ use std::{
     iter,
 };
 
-use codec::Encode;
+use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use sc_service::SpawnTaskHandle;
@@ -220,8 +220,17 @@ impl<N: Network, D: Data + MessageVersioning> Service<N, D> where D::Versioned: 
             }
             Messages(messages) => {
                 for data in messages.into_iter() {
-                    match D::decode(&mut &data[..]) {
-                        Ok(message) => self.messages_for_user.unbounded_send(message)?,
+                    match D::Versioned::decode(&mut &data[..]) {
+                        Ok(versioned) => match D::from_versioned(versioned) {
+                            Ok(message) => self.messages_for_user.unbounded_send(message)?,
+                            // TODO: This would be more useful if it said which peer sent the
+                            // message. Is there a way to get that information?
+                            Err(error) => warn!(
+                                target: "aleph-network",
+                                   "Received message with unknown version {}",
+                                error.version,
+                            ),
+                        },
                         Err(e) => warn!(target: "aleph-network", "Error decoding message: {}", e),
                     }
                 }
