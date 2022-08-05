@@ -59,7 +59,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, bonds extra stakes to validator accounts and checks that reward points
 /// are calculated correctly afterward.
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
-    let (era_validators, committee_size, era) = setup_validators(config)?;
+    let (era_validators, committee_size, _) = setup_validators(config)?;
 
     let connection = config.get_first_signed_connection();
 
@@ -74,17 +74,18 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         ],
     );
 
-    let sessions_per_era = get_sessions_per_era(&connection);
-    let start_era_session = era * sessions_per_era;
-    let end_era_session = wait_for_next_era(&connection)? * sessions_per_era;
+    wait_for_next_era(&connection)?;
+    let start_session = get_current_session(&connection);
+    wait_for_next_era(&connection)?;
+    let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
     info!(
         "Checking rewards for sessions {}..{}.",
-        start_era_session, end_era_session
+        start_session, end_session
     );
 
-    for session in start_era_session..end_era_session {
+    for session in start_session..end_session {
         let era = get_era_for_session(&connection, session);
         let (members_active, members_bench) =
             get_members_for_session(&connection, committee_size, &era_validators, session);
