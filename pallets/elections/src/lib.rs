@@ -22,6 +22,7 @@ use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
+use pallets_support::StorageMigration;
 pub use primitives::EraValidators;
 use scale_info::TypeInfo;
 use sp_std::{
@@ -51,10 +52,7 @@ pub mod pallet {
     use primitives::CommitteeSeats;
 
     use super::*;
-    use crate::{
-        migrations::StorageMigration,
-        traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    };
+    use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

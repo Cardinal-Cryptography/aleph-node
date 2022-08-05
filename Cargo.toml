@@ -6,6 +6,7 @@ members = [
     "finality-aleph",
     "pallets/aleph",
     "pallets/elections",
+    "pallets/support",
     "primitives",
 ]
 
@@ -16,5 +17,4 @@ exclude = [
   "fork-off",
   "benches/payout-stakers",
   "bin/cliain",
-  "contracts",
 ]
