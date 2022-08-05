@@ -1,3 +1,5 @@
+#[cfg(feature = "try-runtime")]
+use frame_support::ensure;
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
@@ -80,11 +82,30 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
-        Ok(())
+        ensure_storage_version::<P>(1)
     }
 
     #[cfg(feature = "try-runtime")]
     fn post_upgrade() -> Result<(), &'static str> {
+        ensure_storage_version::<P>(2)?;
+
+        ensure!(
+            SessionForValidatorsChange::get().is_none(),
+            "`SessionForValidatorsChange` should be removed"
+        );
+        ensure!(
+            MillisecsPerBlock::get().is_none(),
+            "`MillisecsPerBlock` should be removed"
+        );
+        ensure!(
+            SessionPeriod::get().is_none(),
+            "`SessionPeriod` should be removed"
+        );
+        ensure!(
+            Validators::get().is_none(),
+            "`Validators` should be removed"
+        );
+
         Ok(())
     }
 }
