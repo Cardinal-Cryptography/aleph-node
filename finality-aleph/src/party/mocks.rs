@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    hash::Hash,
     sync::{Arc, Mutex},
 };
 
@@ -33,8 +34,8 @@ pub struct MockChainState {
 impl MockChainState {
     pub fn new() -> Self {
         Self {
-            best_block: Arc::new(Mutex::new(0)),
-            finalized_block: Arc::new(Mutex::new(0)),
+            best_block: Arc::new(Mutex::new(Default::default())),
+            finalized_block: Arc::new(Mutex::new(Default::default())),
         }
     }
 
@@ -47,20 +48,36 @@ impl MockChainState {
     }
 }
 
+impl ChainState<SimpleBlock> for Arc<MockChainState> {
+    fn best_block_number(&self) -> u32 {
+        *self.best_block.lock().unwrap()
+    }
+
+    fn finalized_number(&self) -> u32 {
+        *self.finalized_block.lock().unwrap()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MockSyncState {
-    pub _is_syncing: AMutex<bool>,
+    pub is_syncing: AMutex<bool>,
 }
 
 impl MockSyncState {
     pub fn new() -> Self {
         Self {
-            _is_syncing: Arc::new(Mutex::new(false)),
+            is_syncing: Arc::new(Mutex::new(false)),
         }
     }
 
     pub fn _set_is_syncing(&self, is_syncing: bool) {
-        *self._is_syncing.lock().unwrap() = is_syncing;
+        *self.is_syncing.lock().unwrap() = is_syncing;
+    }
+}
+
+impl SyncState<SimpleBlock> for Arc<MockSyncState> {
+    fn is_major_syncing(&self) -> bool {
+        *self.is_syncing.lock().unwrap()
     }
 }
 
@@ -87,31 +104,10 @@ impl MockNodeSessionManager {
     pub fn set_node_id(&self, node_id: Option<AuthorityId>) {
         *self.node_id.lock().unwrap() = node_id;
     }
-}
 
-pub struct MockSessionInfo {
-    pub session_period: u32,
-}
-
-impl MockSessionInfo {
-    pub fn new() -> Self {
-        Self { session_period: 30 }
-    }
-}
-
-impl ChainState<SimpleBlock> for Arc<MockChainState> {
-    fn best_block_number(&self) -> u32 {
-        *self.best_block.lock().unwrap()
-    }
-
-    fn finalized_number(&self) -> u32 {
-        *self.finalized_block.lock().unwrap()
-    }
-}
-
-impl SyncState<SimpleBlock> for Arc<MockSyncState> {
-    fn is_major_syncing(&self) -> bool {
-        *self._is_syncing.lock().unwrap()
+    fn insert<T: Eq + Hash>(&self, set: AMutex<HashSet<T>>, el: T) {
+        let mut x = set.lock().unwrap();
+        x.insert(el);
     }
 }
 
@@ -122,17 +118,16 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
     async fn spawn_authority_task_for_session(
         &self,
         session: SessionId,
-        _node_id: NodeIndex,
+        node_id: NodeIndex,
         _backup: ABFTBackup,
         _authorities: &[AuthorityId],
     ) -> AuthorityTask {
-        let mut x = self.validator_session_started.lock().unwrap();
-        x.insert(session);
+        self.insert(self.validator_session_started.clone(), session);
 
         let (exit, _) = oneshot::channel();
         let handle = async { Ok(()) };
 
-        AuthorityTask::new(Box::pin(handle), NodeIndex(0), exit)
+        AuthorityTask::new(Box::pin(handle), node_id, exit)
     }
 
     async fn early_start_validator_session(
@@ -140,9 +135,7 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         session: SessionId,
         _authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
-        let mut x = self.session_early_started.lock().unwrap();
-
-        x.insert(session);
+        self.insert(self.session_early_started.clone(), session);
 
         Ok(())
     }
@@ -152,17 +145,13 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         session: SessionId,
         _authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
-        let mut x = self.nonvalidator_session_started.lock().unwrap();
-
-        x.insert(session);
+        self.insert(self.nonvalidator_session_started.clone(), session);
 
         Ok(())
     }
 
     fn stop_session(&self, session: SessionId) -> Result<(), Self::Error> {
-        let mut x = self.session_stopped.lock().unwrap();
-
-        x.insert(session);
+        self.insert(self.session_stopped.clone(), session);
 
         Ok(())
     }
@@ -171,15 +160,25 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         let id = &*self.node_id.lock().unwrap();
 
         if let Some(id) = id {
-            if authorities.contains(id) {
+            if let Some(idx) = authorities.iter().position(|x| x == id) {
                 // doesnt mather for tests what nodeindex we are
-                return Some(NodeIndex(0));
+                return Some(NodeIndex(idx));
             }
 
             return None;
         }
 
         None
+    }
+}
+
+pub struct MockSessionInfo {
+    pub session_period: u32,
+}
+
+impl MockSessionInfo {
+    pub fn new(session_period: u32) -> Self {
+        Self { session_period }
     }
 }
 

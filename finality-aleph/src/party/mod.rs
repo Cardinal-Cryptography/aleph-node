@@ -277,6 +277,8 @@ mod tests {
         SessionId,
     };
 
+    const SESSION_PERIOD: u32 = 30;
+
     #[derive(Debug)]
     struct MockController {
         pub shared_session_map: SharedSessionMap,
@@ -296,12 +298,12 @@ mod tests {
         MockController,
     ) {
         let shared_map = SharedSessionMap::new();
-        let readonly = shared_map.read_only();
+        let readonly_session_authorities = shared_map.read_only();
 
         let chain_state = Arc::new(MockChainState::new());
         let sync_state = Arc::new(MockSyncState::new());
         let session_manager = Arc::new(MockNodeSessionManager::new());
-        let session_info = MockSessionInfo::new();
+        let session_info = MockSessionInfo::new(SESSION_PERIOD);
 
         let controller = MockController {
             shared_session_map: shared_map,
@@ -311,7 +313,7 @@ mod tests {
         };
 
         let params = ConsensusPartyParams {
-            session_authorities: readonly,
+            session_authorities: readonly_session_authorities,
             chain_state,
             sync_state,
             backup_saving_path: None,
@@ -323,7 +325,7 @@ mod tests {
         (ConsensusParty::new(params), controller)
     }
 
-    async fn simulate_n_blocks(start: u32, n: u32, controller: &MockController) {
+    fn simulate_n_blocks(start: u32, n: u32, controller: &MockController) {
         for i in start..start + n {
             controller.chain_state_mock.set_best_block(i);
             controller.chain_state_mock.set_finalized_block(i);
@@ -355,7 +357,8 @@ mod tests {
                 .validator_session_started
                 .lock()
                 .unwrap(),
-            HashSet::from_iter(validator_started)
+            HashSet::from_iter(validator_started),
+            "`validator_session_started` mismatch"
         );
 
         assert_eq!(
@@ -364,7 +367,8 @@ mod tests {
                 .session_early_started
                 .lock()
                 .unwrap(),
-            HashSet::from_iter(early_started)
+            HashSet::from_iter(early_started),
+            "`session_early_started` mismatch"
         );
 
         assert_eq!(
@@ -373,7 +377,8 @@ mod tests {
                 .session_stopped
                 .lock()
                 .unwrap(),
-            HashSet::from_iter(stopped)
+            HashSet::from_iter(stopped),
+            "`session_stopped` mismatch"
         );
 
         assert_eq!(
@@ -382,19 +387,20 @@ mod tests {
                 .nonvalidator_session_started
                 .lock()
                 .unwrap(),
-            HashSet::from_iter(non_validator_started)
+            HashSet::from_iter(non_validator_started),
+            "`nonvalidator_session_started` mismatch"
         );
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn party_starts_session_for_node_in_authorities() {
-        let (x, mut controller) = create_mocked_consensus_party();
+        let (party, mut controller) = create_mocked_consensus_party();
 
         controller
             .node_session_manager
             .set_node_id(Some(UintAuthorityId(0).to_public_key()));
 
-        let _party_handle = tokio::spawn(x.run());
+        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -409,7 +415,7 @@ mod tests {
         .await;
 
         sleep(Duration::from_millis(100)).await;
-        simulate_n_blocks(0, 30, &controller).await;
+        simulate_n_blocks(0, SESSION_PERIOD, &controller);
         sleep(Duration::from_millis(
             SESSION_STATUS_CHECK_PERIOD.as_millis() as u64 + 100,
         ))
@@ -426,13 +432,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn party_run_3_authorities_sessions() {
-        let (x, mut controller) = create_mocked_consensus_party();
+        let (party, mut controller) = create_mocked_consensus_party();
 
         controller
             .node_session_manager
             .set_node_id(Some(UintAuthorityId(0).to_public_key()));
 
-        let _party_handle = tokio::spawn(x.run());
+        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -451,7 +457,7 @@ mod tests {
         sleep(Duration::from_millis(100)).await;
 
         for i in 0..3 {
-            simulate_n_blocks(30 * i, 30, &controller).await;
+            simulate_n_blocks(SESSION_PERIOD * i, SESSION_PERIOD, &controller);
             sleep(Duration::from_millis(
                 SESSION_STATUS_CHECK_PERIOD.as_millis() as u64 + 100,
             ))
@@ -469,11 +475,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn party_run_3_non_authorities_sessions() {
-        let (x, mut controller) = create_mocked_consensus_party();
+        let (party, mut controller) = create_mocked_consensus_party();
 
         controller.node_session_manager.set_node_id(None);
 
-        let _party_handle = tokio::spawn(x.run());
+        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -492,7 +498,7 @@ mod tests {
         sleep(Duration::from_millis(100)).await;
 
         for i in 0..3 {
-            simulate_n_blocks(30 * i, 30, &controller).await;
+            simulate_n_blocks(SESSION_PERIOD * i, SESSION_PERIOD, &controller);
             sleep(Duration::from_millis(
                 SESSION_STATUS_CHECK_PERIOD.as_millis() as u64 + 100,
             ))
@@ -510,16 +516,20 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn party_early_skips_past_sessions() {
-        let (x, mut controller) = create_mocked_consensus_party();
+        let (party, mut controller) = create_mocked_consensus_party();
 
         controller
             .node_session_manager
             .set_node_id(Some(UintAuthorityId(0).to_public_key()));
 
-        controller.chain_state_mock.set_finalized_block(60);
-        controller.chain_state_mock.set_best_block(60);
+        controller
+            .chain_state_mock
+            .set_finalized_block(SESSION_PERIOD * 2);
+        controller
+            .chain_state_mock
+            .set_best_block(SESSION_PERIOD * 2);
 
-        let _party_handle = tokio::spawn(x.run());
+        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -551,13 +561,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn party_dont_start_session_for_node_non_in_authorities() {
-        let (x, mut controller) = create_mocked_consensus_party();
+        let (party, mut controller) = create_mocked_consensus_party();
 
         controller
             .node_session_manager
             .set_node_id(Some(UintAuthorityId(0).to_public_key()));
 
-        let _party_handle = tokio::spawn(x.run());
+        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -572,7 +582,7 @@ mod tests {
         .await;
 
         sleep(Duration::from_millis(100)).await;
-        simulate_n_blocks(0, 31, &controller).await;
+        simulate_n_blocks(0, SESSION_PERIOD + 1, &controller);
         sleep(Duration::from_millis(
             SESSION_STATUS_CHECK_PERIOD.as_millis() as u64 + 100,
         ))
