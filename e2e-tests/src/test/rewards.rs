@@ -27,7 +27,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection();
 
     let era = get_current_era(&connection);
-    wait_for_at_least_era(&connection, era + 2)?;
+    wait_for_at_least_era(&connection, era + 1)?;
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
@@ -60,8 +60,6 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     let (era_validators, committee_size, _) = setup_validators(config)?;
 
-    let connection = config.get_first_signed_connection();
-
     validators_bond_extra_stakes(
         config,
         &[
@@ -73,9 +71,11 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         ],
     );
 
-    let mut era = get_current_era(&connection);
-    era = wait_for_at_least_era(&connection, era + 1)?;
+    let connection = config.get_first_signed_connection();
+    let current_session = get_current_session(&connection);
+    wait_for_session(&connection, current_session + 2)?;
     let start_session = get_current_session(&connection);
+    let era = get_current_era(&connection);
     wait_for_at_least_era(&connection, era + 1)?;
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
