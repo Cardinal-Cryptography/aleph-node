@@ -1,6 +1,6 @@
 use aleph_client::{
-    get_current_era, get_current_session, staking_force_new_era, wait_for_at_least_era,
-    wait_for_full_era_completion, wait_for_session, AccountId, SignedConnection, XtStatus,
+    get_current_era, get_current_session, staking_force_new_era, wait_for_full_era_completion,
+    wait_for_next_era, wait_for_session, AccountId, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{
@@ -26,8 +26,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
 
     let connection = config.get_first_signed_connection();
 
-    let era = get_current_era(&connection);
-    wait_for_at_least_era(&connection, era + 1)?;
+    wait_for_next_era(&connection)?;
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 
@@ -72,11 +71,8 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     );
 
     let connection = config.get_first_signed_connection();
-    let current_session = get_current_session(&connection);
-    wait_for_session(&connection, current_session + 2)?;
     let start_session = get_current_session(&connection);
-    let era = get_current_era(&connection);
-    wait_for_at_least_era(&connection, era + 1)?;
+    wait_for_next_era(&connection)?;
     let end_session = get_current_session(&connection);
     let members_per_session = committee_size.reserved_seats + committee_size.non_reserved_seats;
 

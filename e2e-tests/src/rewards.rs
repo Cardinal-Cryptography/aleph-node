@@ -5,8 +5,8 @@ use aleph_client::{
     change_validators, get_block_hash, get_committee_seats, get_current_era, get_current_session,
     get_era, get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
     get_session_period, get_validator_block_count, rotate_keys, set_keys, wait_for_at_least_era,
-    wait_for_at_least_session, wait_for_finalized_block, AccountId, AnyConnection, RewardPoint,
-    SessionKeys, SignedConnection, XtStatus,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_next_era, AccountId,
+    AnyConnection, RewardPoint, SessionKeys, SignedConnection, XtStatus,
 };
 use log::{debug, info};
 use pallet_elections::LENIENT_THRESHOLD;
@@ -293,11 +293,9 @@ pub fn setup_validators_and_initialize(
         XtStatus::Finalized,
     );
 
-    let era = get_current_era(&root_connection);
-
     initialize();
 
-    wait_for_at_least_era(&root_connection, era + 1)?;
+    wait_for_next_era(&root_connection)?;
     let session = get_current_session(&root_connection);
 
     let network_validators = get_era_validators(&root_connection, session);
