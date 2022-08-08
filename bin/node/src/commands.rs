@@ -85,7 +85,7 @@ fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
 fn p2p_key(node_key_path: &Path) -> SerializablePeerId {
     if node_key_path.exists() {
         let mut file_content =
-            hex::decode(fs::read(&node_key_path).unwrap()).expect("failed to decode secret as hex");
+            hex::decode(fs::read(&node_key_path).unwrap()).expect("Failed to decode secret as hex");
         let secret =
             libp2p_ed25519::SecretKey::from_bytes(&mut file_content).expect("Bad node key file");
         let keypair = libp2p_ed25519::Keypair::from(secret);

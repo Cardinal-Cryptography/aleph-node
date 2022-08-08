@@ -119,7 +119,7 @@ pub struct ChainParams {
     token_symbol: String,
 
     /// AccountIds of authorities forming the committee at the genesis (comma delimited)
-    #[clap(long, require_value_delimiter = true, parse(from_str = parse_account_id), min_values = 1)]
+    #[clap(long, takes_value = true, require_value_delimiter = true, value_delimiter = ',', parse(from_str = parse_account_id), min_values = 1)]
     account_ids: Vec<AccountId>,
 
     /// AccountId of the sudo account
