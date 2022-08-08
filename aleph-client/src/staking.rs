@@ -124,7 +124,7 @@ pub fn wait_for_at_least_era<C: AnyConnectionExt>(
         wait_for_session(connection, first_session_in_era)?;
         current_era = get_era(connection, None);
     }
-    return Ok(current_era);
+    Ok(current_era)
 }
 
 fn wait_for_era_completion<C: AnyConnection>(
