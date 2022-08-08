@@ -2,7 +2,7 @@ use std::{collections::HashSet, str::FromStr};
 
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_COMMITTEE_SIZE, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
@@ -26,6 +26,8 @@ pub const DEFAULT_CHAIN_ID: &str = "a0dnet1";
 
 // Alice is the default sudo holder.
 pub const DEFAULT_SUDO_ACCOUNT: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+
+pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -117,7 +119,7 @@ pub struct ChainParams {
     token_symbol: String,
 
     /// AccountIds of authorities forming the committee at the genesis (comma delimited)
-    #[clap(long, require_value_delimiter = true, parse(from_str = parse_account_id))]
+    #[clap(long, takes_value = true, require_value_delimiter = true, value_delimiter = ',', parse(from_str = parse_account_id), min_values = 1)]
     account_ids: Vec<AccountId>,
 
     /// AccountId of the sudo account
@@ -363,9 +365,9 @@ fn generate_genesis_config(
             key: Some(sudo_account),
         },
         elections: ElectionsConfig {
-            non_reserved_validators: accounts_config.members.clone(),
-            committee_size: DEFAULT_COMMITTEE_SIZE,
-            reserved_validators: vec![],
+            reserved_validators: accounts_config.members.clone(),
+            non_reserved_validators: vec![],
+            committee_seats: Default::default(),
         },
         session: SessionConfig {
             keys: accounts_config.keys,

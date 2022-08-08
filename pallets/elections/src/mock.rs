@@ -5,8 +5,9 @@ use frame_support::{
     construct_runtime, parameter_types, sp_io,
     traits::{ConstU32, GenesisBuild},
     weights::RuntimeDbWeight,
-    BoundedVec,
+    BasicExternalities, BoundedVec,
 };
+use primitives::CommitteeSeats;
 use sp_core::H256;
 use sp_runtime::{
     testing::{Header, TestXt},
@@ -115,7 +116,7 @@ impl ValidatorRewardsHandler<Test> for MockProvider {
     fn validator_totals(
         _era: EraIndex,
     ) -> Vec<(<Test as frame_system::Config>::AccountId, Balance)> {
-        todo!()
+        Default::default()
     }
 
     fn add_rewards(
@@ -208,35 +209,71 @@ impl ElectionDataProvider for StakingMock {
     }
 }
 
-pub fn new_test_ext(
+pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
-) -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap();
+    committee_seats: CommitteeSeats,
+    storage_version: StorageVersion,
+}
 
-    let validators: Vec<_> = non_reserved_validators
-        .iter()
-        .chain(reserved_validators.iter())
-        .collect();
+impl TestExtBuilder {
+    pub fn new(
+        reserved_validators: Vec<AccountId>,
+        non_reserved_validators: Vec<AccountId>,
+    ) -> Self {
+        Self {
+            committee_seats: CommitteeSeats {
+                reserved_seats: reserved_validators.len() as u32,
+                non_reserved_seats: non_reserved_validators.len() as u32,
+            },
+            reserved_validators,
+            non_reserved_validators,
+            storage_version: STORAGE_VERSION,
+        }
+    }
 
-    let balances: Vec<_> = (0..validators.len())
-        .map(|i| (i as u64, 10_000_000))
-        .collect();
+    pub fn with_committee_seats(mut self, committee_seats: CommitteeSeats) -> Self {
+        self.committee_seats = committee_seats;
+        self
+    }
 
-    pallet_balances::GenesisConfig::<Test> { balances }
+    #[cfg(feature = "try-runtime")]
+    pub fn with_storage_version(mut self, version: u16) -> Self {
+        self.storage_version = StorageVersion::new(version);
+        self
+    }
+
+    pub fn build(self) -> sp_io::TestExternalities {
+        let mut t = frame_system::GenesisConfig::default()
+            .build_storage::<Test>()
+            .unwrap();
+
+        let validators: Vec<_> = self
+            .non_reserved_validators
+            .iter()
+            .chain(self.reserved_validators.iter())
+            .collect();
+
+        let balances: Vec<_> = (0..validators.len())
+            .map(|i| (i as u64, 10_000_000))
+            .collect();
+
+        pallet_balances::GenesisConfig::<Test> { balances }
+            .assimilate_storage(&mut t)
+            .unwrap();
+
+        crate::GenesisConfig::<Test> {
+            non_reserved_validators: self.non_reserved_validators,
+            reserved_validators: self.reserved_validators,
+            committee_seats: self.committee_seats,
+        }
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let committee_size = validators.len() as u32;
-    crate::GenesisConfig::<Test> {
-        non_reserved_validators,
-        committee_size,
-        reserved_validators,
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
+        BasicExternalities::execute_with_storage(&mut t, || {
+            self.storage_version.put::<Pallet<Test>>()
+        });
 
-    t.into()
+        t.into()
+    }
 }
