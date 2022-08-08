@@ -116,15 +116,15 @@ pub fn wait_for_at_least_era<C: AnyConnectionExt>(
     connection: &C,
     era: EraIndex,
 ) -> anyhow::Result<EraIndex> {
-    let current_era = get_era(connection, None);
-    if current_era >= era {
-        return Ok(current_era);
-    }
-    let current_session = get_current_session(connection);
     let sessions_per_era: u32 = connection.read_constant(PALLET, "SessionsPerEra");
-    let first_session_in_era = current_session + (era - current_era) * sessions_per_era;
-    wait_for_session(connection, first_session_in_era)?;
-    wait_for_at_least_era(connection, era)
+    let mut current_era = get_era(connection, None);
+    while current_era < era {
+        let current_session = get_current_session(connection);
+        let first_session_in_era = current_session + (era - current_era) * sessions_per_era;
+        wait_for_session(connection, first_session_in_era)?;
+        current_era = get_era(connection, None);
+    }
+    return Ok(current_era);
 }
 
 fn wait_for_era_completion<C: AnyConnection>(

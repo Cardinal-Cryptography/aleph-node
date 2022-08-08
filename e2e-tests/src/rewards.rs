@@ -247,9 +247,8 @@ pub fn get_era_for_session<C: AnyConnection>(connection: &C, session: SessionInd
     get_era(connection, Some(session_first_block))
 }
 
-pub fn setup_validators_and_initialize(
+pub fn setup_validators(
     config: &Config,
-    initialize: impl FnOnce(),
 ) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, SessionIndex)> {
     let root_connection = config.create_root_connection();
     let era = get_current_era(&root_connection);
@@ -281,7 +280,6 @@ pub fn setup_validators_and_initialize(
 
     if era_validators == network_validators && seats == network_seats {
         // nothing to do here
-        initialize();
         return Ok((era_validators, seats, session));
     }
 
@@ -292,8 +290,6 @@ pub fn setup_validators_and_initialize(
         Some(seats),
         XtStatus::Finalized,
     );
-
-    initialize();
 
     wait_for_next_era(&root_connection)?;
     let session = get_current_session(&root_connection);
@@ -311,12 +307,6 @@ pub fn setup_validators_and_initialize(
     assert_eq!(seats, network_seats);
 
     Ok((era_validators, seats, session))
-}
-
-pub fn setup_validators(
-    config: &Config,
-) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, SessionIndex)> {
-    setup_validators_and_initialize(config, || {})
 }
 
 pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {
