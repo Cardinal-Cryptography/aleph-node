@@ -1,22 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-use ink_env::{DefaultEnvironment, Environment};
-
 pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
-
-pub enum TicketEnvironment {}
-
-impl Environment for TicketEnvironment {
-    const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
-
-    type AccountId = <DefaultEnvironment as Environment>::AccountId;
-    type Balance = u64;
-    type Hash = <DefaultEnvironment as Environment>::Hash;
-    type BlockNumber = u64;
-    type Timestamp = <DefaultEnvironment as Environment>::Timestamp;
-    type ChainExtension = <DefaultEnvironment as Environment>::ChainExtension;
-}
 
 #[openbrush::contract]
 pub mod ticket_token {
@@ -26,9 +11,13 @@ pub mod ticket_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::format;
+    use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
-    use openbrush::{contracts::psp22::*, traits::Storage};
+    // use num_traits::identities::One;
+    use openbrush::{
+        contracts::psp22::{extensions::metadata::*, Internal, Transfer},
+        traits::Storage,
+    };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
@@ -38,14 +27,33 @@ pub mod ticket_token {
     pub struct TicketToken {
         #[storage_field]
         psp22: psp22::Data,
+        #[storage_field]
+        metadata: metadata::Data,
         /// access control contract
         access_control: AccountId,
     }
 
     impl PSP22 for TicketToken {}
 
-    // emit events
-    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
+    impl PSP22Metadata for TicketToken {}
+
+    impl Transfer for TicketToken {
+        fn _before_token_transfer(
+            &mut self,
+            _from: Option<&AccountId>,
+            _to: Option<&AccountId>,
+            amount: &Balance,
+        ) -> core::result::Result<(), PSP22Error> {
+            if !amount.eq(&1u128) {
+                return Err(PSP22Error::Custom(String::from(
+                    "Only single ticket can be transfered at once",
+                )));
+            }
+
+            Ok(())
+        }
+    }
+
     impl Internal for TicketToken {
         fn _emit_transfer_event(
             &self,
@@ -55,7 +63,7 @@ pub mod ticket_token {
         ) {
             TicketToken::emit_event(
                 self.env(),
-                Event::Transfer(Transfer {
+                Event::TransferEvent(TransferEvent {
                     from: _from,
                     to: _to,
                     value: _amount,
@@ -87,7 +95,7 @@ pub mod ticket_token {
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
     #[derive(Debug)]
-    pub struct Transfer {
+    pub struct TransferEvent {
         #[ink(topic)]
         pub from: Option<AccountId>,
         #[ink(topic)]
@@ -112,7 +120,7 @@ pub mod ticket_token {
         ///
         /// Will revert if called from an account without a proper role        
         #[ink(constructor)]
-        pub fn new(total_supply: Balance) -> Self {
+        pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -131,11 +139,14 @@ pub mod ticket_token {
 
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
+                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+                    instance.metadata.name = Some(name);
+                    instance.metadata.symbol = Some(symbol);
+                    instance.metadata.decimals = 0;
+
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");
-
-                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
