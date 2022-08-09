@@ -4,9 +4,10 @@ use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
     change_validators, get_block_hash, get_committee_seats, get_current_era, get_current_session,
     get_era, get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
-    get_session_period, get_validator_block_count, rotate_keys, set_keys, wait_for_at_least_era,
-    wait_for_at_least_session, wait_for_finalized_block, wait_for_next_era, AccountId,
-    AnyConnection, RewardPoint, SessionKeys, SignedConnection, XtStatus,
+    get_session_period, get_validator_block_count, rotate_keys, set_keys,
+    wait_for_at_least_session, wait_for_era_completion, wait_for_finalized_block,
+    wait_for_next_era, AccountId, AnyConnection, RewardPoint, SessionKeys, SignedConnection,
+    XtStatus,
 };
 use log::{debug, info};
 use pallet_elections::LENIENT_THRESHOLD;
@@ -254,7 +255,7 @@ pub fn setup_validators(
     let era = get_current_era(&root_connection);
     // we need to wait for at least era 1 since some of the storage items are not available at era 0
     if era == 0 {
-        wait_for_at_least_era(&root_connection, 1)?;
+        wait_for_era_completion(&root_connection, 1)?;
     }
 
     let members: Vec<_> = get_validators_keys(config)
