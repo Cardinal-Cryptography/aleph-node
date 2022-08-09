@@ -13,9 +13,9 @@ mod back_to_the_future {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::{
-        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame, Score,
+        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
     };
-    use game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
+    use game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
@@ -88,7 +88,7 @@ mod back_to_the_future {
             &mut self.data
         }
 
-        fn score(&self, now: BlockNumber) -> Score {
+        fn score(&self, now: BlockNumber) -> Balance {
             if let Some(last_press) = self.get().last_press {
                 return now - last_press;
             }
@@ -108,7 +108,7 @@ mod back_to_the_future {
         fn press(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let now = Self::env().block_number();
-            ButtonGame::press(self, now, caller)?;
+            ButtonGame::press(self, TRANSFER_SELECTOR, MINT_TO_SELECTOR, now, caller, this)?;
             Self::emit_event(
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
@@ -270,6 +270,7 @@ mod back_to_the_future {
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.button_lifetime = button_lifetime;
             self.data.game_token = game_token;
+            self.data.last_press = Some(now);
 
             Self::emit_event(
                 Self::env(),
