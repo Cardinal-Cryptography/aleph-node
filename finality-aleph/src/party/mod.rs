@@ -268,7 +268,7 @@ mod tests {
 
     use aleph_primitives::{AuthorityId, SessionAuthorityData};
     use sp_runtime::testing::UintAuthorityId;
-    use tokio::time::sleep;
+    use tokio::{task::JoinHandle, time::sleep};
 
     use crate::{
         party::{
@@ -298,15 +298,16 @@ mod tests {
 
     #[derive(Default)]
     struct BlockEvents {
-        pub session_authorities: Option<(SessionId, Vec<AuthorityId>)>,
-        pub id: Option<Option<AuthorityId>>,
-        pub state_to_assert: Option<PartyState>,
+        session_authorities: Option<(SessionId, Vec<AuthorityId>)>,
+        id: Option<Option<AuthorityId>>,
+        state_to_assert: Option<PartyState>,
     }
 
     struct PartyTest {
         current_block: u32,
         controller: MockController,
         block_events: HashMap<u32, BlockEvents>,
+        handle: Option<JoinHandle<()>>,
     }
 
     impl PartyTest {
@@ -318,9 +319,17 @@ mod tests {
                     current_block: 0,
                     controller,
                     block_events: Default::default(),
+                    handle: None,
                 },
                 party,
             )
+        }
+
+        fn run_party(mut self, party: Party) -> Self {
+            let party_handle = tokio::spawn(party.run());
+            self.handle = Some(party_handle);
+
+            self
         }
 
         fn assert_state(&self, expected_state: PartyState, block: u32) {
@@ -451,7 +460,7 @@ mod tests {
                 .chain_state_mock
                 .set_finalized_block(finalized_block);
 
-            self.current_block = best_block;
+            self.current_block = best_block + 1;
 
             self
         }
@@ -541,8 +550,6 @@ mod tests {
     async fn party_starts_session_for_node_in_authorities() {
         let (test, party) = PartyTest::new(SessionPeriod(SESSION_PERIOD));
 
-        let _party_handle = tokio::spawn(party.run());
-
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
@@ -566,6 +573,7 @@ mod tests {
             .set_node_id_for_session_at_block(0, Some(UintAuthorityId(0).to_public_key()))
             .assert_session_states_at_block(28, state_1)
             .assert_session_states_at_block(29, state_2)
+            .run_party(party)
             .run_for_n_blocks(SESSION_PERIOD)
             .await;
     }
@@ -573,8 +581,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn party_run_3_authorities_sessions() {
         let (test, party) = PartyTest::new(SessionPeriod(SESSION_PERIOD));
-
-        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -617,6 +623,7 @@ mod tests {
             .assert_session_states_at_block(29, state_2)
             .assert_session_states_at_block(59, state_3)
             .assert_session_states_at_block(89, state_4)
+            .run_party(party)
             .run_for_n_blocks(3 * SESSION_PERIOD)
             .await;
     }
@@ -624,8 +631,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn party_run_3_non_authorities_sessions() {
         let (test, party) = PartyTest::new(SessionPeriod(SESSION_PERIOD));
-
-        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -668,6 +673,7 @@ mod tests {
             .assert_session_states_at_block(29, state_2)
             .assert_session_states_at_block(59, state_3)
             .assert_session_states_at_block(89, state_4)
+            .run_party(party)
             .run_for_n_blocks(3 * SESSION_PERIOD)
             .await;
     }
@@ -676,8 +682,6 @@ mod tests {
     async fn party_early_skips_past_sessions() {
         let (test, party) = PartyTest::new(SessionPeriod(SESSION_PERIOD));
 
-        let _party_handle = tokio::spawn(party.run());
-
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
             .collect();
@@ -685,7 +689,7 @@ mod tests {
         let state = PartyState {
             validator_started: vec![SessionId(2)],
             early_started: vec![SessionId(3)],
-            non_validator_started: vec![SessionId(0)],
+            non_validator_started: vec![],
             stopped: vec![],
         };
 
@@ -702,6 +706,7 @@ mod tests {
         .await
         .set_best_and_finalized_block(SESSION_PERIOD * 2, SESSION_PERIOD * 2)
         .await
+        .run_party(party)
         .assert_session_states_at_block(61, state)
         .run_for_n_blocks(1)
         .await;
@@ -710,8 +715,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn party_dont_start_session_for_node_non_in_authorities() {
         let (test, party) = PartyTest::new(SessionPeriod(SESSION_PERIOD));
-
-        let _party_handle = tokio::spawn(party.run());
 
         let authorities: Vec<_> = (0..10)
             .map(|id| UintAuthorityId(id).to_public_key())
@@ -736,6 +739,7 @@ mod tests {
             .set_node_id_for_session_at_block(0, Some(UintAuthorityId(0).to_public_key()))
             .assert_session_states_at_block(24, state_1)
             .assert_session_states_at_block(29, state_2)
+            .run_party(party)
             .run_for_n_blocks(SESSION_PERIOD)
             .await;
     }
