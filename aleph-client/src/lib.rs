@@ -40,11 +40,11 @@ pub use staking::{
     validate as staking_validate, wait_for_era_completion, wait_for_full_era_completion,
     wait_for_next_era, RewardPoint, StakingLedger,
 };
+pub use substrate_api_client::{self, AccountId, Balance, XtStatus};
 use substrate_api_client::{
     rpc::ws_client::WsRpcClient, std::error::Error, Api, ApiResult, PlainTipExtrinsicParams,
     RpcClient, UncheckedExtrinsicV4,
 };
-pub use substrate_api_client::{AccountId, Balance, XtStatus};
 pub use system::set_code;
 pub use transfer::{
     batch_transfer as balances_batch_transfer, transfer as balances_transfer, TransferTransaction,
@@ -115,16 +115,19 @@ pub trait AnyConnectionExt: AnyConnection {
         })
     }
 
-    /// Reads value from storage. Panics if it couldn't be read.
-    fn read_storage_value_from_block<T: Decode>(
+    /// Reads value from storage at given block (empty means `best known`). Panics if it couldn't be read.
+    fn read_storage_value_at_block<T: Decode>(
         &self,
         pallet: &'static str,
         key: &'static str,
         block_hash: Option<H256>,
-    ) -> Option<T> {
-        self.as_connection()
-            .get_storage_value(pallet, key, block_hash)
-            .unwrap_or_else(|e| panic!("Unable to retrieve a storage value: {}", e))
+    ) -> T {
+        self.read_storage_value_at_block_or_else(pallet, key, block_hash, || {
+            panic!(
+                "Retrieved storage value ({}/{}) was equal `null`",
+                pallet, key
+            )
+        })
     }
 
     /// Reads value from storage. In case value is `None` or couldn't have been decoded, result of
@@ -135,7 +138,26 @@ pub trait AnyConnectionExt: AnyConnection {
         key: &'static str,
         fallback: F,
     ) -> T {
-        self.read_storage_value_from_block(pallet, key, None)
+        self.read_storage_value_at_block_or_else(pallet, key, None, fallback)
+    }
+
+    /// Reads value from storage from a given block. In case value is `None` or couldn't have been decoded, result of
+    /// `fallback` is returned.
+    fn read_storage_value_at_block_or_else<F: FnOnce() -> T, T: Decode>(
+        &self,
+        pallet: &'static str,
+        key: &'static str,
+        block_hash: Option<H256>,
+        fallback: F,
+    ) -> T {
+        self.as_connection()
+            .get_storage_value(pallet, key, block_hash)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Unable to retrieve a storage value {}/{} at block {:#?}: {}",
+                    pallet, key, block_hash, e
+                )
+            })
             .unwrap_or_else(fallback)
     }
 
@@ -188,10 +210,11 @@ pub trait AnyConnectionExt: AnyConnection {
         map_name: &'static str,
         map_key: K,
         block_hash: Option<H256>,
-    ) -> Option<T> {
+    ) -> T {
         self.as_connection()
             .get_storage_map(pallet, map_name, map_key, block_hash)
             .unwrap_or_else(|e| panic!("Unable to retrieve a storage map: {}", e))
+            .unwrap()
     }
 }
 

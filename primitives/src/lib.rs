@@ -80,7 +80,7 @@ impl Default for CommitteeSeats {
     }
 }
 
-#[derive(Decode, Encode, TypeInfo, Eq, PartialEq)]
+#[derive(Eq, PartialEq, Decode, Encode, TypeInfo)]
 pub struct EraValidators<AccountId> {
     pub reserved: Vec<AccountId>,
     pub non_reserved: Vec<AccountId>,

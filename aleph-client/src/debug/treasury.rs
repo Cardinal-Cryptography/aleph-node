@@ -8,12 +8,14 @@ use crate::{
     AnyConnectionExt,
 };
 
-pub fn print_storage<C: AnyConnectionExt>(connection: &C) {
-    let proposal_count: u32 = connection.read_storage_value_or_default("Treasury", "ProposalCount");
-    let approvals: Vec<ProposalIndex> =
-        connection.read_storage_value_or_default("Treasury", "Approvals");
+const PALLET: &str = "Treasury";
 
-    println!("{}", pallet_prompt("Treasury"));
+pub fn print_storage<C: AnyConnectionExt>(connection: &C) {
+    let proposal_count: u32 = connection.read_storage_value_or_default(PALLET, "ProposalCount");
+    let approvals: Vec<ProposalIndex> =
+        connection.read_storage_value_or_default(PALLET, "Approvals");
+
+    println!("{}", pallet_prompt(PALLET));
     println!("{}: {}", entry_prompt("ProposalCount"), proposal_count);
     println!();
     println!("{}", entry_prompt("Approvals"));
@@ -26,9 +28,8 @@ pub fn print_storage<C: AnyConnectionExt>(connection: &C) {
     println!();
     println!("{}", entry_prompt("Proposals"));
     for x in 0..=proposal_count {
-        let p: Option<Proposal<AccountId32, Balance>> = connection
-            .read_storage_map("Treasury", "Proposals", x, None)
-            .unwrap();
+        let p: Option<Proposal<AccountId32, Balance>> =
+            connection.read_storage_map(PALLET, "Proposals", x, None);
 
         if let Some(p) = p {
             println!("{}", element_prompt(format!("\tProposalId {}: {:?}", x, p)));

@@ -54,6 +54,8 @@ pub fn get_and_test_members_for_session<C: AnyConnection>(
     (members_active, members_bench)
 }
 
+/// Computes a list of validators that should be elected for a given session, based on description in our elections pallet.
+/// Panics if `nodes_per_session` is greater than length of `era_validators`.
 pub fn get_members_subset_for_session(
     nodes_per_session: u32,
     era_validators: &[AccountId],
@@ -62,6 +64,7 @@ pub fn get_members_subset_for_session(
     let validators_len = era_validators.len();
     let session: usize = session.try_into().unwrap();
     let nodes_per_session: usize = nodes_per_session.try_into().unwrap();
+    assert!(nodes_per_session <= validators_len);
     let first_index = session.saturating_mul(nodes_per_session) % validators_len;
 
     era_validators
