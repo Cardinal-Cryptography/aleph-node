@@ -45,7 +45,7 @@ pub mod ticket_token {
         ) -> core::result::Result<(), PSP22Error> {
             if !amount.eq(&1u128) {
                 return Err(PSP22Error::Custom(String::from(
-                    "Only single ticket can be transfered at once",
+                    "Only single ticket can be transferred at once",
                 )));
             }
 
