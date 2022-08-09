@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
+pub use crate::game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
 
 #[openbrush::contract]
 pub mod game_token {
@@ -20,6 +20,8 @@ pub mod game_token {
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
+    // TODO : use correct selector when mint/burn is implemented
+    pub const MINT_TO_SELECTOR: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]

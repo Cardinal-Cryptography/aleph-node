@@ -129,7 +129,7 @@ pub struct ButtonData {
     /// counter for the number of presses
     pub presses: u128,
     /// AccountId of the PSP22 ButtonToken instance on-chain
-    pub game_token: AccountId,
+    pub reward_token: AccountId,
     /// Account ID of the ticket token
     pub ticket_token: AccountId,
     /// access control contract
@@ -159,8 +159,8 @@ pub trait ButtonGame {
     /// where k is the number of players that participated until the button has died
     /// Can be overriden to some other custom calculation
     fn pressiah_score(&self) -> Balance {
-        let presses = self.get().presses as f64;
-        (presses * f64::sqrt(presses)) as Balance
+        let presses = self.get().presses;
+        (presses * num::integer::sqrt(presses)) as Balance
     }
 
     fn is_dead(&self, now: BlockNumber) -> bool {
@@ -203,22 +203,22 @@ pub trait ButtonGame {
         self.get().last_presser
     }
 
-    fn game_token(&self) -> AccountId {
-        self.get().game_token
+    fn reward_token(&self) -> AccountId {
+        self.get().reward_token
     }
 
-    // fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> ButtonResult<Balance>
-    // where
-    //     E: Environment<AccountId = AccountId>,
-    // {
-    //     let game_token = self.get().game_token;
-    //     let balance = build_call::<E>()
-    //         .call_type(Call::new().callee(game_token))
-    //         .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
-    //         .returns::<Balance>()
-    //         .fire()?;
-    //     Ok(balance)
-    // }
+    fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> ButtonResult<Balance>
+    where
+        E: Environment<AccountId = AccountId>,
+    {
+        let ticket_token = self.get().ticket_token;
+        let balance = build_call::<E>()
+            .call_type(Call::new().callee(ticket_token))
+            .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
+            .returns::<Balance>()
+            .fire()?;
+        Ok(balance)
+    }
 
     fn transfer_tx<E>(
         &self,
@@ -230,7 +230,7 @@ pub trait ButtonGame {
         E: Environment<AccountId = AccountId>,
     {
         build_call::<E>()
-            .call_type(Call::new().callee(self.get().game_token))
+            .call_type(Call::new().callee(self.get().reward_token))
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_selector))
                     .push_arg(to)
@@ -251,7 +251,7 @@ pub trait ButtonGame {
         E: Environment<AccountId = AccountId>,
     {
         build_call::<E>()
-            .call_type(Call::new().callee(self.get().game_token))
+            .call_type(Call::new().callee(self.get().reward_token))
             .exec_input(
                 ExecutionInput::new(Selector::new(mint_to_selector))
                     .push_arg(to)
@@ -276,7 +276,6 @@ pub trait ButtonGame {
         )
     }
 
-    // TODO : transfer ticket token
     fn press<E>(
         &mut self,
         transfer_selector: [u8; 4],
@@ -311,6 +310,7 @@ pub trait ButtonGame {
         state.presses = presses + 1;
         state.last_presser = Some(caller);
         state.last_press = Some(now);
+
         swap(self.get_mut(), &mut state);
 
         Ok(())
@@ -321,62 +321,31 @@ pub trait ButtonGame {
     /// Erases the storage and pays award to the Pressiah
     /// Can be called by any account on behalf of a player
     /// Can only be called after button's deadline
-    fn reset<E>(
-        &mut self,
-        now: BlockNumber,
-        for_player: AccountId,
-        // balance_of_selector: [u8; 4],
-        transfer_selector: [u8; 4],
-        this: AccountId,
-    ) -> ButtonResult<()>
+    fn reset<E>(&mut self, now: BlockNumber, mint_to_selector: [u8; 4]) -> ButtonResult<()>
     where
         E: Environment<AccountId = AccountId>,
     {
-        let ButtonData {
-            presses,
-            last_presser,
-            ..
-        } = self.get();
+        let ButtonData { last_presser, .. } = self.get();
 
         if !self.is_dead(now) {
             return Err(GameError::BeforeDeadline);
         }
 
-        // if reward_claimed.get(&for_player).is_some() {
-        //     return Err(GameError::AlreadyCLaimed);
-        // }
+        if let Some(pressiah) = last_presser {
+            let reward = self.pressiah_score();
+            self.mint_tx::<E>(mint_to_selector, *pressiah, reward)??;
+        };
 
-        // let mut total_rewards = 0;
+        // zero the counters in storage
+        let root_key = ::ink_primitives::Key::from([0x00; 32]);
+        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
-        // TODO
-        match last_presser {
-            None => Ok(()), // there weren't any players
-            Some(pressiah) => {
-                // let total_balance = self.balance::<E>(balance_of_selector, this)?;
-                // let pressiah_reward = total_balance / 2;
-                // let remaining_balance = total_balance - pressiah_reward;
+        state.presses = 0;
+        state.last_presser = None;
+        state.last_press = None;
+        swap(self.get_mut(), &mut state);
 
-                // if &for_player == pressiah {
-                //     // Pressiah gets 50% of supply
-                //     self.transfer_tx::<E>(transfer_selector, *pressiah, pressiah_reward)??;
-                //     total_rewards += pressiah_reward;
-                // }
-
-                // // NOTE: in this design the Pressiah gets *both* his/her reward *and* a reward for playing
-
-                // if let Some(score) = presses.get(&for_player) {
-                //     // transfer reward proportional to the score
-                //     let reward = (score as u128 * remaining_balance) / *total_scores as u128;
-                //     self.transfer_tx::<E>(transfer_selector, for_player, reward)??;
-
-                //     // pressiah is also marked as having made the claim, because his/her score was recorder
-                //     self.get_mut().reward_claimed.insert(&for_player, &());
-                //     total_rewards += reward;
-                // }
-
-                Ok(())
-            }
-        }
+        Ok(())
     }
 }
 
@@ -389,10 +358,6 @@ pub trait IButtonGame {
     /// Button press logic
     #[ink(message)]
     fn press(&mut self) -> ButtonResult<()>;
-
-    // /// Pays out the award
-    // #[ink(message)]
-    // fn claim_reward(&mut self, for_player: AccountId) -> ButtonResult<()>;
 
     /// Returns the buttons status
     #[ink(message)]
@@ -414,16 +379,15 @@ pub trait IButtonGame {
 
     /// Returns address of the game's reward token
     #[ink(message)]
-    fn game_token(&self) -> AccountId;
+    fn reward_token(&self) -> AccountId;
 
     /// Returns address of the game's ticket token
     #[ink(message)]
     fn ticket_token(&self) -> AccountId;
 
-    // TODO : balance of ticket token
-    // /// Returns then game token balance of the game contract
-    // #[ink(message)]
-    // fn balance(&self) -> ButtonResult<Balance>;
+    /// Returns then number of ticket tokens in the game contract
+    #[ink(message)]
+    fn balance(&self) -> ButtonResult<Balance>;
 
     /// Resets the game
     #[ink(message)]
