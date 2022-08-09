@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
     account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
-    change_validators, get_block_hash, get_committee_seats, get_current_era, get_current_session,
-    get_era, get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
+    change_validators, get_block_hash, get_committee_seats, get_current_session, get_era,
+    get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
     get_session_period, get_validator_block_count, rotate_keys, set_keys,
     wait_for_at_least_session, wait_for_era_completion, wait_for_finalized_block,
     wait_for_next_era, AccountId, AnyConnection, RewardPoint, SessionKeys, SignedConnection,
@@ -252,22 +252,26 @@ pub fn setup_validators(
     config: &Config,
 ) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, SessionIndex)> {
     let root_connection = config.create_root_connection();
-    let era = get_current_era(&root_connection);
     // we need to wait for at least era 1 since some of the storage items are not available at era 0
-    if era == 0 {
-        wait_for_era_completion(&root_connection, 1)?;
-    }
+    wait_for_era_completion(&root_connection, 1)?;
 
+    let seats = COMMITTEE_SEATS;
+    let members_seats = seats.reserved_seats + seats.non_reserved_seats;
+    let members_seats = members_seats.try_into().unwrap();
     let members: Vec<_> = get_validators_keys(config)
         .iter()
         .map(account_from_keypair)
         .collect();
     let members_size = members.len();
-    let reserved_count = std::cmp::min(members_size / 2, 2);
-    let reserved_members = &members[0..reserved_count];
-    let non_reserved_members = &members[reserved_count..];
 
-    let seats = COMMITTEE_SEATS;
+    assert!(members_size >= members_seats);
+
+    let free_seats = members_size - members_seats;
+    let reserved_free_seats = free_seats / 2;
+
+    let reserved_size = seats.reserved_seats as usize + reserved_free_seats;
+    let reserved_members = &members[0..reserved_size];
+    let non_reserved_members = &members[reserved_size..];
 
     let session = get_current_session(&root_connection);
     let network_validators = get_era_validators(&root_connection, session);

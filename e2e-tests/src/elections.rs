@@ -4,7 +4,7 @@ use aleph_client::{get_validators_for_session, AccountId, AnyConnection};
 use log::debug;
 use primitives::{CommitteeSeats, EraValidators, SessionIndex};
 
-pub fn get_members_for_session<C: AnyConnection>(
+pub fn get_and_test_members_for_session<C: AnyConnection>(
     connection: &C,
     seats: CommitteeSeats,
     era_validators: &EraValidators<AccountId>,

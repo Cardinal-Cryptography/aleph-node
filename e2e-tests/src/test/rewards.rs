@@ -8,7 +8,7 @@ use primitives::{
 };
 
 use crate::{
-    elections::get_members_for_session,
+    elections::get_and_test_members_for_session,
     rewards::{
         check_points, get_era_for_session, reset_validator_keys, set_invalid_keys_for_validator,
         setup_validators, validators_bond_extra_stakes,
@@ -38,7 +38,7 @@ pub fn points_basic(config: &Config) -> anyhow::Result<()> {
     for session in start_session..end_session {
         let era = get_era_for_session(&connection, session);
         let (members_active, members_bench) =
-            get_members_for_session(&connection, committee_size, &era_validators, session);
+            get_and_test_members_for_session(&connection, committee_size, &era_validators, session);
 
         check_points(
             &connection,
@@ -84,7 +84,7 @@ pub fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     for session in start_session..end_session {
         let era = get_era_for_session(&connection, session);
         let (members_active, members_bench) =
-            get_members_for_session(&connection, committee_size, &era_validators, session);
+            get_and_test_members_for_session(&connection, committee_size, &era_validators, session);
 
         check_points(
             &connection,
@@ -124,7 +124,7 @@ pub fn disable_node(config: &Config) -> anyhow::Result<()> {
 
     for session in start_session..end_session {
         let era = get_era_for_session(&controller_connection, session);
-        let (members_active, members_bench) = get_members_for_session(
+        let (members_active, members_bench) = get_and_test_members_for_session(
             &controller_connection,
             committee_size,
             &era_validators,
@@ -249,7 +249,7 @@ fn check_points_after_force_new_era(
         );
 
         let (members_active, members_bench) =
-            get_members_for_session(connection, seats, era_validators, session_to_check);
+            get_and_test_members_for_session(connection, seats, era_validators, session_to_check);
 
         check_points(
             connection,
