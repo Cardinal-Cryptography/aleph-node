@@ -100,15 +100,18 @@ function link_bytecode() {
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-# mint this many tokens, 20% go to the future LP on DEX
+# mint this many ticket tokens
 TOTAL_BALANCE=1000
-GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
+# GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
 
 CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
 cd "$CONTRACTS_PATH"/access_control
+cargo contract build --release
+
+cd "$CONTRACTS_PATH"/ticket_token
 cargo contract build --release
 
 cd "$CONTRACTS_PATH"/game_token
@@ -131,7 +134,23 @@ ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
-# --- UPLOAD TOKEN CONTRACT CODE
+# --- UPLOAD TICKET TOKEN CONTRACT CODE
+
+cd "$CONTRACTS_PATH"/ticket_token
+# replace address placeholder with the on-chain address of the AccessControl contract
+link_bytecode ticket_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+# remove just in case
+rm target/ink/ticket_token.wasm
+# NOTE : here we go from hex to binary using a nodejs cli tool
+# availiable from https://github.com/fbielejec/polkadot-cljs
+node ../scripts/hex-to-wasm.js target/ink/ticket_token.contract target/ink/ticket_token.wasm
+
+CODE_HASH=$(cargo contract upload --url $NODE --suri "$AUTHORITY_SEED")
+TICKET_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+
+echo "ticket token code hash" $TICKET_TOKEN_CODE_HASH
+
+# --- UPLOAD REWARD TOKEN CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/game_token
 # replace address placeholder with the on-chain address of the AccessControl contract
@@ -147,12 +166,15 @@ GAME_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
 echo "button token code hash" "$GAME_TOKEN_CODE_HASH"
 
-# --- GRANT INIT PRIVILEDGES ON THE TOKEN CONTRACT CODE
+# --- GRANT INIT PRIVILEDGES ON THE TOKEN AND TICKET CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/access_control
 
 # set the initializer of the token contract
 cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$GAME_TOKEN_CODE_HASH"')' --suri "$AUTHORITY_SEED"
+
+# set the initializer of the ticket contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$TICKET_TOKEN_CODE_HASH')' --suri "$AUTHORITY_SEED"
 
 #
 # --- EARLY_BIRD_SPECIAL GAME

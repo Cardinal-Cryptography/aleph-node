@@ -230,7 +230,7 @@ pub trait ButtonGame {
         E: Environment<AccountId = AccountId>,
     {
         build_call::<E>()
-            .call_type(Call::new().callee(self.get().reward_token))
+            .call_type(Call::new().callee(self.get().ticket_token))
             .exec_input(
                 ExecutionInput::new(Selector::new(transfer_selector))
                     .push_arg(to)
@@ -331,6 +331,7 @@ pub trait ButtonGame {
             return Err(GameError::BeforeDeadline);
         }
 
+        // reward the Pressiah
         if let Some(pressiah) = last_presser {
             let reward = self.pressiah_score();
             self.mint_tx::<E>(mint_to_selector, *pressiah, reward)??;

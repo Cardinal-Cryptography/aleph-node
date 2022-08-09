@@ -15,14 +15,15 @@ mod back_to_the_future {
     use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
     };
-    use game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
+    use game_token::MINT_TO_SELECTOR;
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, vec::Vec};
+    use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
+    use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
 
     type Event = <BackToTheFuture as ContractEventBase>::Type;
 
@@ -31,7 +32,8 @@ mod back_to_the_future {
     #[derive(Debug)]
     pub struct ButtonCreated {
         #[ink(topic)]
-        game_token: AccountId,
+        reward_token: AccountId,
+        ticket_token: AccountId,
         start: BlockNumber,
         deadline: BlockNumber,
     }
@@ -64,9 +66,8 @@ mod back_to_the_future {
     /// Event emitted when a players reward is claimed
     #[ink(event)]
     #[derive(Debug)]
-    pub struct RewardClaimed {
-        for_player: AccountId,
-        rewards: u128,
+    pub struct GameReset {
+        when: u64,
     }
 
     #[ink(storage)]
@@ -90,7 +91,7 @@ mod back_to_the_future {
 
         fn score(&self, now: BlockNumber) -> Balance {
             if let Some(last_press) = self.get().last_press {
-                return now - last_press;
+                return (now - last_press) as Balance;
             }
             0
         }
@@ -108,7 +109,17 @@ mod back_to_the_future {
         fn press(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let now = Self::env().block_number();
-            ButtonGame::press(self, TRANSFER_SELECTOR, MINT_TO_SELECTOR, now, caller, this)?;
+            let this = self.env().account_id();
+
+            ButtonGame::press::<ButtonGameEnvironment>(
+                self,
+                TRANSFER_SELECTOR,
+                MINT_TO_SELECTOR,
+                now,
+                caller,
+                this,
+            )?;
+
             Self::emit_event(
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
@@ -116,30 +127,17 @@ mod back_to_the_future {
                     when: now,
                 }),
             );
+
             Ok(())
         }
 
         #[ink(message)]
-        fn claim_reward(&mut self, for_player: AccountId) -> ButtonResult<()> {
-            let this = self.env().account_id();
-            let now = self.env().block_number();
+        fn reset(&mut self) -> ButtonResult<()> {
+            let now = Self::env().block_number();
 
-            let rewards = ButtonGame::claim_reward::<ButtonGameEnvironment>(
-                self,
-                now,
-                for_player,
-                BALANCE_OF_SELECTOR,
-                TRANSFER_SELECTOR,
-                this,
-            )?;
+            ButtonGame::reset::<ButtonGameEnvironment>(self, now, MINT_TO_SELECTOR)?;
 
-            Self::emit_event(
-                self.env(),
-                Event::RewardClaimed(RewardClaimed {
-                    for_player,
-                    rewards,
-                }),
-            );
+            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
         }
 
@@ -147,16 +145,6 @@ mod back_to_the_future {
         fn deadline(&self) -> BlockNumber {
             let now = self.env().block_number();
             ButtonGame::deadline(self, now)
-        }
-
-        #[ink(message)]
-        fn score_of(&self, user: AccountId) -> Score {
-            ButtonGame::score_of(self, user)
-        }
-
-        #[ink(message)]
-        fn can_play(&self, user: AccountId) -> bool {
-            ButtonGame::can_play(self, user)
         }
 
         #[ink(message)]
@@ -170,8 +158,13 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn game_token(&self) -> AccountId {
-            ButtonGame::game_token(self)
+        fn reward_token(&self) -> AccountId {
+            ButtonGame::reward_token(self)
+        }
+
+        #[ink(message)]
+        fn ticket_token(&self) -> AccountId {
+            ButtonGame::ticket_token(self)
         }
 
         #[ink(message)]
@@ -188,44 +181,6 @@ mod back_to_the_future {
         }
 
         #[ink(message)]
-        fn allow(&mut self, player: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::allow(self, player, caller, this)?;
-            Self::emit_event(
-                self.env(),
-                Event::AccountWhitelisted(AccountWhitelisted { player }),
-            );
-            Ok(())
-        }
-
-        #[ink(message)]
-        fn bulk_allow(&mut self, players: Vec<AccountId>) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::bulk_allow(self, players.clone(), caller, this)?;
-            for player in players {
-                Self::emit_event(
-                    self.env(),
-                    Event::AccountWhitelisted(AccountWhitelisted { player }),
-                );
-            }
-            Ok(())
-        }
-
-        #[ink(message)]
-        fn disallow(&mut self, player: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::disallow(self, player, caller, this)?;
-            Self::emit_event(
-                self.env(),
-                Event::AccountBlacklisted(AccountBlacklisted { player }),
-            );
-            Ok(())
-        }
-
-        #[ink(message)]
         fn terminate(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
@@ -237,7 +192,11 @@ mod back_to_the_future {
 
     impl BackToTheFuture {
         #[ink(constructor)]
-        pub fn new(game_token: AccountId, button_lifetime: BlockNumber) -> Self {
+        pub fn new(
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+        ) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -257,19 +216,24 @@ mod back_to_the_future {
 
             match role_check {
                 Ok(_) => initialize_contract(|contract| {
-                    Self::new_init(contract, game_token, button_lifetime)
+                    Self::new_init(contract, ticket_token, reward_token, button_lifetime)
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
 
-        fn new_init(&mut self, game_token: AccountId, button_lifetime: BlockNumber) {
+        fn new_init(
+            &mut self,
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+        ) {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.button_lifetime = button_lifetime;
-            self.data.game_token = game_token;
+            self.data.reward_token = reward_token;
             self.data.last_press = Some(now);
 
             Self::emit_event(
@@ -277,7 +241,8 @@ mod back_to_the_future {
                 Event::ButtonCreated(ButtonCreated {
                     start: now,
                     deadline,
-                    game_token,
+                    ticket_token,
+                    reward_token,
                 }),
             )
         }

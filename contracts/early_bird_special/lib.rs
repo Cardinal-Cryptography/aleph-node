@@ -15,14 +15,15 @@ mod early_bird_special {
     use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
     };
-    use game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
+    use game_token::MINT_TO_SELECTOR;
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, vec::Vec};
+    use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
+    use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
 
     /// Event type
     type Event = <EarlyBirdSpecial as ContractEventBase>::Type;
@@ -93,6 +94,7 @@ mod early_bird_special {
             let caller = self.env().caller();
             let now = Self::env().block_number();
             let this = self.env().account_id();
+
             ButtonGame::press::<ButtonGameEnvironment>(
                 self,
                 TRANSFER_SELECTOR,
@@ -101,6 +103,7 @@ mod early_bird_special {
                 caller,
                 this,
             )?;
+
             Self::emit_event(
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
@@ -108,6 +111,7 @@ mod early_bird_special {
                     when: now,
                 }),
             );
+
             Ok(())
         }
 
