@@ -4,6 +4,33 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function instrument_ticket_token {
+
+  local  __resultvar=$1
+  local contract_name=$2
+  local salt=$3
+  local token_name=$4
+  local token_symbol=$5
+
+  # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
+
+  cd "$CONTRACTS_PATH"/$contract_name
+
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $token_name $token_symbol $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+
+  echo $contract_name "ticket contract instance address: " $contract_address
+
+  # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  # set the admin and the owner of the contract instance
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
+
+  eval $__resultvar="'$contract_address'"
+}
+
 function instrument_game_token {
 
   local  __resultvar=$1
@@ -16,9 +43,9 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/"$contract_name"
 
-  local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
-  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+  # TODO : remove balance
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name token contract instance address: $contract_address"
 
@@ -26,18 +53,20 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  # set the admin and the owner of the contract instance
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  # set the owner of the contract instance
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
 
-  eval "$__resultvar='$contract_address'"
+  # TODO : MINTER / BURNER
+
+  eval $__resultvar="'$contract_address'"
 }
 
 function deploy_and_instrument_game {
 
   local  __resultvar=$1
   local contract_name=$2
-  local game_token=$3
+  local ticket_token=$3
+  local game_token=$4
 
   # --- UPLOAD CONTRACT CODE
 
@@ -60,9 +89,8 @@ function deploy_and_instrument_game {
 
   cd "$CONTRACTS_PATH/$contract_name"
 
-  local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$game_token" "$LIFETIME" --suri "$AUTHORITY_SEED")
-  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $ticket_token $game_token $LIFETIME --suri "$AUTHORITY_SEED")
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name contract instance address: $contract_address"
 
@@ -70,20 +98,7 @@ function deploy_and_instrument_game {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
-
-  # --- TRANSFER TOKENS TO THE CONTRACT
-
-  cd "$CONTRACTS_PATH"/game_token
-
-  cargo contract call --url "$NODE" --contract "$game_token" --message PSP22::transfer --args "$contract_address" "$GAME_BALANCE" "[0]" --suri "$AUTHORITY_SEED"
-
-  # --- WHITELIST ACCOUNTS FOR PLAYING
-
-  cd "$CONTRACTS_PATH/$contract_name"
-
-  cargo contract call --url "$NODE" --contract "$contract_address" --message IButtonGame::bulk_allow --args "$WHITELIST" --suri "$AUTHORITY_SEED"
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
@@ -102,7 +117,6 @@ NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
 # mint this many ticket tokens
 TOTAL_BALANCE=1000
-# GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
 
 CONTRACTS_PATH=$(pwd)/contracts
 
@@ -176,31 +190,37 @@ cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_r
 # set the initializer of the ticket contract
 cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$TICKET_TOKEN_CODE_HASH')' --suri "$AUTHORITY_SEED"
 
+start=`date +%s.%N`
+
 #
 # --- EARLY_BIRD_SPECIAL GAME
 #
 
-# --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
+# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
 
-start=$( date +%s.%N )
+instrument_ticket_token EARLY_BIRD_SPECIAL_TICKET game_ticket 0x4561726C79426972645370656369616C early_bird_special ebs
 
 instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C79426972645370656369616C
 
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
-deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special "$EARLY_BIRD_SPECIAL_TOKEN"
+deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
 
 #
 # --- BACK_TO_THE_FUTURE GAME
 #
 
+# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
+
+instrument_ticket_token BACK_TO_THE_FUTURE_TICKET game_ticket 0x4261636B546F546865467574757265 back_to_the_future
+
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
 
 instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
 
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
-deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future "$BACK_TO_THE_FUTURE_TOKEN"
+deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
