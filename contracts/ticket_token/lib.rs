@@ -13,7 +13,6 @@ pub mod ticket_token {
     };
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
-    // use num_traits::identities::One;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal, Transfer},
         traits::Storage,
