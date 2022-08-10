@@ -34,7 +34,7 @@ function play {
 
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED
 
-  # TODO : can't test before mint / burn for game tokens is implemented
+  # TODO : can't test before mint / burn for game tokens is implemented; uncomment when A0-1236 is done
 
   # # play the game
 
