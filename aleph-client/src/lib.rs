@@ -1,4 +1,4 @@
-use std::{default::Default, thread::sleep, time::Duration};
+use std::{default::Default, fmt::Debug, thread::sleep, time::Duration};
 
 use ac_primitives::SubstrateDefaultSignedExtra;
 pub use account::{get_free_balance, locks};
@@ -37,8 +37,8 @@ pub use staking::{
     get_stakers_as_storage_keys_from_storage_key, ledger as staking_ledger,
     multi_bond as staking_multi_bond, nominate as staking_nominate, payout_stakers,
     payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
-    validate as staking_validate, wait_for_era_completion, wait_for_full_era_completion,
-    wait_for_next_era, RewardPoint, StakingLedger,
+    validate as staking_validate, wait_for_at_least_era, wait_for_era_completion,
+    wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
 };
 pub use substrate_api_client::{self, AccountId, Balance, XtStatus};
 use substrate_api_client::{
@@ -204,7 +204,7 @@ pub trait AnyConnectionExt: AnyConnection {
         self.read_constant_or_else(pallet, constant, Default::default)
     }
 
-    fn read_storage_map<K: Encode, T: Decode + Clone>(
+    fn read_storage_map<K: Encode + Debug + Clone, T: Decode + Clone>(
         &self,
         pallet: &'static str,
         map_name: &'static str,
@@ -212,8 +212,8 @@ pub trait AnyConnectionExt: AnyConnection {
         block_hash: Option<H256>,
     ) -> T {
         self.as_connection()
-            .get_storage_map(pallet, map_name, map_key, block_hash)
-            .unwrap_or_else(|e| panic!("Unable to retrieve a storage map: {}", e))
+            .get_storage_map(pallet, map_name, map_key.clone(), block_hash)
+            .unwrap_or_else(|e| panic!("Unable to retrieve a storage map for pallet={} map_name={} map_key={:#?} block_hash={:#?}: {}", pallet, map_name, &map_key, block_hash, e))
             .unwrap()
     }
 }

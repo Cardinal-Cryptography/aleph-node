@@ -22,7 +22,7 @@ pub fn get_validator_block_count<C: AnyConnectionExt>(
     connection: &C,
     account_id: &AccountId,
     block_hash: Option<H256>,
-) -> Option<u32> {
+) -> u32 {
     connection.read_storage_map(PALLET, "SessionValidatorBlockCount", account_id, block_hash)
 }
 
