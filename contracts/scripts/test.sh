@@ -34,8 +34,10 @@ function play {
 
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED
 
-  # play the game
-  
+  # TODO : can't test before mint / burn for game tokens is implemented
+
+  # # play the game
+
   # cd "$CONTRACTS_PATH"/$contract_name
 
   # echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
@@ -48,17 +50,17 @@ function play {
 
   # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER2_SEED
 
-  # ---  WAIT FOR THE BUTTON DEATH
+  # # ---  WAIT FOR THE BUTTON DEATH
 
-  sleep $(($LIFETIME + 1))
+  # sleep $(($LIFETIME + 1))
 
-  # --- TRIGGER GAME RESET
-  
-  cd "$CONTRACTS_PATH"/$contract_name
-  
-  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
+  # # --- TRIGGER GAME RESET
 
-  echo "Done playing" $contract_name
+  # cd "$CONTRACTS_PATH"/$contract_name
+
+  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
+
+  # echo "Done playing" $contract_name
 }
 
 # --- ARGUMENTS

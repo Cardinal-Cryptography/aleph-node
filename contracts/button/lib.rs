@@ -321,8 +321,7 @@ pub trait ButtonGame {
 
         // mints reward tokens to pay out the reward
         // contract needs to have a Minter role on the reward token contract
-        // TODO : UNCOMMENT WHEN MINT/BURN IS IMPLEMENTED FOR THE GAME TOKEN
-        // self.mint_tx::<E>(caller, score)??;
+        self.mint_tx::<E>(caller, score)??;
 
         state.presses = presses + 1;
         state.last_presser = Some(caller);
@@ -349,10 +348,9 @@ pub trait ButtonGame {
         }
 
         // reward the Pressiah
-        if let Some(_pressiah) = last_presser {
-            let _reward = self.pressiah_score();
-            // TODO : UNCOMMENT WHEN MINT/BURN IS IMPLEMENTED FOR THE GAME TOKEN
-            // self.mint_tx::<E>(mint_to_selector, *pressiah, reward)??;
+        if let Some(pressiah) = last_presser {
+            let reward = self.pressiah_score();
+            self.mint_tx::<E>(*pressiah, reward)??;
         };
 
         // zero the counters in storage
