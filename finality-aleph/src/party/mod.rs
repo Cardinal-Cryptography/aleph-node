@@ -464,7 +464,7 @@ mod tests {
             self
         }
 
-        fn assert_session_states_at_block(
+        fn expect_session_states_at_block(
             mut self,
             block: u32,
             expected_state: PartyState,
@@ -570,8 +570,8 @@ mod tests {
         test.set_authorities_for_session_at_block(0, authorities.clone(), SessionId(0))
             .set_authorities_for_session_at_block(25, authorities, SessionId(1))
             .set_node_id_for_session_at_block(0, Some(UintAuthorityId(0).to_public_key()))
-            .assert_session_states_at_block(28, state_1)
-            .assert_session_states_at_block(29, state_2)
+            .expect_session_states_at_block(28, state_1)
+            .expect_session_states_at_block(29, state_2)
             .run_party(party)
             .run_for_n_blocks(SESSION_PERIOD)
             .await;
@@ -618,10 +618,10 @@ mod tests {
             .set_authorities_for_session_at_block(55, authorities.clone(), SessionId(2))
             .set_authorities_for_session_at_block(85, authorities, SessionId(3))
             .set_node_id_for_session_at_block(0, Some(UintAuthorityId(0).to_public_key()))
-            .assert_session_states_at_block(28, state_1)
-            .assert_session_states_at_block(29, state_2)
-            .assert_session_states_at_block(59, state_3)
-            .assert_session_states_at_block(89, state_4)
+            .expect_session_states_at_block(28, state_1)
+            .expect_session_states_at_block(29, state_2)
+            .expect_session_states_at_block(59, state_3)
+            .expect_session_states_at_block(89, state_4)
             .run_party(party)
             .run_for_n_blocks(3 * SESSION_PERIOD)
             .await;
@@ -668,10 +668,10 @@ mod tests {
             .set_authorities_for_session_at_block(55, authorities.clone(), SessionId(2))
             .set_authorities_for_session_at_block(85, authorities, SessionId(3))
             .set_node_id_for_session_at_block(0, None)
-            .assert_session_states_at_block(24, state_1)
-            .assert_session_states_at_block(29, state_2)
-            .assert_session_states_at_block(59, state_3)
-            .assert_session_states_at_block(89, state_4)
+            .expect_session_states_at_block(24, state_1)
+            .expect_session_states_at_block(29, state_2)
+            .expect_session_states_at_block(59, state_3)
+            .expect_session_states_at_block(89, state_4)
             .run_party(party)
             .run_for_n_blocks(3 * SESSION_PERIOD)
             .await;
@@ -706,7 +706,7 @@ mod tests {
         .set_best_and_finalized_block(SESSION_PERIOD * 2, SESSION_PERIOD * 2)
         .await
         .run_party(party)
-        .assert_session_states_at_block(61, state)
+        .expect_session_states_at_block(61, state)
         .run_for_n_blocks(1)
         .await;
     }
@@ -736,8 +736,8 @@ mod tests {
         test.set_authorities_for_session_at_block(0, authorities.clone(), SessionId(0))
             .set_authorities_for_session_at_block(25, authorities[1..].to_vec(), SessionId(1))
             .set_node_id_for_session_at_block(0, Some(UintAuthorityId(0).to_public_key()))
-            .assert_session_states_at_block(24, state_1)
-            .assert_session_states_at_block(29, state_2)
+            .expect_session_states_at_block(24, state_1)
+            .expect_session_states_at_block(29, state_2)
             .run_party(party)
             .run_for_n_blocks(SESSION_PERIOD)
             .await;
