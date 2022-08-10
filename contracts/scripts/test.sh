@@ -4,6 +4,8 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+# TODO : give allowance
+
 function play {
 
   local contract_name=$1
@@ -21,13 +23,15 @@ function play {
 
   cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER2_SEED
 
-  # --- TRIGGER DEATH AND REWARDS DISTRIBUTION
+  # ---  WAIT FOR BUTTON DEATH
 
   sleep $(($LIFETIME + 1))
 
-  echo "claiming rewards for" $contract_name
-  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER1 --suri $AUTHORITY_SEED
-  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER2 --suri $AUTHORITY_SEED
+  # --- TRIGGER RESTART (PAYS OUT PRESSIAH REWARD)
+
+  # echo "claiming rewards for" $contract_name
+  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER1 --suri $AUTHORITY_SEED
+  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::claim_reward --args $PLAYER2 --suri $AUTHORITY_SEED
 
   echo "Done playing" $contract_name
 }
