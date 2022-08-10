@@ -12,17 +12,16 @@ function instrument_ticket_token {
   local token_name=$4
   local token_symbol=$5
 
-  echo "token: " $token_name  "symbol: " $token_symbol "balance: " $TOTAL_BALANCE
-  
   # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/$contract_name
 
   # local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $token_name $token_symbol $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
 
+  # local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"fubar\" \"fu\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
 
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args "fubar" "fu" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
-  
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"$token_name\" \"$token_symbol\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo $contract_name "ticket contract instance address: " $contract_address
@@ -49,7 +48,7 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/"$contract_name"
 
-  # TODO : remove balance
+  # TODO : remove balance when token is mintable
   local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
@@ -62,7 +61,7 @@ function instrument_game_token {
   # set the owner of the contract instance
   cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
 
-  # TODO : MINTER / BURNER
+  # TODO : MINTER / BURNER roles
 
   eval $__resultvar="'$contract_address'"
 }
@@ -204,7 +203,7 @@ start=`date +%s.%N`
 
 # --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
 
-instrument_ticket_token EARLY_BIRD_SPECIAL_TICKET ticket_token 0x4561726C79426972645370656369616C 'early_bird_special' 'ebs'
+instrument_ticket_token EARLY_BIRD_SPECIAL_TICKET ticket_token 0x4561726C79426972645370656369616C early_bird_special EBS
 
 instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C79426972645370656369616C
 
@@ -218,22 +217,31 @@ deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPE
 
 # --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
 
-# instrument_ticket_token BACK_TO_THE_FUTURE_TICKET ticket_token 0x4261636B546F546865467574757265 back_to_the_future
-
-# # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
+instrument_ticket_token BACK_TO_THE_FUTURE_TICKET ticket_token 0x4261636B546F546865467574757265 back_to_the_future BTF
 
 instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
 
-# # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
+instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token 0x4261636B546F546865467574757265
 
-# deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
-# # spit adresses to a JSON file
-# cd "$CONTRACTS_PATH"
+deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN
 
-jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
-   --arg back_to_the_future "$BACK_TO_THE_FUTURE" \
-   '{early_bird_special: $early_bird_special, back_to_the_future: $back_to_the_future}' > addresses.json
+# spit adresses to a JSON file
+cd "$CONTRACTS_PATH"
+
+jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
+   --arg early_bird_special_ticket $EARLY_BIRD_SPECIAL_TICKET \
+   --arg early_bird_special_token $EARLY_BIRD_SPECIAL_TOKEN \
+   --arg back_to_the_future $BACK_TO_THE_FUTURE \
+   --arg back_to_the_future_ticket $BACK_TO_THE_FUTURE_TICKET \
+   --arg back_to_the_future_token $BACK_TO_THE_FUTURE_TOKEN \
+   '{early_bird_special: $early_bird_special,
+     early_bird_special_ticket: $early_bird_special_ticket,
+     early_bird_special_token: $early_bird_special_token,
+     back_to_the_future: $back_to_the_future,
+     back_to_the_future_ticket: $back_to_the_future_ticket,
+     back_to_the_future_token: $back_to_the_future_token}' > addresses.json
 
 end=$( date +%s.%N )
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"

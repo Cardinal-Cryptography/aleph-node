@@ -43,7 +43,9 @@ pub mod ticket_token {
             _to: Option<&AccountId>,
             amount: &Balance,
         ) -> core::result::Result<(), PSP22Error> {
-            if !amount.eq(&1u128) {
+            // if from is None this is an initial mint in the constructor
+            // and we don't want to enforce it there
+            if _from.is_some() && _to.is_none() && !amount.eq(&1u128) {
                 return Err(PSP22Error::Custom(String::from(
                     "Only single ticket can be transferred at once",
                 )));
