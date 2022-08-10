@@ -126,8 +126,8 @@ pub struct ButtonData {
     pub button_lifetime: BlockNumber,
     /// stores the last account that pressed The Button
     pub last_presser: Option<AccountId>,
-    /// block number of the last press
-    pub last_press: Option<BlockNumber>,
+    /// block number of the last press, set to current block number at button start/reset
+    pub last_press: BlockNumber,
     /// counter for the number of presses
     pub presses: u128,
     /// AccountId of the PSP22 ButtonToken instance on-chain
@@ -166,16 +166,16 @@ pub trait ButtonGame {
     }
 
     fn is_dead(&self, now: BlockNumber) -> bool {
-        now > self.deadline(now)
+        now > self.deadline()
     }
 
-    fn deadline(&self, now: BlockNumber) -> BlockNumber {
+    fn deadline(&self) -> BlockNumber {
         let ButtonData {
             last_press,
             button_lifetime,
             ..
         } = self.get();
-        last_press.unwrap_or(now) + button_lifetime
+        last_press + button_lifetime
     }
 
     fn access_control(&self) -> AccountId {
@@ -244,27 +244,6 @@ pub trait ButtonGame {
             .fire()
     }
 
-    // fn transfer_tx<E>(
-    //     &self,
-    //     transfer_selector: [u8; 4],
-    //     to: AccountId,
-    //     value: Balance,
-    // ) -> Result<Result<(), PSP22Error>, InkEnvError>
-    // where
-    //     E: Environment<AccountId = AccountId>,
-    // {
-    //     build_call::<E>()
-    //         .call_type(Call::new().callee(self.get().ticket_token))
-    //         .exec_input(
-    //             ExecutionInput::new(Selector::new(transfer_selector))
-    //                 .push_arg(to)
-    //                 .push_arg(value)
-    //                 .push_arg(vec![0x0]),
-    //         )
-    //         .returns::<Result<(), PSP22Error>>()
-    //         .fire()
-    // }
-
     fn mint_tx<E>(
         &self,
         to: AccountId,
@@ -317,7 +296,7 @@ pub trait ButtonGame {
         let root_key = ::ink_primitives::Key::from([0x00; 32]);
         let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
-        let _score = self.score(now);
+        let score = self.score(now);
 
         // mints reward tokens to pay out the reward
         // contract needs to have a Minter role on the reward token contract
@@ -325,7 +304,7 @@ pub trait ButtonGame {
 
         state.presses = presses + 1;
         state.last_presser = Some(caller);
-        state.last_press = Some(now);
+        state.last_press = now;
 
         swap(self.get_mut(), &mut state);
 
@@ -359,7 +338,7 @@ pub trait ButtonGame {
 
         state.presses = 0;
         state.last_presser = None;
-        state.last_press = None;
+        state.last_press = now;
         swap(self.get_mut(), &mut state);
 
         Ok(())

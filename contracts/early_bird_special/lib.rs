@@ -74,7 +74,7 @@ mod early_bird_special {
         }
 
         fn score(&self, now: BlockNumber) -> Balance {
-            let deadline = ButtonGame::deadline(self, now);
+            let deadline = ButtonGame::deadline(self);
             (deadline - now) as Balance
         }
     }
@@ -118,8 +118,7 @@ mod early_bird_special {
 
         #[ink(message)]
         fn deadline(&self) -> BlockNumber {
-            let now = self.env().block_number();
-            ButtonGame::deadline(self, now)
+            ButtonGame::deadline(self)
         }
 
         #[ink(message)]
@@ -209,6 +208,8 @@ mod early_bird_special {
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.button_lifetime = button_lifetime;
             self.data.reward_token = reward_token;
+            self.data.ticket_token = ticket_token;
+            self.data.last_press = now;
 
             Self::emit_event(
                 Self::env(),
