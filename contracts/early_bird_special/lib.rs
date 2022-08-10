@@ -15,7 +15,6 @@ mod early_bird_special {
     use button::{
         ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
     };
-    use game_token::MINT_TO_SELECTOR;
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
@@ -23,7 +22,6 @@ mod early_bird_special {
     };
     use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
-    use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
 
     /// Event type
     type Event = <EarlyBirdSpecial as ContractEventBase>::Type;
@@ -95,14 +93,7 @@ mod early_bird_special {
             let now = Self::env().block_number();
             let this = self.env().account_id();
 
-            ButtonGame::press::<ButtonGameEnvironment>(
-                self,
-                TRANSFER_SELECTOR,
-                MINT_TO_SELECTOR,
-                now,
-                caller,
-                this,
-            )?;
+            ButtonGame::press::<ButtonGameEnvironment>(self, now, caller, this)?;
 
             Self::emit_event(
                 self.env(),
@@ -119,7 +110,7 @@ mod early_bird_special {
         fn reset(&mut self) -> ButtonResult<()> {
             let now = Self::env().block_number();
 
-            ButtonGame::reset::<ButtonGameEnvironment>(self, now, MINT_TO_SELECTOR)?;
+            ButtonGame::reset::<ButtonGameEnvironment>(self, now)?;
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
@@ -154,7 +145,7 @@ mod early_bird_special {
         #[ink(message)]
         fn balance(&self) -> ButtonResult<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance::<ButtonGameEnvironment>(self, BALANCE_OF_SELECTOR, this)
+            ButtonGame::balance::<ButtonGameEnvironment>(self, this)
         }
 
         #[ink(message)]

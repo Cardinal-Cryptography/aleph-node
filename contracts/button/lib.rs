@@ -3,6 +3,7 @@
 use core::mem::swap;
 
 use access_control::{traits::AccessControlled, Role};
+use game_token::MINT_TO_SELECTOR;
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
     AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
@@ -11,6 +12,7 @@ use ink_lang as ink;
 use ink_prelude::{format, string::String, vec};
 use ink_storage::traits::{SpreadAllocate, SpreadLayout};
 use openbrush::contracts::psp22::PSP22Error;
+use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
 pub type BlockNumber = <ButtonGameEnvironment as ink_env::Environment>::BlockNumber;
 pub type Balance = <ButtonGameEnvironment as ink_env::Environment>::Balance;
@@ -207,22 +209,22 @@ pub trait ButtonGame {
         self.get().reward_token
     }
 
-    fn balance<E>(&self, balance_of_selector: [u8; 4], this: AccountId) -> ButtonResult<Balance>
+    fn balance<E>(&self, this: AccountId) -> ButtonResult<Balance>
     where
         E: Environment<AccountId = AccountId>,
     {
         let ticket_token = self.get().ticket_token;
         let balance = build_call::<E>()
             .call_type(Call::new().callee(ticket_token))
-            .exec_input(ExecutionInput::new(Selector::new(balance_of_selector)).push_arg(this))
+            .exec_input(ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR)).push_arg(this))
             .returns::<Balance>()
             .fire()?;
         Ok(balance)
     }
 
-    fn transfer_tx<E>(
+    fn transfer_from_tx<E>(
         &self,
-        transfer_selector: [u8; 4],
+        from: AccountId,
         to: AccountId,
         value: Balance,
     ) -> Result<Result<(), PSP22Error>, InkEnvError>
@@ -232,7 +234,8 @@ pub trait ButtonGame {
         build_call::<E>()
             .call_type(Call::new().callee(self.get().ticket_token))
             .exec_input(
-                ExecutionInput::new(Selector::new(transfer_selector))
+                ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
+                    .push_arg(from)
                     .push_arg(to)
                     .push_arg(value)
                     .push_arg(vec![0x0]),
@@ -241,9 +244,29 @@ pub trait ButtonGame {
             .fire()
     }
 
+    // fn transfer_tx<E>(
+    //     &self,
+    //     transfer_selector: [u8; 4],
+    //     to: AccountId,
+    //     value: Balance,
+    // ) -> Result<Result<(), PSP22Error>, InkEnvError>
+    // where
+    //     E: Environment<AccountId = AccountId>,
+    // {
+    //     build_call::<E>()
+    //         .call_type(Call::new().callee(self.get().ticket_token))
+    //         .exec_input(
+    //             ExecutionInput::new(Selector::new(transfer_selector))
+    //                 .push_arg(to)
+    //                 .push_arg(value)
+    //                 .push_arg(vec![0x0]),
+    //         )
+    //         .returns::<Result<(), PSP22Error>>()
+    //         .fire()
+    // }
+
     fn mint_tx<E>(
         &self,
-        mint_to_selector: [u8; 4],
         to: AccountId,
         amount: Balance,
     ) -> Result<Result<(), PSP22Error>, InkEnvError>
@@ -253,7 +276,7 @@ pub trait ButtonGame {
         build_call::<E>()
             .call_type(Call::new().callee(self.get().reward_token))
             .exec_input(
-                ExecutionInput::new(Selector::new(mint_to_selector))
+                ExecutionInput::new(Selector::new(MINT_TO_SELECTOR))
                     .push_arg(to)
                     .push_arg(amount),
             )
@@ -276,14 +299,7 @@ pub trait ButtonGame {
         )
     }
 
-    fn press<E>(
-        &mut self,
-        transfer_selector: [u8; 4],
-        mint_to_selector: [u8; 4],
-        now: BlockNumber,
-        caller: AccountId,
-        this: AccountId,
-    ) -> ButtonResult<()>
+    fn press<E>(&mut self, now: BlockNumber, caller: AccountId, this: AccountId) -> ButtonResult<()>
     where
         E: Environment<AccountId = AccountId>,
     {
@@ -293,19 +309,20 @@ pub trait ButtonGame {
 
         let ButtonData { presses, .. } = self.get();
 
-        // transfers 1 ticket token to self
+        // transfers 1 ticket token from the caller to self
         // tx will fail if user did not give allowance to the game contract
         // or does not have enough balance
-        self.transfer_tx::<E>(transfer_selector, this, 1)??;
+        self.transfer_from_tx::<E>(caller, this, 1u128)??;
 
         let root_key = ::ink_primitives::Key::from([0x00; 32]);
         let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
-        let score = self.score(now);
+        let _score = self.score(now);
 
         // mints reward tokens to pay out the reward
         // contract needs to have a Minter role on the reward token contract
-        self.mint_tx::<E>(mint_to_selector, caller, score)??;
+        // TODO : UNCOMMENT WHEN MINT/BURN IS IMPLEMENTED FOR THE GAME TOKEN
+        // self.mint_tx::<E>(caller, score)??;
 
         state.presses = presses + 1;
         state.last_presser = Some(caller);
@@ -321,7 +338,7 @@ pub trait ButtonGame {
     /// Erases the storage and pays award to the Pressiah
     /// Can be called by any account on behalf of a player
     /// Can only be called after button's deadline
-    fn reset<E>(&mut self, now: BlockNumber, mint_to_selector: [u8; 4]) -> ButtonResult<()>
+    fn reset<E>(&mut self, now: BlockNumber) -> ButtonResult<()>
     where
         E: Environment<AccountId = AccountId>,
     {
@@ -332,9 +349,10 @@ pub trait ButtonGame {
         }
 
         // reward the Pressiah
-        if let Some(pressiah) = last_presser {
-            let reward = self.pressiah_score();
-            self.mint_tx::<E>(mint_to_selector, *pressiah, reward)??;
+        if let Some(_pressiah) = last_presser {
+            let _reward = self.pressiah_score();
+            // TODO : UNCOMMENT WHEN MINT/BURN IS IMPLEMENTED FOR THE GAME TOKEN
+            // self.mint_tx::<E>(mint_to_selector, *pressiah, reward)??;
         };
 
         // zero the counters in storage
@@ -357,6 +375,8 @@ pub trait ButtonGame {
 #[ink::trait_definition]
 pub trait IButtonGame {
     /// Button press logic
+    ///
+    /// Will instantenously mint reward tokens to the caller
     #[ink(message)]
     fn press(&mut self) -> ButtonResult<()>;
 
@@ -371,6 +391,8 @@ pub trait IButtonGame {
     fn deadline(&self) -> BlockNumber;
 
     /// Returns the current Pressiah
+    ///
+    /// When button is DEAD this is ThePressiah and the winner of the current iteration
     #[ink(message)]
     fn last_presser(&self) -> Option<AccountId>;
 
@@ -391,6 +413,8 @@ pub trait IButtonGame {
     fn balance(&self) -> ButtonResult<Balance>;
 
     /// Resets the game
+    ///
+    /// rewards the Pressiah and resets the counters as well as all other neccessary storage fields
     #[ink(message)]
     fn reset(&mut self) -> ButtonResult<()>;
 

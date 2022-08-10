@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
+pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
 #[openbrush::contract]
 pub mod ticket_token {
@@ -20,6 +20,7 @@ pub mod ticket_token {
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
+    pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
