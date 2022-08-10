@@ -222,8 +222,6 @@ mod back_to_the_future {
             self.data.button_lifetime = button_lifetime;
             self.data.reward_token = reward_token;
             self.data.ticket_token = ticket_token;
-
-            // NOTE: so that score never returns a 0
             self.data.last_press = now;
 
             Self::emit_event(
