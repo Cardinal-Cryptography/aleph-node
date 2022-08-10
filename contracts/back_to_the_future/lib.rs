@@ -88,10 +88,7 @@ mod back_to_the_future {
         }
 
         fn score(&self, now: BlockNumber) -> Balance {
-            if let Some(last_press) = self.get().last_press {
-                return (now - last_press) as Balance;
-            }
-            0
+            (now - self.get().last_press) as Balance
         }
     }
 
@@ -134,8 +131,7 @@ mod back_to_the_future {
 
         #[ink(message)]
         fn deadline(&self) -> BlockNumber {
-            let now = self.env().block_number();
-            ButtonGame::deadline(self, now)
+            ButtonGame::deadline(self)
         }
 
         #[ink(message)]
@@ -225,7 +221,10 @@ mod back_to_the_future {
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.button_lifetime = button_lifetime;
             self.data.reward_token = reward_token;
-            self.data.last_press = Some(now);
+            self.data.ticket_token = ticket_token;
+
+            // NOTE: so that score never returns a 0
+            self.data.last_press = now;
 
             Self::emit_event(
                 Self::env(),
