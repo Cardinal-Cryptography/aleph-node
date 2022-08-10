@@ -44,7 +44,6 @@ version = "0.1.0"
 dependencies = [
  "access_control",
  "button",
- "game_token",
  "ink_env",
  "ink_lang",
  "ink_lang_codegen",
@@ -54,7 +53,6 @@ dependencies = [
  "ink_storage",
  "parity-scale-codec",
  "scale-info",
- "ticket_token",
 ]
 
 [[package]]
@@ -103,6 +101,7 @@ name = "button"
 version = "0.1.0"
 dependencies = [
  "access_control",
+ "game_token",
  "ink_env",
  "ink_lang",
  "ink_metadata",
@@ -113,6 +112,7 @@ dependencies = [
  "openbrush",
  "parity-scale-codec",
  "scale-info",
+ "ticket_token",
 ]
 
 [[package]]
@@ -274,13 +274,11 @@ dependencies = [
  "access_control",
  "ink_env",
  "ink_lang",
- "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "openbrush",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -634,14 +632,12 @@ source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a2
 dependencies = [
  "ink_env",
  "ink_lang",
- "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "openbrush_contracts",
  "openbrush_lang",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -651,13 +647,11 @@ source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a2
 dependencies = [
  "ink_env",
  "ink_lang",
- "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "openbrush_lang",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -668,7 +662,6 @@ dependencies = [
  "const_format",
  "ink_env",
  "ink_lang",
- "ink_metadata",
  "ink_primitives",
  "ink_storage",
  "openbrush_lang_macro",
@@ -1019,13 +1012,11 @@ dependencies = [
  "access_control",
  "ink_env",
  "ink_lang",
- "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "openbrush",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]

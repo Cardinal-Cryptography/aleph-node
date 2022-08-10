@@ -6,3 +6,6 @@ export AUTHORITY_SEED=//Alice
 
 # how long do the games live for (in blocks)
 export LIFETIME=20
+
+# mint this many ticket tokens
+export TOTAL_BALANCE=1000

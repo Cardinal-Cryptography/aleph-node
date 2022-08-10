@@ -16,7 +16,7 @@ mod access_control {
     };
     use scale::{Decode, Encode};
 
-    // address placeholder, set in the bytecode
+    // address placeholder, to be set in the bytecode
     // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
     pub const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];

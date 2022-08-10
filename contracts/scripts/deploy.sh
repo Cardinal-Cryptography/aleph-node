@@ -117,9 +117,6 @@ function link_bytecode() {
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-# mint this many ticket tokens
-TOTAL_BALANCE=1000
-
 CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
