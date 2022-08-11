@@ -73,13 +73,13 @@ pub mod ticket_token {
             );
         }
 
-        fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
+        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
             TicketToken::emit_event(
                 self.env(),
                 Event::Approval(Approval {
-                    owner: _owner,
-                    spender: _spender,
-                    value: _amount,
+                    owner,
+                    spender,
+                    value: amount,
                 }),
             );
         }
