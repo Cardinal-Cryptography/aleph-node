@@ -36,22 +36,6 @@ mod back_to_the_future {
         deadline: BlockNumber,
     }
 
-    /// Event emitted when account is whitelisted to play the game
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct AccountWhitelisted {
-        #[ink(topic)]
-        player: AccountId,
-    }
-
-    /// Event emitted when account is blacklisted from playing the game
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct AccountBlacklisted {
-        #[ink(topic)]
-        player: AccountId,
-    }
-
     /// Event emitted when TheButton is pressed
     #[ink(event)]
     #[derive(Debug)]
