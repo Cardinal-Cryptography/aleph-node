@@ -28,8 +28,9 @@ pub fn print_storage<C: AnyConnectionExt>(connection: &C) {
     println!();
     println!("{}", entry_prompt("Proposals"));
     for x in 0..=proposal_count {
-        let p: Option<Proposal<AccountId32, Balance>> =
-            connection.read_storage_map(PALLET, "Proposals", x, None);
+        let p: Option<Proposal<AccountId32, Balance>> = connection
+            .read_storage_map(PALLET, "Proposals", x, None)
+            .unwrap();
 
         if let Some(p) = p {
             println!("{}", element_prompt(format!("\tProposalId {}: {:?}", x, p)));

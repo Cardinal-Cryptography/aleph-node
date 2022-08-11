@@ -210,11 +210,10 @@ pub trait AnyConnectionExt: AnyConnection {
         map_name: &'static str,
         map_key: K,
         block_hash: Option<H256>,
-    ) -> T {
+    ) -> Option<T> {
         self.as_connection()
             .get_storage_map(pallet, map_name, map_key.clone(), block_hash)
             .unwrap_or_else(|e| panic!("Unable to retrieve a storage map for pallet={} map_name={} map_key={:#?} block_hash={:#?}: {}", pallet, map_name, &map_key, block_hash, e))
-            .unwrap()
     }
 }
 

@@ -131,7 +131,8 @@ fn get_node_performance(
         connection,
         account_id,
         Some(before_end_of_session_block_hash),
-    );
+    )
+    .unwrap_or(0);
     info!(
         "Block count for validator {} is {:?}, block hash is {}.",
         account_id, block_count, before_end_of_session_block_hash
