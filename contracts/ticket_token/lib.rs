@@ -40,13 +40,13 @@ pub mod ticket_token {
     impl Transfer for TicketToken {
         fn _before_token_transfer(
             &mut self,
-            _from: Option<&AccountId>,
-            _to: Option<&AccountId>,
+            from: Option<&AccountId>,
+            to: Option<&AccountId>,
             amount: &Balance,
         ) -> core::result::Result<(), PSP22Error> {
             // if from is None this is an initial mint in the constructor
             // and we don't want to enforce it there
-            if _from.is_some() && _to.is_some() && !amount.eq(&1u128) {
+            if from.is_some() && to.is_some() && !amount.eq(&1u128) {
                 return Err(PSP22Error::Custom(String::from(
                     "Only single ticket can be transferred at once",
                 )));
@@ -59,16 +59,16 @@ pub mod ticket_token {
     impl Internal for TicketToken {
         fn _emit_transfer_event(
             &self,
-            _from: Option<AccountId>,
-            _to: Option<AccountId>,
-            _amount: Balance,
+            from: Option<AccountId>,
+            to: Option<AccountId>,
+            amount: Balance,
         ) {
             TicketToken::emit_event(
                 self.env(),
                 Event::TransferEvent(TransferEvent {
-                    from: _from,
-                    to: _to,
-                    value: _amount,
+                    from,
+                    to,
+                    value: amount,
                 }),
             );
         }

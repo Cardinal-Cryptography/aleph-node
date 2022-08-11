@@ -75,7 +75,7 @@ mod early_bird_special {
 
         fn score(&self, now: BlockNumber) -> Balance {
             let deadline = ButtonGame::deadline(self);
-            (deadline - now) as Balance
+            deadline.saturating_sub(now) as Balance
         }
     }
 

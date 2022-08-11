@@ -16,10 +16,6 @@ function instrument_ticket_token {
 
   cd "$CONTRACTS_PATH"/$contract_name
 
-  # local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $token_name $token_symbol $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
-
-  # local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"fubar\" \"fu\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
-
   local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"$token_name\" \"$token_symbol\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
 
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
