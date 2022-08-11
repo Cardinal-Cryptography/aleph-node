@@ -51,7 +51,7 @@ mod early_bird_special {
     #[ink(event)]
     #[derive(Debug)]
     pub struct GameReset {
-        when: u64,
+        when: BlockNumber,
     }
 
     #[ink(storage)]

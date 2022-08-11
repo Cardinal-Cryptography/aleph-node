@@ -65,7 +65,7 @@ mod back_to_the_future {
     #[ink(event)]
     #[derive(Debug)]
     pub struct GameReset {
-        when: u64,
+        when: BlockNumber,
     }
 
     #[ink(storage)]
