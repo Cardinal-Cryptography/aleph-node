@@ -180,9 +180,9 @@ pub mod game_token {
         /// Returns own code hash
         #[ink(message, selector = 10)]
         pub fn code_hash(&self) -> Result<Hash> {
-            Self::env()
-                .own_code_hash()
-                .map_err(|why| PSP22Error::Custom(format!("Calling control has failed: {:?}", why)))
+            Self::env().own_code_hash().map_err(|why| {
+                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
+            })
         }
     }
 }
