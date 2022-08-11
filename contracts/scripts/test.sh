@@ -72,7 +72,7 @@ PLAYER1_SEED=//0
 PLAYER2=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 PLAYER2_SEED=//Alice
 
-GAMES=(early_bird_special back_to_the_future)
+GAMES=(early_bird_special back_to_the_future the_pressiah_cometh)
 for GAME in "${GAMES[@]}"; do
   (
     play $GAME
