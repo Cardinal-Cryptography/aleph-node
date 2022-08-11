@@ -79,7 +79,7 @@ mod early_bird_special {
         }
     }
 
-    // becasue ink! does not allow generics or trait default implementations
+    // because ink! does not allow generics or trait default implementations
     impl IButtonGame for EarlyBirdSpecial {
         #[ink(message)]
         fn is_dead(&self) -> bool {

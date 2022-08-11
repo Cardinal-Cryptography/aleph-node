@@ -31,6 +31,7 @@ mod back_to_the_future {
     pub struct ButtonCreated {
         #[ink(topic)]
         reward_token: AccountId,
+        #[ink(topic)]
         ticket_token: AccountId,
         start: BlockNumber,
         deadline: BlockNumber,
@@ -76,11 +77,11 @@ mod back_to_the_future {
         }
     }
 
-    // becasue ink! does not allow generics or trait default implementations
+    // because ink! does not allow generics or trait default implementations
     impl IButtonGame for BackToTheFuture {
         #[ink(message)]
         fn is_dead(&self) -> bool {
-            let now = Self::env().block_number();
+            let now = self.env().block_number();
             ButtonGame::is_dead(self, now)
         }
 
