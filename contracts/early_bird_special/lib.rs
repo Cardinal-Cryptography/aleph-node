@@ -8,14 +8,12 @@ use ink_lang as ink;
 /// user_score = deadline - now
 /// On the other hand ThePressiah (the last player to click) gets 50% of the token pool, which creates two competing strategies.
 
-#[ink::contract(env = button::ButtonGameEnvironment)]
+#[ink::contract]
 mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::{
-        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
-    };
-    use ink_env::Error as InkEnvError;
+    use button::{ButtonData, ButtonGame, ButtonResult, GameError, IButtonGame};
+    use ink_env::{DefaultEnvironment, Error as InkEnvError};
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
@@ -93,7 +91,7 @@ mod early_bird_special {
             let now = Self::env().block_number();
             let this = self.env().account_id();
 
-            ButtonGame::press::<ButtonGameEnvironment>(self, now, caller, this)?;
+            ButtonGame::press::<DefaultEnvironment>(self, now, caller, this)?;
 
             Self::emit_event(
                 self.env(),
@@ -110,7 +108,7 @@ mod early_bird_special {
         fn reset(&mut self) -> ButtonResult<()> {
             let now = Self::env().block_number();
 
-            ButtonGame::reset::<ButtonGameEnvironment>(self, now)?;
+            ButtonGame::reset::<DefaultEnvironment>(self, now)?;
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
@@ -144,7 +142,7 @@ mod early_bird_special {
         #[ink(message)]
         fn balance(&self) -> ButtonResult<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance::<ButtonGameEnvironment>(self, this)
+            ButtonGame::balance::<DefaultEnvironment>(self, this)
         }
 
         #[ink(message)]

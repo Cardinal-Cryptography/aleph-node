@@ -8,14 +8,12 @@ use ink_lang as ink;
 /// user_score = now - start
 /// ThePressiah (the last player to click) still gets 50% of the tokens.
 
-#[ink::contract(env = button::ButtonGameEnvironment)]
+#[ink::contract]
 mod back_to_the_future {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
-    use button::{
-        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
-    };
-    use ink_env::Error as InkEnvError;
+    use button::{ButtonData, ButtonGame, ButtonResult, GameError, IButtonGame};
+    use ink_env::{DefaultEnvironment, Error as InkEnvError};
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
@@ -91,7 +89,7 @@ mod back_to_the_future {
             let now = Self::env().block_number();
             let this = self.env().account_id();
 
-            ButtonGame::press::<ButtonGameEnvironment>(self, now, caller, this)?;
+            ButtonGame::press::<DefaultEnvironment>(self, now, caller, this)?;
 
             Self::emit_event(
                 self.env(),
@@ -108,7 +106,7 @@ mod back_to_the_future {
         fn reset(&mut self) -> ButtonResult<()> {
             let now = Self::env().block_number();
 
-            ButtonGame::reset::<ButtonGameEnvironment>(self, now)?;
+            ButtonGame::reset::<DefaultEnvironment>(self, now)?;
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
@@ -142,7 +140,7 @@ mod back_to_the_future {
         #[ink(message)]
         fn balance(&self) -> ButtonResult<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance::<ButtonGameEnvironment>(self, this)
+            ButtonGame::balance::<DefaultEnvironment>(self, this)
         }
 
         #[ink(message)]

@@ -14,22 +14,9 @@ use ink_storage::traits::{SpreadAllocate, SpreadLayout};
 use openbrush::contracts::psp22::PSP22Error;
 use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
-pub type BlockNumber = <ButtonGameEnvironment as ink_env::Environment>::BlockNumber;
-pub type Balance = <ButtonGameEnvironment as ink_env::Environment>::Balance;
+pub type BlockNumber = <DefaultEnvironment as ink_env::Environment>::BlockNumber;
+pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
 pub type ButtonResult<T> = core::result::Result<T, GameError>;
-
-pub enum ButtonGameEnvironment {}
-
-impl Environment for ButtonGameEnvironment {
-    const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
-
-    type AccountId = <DefaultEnvironment as Environment>::AccountId;
-    type Balance = <DefaultEnvironment as Environment>::Balance;
-    type Hash = <DefaultEnvironment as Environment>::Hash;
-    type BlockNumber = u64;
-    type Timestamp = <DefaultEnvironment as Environment>::Timestamp;
-    type ChainExtension = <DefaultEnvironment as Environment>::ChainExtension;
-}
 
 /// GameError types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
