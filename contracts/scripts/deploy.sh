@@ -8,13 +8,15 @@ function instrument_game_token {
 
   local  __resultvar=$1
   local contract_name=$2
-  local salt=$3
+  local token_name=\"$3\"
+  local token_symbol=\"$4\"
+  local salt=$5
 
   # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/$contract_name
 
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $token_name $token_symbol $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo $contract_name "token contract instance address: " $contract_address
@@ -157,7 +159,7 @@ cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role 
 
 start=`date +%s.%N`
 
-instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token 0x4561726C79426972645370656369616C
+instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C79426972645370656369616C
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 
@@ -169,7 +171,7 @@ deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPE
 
 # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
 
-instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token 0x4261636B546F546865467574757265
+instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
 

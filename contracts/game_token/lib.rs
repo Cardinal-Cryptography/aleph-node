@@ -11,23 +11,31 @@ pub mod game_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::format;
+    use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
-    use openbrush::{contracts::psp22::*, traits::Storage};
+    use openbrush::{
+        contracts::psp22::{extensions::metadata::*, Internal},
+        traits::Storage,
+    };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
+    pub const TOKEN_DECIMALS: u8 = 18;
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct GameToken {
         #[storage_field]
         psp22: psp22::Data,
+        #[storage_field]
+        metadata: metadata::Data,
         /// access control contract
         access_control: AccountId,
     }
 
     impl PSP22 for GameToken {}
+
+    impl PSP22Metadata for GameToken {}
 
     // emit events
     // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
@@ -93,11 +101,14 @@ pub mod game_token {
     }
 
     impl GameToken {
-        /// Creates a new contract with the specified initial supply.
+        /// Creates a new game token with the specified initial supply.
         ///
-        /// Will revert if called from an account without a proper role        
+        /// The token will have its name and symbol set in metadata to the specified values.
+        /// Decimals are fixed at 18.
+        ///
+        /// Will revert if called from an account without a proper role
         #[ink(constructor)]
-        pub fn new(total_supply: Balance) -> Self {
+        pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -116,6 +127,9 @@ pub mod game_token {
 
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
+                    instance.metadata.name = Some(name);
+                    instance.metadata.symbol = Some(symbol);
+                    instance.metadata.decimals = TOKEN_DECIMALS;
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");
