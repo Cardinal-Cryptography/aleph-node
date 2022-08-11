@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use core::mem::swap;
-
 use access_control::{traits::AccessControlled, Role};
 use game_token::MINT_TO_SELECTOR;
 use ink_env::{
@@ -274,15 +272,10 @@ pub trait ButtonGame {
             return Err(GameError::AfterDeadline);
         }
 
-        let ButtonData { presses, .. } = self.get();
-
         // transfers 1 ticket token from the caller to self
         // tx will fail if user did not give allowance to the game contract
         // or does not have enough balance
         self.transfer_from_tx::<E>(caller, this, 1u128)??;
-
-        let root_key = ::ink_primitives::Key::from([0x00; 32]);
-        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
         let score = self.score(now);
 
@@ -290,12 +283,12 @@ pub trait ButtonGame {
         // contract needs to have a Minter role on the reward token contract
         self.mint_tx::<E>(caller, score)??;
 
-        state.presses = presses + 1;
+        let mut state = self.get_mut();
+
+        state.presses += 1;
         state.last_presser = Some(caller);
         state.last_press = now;
         state.total_rewards += score;
-
-        swap(self.get_mut(), &mut state);
 
         Ok(())
     }
@@ -324,14 +317,12 @@ pub trait ButtonGame {
         };
 
         // zero the counters in storage
-        let root_key = ::ink_primitives::Key::from([0x00; 32]);
-        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
+        let mut state = self.get_mut();
 
         state.presses = 0;
         state.last_presser = None;
         state.last_press = now;
         state.total_rewards = 0;
-        swap(self.get_mut(), &mut state);
 
         Ok(())
     }
