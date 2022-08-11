@@ -115,6 +115,8 @@ pub struct ButtonData {
     pub last_presser: Option<AccountId>,
     /// block number of the last press, set to current block number at button start/reset
     pub last_press: BlockNumber,
+    /// sum of rewards paid to players in the current iteration
+    pub total_rewards: u128,
     /// counter for the number of presses
     pub presses: u128,
     /// AccountId of the PSP22 ButtonToken instance on-chain
@@ -148,8 +150,7 @@ pub trait ButtonGame {
     /// where k is the number of players that participated until the button has died
     /// Can be overriden to some other custom calculation
     fn pressiah_score(&self) -> Balance {
-        let presses = self.get().presses;
-        (presses * num::integer::sqrt(presses)) as Balance
+        (self.get().total_rewards) as Balance
     }
 
     fn is_dead(&self, now: BlockNumber) -> bool {
@@ -292,6 +293,7 @@ pub trait ButtonGame {
         state.presses = presses + 1;
         state.last_presser = Some(caller);
         state.last_press = now;
+        state.total_rewards += score;
 
         swap(self.get_mut(), &mut state);
 
@@ -316,7 +318,9 @@ pub trait ButtonGame {
         // reward the Pressiah
         if let Some(pressiah) = last_presser {
             let reward = self.pressiah_score();
-            self.mint_tx::<E>(*pressiah, reward)??;
+            if reward > 0 {
+                self.mint_tx::<E>(*pressiah, reward)??;
+            }
         };
 
         // zero the counters in storage
@@ -326,6 +330,7 @@ pub trait ButtonGame {
         state.presses = 0;
         state.last_presser = None;
         state.last_press = now;
+        state.total_rewards = 0;
         swap(self.get_mut(), &mut state);
 
         Ok(())
