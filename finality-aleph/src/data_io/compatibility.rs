@@ -62,18 +62,11 @@ mod test {
     };
 
     #[test]
-    fn correctly_decodes_v1_empty() {
-        let data_v1: AlephData<TBlock> = AlephData::Empty;
-        let decoded = AlephData::decode(&mut data_v1.encode().as_slice());
-        assert_eq!(decoded, Ok(data_v1));
-    }
-
-    #[test]
-    fn correctly_decodes_v1_proposal() {
+    fn correctly_decodes_v1() {
         let branch = vec![THash::default(); 1];
         let number = TNumber::default();
         let data_v1: AlephData<TBlock> =
-            AlephData::HeadProposal(UnvalidatedAlephProposal::new(branch, number));
+            AlephData { head_proposal: UnvalidatedAlephProposal::new(branch, number) };
         let decoded = AlephData::decode(&mut data_v1.encode().as_slice());
         assert_eq!(decoded, Ok(data_v1));
     }

@@ -1,8 +1,8 @@
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use std::{collections::HashSet, str::FromStr};
 
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, DEFAULT_COMMITTEE_SIZE, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
     AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
@@ -11,7 +11,7 @@ use aleph_runtime::{
 use clap::Args;
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
-use sc_service::{config::BasePath, ChainType};
+use sc_service::ChainType;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
@@ -26,6 +26,8 @@ pub const DEFAULT_CHAIN_ID: &str = "a0dnet1";
 
 // Alice is the default sudo holder.
 pub const DEFAULT_SUDO_ACCOUNT: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+
+pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -108,18 +110,6 @@ pub struct ChainParams {
     #[clap(long, value_name = "TYPE", parse(from_str = parse_chaintype), default_value = CHAINTYPE_LIVE)]
     chain_type: ChainType,
 
-    /// Specify custom base path
-    #[clap(long, short = 'd', value_name = "PATH", parse(from_os_str))]
-    base_path: PathBuf,
-
-    /// Specify filename to write node private p2p keys to
-    /// Resulting keys will be stored at: base_path/account_id/node_key_file for each node
-    #[clap(long, default_value = "p2p_secret")]
-    node_key_file: String,
-
-    #[clap(long, default_value = "backup-stash")]
-    backup_dir: String,
-
     /// Chain name. Default is "Aleph Zero Development"
     #[clap(long, default_value = "Aleph Zero Development")]
     chain_name: String,
@@ -129,7 +119,7 @@ pub struct ChainParams {
     token_symbol: String,
 
     /// AccountIds of authorities forming the committee at the genesis (comma delimited)
-    #[clap(long, require_value_delimiter = true, parse(from_str = parse_account_id))]
+    #[clap(long, takes_value = true, require_value_delimiter = true, value_delimiter = ',', parse(from_str = parse_account_id), min_values = 1)]
     account_ids: Vec<AccountId>,
 
     /// AccountId of the sudo account
@@ -148,18 +138,6 @@ impl ChainParams {
 
     pub fn chain_type(&self) -> ChainType {
         self.chain_type.clone()
-    }
-
-    pub fn base_path(&self) -> BasePath {
-        self.base_path.clone().into()
-    }
-
-    pub fn node_key_file(&self) -> &str {
-        &self.node_key_file
-    }
-
-    pub fn backup_dir(&self) -> &str {
-        &self.backup_dir
     }
 
     pub fn chain_name(&self) -> &str {
@@ -387,9 +365,9 @@ fn generate_genesis_config(
             key: Some(sudo_account),
         },
         elections: ElectionsConfig {
-            non_reserved_validators: accounts_config.members.clone(),
-            committee_size: DEFAULT_COMMITTEE_SIZE,
-            reserved_validators: vec![],
+            reserved_validators: accounts_config.members.clone(),
+            non_reserved_validators: vec![],
+            committee_seats: Default::default(),
         },
         session: SessionConfig {
             keys: accounts_config.keys,

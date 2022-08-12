@@ -1,8 +1,12 @@
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use aleph_client::BlockNumber;
 use clap::{Args, Subcommand};
-use primitives::Balance;
+use primitives::{Balance, CommitteeSeats};
+use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use substrate_api_client::AccountId;
 
@@ -93,6 +97,26 @@ pub struct ContractRemoveCode {
     pub code_hash: H256,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ChangeValidatorArgs {
+    pub reserved_validators: Option<Vec<AccountId>>,
+    pub non_reserved_validators: Option<Vec<AccountId>>,
+    pub committee_size: Option<CommitteeSeats>,
+}
+
+impl std::str::FromStr for ChangeValidatorArgs {
+    type Err = serde_json::Error;
+
+    fn from_str(change_validator_args: &str) -> Result<Self, Self::Err> {
+        let path = Path::new(change_validator_args);
+        if path.exists() {
+            let file = File::open(&path).expect("Failed to open metadata file");
+            return serde_json::from_reader(file);
+        }
+        serde_json::from_str(change_validator_args)
+    }
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     /// Staking call to bond stash with controller
@@ -108,13 +132,37 @@ pub enum Command {
 
     /// Change the validator set for the session after the next
     ChangeValidators {
-        /// The new validators
-        #[clap(long, value_delimiter = ',')]
-        validators: Vec<String>,
+        /// The new reserved validators list
+        #[clap(long)]
+        change_validators_args: ChangeValidatorArgs,
     },
 
     /// Force new era in staking world. Requires sudo.
     ForceNewEra,
+
+    /// Finalize the specified block using seed as emergency finalizer.
+    Finalize {
+        /// Block number to finalize.
+        #[clap(long)]
+        block: BlockNumber,
+
+        /// Block hash to finalize either with or without leading '0x'.
+        #[clap(long)]
+        hash: String,
+
+        /// The seed of the key to use as emergency finalizer key.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        finalizer_seed: Option<String>,
+    },
+
+    /// Sets seed as the emergency finalizer. Requires sudo.
+    SetEmergencyFinalizer {
+        /// The seed of the key to use as emergency finalizer key.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        finalizer_seed: Option<String>,
+    },
 
     /// Declare the desire to nominate target account
     Nominate {
@@ -137,7 +185,12 @@ pub enum Command {
     },
 
     /// Command to convert given seed to SS58 Account id
-    SeedToSS58,
+    SeedToSS58 {
+        /// Seed which will be converted.
+        /// If not given, a user is prompted to provide finalizer seed
+        #[clap(long)]
+        input: Option<String>,
+    },
 
     /// Sets lower bound for nominator and validator. Requires root account.
     SetStakingLimits {

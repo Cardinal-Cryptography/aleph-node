@@ -1,16 +1,19 @@
 use std::env;
 
-use aleph_client::{keypair_from_string, print_storages, SignedConnection};
+use aleph_client::{
+    account_from_keypair, aleph_keypair_from_string, keypair_from_string, print_storages,
+    SignedConnection,
+};
 use clap::Parser;
 use cliain::{
-    bond, call, change_validators, force_new_era, instantiate, instantiate_with_code, nominate,
-    prepare_keys, prompt_password_hidden, remove_code, rotate_keys, set_keys, set_staking_limits,
-    transfer, treasury_approve, treasury_propose, treasury_reject, update_runtime, upload_code,
-    validate, vest, vest_other, vested_transfer, Command, ConnectionConfig,
+    bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
+    nominate, prepare_keys, prompt_password_hidden, remove_code, rotate_keys,
+    set_emergency_finalizer, set_keys, set_staking_limits, transfer, treasury_approve,
+    treasury_propose, treasury_reject, update_runtime, upload_code, validate, vest, vest_other,
+    vested_transfer, Command, ConnectionConfig,
 };
 use log::{error, info};
 use sp_core::Pair;
-use substrate_api_client::AccountId;
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -19,14 +22,42 @@ struct Config {
     #[clap(long, default_value = "127.0.0.1:9944")]
     pub node: String,
 
-    /// The seed of the key to use for signing calls
-    /// If not given, a user is prompted to provide seed
+    /// The seed of the key to use for signing calls.
+    /// If not given and the command is not rpc call,
+    /// a user is prompted to provide seed
     #[clap(long)]
     pub seed: Option<String>,
 
     /// Specific command that executes either a signed transaction or is an auxiliary command
     #[clap(subcommand)]
     pub command: Command,
+}
+
+fn read_seed(command: &Command, seed: Option<String>) -> String {
+    match command {
+        Command::Finalize {
+            block: _,
+            hash: _,
+            finalizer_seed: _,
+        }
+        | Command::RotateKeys
+        | Command::DebugStorage
+        | Command::SeedToSS58 { input: _ } => String::new(),
+        _ => read_secret(seed, "Provide seed for the signer account:"),
+    }
+}
+
+fn read_secret(secret: Option<String>, message: &str) -> String {
+    match secret {
+        Some(secret) => secret,
+        None => match prompt_password_hidden(message) {
+            Ok(secret) => secret,
+            Err(e) => {
+                error!("Failed to parse prompt with error {:?}! Exiting.", e);
+                std::process::exit(1);
+            }
+        },
+    }
 }
 
 fn main() {
@@ -38,28 +69,36 @@ fn main() {
         command,
     } = Config::parse();
 
-    let seed = match seed {
-        Some(seed) => seed,
-        None => match prompt_password_hidden("Provide seed for the signer account:") {
-            Ok(seed) => seed,
-            Err(e) => {
-                error!("Failed to parse prompt with error {:?}! Exiting.", e);
-                std::process::exit(1);
-            }
-        },
-    };
+    let seed = read_seed(&command, seed);
     let cfg = ConnectionConfig::new(node, seed.clone());
     match command {
-        Command::ChangeValidators { validators } => change_validators(cfg.into(), validators),
+        Command::ChangeValidators {
+            change_validators_args,
+        } => change_validators(cfg.into(), change_validators_args),
         Command::PrepareKeys => {
             let key = keypair_from_string(&seed);
-            let controller_account_id = AccountId::from(key.public());
+            let controller_account_id = account_from_keypair(&key);
             prepare_keys(cfg.into(), controller_account_id);
         }
         Command::Bond {
             controller_account,
             initial_stake_tokens,
         } => bond(cfg.into(), initial_stake_tokens, controller_account),
+        Command::Finalize {
+            block,
+            hash,
+            finalizer_seed,
+        } => {
+            let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
+            let finalizer = aleph_keypair_from_string(&finalizer_seed);
+            finalize(cfg.into(), block, hash, finalizer);
+        }
+        Command::SetEmergencyFinalizer { finalizer_seed } => {
+            let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
+            let finalizer = aleph_keypair_from_string(&finalizer_seed);
+            let finalizer = account_from_keypair(&finalizer);
+            set_emergency_finalizer(cfg.into(), finalizer);
+        }
         Command::SetKeys { new_keys } => set_keys(cfg.into(), new_keys),
         Command::Validate {
             commission_percentage,
@@ -90,10 +129,13 @@ fn main() {
         Command::ForceNewEra => {
             force_new_era(cfg.into());
         }
-        Command::SeedToSS58 => info!(
-            "SS58 Address: {}",
-            keypair_from_string(&seed).public().to_string()
-        ),
+        Command::SeedToSS58 { input } => {
+            let input = read_secret(input, "Provide seed:");
+            info!(
+                "SS58 Address: {}",
+                keypair_from_string(&input).public().to_string()
+            )
+        }
         Command::DebugStorage => print_storages::<SignedConnection>(&cfg.into()),
         Command::UpdateRuntime { runtime } => update_runtime(cfg.into(), runtime),
         Command::Vest => vest(cfg.into()),
