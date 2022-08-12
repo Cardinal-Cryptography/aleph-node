@@ -5,8 +5,8 @@ use ink_lang as ink;
 /// This is the BackToTheFuture
 ///
 /// Larger rewards are distributed for postponing playing for as long as possible, but without letting TheButton die:
-/// user_score = now - start
-/// ThePressiah (the last player to click) still gets 50% of the tokens.
+/// user_score = now - previous_press
+/// ThePressiah (the last player to click) gets 20% of the tokens.
 
 #[ink::contract]
 mod back_to_the_future {

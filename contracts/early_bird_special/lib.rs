@@ -6,7 +6,7 @@ use ink_lang as ink;
 ///
 /// Larger rewards are distributed for engaging in the game as early on as possible:
 /// user_score = deadline - now
-/// On the other hand ThePressiah (the last player to click) gets 50% of the token pool, which creates two competing strategies.
+/// On the other hand ThePressiah (the last player to click) gets 20% of the token pool, which creates two competing strategies.
 
 #[ink::contract]
 mod early_bird_special {

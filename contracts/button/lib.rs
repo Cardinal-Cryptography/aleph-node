@@ -144,11 +144,10 @@ pub trait ButtonGame {
 
     /// Logic for calculating pressiah score
     ///
-    /// By defaul the pressiah score is defined as k * sqrt(k)
-    /// where k is the number of players that participated until the button has died
+    /// By default the pressiah gets 20% of the total rewards paid in the current game iteration
     /// Can be overriden to some other custom calculation
     fn pressiah_score(&self) -> Balance {
-        (self.get().total_rewards) as Balance
+        (self.get().total_rewards / 4) as Balance
     }
 
     fn is_dead(&self, now: BlockNumber) -> bool {
@@ -311,9 +310,7 @@ pub trait ButtonGame {
         // reward the Pressiah
         if let Some(pressiah) = last_presser {
             let reward = self.pressiah_score();
-            if reward > 0 {
-                self.mint_tx::<E>(*pressiah, reward)??;
-            }
+            self.mint_tx::<E>(*pressiah, reward)??;
         };
 
         // zero the counters in storage

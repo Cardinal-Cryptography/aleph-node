@@ -2,6 +2,12 @@
 
 use ink_lang as ink;
 
+/// This is the ThePressiahCometh
+///
+/// The reward for each click grows with the amount of previous participants.
+/// n-th person to click the button gets n tokens.
+/// ThePressiah (the last player to click) gets 20% of the tokens.
+
 #[ink::contract]
 mod the_pressiah_cometh {
 
