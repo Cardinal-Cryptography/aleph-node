@@ -30,6 +30,7 @@ pub mod pallet {
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
+    use pallets_support::StorageMigration;
 
     use super::*;
 
@@ -58,11 +59,11 @@ pub mod pallet {
                 + match on_chain {
                     _ if on_chain == STORAGE_VERSION => 0,
                     _ if on_chain == StorageVersion::new(1) => {
-                        migrations::v1_to_v2::migrate::<T, Self>()
+                        migrations::v1_to_v2::Migration::<T, Self>::migrate()
                     }
                     _ if on_chain == StorageVersion::new(0) => {
-                        migrations::v0_to_v1::migrate::<T, Self>()
-                            + migrations::v1_to_v2::migrate::<T, Self>()
+                        migrations::v0_to_v1::Migration::<T, Self>::migrate()
+                            + migrations::v1_to_v2::Migration::<T, Self>::migrate()
                     }
                     _ => {
                         log::warn!(
@@ -108,15 +109,12 @@ pub mod pallet {
         }
 
         pub(crate) fn update_emergency_finalizer() {
-            match <QueuedEmergencyFinalizer<T>>::get() {
-                Some(emergency_finalizer) => <EmergencyFinalizer<T>>::put(emergency_finalizer),
-                None => (),
+            if let Some(emergency_finalizer) = <QueuedEmergencyFinalizer<T>>::get() {
+                <EmergencyFinalizer<T>>::put(emergency_finalizer)
             }
-            match <NextEmergencyFinalizer<T>>::get() {
-                Some(emergency_finalizer) => {
-                    <QueuedEmergencyFinalizer<T>>::put(emergency_finalizer)
-                }
-                None => (),
+
+            if let Some(emergency_finalizer) = <NextEmergencyFinalizer<T>>::get() {
+                <QueuedEmergencyFinalizer<T>>::put(emergency_finalizer)
             }
         }
 
