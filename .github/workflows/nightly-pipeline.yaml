@@ -2,7 +2,7 @@ name: Nightly pipeline
 
 on:
   schedule:
-    - cron:  '15 7 * * *'
+    - cron:  '00 23 * * *'
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}-nightly"
