@@ -87,7 +87,7 @@ mod access_control {
 
         /// Initializes the contract.
         ///
-        /// caller is granted admin and owner piviledges
+        /// caller is granted admin and owner priviledges
         fn new_init(&mut self) {
             let caller = Self::env().caller();
             let this = Self::env().account_id();
