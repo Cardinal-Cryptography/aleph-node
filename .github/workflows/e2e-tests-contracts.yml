@@ -51,7 +51,7 @@ jobs:
         with:
           target-key: e2e-contracts
           cargo-key: e2e-contracts
-          cache-version: v2
+          cache-version: v3
           cargo-targets: e2e-tests-contracts/target/
 
       - name: Install cargo-contract
