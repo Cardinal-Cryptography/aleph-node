@@ -72,11 +72,9 @@ source contracts/env/dev && ./contracts/scripts/deploy.sh
 
 Specifically it will:
 
-- Deploy the token contracts.
-- Deploy the game contracts.
-- Set access control.
-- Transfer token balances to the game contracts.
-- Whitelist accounts for playing the games.
+- Deploy the contracts.
+- Set access control on them.
+- Make neccessary token transfers.
 
 Third `test.sh` script plays the game from two well-known dev addresses.
 
@@ -86,5 +84,5 @@ Third `test.sh` script plays the game from two well-known dev addresses.
 
 It will:
 
-- Interact with the games from the whitelisted accounts.
+- Interact with the games from known accounts.
 - Wait past the game deadline, trigger the game end and reward distribution.
