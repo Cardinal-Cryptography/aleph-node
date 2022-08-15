@@ -20,7 +20,6 @@ pub mod game_token {
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
-    pub const TOKEN_DECIMALS: u8 = 18;
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
@@ -129,7 +128,7 @@ pub mod game_token {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
                     instance.metadata.name = Some(name);
                     instance.metadata.symbol = Some(symbol);
-                    instance.metadata.decimals = TOKEN_DECIMALS;
+                    instance.metadata.decimals = 18;
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");
