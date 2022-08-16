@@ -23,3 +23,6 @@ p2p_secret
 # Python
 __pycache__/
 *.py[cod]
+
+# ink!
+contracts/addresses.json

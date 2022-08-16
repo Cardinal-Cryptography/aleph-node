@@ -3,6 +3,7 @@ name = "early_bird_special"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
+license = "Apache 2.0"
 
 [dependencies]
 ink_env = { version = "3.2.0", default-features = false }
@@ -17,7 +18,6 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 button = { path = "../button", default-features = false }
-game_token = { path = "../game_token", default-features = false, features = ["ink-as-dependency"] }
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
@@ -32,7 +32,6 @@ crate-type = [
 default = ["std"]
 std = [
   "button/std",
-  "game_token/std",
   "ink_env/std",
   "ink_lang_codegen/std",
   "ink_metadata/std",

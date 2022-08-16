@@ -13,15 +13,14 @@ mod early_bird_special {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::{
-        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame, Score,
+        ButtonData, ButtonGame, ButtonGameEnvironment, ButtonResult, GameError, IButtonGame,
     };
-    use game_token::{BALANCE_OF_SELECTOR, TRANSFER_SELECTOR};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, vec::Vec};
+    use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
 
     /// Event type
@@ -32,25 +31,11 @@ mod early_bird_special {
     #[derive(Debug)]
     pub struct ButtonCreated {
         #[ink(topic)]
-        game_token: AccountId,
+        reward_token: AccountId,
+        #[ink(topic)]
+        ticket_token: AccountId,
         start: BlockNumber,
         deadline: BlockNumber,
-    }
-
-    /// Event emitted when account is whitelisted to play the game
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct AccountWhitelisted {
-        #[ink(topic)]
-        player: AccountId,
-    }
-
-    /// Event emitted when account is blacklisted from playing the game
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct AccountBlacklisted {
-        #[ink(topic)]
-        player: AccountId,
     }
 
     /// Event emitted when TheButton is pressed
@@ -65,9 +50,8 @@ mod early_bird_special {
     /// Event emitted when a players reward is claimed
     #[ink(event)]
     #[derive(Debug)]
-    pub struct RewardClaimed {
-        for_player: AccountId,
-        rewards: u128,
+    pub struct GameReset {
+        when: BlockNumber,
     }
 
     #[ink(storage)]
@@ -89,9 +73,9 @@ mod early_bird_special {
             &mut self.data
         }
 
-        fn score(&self, now: BlockNumber) -> Score {
-            let deadline = ButtonGame::deadline(self, now);
-            deadline - now
+        fn score(&self, now: BlockNumber) -> Balance {
+            let deadline = ButtonGame::deadline(self);
+            deadline.saturating_sub(now) as Balance
         }
     }
 
@@ -107,7 +91,10 @@ mod early_bird_special {
         fn press(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let now = Self::env().block_number();
-            ButtonGame::press(self, now, caller)?;
+            let this = self.env().account_id();
+
+            ButtonGame::press::<ButtonGameEnvironment>(self, now, caller, this)?;
+
             Self::emit_event(
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
@@ -115,47 +102,23 @@ mod early_bird_special {
                     when: now,
                 }),
             );
+
             Ok(())
         }
 
         #[ink(message)]
-        fn claim_reward(&mut self, for_player: AccountId) -> ButtonResult<()> {
-            let this = self.env().account_id();
+        fn reset(&mut self) -> ButtonResult<()> {
             let now = Self::env().block_number();
 
-            let rewards = ButtonGame::claim_reward::<ButtonGameEnvironment>(
-                self,
-                now,
-                for_player,
-                BALANCE_OF_SELECTOR,
-                TRANSFER_SELECTOR,
-                this,
-            )?;
+            ButtonGame::reset::<ButtonGameEnvironment>(self, now)?;
 
-            Self::emit_event(
-                self.env(),
-                Event::RewardClaimed(RewardClaimed {
-                    for_player,
-                    rewards,
-                }),
-            );
+            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
         }
 
         #[ink(message)]
         fn deadline(&self) -> BlockNumber {
-            let now = self.env().block_number();
-            ButtonGame::deadline(self, now)
-        }
-
-        #[ink(message)]
-        fn score_of(&self, user: AccountId) -> Score {
-            ButtonGame::score_of(self, user)
-        }
-
-        #[ink(message)]
-        fn can_play(&self, user: AccountId) -> bool {
-            ButtonGame::can_play(self, user)
+            ButtonGame::deadline(self)
         }
 
         #[ink(message)]
@@ -169,14 +132,19 @@ mod early_bird_special {
         }
 
         #[ink(message)]
-        fn game_token(&self) -> AccountId {
-            ButtonGame::game_token(self)
+        fn reward_token(&self) -> AccountId {
+            ButtonGame::reward_token(self)
+        }
+
+        #[ink(message)]
+        fn ticket_token(&self) -> AccountId {
+            ButtonGame::ticket_token(self)
         }
 
         #[ink(message)]
         fn balance(&self) -> ButtonResult<Balance> {
             let this = self.env().account_id();
-            ButtonGame::balance::<ButtonGameEnvironment>(self, BALANCE_OF_SELECTOR, this)
+            ButtonGame::balance::<ButtonGameEnvironment>(self, this)
         }
 
         #[ink(message)]
@@ -184,44 +152,6 @@ mod early_bird_special {
             let caller = self.env().caller();
             let this = self.env().account_id();
             ButtonGame::set_access_control(self, new_access_control, caller, this)
-        }
-
-        #[ink(message)]
-        fn allow(&mut self, player: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::allow(self, player, caller, this)?;
-            Self::emit_event(
-                self.env(),
-                Event::AccountWhitelisted(AccountWhitelisted { player }),
-            );
-            Ok(())
-        }
-
-        #[ink(message)]
-        fn bulk_allow(&mut self, players: Vec<AccountId>) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::bulk_allow(self, players.clone(), caller, this)?;
-            for player in players {
-                Self::emit_event(
-                    self.env(),
-                    Event::AccountWhitelisted(AccountWhitelisted { player }),
-                );
-            }
-            Ok(())
-        }
-
-        #[ink(message)]
-        fn disallow(&mut self, player: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            ButtonGame::disallow(self, player, caller, this)?;
-            Self::emit_event(
-                self.env(),
-                Event::AccountBlacklisted(AccountBlacklisted { player }),
-            );
-            Ok(())
         }
 
         #[ink(message)]
@@ -236,7 +166,11 @@ mod early_bird_special {
 
     impl EarlyBirdSpecial {
         #[ink(constructor)]
-        pub fn new(game_token: AccountId, button_lifetime: BlockNumber) -> Self {
+        pub fn new(
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+        ) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -256,26 +190,34 @@ mod early_bird_special {
 
             match role_check {
                 Ok(_) => initialize_contract(|contract| {
-                    Self::new_init(contract, game_token, button_lifetime)
+                    Self::new_init(contract, ticket_token, reward_token, button_lifetime)
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
 
-        fn new_init(&mut self, game_token: AccountId, button_lifetime: BlockNumber) {
+        fn new_init(
+            &mut self,
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+        ) {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
             self.data.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.data.button_lifetime = button_lifetime;
-            self.data.game_token = game_token;
+            self.data.reward_token = reward_token;
+            self.data.ticket_token = ticket_token;
+            self.data.last_press = now;
 
             Self::emit_event(
                 Self::env(),
                 Event::ButtonCreated(ButtonCreated {
                     start: now,
                     deadline,
-                    game_token,
+                    ticket_token,
+                    reward_token,
                 }),
             )
         }

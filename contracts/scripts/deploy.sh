@@ -4,6 +4,34 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function instrument_ticket_token {
+
+  local  __resultvar=$1
+  local contract_name=$2
+  local salt=$3
+  local token_name=$4
+  local token_symbol=$5
+
+  # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
+
+  cd "$CONTRACTS_PATH"/$contract_name
+
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"$token_name\" \"$token_symbol\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+
+  echo $contract_name "ticket contract instance address: " $contract_address
+
+  # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  # set the admin and the owner of the contract instance
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
+
+  eval $__resultvar="'$contract_address'"
+}
+
 function instrument_game_token {
 
   local  __resultvar=$1
@@ -17,18 +45,20 @@ function instrument_game_token {
   cd "$CONTRACTS_PATH"/"$contract_name"
 
   local contract_address
+  # TODO : remove balance when token is mintable
   contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
   contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name token contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+  # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
-  # set the admin and the owner of the contract instance
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  # set the owner of the contract instance
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+
+  # TODO : MINTER / BURNER roles
 
   eval "$__resultvar='$contract_address'"
 }
@@ -37,7 +67,8 @@ function deploy_and_instrument_game {
 
   local  __resultvar=$1
   local contract_name=$2
-  local game_token=$3
+  local ticket_token=$3
+  local game_token=$4
 
   # --- UPLOAD CONTRACT CODE
 
@@ -60,30 +91,16 @@ function deploy_and_instrument_game {
 
   cd "$CONTRACTS_PATH/$contract_name"
 
-  local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$game_token" "$LIFETIME" --suri "$AUTHORITY_SEED")
-  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $ticket_token $game_token $LIFETIME --suri "$AUTHORITY_SEED")
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEDGES ON THE CONTRACT
+  # --- GRANT PRIVILEGES ON THE CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
-
-  # --- TRANSFER TOKENS TO THE CONTRACT
-
-  cd "$CONTRACTS_PATH"/game_token
-
-  cargo contract call --url "$NODE" --contract "$game_token" --message PSP22::transfer --args "$contract_address" "$GAME_BALANCE" "[0]" --suri "$AUTHORITY_SEED"
-
-  # --- WHITELIST ACCOUNTS FOR PLAYING
-
-  cd "$CONTRACTS_PATH/$contract_name"
-
-  cargo contract call --url "$NODE" --contract "$contract_address" --message IButtonGame::bulk_allow --args "$WHITELIST" --suri "$AUTHORITY_SEED"
+  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
@@ -100,15 +117,14 @@ function link_bytecode() {
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
-# mint this many tokens, 20% go to the future LP on DEX
-TOTAL_BALANCE=1000
-GAME_BALANCE=$(echo "0.8 * $TOTAL_BALANCE" | bc)
-
 CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
 cd "$CONTRACTS_PATH"/access_control
+cargo contract build --release
+
+cd "$CONTRACTS_PATH"/ticket_token
 cargo contract build --release
 
 cd "$CONTRACTS_PATH"/game_token
@@ -131,7 +147,23 @@ ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
-# --- UPLOAD TOKEN CONTRACT CODE
+# --- UPLOAD TICKET TOKEN CONTRACT CODE
+
+cd "$CONTRACTS_PATH"/ticket_token
+# replace address placeholder with the on-chain address of the AccessControl contract
+link_bytecode ticket_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+# remove just in case
+rm target/ink/ticket_token.wasm
+# NOTE : here we go from hex to binary using a nodejs cli tool
+# availiable from https://github.com/fbielejec/polkadot-cljs
+node ../scripts/hex-to-wasm.js target/ink/ticket_token.contract target/ink/ticket_token.wasm
+
+CODE_HASH=$(cargo contract upload --url $NODE --suri "$AUTHORITY_SEED")
+TICKET_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+
+echo "ticket token code hash" $TICKET_TOKEN_CODE_HASH
+
+# --- UPLOAD REWARD TOKEN CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/game_token
 # replace address placeholder with the on-chain address of the AccessControl contract
@@ -147,45 +179,61 @@ GAME_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
 echo "button token code hash" "$GAME_TOKEN_CODE_HASH"
 
-# --- GRANT INIT PRIVILEDGES ON THE TOKEN CONTRACT CODE
+# --- GRANT INIT PRIVILEGES ON THE TOKEN AND TICKET CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/access_control
 
 # set the initializer of the token contract
 cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$GAME_TOKEN_CODE_HASH"')' --suri "$AUTHORITY_SEED"
 
+# set the initializer of the ticket contract
+cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Initializer('$TICKET_TOKEN_CODE_HASH')' --suri "$AUTHORITY_SEED"
+
+start=`date +%s.%N`
+
 #
 # --- EARLY_BIRD_SPECIAL GAME
 #
 
-# --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
+# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
 
-start=$( date +%s.%N )
+instrument_ticket_token EARLY_BIRD_SPECIAL_TICKET ticket_token 0x4561726C79426972645370656369616C early_bird_special EBS
 
 instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C79426972645370656369616C
 
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
-deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special "$EARLY_BIRD_SPECIAL_TOKEN"
+deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
 
 #
 # --- BACK_TO_THE_FUTURE GAME
 #
 
-# --- CREATE AN INSTANCE OF THE TOKEN CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
+# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
+
+instrument_ticket_token BACK_TO_THE_FUTURE_TICKET ticket_token 0x4261636B546F546865467574757265 back_to_the_future BTF
 
 instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
 
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME CONTRACT
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
-deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future "$BACK_TO_THE_FUTURE_TOKEN"
+deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
 
-jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
-   --arg back_to_the_future "$BACK_TO_THE_FUTURE" \
-   '{early_bird_special: $early_bird_special, back_to_the_future: $back_to_the_future}' > addresses.json
+jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
+   --arg early_bird_special_ticket $EARLY_BIRD_SPECIAL_TICKET \
+   --arg early_bird_special_token $EARLY_BIRD_SPECIAL_TOKEN \
+   --arg back_to_the_future $BACK_TO_THE_FUTURE \
+   --arg back_to_the_future_ticket $BACK_TO_THE_FUTURE_TICKET \
+   --arg back_to_the_future_token $BACK_TO_THE_FUTURE_TOKEN \
+   '{early_bird_special: $early_bird_special,
+     early_bird_special_ticket: $early_bird_special_ticket,
+     early_bird_special_token: $early_bird_special_token,
+     back_to_the_future: $back_to_the_future,
+     back_to_the_future_ticket: $back_to_the_future_ticket,
+     back_to_the_future_token: $back_to_the_future_token}' > addresses.json
 
 end=$( date +%s.%N )
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"

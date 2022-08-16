@@ -18,7 +18,6 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
 button = { path = "../button", default-features = false }
-game_token = { path = "../game_token", default-features = false, features = ["ink-as-dependency"] }
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
@@ -32,9 +31,10 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
+  "access_control/std",
   "button/std",
-  "game_token/std",
   "ink_env/std",
+  "ink_lang/std",
   "ink_lang_codegen/std",
   "ink_metadata/std",
   "ink_prelude/std",

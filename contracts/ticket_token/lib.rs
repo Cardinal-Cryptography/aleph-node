@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
+pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
 #[openbrush::contract]
-pub mod game_token {
+pub mod ticket_token {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
@@ -14,18 +14,17 @@ pub mod game_token {
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
-        contracts::psp22::{extensions::metadata::*, Internal},
+        contracts::psp22::{extensions::metadata::*, Internal, Transfer},
         traits::Storage,
     };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
-    // TODO : use correct selector when mint/burn is implemented
-    pub const MINT_TO_SELECTOR: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
+    pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
-    pub struct GameToken {
+    pub struct TicketToken {
         #[storage_field]
         psp22: psp22::Data,
         #[storage_field]
@@ -34,54 +33,71 @@ pub mod game_token {
         access_control: AccountId,
     }
 
-    impl PSP22 for GameToken {}
+    impl PSP22 for TicketToken {}
 
-    impl PSP22Metadata for GameToken {}
+    impl PSP22Metadata for TicketToken {}
 
-    // emit events
-    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
-    impl Internal for GameToken {
+    impl Transfer for TicketToken {
+        fn _before_token_transfer(
+            &mut self,
+            from: Option<&AccountId>,
+            to: Option<&AccountId>,
+            amount: &Balance,
+        ) -> core::result::Result<(), PSP22Error> {
+            // if from is None this is an initial mint in the constructor
+            // and we don't want to enforce it there
+            if from.is_some() && to.is_some() && !amount.eq(&1u128) {
+                return Err(PSP22Error::Custom(String::from(
+                    "Only single ticket can be transferred at once",
+                )));
+            }
+
+            Ok(())
+        }
+    }
+
+    impl Internal for TicketToken {
         fn _emit_transfer_event(
             &self,
-            _from: Option<AccountId>,
-            _to: Option<AccountId>,
-            _amount: Balance,
+            from: Option<AccountId>,
+            to: Option<AccountId>,
+            amount: Balance,
         ) {
-            GameToken::emit_event(
+            TicketToken::emit_event(
                 self.env(),
-                Event::Transfer(Transfer {
-                    from: _from,
-                    to: _to,
-                    value: _amount,
+                Event::TransferEvent(TransferEvent {
+                    from,
+                    to,
+                    value: amount,
                 }),
             );
         }
 
-        fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
-            GameToken::emit_event(
+        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
+            TicketToken::emit_event(
                 self.env(),
                 Event::Approval(Approval {
-                    owner: _owner,
-                    spender: _spender,
-                    value: _amount,
+                    owner,
+                    spender,
+                    value: amount,
                 }),
             );
         }
     }
 
-    impl AccessControlled for GameToken {
+    impl AccessControlled for TicketToken {
         type ContractError = PSP22Error;
     }
 
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
     /// Event type
-    pub type Event = <GameToken as ContractEventBase>::Type;
+    pub type Event = <TicketToken as ContractEventBase>::Type;
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
     #[derive(Debug)]
-    pub struct Transfer {
+    pub struct TransferEvent {
         #[ink(topic)]
         pub from: Option<AccountId>,
         #[ink(topic)]
@@ -101,13 +117,10 @@ pub mod game_token {
         value: Balance,
     }
 
-    impl GameToken {
-        /// Creates a new game token with the specified initial supply.
+    impl TicketToken {
+        /// Creates a new contract with the specified initial supply.
         ///
-        /// The token will have its name and symbol set in metadata to the specified values.
-        /// Decimals are fixed at 18.
-        ///
-        /// Will revert if called from an account without a proper role
+        /// Will revert if called from an account without a proper role        
         #[ink(constructor)]
         pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
             let caller = Self::env().caller();
@@ -127,15 +140,15 @@ pub mod game_token {
             );
 
             match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
+                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
+                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                     instance.metadata.name = Some(name);
                     instance.metadata.symbol = Some(symbol);
-                    instance.metadata.decimals = 18;
+                    instance.metadata.decimals = 0;
+
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");
-
-                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
