@@ -55,8 +55,7 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  # set the admin and the owner of the contract instance
-  # cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  # set the owner of the contract instance
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   # TODO : MINTER / BURNER roles
