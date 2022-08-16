@@ -31,8 +31,10 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
+  "access_control/std",
   "button/std",
   "ink_env/std",
+  "ink_lang/std",
   "ink_lang_codegen/std",
   "ink_metadata/std",
   "ink_prelude/std",
