@@ -9,9 +9,11 @@ dependencies = [
  "ink_env",
  "ink_lang",
  "ink_lang_codegen",
+ "ink_metadata",
  "ink_primitives",
  "ink_storage",
  "parity-scale-codec",
+ "scale-info",
 ]
 
 [[package]]

@@ -40,7 +40,7 @@ mod access_control {
     #[derive(SpreadAllocate)]
     pub struct AccessControl {
         /// Stores a de-facto hashset of user accounts and their roles
-        pub priviledges: Mapping<(AccountId, Role), ()>,
+        pub privileges: Mapping<(AccountId, Role), ()>,
     }
 
     #[ink(event)]
@@ -87,12 +87,12 @@ mod access_control {
 
         /// Initializes the contract.
         ///
-        /// caller is granted admin and owner piviledges
+        /// caller is granted admin and owner privileges
         fn new_init(&mut self) {
             let caller = Self::env().caller();
             let this = Self::env().account_id();
-            self.priviledges.insert((caller, Role::Admin(this)), &());
-            self.priviledges.insert((caller, Role::Owner(this)), &());
+            self.privileges.insert((caller, Role::Admin(this)), &());
+            self.privileges.insert((caller, Role::Owner(this)), &());
         }
 
         /// Gives a role to an account
@@ -101,11 +101,11 @@ mod access_control {
         #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);
-            if !self.priviledges.contains(key) {
+            if !self.privileges.contains(key) {
                 let caller = self.env().caller();
                 let this = self.env().account_id();
                 self.check_role(caller, Role::Admin(this))?;
-                self.priviledges.insert(key, &());
+                self.privileges.insert(key, &());
 
                 let event = Event::RoleGranted(RoleGranted {
                     by: caller,
@@ -126,7 +126,7 @@ mod access_control {
             let caller = self.env().caller();
             let this = self.env().account_id();
             self.check_role(caller, Role::Admin(this))?;
-            self.priviledges.remove((account, role));
+            self.privileges.remove((account, role));
 
             let event = Event::RoleRevoked(RoleRevoked {
                 by: caller,
@@ -141,7 +141,7 @@ mod access_control {
         /// Returns true if account has a role
         #[ink(message, selector = 3)]
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
-            self.priviledges.contains((account, role))
+            self.privileges.contains((account, role))
         }
 
         /// Terminates the contract.

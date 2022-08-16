@@ -24,7 +24,7 @@ pub enum GameError {
     BeforeDeadline,
     /// Returned if button is pressed after the deadline
     AfterDeadline,
-    /// Returned if a call is made from an account with missing access control priviledges
+    /// Returned if a call is made from an account with missing access control privileges
     MissingRole(String),
     /// Returned if a call to another contract has failed
     ContractCall(String),
