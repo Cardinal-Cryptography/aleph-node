@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use core::mem::swap;
-
 use access_control::{traits::AccessControlled, Role};
 use game_token::MINT_TO_SELECTOR;
 use ink_env::{
@@ -14,22 +12,9 @@ use ink_storage::traits::{SpreadAllocate, SpreadLayout};
 use openbrush::contracts::psp22::PSP22Error;
 use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
-pub type BlockNumber = <ButtonGameEnvironment as ink_env::Environment>::BlockNumber;
-pub type Balance = <ButtonGameEnvironment as ink_env::Environment>::Balance;
+pub type BlockNumber = <DefaultEnvironment as ink_env::Environment>::BlockNumber;
+pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
 pub type ButtonResult<T> = core::result::Result<T, GameError>;
-
-pub enum ButtonGameEnvironment {}
-
-impl Environment for ButtonGameEnvironment {
-    const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
-
-    type AccountId = <DefaultEnvironment as Environment>::AccountId;
-    type Balance = <DefaultEnvironment as Environment>::Balance;
-    type Hash = <DefaultEnvironment as Environment>::Hash;
-    type BlockNumber = u64;
-    type Timestamp = <DefaultEnvironment as Environment>::Timestamp;
-    type ChainExtension = <DefaultEnvironment as Environment>::ChainExtension;
-}
 
 /// GameError types
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -128,6 +113,8 @@ pub struct ButtonData {
     pub last_presser: Option<AccountId>,
     /// block number of the last press, set to current block number at button start/reset
     pub last_press: BlockNumber,
+    /// sum of rewards paid to players in the current iteration
+    pub total_rewards: u128,
     /// counter for the number of presses
     pub presses: u128,
     /// AccountId of the PSP22 ButtonToken instance on-chain
@@ -157,12 +144,10 @@ pub trait ButtonGame {
 
     /// Logic for calculating pressiah score
     ///
-    /// By defaul the pressiah score is defined as k * sqrt(k)
-    /// where k is the number of players that participated until the button has died
+    /// By default the pressiah gets 20% of the total rewards paid in the current game iteration
     /// Can be overriden to some other custom calculation
     fn pressiah_score(&self) -> Balance {
-        let presses = self.get().presses;
-        (presses * num::integer::sqrt(presses)) as Balance
+        (self.get().total_rewards / 4) as Balance
     }
 
     fn is_dead(&self, now: BlockNumber) -> bool {
@@ -286,15 +271,10 @@ pub trait ButtonGame {
             return Err(GameError::AfterDeadline);
         }
 
-        let ButtonData { presses, .. } = self.get();
-
         // transfers 1 ticket token from the caller to self
         // tx will fail if user did not give allowance to the game contract
         // or does not have enough balance
         self.transfer_from_tx::<E>(caller, this, 1u128)??;
-
-        let root_key = ::ink_primitives::Key::from([0x00; 32]);
-        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
 
         let score = self.score(now);
 
@@ -302,11 +282,12 @@ pub trait ButtonGame {
         // contract needs to have a Minter role on the reward token contract
         self.mint_tx::<E>(caller, score)??;
 
-        state.presses = presses + 1;
+        let mut state = self.get_mut();
+
+        state.presses += 1;
         state.last_presser = Some(caller);
         state.last_press = now;
-
-        swap(self.get_mut(), &mut state);
+        state.total_rewards += score;
 
         Ok(())
     }
@@ -333,13 +314,12 @@ pub trait ButtonGame {
         };
 
         // zero the counters in storage
-        let root_key = ::ink_primitives::Key::from([0x00; 32]);
-        let mut state = ::ink_storage::traits::pull_spread_root::<ButtonData>(&root_key);
+        let mut state = self.get_mut();
 
         state.presses = 0;
         state.last_presser = None;
         state.last_press = now;
-        swap(self.get_mut(), &mut state);
+        state.total_rewards = 0;
 
         Ok(())
     }

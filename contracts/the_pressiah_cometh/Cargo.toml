@@ -1,5 +1,5 @@
 [package]
-name = "back_to_the_future"
+name = "the_pressiah_cometh"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -21,7 +21,7 @@ button = { path = "../button", default-features = false }
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
-name = "back_to_the_future"
+name = "the_pressiah_cometh"
 path = "lib.rs"
 crate-type = [
   # Used for normal contract Wasm blobs.
@@ -31,10 +31,8 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
-  "access_control/std",
   "button/std",
   "ink_env/std",
-  "ink_lang/std",
   "ink_lang_codegen/std",
   "ink_metadata/std",
   "ink_prelude/std",

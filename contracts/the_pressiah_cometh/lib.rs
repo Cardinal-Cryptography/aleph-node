@@ -2,14 +2,14 @@
 
 use ink_lang as ink;
 
-/// This is the EarlyBirdSpecial
+/// This is the ThePressiahCometh
 ///
-/// Larger rewards are distributed for engaging in the game as early on as possible:
-/// user_score = deadline - now
-/// On the other hand ThePressiah (the last player to click) gets 20% of the token pool, which creates two competing strategies.
+/// The reward for each click grows with the amount of previous participants.
+/// n-th person to click the button gets n tokens.
+/// ThePressiah (the last player to click) gets 20% of the tokens.
 
 #[ink::contract]
-mod early_bird_special {
+mod the_pressiah_cometh {
 
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use button::{ButtonData, ButtonGame, ButtonResult, GameError, IButtonGame};
@@ -22,7 +22,7 @@ mod early_bird_special {
     use ink_storage::traits::SpreadAllocate;
 
     /// Event type
-    type Event = <EarlyBirdSpecial as ContractEventBase>::Type;
+    type Event = <ThePressiahCometh as ContractEventBase>::Type;
 
     /// Event emitted when TheButton is created
     #[ink(event)]
@@ -54,15 +54,15 @@ mod early_bird_special {
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
-    pub struct EarlyBirdSpecial {
+    pub struct ThePressiahCometh {
         data: ButtonData,
     }
 
-    impl AccessControlled for EarlyBirdSpecial {
+    impl AccessControlled for ThePressiahCometh {
         type ContractError = GameError;
     }
 
-    impl ButtonGame for EarlyBirdSpecial {
+    impl ButtonGame for ThePressiahCometh {
         fn get(&self) -> &ButtonData {
             &self.data
         }
@@ -71,14 +71,13 @@ mod early_bird_special {
             &mut self.data
         }
 
-        fn score(&self, now: BlockNumber) -> Balance {
-            let deadline = ButtonGame::deadline(self);
-            deadline.saturating_sub(now) as Balance
+        fn score(&self, _now: BlockNumber) -> Balance {
+            (self.data.presses + 1) as Balance
         }
     }
 
     // because ink! does not allow generics or trait default implementations
-    impl IButtonGame for EarlyBirdSpecial {
+    impl IButtonGame for ThePressiahCometh {
         #[ink(message)]
         fn is_dead(&self) -> bool {
             let now = self.env().block_number();
@@ -162,7 +161,7 @@ mod early_bird_special {
         }
     }
 
-    impl EarlyBirdSpecial {
+    impl ThePressiahCometh {
         #[ink(constructor)]
         pub fn new(
             ticket_token: AccountId,
@@ -222,7 +221,7 @@ mod early_bird_special {
 
         fn emit_event<EE>(emitter: EE, event: Event)
         where
-            EE: EmitEvent<EarlyBirdSpecial>,
+            EE: EmitEvent<ThePressiahCometh>,
         {
             emitter.emit_event(event);
         }

@@ -136,6 +136,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/back_to_the_future
 cargo contract build --release
 
+cd "$CONTRACTS_PATH"/the_pressiah_cometh
+cargo contract build --release
+
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
@@ -219,6 +222,20 @@ instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636
 
 deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN
 
+#
+# --- THE_PRESSIAH_COMETH GAME
+#
+
+# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE THE_PRESSIAH_COMETH GAME
+
+instrument_ticket_token THE_PRESSIAH_COMETH_TICKET ticket_token 0x7468655F70726573736961685F636F6D657468 the_pressiah_cometh TPC
+
+instrument_game_token THE_PRESSIAH_COMETH_TOKEN game_token Dune DUN 0x7468655F70726573736961685F636F6D657468
+
+# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
+
+deploy_and_instrument_game THE_PRESSIAH_COMETH the_pressiah_cometh $THE_PRESSIAH_COMETH_TICKET $THE_PRESSIAH_COMETH_TOKEN
+
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
 
@@ -228,12 +245,18 @@ jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
    --arg back_to_the_future $BACK_TO_THE_FUTURE \
    --arg back_to_the_future_ticket $BACK_TO_THE_FUTURE_TICKET \
    --arg back_to_the_future_token $BACK_TO_THE_FUTURE_TOKEN \
+   --arg the_pressiah_cometh $THE_PRESSIAH_COMETH \
+   --arg the_pressiah_cometh_ticket $THE_PRESSIAH_COMETH_TICKET \
+   --arg the_pressiah_cometh_token $THE_PRESSIAH_COMETH_TOKEN \
    '{early_bird_special: $early_bird_special,
      early_bird_special_ticket: $early_bird_special_ticket,
      early_bird_special_token: $early_bird_special_token,
      back_to_the_future: $back_to_the_future,
      back_to_the_future_ticket: $back_to_the_future_ticket,
-     back_to_the_future_token: $back_to_the_future_token}' > addresses.json
+     back_to_the_future_token: $back_to_the_future_token,
+     the_pressiah_cometh: $the_pressiah_cometh,
+     the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
+     the_pressiah_cometh_token: $the_pressiah_cometh_token}' > addresses.json
 
 end=$( date +%s.%N )
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"
