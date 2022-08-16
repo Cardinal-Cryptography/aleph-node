@@ -22,7 +22,7 @@ function instrument_ticket_token {
 
   echo $contract_name "ticket contract instance address: " $contract_address
 
-  # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+  # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
@@ -51,7 +51,7 @@ function instrument_game_token {
 
   echo "$contract_name token contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEDGES ON THE TOKEN CONTRACT
+  # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
@@ -97,7 +97,7 @@ function deploy_and_instrument_game {
 
   echo "$contract_name contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEDGES ON THE CONTRACT
+  # --- GRANT PRIVILEGES ON THE CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
@@ -180,7 +180,7 @@ GAME_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 
 echo "button token code hash" "$GAME_TOKEN_CODE_HASH"
 
-# --- GRANT INIT PRIVILEDGES ON THE TOKEN AND TICKET CONTRACT CODE
+# --- GRANT INIT PRIVILEGES ON THE TOKEN AND TICKET CONTRACT CODE
 
 cd "$CONTRACTS_PATH"/access_control
 
