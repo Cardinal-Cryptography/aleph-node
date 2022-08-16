@@ -44,9 +44,10 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/"$contract_name"
 
+  local contract_address
   # TODO : remove balance when token is mintable
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
-  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
+  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name token contract instance address: $contract_address"
 
@@ -54,12 +55,13 @@ function instrument_game_token {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  # set the owner of the contract instance
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
+  # set the admin and the owner of the contract instance
+  # cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   # TODO : MINTER / BURNER roles
 
-  eval $__resultvar="'$contract_address'"
+  eval "$__resultvar='$contract_address'"
 }
 
 function deploy_and_instrument_game {
@@ -213,8 +215,6 @@ deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPE
 instrument_ticket_token BACK_TO_THE_FUTURE_TICKET ticket_token 0x4261636B546F546865467574757265 back_to_the_future BTF
 
 instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
-
-instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token 0x4261636B546F546865467574757265
 
 # --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
 
