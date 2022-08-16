@@ -451,7 +451,7 @@ jobs:
       - name: Build docker image for onfinality
         id: build-image-onfinality
         run: |
-          docker build --tag aleph-node:latest-onfinality -f ./docker/Dockerfile.onfinality .
+          docker build --cache-from aleph-node:latest-onfinality --tag aleph-node:latest-onfinality -f ./docker/Dockerfile.onfinality .
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
