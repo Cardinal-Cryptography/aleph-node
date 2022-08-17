@@ -16,6 +16,9 @@ use crate::{
     Config,
 };
 
+const RESERVED_SEATS: u32 = 3;
+const NON_RESERVED_SEATS: u32 = 1;
+
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
 /// We have to do it by comparing keys in storage trie.
@@ -98,8 +101,8 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         Some(reserved_validators),
         Some(non_reserved_validators),
         Some(CommitteeSeats {
-            reserved_seats: 3,
-            non_reserved_seats: 1,
+            reserved_seats: RESERVED_SEATS,
+            non_reserved_seats: NON_RESERVED_SEATS,
         }),
         XtStatus::Finalized,
     );
