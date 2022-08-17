@@ -175,6 +175,9 @@ mod button_game {
             })
         }
 
+        /// Presses the button
+        ///
+        /// If called on alive button, instantaneously mints reward tokens to the caller
         #[ink(message)]
         pub fn press(&mut self) -> ButtonResult<()> {
             if self.is_dead() {
