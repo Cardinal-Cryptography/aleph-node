@@ -1,8 +1,7 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use aleph_bft::Recipient;
 use futures::{channel::mpsc, StreamExt};
-use tokio::sync::Mutex;
 
 use crate::network::{Data, DataNetwork, SendError};
 
@@ -21,18 +20,8 @@ pub trait Receiver<D: Data>: Sync + Send {
 pub trait Network<D: Data>: Sync + Send {
     type S: Sender<D>;
     type R: Receiver<D>;
-    fn sender(&self) -> &Self::S;
-    fn receiver(&self) -> Arc<Mutex<Self::R>>;
-}
 
-#[async_trait::async_trait]
-impl<D: Data, CN: Network<D>> DataNetwork<D> for CN {
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
-        self.sender().send(data, recipient)
-    }
-    async fn next(&mut self) -> Option<D> {
-        self.receiver().lock_owned().await.next().await
-    }
+    fn into(self) -> (Self::S, Self::R);
 }
 
 #[async_trait::async_trait]
@@ -51,7 +40,7 @@ impl<D: Data> Receiver<D> for mpsc::UnboundedReceiver<D> {
 }
 
 pub struct SimpleNetwork<D: Data, R: Receiver<D>, S: Sender<D>> {
-    receiver: Arc<Mutex<R>>,
+    receiver: R,
     sender: S,
     _phantom: PhantomData<D>,
 }
@@ -59,24 +48,26 @@ pub struct SimpleNetwork<D: Data, R: Receiver<D>, S: Sender<D>> {
 impl<D: Data, R: Receiver<D>, S: Sender<D>> SimpleNetwork<D, R, S> {
     pub fn new(receiver: R, sender: S) -> Self {
         SimpleNetwork {
-            receiver: Arc::new(Mutex::new(receiver)),
+            receiver,
             sender,
             _phantom: PhantomData,
         }
     }
+
+    pub fn from_component_network<CN: Network<D, R = R, S = S>>(network: CN) -> Self {
+        let (sender, receiver) = network.into();
+        Self::new(receiver, sender)
+    }
 }
 
-impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for SimpleNetwork<D, R, S> {
-    type S = S;
-
-    type R = R;
-
-    fn sender(&self) -> &Self::S {
-        &self.sender
+#[async_trait::async_trait]
+impl<D: Data, R: Receiver<D>, S: Sender<D>> DataNetwork<D> for SimpleNetwork<D, R, S> {
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        self.sender.send(data, recipient)
     }
 
-    fn receiver(&self) -> Arc<Mutex<Self::R>> {
-        self.receiver.clone()
+    async fn next(&mut self) -> Option<D> {
+        self.receiver.next().await
     }
 }
 
