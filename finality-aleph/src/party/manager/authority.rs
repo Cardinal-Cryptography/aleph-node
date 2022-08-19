@@ -95,7 +95,7 @@ impl Subtasks {
             e = self.data_store.stopped() => { debug!(target: "aleph-party", "DataStore stopped early"); e },
         };
         if result.is_err() {
-            debug!(target: "aleph-party", "Some task finished early");
+            debug!(target: "aleph-party", "Something died and it was unexpected");
         }
         self.stop().await;
         debug!(target: "aleph-party", "Stopped all processes");
