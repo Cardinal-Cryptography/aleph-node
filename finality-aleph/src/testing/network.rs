@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     iter::FromIterator,
+    marker::PhantomData,
     time::Duration,
 };
 
@@ -18,9 +19,9 @@ use crate::{
             MockPeerId,
         },
         testing::{Authentication, DiscoveryMessage, NetworkData, SessionHandler},
-        ComponentNetwork, ConnectionIO, ConnectionManager, ConnectionManagerConfig,
-        NetworkIdentity, Protocol, ReceiverComponent, SenderComponent, Service as NetworkService,
-        SessionManager, IO as NetworkIO,
+        ComponentNetwork, ConnectionIO, ConnectionManager, ConnectionManagerConfig, Data,
+        DataNetwork, NetworkIdentity, Protocol, ReceiverComponent, SendError, SenderComponent,
+        Service as NetworkService, SessionManager, IO as NetworkIO,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
@@ -57,6 +58,40 @@ impl NetworkIdentity for Authority {
 
     fn identity(&self) -> (Vec<Self::Multiaddress>, Self::PeerId) {
         (self.addresses.clone(), self.peer_id)
+    }
+}
+
+struct SimpleTestComponent<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
+    receiver: R,
+    sender: S,
+    _phantom: PhantomData<D>,
+}
+
+impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponent<D, R, S> {
+    fn new(receiver: R, sender: S) -> Self {
+        SimpleTestComponent {
+            receiver,
+            sender,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn from_component_network<CN: ComponentNetwork<D, R = R, S = S>>(network: CN) -> Self {
+        let (sender, receiver) = network.into();
+        Self::new(receiver, sender)
+    }
+}
+
+#[async_trait::async_trait]
+impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> DataNetwork<D>
+    for SimpleTestComponent<D, R, S>
+{
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        self.sender.send(data, recipient)
+    }
+
+    async fn next(&mut self) -> Option<D> {
+        self.receiver.next().await
     }
 }
 
@@ -162,8 +197,9 @@ impl TestData {
         &self,
         node_id: usize,
         session_id: u32,
-    ) -> impl ComponentNetwork<MockData> {
-        self.session_manager
+    ) -> impl DataNetwork<MockData> {
+        let network = self
+            .session_manager
             .start_validator_session(
                 SessionId(session_id),
                 self.authority_verifier.clone(),
@@ -171,7 +207,8 @@ impl TestData {
                 self.authorities[node_id].pen(),
             )
             .await
-            .expect("Failed to start validator session!")
+            .expect("Failed to start validator session!");
+        SimpleTestComponent::from_component_network(network)
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
@@ -263,7 +300,7 @@ impl TestData {
         }
     }
 
-    async fn start_session(&mut self, session_id: u32) -> impl ComponentNetwork<MockData> {
+    async fn start_session(&mut self, session_id: u32) -> impl DataNetwork<MockData> {
         let data_network = self.start_validator_session(0, session_id).await;
         self.connect_session_authorities(session_id).await;
         self.check_sends_add_reserved_node().await;
@@ -361,8 +398,7 @@ async fn test_sends_discovery_message() {
     let mut test_data = prepare_one_session_test_data().await;
     let connected_peer_id = test_data.authorities[1].peer_id();
     test_data.connect_identity_to_network(connected_peer_id, Protocol::Generic);
-    let data_network = test_data.start_validator_session(0, session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_validator_session(0, session_id).await;
     let handler = test_data.get_session_handler(0, session_id).await;
 
     for _ in 0..5 {
@@ -394,8 +430,7 @@ async fn test_sends_discovery_message() {
 async fn test_sends_authentication_on_receiving_broadcast() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network = test_data.start_validator_session(0, session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_validator_session(0, session_id).await;
     let handler = test_data.get_session_handler(0, session_id).await;
     let sending_peer_handler = test_data.get_session_handler(1, session_id).await;
     let sending_peer = test_data.authorities[1].clone();
@@ -447,8 +482,7 @@ async fn test_sends_authentication_on_receiving_broadcast() {
 async fn test_forwards_authentication_broadcast() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network = test_data.start_validator_session(0, session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_validator_session(0, session_id).await;
     let handler = test_data.get_session_handler(0, session_id).await;
     let sending_peer = test_data.authorities[1].clone();
     let sending_peer_handler = test_data.get_session_handler(1, session_id).await;
@@ -520,8 +554,7 @@ async fn test_forwards_authentication_broadcast() {
 async fn test_connects_to_others() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network = test_data.start_session(session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_session(session_id).await;
 
     let data = vec![1, 2, 3];
     test_data.emit_notifications_received(vec![MockNetworkData::Data(
@@ -553,8 +586,7 @@ async fn test_connects_to_others_early_validator() {
                 .unwrap(),
         )
         .await;
-    let data_network = test_data.start_validator_session(0, session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_validator_session(0, session_id).await;
 
     let data = vec![1, 2, 3];
     test_data.emit_notifications_received(vec![MockNetworkData::Data(
@@ -574,8 +606,7 @@ async fn test_connects_to_others_early_validator() {
 async fn test_stops_session() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network = test_data.start_session(session_id).await;
-    let (_, mut data_network) = ComponentNetwork::into(data_network);
+    let mut data_network = test_data.start_session(session_id).await;
 
     test_data
         .session_manager
@@ -608,11 +639,9 @@ async fn test_receives_data_in_correct_session() {
     let session_id_1 = 42;
     let session_id_2 = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network_1 = test_data.start_session(session_id_1).await;
-    let (_, mut data_network_1) = ComponentNetwork::into(data_network_1);
+    let mut data_network_1 = test_data.start_session(session_id_1).await;
 
-    let data_network_2 = test_data.start_session(session_id_2).await;
-    let (_, mut data_network_2) = ComponentNetwork::into(data_network_2);
+    let mut data_network_2 = test_data.start_session(session_id_2).await;
 
     let data_1_1 = vec![1, 2, 3];
     let data_1_2 = vec![4, 5, 6];
@@ -661,12 +690,8 @@ async fn test_sends_data_to_correct_session() {
     let session_id_1 = 42;
     let session_id_2 = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network_1 = test_data.start_session(session_id_1).await;
-    let (data_network_1_sender, mut data_network_1_receiver) =
-        ComponentNetwork::into(data_network_1);
-    let data_network_2 = test_data.start_session(session_id_2).await;
-    let (data_network_2_sender, mut data_network_2_receiver) =
-        ComponentNetwork::into(data_network_2);
+    let mut data_network_1 = test_data.start_session(session_id_1).await;
+    let mut data_network_2 = test_data.start_session(session_id_2).await;
 
     let mut expected_data = HashSet::new();
     for node_id in 1..NODES_N {
@@ -678,7 +703,7 @@ async fn test_sends_data_to_correct_session() {
             SessionId(session_id_1),
             test_data.authorities[node_id].peer_id(),
         ));
-        data_network_1_sender
+        data_network_1
             .send(data_1, Recipient::Node(NodeIndex(node_id)))
             .expect("Should send");
 
@@ -687,7 +712,7 @@ async fn test_sends_data_to_correct_session() {
             SessionId(session_id_2),
             test_data.authorities[node_id].peer_id(),
         ));
-        data_network_2_sender
+        data_network_2
             .send(data_2, Recipient::Node(NodeIndex(node_id)))
             .expect("Should send");
     }
@@ -709,11 +734,11 @@ async fn test_sends_data_to_correct_session() {
     test_data.cleanup().await;
 
     assert_eq!(
-        timeout(DEFAULT_TIMEOUT, data_network_1_receiver.next()).await,
+        timeout(DEFAULT_TIMEOUT, data_network_1.next()).await,
         Ok(None)
     );
     assert_eq!(
-        timeout(DEFAULT_TIMEOUT, data_network_2_receiver.next()).await,
+        timeout(DEFAULT_TIMEOUT, data_network_2.next()).await,
         Ok(None)
     );
 }
@@ -723,19 +748,15 @@ async fn test_broadcasts_data_to_correct_session() {
     let session_id_1 = 42;
     let session_id_2 = 43;
     let mut test_data = prepare_one_session_test_data().await;
-    let data_network_1 = test_data.start_session(session_id_1).await;
-    let (data_network_1_sender, mut data_network_1_receiver) =
-        ComponentNetwork::into(data_network_1);
-    let data_network_2 = test_data.start_session(session_id_2).await;
-    let (data_network_2_sender, mut data_network_2_receiver) =
-        ComponentNetwork::into(data_network_2);
+    let mut data_network_1 = test_data.start_session(session_id_1).await;
+    let mut data_network_2 = test_data.start_session(session_id_2).await;
 
     let data_1 = vec![1, 2, 3];
     let data_2 = vec![4, 5, 6];
-    data_network_1_sender
+    data_network_1
         .send(data_1.clone(), Recipient::Everyone)
         .expect("Should send");
-    data_network_2_sender
+    data_network_2
         .send(data_2.clone(), Recipient::Everyone)
         .expect("Should send");
 
@@ -762,11 +783,11 @@ async fn test_broadcasts_data_to_correct_session() {
     test_data.cleanup().await;
 
     assert_eq!(
-        timeout(DEFAULT_TIMEOUT, data_network_1_receiver.next()).await,
+        timeout(DEFAULT_TIMEOUT, data_network_1.next()).await,
         Ok(None)
     );
     assert_eq!(
-        timeout(DEFAULT_TIMEOUT, data_network_2_receiver.next()).await,
+        timeout(DEFAULT_TIMEOUT, data_network_2.next()).await,
         Ok(None)
     );
 }
