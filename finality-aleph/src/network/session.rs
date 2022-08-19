@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use aleph_bft::Recipient;
 use futures::channel::{mpsc, oneshot};
-use tokio::sync::Mutex;
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
@@ -28,17 +25,15 @@ impl<D: Data> SenderComponent<D> for Sender<D> {
 /// Sends and receives data within a single session.
 pub struct Network<D: Data> {
     sender: Sender<D>,
-    receiver: Arc<Mutex<mpsc::UnboundedReceiver<D>>>,
+    receiver: mpsc::UnboundedReceiver<D>,
 }
 
 impl<D: Data> ComponentNetwork<D> for Network<D> {
     type S = Sender<D>;
     type R = mpsc::UnboundedReceiver<D>;
-    fn sender(&self) -> &Self::S {
-        &self.sender
-    }
-    fn receiver(&self) -> Arc<Mutex<Self::R>> {
-        self.receiver.clone()
+
+    fn into(self) -> (Self::S, Self::R) {
+        (self.sender, self.receiver)
     }
 }
 
@@ -108,7 +103,7 @@ impl<D: Data> Manager<D> {
                 session_id,
                 messages_for_network,
             },
-            receiver: Arc::new(Mutex::new(data_from_network)),
+            receiver: data_from_network,
         })
     }
 
