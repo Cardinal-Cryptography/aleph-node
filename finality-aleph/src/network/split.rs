@@ -133,19 +133,18 @@ async fn forward_or_wait<
     right_sender: &mpsc::UnboundedSender<RightData>,
     name: &String,
 ) -> bool {
+    // It's totally fine if we are unable to send a message on left_sender or right_sender.
+    // The other half of the channel can be dropped for any reason,
+    // but it's not our responsibility to react for it here.
     match receiver.lock().await.next().await {
         Some(Split::Left(data)) => {
             if left_sender.unbounded_send(data).is_err() {
-                // this is totally fine - the other half of the channel can be dropped by any reason
-                // but it's not our responsibility to track it here
                 debug!(target: "aleph-network", "Unable to send to LeftNetwork ({}) - already disabled", name);
             }
             true
         }
         Some(Split::Right(data)) => {
             if right_sender.unbounded_send(data).is_err() {
-                // this is totally fine - the other half of the channel can be dropped by any reason
-                // but it's not our responsibility to track it here
                 debug!(target: "aleph-network", "Unable to send to LeftNetwork ({}) - already disabled", name);
             }
             true
