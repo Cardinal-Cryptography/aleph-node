@@ -14,7 +14,7 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, Keychain},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     default_aleph_config, mpsc,
-    network::{split, ManagerError, RequestBlocks, SessionManager},
+    network::{split, ManagerError, RequestBlocks, SessionManager, SimpleNetwork},
     party::{backup::ABFTBackup, traits::NodeSessionManager},
     AuthorityId, JustificationNotification, Metrics, NodeIndex, SessionBoundaries, SessionId,
     SessionPeriod, SplitData, UnitCreationDelay,
@@ -144,7 +144,9 @@ where
             .await
             .expect("Failed to start validator session!");
 
-        let (unfiltered_aleph_network, rmc_network) = split(data_network);
+        let (unfiltered_aleph_network, rmc_network) =
+            split(data_network, "aleph_network", "rmc_network");
+        let rmc_network = SimpleNetwork::from_component_network(rmc_network);
         let (data_store, aleph_network) = DataStore::new(
             session_boundaries.clone(),
             self.client.clone(),
