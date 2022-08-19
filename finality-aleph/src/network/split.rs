@@ -221,7 +221,7 @@ fn split_sender<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftDa
             phantom: PhantomData,
         },
         RightSender {
-            sender: sender.clone(),
+            sender,
             phantom: PhantomData,
         },
     )

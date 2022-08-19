@@ -164,7 +164,7 @@ impl SpawnHandle {
         let result = <Self as aleph_bft::SpawnHandle>::spawn_essential(self, name, wrapped_task);
         let wrapped_result = async move {
             let main_result = result.await;
-            if let Err(_) = main_result {
+            if main_result.is_err() {
                 return Err(());
             }
             let rx_result = rx.await;
