@@ -16,9 +16,6 @@ use crate::{
     Config,
 };
 
-const RESERVED_SEATS: u32 = 3;
-const NON_RESERVED_SEATS: u32 = 1;
-
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
 /// We have to do it by comparing keys in storage trie.
@@ -38,16 +35,25 @@ fn assert_validators_are_elected_stakers<C: AnyConnection>(
     );
 }
 
+// There are v non-reserved validators and s non-reserved seats. We will have seen all
+// the non-reserved validators after ceil(v / s).
+fn min_num_sessions_to_see_all_non_reserved_validators(
+    non_reserved_count: u32,
+    non_reserved_seats: u32,
+) -> u32 {
+    (non_reserved_count as f64 / non_reserved_seats as f64).ceil() as u32
+}
+
 /// Verify that all target validators are included `pallet_session::Validators` across a few
 /// consecutive sessions.
 fn assert_validators_are_used_as_authorities<C: AnyConnection>(
     connection: &C,
     expected_authorities: &BTreeSet<AccountId>,
+    min_num_sessions: u32,
 ) {
     let mut authorities = BTreeSet::new();
-    // There are 4 slots, 3 reserved validators and 3 nonreserved, therefore after 3 sessions
-    // we should observe all of them.
-    for _ in 0..3 {
+
+    for _ in 0..min_num_sessions {
         let current_session = get_current_session(connection);
 
         info!("Reading authorities in session {}", current_session);
@@ -63,6 +69,33 @@ fn assert_validators_are_used_as_authorities<C: AnyConnection>(
         *expected_authorities, authorities,
         "Expected another set of authorities.\n\tExpected: {:?}\n\tActual: {:?}",
         expected_authorities, authorities
+    );
+}
+
+fn assert_enough_validators_left_after_chilling(
+    reserved_count: u32,
+    non_reserved_count: u32,
+    reserved_to_chill_count: u32,
+    non_reserved_to_chill_count: u32,
+    min_validator_count: u32,
+) {
+    assert!(
+        reserved_count >= reserved_to_chill_count,
+        "Cannot have less than 0 reserved validators!"
+    );
+    assert!(
+        non_reserved_count >= non_reserved_to_chill_count,
+        "Cannot have less than 0 non-reserved validators!"
+    );
+
+    let reserved_after_chill_count = reserved_count - reserved_to_chill_count;
+    let non_reserved_after_chill_count = non_reserved_count - non_reserved_to_chill_count;
+    let validators_after_chill_count = reserved_after_chill_count + non_reserved_after_chill_count;
+    assert!(
+        validators_after_chill_count >= min_validator_count,
+        "{} validators will be left after chilling. Staking enforces a minimum of {} validators.",
+        validators_after_chill_count,
+        min_validator_count
     );
 }
 
@@ -87,22 +120,37 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let sudo = get_sudo_key(config);
     let root_connection = RootConnection::new(node, sudo);
 
-    let accounts = setup_accounts();
+    let min_validator_count = config.test_case_params.min_validator_count();
+    let reserved_seats = config.test_case_params.reserved_seats();
+    let non_reserved_seats = config.test_case_params.non_reserved_seats();
+
+    let accounts = setup_accounts(config.validator_count);
     prepare_validators(&root_connection.as_signed(), node, &accounts);
     info!("New validators are set up");
 
-    let reserved_validators = accounts.get_stash_accounts()[..3].to_vec();
-    let chilling_reserved = accounts.get_controller_keys()[0].clone();
-    let non_reserved_validators = accounts.get_stash_accounts()[3..].to_vec();
-    let chilling_non_reserved = accounts.get_controller_keys()[3].clone();
+    let reserved_validators = accounts.get_stash_accounts()[..reserved_seats as usize].to_vec();
+    let chilling_reserved = accounts.get_controller_keys()[0].clone(); // first reserved validator
+    let non_reserved_validators = accounts.get_stash_accounts()[reserved_seats as usize..].to_vec();
+    let chilling_non_reserved = accounts.get_controller_keys()[reserved_seats as usize].clone(); // first non-reserved validator
+
+    let reserved_count = reserved_validators.len() as u32;
+    let non_reserved_count = non_reserved_validators.len() as u32;
+
+    assert_enough_validators_left_after_chilling(
+        reserved_count,
+        non_reserved_count,
+        1,
+        1,
+        min_validator_count,
+    );
 
     change_validators(
         &root_connection,
         Some(reserved_validators),
         Some(non_reserved_validators),
         Some(CommitteeSeats {
-            reserved_seats: RESERVED_SEATS,
-            non_reserved_seats: NON_RESERVED_SEATS,
+            reserved_seats,
+            non_reserved_seats,
         }),
         XtStatus::Finalized,
     );
@@ -119,9 +167,14 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         current_era,
         &get_stakers_as_storage_keys(&connection, accounts.get_stash_accounts(), current_era),
     );
+
+    let min_num_sessions =
+        min_num_sessions_to_see_all_non_reserved_validators(non_reserved_count, non_reserved_seats);
+
     assert_validators_are_used_as_authorities(
         &connection,
         &BTreeSet::from_iter(accounts.get_stash_accounts().clone().into_iter()),
+        min_num_sessions,
     );
 
     staking_chill_all_validators(node, vec![chilling_reserved, chilling_non_reserved]);
@@ -133,7 +186,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     );
 
     let mut left_stashes = accounts.get_stash_accounts().clone();
-    left_stashes.remove(3);
+    left_stashes.remove(reserved_seats as usize);
     left_stashes.remove(0);
 
     assert_validators_are_elected_stakers(
@@ -144,6 +197,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     assert_validators_are_used_as_authorities(
         &connection,
         &BTreeSet::from_iter(left_stashes.into_iter()),
+        min_num_sessions,
     );
 
     Ok(())
