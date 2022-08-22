@@ -45,8 +45,8 @@ function instrument_game_token {
   cd "$CONTRACTS_PATH"/"$contract_name"
 
   local contract_address
-  # TODO : remove balance when token is mintable
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
+
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" 0 --suri "$AUTHORITY_SEED" --salt "$salt")
   contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name token contract instance address: $contract_address"
