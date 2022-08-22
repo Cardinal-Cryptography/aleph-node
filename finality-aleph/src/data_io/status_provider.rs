@@ -413,5 +413,15 @@ mod tests {
             &fresh_proposal,
             Finalize(fresh_proposal.blocks_from_num(0).collect()),
         );
+
+        // Long proposals should finalize the appropriate suffix.
+        let long_proposal = proposal_from_blocks(blocks[0..6].to_vec());
+        verify_proposal_status(
+            &mut cached_cip,
+            &mut aux_cip,
+            &fresh_proposal,
+            // We are using fresh_proposal here on purpose, to only check the expected blocks.
+            Finalize(fresh_proposal.blocks_from_num(0).collect()),
+        );
     }
 }
