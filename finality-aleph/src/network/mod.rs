@@ -21,7 +21,9 @@ pub use component::{Receiver as ReceiverComponent, Sender as SenderComponent, Si
 use manager::SessionCommand;
 pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use service::{Service, IO};
-pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
+pub use session::{
+    Manager as SessionManager, ManagerError, Network as SessionNetwork, Sender as SessionSender,
+};
 pub use split::{split, Split};
 
 #[cfg(test)]

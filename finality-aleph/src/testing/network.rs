@@ -7,7 +7,10 @@ use std::{
 
 use aleph_bft::Recipient;
 use codec::Encode;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::{
+    mpsc::{self, UnboundedReceiver},
+    oneshot,
+};
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
@@ -19,9 +22,9 @@ use crate::{
             MockPeerId,
         },
         testing::{Authentication, DiscoveryMessage, NetworkData, SessionHandler},
-        ComponentNetwork, ConnectionIO, ConnectionManager, ConnectionManagerConfig, Data,
-        DataNetwork, NetworkIdentity, Protocol, ReceiverComponent, SendError, SenderComponent,
-        Service as NetworkService, SessionManager, IO as NetworkIO,
+        ConnectionIO, ConnectionManager, ConnectionManagerConfig, Data, DataNetwork,
+        NetworkIdentity, Protocol, ReceiverComponent, SendError, SenderComponent,
+        Service as NetworkService, SessionManager, SessionNetwork, SessionSender, IO as NetworkIO,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
@@ -75,9 +78,13 @@ impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponen
             _phantom: PhantomData,
         }
     }
+}
 
-    fn from_component_network<CN: ComponentNetwork<D, R = R, S = S>>(network: CN) -> Self {
-        let (sender, receiver) = network.into();
+impl<D: Data> From<SessionNetwork<D>>
+    for SimpleTestComponent<D, UnboundedReceiver<D>, SessionSender<D>>
+{
+    fn from(session_network: SessionNetwork<D>) -> Self {
+        let (receiver, sender) = session_network.into();
         Self::new(receiver, sender)
     }
 }
@@ -208,7 +215,7 @@ impl TestData {
             )
             .await
             .expect("Failed to start validator session!");
-        SimpleTestComponent::from_component_network(network)
+        SimpleTestComponent::from(network)
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
