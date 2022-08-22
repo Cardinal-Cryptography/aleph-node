@@ -4,10 +4,10 @@ use access_control::{traits::AccessControlled, Role};
 use game_token::MINT_TO_SELECTOR;
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
+    AccountId, CallFlags, DefaultEnvironment, Environment, Error as InkEnvError,
 };
 use ink_lang as ink;
-use ink_prelude::{format, string::String, vec};
+use ink_prelude::{format, string::String, vec, vec::Vec};
 use ink_storage::traits::{SpreadAllocate, SpreadLayout};
 use openbrush::contracts::psp22::PSP22Error;
 use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
@@ -223,8 +223,9 @@ pub trait ButtonGame {
                     .push_arg(from)
                     .push_arg(to)
                     .push_arg(value)
-                    .push_arg(vec![0x0]),
+                    .push_arg::<Vec<u8>>(vec![]),
             )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
             .returns::<Result<(), PSP22Error>>()
             .fire()
     }

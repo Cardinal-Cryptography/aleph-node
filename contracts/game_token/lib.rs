@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::game_token::{BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR};
+pub use crate::game_token::{
+    BALANCE_OF_SELECTOR, BURN_FROM_SELECTOR, MINT_TO_SELECTOR, TRANSFER_SELECTOR,
+};
 
 #[openbrush::contract]
 pub mod game_token {
@@ -14,14 +16,17 @@ pub mod game_token {
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
-        contracts::psp22::{extensions::metadata::*, Internal},
+        contracts::psp22::{
+            extensions::{burnable::*, metadata::*, mintable::*},
+            Internal,
+        },
         traits::Storage,
     };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
-    // TODO : use correct selector when mint/burn is implemented
-    pub const MINT_TO_SELECTOR: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
+    pub const MINT_TO_SELECTOR: [u8; 4] = [0xfc, 0x3c, 0x75, 0xd4];
+    pub const BURN_FROM_SELECTOR: [u8; 4] = [0x7a, 0x9d, 0xa5, 0x10];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
@@ -35,8 +40,9 @@ pub mod game_token {
     }
 
     impl PSP22 for GameToken {}
-
     impl PSP22Metadata for GameToken {}
+    impl PSP22Mintable for GameToken {}
+    impl PSP22Burnable for GameToken {}
 
     // emit events
     // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
