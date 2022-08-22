@@ -64,15 +64,15 @@ impl NetworkIdentity for Authority {
     }
 }
 
-struct SimpleTestComponent<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
+struct TestNetwork<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
     receiver: R,
     sender: S,
     _phantom: PhantomData<D>,
 }
 
-impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponent<D, R, S> {
+impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> TestNetwork<D, R, S> {
     fn new(receiver: R, sender: S) -> Self {
-        SimpleTestComponent {
+        TestNetwork {
             receiver,
             sender,
             _phantom: PhantomData,
@@ -80,9 +80,7 @@ impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponen
     }
 }
 
-impl<D: Data> From<SessionNetwork<D>>
-    for SimpleTestComponent<D, UnboundedReceiver<D>, SessionSender<D>>
-{
+impl<D: Data> From<SessionNetwork<D>> for TestNetwork<D, UnboundedReceiver<D>, SessionSender<D>> {
     fn from(session_network: SessionNetwork<D>) -> Self {
         let (receiver, sender) = session_network.into();
         Self::new(receiver, sender)
@@ -91,7 +89,7 @@ impl<D: Data> From<SessionNetwork<D>>
 
 #[async_trait::async_trait]
 impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> DataNetwork<D>
-    for SimpleTestComponent<D, R, S>
+    for TestNetwork<D, R, S>
 {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
         self.sender.send(data, recipient)
@@ -215,7 +213,7 @@ impl TestData {
             )
             .await
             .expect("Failed to start validator session!");
-        SimpleTestComponent::from(network)
+        TestNetwork::from(network)
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
