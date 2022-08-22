@@ -17,10 +17,7 @@ mod session;
 mod split;
 
 pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
-pub use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-    SimpleNetwork,
-};
+pub use component::{Receiver as ReceiverComponent, Sender as SenderComponent, SimpleNetwork};
 use manager::SessionCommand;
 pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use service::{Service, IO};

@@ -16,14 +16,6 @@ pub trait Receiver<D: Data>: Sync + Send {
     async fn next(&mut self) -> Option<D>;
 }
 
-/// A bare version of network components.
-pub trait Network<D: Data>: Sync + Send {
-    type S: Sender<D>;
-    type R: Receiver<D>;
-
-    fn into(self) -> (Self::S, Self::R);
-}
-
 #[async_trait::async_trait]
 impl<D: Data> Sender<D> for mpsc::UnboundedSender<(D, Recipient)> {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
@@ -53,11 +45,6 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> SimpleNetwork<D, R, S> {
             _phantom: PhantomData,
         }
     }
-
-    pub fn from_component_network<CN: Network<D, R = R, S = S>>(network: CN) -> Self {
-        let (sender, receiver) = network.into();
-        Self::new(receiver, sender)
-    }
 }
 
 #[async_trait::async_trait]
@@ -68,6 +55,12 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> DataNetwork<D> for SimpleNetwork<D, 
 
     async fn next(&mut self) -> Option<D> {
         self.receiver.next().await
+    }
+}
+
+impl<D: Data, R: Receiver<D>, S: Sender<D>> From<(R, S)> for SimpleNetwork<D, R, S> {
+    fn from((receiver, sender): (R, S)) -> Self {
+        Self::new(receiver, sender)
     }
 }
 

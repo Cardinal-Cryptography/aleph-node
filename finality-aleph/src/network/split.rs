@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use log::{debug, trace};
 use tokio::sync::Mutex;
 
-use crate::network::{ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent};
+use crate::network::{Data, ReceiverComponent, SendError, SenderComponent};
 
 /// Used for routing data through split networks.
 #[derive(Clone, Encode, Decode)]
@@ -158,56 +158,6 @@ async fn forward_or_wait<
     }
 }
 
-struct LeftNetwork<
-    LeftData: Data,
-    RightData: Data,
-    S: SenderComponent<Split<LeftData, RightData>>,
-    R: ReceiverComponent<Split<LeftData, RightData>>,
-> {
-    sender: LeftSender<LeftData, RightData, S>,
-    receiver: LeftReceiver<LeftData, RightData, R>,
-}
-
-impl<
-        LeftData: Data,
-        RightData: Data,
-        S: SenderComponent<Split<LeftData, RightData>>,
-        R: ReceiverComponent<Split<LeftData, RightData>>,
-    > ComponentNetwork<LeftData> for LeftNetwork<LeftData, RightData, S, R>
-{
-    type S = LeftSender<LeftData, RightData, S>;
-    type R = LeftReceiver<LeftData, RightData, R>;
-
-    fn into(self) -> (Self::S, Self::R) {
-        (self.sender, self.receiver)
-    }
-}
-
-struct RightNetwork<
-    LeftData: Data,
-    RightData: Data,
-    S: SenderComponent<Split<LeftData, RightData>>,
-    R: ReceiverComponent<Split<LeftData, RightData>>,
-> {
-    sender: RightSender<LeftData, RightData, S>,
-    receiver: RightReceiver<LeftData, RightData, R>,
-}
-
-impl<
-        LeftData: Data,
-        RightData: Data,
-        S: SenderComponent<Split<LeftData, RightData>>,
-        R: ReceiverComponent<Split<LeftData, RightData>>,
-    > ComponentNetwork<RightData> for RightNetwork<LeftData, RightData, S, R>
-{
-    type S = RightSender<LeftData, RightData, S>;
-    type R = RightReceiver<LeftData, RightData, R>;
-
-    fn into(self) -> (Self::S, Self::R) {
-        (self.sender, self.receiver)
-    }
-}
-
 fn split_sender<LeftData: Data, RightData: Data, S: SenderComponent<Split<LeftData, RightData>>>(
     sender: S,
 ) -> (
@@ -268,25 +218,27 @@ fn split_receiver<
 ///
 /// The main example for now is creating an `aleph_bft::Network` and a separate one for accumulating
 /// signatures for justifications.
-pub fn split<LeftData: Data, RightData: Data, CN: ComponentNetwork<Split<LeftData, RightData>>>(
-    network: CN,
+pub fn split<
+    LeftData: Data,
+    RightData: Data,
+    R: ReceiverComponent<Split<LeftData, RightData>>,
+    S: SenderComponent<Split<LeftData, RightData>>,
+>(
+    network: impl Into<(R, S)>,
     left_name: &'static str,
     right_name: &'static str,
 ) -> (
-    impl ComponentNetwork<LeftData>,
-    impl ComponentNetwork<RightData>,
+    (
+        impl ReceiverComponent<LeftData>,
+        impl SenderComponent<LeftData>,
+    ),
+    (
+        impl ReceiverComponent<RightData>,
+        impl SenderComponent<RightData>,
+    ),
 ) {
-    let (sender, receiver) = network.into();
+    let (receiver, sender) = network.into();
     let (left_sender, right_sender) = split_sender(sender);
     let (left_receiver, right_receiver) = split_receiver(receiver, left_name, right_name);
-    (
-        LeftNetwork {
-            sender: left_sender,
-            receiver: left_receiver,
-        },
-        RightNetwork {
-            sender: right_sender,
-            receiver: right_receiver,
-        },
-    )
+    ((left_receiver, left_sender), (right_receiver, right_sender))
 }
