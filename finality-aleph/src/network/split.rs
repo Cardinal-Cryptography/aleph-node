@@ -6,6 +6,7 @@ use futures::channel::mpsc;
 use log::{debug, trace};
 use tokio::sync::Mutex;
 
+use super::SimpleNetwork;
 use crate::network::{Data, ReceiverComponent, SendError, SenderComponent};
 
 /// Used for routing data through split networks.
@@ -51,7 +52,7 @@ impl<A: Data, B: Data> Convert for ToRightSplitConvert<A, B> {
 }
 
 #[derive(Clone)]
-struct SplitSender<
+pub struct SplitSender<
     LeftData: Data,
     RightData: Data,
     S: SenderComponent<Split<LeftData, RightData>>,
@@ -76,10 +77,10 @@ where
     }
 }
 
-type LeftSender<LeftData, RightData, S> =
+pub type LeftSender<LeftData, RightData, S> =
     SplitSender<LeftData, RightData, S, ToLeftSplitConvert<LeftData, RightData>>;
 
-type RightSender<LeftData, RightData, S> =
+pub type RightSender<LeftData, RightData, S> =
     SplitSender<LeftData, RightData, S, ToRightSplitConvert<LeftData, RightData>>;
 
 struct SplitReceiver<
@@ -119,9 +120,9 @@ impl<
     }
 }
 
-type LeftReceiver<LeftData, RightData, R> = SplitReceiver<LeftData, RightData, R, LeftData>;
+pub type LeftReceiver<LeftData, RightData, R> = SplitReceiver<LeftData, RightData, R, LeftData>;
 
-type RightReceiver<LeftData, RightData, R> = SplitReceiver<LeftData, RightData, R, RightData>;
+pub type RightReceiver<LeftData, RightData, R> = SplitReceiver<LeftData, RightData, R, RightData>;
 
 async fn forward_or_wait<
     LeftData: Data,
@@ -145,7 +146,7 @@ async fn forward_or_wait<
         }
         Some(Split::Right(data)) => {
             if right_sender.unbounded_send(data).is_err() {
-                debug!(target: "aleph-network", "Unable to send to LeftNetwork ({}) - already disabled", name);
+                debug!(target: "aleph-network", "Unable to send to RightNetwork ({}) - already disabled", name);
             }
             true
         }
@@ -209,6 +210,18 @@ fn split_receiver<
     )
 }
 
+pub type LeftSplitNetwork<LeftData, RightData, R, S> = SimpleNetwork<
+    LeftData,
+    LeftReceiver<LeftData, RightData, R>,
+    LeftSender<LeftData, RightData, S>,
+>;
+
+pub type RightSplitNetwork<LeftData, RightData, R, S> = SimpleNetwork<
+    RightData,
+    RightReceiver<LeftData, RightData, R>,
+    RightSender<LeftData, RightData, S>,
+>;
+
 /// Split a single component network into two separate ones. This way multiple components can send
 /// data to the same underlying session not knowing what types of data the other ones use.
 ///
@@ -221,24 +234,21 @@ fn split_receiver<
 pub fn split<
     LeftData: Data,
     RightData: Data,
-    R: ReceiverComponent<Split<LeftData, RightData>>,
-    S: SenderComponent<Split<LeftData, RightData>>,
+    Receiver: ReceiverComponent<Split<LeftData, RightData>>,
+    Sender: SenderComponent<Split<LeftData, RightData>>,
 >(
-    network: impl Into<(R, S)>,
+    network: SimpleNetwork<Split<LeftData, RightData>, Receiver, Sender>,
     left_name: &'static str,
     right_name: &'static str,
 ) -> (
-    (
-        impl ReceiverComponent<LeftData>,
-        impl SenderComponent<LeftData>,
-    ),
-    (
-        impl ReceiverComponent<RightData>,
-        impl SenderComponent<RightData>,
-    ),
+    LeftSplitNetwork<LeftData, RightData, Receiver, Sender>,
+    RightSplitNetwork<LeftData, RightData, Receiver, Sender>,
 ) {
     let (receiver, sender) = network.into();
     let (left_sender, right_sender) = split_sender(sender);
     let (left_receiver, right_receiver) = split_receiver(receiver, left_name, right_name);
-    ((left_receiver, left_sender), (right_receiver, right_sender))
+    (
+        SimpleNetwork::from((left_receiver, left_sender)),
+        SimpleNetwork::from((right_receiver, right_sender)),
+    )
 }

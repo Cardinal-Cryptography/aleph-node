@@ -209,9 +209,10 @@ where
         client: Arc<C>,
         block_requester: RB,
         config: DataStoreConfig,
-        (messages_from_network, messages_to_network): (R, S),
+        network: impl Into<(R, S)>,
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
+        let (messages_from_network, messages_to_network) = network.into();
         let status = client.info();
         let chain_info_provider = CachedChainInfoProvider::new(client.clone(), Default::default());
 

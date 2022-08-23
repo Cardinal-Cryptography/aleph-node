@@ -64,6 +64,12 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> From<(R, S)> for SimpleNetwork<D, R,
     }
 }
 
+impl<D: Data, R: Receiver<D>, S: Sender<D>> From<SimpleNetwork<D, R, S>> for (R, S) {
+    fn from(network: SimpleNetwork<D, R, S>) -> Self {
+        (network.receiver, network.sender)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use futures::channel::mpsc;
