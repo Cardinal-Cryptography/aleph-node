@@ -15,11 +15,9 @@ function play {
   cd "$CONTRACTS_PATH"/ticket_token
 
   echo "sending ticket token" ${contract_name}_ticket "["$ticket_address"]" "to " $PLAYER1
-
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER1 1 "[0]" --suri $AUTHORITY_SEED
 
   echo "sending ticket token" ${contract_name}_ticket "["$ticket_address"]" "to " $PLAYER2
-
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER2 1 "[0]" --suri $AUTHORITY_SEED
 
   # give allowance for spending tickets to the game contract
@@ -27,40 +25,39 @@ function play {
   cd "$CONTRACTS_PATH"/ticket_token
 
   echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER1
-
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER1_SEED
 
   echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER2
-
   cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED
 
-  # TODO : can't test before mint / burn for game tokens is implemented; uncomment when A0-1236 is done
+  # play the game
 
-  # # play the game
+  cd "$CONTRACTS_PATH"/$contract_name
 
-  # cd "$CONTRACTS_PATH"/$contract_name
+  echo "resetting game" $contract_name "["$contract_address"]"
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
 
-  # echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
+  sleep 1
 
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER1_SEED
+  echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER1_SEED
 
-  # sleep 1
+  sleep 1
 
-  # echo "calling press for" $contract_name "["$contract_address "]" "by" $PLAYER2_SEED
+  echo "calling press for" $contract_name "["$contract_address "]" "by" $PLAYER2_SEED
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER2_SEED
 
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER2_SEED
+  # ---  WAIT FOR THE BUTTON DEATH
 
-  # # ---  WAIT FOR THE BUTTON DEATH
+  sleep $(($LIFETIME + 1))
 
-  # sleep $(($LIFETIME + 1))
+  # --- TRIGGER GAME RESET
 
-  # # --- TRIGGER GAME RESET
+  cd "$CONTRACTS_PATH"/$contract_name
 
-  # cd "$CONTRACTS_PATH"/$contract_name
+  cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
 
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
-
-  # echo "Done playing" $contract_name
+  echo "Done playing" $contract_name
 }
 
 # --- ARGUMENTS
@@ -72,11 +69,13 @@ PLAYER1_SEED=//0
 PLAYER2=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 PLAYER2_SEED=//Alice
 
-GAMES=(early_bird_special back_to_the_future the_pressiah_cometh)
-for GAME in "${GAMES[@]}"; do
-  (
-    play $GAME
-  )&
-done
+RUST_LOG=debug play early_bird_special
+
+#GAMES=(early_bird_special back_to_the_future the_pressiah_cometh)
+#for GAME in "${GAMES[@]}"; do
+#  (
+#    play $GAME
+#  )&
+#done
 
 exit $?
