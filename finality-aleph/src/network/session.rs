@@ -1,7 +1,6 @@
 use aleph_bft::Recipient;
 use futures::channel::{mpsc, oneshot};
 
-use super::SimpleNetwork;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{Data, SendError, SenderComponent, SessionCommand},
@@ -24,7 +23,16 @@ impl<D: Data> SenderComponent<D> for Sender<D> {
 }
 
 /// Sends and receives data within a single session.
-pub type Network<D: Data> = SimpleNetwork<D, mpsc::UnboundedReceiver<D>, Sender<D>>;
+pub struct Network<D: Data> {
+    sender: Sender<D>,
+    receiver: mpsc::UnboundedReceiver<D>,
+}
+
+impl<D: Data> From<Network<D>> for (mpsc::UnboundedReceiver<D>, Sender<D>) {
+    fn from(network: Network<D>) -> Self {
+        (network.receiver, network.sender)
+    }
+}
 
 /// Manages sessions for which the network should be active.
 pub struct Manager<D: Data> {
@@ -87,13 +95,13 @@ impl<D: Data> Manager<D> {
             .await
             .map_err(|_| ManagerError::NetworkReceiveFailed)?;
         let messages_for_network = self.messages_for_service.clone();
-        Ok(SimpleNetwork::new(
-            data_from_network,
-            Sender {
+        Ok(Network {
+            sender: Sender {
                 session_id,
                 messages_for_network,
             },
-        ))
+            receiver: data_from_network,
+        })
     }
 
     /// Start participating or update the information about the given session where you are a
