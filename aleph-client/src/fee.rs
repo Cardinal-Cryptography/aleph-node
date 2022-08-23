@@ -10,6 +10,12 @@ pub struct FeeInfo {
     pub adjusted_weight: Balance,
 }
 
+impl Default for FeeInfo {
+    fn default() -> Self {
+        FeeInfo { fee_without_weight: 0, unadjusted_weight: 0, adjusted_weight: 0 }
+    }
+}
+
 pub fn get_tx_fee_info<C: AnyConnectionExt, Call: Encode>(
     connection: &C,
     tx: &Extrinsic<Call>,

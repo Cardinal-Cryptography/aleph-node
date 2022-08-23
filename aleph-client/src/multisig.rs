@@ -94,7 +94,7 @@ struct Multisig {
 
 /// This represents the ongoing procedure of aggregating approvals among members
 /// of multisignature party.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct SignatureAggregation {
     /// The point in 'time' when the aggregation was initiated on the chain.
     /// Internally it is a pair: number of the block containing initial call and the position
