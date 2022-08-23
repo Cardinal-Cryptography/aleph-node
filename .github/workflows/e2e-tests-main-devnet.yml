@@ -428,7 +428,7 @@ jobs:
 
   push-image:
     needs: [check-e2e-test-suite-completion]
-    name: Push node image to the ECR repository
+    name: Push node image to the ECR
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
