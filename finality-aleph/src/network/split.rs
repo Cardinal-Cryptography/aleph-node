@@ -1,3 +1,5 @@
+// WARNING: if you plan to substitute the `ComponentNetwork` with SimpleNetwork (or something similar),
+// you might find that it will require you to leak all private types declared here.
 use std::{marker::PhantomData, sync::Arc};
 
 use aleph_bft::Recipient;
@@ -92,7 +94,7 @@ struct SplitReceiver<
     translated_receiver: mpsc::UnboundedReceiver<TranslatedData>,
     left_sender: mpsc::UnboundedSender<LeftData>,
     right_sender: mpsc::UnboundedSender<RightData>,
-    name: String,
+    name: &'static str,
 }
 
 #[async_trait::async_trait]
@@ -131,7 +133,7 @@ async fn forward_or_wait<
     receiver: &Arc<Mutex<R>>,
     left_sender: &mpsc::UnboundedSender<LeftData>,
     right_sender: &mpsc::UnboundedSender<RightData>,
-    name: &String,
+    name: &str,
 ) -> bool {
     // It's totally fine if we are unable to send a message on left_sender or right_sender.
     // The other half of the channel can be dropped for any reason,
@@ -247,14 +249,14 @@ fn split_receiver<
             translated_receiver: left_receiver,
             left_sender: left_sender.clone(),
             right_sender: right_sender.clone(),
-            name: left_name.to_string(),
+            name: left_name,
         },
         RightReceiver {
             receiver,
             translated_receiver: right_receiver,
             left_sender,
             right_sender,
-            name: right_name.to_string(),
+            name: right_name,
         },
     )
 }

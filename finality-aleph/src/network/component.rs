@@ -71,6 +71,16 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> DataNetwork<D> for SimpleNetwork<D, 
     }
 }
 
+impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for SimpleNetwork<D, R, S> {
+    type S = S;
+
+    type R = R;
+
+    fn into(self) -> (Self::S, Self::R) {
+        (self.sender, self.receiver)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use futures::channel::mpsc;
