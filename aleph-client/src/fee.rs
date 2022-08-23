@@ -12,7 +12,11 @@ pub struct FeeInfo {
 
 impl Default for FeeInfo {
     fn default() -> Self {
-        FeeInfo { fee_without_weight: 0, unadjusted_weight: 0, adjusted_weight: 0 }
+        FeeInfo {
+            fee_without_weight: 0,
+            unadjusted_weight: 0,
+            adjusted_weight: 0,
+        }
     }
 }
 
