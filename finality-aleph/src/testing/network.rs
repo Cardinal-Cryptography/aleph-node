@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     iter::FromIterator,
-    marker::PhantomData,
     time::Duration,
 };
 
@@ -19,9 +18,8 @@ use crate::{
             MockPeerId,
         },
         testing::{Authentication, DiscoveryMessage, NetworkData, SessionHandler},
-        ComponentNetwork, ConnectionIO, ConnectionManager, ConnectionManagerConfig, Data,
-        DataNetwork, NetworkIdentity, Protocol, ReceiverComponent, SendError, SenderComponent,
-        Service as NetworkService, SessionManager, IO as NetworkIO,
+        ConnectionIO, ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity,
+        Protocol, Service as NetworkService, SessionManager, SimpleNetwork, IO as NetworkIO,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
@@ -58,40 +56,6 @@ impl NetworkIdentity for Authority {
 
     fn identity(&self) -> (Vec<Self::Multiaddress>, Self::PeerId) {
         (self.addresses.clone(), self.peer_id)
-    }
-}
-
-struct TestComponentNetwork<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
-    receiver: R,
-    sender: S,
-    _phantom: PhantomData<D>,
-}
-
-impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> TestComponentNetwork<D, R, S> {
-    fn new(receiver: R, sender: S) -> Self {
-        TestComponentNetwork {
-            receiver,
-            sender,
-            _phantom: PhantomData,
-        }
-    }
-
-    fn from_component_network<CN: ComponentNetwork<D, R = R, S = S>>(network: CN) -> Self {
-        let (sender, receiver) = network.into();
-        Self::new(receiver, sender)
-    }
-}
-
-#[async_trait::async_trait]
-impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> DataNetwork<D>
-    for TestComponentNetwork<D, R, S>
-{
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
-        self.sender.send(data, recipient)
-    }
-
-    async fn next(&mut self) -> Option<D> {
-        self.receiver.next().await
     }
 }
 
@@ -208,7 +172,7 @@ impl TestData {
             )
             .await
             .expect("Failed to start validator session!");
-        TestComponentNetwork::from_component_network(network)
+        SimpleNetwork::from_component_network(network)
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {

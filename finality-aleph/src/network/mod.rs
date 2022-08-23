@@ -24,7 +24,7 @@ pub use component::{
 use manager::SessionCommand;
 pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use service::{Service, IO};
-pub use session::{Manager as SessionManager, ManagerError, Network as SessionNetwork};
+pub use session::{Manager as SessionManager, ManagerError};
 pub use split::{split, Split};
 
 #[cfg(test)]

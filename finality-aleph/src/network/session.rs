@@ -4,7 +4,7 @@ use futures::channel::{mpsc, oneshot};
 use super::SimpleNetwork;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    network::{Data, SendError, SenderComponent, SessionCommand},
+    network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 
@@ -24,7 +24,7 @@ impl<D: Data> SenderComponent<D> for Sender<D> {
 }
 
 /// Sends and receives data within a single session.
-pub type Network<D> = SimpleNetwork<D, mpsc::UnboundedReceiver<D>, Sender<D>>;
+type Network<D> = SimpleNetwork<D, mpsc::UnboundedReceiver<D>, Sender<D>>;
 
 /// Manages sessions for which the network should be active.
 pub struct Manager<D: Data> {
@@ -72,7 +72,7 @@ impl<D: Data> Manager<D> {
         verifier: AuthorityVerifier,
         node_id: NodeIndex,
         pen: AuthorityPen,
-    ) -> Result<Network<D>, ManagerError> {
+    ) -> Result<impl ComponentNetwork<D>, ManagerError> {
         let (result_for_us, result_from_service) = oneshot::channel();
         self.commands_for_service
             .unbounded_send(SessionCommand::StartValidator(
@@ -87,7 +87,7 @@ impl<D: Data> Manager<D> {
             .await
             .map_err(|_| ManagerError::NetworkReceiveFailed)?;
         let messages_for_network = self.messages_for_service.clone();
-        Ok(SimpleNetwork::new(
+        Ok(Network::new(
             data_from_network,
             Sender {
                 session_id,
