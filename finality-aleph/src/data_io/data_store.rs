@@ -26,7 +26,7 @@ use crate::{
         status_provider::get_proposal_status,
         AlephNetworkMessage,
     },
-    network::{DataNetwork, ReceiverComponent, RequestBlocks, SenderComponent, SimpleNetwork},
+    network::{ComponentNetwork, DataNetwork, ReceiverComponent, RequestBlocks, SimpleNetwork},
     BlockHashNum, SessionBoundaries,
 };
 
@@ -204,14 +204,15 @@ where
     R: ReceiverComponent<Message>,
 {
     /// Returns a struct to be run and a network that outputs messages filtered as appropriate
-    pub fn new<S: SenderComponent<Message>>(
+    pub fn new<N: ComponentNetwork<Message, R = R>>(
         session_boundaries: SessionBoundaries<B>,
         client: Arc<C>,
         block_requester: RB,
         config: DataStoreConfig,
-        (messages_from_network, messages_to_network): (R, S),
+        component_network: N,
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
+        let (messages_to_network, messages_from_network) = component_network.into();
         let status = client.info();
         let chain_info_provider = CachedChainInfoProvider::new(client.clone(), Default::default());
 

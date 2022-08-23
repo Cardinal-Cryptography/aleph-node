@@ -3,7 +3,7 @@ use futures::channel::{mpsc, oneshot};
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    network::{Data, SendError, SenderComponent, SessionCommand},
+    network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 
@@ -28,9 +28,12 @@ pub struct Network<D: Data> {
     receiver: mpsc::UnboundedReceiver<D>,
 }
 
-impl<D: Data> From<Network<D>> for (mpsc::UnboundedReceiver<D>, Sender<D>) {
-    fn from(network: Network<D>) -> Self {
-        (network.receiver, network.sender)
+impl<D: Data> ComponentNetwork<D> for Network<D> {
+    type S = Sender<D>;
+    type R = mpsc::UnboundedReceiver<D>;
+
+    fn into(self) -> (Self::S, Self::R) {
+        (self.sender, self.receiver)
     }
 }
 

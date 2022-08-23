@@ -146,7 +146,7 @@ where
 
         let (unfiltered_aleph_network, rmc_network) =
             split(data_network, "aleph_network", "rmc_network");
-        let rmc_network = SimpleNetwork::from(rmc_network);
+        let rmc_network = SimpleNetwork::from_component_network(rmc_network);
         let (data_store, aleph_network) = DataStore::new(
             session_boundaries.clone(),
             self.client.clone(),
