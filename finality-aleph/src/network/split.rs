@@ -147,7 +147,7 @@ async fn forward_or_wait<
         }
         Some(Split::Right(data)) => {
             if right_sender.unbounded_send(data).is_err() {
-                debug!(target: "aleph-network", "Unable to send to LeftNetwork ({}) - already disabled", name);
+                debug!(target: "aleph-network", "Unable to send to RightNetwork ({}) - already disabled", name);
             }
             true
         }

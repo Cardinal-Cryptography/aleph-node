@@ -61,15 +61,15 @@ impl NetworkIdentity for Authority {
     }
 }
 
-struct SimpleTestComponent<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
+struct TestComponentNetwork<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> {
     receiver: R,
     sender: S,
     _phantom: PhantomData<D>,
 }
 
-impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponent<D, R, S> {
+impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> TestComponentNetwork<D, R, S> {
     fn new(receiver: R, sender: S) -> Self {
-        SimpleTestComponent {
+        TestComponentNetwork {
             receiver,
             sender,
             _phantom: PhantomData,
@@ -84,7 +84,7 @@ impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> SimpleTestComponen
 
 #[async_trait::async_trait]
 impl<D: Data, R: ReceiverComponent<D>, S: SenderComponent<D>> DataNetwork<D>
-    for SimpleTestComponent<D, R, S>
+    for TestComponentNetwork<D, R, S>
 {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
         self.sender.send(data, recipient)
@@ -208,7 +208,7 @@ impl TestData {
             )
             .await
             .expect("Failed to start validator session!");
-        SimpleTestComponent::from_component_network(network)
+        TestComponentNetwork::from_component_network(network)
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
