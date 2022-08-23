@@ -3,21 +3,11 @@ use substrate_api_client::Balance;
 
 use crate::{AnyConnectionExt, Extrinsic};
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FeeInfo {
     pub fee_without_weight: Balance,
     pub unadjusted_weight: Balance,
     pub adjusted_weight: Balance,
-}
-
-impl Default for FeeInfo {
-    fn default() -> Self {
-        FeeInfo {
-            fee_without_weight: 0,
-            unadjusted_weight: 0,
-            adjusted_weight: 0,
-        }
-    }
 }
 
 pub fn get_tx_fee_info<C: AnyConnectionExt, Call: Encode>(
