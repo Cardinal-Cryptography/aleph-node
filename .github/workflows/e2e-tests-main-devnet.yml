@@ -64,12 +64,18 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: aleph-release-runtime
 
-      - name: Compute checksum of aleph-runtime
+      - name: Build runtime and compare checksum with artifact
         env:
           ARTIFACT: aleph_runtime.compact.wasm
           TARGET_DIR: target/release/wbuild/aleph-runtime
@@ -77,23 +83,10 @@ jobs:
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          rm -rf "$TARGET_DIR"
-
-      - name: Build runtime
-        uses: ./.github/actions/build_with_docker
-        with:
-          store_result: false
-          crates: '{ "aleph-runtime" = []; }'
-          single_step: true
-
-      - name: Compare checksum with artifact
-        env:
-          ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/release/wbuild/aleph-runtime
-        run: |
-          mkdir -p "$TARGET_DIR"
-          cp "result/lib/$ARTIFACT" "$TARGET_DIR/"
+          cargo clean
+          cargo build --release -p aleph-runtime
           sha256sum -c checksum.sha256
+
 
   build-test-client:
     name: Build e2e test client suite
