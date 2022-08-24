@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 
 use aleph_client::{
-    change_validators, get_current_session, get_current_validators, get_eras_stakers_storage_key,
-    get_stakers_as_storage_keys, get_stakers_as_storage_keys_from_storage_key,
-    staking_chill_all_validators, wait_for_full_era_completion, wait_for_session, AccountId,
-    AnyConnection, RootConnection, SignedConnection, XtStatus,
+    change_validators, get_current_session, get_current_validator_count, get_current_validators,
+    get_eras_stakers_storage_key, get_stakers_as_storage_keys,
+    get_stakers_as_storage_keys_from_storage_key, staking_chill_all_validators,
+    wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, RootConnection,
+    SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{CommitteeSeats, EraIndex};
@@ -72,6 +73,16 @@ fn assert_validators_are_used_as_authorities<C: AnyConnection>(
     );
 }
 
+fn assert_enough_validators<C: AnyConnection>(connection: &C, min_validator_count: u32) {
+    let current_validator_count = get_current_validator_count(connection);
+    assert!(
+        current_validator_count >= min_validator_count,
+        "{} validators present. Staking enforces a minimum of {} validators.",
+        current_validator_count,
+        min_validator_count
+    );
+}
+
 fn assert_enough_validators_left_after_chilling(
     reserved_count: u32,
     non_reserved_count: u32,
@@ -123,6 +134,8 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let min_validator_count = config.test_case_params.min_validator_count();
     let reserved_seats = config.test_case_params.reserved_seats();
     let non_reserved_seats = config.test_case_params.non_reserved_seats();
+
+    assert_enough_validators(&root_connection, min_validator_count);
 
     let accounts = setup_accounts(config.validator_count);
     prepare_validators(&root_connection.as_signed(), node, &accounts);
