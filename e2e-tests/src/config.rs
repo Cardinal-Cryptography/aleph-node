@@ -68,7 +68,7 @@ pub struct TestCaseParams {
     reserved_seats: u32,
 
     /// Number of non-reserved seats for validators.
-    #[clap(long, default_value = "1")]
+    #[clap(long, default_value = "3")]
     non_reserved_seats: u32,
 }
 
