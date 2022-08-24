@@ -2,8 +2,14 @@
 
 set -euo pipefail
 
+# This is required by the `Staking` pallet from Substrate
+MIN_VALIDATOR_COUNT=4
+# This is arbitrary
+MAX_VALIDATOR_COUNT=20
+
 TEST_CASES=""
-MIN_VALIDATOR_COUNT=""
+
+VALIDATOR_COUNT=""
 RESERVED_SEATS=""
 NON_RESERVED_SEATS=""
 
@@ -18,20 +24,8 @@ while [[ $# -gt 0 ]]; do
     export TEST_CASES="$2"
     shift 2
     ;;
-  -s|--sample-random-params)
+  -r|--randomized)
     export RANDOMIZED="$2"
-    shift 2
-    ;;
-  -m|--min-validator-count)
-    export MIN_VALIDATOR_COUNT="$2"
-    shift 2
-    ;;
-  -r|--reserved-seats)
-    export RESERVED_SEATS="$2"
-    shift 2
-    ;;
-  -n|--non-reserved-seats)
-    export NON_RESERVED_SEATS="$2"
     shift 2
     ;;
   *)
@@ -40,6 +34,15 @@ while [[ $# -gt 0 ]]; do
     ;;
   esac
 done
+
+RANDOMIZED={"${RANDOMIZED}":-false}
+
+if [[ "${RANDOMIZED}" ]]; then
+  VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
+  # Assumes there is at least one reserved seat for validators
+  RESERVED_SEATS=$(shuf -i 1-"${VALIDATOR_COUNT}" -n 1)
+  NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
+fi
 
 # source docker/env
 
@@ -52,12 +55,8 @@ function usage {
     $0
       --test-cases
         test cases to run
-      --min-validator-count
-        minimum number of validators for which the chain works as expected
-      --reserved-seats
-        number of reserved seats available to validators
-      --non-reserved-seats
-        number of non-reserved seats available to validators
+      --randomized
+        whether to randomize test case params
   EOF
     exit 0
 }
