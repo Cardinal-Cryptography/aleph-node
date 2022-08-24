@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   -t|--test-cases)
-    export TEST_CASES="$2"
+    TEST_CASES="$2"
     shift 2
     ;;
   -r|--randomized)
@@ -33,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+export TEST_CASES
 export RANDOMIZED
 
 if [[ "${RANDOMIZED}" == "true" ]]; then
