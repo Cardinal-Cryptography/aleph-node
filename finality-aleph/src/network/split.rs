@@ -112,7 +112,7 @@ impl<
                 data = self.translated_receiver.next() => {
                     return data;
                 },
-                should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender, &self.name) => {
+                should_go_on = forward_or_wait(&self.receiver, &self.left_sender, &self.right_sender, self.name) => {
                     if !should_go_on {
                         return None;
                     }
