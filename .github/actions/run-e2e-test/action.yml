@@ -5,8 +5,17 @@ inputs:
   test-case:
     description: 'Name of test to run.'
     required: true
+  min-validator-count:
+    description: 'Minimum number of validators.'
+    required: false
+  reserved-seats:
+    description: 'Number of reserved seats available to validators.'
+    required: false
+  non-reserved-seats:
+    description: 'Number of non-reserved seats available to validators.'
+    required: false
   follow-up-finalization-check:
-    description: 'Whether to run a follow up finalizaton check.'
+    description: 'Whether to run a follow-up finalization check.'
     required: false
 
 runs:
@@ -40,7 +49,8 @@ runs:
 
     - name: Run single e2e test
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }}
+      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -m ${{ inputs.min-validator-count }} \
+        -r ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
