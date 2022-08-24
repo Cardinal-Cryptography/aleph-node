@@ -9,7 +9,8 @@ use log::{debug, trace};
 use tokio::sync::Mutex;
 
 use crate::network::{
-    ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent, SimpleNetwork,
+    ComponentNetwork, ComponentNetworkExt, Data, ReceiverComponent, SendError, SenderComponent,
+    SimpleNetwork,
 };
 
 /// Used for routing data through split networks.
@@ -227,8 +228,8 @@ pub fn split<LeftData: Data, RightData: Data, CN: ComponentNetwork<Split<LeftDat
     left_name: &'static str,
     right_name: &'static str,
 ) -> (
-    impl ComponentNetwork<LeftData>,
-    impl ComponentNetwork<RightData>,
+    impl ComponentNetworkExt<LeftData>,
+    impl ComponentNetworkExt<RightData>,
 ) {
     let (sender, receiver) = network.into();
     let (left_sender, right_sender) = split_sender(sender);

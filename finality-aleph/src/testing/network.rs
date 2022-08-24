@@ -162,8 +162,7 @@ impl TestData {
         node_id: usize,
         session_id: u32,
     ) -> impl DataNetwork<MockData> {
-        let network = self
-            .session_manager
+        self.session_manager
             .start_validator_session(
                 SessionId(session_id),
                 self.authority_verifier.clone(),
@@ -171,8 +170,7 @@ impl TestData {
                 self.authorities[node_id].pen(),
             )
             .await
-            .expect("Failed to start validator session!");
-        SimpleNetwork::from_component_network(network)
+            .expect("Failed to start validator session!")
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {

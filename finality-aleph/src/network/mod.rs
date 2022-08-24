@@ -18,8 +18,8 @@ mod split;
 
 pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
 pub use component::{
-    Network as ComponentNetwork, Receiver as ReceiverComponent, Sender as SenderComponent,
-    SimpleNetwork,
+    Network as ComponentNetwork, NetworkExt as ComponentNetworkExt, Receiver as ReceiverComponent,
+    Sender as SenderComponent, SimpleNetwork,
 };
 use manager::SessionCommand;
 pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};

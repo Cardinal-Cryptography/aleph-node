@@ -24,6 +24,21 @@ pub trait Network<D: Data>: Sync + Send {
     fn into(self) -> (Self::S, Self::R);
 }
 
+pub trait NetworkExt<D: Data>: Network<D> + AsRef<Self::S> + AsMut<Self::R> {}
+
+impl<D: Data, N: Network<D> + AsRef<N::S> + AsMut<N::R>> NetworkExt<D> for N {}
+
+#[async_trait::async_trait]
+impl<D: Data, N: NetworkExt<D>> DataNetwork<D> for N {
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        self.as_ref().send(data, recipient)
+    }
+
+    async fn next(&mut self) -> Option<D> {
+        self.as_mut().next().await
+    }
+}
+
 #[async_trait::async_trait]
 impl<D: Data> Sender<D> for mpsc::UnboundedSender<(D, Recipient)> {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
@@ -53,21 +68,16 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> SimpleNetwork<D, R, S> {
             _phantom: PhantomData,
         }
     }
-
-    pub fn from_component_network<CN: Network<D, R = R, S = S>>(network: CN) -> Self {
-        let (sender, receiver) = network.into();
-        Self::new(receiver, sender)
+}
+impl<D: Data, R: Receiver<D>, S: Sender<D>> AsRef<S> for SimpleNetwork<D, R, S> {
+    fn as_ref(&self) -> &S {
+        &self.sender
     }
 }
 
-#[async_trait::async_trait]
-impl<D: Data, R: Receiver<D>, S: Sender<D>> DataNetwork<D> for SimpleNetwork<D, R, S> {
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
-        self.sender.send(data, recipient)
-    }
-
-    async fn next(&mut self) -> Option<D> {
-        self.receiver.next().await
+impl<D: Data, R: Receiver<D>, S: Sender<D>> AsMut<R> for SimpleNetwork<D, R, S> {
+    fn as_mut(&mut self) -> &mut R {
+        &mut self.receiver
     }
 }
 

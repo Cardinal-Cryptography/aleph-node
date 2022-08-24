@@ -4,7 +4,7 @@ use futures::channel::{mpsc, oneshot};
 use super::SimpleNetwork;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
-    network::{ComponentNetwork, Data, SendError, SenderComponent, SessionCommand},
+    network::{ComponentNetworkExt, Data, SendError, SenderComponent, SessionCommand},
     NodeIndex, SessionId,
 };
 
@@ -72,7 +72,7 @@ impl<D: Data> Manager<D> {
         verifier: AuthorityVerifier,
         node_id: NodeIndex,
         pen: AuthorityPen,
-    ) -> Result<impl ComponentNetwork<D>, ManagerError> {
+    ) -> Result<impl ComponentNetworkExt<D>, ManagerError> {
         let (result_for_us, result_from_service) = oneshot::channel();
         self.commands_for_service
             .unbounded_send(SessionCommand::StartValidator(
