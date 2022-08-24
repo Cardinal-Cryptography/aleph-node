@@ -22,6 +22,8 @@ use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
+use pallets_support::StorageMigration;
+pub use primitives::EraValidators;
 use scale_info::TypeInfo;
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -32,21 +34,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 pub type BlockCount = u32;
 pub type TotalReward = u32;
-
-#[derive(Decode, Encode, TypeInfo)]
-pub struct EraValidators<AccountId> {
-    pub reserved: Vec<AccountId>,
-    pub non_reserved: Vec<AccountId>,
-}
-
-impl<AccountId> Default for EraValidators<AccountId> {
-    fn default() -> Self {
-        Self {
-            reserved: vec![],
-            non_reserved: vec![],
-        }
-    }
-}
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
@@ -107,16 +94,16 @@ pub mod pallet {
                 + match on_chain {
                     _ if on_chain == STORAGE_VERSION => 0,
                     _ if on_chain == StorageVersion::new(0) => {
-                        migrations::v0_to_v1::migrate::<T, Self>()
-                            + migrations::v1_to_v2::migrate::<T, Self>()
-                            + migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v0_to_v1::Migration::<T, Self>::migrate()
+                            + migrations::v1_to_v2::Migration::<T, Self>::migrate()
+                            + migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ if on_chain == StorageVersion::new(1) => {
-                        migrations::v1_to_v2::migrate::<T, Self>()
-                            + migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v1_to_v2::Migration::<T, Self>::migrate()
+                            + migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ if on_chain == StorageVersion::new(2) => {
-                        migrations::v2_to_v3::migrate::<T, Self>()
+                        migrations::v2_to_v3::Migration::<T, Self>::migrate()
                     }
                     _ => {
                         log::warn!(
@@ -127,31 +114,6 @@ pub mod pallet {
                         0
                     }
                 }
-        }
-        #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<(), &'static str> {
-            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            match on_chain {
-                _ if on_chain == STORAGE_VERSION => Ok(()),
-                _ if on_chain == StorageVersion::new(0) => {
-                    migrations::v0_to_v1::pre_upgrade::<T, Self>()
-                }
-                _ if on_chain == StorageVersion::new(1) => {
-                    migrations::v1_to_v2::pre_upgrade::<T, Self>()
-                }
-                _ if on_chain == StorageVersion::new(2) => {
-                    migrations::v2_to_v3::pre_upgrade::<T, Self>()
-                }
-                _ => Err("Bad storage version"),
-            }
-        }
-        #[cfg(feature = "try-runtime")]
-        fn post_upgrade() -> Result<(), &'static str> {
-            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            match on_chain {
-                _ if on_chain == STORAGE_VERSION => migrations::v2_to_v3::post_upgrade::<T, Self>(),
-                _ => Err("Bad storage version"),
-            }
         }
     }
     /// Desirable size of a committee.

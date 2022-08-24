@@ -1,17 +1,30 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
-    get_block_hash, get_current_session, get_era_reward_points, get_exposure, get_session_period,
-    rotate_keys, set_keys, wait_for_at_least_session, wait_for_finalized_block, AnyConnection,
-    RewardPoint, SessionKeys, SignedConnection,
+    account_from_keypair, balances_batch_transfer, balances_transfer, bond_extra_stake,
+    change_validators, get_block_hash, get_committee_seats, get_current_session, get_era,
+    get_era_reward_points, get_era_validators, get_exposure, get_session_first_block,
+    get_session_period, get_validator_block_count, rotate_keys, set_keys, wait_for_at_least_era,
+    wait_for_at_least_session, wait_for_finalized_block, wait_for_next_era, AccountId,
+    AnyConnection, RewardPoint, SessionKeys, SignedConnection, XtStatus,
 };
-use log::info;
+use log::{debug, info};
 use pallet_elections::LENIENT_THRESHOLD;
 use pallet_staking::Exposure;
-use primitives::{CommitteeSeats, EraIndex, SessionIndex};
-use sp_core::H256;
+use primitives::{
+    Balance, BlockHash, CommitteeSeats, EraIndex, EraValidators, SessionIndex, TOKEN,
+};
 use sp_runtime::Perquintill;
-use substrate_api_client::{AccountId, XtStatus};
+
+use crate::{
+    accounts::{get_validators_keys, get_validators_seeds, NodeKeys},
+    Config,
+};
+
+const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
+    reserved_seats: 2,
+    non_reserved_seats: 2,
+};
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
@@ -48,9 +61,9 @@ pub fn download_exposure(
     connection: &SignedConnection,
     era: EraIndex,
     account_id: &AccountId,
-    beginning_of_session_block_hash: H256,
-) -> u128 {
-    let exposure: Exposure<AccountId, u128> = get_exposure(
+    beginning_of_session_block_hash: BlockHash,
+) -> Balance {
+    let exposure: Exposure<AccountId, Balance> = get_exposure(
         connection,
         era,
         account_id,
@@ -94,6 +107,10 @@ fn check_rewards(
         let reward_ratio = reward / our_sum;
         let retrieved_ratio = retrieved_reward as f64 / retrieved_sum as f64;
 
+        debug!(
+            "{} reward_ratio: {}/{}; retrieved_ratio: {}/{}",
+            account, reward, our_sum, retrieved_reward, retrieved_sum
+        );
         info!(
             "{} reward_ratio: {}; retrieved_ratio: {}.",
             account, reward_ratio, retrieved_ratio
@@ -106,20 +123,16 @@ fn check_rewards(
 
 fn get_node_performance(
     connection: &SignedConnection,
-    account_id: AccountId,
-    before_end_of_session_block_hash: H256,
+    account_id: &AccountId,
+    before_end_of_session_block_hash: BlockHash,
     blocks_to_produce_per_session: u32,
 ) -> f64 {
-    let block_count: u32 = connection
-        .as_connection()
-        .get_storage_map(
-            "Elections",
-            "SessionValidatorBlockCount",
-            account_id.clone(),
-            Some(before_end_of_session_block_hash),
-        )
-        .expect("Failed to decode SessionValidatorBlockCount extrinsic!")
-        .unwrap_or(0);
+    let block_count = get_validator_block_count(
+        connection,
+        account_id,
+        Some(before_end_of_session_block_hash),
+    )
+    .unwrap_or(0);
     info!(
         "Block count for validator {} is {:?}, block hash is {}.",
         account_id, block_count, before_end_of_session_block_hash
@@ -143,8 +156,9 @@ pub fn check_points(
     connection: &SignedConnection,
     session: SessionIndex,
     era: EraIndex,
-    members: impl IntoIterator<Item = AccountId> + Clone,
-    members_bench: impl IntoIterator<Item = AccountId> + Clone,
+    members: impl IntoIterator<Item = AccountId>,
+    members_bench: impl IntoIterator<Item = AccountId>,
+    members_per_session: u32,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let session_period = get_session_period(connection);
@@ -160,18 +174,6 @@ pub fn check_points(
     let end_of_session_block_hash = get_block_hash(connection, end_of_session_block);
     let before_end_of_session_block_hash = get_block_hash(connection, end_of_session_block - 1);
     info!("End-of-session block hash: {}.", end_of_session_block_hash);
-
-    let committee_seats: CommitteeSeats = connection
-        .as_connection()
-        .get_storage_value(
-            "Elections",
-            "CommitteeSize",
-            Some(beggining_of_session_block_hash),
-        )
-        .expect("Failed to decode CommitteeSize extrinsic!")
-        .unwrap_or_else(|| panic!("Failed to obtain CommitteeSize for session {}.", session));
-
-    let members_per_session = committee_seats.non_reserved_seats + committee_seats.reserved_seats;
 
     info!("Members per session: {}.", members_per_session);
 
@@ -214,7 +216,7 @@ pub fn check_points(
             account_id.clone(),
             get_node_performance(
                 connection,
-                account_id,
+                &account_id,
                 before_end_of_session_block_hash,
                 blocks_to_produce_per_session,
             ),
@@ -238,4 +240,109 @@ pub fn check_points(
         validator_reward_points_current_session,
         max_relative_difference,
     )
+}
+
+pub fn get_era_for_session<C: AnyConnection>(connection: &C, session: SessionIndex) -> EraIndex {
+    let session_first_block = get_session_first_block(connection, session);
+    get_era(connection, Some(session_first_block))
+}
+
+pub fn setup_validators(
+    config: &Config,
+) -> anyhow::Result<(EraValidators<AccountId>, CommitteeSeats, SessionIndex)> {
+    let root_connection = config.create_root_connection();
+    // we need to wait for at least era 1 since some of the storage items are not available at era 0
+    wait_for_at_least_era(&root_connection, 1)?;
+
+    let seats = COMMITTEE_SEATS;
+    let members_seats = seats.reserved_seats + seats.non_reserved_seats;
+    let members_seats = members_seats.try_into().unwrap();
+    let members: Vec<_> = get_validators_keys(config)
+        .iter()
+        .map(account_from_keypair)
+        .collect();
+    let members_size = members.len();
+
+    assert!(members_size >= members_seats);
+
+    let free_seats = members_size - members_seats;
+    let reserved_free_seats = free_seats / 2;
+
+    let reserved_size = seats.reserved_seats as usize + reserved_free_seats;
+    let reserved_members = &members[0..reserved_size];
+    let non_reserved_members = &members[reserved_size..];
+
+    let session = get_current_session(&root_connection);
+    let network_validators = get_era_validators(&root_connection, session);
+    let first_block_in_session = get_session_first_block(&root_connection, session);
+    let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
+
+    let era_validators = EraValidators {
+        reserved: reserved_members.to_vec(),
+        non_reserved: non_reserved_members.to_vec(),
+    };
+
+    if era_validators == network_validators && seats == network_seats {
+        // nothing to do here
+        return Ok((era_validators, seats, session));
+    }
+
+    change_validators(
+        &root_connection,
+        Some(reserved_members.into()),
+        Some(non_reserved_members.into()),
+        Some(seats),
+        XtStatus::Finalized,
+    );
+
+    wait_for_next_era(&root_connection)?;
+    let session = get_current_session(&root_connection);
+
+    let network_validators = get_era_validators(&root_connection, session);
+    let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
+    let network_reserved: HashSet<_> = network_validators.reserved.into_iter().collect();
+    let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();
+    let network_non_reserved: HashSet<_> = network_validators.non_reserved.into_iter().collect();
+    let first_block_in_session = get_session_first_block(&root_connection, session);
+    let network_seats = get_committee_seats(&root_connection, Some(first_block_in_session));
+
+    assert_eq!(reserved, network_reserved);
+    assert_eq!(non_reserved, network_non_reserved);
+    assert_eq!(seats, network_seats);
+
+    Ok((era_validators, seats, session))
+}
+
+pub fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[Balance]) {
+    let node = &config.node;
+    let root_connection = config.create_root_connection();
+
+    let accounts_keys: Vec<NodeKeys> = get_validators_seeds(config)
+        .into_iter()
+        .map(|seed| seed.into())
+        .collect();
+
+    let controller_accounts: Vec<AccountId> = accounts_keys
+        .iter()
+        .map(|account_keys| account_from_keypair(&account_keys.controller))
+        .collect();
+
+    // funds to cover fees
+    balances_batch_transfer(&root_connection.as_signed(), controller_accounts, TOKEN);
+
+    accounts_keys.iter().zip(additional_stakes.iter()).for_each(
+        |(account_keys, additional_stake)| {
+            let validator_id = account_from_keypair(&account_keys.validator);
+
+            // Additional TOKEN to cover fees
+            balances_transfer(
+                &root_connection.as_signed(),
+                &validator_id,
+                *additional_stake + TOKEN,
+                XtStatus::Finalized,
+            );
+            let stash_connection = SignedConnection::new(node, account_keys.validator.clone());
+            bond_extra_stake(&stash_connection, *additional_stake);
+        },
+    );
 }

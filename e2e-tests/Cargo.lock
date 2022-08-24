@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "1.4.2"
+version = "1.5.0"
 dependencies = [
  "ac-primitives",
  "anyhow",
@@ -127,6 +127,7 @@ dependencies = [
  "log",
  "pallet-aleph",
  "pallet-balances",
+ "pallet-elections",
  "pallet-multisig",
  "pallet-staking",
  "pallet-treasury",
@@ -1780,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
@@ -1789,10 +1790,12 @@ dependencies = [
  "pallet-balances",
  "pallet-session",
  "pallet-staking",
+ "pallets-support",
  "parity-scale-codec",
  "primitives",
  "scale-info",
  "sp-core",
+ "sp-io",
  "sp-staking",
  "sp-std",
 ]
@@ -1914,6 +1917,13 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallets-support"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
 ]
 
 [[package]]

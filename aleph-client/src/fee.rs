@@ -1,16 +1,16 @@
 use codec::Encode;
 use substrate_api_client::Balance;
 
-use crate::{AnyConnection, Extrinsic};
+use crate::{AnyConnectionExt, Extrinsic};
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FeeInfo {
     pub fee_without_weight: Balance,
     pub unadjusted_weight: Balance,
     pub adjusted_weight: Balance,
 }
 
-pub fn get_tx_fee_info<C: AnyConnection, Call: Encode>(
+pub fn get_tx_fee_info<C: AnyConnectionExt, Call: Encode>(
     connection: &C,
     tx: &Extrinsic<Call>,
 ) -> FeeInfo {
@@ -35,6 +35,6 @@ pub fn get_tx_fee_info<C: AnyConnection, Call: Encode>(
     }
 }
 
-pub fn get_next_fee_multiplier<C: AnyConnection>(connection: &C) -> u128 {
+pub fn get_next_fee_multiplier<C: AnyConnectionExt>(connection: &C) -> u128 {
     connection.read_storage_value("TransactionPayment", "NextFeeMultiplier")
 }

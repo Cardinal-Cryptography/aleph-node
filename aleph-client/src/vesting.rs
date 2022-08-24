@@ -12,16 +12,16 @@ use crate::{
     account_from_keypair, try_send_xt, AccountId, AnyConnection, BlockNumber, SignedConnection,
 };
 
+const PALLET: &str = "Vesting";
+
 /// Gathers errors from this module.
-#[derive(Debug, Error)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Error)]
 pub enum VestingError {
     #[error("🦺❌ The connection should be signed.")]
     UnsignedConnection,
 }
 
 pub type VestingSchedule = VestingInfo<Balance, BlockNumber>;
-
-const PALLET: &str = "Vesting";
 
 /// Calls `pallet_vesting::vest` for the signer of `connection`, i.e. makes all unlocked balances
 /// transferable.

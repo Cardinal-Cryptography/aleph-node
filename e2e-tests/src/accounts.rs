@@ -1,4 +1,5 @@
-use aleph_client::{keypair_from_string, KeyPair};
+use aleph_client::{keypair_from_string, AccountId, KeyPair};
+use sp_core::Pair;
 
 use crate::config::Config;
 
@@ -48,4 +49,10 @@ impl From<String> for NodeKeys {
 
 fn get_validators_controller_seed(seed: &str) -> String {
     format!("{}//Controller", seed)
+}
+
+pub fn account_ids_from_keys(keys: &[KeyPair]) -> Vec<AccountId> {
+    keys.iter()
+        .map(|pair| AccountId::from(pair.public()))
+        .collect()
 }

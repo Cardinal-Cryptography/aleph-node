@@ -5,7 +5,7 @@ use frame_support::{
     construct_runtime, parameter_types, sp_io,
     traits::{ConstU32, GenesisBuild},
     weights::RuntimeDbWeight,
-    BoundedVec,
+    BasicExternalities, BoundedVec,
 };
 use primitives::CommitteeSeats;
 use sp_core::H256;
@@ -116,7 +116,7 @@ impl ValidatorRewardsHandler<Test> for MockProvider {
     fn validator_totals(
         _era: EraIndex,
     ) -> Vec<(<Test as frame_system::Config>::AccountId, Balance)> {
-        todo!()
+        Default::default()
     }
 
     fn add_rewards(
@@ -143,7 +143,7 @@ impl EraInfoProvider for MockProvider {
     type AccountId = AccountId;
 
     fn active_era() -> Option<EraIndex> {
-        Some(ACTIVE_ERA.with(|ae| ae.borrow().clone()))
+        Some(ACTIVE_ERA.with(|ae| *ae.borrow()))
     }
 
     fn era_start_session_index(era: EraIndex) -> Option<SessionIndex> {
@@ -193,11 +193,11 @@ impl ElectionDataProvider for StakingMock {
     type MaxVotesPerVoter = MaxVotesPerVoter;
 
     fn electable_targets(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<AccountId>> {
-        ELECTABLE_TARGETS.with(|et| Ok(et.borrow().clone())).into()
+        ELECTABLE_TARGETS.with(|et| Ok(et.borrow().clone()))
     }
 
     fn electing_voters(_maybe_max_len: Option<usize>) -> data_provider::Result<Vec<Vote>> {
-        ELECTING_VOTERS.with(|ev| Ok(ev.borrow().clone())).into()
+        ELECTING_VOTERS.with(|ev| Ok(ev.borrow().clone()))
     }
 
     fn desired_targets() -> data_provider::Result<u32> {
@@ -213,6 +213,7 @@ pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
     committee_seats: CommitteeSeats,
+    storage_version: StorageVersion,
 }
 
 impl TestExtBuilder {
@@ -227,11 +228,18 @@ impl TestExtBuilder {
             },
             reserved_validators,
             non_reserved_validators,
+            storage_version: STORAGE_VERSION,
         }
     }
 
     pub fn with_committee_seats(mut self, committee_seats: CommitteeSeats) -> Self {
         self.committee_seats = committee_seats;
+        self
+    }
+
+    #[cfg(feature = "try-runtime")]
+    pub fn with_storage_version(mut self, version: u16) -> Self {
+        self.storage_version = StorageVersion::new(version);
         self
     }
 
@@ -246,8 +254,9 @@ impl TestExtBuilder {
             .chain(self.reserved_validators.iter())
             .collect();
 
-        let balances: Vec<_> = (0..validators.len())
-            .map(|i| (i as u64, 10_000_000))
+        let balances: Vec<_> = validators
+            .iter()
+            .map(|i| (**i as u64, 10_000_000))
             .collect();
 
         pallet_balances::GenesisConfig::<Test> { balances }
@@ -261,6 +270,10 @@ impl TestExtBuilder {
         }
         .assimilate_storage(&mut t)
         .unwrap();
+
+        BasicExternalities::execute_with_storage(&mut t, || {
+            self.storage_version.put::<Pallet<Test>>()
+        });
 
         t.into()
     }

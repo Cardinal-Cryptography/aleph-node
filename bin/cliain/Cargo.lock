@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "1.4.2"
+version = "1.5.0"
 dependencies = [
  "ac-primitives",
  "anyhow",
@@ -102,6 +102,7 @@ dependencies = [
  "log",
  "pallet-aleph",
  "pallet-balances",
+ "pallet-elections",
  "pallet-multisig",
  "pallet-staking",
  "pallet-treasury",
@@ -418,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "cliain"
-version = "0.4.0"
+version = "0.5.1"
 dependencies = [
  "aleph_client",
  "anyhow",
@@ -2044,6 +2045,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-elections"
+version = "0.4.0"
+dependencies = [
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-session",
+ "pallet-staking",
+ "pallets-support",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
+ "sp-io 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
+ "sp-staking",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
+]
+
+[[package]]
 name = "pallet-multisig"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26#98c2eeea74413044ae8ccfca1b6d56d01b57a76b"
@@ -2160,6 +2182,13 @@ dependencies = [
  "scale-info",
  "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
+]
+
+[[package]]
+name = "pallets-support"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
 ]
 
 [[package]]
