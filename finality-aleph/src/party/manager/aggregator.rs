@@ -38,7 +38,6 @@ async fn process_new_block_data<B, N>(
         Rmc<'_, B>,
     >,
     block: BlockHashNum<B>,
-    session_boundaries: &SessionBoundaries<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
 ) where
     B: Block,
@@ -51,9 +50,6 @@ async fn process_new_block_data<B, N>(
     }
 
     aggregator.start_aggregation(block.hash).await;
-    if block.num == session_boundaries.last_block() {
-        aggregator.notify_last_hash();
-    }
 }
 
 fn process_hash<B, C>(
@@ -101,15 +97,21 @@ where
         mut blocks_from_interpreter,
         justifications_for_chain,
     } = io;
+    let mut exit = false;
     loop {
+        if exit {
+            return Ok(());
+        }
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
             maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
+                    if block.num == session_boundaries.last_block() {
+                        exit = true;
+                    }
                     process_new_block_data(
                         &mut aggregator,
                         block,
-                        session_boundaries,
                         &metrics
                     ).await;
                 } else {
