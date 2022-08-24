@@ -63,11 +63,11 @@ pub struct TestCaseParams {
     #[clap(long, default_value = "4")]
     min_validator_count: u32,
 
-    /// Number of reserved seats for validators.
+    /// Desired number of reserved seats for validators, may be set within the test.
     #[clap(long, default_value = "3")]
     reserved_seats: u32,
 
-    /// Number of non-reserved seats for validators.
+    /// Desired number of non-reserved seats for validators, may be set within the test.
     #[clap(long, default_value = "3")]
     non_reserved_seats: u32,
 }
