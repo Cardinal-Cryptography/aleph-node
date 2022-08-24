@@ -10,12 +10,16 @@ NON_RESERVED_SEATS=""
 while [[ $# -gt 0 ]]; do
   case $1 in
   -h|--help)
-    usage()
+    usage
     exit 0
     shift 2
     ;;
   -t|--test-cases)
     export TEST_CASES="$2"
+    shift 2
+    ;;
+  -s|--sample-random-params)
+    export RANDOMIZED="$2"
     shift 2
     ;;
   -m|--min-validator-count)
@@ -42,7 +46,7 @@ done
 docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES -e MIN_VALIDATOR_COUNT \
   -e RESERVED_SEATS -e NON_RESERVED_SEATS -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
 
-function usage() {
+function usage {
     cat << EOF
   Usage:
     $0
