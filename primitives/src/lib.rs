@@ -58,6 +58,10 @@ pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
+// Required by Substrate's `Staking` pallet.
+// A lower number would result in the chain entering an emergency state.
+pub const MIN_VALIDATOR_COUNT: u32 = 4;
+
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeSeats {

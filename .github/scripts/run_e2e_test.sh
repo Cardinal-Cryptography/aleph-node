@@ -4,11 +4,6 @@ set -euo pipefail
 
 TEST_CASES=""
 RANDOMIZED="false"
-
-# This is required by the `Staking` pallet from Substrate.
-MIN_VALIDATOR_COUNT=4
-MAX_VALIDATOR_COUNT=""
-VALIDATOR_COUNT=""
 RESERVED_SEATS=""
 NON_RESERVED_SEATS=""
 
@@ -27,6 +22,14 @@ while [[ $# -gt 0 ]]; do
     RANDOMIZED="$2"
     shift 2
     ;;
+  -f|--reserved-seats)
+    RESERVED_SEATS="$2"
+    shift 2
+    ;;
+  -n|--non-reserved-seats)
+    NON_RESERVED_SEATS="$2"
+    shift 2
+    ;;
   *)
     echo "Unrecognized argument $1!"
     exit 1
@@ -34,15 +37,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# If randomization requested, generate random test params. Otherwise: a) in case of non-empty params, pass them,
+# b) in case of empty params, do not pass them.
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
+  echo "Using randomized test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
+  run_docker_with_test_case_params
+elif [[ "${RANDOMIZED}" == "false" ]]; then
+  if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
+    echo "Using provided test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
+    run_docker_with_test_case_params
+  else
+    echo "Falling back on default test case param values."
+    run_docker_without_test_case_params
+  fi
+else
+  echo "Only 'true' and 'false' values supported, ${RANDOMIZED} provided!"
+  exit 1
 fi
-
-# source docker/env
-
-docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-  -e MIN_VALIDATOR_COUNT="${MIN_VALIDATOR_COUNT}" -e RESERVED_SEATS="${RESERVED_SEATS}" \
-  -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
 
 function set_randomized_test_params() {
   # This is arbitrary.
@@ -53,6 +65,17 @@ function set_randomized_test_params() {
   NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
 }
 
+function run_docker_with_test_case_params() {
+  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
+    -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
+    -e RUST_LOG=info aleph-e2e-client:latest
+}
+
+function run_docker_without_test_case_params() {
+  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
+    -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
+}
+
 function usage {
     cat << EOF
   Usage:
@@ -60,7 +83,12 @@ function usage {
       --test-cases
         test cases to run
       --randomized
-        whether to randomize test case params
+        whether to randomize test case params, "true" and "false" values supported
+        if randomization is performed, the `--reserved-seats` and `non-reserved-seats` params are ignored
+      --reserved-seats
+        number of reserved seats available to validators
+      --non-reserved-seats
+        number of non-reserved seats available to validators
   EOF
     exit 0
 }

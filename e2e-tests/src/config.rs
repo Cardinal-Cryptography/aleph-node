@@ -18,15 +18,16 @@ pub struct Config {
     #[clap(long, default_value = "5")]
     pub validator_count: u32,
 
-    /// seed values to create accounts
+    /// Seed values to create accounts
     /// Optional: by default we use //0, //1, ... seeds for validators
     #[clap(long)]
     pub validators_seeds: Option<Vec<String>>,
 
-    /// seed value of sudo account
+    /// Seed value of sudo account
     #[clap(long, default_value = "//Alice")]
     pub sudo_seed: String,
 
+    /// Test case parameters, used for test setup.
     #[clap(flatten)]
     pub test_case_params: TestCaseParams,
 }
@@ -59,29 +60,21 @@ impl Config {
 /// Parameters which can be passed to test cases.
 #[derive(Args, Clone, Debug)]
 pub struct TestCaseParams {
-    /// Minimum number of stakers such that the chain does not enter an emergency state.
-    #[clap(long, default_value = "4")]
-    min_validator_count: u32,
-
     /// Desired number of reserved seats for validators, may be set within the test.
-    #[clap(long, default_value = "3")]
-    reserved_seats: u32,
+    #[clap(long)]
+    reserved_seats: Option<u32>,
 
     /// Desired number of non-reserved seats for validators, may be set within the test.
-    #[clap(long, default_value = "3")]
-    non_reserved_seats: u32,
+    #[clap(long)]
+    non_reserved_seats: Option<u32>,
 }
 
 impl TestCaseParams {
-    pub fn min_validator_count(&self) -> u32 {
-        self.min_validator_count
-    }
-
-    pub fn reserved_seats(&self) -> u32 {
+    pub fn reserved_seats(&self) -> Option<u32> {
         self.reserved_seats
     }
 
-    pub fn non_reserved_seats(&self) -> u32 {
+    pub fn non_reserved_seats(&self) -> Option<u32> {
         self.non_reserved_seats
     }
 }

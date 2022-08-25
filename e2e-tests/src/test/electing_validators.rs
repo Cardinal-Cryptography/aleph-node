@@ -8,7 +8,7 @@ use aleph_client::{
     SignedConnection, XtStatus,
 };
 use log::info;
-use primitives::{CommitteeSeats, EraIndex};
+use primitives::{CommitteeSeats, EraIndex, MIN_VALIDATOR_COUNT};
 use sp_core::storage::StorageKey;
 
 use crate::{
@@ -131,11 +131,23 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let sudo = get_sudo_key(config);
     let root_connection = RootConnection::new(node, sudo);
 
-    let min_validator_count = config.test_case_params.min_validator_count();
-    let reserved_seats = config.test_case_params.reserved_seats();
-    let non_reserved_seats = config.test_case_params.non_reserved_seats();
+    const RESERVED_SEATS_DEFAULT: u32 = 3;
+    const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
-    assert_enough_validators(&root_connection, min_validator_count);
+    let reserved_seats = match config.test_case_params.reserved_seats() {
+        Some(seats) => seats,
+        None => RESERVED_SEATS_DEFAULT,
+    };
+    let non_reserved_seats = match config.test_case_params.non_reserved_seats() {
+        Some(seats) => seats,
+        None => NON_RESERVED_SEATS_DEFAULT,
+    };
+
+    // Assumes we chill one validator from the reserved and one from the non-reserved pool.
+    const RESERVED_TO_CHILL_COUNT: u32 = 1;
+    const NON_RESERVED_TO_CHILL_COUNT: u32 = 1;
+
+    assert_enough_validators(&root_connection, MIN_VALIDATOR_COUNT);
 
     let accounts = setup_accounts(config.validator_count);
     prepare_validators(&root_connection.as_signed(), node, &accounts);
@@ -152,9 +164,9 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     assert_enough_validators_left_after_chilling(
         reserved_count,
         non_reserved_count,
-        1,
-        1,
-        min_validator_count,
+        RESERVED_TO_CHILL_COUNT,
+        NON_RESERVED_TO_CHILL_COUNT,
+        MIN_VALIDATOR_COUNT,
     );
 
     change_validators(
