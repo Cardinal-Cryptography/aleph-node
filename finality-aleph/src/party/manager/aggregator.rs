@@ -57,7 +57,8 @@ fn process_hash<B, C>(
     multisignature: SignatureSet<Signature>,
     justifications_for_chain: &mpsc::UnboundedSender<JustificationNotification<B>>,
     client: &Arc<C>,
-) where
+) -> Result<(), ()>
+where
     B: Block,
     C: HeaderBackend<B> + Send + Sync + 'static,
 {
@@ -70,7 +71,9 @@ fn process_hash<B, C>(
     };
     if let Err(e) = justifications_for_chain.unbounded_send(notification) {
         error!(target: "aleph-party", "Issue with sending justification from Aggregator to JustificationHandler {:?}.", e);
+        return Err(());
     }
+    Ok(())
 }
 
 async fn run_aggregator<B, C, N>(
@@ -97,34 +100,28 @@ where
         mut blocks_from_interpreter,
         justifications_for_chain,
     } = io;
-    let mut exit = false;
     loop {
-        if exit {
-            return Ok(());
-        }
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
             maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
-                    if block.num == session_boundaries.last_block() {
-                        exit = true;
-                    }
-                    process_new_block_data(
+                    let last_block = block.num == session_boundaries.last_block();
+                    process_new_block_data::<B, N>(
                         &mut aggregator,
                         block,
                         &metrics
                     ).await;
+                    if last_block {
+                        return Ok(());
+                    }
                 } else {
                     debug!(target: "aleph-party", "Blocks ended in aggregator. Terminating.");
                     return Err(())
                 }
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
-                if let Ok(Some((hash, multisignature))) = multisigned_hash {
-                    process_hash(hash, multisignature, &justifications_for_chain, &client);
-                } else if let Ok(None) = multisigned_hash {
-                    debug!(target: "aleph-party", "The stream of multisigned hashes has ended, reason: last hash placed. Terminating.");
-                    return Ok(());
+                if let Some((hash, multisignature)) = multisigned_hash {
+                    process_hash(hash, multisignature, &justifications_for_chain, &client)?;
                 } else {
                     debug!(target: "aleph-party", "The stream of multisigned hashes has ended. Emergency Termination.");
                     return Err(());
@@ -137,9 +134,6 @@ where
         }
     }
     debug!(target: "aleph-party", "Aggregator awaiting an exit signal.");
-    // this allows aggregator to exit after member,
-    // otherwise it can exit too early and member complains about a channel to aggregator being closed
-    let _ = exit_rx.await;
     Ok(())
 }
 
