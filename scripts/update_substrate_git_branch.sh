@@ -29,4 +29,6 @@ for path in ${paths[@]}; do
     mv x "${path}"
 done
 
+cargo update
+
 exit 0
