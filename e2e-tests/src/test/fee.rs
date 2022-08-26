@@ -4,9 +4,8 @@ use aleph_client::{
     XtStatus,
 };
 use codec::Encode;
-use sp_core::Pair;
 use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
-use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams, GenericAddress};
+use substrate_api_client::{compose_call, compose_extrinsic, GenericAddress};
 
 use crate::{config::Config, transfer::setup_for_transfer};
 
