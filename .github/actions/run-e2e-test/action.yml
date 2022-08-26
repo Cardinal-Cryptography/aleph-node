@@ -9,6 +9,14 @@ inputs:
     description: 'Whether to use randomized test params.'
     required: false
     default: 'false'
+  reserved-seats:
+    description: 'Number of reserved seats available to validators.'
+    required: false
+    default: ''
+  non-reserved-seats:
+    description: 'Number of non-reserved seats available to validators.'
+    required: false
+    default: ''
   follow-up-finalization-check:
     description: 'Whether to run a follow-up finalization check.'
     required: false
@@ -44,7 +52,8 @@ runs:
 
     - name: Run single e2e test
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -r ${{ inputs.randomized }}
+      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -r ${{ inputs.randomized }} \
+        -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'

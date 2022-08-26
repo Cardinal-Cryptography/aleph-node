@@ -11,17 +11,6 @@ function set_randomized_test_params {
   NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
 }
 
-function run_docker_with_test_case_params {
-  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-    -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
-    -e RUST_LOG=info aleph-e2e-client:latest
-}
-
-function run_docker_without_test_case_params {
-  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-    -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
-}
-
 function usage {
     cat << EOF
 Usage:
@@ -79,18 +68,19 @@ done
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
   echo "Using randomized test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
-  run_docker_with_test_case_params
 elif [[ "${RANDOMIZED}" == "false" ]]; then
   if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
     echo "Using provided test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
-    run_docker_with_test_case_params
   else
     echo "Falling back on default test case param values."
-    run_docker_without_test_case_params
   fi
 else
   echo "Only 'true' and 'false' values supported, ${RANDOMIZED} provided!"
   exit 1
 fi
+
+docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
+  -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
+  -e RUST_LOG=info aleph-e2e-client:latest
 
 exit $?
