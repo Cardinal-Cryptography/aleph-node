@@ -4,24 +4,22 @@ use async_trait::async_trait;
 use codec::{Decode, Encode};
 use futures::stream::{Stream, StreamExt};
 use log::error;
+use sc_consensus::JustificationSyncLink;
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
-    NetworkService, NetworkStateInfo, PeerId as SubstratePeerId,
+    NetworkService, NetworkStateInfo, NetworkSyncForkRequest, PeerId as SubstratePeerId,
 };
-use sc_network::NetworkSyncForkRequest;
-use sc_network_common::service::NotificationSender;
-use sc_network_common::service::NetworkEventStream as _;
-use sc_network_common::service::NetworkNotification;
-use sc_network_common::service::NetworkPeers;
+use sc_network_common::service::{
+    NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender,
+};
 use sp_api::NumberFor;
+use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
 
 use crate::network::{
     Event, EventStream, Multiaddress as MultiaddressT, Network, NetworkIdentity, NetworkSender,
     PeerId as PeerIdT, Protocol, RequestBlocks,
 };
-use sc_consensus::JustificationSyncLink;
-use sp_consensus::SyncOracle;
 
 impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
