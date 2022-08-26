@@ -56,7 +56,7 @@ else
   exit 1
 fi
 
-function set_randomized_test_params() {
+function set_randomized_test_params {
   # This is arbitrary.
   MAX_VALIDATOR_COUNT=20
   VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
@@ -65,13 +65,13 @@ function set_randomized_test_params() {
   NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
 }
 
-function run_docker_with_test_case_params() {
+function run_docker_with_test_case_params {
   docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
     -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
     -e RUST_LOG=info aleph-e2e-client:latest
 }
 
-function run_docker_without_test_case_params() {
+function run_docker_without_test_case_params {
   docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
     -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
 }
