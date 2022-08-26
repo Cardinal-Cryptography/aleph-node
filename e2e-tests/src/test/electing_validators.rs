@@ -162,8 +162,16 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let reserved_count = reserved_validators.len() as u32;
     let non_reserved_count = non_reserved_validators.len() as u32;
 
-    assert_eq!(reserved_seats, reserved_count, "Desired {} reserved seats, got {}!", reserved_seats, reserved_count);
-    assert_eq!(non_reserved_seats, non_reserved_count, "Desired {} non-reserved seats, got {}!", non_reserved_seats, non_reserved_count);
+    assert_eq!(
+        reserved_seats, reserved_count,
+        "Desired {} reserved seats, got {}!",
+        reserved_seats, reserved_count
+    );
+    assert_eq!(
+        non_reserved_seats, non_reserved_count,
+        "Desired {} non-reserved seats, got {}!",
+        non_reserved_seats, non_reserved_count
+    );
 
     assert_enough_validators_left_after_chilling(
         reserved_count,
