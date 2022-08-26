@@ -2,6 +2,43 @@
 
 set -euo pipefail
 
+function set_randomized_test_params {
+  # This is arbitrary.
+  MAX_VALIDATOR_COUNT=20
+  VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
+  # Assumes there is at least one reserved seat for validators.
+  RESERVED_SEATS=$(shuf -i 1-"${VALIDATOR_COUNT}" -n 1)
+  NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
+}
+
+function run_docker_with_test_case_params {
+  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
+    -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
+    -e RUST_LOG=info aleph-e2e-client:latest
+}
+
+function run_docker_without_test_case_params {
+  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
+    -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
+}
+
+function usage {
+    cat << EOF
+Usage:
+  $0
+    --test-cases
+      test cases to run
+    --randomized
+      whether to randomize test case params, "true" and "false" values supported
+      if randomization is performed, the `--reserved-seats` and `non-reserved-seats` params are ignored
+    --reserved-seats
+      number of reserved seats available to validators
+    --non-reserved-seats
+      number of non-reserved seats available to validators
+EOF
+  exit 0
+}
+
 TEST_CASES=""
 RANDOMIZED="false"
 RESERVED_SEATS=""
@@ -55,42 +92,5 @@ else
   echo "Only 'true' and 'false' values supported, ${RANDOMIZED} provided!"
   exit 1
 fi
-
-function set_randomized_test_params {
-  # This is arbitrary.
-  MAX_VALIDATOR_COUNT=20
-  VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
-  # Assumes there is at least one reserved seat for validators.
-  RESERVED_SEATS=$(shuf -i 1-"${VALIDATOR_COUNT}" -n 1)
-  NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
-}
-
-function run_docker_with_test_case_params {
-  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-    -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
-    -e RUST_LOG=info aleph-e2e-client:latest
-}
-
-function run_docker_without_test_case_params {
-  docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-    -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info aleph-e2e-client:latest
-}
-
-function usage {
-    cat << EOF
-  Usage:
-    $0
-      --test-cases
-        test cases to run
-      --randomized
-        whether to randomize test case params, "true" and "false" values supported
-        if randomization is performed, the `--reserved-seats` and `non-reserved-seats` params are ignored
-      --reserved-seats
-        number of reserved seats available to validators
-      --non-reserved-seats
-        number of non-reserved seats available to validators
-  EOF
-    exit 0
-}
 
 exit $?
