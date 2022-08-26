@@ -11,9 +11,7 @@ use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, H256};
-use substrate_api_client::{
-    compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
-};
+use substrate_api_client::{compose_extrinsic, AccountId, GenericAddress, XtStatus};
 
 use crate::commands::{
     ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
