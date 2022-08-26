@@ -1,9 +1,6 @@
 use codec::Compact;
-use sp_core::Pair;
 use sp_runtime::MultiAddress;
-use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
-};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, GenericAddress, XtStatus};
 
 use crate::{send_xt, AnyConnection, Extrinsic, SignedConnection};
 
