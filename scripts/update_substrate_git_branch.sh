@@ -28,7 +28,7 @@ for path in ${paths[@]}; do
     sed -e '/https:\/\/github.com\/Cardinal-Cryptography\/substrate\(.git\)\{0,1\}"/s/\(branch\s*=\s*"\)[^"]*"\([^,}]*\)/\1'"${BRANCH//\//\\/}"'"\2/' < $path > x
     mv x "${path}"
 
-    cargo update
+    cargo update --manifest-path "${path}"
 done
 
 exit 0
