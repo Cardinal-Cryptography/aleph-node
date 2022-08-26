@@ -25,8 +25,8 @@ VALIDATOR=${VALIDATOR:-true}
 WS_MAX_CONNECTIONS=${WS_MAX_CONNECTIONS:-100}
 POOL_LIMIT=${POOL_LIMIT:-1024}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-true}
-TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-true}
-TELEMETRY_URL=${TELEMETRY_URL:?-'wss://telemetry.polkadot.io/submit/ 0'}
+#TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-true}
+#TELEMETRY_URL=${TELEMETRY_URL:?-'wss://telemetry.polkadot.io/submit/ 0'}
 UNIT_CREATION_DELAY=${UNIT_CREATION_DELAY:-300}
 DB_CACHE=${DB_CACHE:-1024}
 BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
@@ -46,6 +46,7 @@ ARGS=(
   --chain "${CHAIN}"
   --node-key-file "${NODE_KEY_PATH}"
   --backup-path "${BACKUP_PATH}"
+  --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0'
   --rpc-port "${RPC_PORT}" --ws-port "${WS_PORT}" --port "${PORT}"
   --rpc-cors all
   --no-mdns
@@ -95,13 +96,13 @@ if [[ "true" == "${PROMETHEUS_ENABLED}" ]]; then
   ARGS+=(--prometheus-external)
 fi
 
-if [[ "false" == "${TELEMETRY_ENABLED}" ]]; then
-  ARGS+=(--no-telemetry)
-fi
+#if [[ "false" == "${TELEMETRY_ENABLED}" ]]; then
+#  ARGS+=(--no-telemetry)
+#fi
 
-if [[ "true" == "${TELEMETRY_ENABLED}" ]]; then
-  ARGS+=(--telemetry-url "${TELEMETRY_URL}")
-fi
+#if [[ "true" == "${TELEMETRY_ENABLED}" ]]; then
+#  ARGS+=(--telemetry-url "${TELEMETRY_URL}")
+#fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
   ARGS+=(--rpc-methods Unsafe)
