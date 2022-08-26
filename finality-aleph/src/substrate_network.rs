@@ -6,8 +6,13 @@ use futures::stream::{Stream, StreamExt};
 use log::error;
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
-    NetworkService, NetworkStateInfo, NotificationSender, PeerId as SubstratePeerId,
+    NetworkService, NetworkStateInfo, PeerId as SubstratePeerId,
 };
+use sc_network::NetworkSyncForkRequest;
+use sc_network_common::service::NotificationSender;
+use sc_network_common::service::NetworkEventStream as _;
+use sc_network_common::service::NetworkNotification;
+use sc_network_common::service::NetworkPeers;
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 
@@ -15,6 +20,8 @@ use crate::network::{
     Event, EventStream, Multiaddress as MultiaddressT, Network, NetworkIdentity, NetworkSender,
     PeerId as PeerIdT, Protocol, RequestBlocks,
 };
+use sc_consensus::JustificationSyncLink;
+use sp_consensus::SyncOracle;
 
 impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
@@ -238,7 +245,7 @@ impl fmt::Display for SenderError {
 impl std::error::Error for SenderError {}
 
 pub struct SubstrateNetworkSender {
-    notification_sender: NotificationSender,
+    notification_sender: Box<dyn NotificationSender>,
     peer_id: PeerId,
 }
 
@@ -254,7 +261,7 @@ impl NetworkSender for SubstrateNetworkSender {
             .ready()
             .await
             .map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))?
-            .send(data)
+            .send(data.into())
             .map_err(|_| SenderError::LostConnectionToPeerReady(self.peer_id))
     }
 }
@@ -364,7 +371,7 @@ impl<B: Block, H: ExHashT> NetworkIdentity for Arc<NetworkService<B, H>> {
                 .into_iter()
                 .map(|address| address.into())
                 .collect(),
-            (*self.local_peer_id()).into(),
+            self.local_peer_id().into(),
         )
     }
 }

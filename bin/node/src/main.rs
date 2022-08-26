@@ -15,11 +15,11 @@ fn main() -> sc_cli::Result<()> {
         .run
         .import_params
         .pruning_params
-        .pruning
-        .replace(String::from("archive"))
-        .map_or(false, |x| x != "archive")
+        .blocks_pruning
+        .is_some()
     {
-        println!("Pruning not supported. Switching to 'archive' mode.");
+        cli.run.import_params.pruning_params.blocks_pruning = None;
+        println!("Block pruning not supported. Switching to keeping all block bodies.");
     }
 
     match &cli.subcommand {
@@ -116,8 +116,6 @@ fn main() -> sc_cli::Result<()> {
                     Role::Full => {
                         new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
                     }
-                    // TODO: introduce appropriate error here (no error in the sc_cli::Error is good here)
-                    Role::Light => panic!("no light client yet"),
                 }
             })
         }
