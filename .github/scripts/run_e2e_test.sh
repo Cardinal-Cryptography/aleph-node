@@ -15,14 +15,14 @@ function usage {
     cat << EOF
 Usage:
   $0
-    --test-cases
+    --test-cases, -t
       test cases to run
-    --randomized
+    --randomized, -r
       whether to randomize test case params, "true" and "false" values supported
       if randomization is performed, the `--reserved-seats` and `non-reserved-seats` params are ignored
-    --reserved-seats
+    --reserved-seats, -f
       number of reserved seats available to validators
-    --non-reserved-seats
+    --non-reserved-seats, -n
       number of non-reserved seats available to validators
 EOF
   exit 0

@@ -110,16 +110,17 @@ fn assert_enough_validators_left_after_chilling(
     );
 }
 
-/// 1. Setup 6 brand new validators - 3 reserved and 3 non reserved.
+/// 1. Setup `v` brand new validators (e.g. `v=6`) - `r` reserved (e.g. `r=3`) and `n` (e.g. `n=3`)
+/// non reserved.
 /// 2. Wait until they are in force.
-/// 3. 1 reserved and 1 non reserved chill.
+/// 3. Chill 1 reserved and 1 non-reserved.
 /// 4. Verify only staking validators are in force.
 ///
 /// Note:
-///  - `pallet_staking` has `MinValidatorCount` set to 4 (and this cannot be changed on running
+///  - `pallet_staking` has `MinValidatorCount` set to 4 (and this cannot be changed on a running
 ///    chain)
-///  - our e2e tests run with 5 validators
-/// Thus chilling 2 validators (1 reserved and 1 non reserved) is a no go: `pallet_staking` will
+///  - our e2e tests run with 5 validators by default
+/// Thus, chilling 2 validators (1 reserved and 1 non reserved) is a no go: `pallet_staking` will
 /// protest and won't proceed with a new committee. Therefore we have to create a new, bigger
 /// committee. This is much easier to maintain with a fresh set of accounts. However, after
 /// generating new keys for new members (with `rotate_keys`), **FINALIZATION IS STALLED**. This is
