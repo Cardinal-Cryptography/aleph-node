@@ -52,8 +52,9 @@ runs:
 
     - name: Run single e2e test
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -r ${{ inputs.randomized }} \
-        -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}
+      run: |
+        ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -r ${{ inputs.randomized }} \
+          -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
