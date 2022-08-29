@@ -8,8 +8,9 @@ use futures::channel::mpsc;
 use log::{debug, trace};
 use tokio::sync::Mutex;
 
-use super::SimpleNetwork;
-use crate::network::{ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent};
+use crate::network::{
+    ComponentNetwork, Data, ReceiverComponent, SendError, SenderComponent, SimpleNetwork,
+};
 
 /// Used for routing data through split networks.
 #[derive(Clone, Encode, Decode)]
