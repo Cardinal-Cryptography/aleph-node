@@ -10,5 +10,5 @@ COPY default.nix shell.nix rust-toolchain /node/nix-files/
 RUN nix-shell --pure --run 'echo installed all native pre-requisities' /node/nix-files/shell.nix
 
 WORKDIR /node/build
-ENTRYPOINT ["/node/nix-files/nix/nix-build.sh"]
+ENTRYPOINT PATH_TO_FIX="result/bin/aleph-node" "/node/nix-files/nix/nix-build.sh"
 CMD []

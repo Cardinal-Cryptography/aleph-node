@@ -4,14 +4,10 @@ set -euo pipefail
 NIX_FILE=${NIX_FILE:-"default.nix"}
 DYNAMIC_LINKER_PATH=${DYNAMIC_LINKER_PATH:-"/lib64/ld-linux-x86-64.so.2"}
 CRATES=${CRATES:-'{ "aleph-node" = []; }'}
-SINGLE_STEP=${SINGLE_STEP:-'false'}
-RUSTFLAGS=${RUSTFLAGS:-'"-C target-cpu=generic"'}
+SINGLE_STEP=${SINGLE_STEP:-false}
+RUSTFLAGS=${RUSTFLAGS:-"-C target-cpu=generic"}
 CARGO_HOME=${CARGO_HOME:-"$(realpath ~/.cargo)"}
-if [ -z ${PATH_TO_FIX+x} ]; then
-    PATH_TO_FIX="result/bin/aleph-node"
-fi
-
-ARGS=(--arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --arg rustflags "${RUSTFLAGS}")
+PATH_TO_FIX=${PATH_TO_FIX:-""}
 
 # we need to download all dependencies
 echo checking depedencies...
@@ -34,7 +30,7 @@ if [ -f "result" ]; then
 fi
 
 echo building...
-nix-build --show-trace --max-jobs auto --option sandbox true --arg cargoHomePath "$CARGO_HOME" $NIX_FILE "${ARGS[@]}"
+nix-build --show-trace --max-jobs auto --option sandbox true --arg cargoHomePath "${CARGO_HOME}" --arg crates "${CRATES}" --arg singleStep "${SINGLE_STEP}" --argstr rustflags "${RUSTFLAGS}" $NIX_FILE
 echo build finished
 
 echo copying results...
