@@ -17,12 +17,12 @@ rayon = "1.5"
 substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26", features = ["staking-xt"] }
 ac-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26" }
 
-sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", default-features = false, features = ["full_crypto"] }
-sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", default-features = false }
-frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", default-features = false }
-system = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", package = "frame-system" }
-pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", default-features = false }
-pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-sync-fixes", default-features = false }
+sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", default-features = false, features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", default-features = false }
+frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", default-features = false }
+system = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", package = "frame-system" }
+pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", default-features = false }
+pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26-r2", default-features = false }
 
 aleph_client = { path = "../aleph-client" }
 pallet-elections = { path = "../pallets/elections" }
