@@ -12,11 +12,9 @@ inputs:
   reserved-seats:
     description: 'Number of reserved seats available to validators.'
     required: false
-    default: ''
   non-reserved-seats:
     description: 'Number of non-reserved seats available to validators.'
     required: false
-    default: ''
   follow-up-finalization-check:
     description: 'Whether to run a follow-up finalization check.'
     required: false
@@ -53,8 +51,14 @@ runs:
     - name: Run single e2e test
       shell: bash
       run: |
-        ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }} -r ${{ inputs.randomized }} \
-          -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}
+        ARGS="-t ${{ inputs.test-case }} -r ${{ inputs.randomized }}"
+        RESERVED_SEATS=${ ${{ inputs.reserved-seats }}:-}
+        NON_RESERVED_SEATS=${ ${{ inputs.non-reserved-seats }}:-}
+        
+        if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
+          ARGS="${ARGS} -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}"
+          ./.github/scripts/run_e2e_test.sh "${ARGS}"
+        fi
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'

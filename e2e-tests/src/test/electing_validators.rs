@@ -42,7 +42,11 @@ fn min_num_sessions_to_see_all_non_reserved_validators(
     non_reserved_count: u32,
     non_reserved_seats: u32,
 ) -> u32 {
-    (non_reserved_count as f64 / non_reserved_seats as f64).ceil() as u32
+    // Matching done to emphasize handling of `non_reserved_seats` = 0.
+    match non_reserved_seats {
+        0 => 0,
+        _ => (non_reserved_count as f64 / non_reserved_seats as f64).ceil() as u32,
+    }
 }
 
 /// Verify that all target validators are included `pallet_session::Validators` across a few

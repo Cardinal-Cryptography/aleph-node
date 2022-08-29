@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# This is required by Substrate: MinValidatorCount in pallet_Staking.
+MIN_VALIDATOR_COUNT=4
+
 function set_randomized_test_params {
   # This is arbitrary.
   MAX_VALIDATOR_COUNT=20
@@ -19,11 +22,11 @@ Usage:
       test cases to run
     --randomized, -r
       whether to randomize test case params, "true" and "false" values supported
-      if randomization is performed, the `--reserved-seats` and `non-reserved-seats` params are ignored
+      if randomization is performed, the `--reserved-seats` and `--non-reserved-seats` params are ignored
     --reserved-seats, -f
-      number of reserved seats available to validators
+      number of reserved seats available to validators; ignored if empty or `--non-reserved-seats` is empty
     --non-reserved-seats, -n
-      number of non-reserved seats available to validators
+      number of non-reserved seats available to validators; ignored if empty or `--reserved-seats` is empty
 EOF
   exit 0
 }
@@ -38,7 +41,6 @@ while [[ $# -gt 0 ]]; do
   -h|--help)
     usage
     exit 0
-    shift 2
     ;;
   -t|--test-cases)
     TEST_CASES="$2"
@@ -63,14 +65,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# If randomization requested, generate random test params. Otherwise: a) in case of non-empty params, pass them,
-# b) in case of empty params, do not pass them.
+ARGS="--network container:Node0  -e NODE_URL=127.0.0.1:9943 \
+       -e RUST_LOG=info aleph-e2e-client:latest -e TEST_CASES="${TEST_CASES}""
+
+# If randomization requested, generate random test params. Otherwise: a) in case of both non-empty params, pass them,
+# b) in case either param is empty, do not pass them.
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
   echo "Using randomized test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
+  ARGS="${ARGS} -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
 elif [[ "${RANDOMIZED}" == "false" ]]; then
   if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
     echo "Using provided test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
+    ARGS="${ARGS} -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
   else
     echo "Falling back on default test case param values."
   fi
@@ -79,8 +86,6 @@ else
   exit 1
 fi
 
-docker run -v $(pwd)/docker/data:/data --network container:Node0 -e TEST_CASES="${TEST_CASES}" \
-  -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}" -e NODE_URL=127.0.0.1:9943 \
-  -e RUST_LOG=info aleph-e2e-client:latest
+docker run -v $(pwd)/docker/data:/data "${ARGS}"
 
 exit $?

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # default node count
-# change it when increasing the number of node containers
+# change when increasing the number of node containers
 NODE_COUNT=5
 
 export NODE_IMAGE=aleph-node:latest
@@ -25,7 +25,6 @@ while [[ $# -gt 0 ]]; do
   -h|--help)
     usage
     exit 0
-    shift 2
     ;;
   -n|--node-count)
     NODE_COUNT="$2"
