@@ -4,7 +4,7 @@ use aleph_bft::{Keychain as BftKeychain, SignatureSet};
 use aleph_bft_rmc::{DoublingDelayScheduler, ReliableMulticast};
 use futures::{
     channel::{mpsc, oneshot},
-    StreamExt,
+    pin_mut, StreamExt,
 };
 use log::{debug, error, trace};
 use sc_client_api::HeaderBackend;
@@ -97,34 +97,47 @@ where
     <B as Block>::Hash: AsRef<[u8]>,
 {
     let IO {
-        mut blocks_from_interpreter,
+        blocks_from_interpreter,
         justifications_for_chain,
     } = io;
+
+    let blocks_from_interpreter = blocks_from_interpreter.take_while(|block| {
+        let block_num = block.num;
+        async move {
+            if block_num == session_boundaries.last_block() {
+                debug!(target: "aleph-party", "Aggregator is processing last block in session.");
+            }
+            block_num <= session_boundaries.last_block()
+        }
+    });
+    pin_mut!(blocks_from_interpreter);
+    let mut hash_of_last_block = None;
+    let mut no_more_blocks = false;
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
             maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
-                    let last_block = block.num == session_boundaries.last_block();
+                    hash_of_last_block = Some(block.hash);
                     process_new_block_data::<B, N>(
                         &mut aggregator,
                         block,
                         &metrics
                     ).await;
-                    if last_block {
-                        return Ok(());
-                    }
                 } else {
-                    debug!(target: "aleph-party", "Blocks ended in aggregator. Terminating.");
-                    return Err(())
+                    debug!(target: "aleph-party", "Blocks ended in aggregator.");
+                    no_more_blocks = true;
                 }
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
                 if let Some((hash, multisignature)) = multisigned_hash {
                     process_hash(hash, multisignature, &justifications_for_chain, &client)?;
+                    if Some(hash) == hash_of_last_block {
+                        hash_of_last_block = None;
+                    }
                 } else {
-                    debug!(target: "aleph-party", "The stream of multisigned hashes has ended. Emergency Termination.");
-                    return Err(());
+                    debug!(target: "aleph-party", "The stream of multisigned hashes has ended. Terminating.");
+                    break;
                 }
             }
             _ = &mut exit_rx => {
@@ -132,8 +145,12 @@ where
                 break;
             }
         }
+        if hash_of_last_block.is_none() && no_more_blocks {
+            debug!(target: "aleph-party", "Aggregator processed all provided blocks. Terminating.");
+            break;
+        }
     }
-    debug!(target: "aleph-party", "Aggregator awaiting an exit signal.");
+    debug!(target: "aleph-party", "Aggregator finished its work.");
     Ok(())
 }
 
