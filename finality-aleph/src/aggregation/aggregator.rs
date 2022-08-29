@@ -14,7 +14,7 @@ use crate::{
     network::DataNetwork,
 };
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AggregatorError {
     NoHashFound,
     DuplicateHash,

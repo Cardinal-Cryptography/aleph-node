@@ -19,7 +19,7 @@ use crate::{
         },
         testing::{Authentication, DiscoveryMessage, NetworkData, SessionHandler},
         ConnectionIO, ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity,
-        Protocol, Service as NetworkService, SessionManager, SimpleNetwork, IO as NetworkIO,
+        Protocol, Service as NetworkService, SessionManager, IO as NetworkIO,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
