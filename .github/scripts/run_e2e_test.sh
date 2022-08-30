@@ -51,8 +51,7 @@ do
   esac
 done
 
-ARGS="--network container:Node0 -e NODE_URL=127.0.0.1:9943 \
-       -e RUST_LOG=info aleph-e2e-client:latest -e TEST_CASES="${TEST_CASES}""
+ARGS="--network container:Node0 -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info -e TEST_CASES="${TEST_CASES}""
 
 # If randomization requested, generate random test params. Otherwise: a) in case of both non-empty params, pass them,
 # b) in case either param is empty, do not pass them.
@@ -72,6 +71,6 @@ else
   exit 1
 fi
 
-docker run -v $(pwd)/docker/data:/data "${ARGS}"
+docker run -v $(pwd)/docker/data:/data "${ARGS}" aleph-e2e-client:latest"
 
 exit $?
