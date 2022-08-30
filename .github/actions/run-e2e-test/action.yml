@@ -51,14 +51,19 @@ runs:
     - name: Run single e2e test
       shell: bash
       run: |
-        ARGS="-t ${{ inputs.test-case }} -r ${{ inputs.randomized }}"
-        RESERVED_SEATS=${{ inputs.reserved-seats }}
-        NON_RESERVED_SEATS=${{ inputs.non-reserved-seats }}
+        ARGS=(
+          -t ${{ inputs.test-case }}
+          -r ${{ inputs.randomized }}
+        )
         
-        if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
-          ARGS="${ARGS} -f "${RESERVED_SEATS}" -n "${NON_RESERVED_SEATS}""
-          ./.github/scripts/run_e2e_test.sh "${ARGS}"
+        if [[ -n "${RESERVED_SEATS:-}" && -n "${NON_RESERVED_SEATS:-}" ]]; then
+          ARGS+=(
+            -f "${RESERVED_SEATS}"
+            -n "${NON_RESERVED_SEATS}"
+          )
         fi
+        
+        ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
