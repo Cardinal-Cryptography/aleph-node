@@ -73,6 +73,6 @@ else
   exit 1
 fi
 
-docker run -v $(pwd)/docker/data:/data "${ARGS}" aleph-e2e-client:latest"
+docker run -v $(pwd)/docker/data:/data "${ARGS}" aleph-e2e-client:latest
 
 exit $?
