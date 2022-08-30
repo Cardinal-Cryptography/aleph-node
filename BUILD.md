@@ -50,7 +50,7 @@ If you have `nix` installed locally, you can simply call `nix-shell --pure`. It 
 dependencies. Within it, you can call `cargo build --release -p aleph-node`. Keep in mind that a binary created this way will
 depend on loader referenced by `nix` and not the default one used by your system. In order to fix it, assuming that your loader
 is stored at `/lib64/ld-linux-x86-64.so.2`, you can execute `patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 <path to
-aleph-node>`. Alternatively, you can use our nix-build script (used by docker approach), i.q. `nix/nix-build.sh`.
+aleph-node>`. Alternatively, you can use our nix-build script (used by docker based approach), i.q. `nix/nix-build.sh`.
 
 Note: we recommend using `direnv`.
 
