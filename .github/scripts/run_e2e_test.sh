@@ -53,8 +53,10 @@ done
 
 ARGS="--network container:Node0 -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info -e TEST_CASES="${TEST_CASES}""
 
-# If randomization requested, generate random test params. Otherwise: a) in case of both non-empty params, pass them,
-# b) in case either param is empty, do not pass them.
+# If randomization requested, generate random test params, ignore test params if provided.
+# Otherwise:
+#   a) in case of both non-empty params, pass them,
+#   b) in case either param is empty, do not pass them.
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
   echo "Using randomized test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
