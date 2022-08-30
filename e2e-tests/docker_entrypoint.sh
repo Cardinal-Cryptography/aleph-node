@@ -5,7 +5,7 @@ ARGS=(
   --node "${NODE_URL}"
 )
 
-if [[ -n "${TEST_CASES:-}"]]; then
+if [[ -n "${TEST_CASES:-}" ]]; then
   ARGS+=(--test-cases "${TEST_CASES}")
 fi
 
