@@ -52,7 +52,16 @@ depend on loader referenced by `nix` and not the default one used by your system
 is stored at `/lib64/ld-linux-x86-64.so.2`, you can execute `patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 <path to
 aleph-node>`. Alternatively, you can use our nix-build script (used by docker based approach), i.q. `nix/nix-build.sh`.
 
-Note: we recommend using `direnv`.
+Note: we recommend using `direnv` together with `nix-direnv` for setting up nix-shell. This way you can use your preferred shell,
+instead of one provided by nix-shell.  
+Example configuration for `direnv`. Copy it into `.envrc` file and then run `direnv-allow`:
+```
+# installs nix-direnv, https://github.com/nix-community/nix-direnv
+if ! has nix_direnv_version || ! nix_direnv_version 2.1.0; then
+  source_url "https://raw.githubusercontent.com/nix-community/nix-direnv/2.1.0/direnvrc" "sha256-FAT2R9yYvVg516v3LiogjIc8YfsbWbMM/itqWsm5xTA="
+fi
+use nix
+```
 
 ## Manual
 These are build dependencies we use in our linux images for `aleph-node`:
