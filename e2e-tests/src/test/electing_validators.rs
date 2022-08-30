@@ -8,7 +8,7 @@ use aleph_client::{
     SignedConnection, XtStatus,
 };
 use log::info;
-use primitives::{CommitteeSeats, EraIndex, MIN_VALIDATOR_COUNT};
+use primitives::{CommitteeSeats, EraIndex};
 use sp_core::storage::StorageKey;
 
 use crate::{
@@ -16,6 +16,9 @@ use crate::{
     validators::{prepare_validators, setup_accounts},
     Config,
 };
+
+// Required by `MinValidatorCount` from `pallet_staking`, set in chain spec.
+const MIN_VALIDATOR_COUNT: u32 = 4;
 
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
