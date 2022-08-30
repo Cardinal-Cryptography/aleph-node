@@ -36,32 +36,18 @@ RANDOMIZED="false"
 RESERVED_SEATS=""
 NON_RESERVED_SEATS=""
 
-while [[ $# -gt 0 ]]; do
-  case $1 in
-  -h|--help)
-    usage
-    exit 0
-    ;;
-  -t|--test-cases)
-    TEST_CASES="$2"
-    shift 2
-    ;;
-  -r|--randomized)
-    RANDOMIZED="$2"
-    shift 2
-    ;;
-  -f|--reserved-seats)
-    RESERVED_SEATS="$2"
-    shift 2
-    ;;
-  -n|--non-reserved-seats)
-    NON_RESERVED_SEATS="$2"
-    shift 2
-    ;;
-  *)
-    echo "Unrecognized argument $1!"
-    exit 1
-    ;;
+while getopts "h:t:r:f:n:" flag
+do
+  case "${flag}" in
+    h) usage;;
+    t) TEST_CASES=${OPTARG};;
+    r) RANDOMIZED=${OPTARG};;
+    f) RESERVED_SEATS=${OPTARG};;
+    n) NON_RESERVED_SEATS=${OPTARG};;
+    *)
+      echo "Unrecognized argument "${flag}"!"
+      exit 1
+      ;;
   esac
 done
 
