@@ -51,7 +51,7 @@ do
   esac
 done
 
-ARGS="--network container:Node0  -e NODE_URL=127.0.0.1:9943 \
+ARGS="--network container:Node0 -e NODE_URL=127.0.0.1:9943 \
        -e RUST_LOG=info aleph-e2e-client:latest -e TEST_CASES="${TEST_CASES}""
 
 # If randomization requested, generate random test params. Otherwise: a) in case of both non-empty params, pass them,
