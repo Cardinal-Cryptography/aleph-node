@@ -40,10 +40,10 @@ while getopts "h:t:r:f:n:" flag
 do
   case "${flag}" in
     h) usage;;
-    t) TEST_CASES=${OPTARG};;
-    r) RANDOMIZED=${OPTARG};;
-    f) RESERVED_SEATS=${OPTARG};;
-    n) NON_RESERVED_SEATS=${OPTARG};;
+    t) TEST_CASES="${OPTARG}";;
+    r) RANDOMIZED="${OPTARG}";;
+    f) RESERVED_SEATS="${OPTARG}";;
+    n) NON_RESERVED_SEATS="${OPTARG}";;
     *)
       echo "Unrecognized argument "${flag}"!"
       exit 1
