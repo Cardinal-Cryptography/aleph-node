@@ -52,11 +52,11 @@ runs:
       shell: bash
       run: |
         ARGS="-t ${{ inputs.test-case }} -r ${{ inputs.randomized }}"
-        RESERVED_SEATS=${ ${{ inputs.reserved-seats }}:-}
-        NON_RESERVED_SEATS=${ ${{ inputs.non-reserved-seats }}:-}
+        RESERVED_SEATS=${{ inputs.reserved-seats }}
+        NON_RESERVED_SEATS=${{ inputs.non-reserved-seats }}
         
         if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
-          ARGS="${ARGS} -f ${{ inputs.reserved-seats }} -n ${{ inputs.non-reserved-seats }}"
+          ARGS="${ARGS} -f "${RESERVED_SEATS}" -n "${NON_RESERVED_SEATS}""
           ./.github/scripts/run_e2e_test.sh "${ARGS}"
         fi
 
