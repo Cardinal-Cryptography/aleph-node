@@ -59,20 +59,20 @@ ARGS="--network container:Node0 -e NODE_URL=127.0.0.1:9943 -e RUST_LOG=info -e T
 #   b) in case either param is empty, do not pass them.
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
-  echo "Using randomized test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
-  ARGS="${ARGS} -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
+  echo "Using randomized test case params: "${RESERVED_SEATS}" reserved and "${NON_RESERVED_SEATS}" non-reserved seats."
+  ARGS=""${ARGS}" -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
 elif [[ "${RANDOMIZED}" == "false" ]]; then
   if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
-    echo "Using provided test case params: ${RESERVED_SEATS} reserved and ${NON_RESERVED_SEATS} non-reserved seats."
-    ARGS="${ARGS} -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
+    echo "Using provided test case params: "${RESERVED_SEATS}" reserved and "${NON_RESERVED_SEATS}" non-reserved seats."
+    ARGS=""${ARGS}" -e RESERVED_SEATS="${RESERVED_SEATS}" -e NON_RESERVED_SEATS="${NON_RESERVED_SEATS}""
   else
     echo "Falling back on default test case param values."
   fi
 else
-  echo "Only 'true' and 'false' values supported, ${RANDOMIZED} provided!"
+  echo "Only 'true' and 'false' values supported, "${RANDOMIZED}" provided!"
   exit 1
 fi
 
-docker run -v $(pwd)/docker/data:/data "${ARGS}" aleph-e2e-client:latest
+docker run -v $(pwd)/docker/data:/data ${ARGS} aleph-e2e-client:latest
 
 exit $?
