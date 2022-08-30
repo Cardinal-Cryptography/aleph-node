@@ -44,6 +44,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
+        ChangeAlephBFTVersion(Vec<u8>),
     }
 
     #[pallet::pallet]
@@ -93,6 +94,10 @@ pub mod pallet {
     #[pallet::storage]
     type NextEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn aleph_bft_version)]
+    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, Vec<u8>, ValueQuery>;
+
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
             if !authorities.is_empty() {
@@ -121,6 +126,10 @@ pub mod pallet {
         pub(crate) fn set_next_emergency_finalizer(emergency_finalizer: T::AuthorityId) {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
+
+        pub(crate) fn update_aleph_bft_version(version: Vec<u8>) {
+            <AlephBFTVersion<T>>::put(version);
+        }
     }
 
     #[pallet::call]
@@ -135,6 +144,15 @@ pub mod pallet {
             ensure_root(origin)?;
             Self::set_next_emergency_finalizer(emergency_finalizer.clone());
             Self::deposit_event(Event::ChangeEmergencyFinalizer(emergency_finalizer));
+            Ok(())
+        }
+
+        // TODO: verify weight
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_aleph_bft_version(origin: OriginFor<T>, version: Vec<u8>) -> DispatchResult {
+            ensure_root(origin)?;
+            Self::update_aleph_bft_version(version.clone());
+            Self::deposit_event(Event::ChangeAlephBFTVersion(version));
             Ok(())
         }
     }

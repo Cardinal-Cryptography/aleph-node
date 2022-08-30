@@ -895,6 +895,10 @@ impl_runtime_apis! {
                 Aleph::queued_emergency_finalizer(),
             ))
         }
+
+        fn aleph_bft_version() -> Vec<u8> {
+           Aleph::aleph_bft_version()
+        }
     }
 
     impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash> for Runtime {
