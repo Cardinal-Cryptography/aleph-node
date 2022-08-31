@@ -8,9 +8,12 @@ use futures::channel::mpsc;
 use log::{debug, trace};
 use tokio::sync::Mutex;
 
-use crate::network::{
-    ComponentNetwork, ComponentNetworkExt, Data, ReceiverComponent, SendError, SenderComponent,
-    SimpleNetwork,
+use crate::{
+    network::{
+        ComponentNetwork, ComponentNetworkExt, Data, ReceiverComponent, SendError, SenderComponent,
+        SimpleNetwork,
+    },
+    GenericNetworkData,
 };
 
 /// Used for routing data through split networks.
@@ -18,6 +21,20 @@ use crate::network::{
 pub enum Split<LeftData: Data, RightData: Data> {
     Left(LeftData),
     Right(RightData),
+}
+
+impl<LeftData: Data, RightData: Data> From<Split<LeftData, RightData>> for GenericNetworkData {
+    fn from(split: Split<LeftData, RightData>) -> Self {
+        split.encode()
+    }
+}
+
+impl<LeftData: Data, RightData: Data> TryFrom<GenericNetworkData> for Split<LeftData, RightData> {
+    type Error = codec::Error;
+
+    fn try_from(value: GenericNetworkData) -> Result<Self, Self::Error> {
+        Decode::decode(&mut value.as_ref())
+    }
 }
 
 trait Convert {

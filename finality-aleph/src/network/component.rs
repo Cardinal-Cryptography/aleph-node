@@ -1,7 +1,8 @@
-use std::marker::PhantomData;
+use std::{fmt::Display, marker::PhantomData};
 
 use aleph_bft::Recipient;
 use futures::{channel::mpsc, StreamExt};
+use log::warn;
 
 use crate::network::{Data, DataNetwork, SendError};
 
@@ -10,10 +11,71 @@ pub trait Sender<D: Data>: Sync + Send + Clone {
     fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
 }
 
+#[derive(Clone)]
+pub struct MapSender<D, S> {
+    sender: S,
+    _phantom: PhantomData<D>,
+}
+
+pub trait SenderMap<From: Data>: Sender<From> {
+    fn map(self) -> MapSender<From, Self> {
+        MapSender {
+            sender: self,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<D: Data, S: Sender<D>> SenderMap<D> for S {}
+
+impl<D: Data, S: Sender<D>, IntoD: Data + Into<D>> Sender<IntoD> for MapSender<D, S> {
+    fn send(&self, data: IntoD, recipient: Recipient) -> Result<(), SendError> {
+        self.sender.send(data.into(), recipient)
+    }
+}
+
 /// For receiving arbitrary messages.
 #[async_trait::async_trait]
 pub trait Receiver<D: Data>: Sync + Send {
     async fn next(&mut self) -> Option<D>;
+}
+
+pub struct MapReceiver<D, R> {
+    receiver: R,
+    _phantom: PhantomData<D>,
+}
+
+pub trait ReceiverMap<From: Data>: Receiver<From> + Sized {
+    fn map(self) -> MapReceiver<From, Self> {
+        MapReceiver {
+            receiver: self,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<D: Data, R: Receiver<D>> ReceiverMap<D> for R {}
+
+#[async_trait::async_trait]
+impl<D: Data, R: Receiver<D>, FromD: Data + TryFrom<D>> Receiver<FromD> for MapReceiver<D, R>
+where
+    FromD::Error: Display,
+{
+    async fn next(&mut self) -> Option<FromD> {
+        loop {
+            let data = self.receiver.next().await;
+            let data = match data {
+                Some(data) => data,
+                None => return None,
+            };
+            match TryFrom::try_from(data) {
+                Ok(message) => return Some(message),
+                Err(e) => {
+                    warn!(target: "aleph-network", "Error decoding message in MapReceiver: {}", e)
+                }
+            }
+        }
+    }
 }
 
 /// A bare version of network components.
@@ -36,6 +98,24 @@ impl<D: Data, N: NetworkExt<D>> DataNetwork<D> for N {
 
     async fn next(&mut self) -> Option<D> {
         self.as_mut().next().await
+    }
+}
+
+pub trait NetworkMap<D: Data, IntoD: Data>: Network<D> {
+    type MappedNetwork: Network<IntoD>;
+
+    fn map(self) -> Self::MappedNetwork;
+}
+
+impl<D: Data, IntoD: Data + Into<D> + TryFrom<D>, N: Network<D>> NetworkMap<D, IntoD> for N
+where
+    IntoD::Error: Display,
+{
+    type MappedNetwork = SimpleNetwork<IntoD, MapReceiver<D, N::R>, MapSender<D, N::S>>;
+
+    fn map(self) -> Self::MappedNetwork {
+        let (sender, receiver) = self.into();
+        SimpleNetwork::new(receiver.map(), sender.map())
     }
 }
 
@@ -69,6 +149,7 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> SimpleNetwork<D, R, S> {
         }
     }
 }
+
 impl<D: Data, R: Receiver<D>, S: Sender<D>> AsRef<S> for SimpleNetwork<D, R, S> {
     fn as_ref(&self) -> &S {
         &self.sender

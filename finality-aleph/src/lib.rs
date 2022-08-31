@@ -89,7 +89,9 @@ pub struct MillisecsPerBlock(pub u64);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
 
-pub(crate) type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
+pub type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
+
+pub type GenericNetworkData = Vec<u8>;
 
 pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>
