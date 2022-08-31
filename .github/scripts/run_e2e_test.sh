@@ -19,14 +19,16 @@ function usage {
 Usage:
   $0
     -t
-      test cases to run
+      Test cases to run.
     -r
-      whether to randomize test case params, "true" and "false" values supported
-      if randomization is performed, the `--reserved-seats` and `--non-reserved-seats` params are ignored
+      Whether to randomize test case params, "true" and "false" values supported.
+      Can only be used if both the `-f` and `-n` params are empty.
     -f
-      number of reserved seats available to validators; ignored if empty or `--non-reserved-seats` is empty
+      Number of reserved seats available to validators, ignored if empty or `-n` is empty.
+      Cannot be used with `-r=true`.
     -n
-      number of non-reserved seats available to validators; ignored if empty or `--reserved-seats` is empty
+      Number of non-reserved seats available to validators, ignored if empty or `-f` is empty.
+      Cannot be used with `-r=true`.
 EOF
   exit 0
 }
@@ -58,8 +60,16 @@ if [[ -n "${TEST_CASES:-}" ]]; then
 fi
 
 RANDOMIZED="${RANDOMIZED:-"false"}"
+RESERVED_SEATS="${RESERVED_SEATS:-}"
+NON_RESERVED_SEATS="${NON_RESERVED_SEATS:-}"
 
-# If randomization requested, generate random test params, ignore test params if provided.
+# Do not accept randomization together with test case parameters.
+if [[ "${RANDOMIZED}" == "true" && ( -n "${RESERVED_SEATS}" || -n "${NON_RESERVED_SEATS}" )]]; then
+  echo "Cannot both randomize and provide test case parameters!"
+  exit 1
+fi
+
+# If randomization requested, generate random test params.
 if [[ "${RANDOMIZED}" == "true" ]]; then
   set_randomized_test_params
   echo "Test case params have been randomized."
@@ -71,7 +81,7 @@ else
 fi
 
 # If both test params are not empty, pass them. Otherwise, do not pass them.
-if [[ -n "${RESERVED_SEATS:-}" && -n "${NON_RESERVED_SEATS:-}" ]]; then
+if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
   echo "Test case params: "${RESERVED_SEATS}" reserved and "${NON_RESERVED_SEATS}" non-reserved seats."
   ARGS+=(
     -e "${RESERVED_SEATS}"
