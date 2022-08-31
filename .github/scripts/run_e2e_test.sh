@@ -41,6 +41,7 @@ do
     n) NON_RESERVED_SEATS="${OPTARG}";;
     *)
       echo "Unrecognized argument "${flag}"!"
+      usage
       exit 1
       ;;
   esac

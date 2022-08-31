@@ -32,6 +32,7 @@ while [[ $# -gt 0 ]]; do
     ;;
   *)
     echo "Unrecognized argument $1!"
+    usage
     exit 1
     ;;
   esac
