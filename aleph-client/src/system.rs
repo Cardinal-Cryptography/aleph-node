@@ -1,7 +1,7 @@
 use sp_core::Pair;
 use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams, XtStatus};
 
-use crate::{send_xt, AnyConnection, RootConnection};
+use crate::{send_xt, try_send_xt, AnyConnection, CallSystem, RootConnection};
 
 pub fn set_code(connection: &RootConnection, runtime: Vec<u8>, status: XtStatus) {
     let call = compose_call!(
@@ -18,4 +18,20 @@ pub fn set_code(connection: &RootConnection, runtime: Vec<u8>, status: XtStatus)
         0_u64
     );
     send_xt(connection, xt, Some("set_code"), status);
+}
+
+impl CallSystem for RootConnection {
+    type Error = substrate_api_client::error::Error;
+
+    fn fill_block(&self, target_ratio: u32, status: XtStatus) -> Result<(), Self::Error> {
+        let connection = self.as_connection();
+        let call = compose_call!(
+            connection.metadata,
+            "System",
+            "fill_block",
+            target_ratio * 10_000_000
+        );
+        let xt = compose_extrinsic!(connection, "Sudo", "sudo", call);
+        try_send_xt(&connection, xt, Some("fill block"), status).map(|_| ())
+    }
 }

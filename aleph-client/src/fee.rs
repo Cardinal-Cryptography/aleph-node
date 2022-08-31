@@ -1,7 +1,6 @@
-use codec::Encode;
 use substrate_api_client::Balance;
 
-use crate::{AnyConnectionExt, Extrinsic};
+use crate::{AnyConnection, BalanceTransfer, ReadStorage, SignedConnection};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FeeInfo {
@@ -10,31 +9,34 @@ pub struct FeeInfo {
     pub adjusted_weight: Balance,
 }
 
-pub fn get_tx_fee_info<C: AnyConnectionExt, Call: Encode>(
-    connection: &C,
-    tx: &Extrinsic<Call>,
-) -> FeeInfo {
-    let unadjusted_weight = connection
-        .as_connection()
-        .get_payment_info(&tx.hex_encode(), None)
-        .expect("Should access payment info")
-        .expect("Payment info should be present")
-        .weight as Balance;
+pub trait GetTxInfo<Tx> {
+    fn get_tx_info(&self, tx: &Tx) -> FeeInfo;
+}
 
-    let fee = connection
-        .as_connection()
-        .get_fee_details(&tx.hex_encode(), None)
-        .expect("Should access fee details")
-        .expect("Should read fee details");
-    let inclusion_fee = fee.inclusion_fee.expect("Transaction should be payable");
+impl GetTxInfo<<SignedConnection as BalanceTransfer>::TransferTx> for SignedConnection {
+    fn get_tx_info(&self, tx: &<SignedConnection as BalanceTransfer>::TransferTx) -> FeeInfo {
+        let unadjusted_weight = self
+            .as_connection()
+            .get_payment_info(&tx.hex_encode(), None)
+            .expect("Should access payment info")
+            .expect("Payment info should be present")
+            .weight as Balance;
 
-    FeeInfo {
-        fee_without_weight: inclusion_fee.base_fee + inclusion_fee.len_fee + fee.tip,
-        unadjusted_weight,
-        adjusted_weight: inclusion_fee.adjusted_weight_fee,
+        let fee = self
+            .as_connection()
+            .get_fee_details(&tx.hex_encode(), None)
+            .expect("Should access fee details")
+            .expect("Should read fee details");
+        let inclusion_fee = fee.inclusion_fee.expect("Transaction should be payable");
+
+        FeeInfo {
+            fee_without_weight: inclusion_fee.base_fee + inclusion_fee.len_fee + fee.tip,
+            unadjusted_weight,
+            adjusted_weight: inclusion_fee.adjusted_weight_fee,
+        }
     }
 }
 
-pub fn get_next_fee_multiplier<C: AnyConnectionExt>(connection: &C) -> u128 {
+pub fn get_next_fee_multiplier<C: ReadStorage>(connection: &C) -> u128 {
     connection.read_storage_value("TransactionPayment", "NextFeeMultiplier")
 }
