@@ -12,6 +12,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+
     - name: Download artifact with docker image
       uses: actions/download-artifact@v2
       with:
