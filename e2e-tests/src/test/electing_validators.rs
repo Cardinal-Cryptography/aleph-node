@@ -48,7 +48,10 @@ fn min_num_sessions_to_see_all_non_reserved_validators(
     // Matching done to emphasize handling of `non_reserved_seats` = 0.
     match non_reserved_seats {
         0 => 0,
-        _ => (non_reserved_count as f64 / non_reserved_seats as f64).ceil() as u32,
+        _ => {
+            // Ceiling without float division.
+            (non_reserved_count + non_reserved_seats - 1) / non_reserved_seats
+        }
     }
 }
 
