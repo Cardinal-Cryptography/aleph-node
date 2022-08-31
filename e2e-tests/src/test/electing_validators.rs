@@ -4,7 +4,7 @@ use aleph_client::{
     change_validators, get_current_session, get_current_validators, get_eras_stakers_storage_key,
     get_stakers_as_storage_keys, get_stakers_as_storage_keys_from_storage_key,
     staking_chill_all_validators, wait_for_full_era_completion, wait_for_session, AccountId,
-    AnyConnection, RootConnection, SignedConnection, XtStatus,
+    AnyConnection, ReadStorage, RootConnection, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{CommitteeSeats, EraIndex};
@@ -37,7 +37,7 @@ fn assert_validators_are_elected_stakers<C: AnyConnection>(
 
 /// Verify that all target validators are included `pallet_session::Validators` across a few
 /// consecutive sessions.
-fn assert_validators_are_used_as_authorities<C: AnyConnection>(
+fn assert_validators_are_used_as_authorities<C: ReadStorage>(
     connection: &C,
     expected_authorities: &BTreeSet<AccountId>,
 ) {
