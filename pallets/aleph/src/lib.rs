@@ -18,6 +18,7 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
+use primitives::{SessionIndex, Version};
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -44,7 +45,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
-        ChangeAlephBFTVersion(Vec<u8>),
+        ChangeAlephBFTVersion(Version),
     }
 
     #[pallet::pallet]
@@ -96,7 +97,8 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, Vec<u8>, ValueQuery>;
+    pub(super) type AlephBFTVersion<T: Config> =
+        StorageMap<_, Twox64Concat, SessionIndex, Version, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -127,8 +129,11 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
-        pub(crate) fn update_aleph_bft_version(version: Vec<u8>) {
-            <AlephBFTVersion<T>>::put(version);
+        pub(crate) fn update_aleph_bft_version_for_session(
+            session: SessionIndex,
+            version: Version,
+        ) {
+            <AlephBFTVersion<T>>::set(session, Some(version));
         }
     }
 
@@ -147,11 +152,14 @@ pub mod pallet {
             Ok(())
         }
 
-        // TODO: verify weight
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_aleph_bft_version(origin: OriginFor<T>, version: Vec<u8>) -> DispatchResult {
+        pub fn set_aleph_bft_version_for_session(
+            origin: OriginFor<T>,
+            session: SessionIndex,
+            version: Version,
+        ) -> DispatchResult {
             ensure_root(origin)?;
-            Self::update_aleph_bft_version(version.clone());
+            Self::update_aleph_bft_version_for_session(session, version.clone());
             Self::deposit_event(Event::ChangeAlephBFTVersion(version));
             Ok(())
         }

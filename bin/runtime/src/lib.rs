@@ -35,8 +35,9 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, SessionAuthorityData, ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK, TOKEN,
+    AuthorityId as AlephId, SessionAuthorityData, SessionIndex, Version as AlephBFTVersion,
+    ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK,
+    TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -896,8 +897,8 @@ impl_runtime_apis! {
             ))
         }
 
-        fn aleph_bft_version() -> Vec<u8> {
-           Aleph::aleph_bft_version()
+        fn aleph_bft_version(session: SessionIndex) -> Result<AlephBFTVersion, AlephApiError> {
+           Aleph::aleph_bft_version(session).ok_or(AlephApiError::VersionNotSet)
         }
     }
 
