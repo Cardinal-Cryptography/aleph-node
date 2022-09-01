@@ -27,6 +27,10 @@ runs:
     - name: Run consensus party
       shell: bash
       run: ./.github/scripts/run_consensus.sh
+    
+    - name: Sleep
+      shell: bash
+      run: sleep 15
 
     - name: Display bootnode logs
       shell: bash
