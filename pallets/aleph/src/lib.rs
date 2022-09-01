@@ -18,7 +18,7 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-use primitives::{SessionIndex, Version};
+use primitives::{CurrentVersion, SessionIndex, Version};
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -100,6 +100,10 @@ pub mod pallet {
     pub(super) type AlephBFTVersion<T: Config> =
         StorageMap<_, Twox64Concat, SessionIndex, Version, OptionQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn current_aleph_bft_version)]
+    pub(super) type CurrentAlephBFTVersion<T: Config> = StorageValue<_, CurrentVersion, ValueQuery>;
+
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
             if !authorities.is_empty() {
@@ -129,11 +133,24 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
+        pub(crate) fn update_current_aleph_bft_version(session: SessionIndex, version: Version) {
+            let current_version = <CurrentAlephBFTVersion<T>>::get();
+            let session_when_current_version_set = current_version.session_when_set;
+            if session > session_when_current_version_set {
+                let updated_current_version = CurrentVersion {
+                    session_when_set: session,
+                    version,
+                };
+                <CurrentAlephBFTVersion<T>>::put(updated_current_version);
+            }
+        }
+
         pub(crate) fn update_aleph_bft_version_for_session(
             session: SessionIndex,
             version: Version,
         ) {
-            <AlephBFTVersion<T>>::set(session, Some(version));
+            <AlephBFTVersion<T>>::set(session, Some(version.clone()));
+            Self::update_current_aleph_bft_version(session, version);
         }
     }
 
