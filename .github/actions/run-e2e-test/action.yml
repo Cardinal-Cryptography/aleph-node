@@ -59,8 +59,8 @@ runs:
     - name: Run single e2e test
       shell: bash
       run: |
-        RESERVED_SEATS=${{ inputs.reserved-seats }}
-        NON_RESERVED_SEATS=${{ inputs.non-reserved-seats }}
+        RESERVED_SEATS="${{ inputs.reserved-seats }}"
+        NON_RESERVED_SEATS="${{ inputs.non-reserved-seats }}"
         
         ARGS=(
           -t ${{ inputs.test-case }}
