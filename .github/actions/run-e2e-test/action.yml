@@ -2,6 +2,10 @@ name: 'Run e2e test'
 description: 'Run single e2e test.'
 
 inputs:
+  node-count:
+    description: 'Number of nodes to run.'
+    required: false
+    default: '5'
   min-validator-count:
     description: 'Minimum number of nodes below which chain enters emergency state.'
     required: false
@@ -37,7 +41,7 @@ runs:
 
     - name: Run consensus party
       shell: bash
-      run: ./.github/scripts/run_consensus.sh
+      run: ./.github/scripts/run_consensus.sh -m ${{ inputs.min-validator-count }} -n ${{ inputs.node-count }}
 
     - name: Display bootnode logs
       shell: bash
