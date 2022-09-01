@@ -56,35 +56,6 @@ pub mod ticket_token {
         }
     }
 
-    impl Internal for TicketToken {
-        fn _emit_transfer_event(
-            &self,
-            from: Option<AccountId>,
-            to: Option<AccountId>,
-            amount: Balance,
-        ) {
-            TicketToken::emit_event(
-                self.env(),
-                Event::TransferEvent(TransferEvent {
-                    from,
-                    to,
-                    value: amount,
-                }),
-            );
-        }
-
-        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
-            TicketToken::emit_event(
-                self.env(),
-                Event::Approval(Approval {
-                    owner,
-                    spender,
-                    value: amount,
-                }),
-            );
-        }
-    }
-
     impl AccessControlled for TicketToken {
         type ContractError = PSP22Error;
     }

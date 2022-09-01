@@ -44,37 +44,6 @@ pub mod game_token {
     impl PSP22Mintable for GameToken {}
     impl PSP22Burnable for GameToken {}
 
-    // emit events
-    // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
-    impl Internal for GameToken {
-        fn _emit_transfer_event(
-            &self,
-            _from: Option<AccountId>,
-            _to: Option<AccountId>,
-            _amount: Balance,
-        ) {
-            GameToken::emit_event(
-                self.env(),
-                Event::Transfer(Transfer {
-                    from: _from,
-                    to: _to,
-                    value: _amount,
-                }),
-            );
-        }
-
-        fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
-            GameToken::emit_event(
-                self.env(),
-                Event::Approval(Approval {
-                    owner: _owner,
-                    spender: _spender,
-                    value: _amount,
-                }),
-            );
-        }
-    }
-
     impl AccessControlled for GameToken {
         type ContractError = PSP22Error;
     }
