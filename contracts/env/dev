@@ -1,4 +1,4 @@
-export NODE=ws://127.0.0.1:9943
+export NODE=wss://ws-fe-benjamin.dev.azero.dev/
 
 # authority is a joint name for the account that is an INITIALIZER, OWNER and ADMIN of the game contracts for the purposes of the deployment
 export AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY

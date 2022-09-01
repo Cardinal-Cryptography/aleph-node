@@ -34,6 +34,8 @@ mod access_control {
         Owner(AccountId),
         /// Indicates account can initialize a contract from a given code hash.
         Initializer(Hash),
+        Minter,
+        Burner,
     }
 
     #[ink(storage)]

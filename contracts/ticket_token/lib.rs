@@ -8,7 +8,7 @@ pub mod ticket_token {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
-        codegen::{EmitEvent, Env},
+        codegen::EmitEvent,
         reflect::ContractEventBase,
     };
     use ink_prelude::{format, string::String};
