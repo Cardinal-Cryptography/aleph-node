@@ -105,6 +105,47 @@ function deploy_and_instrument_game {
   eval "$__resultvar='$contract_address'"
 }
 
+function deploy_and_instrument_marketplace {
+  local  __resultvar=$1
+  local contract_name=$2
+  local ticket_token=$3
+  local game_token=$4
+
+  # --- UPLOAD CONTRACT CODE
+
+  cd "$CONTRACTS_PATH/$contract_name"
+  link_bytecode "$contract_name" 4465614444656144446561444465614444656144446561444465614444656144 "$ACCESS_CONTROL_PUBKEY"
+  rm target/ink/"$contract_name".wasm
+  node ../scripts/hex-to-wasm.js target/ink/"$contract_name".contract target/ink/"$contract_name".wasm
+
+  local code_hash
+  code_hash=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
+  code_hash=$(echo "$code_hash" | grep hash | tail -1 | cut -c 15-)
+
+  # --- GRANT INIT PRIVILEGES ON THE CONTRACT CODE
+
+  cd "$CONTRACTS_PATH"/access_control
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$code_hash"')' --suri "$AUTHORITY_SEED"
+
+  # --- CREATE AN INSTANCE OF THE CONTRACT
+
+  cd "$CONTRACTS_PATH/$contract_name"
+
+  local contract_address
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args 10000000 97 100 10 5 --suri "$AUTHORITY_SEED")
+  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+
+  echo "$contract_name contract instance address: $contract_address"
+
+  # --- GRANT PRIVILEGES ON THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+
+  eval "$__resultvar='$contract_address'"
+}
+
 function link_bytecode() {
   local contract=$1
   local placeholder=$2
@@ -137,6 +178,9 @@ cd "$CONTRACTS_PATH"/back_to_the_future
 cargo contract build --release
 
 cd "$CONTRACTS_PATH"/the_pressiah_cometh
+cargo contract build --release
+
+cd "$CONTRACTS_PATH"/marketplace
 cargo contract build --release
 
 # --- DEPLOY ACCESS CONTROL CONTRACT
@@ -208,6 +252,8 @@ instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C794
 
 deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
 
+deploy_and_instrument_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE marketplace $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
+
 #
 # --- BACK_TO_THE_FUTURE GAME
 #
@@ -240,6 +286,7 @@ deploy_and_instrument_game THE_PRESSIAH_COMETH the_pressiah_cometh $THE_PRESSIAH
 cd "$CONTRACTS_PATH"
 
 jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
+   --arg early_bird_special_marketplace $EARLY_BIRD_SPECIAL_MARKETPLACE \
    --arg early_bird_special_ticket $EARLY_BIRD_SPECIAL_TICKET \
    --arg early_bird_special_token $EARLY_BIRD_SPECIAL_TOKEN \
    --arg back_to_the_future $BACK_TO_THE_FUTURE \
@@ -249,6 +296,7 @@ jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
    --arg the_pressiah_cometh_ticket $THE_PRESSIAH_COMETH_TICKET \
    --arg the_pressiah_cometh_token $THE_PRESSIAH_COMETH_TOKEN \
    '{early_bird_special: $early_bird_special,
+     early_bird_special_marketplace: $early_bird_special_marketplace,
      early_bird_special_ticket: $early_bird_special_ticket,
      early_bird_special_token: $early_bird_special_token,
      back_to_the_future: $back_to_the_future,
