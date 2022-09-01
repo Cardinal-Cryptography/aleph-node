@@ -114,8 +114,8 @@ pub trait ReadStorage: AnyConnection {
         })
     }
 
-    /// Reads value from storage. Panics if it couldn't be read.
-    fn read_storage_value_from_block<T: Decode>(
+    /// Reads value from storage at given block (empty means `best known`). Panics if it couldn't be read.
+    fn read_storage_value_at_block<T: Decode>(
         &self,
         pallet: &'static str,
         key: &'static str,
@@ -223,6 +223,10 @@ pub trait BalanceTransfer {
     fn create_transfer_tx(&self, account: AccountId, amount: Balance) -> Self::TransferTx;
     fn transfer(&self, tx: Self::TransferTx, status: XtStatus)
         -> Result<Option<H256>, Self::Error>;
+}
+
+pub trait GetTxInfo<Tx> {
+    fn get_tx_info(&self, tx: &Tx) -> FeeInfo;
 }
 
 pub trait BatchTransactions<Tx> {

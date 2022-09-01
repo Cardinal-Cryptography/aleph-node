@@ -113,7 +113,7 @@ fn prepare_transaction<C: BalanceTransfer>(connection: &C) -> C::TransferTx {
     let bytes = [0u8; 32];
     let account = AccountId::from(bytes);
 
-    connection.create_transfer_tx(account, 0u128.into())
+    connection.create_transfer_tx(account, 0u128)
 }
 
 fn fill_blocks(target_ratio: u32, blocks: u32, connection: &RootConnection) {

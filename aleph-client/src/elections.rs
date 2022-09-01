@@ -11,7 +11,7 @@ pub fn get_committee_seats<C: ReadStorage>(
     connection: &C,
     block_hash: Option<H256>,
 ) -> CommitteeSeats {
-    connection.read_storage_value_from_block(PALLET, "CommitteeSize", block_hash)
+    connection.read_storage_value_at_block(PALLET, "CommitteeSize", block_hash)
 }
 
 pub fn get_next_era_committee_seats<C: ReadStorage>(connection: &C) -> CommitteeSeats {
@@ -51,5 +51,5 @@ pub fn get_era_validators<C: ReadStorage>(
     session: SessionIndex,
 ) -> EraValidators<AccountId> {
     let block_hash = get_session_first_block(connection, session);
-    connection.read_storage_value_from_block(PALLET, "CurrentEraValidators", Some(block_hash))
+    connection.read_storage_value_at_block(PALLET, "CurrentEraValidators", Some(block_hash))
 }

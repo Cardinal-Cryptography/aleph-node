@@ -145,7 +145,7 @@ pub fn get_validators_for_session<C: ReadStorage>(
     let first_block = session_period * session;
     let block = get_block_hash(connection, first_block);
 
-    connection.read_storage_value_from_block(PALLET, "Validators", Some(block))
+    connection.read_storage_value_at_block(PALLET, "Validators", Some(block))
 }
 
 pub fn get_current_validators<C: ReadStorage>(connection: &C) -> Vec<AccountId> {

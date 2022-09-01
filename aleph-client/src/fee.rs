@@ -9,10 +9,6 @@ pub struct FeeInfo {
     pub adjusted_weight: Balance,
 }
 
-pub trait GetTxInfo<Tx> {
-    fn get_tx_info(&self, tx: &Tx) -> FeeInfo;
-}
-
 impl GetTxInfo<<SignedConnection as BalanceTransfer>::TransferTx> for SignedConnection {
     fn get_tx_info(&self, tx: &<SignedConnection as BalanceTransfer>::TransferTx) -> FeeInfo {
         let unadjusted_weight = self
