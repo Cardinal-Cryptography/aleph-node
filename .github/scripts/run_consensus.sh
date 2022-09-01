@@ -66,7 +66,7 @@ function generate_chainspec {
   echo "Generate chainspec and keystores with sudo account //Alice ..."
   docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${NODE_IMAGE}" -c \
   "aleph-node bootstrap-chain --base-path /data --account-ids $validator_ids \
-  --min-validator-count" ${min_validator_count}" > /data/chainspec.json"
+  --min-validator-count "${min_validator_count}" > /data/chainspec.json"
 }
 
 function generate_bootnode_peer_id {
