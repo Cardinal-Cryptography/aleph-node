@@ -17,9 +17,6 @@ use crate::{
     Config,
 };
 
-// Required by `MinValidatorCount` from `pallet_staking`, set in chain spec.
-const MIN_VALIDATOR_COUNT: u32 = 4;
-
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
 /// We have to do it by comparing keys in storage trie.
@@ -145,6 +142,9 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     const RESERVED_SEATS_DEFAULT: u32 = 3;
     const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
+    // `MinValidatorCount` from `pallet_staking`, set in chain spec.
+    let min_validator_count = config.test_case_params.min_validator_count();
+
     let reserved_seats = match config.test_case_params.reserved_seats() {
         Some(seats) => seats,
         None => RESERVED_SEATS_DEFAULT,
@@ -158,7 +158,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     const RESERVED_TO_CHILL_COUNT: u32 = 1;
     const NON_RESERVED_TO_CHILL_COUNT: u32 = 1;
 
-    assert_enough_validators(&root_connection, MIN_VALIDATOR_COUNT);
+    assert_enough_validators(&root_connection, min_validator_count);
 
     let desired_validator_count = reserved_seats + non_reserved_seats;
     let accounts = setup_accounts(desired_validator_count);
@@ -189,7 +189,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         non_reserved_count,
         RESERVED_TO_CHILL_COUNT,
         NON_RESERVED_TO_CHILL_COUNT,
-        MIN_VALIDATOR_COUNT,
+        min_validator_count,
     );
 
     change_validators(
