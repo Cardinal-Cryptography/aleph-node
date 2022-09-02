@@ -501,7 +501,7 @@ jobs:
           python-version: '3.8'
 
       - name: Test catch up
-        timeout-minutes: 6
+        timeout-minutes: 10
         env:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
