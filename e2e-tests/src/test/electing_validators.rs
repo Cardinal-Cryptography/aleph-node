@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use aleph_client::{
     change_validators, get_current_session, get_current_validator_count, get_current_validators,
     get_eras_stakers_storage_key, get_stakers_as_storage_keys,
-    get_stakers_as_storage_keys_from_storage_key, staking_chill_all_validators,
+    get_stakers_as_storage_keys_from_storage_key, staking_chill_validators,
     wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, RootConnection,
     SignedConnection, XtStatus,
 };
@@ -192,23 +192,10 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         min_validator_count,
     );
 
-    change_validators(
-        &root_connection,
-        Some(reserved_validators),
-        Some(non_reserved_validators),
-        Some(CommitteeSeats {
-            reserved_seats,
-            non_reserved_seats,
-        }),
-        XtStatus::Finalized,
-    );
-    info!("Changed validators to a new set");
-
     // We need any signed connection.
     let connection = SignedConnection::new(node, accounts.get_stash_keys()[0].clone());
 
     let current_era = wait_for_full_era_completion(&connection)?;
-    info!("New validators are in force (era: {})", current_era);
 
     assert_validators_are_elected_stakers(
         &connection,
@@ -225,7 +212,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         min_num_sessions,
     );
 
-    staking_chill_all_validators(node, vec![chilling_reserved, chilling_non_reserved]);
+    staking_chill_validators(node, vec![chilling_reserved, chilling_non_reserved]);
 
     let current_era = wait_for_full_era_completion(&connection)?;
     info!(
