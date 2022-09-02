@@ -440,7 +440,7 @@ pub fn chill_validator(connection: &SignedConnection) {
 }
 
 /// Chill all validators in `chilling`.
-pub fn chill_all_validators(node: &str, chilling: Vec<KeyPair>) {
+pub fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
     for validator in chilling.into_iter() {
         info!("Chilling validator {:?}", validator.public());
         let connection = SignedConnection::new(node, validator);

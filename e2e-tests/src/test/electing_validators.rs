@@ -192,10 +192,23 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
         min_validator_count,
     );
 
+    change_validators(
+        &root_connection,
+        Some(reserved_validators),
+        Some(non_reserved_validators),
+        Some(CommitteeSeats {
+            reserved_seats,
+            non_reserved_seats,
+        }),
+        XtStatus::Finalized,
+    );
+    info!("Changed validators to a new set");
+
     // We need any signed connection.
     let connection = SignedConnection::new(node, accounts.get_stash_keys()[0].clone());
 
     let current_era = wait_for_full_era_completion(&connection)?;
+    info!("New validators are in force (era: {})", current_era);
 
     assert_validators_are_elected_stakers(
         &connection,
