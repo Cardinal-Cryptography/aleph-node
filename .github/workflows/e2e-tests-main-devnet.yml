@@ -399,6 +399,7 @@ jobs:
           node-count: 6
           reserved-seats: 3
           non-reserved-seats: 3
+          follow-up-finalization-check: true
         timeout-minutes: 15
 
   check-e2e-test-suite-completion:
