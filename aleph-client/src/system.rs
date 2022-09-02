@@ -23,13 +23,14 @@ pub fn set_code(connection: &RootConnection, runtime: Vec<u8>, status: XtStatus)
 impl CallSystem for RootConnection {
     type Error = substrate_api_client::error::Error;
 
-    fn fill_block(&self, target_ratio: u32, status: XtStatus) -> Result<(), Self::Error> {
+    fn fill_block(&self, target_ratio_percent: u32, status: XtStatus) -> Result<(), Self::Error> {
         let connection = self.as_connection();
+        let target_ration_perbill = target_ratio_percent * 10_000_000;
         let call = compose_call!(
             connection.metadata,
             "System",
             "fill_block",
-            target_ratio * 10_000_000
+            target_ratio_perbill
         );
         let xt = compose_extrinsic!(connection, "Sudo", "sudo", call);
         try_send_xt(&connection, xt, Some("fill block"), status).map(|_| ())
