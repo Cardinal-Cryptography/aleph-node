@@ -60,7 +60,7 @@ runs:
       shell: bash
       run: |
         ARGS=(
-          -n "${{ inputs.test-case }}"
+          -t "${{ inputs.test-case }}"
           -r "${{ inputs.randomized }}"
         )
         
