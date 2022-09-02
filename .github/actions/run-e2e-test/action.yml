@@ -59,12 +59,13 @@ runs:
     - name: Run single e2e test
       shell: bash
       run: |
-        TEST_CASE="${{ inputs.test-case }}"
-        RANDOMIZED="${{ inputs.randomized }}"
+        ARGS=(
+          -n "${{ inputs.test-case }}"
+          -r "${{ inputs.randomized }}"
+        )
+        
         RESERVED_SEATS="${{ inputs.reserved-seats }}"
         NON_RESERVED_SEATS="${{ inputs.non-reserved-seats }}"
-        
-        ARGS=(-n "${TEST_CASE}")
         
         if [[ -n "${RANDOMIZED}" ]]; then
           ARGS+=(-r "${RANDOMIZED}")
