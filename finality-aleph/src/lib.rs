@@ -91,7 +91,62 @@ pub struct UnitCreationDelay(pub u64);
 
 pub type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
-pub type GenericNetworkData = Vec<u8>;
+#[derive(Encode, Decode)]
+pub struct Version(u32);
+
+pub trait Versioned {
+    const VERSION: Version;
+}
+
+// impl<T: Versioned + Encode> Encode for T {
+//     fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
+//         L::VERSION.encode_to(dest);
+//         left.encode_to(dest);
+//     }
+
+//     fn size_hint(&self) -> usize {
+//         T::VERSION.size_hint() + left.size_hint()
+//     }
+// }
+
+pub enum VersionedEitherMessage<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
+    fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+        let version = Version::decode(input);
+        match version {
+            L::VERSION => Left(L::decode(input)?),
+            R::VERSION => Right(R::decode(input)?),
+        }
+    }
+}
+
+impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMessage<L, R> {
+    fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
+        match self {
+            VersionedEitherMessage::Left(left) => {
+                L::VERSION.encode_to(dest);
+                left.encode_to(dest);
+            }
+            VersionedEitherMessage::Right(right) => {
+                R::VERSION.encode_to(dest);
+                right.encode_to(dest);
+            }
+        }
+    }
+
+    fn size_hint(&self) -> usize {
+        match self {
+            VersionedEitherMessage::Left(left) => L::VERSION.size_hint() + left.size_hint(),
+            VersionedEitherMessage::Right(right) => R::VERSION.size_hint() + right.size_hint(),
+        }
+    }
+}
+
+pub type GenericNetworkData<L, R> = VersionedEitherMessage<L, R>;
 
 pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>

@@ -13,7 +13,7 @@ use crate::{
         ComponentNetwork, ComponentNetworkExt, Data, ReceiverComponent, SendError, SenderComponent,
         SimpleNetwork,
     },
-    GenericNetworkData,
+    GenericNetworkData, Version, Versioned,
 };
 
 /// Used for routing data through split networks.
@@ -23,7 +23,13 @@ pub enum Split<LeftData: Data, RightData: Data> {
     Right(RightData),
 }
 
-impl<LeftData: Data, RightData: Data> From<Split<LeftData, RightData>> for GenericNetworkData {
+impl<LeftData: Versioned, RightData> Versioned for Split<LeftData, RightData> {
+    const VERSION: Version = Version(LeftData::VERSION);
+}
+
+impl<LeftData: Data, RightData: Data, EitherRight> From<Split<LeftData, RightData>>
+    for GenericNetworkData<Split<LeftData, RightData>, EitherRight>
+{
     fn from(split: Split<LeftData, RightData>) -> Self {
         split.encode()
     }
