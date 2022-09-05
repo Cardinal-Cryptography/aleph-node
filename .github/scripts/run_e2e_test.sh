@@ -48,7 +48,7 @@ do
   esac
 done
 
-if [[ -z "${MIN_VALIDATOR_COUNT}" ]]; then
+if [[ -z "${MIN_VALIDATOR_COUNT:-}" ]]; then
   echo "Min validator count required but not provided!"
   usage
   exit 1
