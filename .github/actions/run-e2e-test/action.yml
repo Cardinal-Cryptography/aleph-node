@@ -62,6 +62,7 @@ runs:
         ARGS=(
           -t "${{ inputs.test-case }}"
           -r "${{ inputs.randomized }}"
+          -m "${{ inputs.min-validator-count }}"
         )
         
         RESERVED_SEATS="${{ inputs.reserved-seats }}"
