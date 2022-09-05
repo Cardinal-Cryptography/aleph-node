@@ -67,11 +67,6 @@ pub struct TestCaseParams {
     /// Desired number of non-reserved seats for validators, may be set within the test.
     #[clap(long)]
     non_reserved_seats: Option<u32>,
-
-    /// Minimum number of stakers before chain enters emergency state. This is what has been set
-    /// in chain spec.
-    #[clap(long, default_value = "4")]
-    min_validator_count: u32,
 }
 
 impl TestCaseParams {
@@ -81,9 +76,5 @@ impl TestCaseParams {
 
     pub fn non_reserved_seats(&self) -> Option<u32> {
         self.non_reserved_seats
-    }
-
-    pub fn min_validator_count(&self) -> u32 {
-        self.min_validator_count
     }
 }

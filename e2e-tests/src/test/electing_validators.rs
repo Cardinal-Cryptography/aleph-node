@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use aleph_client::{
     change_validators, get_current_session, get_current_validator_count, get_current_validators,
-    get_eras_stakers_storage_key, get_stakers_as_storage_keys,
+    get_eras_stakers_storage_key, get_min_validator_count, get_stakers_as_storage_keys,
     get_stakers_as_storage_keys_from_storage_key, staking_chill_validators,
     wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, RootConnection,
     SignedConnection, XtStatus,
@@ -124,16 +124,16 @@ fn assert_enough_validators_left_after_chilling(
 /// 4. Verify only staking validators are in force.
 ///
 /// Note:
-///  - `pallet_staking` has `MinValidatorCount` set to 4 (and this cannot be changed on a running
-///    chain)
-///  - our e2e tests run with 5 validators by default
-/// Thus, chilling 2 validators (1 reserved and 1 non reserved) is a no go: `pallet_staking` will
-/// protest and won't proceed with a new committee. Therefore we have to create a new, bigger
-/// committee. This is much easier to maintain with a fresh set of accounts. However, after
-/// generating new keys for new members (with `rotate_keys`), **FINALIZATION IS STALLED**. This is
-/// because a single node keeps in its keystore all Aleph keys, which is neither expected nor
-/// handled by our code. Fortunately, Aura handles this gently, so after changing committee block
-/// production keeps working. This is completetly enough for this test.
+///  - `pallet_staking` has `MinValidatorCount` (usually set to 4 in chain spec) and this cannot be
+/// changed on a running chain.
+///  - our e2e tests run with 5 validators by default.
+/// Thus, running on default settings and chilling 2 validators (1 reserved and 1 non reserved) is
+/// a no go: `pallet_staking` will protest and won't proceed with a new committee.
+/// To mitigate this, out e2e pipeline accepts a `node-count` parameter to specify the desired
+/// number of nodes to run in consensus. Additionally, there is a `min-validator-count`
+/// parameter to set `MinValidatorCount` in the chain spec as the chain is set up.
+/// For this specific test case, we use `node-count = 6` and `min-validator-count = 4`, which
+/// satisfies the outlined conditions.
 pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let node = &config.node;
     let sudo = get_sudo_key(config);
@@ -143,7 +143,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
     // `MinValidatorCount` from `pallet_staking`, set in chain spec.
-    let min_validator_count = config.test_case_params.min_validator_count();
+    let min_validator_count = get_min_validator_count(&root_connection);
 
     let reserved_seats = match config.test_case_params.reserved_seats() {
         Some(seats) => seats,

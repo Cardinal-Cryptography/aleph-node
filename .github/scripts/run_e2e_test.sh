@@ -2,11 +2,6 @@
 
 set -euo pipefail
 
-# This is required by Substrate: MinValidatorCount in pallet_Staking.
-MIN_VALIDATOR_COUNT=4
-# This is arbitrary.
-MAX_VALIDATOR_COUNT=20
-
 function set_randomized_test_params {
   VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
   # Assumes there is at least one reserved seat for validators.
@@ -20,6 +15,9 @@ Usage:
   $0
     -t
       Test cases to run.
+    -m
+      Minimum number of validators before chain enters emergency state. Set in chain spec, stored as MinValidatorCount
+      in pallet_Staking.
     -r
       Whether to randomize test case params, "true" and "false" values supported.
       Can only be used if both the `-f` and `-n` params are empty.
@@ -38,6 +36,7 @@ do
   case "${flag}" in
     h) usage;;
     t) TEST_CASES="${OPTARG}";;
+    m) MIN_VALIDATOR_COUNT="${OPTARG}";;
     r) RANDOMIZED="${OPTARG}";;
     f) RESERVED_SEATS="${OPTARG}";;
     n) NON_RESERVED_SEATS="${OPTARG}";;
@@ -48,6 +47,15 @@ do
       ;;
   esac
 done
+
+if [[ -z "${MIN_VALIDATOR_COUNT}" ]]; then
+  echo "Min validator count required but not provided!"
+  usage
+  exit 1
+fi
+
+# This is arbitrary.
+MAX_VALIDATOR_COUNT=20
 
 ARGS=(
   --network "container:Node0"
