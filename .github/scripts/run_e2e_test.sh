@@ -2,13 +2,6 @@
 
 set -euo pipefail
 
-function set_randomized_test_params {
-  VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
-  # Assumes there is at least one reserved seat for validators.
-  RESERVED_SEATS=$(shuf -i 1-"${VALIDATOR_COUNT}" -n 1)
-  NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
-}
-
 function usage {
     cat << EOF
 Usage:
@@ -56,6 +49,13 @@ fi
 
 # This is arbitrary.
 MAX_VALIDATOR_COUNT=20
+
+function set_randomized_test_params {
+  VALIDATOR_COUNT=$(shuf -i "${MIN_VALIDATOR_COUNT}"-"${MAX_VALIDATOR_COUNT}" -n 1)
+  # Assumes there is at least one reserved seat for validators.
+  RESERVED_SEATS=$(shuf -i 1-"${VALIDATOR_COUNT}" -n 1)
+  NON_RESERVED_SEATS=$((${VALIDATOR_COUNT} - ${RESERVED_SEATS}))
+}
 
 ARGS=(
   --network "container:Node0"
