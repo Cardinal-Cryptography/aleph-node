@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use std::{convert::Infallible, fmt::Debug, path::PathBuf, sync::Arc};
 
 use aleph_bft::{NodeIndex, TaskHandle};
 use codec::{Decode, Encode, Output};
@@ -92,16 +92,20 @@ pub struct UnitCreationDelay(pub u64);
 pub type SplitData<B> = Split<AlephNetworkData<B>, RmcNetworkData<B>>;
 
 impl<B: Block> Versioned for AlephNetworkData<B> {
-    const VERSION: Version = 0;
+    const VERSION: Version = Version(0);
 }
 
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, PartialEq)]
 pub struct Version(u32);
 
 pub trait Versioned {
     const VERSION: Version;
 }
 
+/// It provides a generic implementation of the Decode and Encode traits by prepending byte
+/// representations for provided type parameters with their version (they need to implement the `Versioned` trait).
+/// If one provides data types with equal versions, the first data parameter will have priority while decoding.
+/// Keep in mind that with this approach, `decode` might fail even if the second data type could parse (fast fail).
 #[derive(Clone)]
 pub enum VersionedEitherMessage<L, R> {
     Left(L),
@@ -110,11 +114,14 @@ pub enum VersionedEitherMessage<L, R> {
 
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
     fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
-        let version = Version::decode(input);
-        Ok(match version {
-            L::VERSION => VersionedEitherMessage::Left(L::decode(input)?),
-            R::VERSION => VersionedEitherMessage::Right(R::decode(input)?),
-        })
+        let version = Version::decode(input)?;
+        if version == L::VERSION {
+            return Ok(VersionedEitherMessage::Left(L::decode(input)?));
+        }
+        if version == R::VERSION {
+            return Ok(VersionedEitherMessage::Right(R::decode(input)?));
+        }
+        Err("Invalid version while decoding VersionedEitherMessage".into())
     }
 }
 
@@ -140,14 +147,12 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-pub type GenericNetworkData<L, R> = VersionedEitherMessage<L, R>;
+pub type GenericNetworkData<B> = VersionedEitherMessage<SplitData<B>, SplitData<B>>;
 
-impl<B: Block> TryFrom<GenericNetworkData<SplitData<B>, SplitData<B>>> for SplitData<B> {
-    type Error = ();
+impl<B: Block> TryFrom<GenericNetworkData<B>> for SplitData<B> {
+    type Error = Infallible;
 
-    fn try_from(
-        value: GenericNetworkData<SplitData<B>, SplitData<B>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: GenericNetworkData<B>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(data) => data,
             VersionedEitherMessage::Right(data) => data,
@@ -155,8 +160,8 @@ impl<B: Block> TryFrom<GenericNetworkData<SplitData<B>, SplitData<B>>> for Split
     }
 }
 
-impl<B: Block> Into<GenericNetworkData<SplitData<B>, SplitData<B>>> for SplitData<B> {
-    fn into(self) -> GenericNetworkData<SplitData<B>, SplitData<B>> {
+impl<B: Block> Into<GenericNetworkData<B>> for SplitData<B> {
+    fn into(self) -> GenericNetworkData<B> {
         GenericNetworkData::Left(self)
     }
 }
