@@ -18,7 +18,7 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-use primitives::{CurrentVersion, SessionIndex, Version};
+use primitives::{SessionIndex, Version, VersionChange};
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -45,7 +45,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
-        ChangeAlephBFTVersion(Version),
+        ChangeAlephBFTVersion(VersionChange),
     }
 
     #[pallet::pallet]
@@ -101,8 +101,8 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, SessionIndex, Version, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn current_aleph_bft_version)]
-    pub(super) type CurrentAlephBFTVersion<T: Config> = StorageValue<_, CurrentVersion, ValueQuery>;
+    #[pallet::getter(fn aleph_bft_version_change)]
+    pub(super) type AlephBFTVersionChange<T: Config> = StorageValue<_, VersionChange, ValueQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -133,24 +133,28 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
-        pub(crate) fn update_current_aleph_bft_version(session: SessionIndex, version: Version) {
-            let current_version = <CurrentAlephBFTVersion<T>>::get();
-            let session_when_current_version_set = current_version.session_when_set;
-            if session > session_when_current_version_set {
-                let updated_current_version = CurrentVersion {
-                    session_when_set: session,
-                    version,
-                };
-                <CurrentAlephBFTVersion<T>>::put(updated_current_version);
-            }
-        }
-
-        pub(crate) fn update_aleph_bft_version_for_session(
-            session: SessionIndex,
-            version: Version,
+        pub(crate) fn set_next_aleph_bft_version(
+            next_version_change: VersionChange,
+            current_session: SessionIndex,
         ) {
-            <AlephBFTVersion<T>>::set(session, Some(version.clone()));
-            Self::update_current_aleph_bft_version(session, version);
+            let session_to_set = next_version_change.session;
+            let version_to_set = next_version_change.version.clone();
+            assert!(
+                session_to_set > current_session,
+                "Can only set AlephBFT version for future sessions!"
+            );
+
+            let previous_version_change = <AlephBFTVersionChange<T>>::get();
+            let previous_version_change_session = previous_version_change.session;
+
+            // If a new version is scheduled before the session of the previous version change,
+            // undo the previous version change.
+            if current_session < previous_version_change_session {
+                <AlephBFTVersion<T>>::set(previous_version_change_session, None);
+            }
+
+            <AlephBFTVersionChange<T>>::put(next_version_change);
+            <AlephBFTVersion<T>>::set(session_to_set, Some(version_to_set));
         }
     }
 
@@ -169,15 +173,19 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Sets AlephBFT version for a future session. If such a feature version is already set,
+        /// it is replaced with the specified one.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_aleph_bft_version_for_session(
+        pub fn set_aleph_bft_version(
             origin: OriginFor<T>,
             session: SessionIndex,
+            current_session: SessionIndex,
             version: Version,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            Self::update_aleph_bft_version_for_session(session, version.clone());
-            Self::deposit_event(Event::ChangeAlephBFTVersion(version));
+            let version_change = VersionChange { session, version };
+            Self::set_next_aleph_bft_version(version_change.clone(), current_session);
+            Self::deposit_event(Event::ChangeAlephBFTVersion(version_change));
             Ok(())
         }
     }

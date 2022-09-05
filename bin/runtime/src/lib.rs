@@ -897,26 +897,16 @@ impl_runtime_apis! {
             ))
         }
 
-        // Read the last AlephBFT version set before or on a specified session. The specified
-        // session may be in the future relative to the current session. If the specified session
-        // is not in the future, the scanning is performed backwards.
+        // Read the last AlephBFT version set on a specified session or before with scanning
+        // performed backwards. The specified session may be in the future relative to the current
+        // session.
         fn aleph_bft_version(session: SessionIndex) -> AlephBFTVersion {
-            let current_version = Aleph::current_aleph_bft_version();
-            let session_when_current_version_set = current_version.session_when_set;
-
-            // Prevents potentially long loops for session indices far ahead of the current session.
-            if session > session_when_current_version_set {
-               return current_version.version
-            };
-
-            let mut version = Aleph::aleph_bft_version(session);
-            let mut idx = session;
-
-            while version.is_none() && idx != 0 {
-                idx -= 1;
-                version = Aleph::aleph_bft_version(idx);
+            for idx in (0..session + 1).rev() {
+                if let Some(version) = Aleph::aleph_bft_version(idx) {
+                    return version
+                }
             }
-            version.unwrap_or(AlephBFTVersion::Legacy)
+            AlephBFTVersion::Legacy
         }
     }
 

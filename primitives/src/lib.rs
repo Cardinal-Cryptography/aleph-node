@@ -131,15 +131,15 @@ pub enum Version {
 }
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, Eq, TypeInfo)]
-pub struct CurrentVersion {
-    pub session_when_set: SessionIndex,
+pub struct VersionChange {
+    pub session: SessionIndex,
     pub version: Version,
 }
 
-impl Default for CurrentVersion {
+impl Default for VersionChange {
     fn default() -> Self {
         Self {
-            session_when_set: 0,
+            session: 0,
             version: Version::Legacy,
         }
     }
