@@ -19,7 +19,7 @@ use crate::{
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
-    AlephConfig,
+    AlephConfig, SplitData, VersionedEitherMessage,
 };
 
 pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
@@ -117,7 +117,14 @@ where
             client: client.clone(),
             _phantom: PhantomData,
         },
-        session_manager: NodeSessionManagerImpl::new(
+        session_manager: NodeSessionManagerImpl::<
+            _,
+            _,
+            _,
+            _,
+            _,
+            VersionedEitherMessage<SplitData<B>, SplitData<B>>,
+        >::new(
             client,
             select_chain,
             session_period,

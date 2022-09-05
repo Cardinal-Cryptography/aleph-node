@@ -23,24 +23,8 @@ pub enum Split<LeftData: Data, RightData: Data> {
     Right(RightData),
 }
 
-impl<LeftData: Versioned, RightData> Versioned for Split<LeftData, RightData> {
+impl<LeftData: Versioned + Data, RightData: Data> Versioned for Split<LeftData, RightData> {
     const VERSION: Version = Version(LeftData::VERSION);
-}
-
-impl<LeftData: Data, RightData: Data, EitherRight> From<Split<LeftData, RightData>>
-    for GenericNetworkData<Split<LeftData, RightData>, EitherRight>
-{
-    fn from(split: Split<LeftData, RightData>) -> Self {
-        split.encode()
-    }
-}
-
-impl<LeftData: Data, RightData: Data> TryFrom<GenericNetworkData> for Split<LeftData, RightData> {
-    type Error = codec::Error;
-
-    fn try_from(value: GenericNetworkData) -> Result<Self, Self::Error> {
-        Decode::decode(&mut value.as_ref())
-    }
 }
 
 trait Convert {

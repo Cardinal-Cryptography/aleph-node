@@ -14,7 +14,7 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, Keychain},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     default_aleph_config, mpsc,
-    network::{split, ComponentNetworkMap, ManagerError, RequestBlocks, SessionManager},
+    network::{split, ComponentNetworkMap, Data, ManagerError, RequestBlocks, SessionManager},
     party::{backup::ABFTBackup, traits::NodeSessionManager},
     AuthorityId, GenericNetworkData, JustificationNotification, Metrics, NodeIndex,
     SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
@@ -30,13 +30,14 @@ mod task;
 pub use authority::{SubtaskCommon, Subtasks, Task as AuthorityTask};
 pub use task::{Handle, Task};
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, MessageType>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    MessageType: Data,
 {
     client: Arc<C>,
     select_chain: SC,
@@ -46,18 +47,19 @@ where
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     spawn_handle: crate::SpawnHandle,
-    session_manager: SessionManager<GenericNetworkData>,
+    session_manager: SessionManager<MessageType>,
     keystore: Arc<dyn CryptoStore>,
     _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE> NodeSessionManagerImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE, MessageType> NodeSessionManagerImpl<C, SC, B, RB, BE, MessageType>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    MessageType: Data,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -69,7 +71,7 @@ where
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
         spawn_handle: crate::SpawnHandle,
-        session_manager: SessionManager<GenericNetworkData>,
+        session_manager: SessionManager<MessageType>,
         keystore: Arc<dyn CryptoStore>,
     ) -> Self {
         Self {
@@ -189,7 +191,8 @@ pub enum SessionManagerError {
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE, MessageType> NodeSessionManager
+    for NodeSessionManagerImpl<C, SC, B, RB, BE, MessageType>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -197,6 +200,7 @@ where
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    MessageType: Data,
 {
     type Error = SessionManagerError;
 
