@@ -95,7 +95,7 @@ impl<B: Block> Versioned for AlephNetworkData<B> {
     const VERSION: Version = Version(0);
 }
 
-#[derive(Encode, Decode, PartialEq)]
+#[derive(Encode, Eq, Decode, PartialEq)]
 pub struct Version(u32);
 
 pub trait Versioned {
@@ -160,9 +160,9 @@ impl<B: Block> TryFrom<VersionedNetworkData<B>> for SplitData<B> {
     }
 }
 
-impl<B: Block> Into<VersionedNetworkData<B>> for SplitData<B> {
-    fn into(self) -> VersionedNetworkData<B> {
-        VersionedNetworkData::Left(self)
+impl<B: Block> From<SplitData<B>> for VersionedNetworkData<B> {
+    fn from(data: SplitData<B>) -> Self {
+        VersionedEitherMessage::Left(data)
     }
 }
 
