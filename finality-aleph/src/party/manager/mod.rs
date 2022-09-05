@@ -16,7 +16,7 @@ use crate::{
     default_aleph_config, mpsc,
     network::{split, ComponentNetworkMap, ManagerError, RequestBlocks, SessionManager},
     party::{backup::ABFTBackup, traits::NodeSessionManager},
-    AuthorityId, GenericNetworkData, JustificationNotification, Metrics, NodeIndex,
+    AuthorityId, VersionedNetworkData, JustificationNotification, Metrics, NodeIndex,
     SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
 };
 
@@ -46,7 +46,7 @@ where
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     spawn_handle: crate::SpawnHandle,
-    session_manager: SessionManager<GenericNetworkData<B>>,
+    session_manager: SessionManager<VersionedNetworkData<B>>,
     keystore: Arc<dyn CryptoStore>,
     _phantom: PhantomData<BE>,
 }
@@ -69,7 +69,7 @@ where
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
         spawn_handle: crate::SpawnHandle,
-        session_manager: SessionManager<GenericNetworkData<B>>,
+        session_manager: SessionManager<VersionedNetworkData<B>>,
         keystore: Arc<dyn CryptoStore>,
     ) -> Self {
         Self {

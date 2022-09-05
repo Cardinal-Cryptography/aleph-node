@@ -147,12 +147,12 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-pub type GenericNetworkData<B> = VersionedEitherMessage<SplitData<B>, SplitData<B>>;
+pub type VersionedNetworkData<B> = VersionedEitherMessage<SplitData<B>, SplitData<B>>;
 
-impl<B: Block> TryFrom<GenericNetworkData<B>> for SplitData<B> {
+impl<B: Block> TryFrom<VersionedNetworkData<B>> for SplitData<B> {
     type Error = Infallible;
 
-    fn try_from(value: GenericNetworkData<B>) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData<B>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(data) => data,
             VersionedEitherMessage::Right(data) => data,
@@ -160,9 +160,9 @@ impl<B: Block> TryFrom<GenericNetworkData<B>> for SplitData<B> {
     }
 }
 
-impl<B: Block> Into<GenericNetworkData<B>> for SplitData<B> {
-    fn into(self) -> GenericNetworkData<B> {
-        GenericNetworkData::Left(self)
+impl<B: Block> Into<VersionedNetworkData<B>> for SplitData<B> {
+    fn into(self) -> VersionedNetworkData<B> {
+        VersionedNetworkData::Left(self)
     }
 }
 
