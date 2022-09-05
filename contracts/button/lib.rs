@@ -4,7 +4,7 @@ use access_control::{traits::AccessControlled, Role};
 use game_token::MINT_TO_SELECTOR;
 use ink_env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Environment, Error as InkEnvError,
+    AccountId, CallFlags, DefaultEnvironment, Environment, Error as InkEnvError,
 };
 use ink_lang as ink;
 use ink_prelude::{format, string::String, vec};
@@ -225,6 +225,7 @@ pub trait ButtonGame {
                     .push_arg(value)
                     .push_arg(vec![0x0]),
             )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
             .returns::<Result<(), PSP22Error>>()
             .fire()
     }

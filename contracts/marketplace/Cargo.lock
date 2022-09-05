@@ -523,6 +523,7 @@ dependencies = [
  "openbrush",
  "parity-scale-codec",
  "scale-info",
+ "ticket_token",
 ]
 
 [[package]]
@@ -923,6 +924,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "ticket_token"
+version = "2.1.0"
+dependencies = [
+ "access_control",
+ "ink_env",
+ "ink_lang",
+ "ink_prelude",
+ "ink_primitives",
+ "ink_storage",
+ "openbrush",
+ "parity-scale-codec",
 ]
 
 [[package]]

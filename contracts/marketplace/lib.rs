@@ -8,21 +8,59 @@ pub mod marketplace {
     use access_control::{
         traits::AccessControlled, Role, Role::Initializer, ACCESS_CONTROL_PUBKEY,
     };
+    use game_token::TRANSFER_FROM_SELECTOR as TRANSFER_FROM_GAME_TOKEN_SELECTOR;
+    use ink_env::{
+        call::{build_call, Call, ExecutionInput, Selector},
+        CallFlags,
+    };
+    use ink_prelude::{format, string::String};
+    use openbrush::contracts::psp22::PSP22Error;
+    use ticket_token::{
+        BALANCE_OF_SELECTOR as TICKET_BALANCE_SELECTOR,
+        TRANSFER_SELECTOR as TRANSFER_TICKET_SELECTOR,
+    };
+
+    use crate::marketplace::Error::MissingRole;
+
+    const DUMMY_DATA: &[u8] = &[0x0];
 
     #[ink(storage)]
     pub struct Marketplace {
-        price: Balance,
-        at_block: BlockNumber,
-        price_multiplier_numerator: Balance,
-        price_multiplier_denominator: Balance,
-        units: u32,
-        sell_price_multiplier: Balance,
+        total_proceeds: Balance,
+        tickets_sold: Balance,
+        min_price: Balance,
+        current_start_block: BlockNumber,
+        auction_length: BlockNumber,
+        sale_multiplier: Balance,
+        ticket_token: AccountId,
+        game_token: AccountId,
     }
 
-    #[derive(Debug)]
+    #[derive(Clone, Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
-        AccessControlCall(ink_env::Error),
-        MissingRole(Role),
+        MissingRole(String),
+        ContractCall(String),
+        PSP22TokenCall(String),
+        MarketplaceEmpty,
+    }
+
+    impl Error {
+        fn missing_role(role: Role) -> Self {
+            MissingRole(format!("{:?}", role))
+        }
+    }
+
+    impl From<ink_env::Error> for Error {
+        fn from(inner: ink_env::Error) -> Self {
+            Error::ContractCall(format!("{:?}", inner))
+        }
+    }
+
+    impl From<PSP22Error> for Error {
+        fn from(inner: PSP22Error) -> Self {
+            Error::PSP22TokenCall(format!("{:?}", inner))
+        }
     }
 
     impl AccessControlled for Marketplace {
@@ -32,22 +70,25 @@ pub mod marketplace {
     impl Marketplace {
         #[ink(constructor)]
         pub fn new(
+            ticket_token: AccountId,
+            game_token: AccountId,
             starting_price: Balance,
-            price_multiplier_numerator: Balance,
-            price_multiplier_denominator: Balance,
-            units: u32,
-            sell_price_multiplier: Balance,
+            min_price: Balance,
+            sale_multiplier: Balance,
+            auction_length: BlockNumber,
         ) -> Self {
-            match Self::ensure_role(Self::initializer()) {
-                Err(error) => panic!("Failed to initialize the contract {:?}", error),
-                Ok(_) => Marketplace {
-                    price: starting_price,
-                    at_block: Self::env().block_number(),
-                    price_multiplier_numerator,
-                    price_multiplier_denominator,
-                    units,
-                    sell_price_multiplier,
-                },
+            Self::ensure_role(Self::initializer())
+                .unwrap_or_else(|e| panic!("Failed to initialize the contract {:?}", e));
+
+            Marketplace {
+                ticket_token,
+                game_token,
+                min_price,
+                sale_multiplier,
+                auction_length,
+                current_start_block: Self::env().block_number(),
+                total_proceeds: starting_price.saturating_div(sale_multiplier),
+                tickets_sold: 1,
             }
         }
 
@@ -56,8 +97,8 @@ pub mod marketplace {
                 AccountId::from(ACCESS_CONTROL_PUBKEY),
                 Self::env().caller(),
                 role,
-                |reason| Error::AccessControlCall(reason),
-                |role| Error::MissingRole(role),
+                |reason| reason.into(),
+                |role| Error::missing_role(role),
             )
         }
 
@@ -68,94 +109,132 @@ pub mod marketplace {
             Initializer(code_hash)
         }
 
+        fn admin(&self) -> Role {
+            Role::Admin(self.this())
+        }
+
         #[ink(message)]
         pub fn price(&self) -> Balance {
-            self.price
+            self.current_price()
         }
 
         #[ink(message)]
-        pub fn at_block(&self) -> BlockNumber {
-            self.at_block
+        pub fn sale_multiplier(&self) -> Balance {
+            self.sale_multiplier
         }
 
         #[ink(message)]
-        pub fn block_multiplier(&self) -> (Balance, Balance) {
-            (
-                self.price_multiplier_numerator,
-                self.price_multiplier_denominator,
-            )
+        pub fn available_tickets(&self) -> Result<Balance, Error> {
+            self.ticket_balance()
         }
 
         #[ink(message)]
-        pub fn available_units(&self) -> u32 {
-            self.units
+        pub fn min_price(&self) -> Balance {
+            self.min_price
         }
 
         #[ink(message)]
-        pub fn buy(&mut self) {
-            self.update_price();
-            self.units = self.units.saturating_sub(1);
-            self.price = self.price.saturating_mul(self.sell_price_multiplier);
+        pub fn game_token(&self) -> AccountId {
+            self.game_token
         }
 
-        fn update_price(&mut self) {
+        #[ink(message)]
+        pub fn ticket_token(&self) -> AccountId {
+            self.ticket_token
+        }
+
+        #[ink(message)]
+        pub fn buy(&mut self) -> Result<(), Error> {
+            if self.ticket_balance()? > 0 {
+                let price = self.current_price();
+                self.take_payment(self.env().caller(), price)?;
+                self.give_ticket(self.env().caller())?;
+
+                self.total_proceeds = self.total_proceeds.saturating_add(price);
+                self.tickets_sold = self.tickets_sold.saturating_add(1);
+                self.current_start_block = self.env().block_number();
+
+                Ok(())
+            } else {
+                Err(Error::MarketplaceEmpty)
+            }
+        }
+
+        #[ink(message)]
+        pub fn reset(&mut self) -> Result<(), Error> {
+            Self::ensure_role(self.admin())?;
+
+            self.current_start_block = self.env().block_number();
+
+            Ok(())
+        }
+
+        fn current_price(&self) -> Balance {
             let block = self.env().block_number();
-            for _ in self.at_block..block {
-                self.price = self
-                    .price
-                    .saturating_mul(self.price_multiplier_numerator)
-                    .saturating_div(self.price_multiplier_denominator)
-            }
-            self.at_block = block;
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use ink_env::{block_number, test::advance_block, DefaultEnvironment};
-        use ink_lang as ink;
-
-        use super::*;
-
-        type E = DefaultEnvironment;
-
-        #[ink::test]
-        fn initial_state() {
-            let mut market = test_marketplace();
-
-            assert_eq!(market.price(), 10000);
-            assert_eq!(market.available_units(), 10)
+            let elapsed = block.saturating_sub(self.current_start_block.into());
+            self.average_price()
+                .saturating_mul(self.sale_multiplier)
+                .saturating_sub(self.per_block_reduction().saturating_mul(elapsed.into()))
+                .max(self.min_price)
         }
 
-        #[ink::test]
-        fn price_decreases_per_block() {
-            let mut market = test_marketplace();
-
-            advance_block::<E>();
-            advance_block::<E>();
-
-            assert_eq!(market.price(), 2500)
+        fn per_block_reduction(&self) -> Balance {
+            self.average_price()
+                .saturating_div(self.auction_length.into())
+                .max(1u128)
         }
 
-        #[ink::test]
-        fn buying_a_unit() {
-            let mut market = test_marketplace();
-
-            market.buy();
-
-            assert_eq!(market.available_units(), 9);
-            assert_eq!(market.price(), 50000);
+        fn average_price(&self) -> Balance {
+            self.total_proceeds.saturating_div(self.tickets_sold)
         }
 
-        fn test_marketplace() -> Marketplace {
-            Marketplace {
-                price: 10000,
-                at_block: block_number::<E>(),
-                price_multiplier_numerator: 1,
-                price_multiplier_denominator: 2,
-                units: 10,
-                sell_price_multiplier: 5,
-            }
+        fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
+            build_call::<Environment>()
+                .call_type(Call::new().callee(self.game_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TRANSFER_FROM_GAME_TOKEN_SELECTOR))
+                        .push_arg(from)
+                        .push_arg(self.this())
+                        .push_arg(amount)
+                        .push_arg(DUMMY_DATA),
+                )
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .returns::<Result<(), PSP22Error>>()
+                .fire()??;
+
+            Ok(())
+        }
+
+        fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
+            build_call::<Environment>()
+                .call_type(Call::new().callee(self.ticket_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TRANSFER_TICKET_SELECTOR))
+                        .push_arg(to)
+                        .push_arg(1u128)
+                        .push_arg(DUMMY_DATA),
+                )
+                .returns::<Result<(), PSP22Error>>()
+                .fire()??;
+
+            Ok(())
+        }
+
+        fn ticket_balance(&self) -> Result<Balance, Error> {
+            let balance = build_call::<Environment>()
+                .call_type(Call::new().callee(self.ticket_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TICKET_BALANCE_SELECTOR))
+                        .push_arg(self.this()),
+                )
+                .returns::<Balance>()
+                .fire()?;
+
+            Ok(balance)
+        }
+
+        fn this(&self) -> AccountId {
+            self.env().account_id()
         }
     }
 }

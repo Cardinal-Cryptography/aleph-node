@@ -110,6 +110,7 @@ function deploy_and_instrument_marketplace {
   local contract_name=$2
   local ticket_token=$3
   local game_token=$4
+  local game=$5
 
   # --- UPLOAD CONTRACT CODE
 
@@ -131,8 +132,15 @@ function deploy_and_instrument_marketplace {
 
   cd "$CONTRACTS_PATH/$contract_name"
 
+  local blocks_per_hour=3600
+  local initial_price="$TOTAL_BALANCE"
+  local min_price=1
+  local sale_price_multiplier=2
+
   local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args 10000000 97 100 10 5 --suri "$AUTHORITY_SEED")
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new \
+    --args "$ticket_token" "$game_token" "$initial_price" "$min_price" "$sale_price_multiplier" "$blocks_per_hour" \
+    --suri "$AUTHORITY_SEED")
   contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$contract_name contract instance address: $contract_address"
@@ -142,6 +150,8 @@ function deploy_and_instrument_marketplace {
   cd "$CONTRACTS_PATH"/access_control
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$game" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
@@ -252,7 +262,7 @@ instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C794
 
 deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
 
-deploy_and_instrument_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE marketplace $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN
+deploy_and_instrument_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE marketplace "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
 
 #
 # --- BACK_TO_THE_FUTURE GAME
