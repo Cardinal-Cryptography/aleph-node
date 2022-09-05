@@ -16,8 +16,8 @@ use crate::{
     default_aleph_config, mpsc,
     network::{split, ComponentNetworkMap, ManagerError, RequestBlocks, SessionManager},
     party::{backup::ABFTBackup, traits::NodeSessionManager},
-    AuthorityId, VersionedNetworkData, JustificationNotification, Metrics, NodeIndex,
-    SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
+    AuthorityId, JustificationNotification, Metrics, NodeIndex, SessionBoundaries, SessionId,
+    SessionPeriod, UnitCreationDelay, VersionedNetworkData,
 };
 
 mod aggregator;
