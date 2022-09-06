@@ -152,6 +152,10 @@ pub fn get_current_validators<C: ReadStorage>(connection: &C) -> Vec<AccountId> 
     connection.read_storage_value(PALLET, "Validators")
 }
 
+pub fn get_current_validator_count<C: ReadStorage>(connection: &C) -> u32 {
+    get_current_validators(connection).len() as u32
+}
+
 pub fn get_session_first_block<C: ReadStorage>(connection: &C, session: SessionIndex) -> BlockHash {
     let block_number = session * get_session_period(connection);
     get_block_hash(connection, block_number)
