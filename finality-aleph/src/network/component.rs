@@ -17,8 +17,8 @@ pub struct MapSender<D, S> {
     _phantom: PhantomData<D>,
 }
 
-pub trait SenderMap<From: Data>: Sender<From> {
-    fn map(self) -> MapSender<From, Self> {
+pub trait SenderMap<FromData: Data>: Sender<FromData> {
+    fn map(self) -> MapSender<FromData, Self> {
         MapSender {
             sender: self,
             _phantom: PhantomData,
@@ -45,8 +45,8 @@ pub struct MapReceiver<D, R> {
     _phantom: PhantomData<D>,
 }
 
-pub trait ReceiverMap<From: Data>: Receiver<From> + Sized {
-    fn map(self) -> MapReceiver<From, Self> {
+pub trait ReceiverMap<FromData: Data>: Receiver<FromData> + Sized {
+    fn map(self) -> MapReceiver<FromData, Self> {
         MapReceiver {
             receiver: self,
             _phantom: PhantomData,
