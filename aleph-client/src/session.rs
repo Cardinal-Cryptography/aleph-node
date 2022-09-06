@@ -165,5 +165,5 @@ pub fn get_session_first_block<C: AnyConnectionExt>(
 }
 
 pub fn get_min_validator_count<C: AnyConnection>(connection: &C) -> u32 {
-    connection.read_storage_value(PALLET, "MinValidatorCount")
+    connection.read_storage_value(PALLET, "MinimumValidatorCount")
 }
