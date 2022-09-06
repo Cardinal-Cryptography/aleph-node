@@ -42,7 +42,7 @@ do
 done
 
 if [[ -z "${MIN_VALIDATOR_COUNT:-}" ]]; then
-  echo "Min validator count required but not provided!"
+  echo "Minimum validator count required but not provided!"
   usage
   exit 1
 fi
