@@ -181,7 +181,7 @@ mod tests {
         StreamExt,
     };
 
-    use super::{DataNetwork, NetworkMap, Receiver, Sender, SimpleNetwork};
+    use super::{DataNetwork, NetworkMap, Receiver, Sender};
     use crate::network::{
         component::{Network, ReceiverMap, SenderMap},
         Data, SendError,
@@ -197,13 +197,13 @@ mod tests {
         assert_eq!(Some(val), received);
     }
 
-    #[derive(Decode, Encode, Clone, PartialEq, Eq, Debug)]
+    #[derive(Decode, Encode, Clone, PartialEq, Eq, Debug, Copy)]
     enum FromType {
         A,
         B,
     }
 
-    #[derive(Decode, Encode, Clone, PartialEq, Eq, Debug)]
+    #[derive(Decode, Encode, Clone, PartialEq, Eq, Debug, Copy)]
     struct IntoType {}
 
     impl TryFrom<FromType> for IntoType {
@@ -255,7 +255,7 @@ mod tests {
     }
 
     impl<D: Data> Sender<D> for TestSender<D> {
-        fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        fn send(&self, data: D, _: Recipient) -> Result<(), SendError> {
             self.sender
                 .unbounded_send(data)
                 .map_err(|_| SendError::SendFailed)
@@ -273,19 +273,6 @@ mod tests {
         }
     }
 
-    // #[async_trait::async_trait]
-    // impl<D: Data> DataNetwork<D> for TestNetwork<D> {
-    //     fn send(&self, data: D, _: Recipient) -> Result<(), crate::network::SendError> {
-    //         self.sender
-    //             .unbounded_send(data)
-    //             .map_err(|_| SendError::SendFailed)
-    //     }
-
-    //     async fn next(&mut self) -> Option<D> {
-    //         self.receiver.next().await
-    //     }
-    // }
-
     #[tokio::test]
     async fn test_receiver_map_allows_to_receive_mapped_data() {
         let (sender, receiver) = mpsc::unbounded();
@@ -302,35 +289,38 @@ mod tests {
 
     #[tokio::test]
     async fn test_map_allows_to_send_and_receive_mapped_data() {
-        let (sender, receiver) = mpsc::unbounded();
+        let (sender, mut receiver) = mpsc::unbounded();
 
         let from_data = FromType::A;
         let into_data = IntoType {};
         let recipient = Recipient::Everyone;
+        let sender = TestSender { sender };
         let mapped_sender = sender.map();
 
-        mapped_sender.send(into_data, recipient);
+        mapped_sender.send(into_data, recipient).unwrap();
 
-        let received = receiver.next().await;
-        assert_eq!(Some((from_data, recipient)), received);
+        let received = StreamExt::next(&mut receiver).await;
+        assert_eq!(Some(from_data), received);
     }
 
     #[tokio::test]
     async fn test_mapped_receiver_only_returns_convertable_values() {
         let (sender, receiver) = mpsc::unbounded();
+        let receiver = TestReceiver { receiver };
 
         let from_data = FromType::A;
         let into_data = IntoType {};
-        let mut mapped_receiver = ReceiverMap::map(receiver);
 
         sender.unbounded_send(FromType::B).unwrap();
         sender.unbounded_send(FromType::B).unwrap();
         sender.unbounded_send(from_data).unwrap();
         sender.close_channel();
 
+        let mut mapped_receiver = ReceiverMap::<FromType>::map(receiver);
+
         let received = mapped_receiver.next().await;
         assert_eq!(Some(into_data), received);
-        let received = mapped_receiver.next().await;
+        let received: Option<IntoType> = mapped_receiver.next().await;
         assert_eq!(None, received);
     }
 
@@ -339,20 +329,34 @@ mod tests {
         let (sender_for_network, receiver_for_other_network) = mpsc::unbounded();
         let (sender_for_other_network, receiver_for_network) = mpsc::unbounded();
 
-        let network = TestNetwork::new(receiver_for_network, sender_for_network);
-        let other_network = TestNetwork::new(receiver_for_other_network, sender_for_other_network);
-        let mapped_network = other_network.map();
+        let mut network = TestNetwork {
+            sender: TestSender {
+                sender: sender_for_network,
+            },
+            receiver: TestReceiver {
+                receiver: receiver_for_network,
+            },
+        };
+        let other_network = TestNetwork {
+            sender: TestSender {
+                sender: sender_for_other_network,
+            },
+            receiver: TestReceiver {
+                receiver: receiver_for_other_network,
+            },
+        };
+        let mut mapped_network = other_network.map();
 
         let from_data = FromType::A;
         let into_data = IntoType {};
         let recipient = Recipient::Everyone;
 
-        network.send(from_data, recipient).unwrap();
+        network.send(from_data, recipient.clone()).unwrap();
         let received = mapped_network.next().await;
-        assert_eq!(Some((into_data, recipient)), received);
+        assert_eq!(Some(into_data), received);
 
         mapped_network.send(into_data, recipient).unwrap();
         let received = network.next().await;
-        assert_eq!(Some((from_data, recipient)), received);
+        assert_eq!(Some(from_data), received);
     }
 }
