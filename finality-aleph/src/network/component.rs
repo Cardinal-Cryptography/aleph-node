@@ -250,26 +250,22 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct TestSender<D> {
-        sender: UnboundedSender<D>,
-    }
+    struct TestSender<D>(UnboundedSender<D>);
 
     impl<D: Data> Sender<D> for TestSender<D> {
         fn send(&self, data: D, _: Recipient) -> Result<(), SendError> {
-            self.sender
+            self.0
                 .unbounded_send(data)
                 .map_err(|_| SendError::SendFailed)
         }
     }
 
-    struct TestReceiver<D> {
-        receiver: UnboundedReceiver<D>,
-    }
+    struct TestReceiver<D>(UnboundedReceiver<D>);
 
     #[async_trait::async_trait]
     impl<D: Data> Receiver<D> for TestReceiver<D> {
         async fn next(&mut self) -> Option<D> {
-            StreamExt::next(&mut self.receiver).await
+            StreamExt::next(&mut self.0).await
         }
     }
 
@@ -290,7 +286,7 @@ mod tests {
     #[tokio::test]
     async fn test_map_sender_allows_to_send_mapped_data() {
         let (sender, mut receiver) = mpsc::unbounded();
-        let sender = TestSender { sender };
+        let sender = TestSender(sender);
 
         let from_data = FromType::A;
         let into_data = IntoType {};
@@ -306,7 +302,7 @@ mod tests {
     #[tokio::test]
     async fn test_mapped_receiver_only_returns_convertable_values() {
         let (sender, receiver) = mpsc::unbounded();
-        let receiver = TestReceiver { receiver };
+        let receiver = TestReceiver(receiver);
 
         let from_data = FromType::A;
         let into_data = IntoType {};
@@ -330,20 +326,12 @@ mod tests {
         let (sender_for_other_network, receiver_for_network) = mpsc::unbounded();
 
         let mut network = TestNetwork {
-            sender: TestSender {
-                sender: sender_for_network,
-            },
-            receiver: TestReceiver {
-                receiver: receiver_for_network,
-            },
+            sender: TestSender(sender_for_network),
+            receiver: TestReceiver(receiver_for_network),
         };
         let other_network = TestNetwork {
-            sender: TestSender {
-                sender: sender_for_other_network,
-            },
-            receiver: TestReceiver {
-                receiver: receiver_for_other_network,
-            },
+            sender: TestSender(sender_for_other_network),
+            receiver: TestReceiver(receiver_for_other_network),
         };
         let mut mapped_network = other_network.map();
 
