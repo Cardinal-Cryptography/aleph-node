@@ -13,6 +13,7 @@ pub mod marketplace {
         call::{build_call, Call, ExecutionInput, Selector},
         CallFlags,
     };
+    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
@@ -21,6 +22,8 @@ pub mod marketplace {
     };
 
     use crate::marketplace::Error::MissingRole;
+
+    type Event = <Marketplace as ContractEventBase>::Type;
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
@@ -44,6 +47,18 @@ pub mod marketplace {
         PSP22TokenCall(String),
         MarketplaceEmpty,
     }
+
+    #[ink(event)]
+    #[derive(Clone, Eq, PartialEq, Debug)]
+    pub struct Buy {
+        #[ink(topic)]
+        pub account_id: AccountId,
+        pub price: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Clone, Eq, PartialEq, Debug)]
+    pub struct Reset;
 
     impl Error {
         fn missing_role(role: Role) -> Self {
@@ -147,12 +162,15 @@ pub mod marketplace {
         pub fn buy(&mut self) -> Result<(), Error> {
             if self.ticket_balance()? > 0 {
                 let price = self.current_price();
-                self.take_payment(self.env().caller(), price)?;
-                self.give_ticket(self.env().caller())?;
+                let account_id = self.env().caller();
+
+                self.take_payment(account_id, price)?;
+                self.give_ticket(account_id)?;
 
                 self.total_proceeds = self.total_proceeds.saturating_add(price);
                 self.tickets_sold = self.tickets_sold.saturating_add(1);
                 self.current_start_block = self.env().block_number();
+                Self::emit_event(self.env(), Event::Buy(Buy { price, account_id }));
 
                 Ok(())
             } else {
@@ -165,6 +183,7 @@ pub mod marketplace {
             Self::ensure_role(self.admin())?;
 
             self.current_start_block = self.env().block_number();
+            Self::emit_event(self.env(), Event::Reset(Reset {}));
 
             Ok(())
         }
@@ -235,6 +254,10 @@ pub mod marketplace {
 
         fn this(&self) -> AccountId {
             self.env().account_id()
+        }
+
+        fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
+            emitter.emit_event(event)
         }
     }
 }
