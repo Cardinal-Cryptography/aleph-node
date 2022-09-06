@@ -4,8 +4,8 @@ use aleph_client::{
     change_validators, get_current_session, get_current_validator_count, get_current_validators,
     get_eras_stakers_storage_key, get_stakers_as_storage_keys,
     get_stakers_as_storage_keys_from_storage_key, staking_chill_all_validators,
-    wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, RootConnection,
-    SignedConnection, XtStatus,
+    wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, ReadStorage,
+    RootConnection, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{CommitteeSeats, EraIndex};
@@ -83,7 +83,7 @@ fn assert_validators_are_used_as_authorities<C: ReadStorage>(
     );
 }
 
-fn assert_enough_validators<C: AnyConnection>(connection: &C, min_validator_count: u32) {
+fn assert_enough_validators<C: ReadStorage>(connection: &C, min_validator_count: u32) {
     let current_validator_count = get_current_validator_count(connection);
     assert!(
         current_validator_count >= min_validator_count,

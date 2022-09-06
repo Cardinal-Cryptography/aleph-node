@@ -1,13 +1,6 @@
 use substrate_api_client::Balance;
 
-use crate::{AnyConnection, BalanceTransfer, ReadStorage, SignedConnection};
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub struct FeeInfo {
-    pub fee_without_weight: Balance,
-    pub unadjusted_weight: Balance,
-    pub adjusted_weight: Balance,
-}
+use crate::{AnyConnection, BalanceTransfer, FeeInfo, GetTxInfo, ReadStorage, SignedConnection};
 
 impl GetTxInfo<<SignedConnection as BalanceTransfer>::TransferTx> for SignedConnection {
     fn get_tx_info(&self, tx: &<SignedConnection as BalanceTransfer>::TransferTx) -> FeeInfo {

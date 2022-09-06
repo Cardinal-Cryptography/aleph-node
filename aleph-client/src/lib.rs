@@ -11,7 +11,7 @@ pub use elections::{
     get_next_era_non_reserved_validators, get_next_era_reserved_validators,
     get_validator_block_count,
 };
-pub use fee::{get_next_fee_multiplier, FeeInfo, GetTxInfo};
+pub use fee::get_next_fee_multiplier;
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
 use log::{info, warn};
 pub use multisig::{
@@ -225,10 +225,6 @@ pub trait BalanceTransfer {
         -> Result<Option<H256>, Self::Error>;
 }
 
-pub trait GetTxInfo<Tx> {
-    fn get_tx_info(&self, tx: &Tx) -> FeeInfo;
-}
-
 pub trait BatchTransactions<Tx> {
     type Error: StdError;
 
@@ -237,6 +233,17 @@ pub trait BatchTransactions<Tx> {
         transactions: impl IntoIterator<Item = Tx>,
         status: XtStatus,
     ) -> Result<Option<H256>, Self::Error>;
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct FeeInfo {
+    pub fee_without_weight: Balance,
+    pub unadjusted_weight: Balance,
+    pub adjusted_weight: Balance,
+}
+
+pub trait GetTxInfo<Tx> {
+    fn get_tx_info(&self, tx: &Tx) -> FeeInfo;
 }
 
 pub trait CallSystem {
