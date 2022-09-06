@@ -35,9 +35,8 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, SessionAuthorityData, SessionIndex, Version as AlephBFTVersion,
-    ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK,
-    TOKEN,
+    AuthorityId as AlephId, SessionAuthorityData, Version as AlephBFTVersion, ADDRESSES_ENCODING,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -897,16 +896,9 @@ impl_runtime_apis! {
             ))
         }
 
-        // Read the last AlephBFT version set on a specified session or before with scanning
-        // performed backwards. The specified session may be in the future relative to the current
-        // session.
-        fn aleph_bft_version(session: SessionIndex) -> AlephBFTVersion {
-            for idx in (0..session + 1).rev() {
-                if let Some(version) = Aleph::aleph_bft_version(idx) {
-                    return version
-                }
-            }
-            AlephBFTVersion::Legacy
+        fn aleph_bft_version() -> AlephBFTVersion {
+            let version_change = Aleph::aleph_bft_version();
+            version_change.version
         }
     }
 

@@ -97,12 +97,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> =
-        StorageMap<_, Twox64Concat, SessionIndex, Version, OptionQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn aleph_bft_version_change)]
-    pub(super) type AlephBFTVersionChange<T: Config> = StorageValue<_, VersionChange, ValueQuery>;
+    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, VersionChange, ValueQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -133,28 +128,16 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
-        pub(crate) fn set_next_aleph_bft_version(
-            next_version_change: VersionChange,
-            current_session: SessionIndex,
-        ) {
-            let session_to_set = next_version_change.session;
-            let version_to_set = next_version_change.version.clone();
+        pub(crate) fn set_next_aleph_bft_version(version_change: VersionChange) {
+            let previous_version_change = <AlephBFTVersion<T>>::get();
+            let previous_session = previous_version_change.session_change;
+
+            let session = version_change.session_change;
+
             assert!(
-                session_to_set > current_session,
-                "Can only set AlephBFT version for future sessions!"
-            );
-
-            let previous_version_change = <AlephBFTVersionChange<T>>::get();
-            let previous_version_change_session = previous_version_change.session;
-
-            // If a new version is scheduled before the session of the previous version change,
-            // undo the previous version change.
-            if current_session < previous_version_change_session {
-                <AlephBFTVersion<T>>::set(previous_version_change_session, None);
-            }
-
-            <AlephBFTVersionChange<T>>::put(next_version_change);
-            <AlephBFTVersion<T>>::set(session_to_set, Some(version_to_set));
+                session > previous_session,
+                "Cannot set AlephBFT version for sessions prior to the current version! Session for current version: {}, attempted to set: {}.", previous_session, session);
+            <AlephBFTVersion<T>>::put(version_change);
         }
     }
 
@@ -178,13 +161,15 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_aleph_bft_version(
             origin: OriginFor<T>,
-            session: SessionIndex,
-            current_session: SessionIndex,
             version: Version,
+            session_change: SessionIndex,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            let version_change = VersionChange { session, version };
-            Self::set_next_aleph_bft_version(version_change.clone(), current_session);
+            let version_change = VersionChange {
+                version,
+                session_change,
+            };
+            Self::set_next_aleph_bft_version(version_change.clone());
             Self::deposit_event(Event::ChangeAlephBFTVersion(version_change));
             Ok(())
         }
