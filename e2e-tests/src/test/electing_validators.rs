@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use aleph_client::{
     change_validators, get_current_session, get_current_validator_count, get_current_validators,
-    get_eras_stakers_storage_key, get_min_validator_count, get_stakers_as_storage_keys,
+    get_eras_stakers_storage_key, get_minimum_validator_count, get_stakers_as_storage_keys,
     get_stakers_as_storage_keys_from_storage_key, staking_chill_validators,
     wait_for_full_era_completion, wait_for_session, AccountId, AnyConnection, RootConnection,
     SignedConnection, XtStatus,
@@ -143,7 +143,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
     // `MinValidatorCount` from `pallet_staking`, set in chain spec.
-    let min_validator_count = get_min_validator_count(&root_connection);
+    let min_validator_count = get_minimum_validator_count(&root_connection);
 
     let reserved_seats = match config.test_case_params.reserved_seats() {
         Some(seats) => seats,

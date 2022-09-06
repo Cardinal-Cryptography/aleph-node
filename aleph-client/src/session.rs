@@ -163,7 +163,3 @@ pub fn get_session_first_block<C: AnyConnectionExt>(
     let block_number = session * get_session_period(connection);
     get_block_hash(connection, block_number)
 }
-
-pub fn get_min_validator_count<C: AnyConnection>(connection: &C) -> u32 {
-    connection.read_storage_value(PALLET, "MinimumValidatorCount")
-}

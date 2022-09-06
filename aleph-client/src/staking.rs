@@ -455,3 +455,7 @@ pub fn bond_extra_stake(connection: &SignedConnection, additional_stake: Balance
         .staking_bond_extra(additional_stake);
     send_xt(connection, xt, Some("bond_extra"), XtStatus::Finalized);
 }
+
+pub fn get_minimum_validator_count<C: AnyConnection>(connection: &C) -> u32 {
+    connection.read_storage_value(PALLET, "MinimumValidatorCount")
+}

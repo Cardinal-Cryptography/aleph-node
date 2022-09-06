@@ -22,10 +22,9 @@ pub use primitives::{BlockHash, BlockNumber, Header};
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_current_session,
-    get_current_validator_count, get_current_validators, get_min_validator_count, get_session,
-    get_session_first_block, get_session_period, get_validators_for_session, set_keys,
-    wait_for as wait_for_session, wait_for_at_least as wait_for_at_least_session,
-    Keys as SessionKeys,
+    get_current_validator_count, get_current_validators, get_session, get_session_first_block,
+    get_session_period, get_validators_for_session, set_keys, wait_for as wait_for_session,
+    wait_for_at_least as wait_for_at_least_session, Keys as SessionKeys,
 };
 use sp_core::{ed25519, sr25519, storage::StorageKey, Pair, H256};
 pub use staking::{
@@ -33,13 +32,13 @@ pub use staking::{
     bond as staking_bond, bond_extra_stake, bonded as staking_bonded,
     chill_validator as staking_chill_validator, chill_validators as staking_chill_validators,
     force_new_era as staking_force_new_era, get_current_era, get_era, get_era_reward_points,
-    get_eras_stakers_storage_key, get_exposure, get_payout_for_era, get_sessions_per_era,
-    get_stakers_as_storage_keys, get_stakers_as_storage_keys_from_storage_key,
-    ledger as staking_ledger, multi_bond as staking_multi_bond, nominate as staking_nominate,
-    payout_stakers, payout_stakers_and_assert_locked_balance,
-    set_staking_limits as staking_set_staking_limits, validate as staking_validate,
-    wait_for_at_least_era, wait_for_era_completion, wait_for_full_era_completion,
-    wait_for_next_era, RewardPoint, StakingLedger,
+    get_eras_stakers_storage_key, get_exposure, get_minimum_validator_count, get_payout_for_era,
+    get_sessions_per_era, get_stakers_as_storage_keys,
+    get_stakers_as_storage_keys_from_storage_key, ledger as staking_ledger,
+    multi_bond as staking_multi_bond, nominate as staking_nominate, payout_stakers,
+    payout_stakers_and_assert_locked_balance, set_staking_limits as staking_set_staking_limits,
+    validate as staking_validate, wait_for_at_least_era, wait_for_era_completion,
+    wait_for_full_era_completion, wait_for_next_era, RewardPoint, StakingLedger,
 };
 pub use substrate_api_client::{self, AccountId, Balance, XtStatus};
 use substrate_api_client::{
