@@ -216,6 +216,8 @@ pub trait ReadStorage: AnyConnection {
     }
 }
 
+impl<C: AnyConnection> ReadStorage for C {}
+
 pub trait BalanceTransfer {
     type TransferTx;
     type Error: StdError;
@@ -512,7 +514,3 @@ pub fn get_current_block_number<C: AnyConnection>(connection: &C) -> BlockNumber
         .expect("Block exists; qed")
         .number
 }
-
-impl ReadStorage for Connection {}
-impl ReadStorage for SignedConnection {}
-impl ReadStorage for RootConnection {}
