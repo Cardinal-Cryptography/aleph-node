@@ -24,7 +24,7 @@ EOF
   exit 0
 }
 
-while getopts "h:t:r:f:n:" flag
+while getopts "h:t:m:r:f:n:" flag
 do
   case "${flag}" in
     h) usage;;
