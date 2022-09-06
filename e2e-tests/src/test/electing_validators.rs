@@ -129,7 +129,7 @@ fn assert_enough_validators_left_after_chilling(
 ///  - our e2e tests run with 5 validators by default.
 /// Thus, running on default settings and chilling 2 validators (1 reserved and 1 non reserved) is
 /// a no go: `pallet_staking` will protest and won't proceed with a new committee.
-/// To mitigate this, out e2e pipeline accepts a `node-count` parameter to specify the desired
+/// To mitigate this, our e2e pipeline accepts a `node-count` parameter to specify the desired
 /// number of nodes to run in consensus. Additionally, there is a `min-validator-count`
 /// parameter to set `MinimumValidatorCount` in the chain spec as the chain is set up.
 /// For this specific test case, we use `node-count = 6` and `min-validator-count = 4`, which
