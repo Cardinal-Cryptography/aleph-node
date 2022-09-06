@@ -25,7 +25,7 @@ impl CallSystem for RootConnection {
 
     fn fill_block(&self, target_ratio_percent: u32, status: XtStatus) -> Result<(), Self::Error> {
         let connection = self.as_connection();
-        let target_ration_perbill = target_ratio_percent * 10_000_000;
+        let target_ratio_perbill = target_ratio_percent * 10_000_000;
         let call = compose_call!(
             connection.metadata,
             "System",
