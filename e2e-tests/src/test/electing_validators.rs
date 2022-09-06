@@ -124,14 +124,14 @@ fn assert_enough_validators_left_after_chilling(
 /// 4. Verify only staking validators are in force.
 ///
 /// Note:
-///  - `pallet_staking` has `MinValidatorCount` (usually set to 4 in chain spec) and this cannot be
+///  - `pallet_staking` has `MinimumValidatorCount` (usually set to 4 in chain spec) and this cannot be
 /// changed on a running chain.
 ///  - our e2e tests run with 5 validators by default.
 /// Thus, running on default settings and chilling 2 validators (1 reserved and 1 non reserved) is
 /// a no go: `pallet_staking` will protest and won't proceed with a new committee.
 /// To mitigate this, out e2e pipeline accepts a `node-count` parameter to specify the desired
 /// number of nodes to run in consensus. Additionally, there is a `min-validator-count`
-/// parameter to set `MinValidatorCount` in the chain spec as the chain is set up.
+/// parameter to set `MinimumValidatorCount` in the chain spec as the chain is set up.
 /// For this specific test case, we use `node-count = 6` and `min-validator-count = 4`, which
 /// satisfies the outlined conditions.
 pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
@@ -142,7 +142,7 @@ pub fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     const RESERVED_SEATS_DEFAULT: u32 = 3;
     const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
-    // `MinValidatorCount` from `pallet_staking`, set in chain spec.
+    // `MinimumValidatorCount` from `pallet_staking`, set in chain spec.
     let min_validator_count = get_minimum_validator_count(&root_connection);
 
     let reserved_seats = match config.test_case_params.reserved_seats() {

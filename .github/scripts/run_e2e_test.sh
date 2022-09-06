@@ -9,8 +9,8 @@ Usage:
     -t
       Test cases to run.
     -m
-      Minimum number of validators before chain enters emergency state. Set in chain spec, stored as MinValidatorCount
-      in pallet_Staking.
+      Minimum number of validators before chain enters emergency state. Set in chain spec, stored as
+      MinimumValidatorCount in pallet_Staking.
     -r
       Whether to randomize test case params, "true" and "false" values supported.
       Can only be used if both the `-f` and `-n` params are empty.
