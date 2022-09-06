@@ -174,9 +174,11 @@ impl<D: Data, R: Receiver<D>, S: Sender<D>> Network<D> for SimpleNetwork<D, R, S
 
 #[cfg(test)]
 mod tests {
+    use aleph_bft::Recipient;
     use futures::channel::mpsc;
 
-    use super::Receiver;
+    use super::{DataNetwork, NetworkMap, Receiver, Sender, SimpleNetwork};
+    use crate::network::component::{Network, ReceiverMap, SenderMap};
 
     #[tokio::test]
     async fn test_receiver_implementation() {
@@ -186,5 +188,97 @@ mod tests {
         sender.unbounded_send(val).unwrap();
         let received = Receiver::<u64>::next(&mut receiver).await;
         assert_eq!(Some(val), received);
+    }
+
+    enum FromType {
+        A,
+        B,
+    }
+
+    struct IntoType {}
+
+    impl TryFrom<FromType> for IntoType {
+        type Error = ();
+
+        fn try_from(value: FromType) -> Result<Self, Self::Error> {
+            match value {
+                FromType::A => Ok(IntoType {}),
+                FromType::B => Err(()),
+            }
+        }
+    }
+
+    impl Into<FromType> for IntoType {
+        fn into(self) -> FromType {
+            FromType::A
+        }
+    }
+
+    #[tokio::test]
+    async fn test_receiver_map_allows_to_receive_mapped_data() {
+        let (sender, receiver) = mpsc::unbounded();
+
+        let from_data = FromType::A;
+        let into_data = IntoType {};
+        let mut mapped_receiver = receiver.map();
+
+        sender.unbounded_send(from_data).unwrap();
+
+        let received = Receiver::next(&mut mapped_receiver).await;
+        assert_eq!(Some(into_data), received);
+    }
+
+    #[tokio::test]
+    async fn test_map_allows_to_send_and_receive_mapped_data() {
+        let (sender, receiver) = mpsc::unbounded();
+
+        let from_data = FromType::A;
+        let into_data = IntoType {};
+        let mapped_sender = sender.map();
+
+        mapped_sender.send(into_data, Recipient::Everyone);
+
+        let received = receiver.recv().await;
+        assert_eq!(Some(from_data), received);
+    }
+
+    #[tokio::test]
+    async fn test_mapped_receiver_only_returns_convertable_values() {
+        let (sender, receiver) = mpsc::unbounded();
+
+        let from_data = FromType::A;
+        let into_data = IntoType {};
+        let mut mapped_receiver = receiver.map();
+
+        sender.unbounded_send(FromType::B).unwrap();
+        sender.unbounded_send(FromType::B).unwrap();
+        sender.unbounded_send(from_data).unwrap();
+        sender.close_channel();
+
+        let received = receiver.recv().await;
+        assert_eq!(Some(into_type), received);
+        let received = receiver.recv().await;
+        assert_eq!(None, received);
+    }
+
+    #[tokio::test]
+    async fn test_mapped_networks_are_able_to_send_and_receive_data() {
+        let (sender_for_network, receiver) = mpsc::unbounded();
+        let (sender, receiver_for_network) = mpsc::unbounded();
+
+        let network = SimpleNetwork::new(receiver_for_receiver, sender_for_network);
+        let other_network = SimpleNetwork::new(receiver, sender);
+        let mapped_network = other_network.map();
+
+        let from_data = FromType::A;
+        let into_data = IntoType {};
+
+        network.send(from_data, Recipient::Everyone).unwrap();
+        let received = mapped_network.next().await;
+        assert_eq!(into_data, received);
+
+        mapped_network.send(into_data, Recipient::Everyone).unwrap();
+        let received = network.next().await;
+        assert_eq!(Some(from_data), received);
     }
 }
