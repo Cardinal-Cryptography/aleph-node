@@ -276,10 +276,10 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_map_allows_to_receive_mapped_data() {
         let (sender, receiver) = mpsc::unbounded();
+        let mut mapped_receiver = ReceiverMap::map(receiver);
 
         let from_data = FromType::A;
         let into_data = IntoType {};
-        let mut mapped_receiver = ReceiverMap::map(receiver);
 
         sender.unbounded_send(from_data).unwrap();
 
@@ -288,15 +288,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_map_allows_to_send_and_receive_mapped_data() {
+    async fn test_map_sender_allows_to_send_mapped_data() {
         let (sender, mut receiver) = mpsc::unbounded();
+        let sender = TestSender { sender };
 
         let from_data = FromType::A;
         let into_data = IntoType {};
         let recipient = Recipient::Everyone;
-        let sender = TestSender { sender };
-        let mapped_sender = sender.map();
 
+        let mapped_sender = sender.map();
         mapped_sender.send(into_data, recipient).unwrap();
 
         let received = StreamExt::next(&mut receiver).await;
