@@ -48,6 +48,8 @@ class Chain:
         with open(chainspec, 'w', encoding='utf-8') as f:
             subprocess.run(cmd, stdout=f, check=True)
 
+        time.sleep(60)
+
         for nv in nonvalidators:
             cmd = [check_file(binary),
                    'bootstrap-node',
