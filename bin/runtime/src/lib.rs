@@ -313,6 +313,7 @@ impl pallet_sudo::Config for Runtime {
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type Event = Event;
+    type SessionInfoProvider = Session;
 }
 
 impl_opaque_keys! {

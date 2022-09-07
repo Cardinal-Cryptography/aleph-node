@@ -10,6 +10,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod traits;
+
 mod migrations;
 
 use frame_support::{
@@ -34,11 +36,13 @@ pub mod pallet {
     use pallets_support::StorageMigration;
 
     use super::*;
+    use crate::traits::SessionInfoProvider;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type SessionInfoProvider: SessionInfoProvider<Self>;
     }
 
     #[pallet::event]
@@ -128,6 +132,10 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
+        pub(crate) fn current_session() -> u32 {
+            T::SessionInfoProvider::current_session()
+        }
+
         pub(crate) fn set_next_aleph_bft_version_change(version_change: VersionChange) {
             let previous_version_change = <AlephBFTVersionChange<T>>::get();
             let previous_session = previous_version_change.session;
@@ -136,18 +144,24 @@ pub mod pallet {
             let session = version_change.session;
             let version = version_change.version_incoming;
 
+            let current_session = Self::current_session();
+
             assert!(
-                session > previous_session,
-                "Tried to schedule an AlephBFT version change for a session ({}) prior to the session ({}) of the currently scheduled version change.",
-                session,
-                previous_session
+                session > current_session,
+                "Cannot schedule AlephBFT version changes for sessions in the past!",
             );
 
-            assert_ne!(
-                previous_version, version,
-                "Tried to schedule an AlephBFT version change with the same version as the currently scheduled one: {:?}!",
-                previous_version
-            );
+            // If a scheduled future version change is rescheduled to a different session,
+            // it should be possible to reschedule it to the same version.
+            // If a scheduled version change has moved into the past, a new future version change
+            // needs to set a different version.
+            if previous_session < current_session {
+                assert_ne!(
+                    previous_version, version,
+                    "Tried to schedule an AlephBFT version change with the same version as the current version: {:?}!",
+                    previous_version
+                );
+            }
             <AlephBFTVersionChange<T>>::put(version_change);
         }
     }
