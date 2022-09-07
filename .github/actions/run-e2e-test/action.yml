@@ -2,11 +2,29 @@ name: 'Run e2e test'
 description: 'Run single e2e test.'
 
 inputs:
+  node-count:
+    description: 'Number of nodes to run.'
+    required: false
+    default: '5'
+  min-validator-count:
+    description: 'Minimum number of nodes below which chain enters emergency state.'
+    required: false
+    default: '4'
   test-case:
     description: 'Name of test to run.'
     required: true
+  randomized:
+    description: 'Whether to use randomized test params.'
+    required: false
+    default: 'false'
+  reserved-seats:
+    description: 'Number of reserved seats available to validators.'
+    required: false
+  non-reserved-seats:
+    description: 'Number of non-reserved seats available to validators.'
+    required: false
   follow-up-finalization-check:
-    description: 'Whether to run a follow up finalizaton check.'
+    description: 'Whether to run a follow-up finalization check.'
     required: false
 
 runs:
@@ -24,7 +42,7 @@ runs:
 
     - name: Run consensus party
       shell: bash
-      run: ./.github/scripts/run_consensus.sh
+      run: ./.github/scripts/run_consensus.sh -m ${{ inputs.min-validator-count }} -n ${{ inputs.node-count }}
     
     - name: Sleep
       shell: bash
@@ -45,12 +63,33 @@ runs:
 
     - name: Run single e2e test
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t ${{ inputs.test-case }}
+      run: |
+        ARGS=(
+          -t "${{ inputs.test-case }}"
+          -r "${{ inputs.randomized }}"
+          -m "${{ inputs.min-validator-count }}"
+        )
+        
+        RESERVED_SEATS="${{ inputs.reserved-seats }}"
+        NON_RESERVED_SEATS="${{ inputs.non-reserved-seats }}"
+        
+        if [[ -n "${RANDOMIZED}" ]]; then
+          ARGS+=(-r "${RANDOMIZED}")
+        fi
+        
+        if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
+          ARGS+=(
+            -f "${RESERVED_SEATS}"
+            -n "${NON_RESERVED_SEATS}"
+          )
+        fi
+        
+        ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t finalization
+      run: ./.github/scripts/run_e2e_test.sh -t finalization -m "${{ inputs.min-validator-count }}"
 
     - name: Print debug if failed
       if: ${{ failure() }}
