@@ -45,7 +45,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
-        ChangeAlephBFTVersion(VersionChange),
+        ScheduleAlephBFTVersionChange(VersionChange),
     }
 
     #[pallet::pallet]
@@ -96,8 +96,8 @@ pub mod pallet {
     type NextEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, VersionChange, ValueQuery>;
+    #[pallet::getter(fn aleph_bft_version_change)]
+    pub(super) type AlephBFTVersionChange<T: Config> = StorageValue<_, VersionChange, ValueQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
@@ -128,16 +128,27 @@ pub mod pallet {
             <NextEmergencyFinalizer<T>>::put(emergency_finalizer);
         }
 
-        pub(crate) fn set_next_aleph_bft_version(version_change: VersionChange) {
-            let previous_version_change = <AlephBFTVersion<T>>::get();
-            let previous_session = previous_version_change.session_change;
+        pub(crate) fn set_next_aleph_bft_version_change(version_change: VersionChange) {
+            let previous_version_change = <AlephBFTVersionChange<T>>::get();
+            let previous_session = previous_version_change.session;
+            let previous_version = previous_version_change.version_incoming;
 
-            let session = version_change.session_change;
+            let session = version_change.session;
+            let version = version_change.version_incoming;
 
             assert!(
                 session > previous_session,
-                "Cannot set AlephBFT version for sessions prior to the current version! Session for current version: {}, attempted to set: {}.", previous_session, session);
-            <AlephBFTVersion<T>>::put(version_change);
+                "Tried to schedule an AlephBFT version change for a session ({}) prior to the session ({}) of the currently scheduled version change.",
+                session,
+                previous_session
+            );
+
+            assert_ne!(
+                previous_version, version,
+                "Tried to schedule an AlephBFT version change with the same version as the currently scheduled one: {:?}!",
+                previous_version
+            );
+            <AlephBFTVersionChange<T>>::put(version_change);
         }
     }
 
@@ -156,21 +167,21 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Sets AlephBFT version for a future session. If such a feature version is already set,
-        /// it is replaced with the specified one.
+        /// Schedules an AlephBFT version change for a future session. If such a scheduled future
+        /// version is already set, it is replaced with the specified one.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_aleph_bft_version(
+        pub fn set_aleph_bft_version_change(
             origin: OriginFor<T>,
-            version: Version,
-            session_change: SessionIndex,
+            version_incoming: Version,
+            session: SessionIndex,
         ) -> DispatchResult {
             ensure_root(origin)?;
             let version_change = VersionChange {
-                version,
-                session_change,
+                version_incoming,
+                session,
             };
-            Self::set_next_aleph_bft_version(version_change.clone());
-            Self::deposit_event(Event::ChangeAlephBFTVersion(version_change));
+            Self::set_next_aleph_bft_version_change(version_change.clone());
+            Self::deposit_event(Event::ScheduleAlephBFTVersionChange(version_change));
             Ok(())
         }
     }

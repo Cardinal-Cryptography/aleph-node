@@ -124,7 +124,7 @@ impl SessionAuthorityData {
     }
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, Eq, TypeInfo)]
+#[derive(Clone, Copy, Debug, Decode, Encode, PartialEq, Eq, TypeInfo)]
 pub enum Version {
     Legacy,
     Current,
@@ -132,17 +132,15 @@ pub enum Version {
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, Eq, TypeInfo)]
 pub struct VersionChange {
-    pub version: Version,
-    pub session_change: SessionIndex,
+    pub version_incoming: Version,
+    pub session: SessionIndex,
 }
 
-// At genesis, the session of the next change of the AlephBFT version is unknown. Assume placeholder
-// value of 0.
 impl Default for VersionChange {
     fn default() -> Self {
         Self {
-            version: Version::Legacy,
-            session_change: 0,
+            version_incoming: Version::Legacy,
+            session: 0,
         }
     }
 }
@@ -156,7 +154,7 @@ sp_api::decl_runtime_apis! {
         fn authority_data() -> SessionAuthorityData;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
-        fn aleph_bft_version() -> Version;
+        fn aleph_bft_version(session: SessionIndex) -> Version;
     }
 }
 
