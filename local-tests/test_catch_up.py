@@ -30,14 +30,18 @@ chain.set_flags('no-mdns',
                 rpc_port=Seq(9933),
                 unit_creation_delay=200,
                 execution='Native',
-                pruning='archive')
+                state_pruning='archive')
 addresses = [n.address() for n in chain]
 chain.set_flags(bootnodes=addresses[0], public_addr=addresses)
 
 chain.set_flags_validator('validator')
 
 printt('Starting the chain')
-chain.start('aleph')
+chain.start('aleph', nodes=[0, 1, 2, 3])
+
+sleep(60)
+
+chain.start('aleph', nodes=[4, 5])
 
 printt('Waiting for finalization')
 chain.wait_for_finalization(0)
