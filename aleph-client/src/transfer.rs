@@ -54,12 +54,27 @@ pub fn batch_transfer(
     );
 }
 
+// struct Tx {
+//     account: AccountId,
+
+// }
+
 impl BalanceTransfer for SignedConnection {
-    type TransferTx =
-        BalanceTransferXt<<crate::ExtrinsicParams as ac_primitives::ExtrinsicParams>::SignedExtra>;
+    // type TransferTx =
+    //     BalanceTransferXt<<crate::ExtrinsicParams as ac_primitives::ExtrinsicParams>::SignedExtra>;
+    // type TransferTx = ([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>);
+    type TransferTx = TransferTransaction;
     type Error = SacError;
 
     fn create_transfer_tx(&self, account: AccountId, amount: Balance) -> Self::TransferTx {
+        // compose_call!(
+        //     self.as_connection().metadata,
+        //     "Balances",
+        //     "transfer",
+        //     GenericAddress::Id(account),
+        //     Compact(1000u128)
+        // )
+
         self.as_connection()
             .balance_transfer(GenericAddress::Id(account), amount)
     }
@@ -81,7 +96,23 @@ impl BatchTransactions<<SignedConnection as BalanceTransfer>::TransferTx> for Si
         transactions: impl IntoIterator<Item = <SignedConnection as BalanceTransfer>::TransferTx>,
         status: XtStatus,
     ) -> Result<Option<H256>, Self::Error> {
-        let txs = Vec::from_iter(transactions);
+        // let call = compose_call!(
+        //     connection.as_connection().metadata,
+        //     "Balances",
+        //     "transfer",
+        //     GenericAddress::Id(to),
+        //     Compact(1000u128)
+        // );
+        let mapped = transactions.into_iter().map(|tx| {
+            compose_call!(
+                self.as_connection().metadata,
+                "Balances",
+                "transfer",
+                tx.function.1,
+                tx.function.2
+            )
+        });
+        let txs = Vec::from_iter(mapped);
         let xt = compose_extrinsic!(self.as_connection(), "Utility", "batch", txs);
         try_send_xt(self, xt, Some("batch/transfer"), status)
     }
