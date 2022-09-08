@@ -55,12 +55,6 @@ pub fn batch_transfer(
     );
 }
 
-#[derive(Clone)]
-pub struct Tx {
-    pub account: MultiAddress<AccountId, ()>,
-    pub amount: Balance,
-}
-
 impl SignedConnection {
     pub fn create_transfer_extrinsic(
         &self,
@@ -108,7 +102,7 @@ impl BatchTransactions<<SignedConnection as BalanceTransfer>::TransferTx> for Si
         status: XtStatus,
     ) -> Result<Option<H256>, Self::Error>
     where
-        Tx: 'a,
+        <SignedConnection as BalanceTransfer>::TransferTx: 'a,
     {
         let txs = Vec::from_iter(transactions);
         let xt = compose_extrinsic!(self.as_connection(), "Utility", "batch", txs);
