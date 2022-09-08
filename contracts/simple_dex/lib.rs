@@ -33,7 +33,7 @@ mod simple_dex {
         MissingRole(Role),
         InkEnv(String),
         CrossContractCall(String),
-        NativeTransfer,
+        NativeTransferFailed(String),
     }
 
     impl From<PSP22Error> for DexError {
@@ -221,7 +221,7 @@ mod simple_dex {
 
             self.env()
                 .transfer(caller, amount_token_out)
-                .map_err(|_| DexError::NativeTransfer)?;
+                .map_err(|why| DexError::NativeTransferFailed(format!("{:?}", why)))?;
 
             // emit event
             Self::emit_event(
@@ -425,7 +425,7 @@ mod simple_dex {
 
             Self::env()
                 .transfer(caller, amount)
-                .map_err(|_| DexError::NativeTransfer)?;
+                .map_err(|why| DexError::NativeTransferFailed(format!("{:?}", why)))?;
 
             // emit event
             Self::emit_event(
