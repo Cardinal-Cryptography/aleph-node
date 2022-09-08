@@ -136,7 +136,9 @@ pub mod pallet {
             T::SessionInfoProvider::current_session()
         }
 
-        pub(crate) fn set_next_aleph_bft_version_change(version_change: VersionChange) {
+        pub(crate) fn set_next_aleph_bft_version_change(
+            version_change: VersionChange,
+        ) -> Result<(), &'static str> {
             let previous_version_change = <AlephBFTVersionChange<T>>::get();
             let previous_session = previous_version_change.session;
             let previous_version = previous_version_change.version_incoming;
@@ -146,23 +148,20 @@ pub mod pallet {
 
             let current_session = Self::current_session();
 
-            assert!(
-                session > current_session,
-                "Cannot schedule AlephBFT version changes for sessions in the past!",
-            );
+            if session < current_session {
+                return Err("Cannot schedule AlephBFT version changes for sessions in the past!");
+            }
 
             // If a scheduled future version change is rescheduled to a different session,
             // it should be possible to reschedule it to the same version.
             // If a scheduled version change has moved into the past, a new future version change
             // needs to set a different version.
-            if previous_session < current_session {
-                assert_ne!(
-                    previous_version, version,
-                    "Tried to schedule an AlephBFT version change with the same version as the current version: {:?}!",
-                    previous_version
-                );
+            if previous_session < current_session && previous_version == version {
+                return Err("Tried to schedule an AlephBFT version change which does not change the current version!");
             }
+
             <AlephBFTVersionChange<T>>::put(version_change);
+            Ok(())
         }
     }
 
@@ -194,7 +193,9 @@ pub mod pallet {
                 version_incoming,
                 session,
             };
-            Self::set_next_aleph_bft_version_change(version_change.clone());
+            if let Err(e) = Self::set_next_aleph_bft_version_change(version_change.clone()) {
+                return Err(DispatchError::Other(e));
+            };
             Self::deposit_event(Event::ScheduleAlephBFTVersionChange(version_change));
             Ok(())
         }
