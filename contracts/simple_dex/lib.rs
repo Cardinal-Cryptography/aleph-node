@@ -51,6 +51,7 @@ mod simple_dex {
     #[ink(event)]
     #[derive(Debug)]
     pub struct NativeToToken {
+        caller: AccountId,
         #[ink(topic)]
         token_out: AccountId,
         amount_in: Balance,
@@ -60,6 +61,7 @@ mod simple_dex {
     #[ink(event)]
     #[derive(Debug)]
     pub struct TokenToNative {
+        caller: AccountId,
         #[ink(topic)]
         token_in: AccountId,
         amount_in: Balance,
@@ -69,6 +71,7 @@ mod simple_dex {
     #[ink(event)]
     #[derive(Debug)]
     pub struct TokenToToken {
+        caller: AccountId,
         #[ink(topic)]
         token_in: AccountId,
         #[ink(topic)]
@@ -91,6 +94,14 @@ mod simple_dex {
         caller: AccountId,
         amount: Balance,
         redeemed_liquidity: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct SwapFeeSet {
+        #[ink(topic)]
+        caller: AccountId,
+        swap_fee: Balance,
     }
 
     #[ink(storage)]
@@ -169,6 +180,7 @@ mod simple_dex {
             Self::emit_event(
                 self.env(),
                 Event::NativeToToken(NativeToToken {
+                    caller,
                     token_out,
                     amount_in: amount_token_in,
                     amount_out: amount_token_out,
@@ -215,6 +227,7 @@ mod simple_dex {
             Self::emit_event(
                 self.env(),
                 Event::TokenToNative(TokenToNative {
+                    caller,
                     token_in,
                     amount_in: amount_token_in,
                     amount_out: amount_token_out,
@@ -262,6 +275,7 @@ mod simple_dex {
             Self::emit_event(
                 self.env(),
                 Event::TokenToToken(TokenToToken {
+                    caller,
                     token_in,
                     token_out,
                     amount_in: amount_token_in,
@@ -424,6 +438,38 @@ mod simple_dex {
             );
 
             Ok(())
+        }
+
+        /// Alters the swap_fee parameter
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        pub fn set_swap_fee(&mut self, swap_fee: Balance) -> Result<(), DexError> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                caller,
+                Role::Admin(this),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )?;
+
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::SwapFeeSet(SwapFeeSet { caller, swap_fee }),
+            );
+
+            self.swap_fee = swap_fee;
+            Ok(())
+        }
+
+        /// Returns current value of the swap_fee parameter
+        #[ink(message)]
+        pub fn swap_fee(&mut self) -> Balance {
+            self.swap_fee
         }
 
         /// Terminates the contract.
