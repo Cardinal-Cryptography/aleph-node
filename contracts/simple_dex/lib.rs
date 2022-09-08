@@ -196,7 +196,7 @@ mod simple_dex {
             Ok(())
         }
 
-        /// Swap the a specified amount of one of the pool PSP22 tokens to the native token
+        /// Swap the specified amount of one of the pools PSP22 tokens to the native token
         /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on it's behalf
         /// before executing this tx.
         #[ink(message)]
@@ -206,10 +206,12 @@ mod simple_dex {
             amount_token_in: u128,
         ) -> Result<(), DexError> {
             let caller = self.env().caller();
-            let balance_token_out = self.env().balance();
-            let swap_fee = self.swap_fee;
             let this = self.env().account_id();
+            let swap_fee = self.swap_fee;
+
+            let balance_token_out = self.env().balance();
             let balance_token_in = self.balance_of(token_in, this)?;
+
             let amount_token_out = Self::out_given_in(
                 amount_token_in,
                 balance_token_in,
@@ -253,9 +255,9 @@ mod simple_dex {
             token_out: AccountId,
             amount_token_in: u128,
         ) -> Result<(), DexError> {
+            let this = self.env().account_id();
+            let caller = self.env().caller();
             let swap_fee = self.swap_fee;
-            let this = Self::env().account_id();
-            let caller = Self::env().caller();
 
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
@@ -399,7 +401,6 @@ mod simple_dex {
             };
 
             let caller = self.env().caller();
-            let native_balance = self.env().balance();
             let this = self.env().account_id();
 
             // check role, only designated account can add liquidity
@@ -411,6 +412,7 @@ mod simple_dex {
                 Self::access_control_error_handler,
             )?;
 
+            let native_balance = self.env().balance();
             let total_liquidity = self.total_liquidity;
             let redeemed_liquidity = pool_shares_redeemed(amount, native_balance, total_liquidity)?;
 
@@ -429,7 +431,7 @@ mod simple_dex {
                 .checked_sub(redeemed_liquidity)
                 .ok_or(DexError::Arithmethic)?;
 
-            Self::env()
+            self.env()
                 .transfer(caller, amount)
                 .map_err(|why| DexError::NativeTransferFailed(format!("{:?}", why)))?;
 
