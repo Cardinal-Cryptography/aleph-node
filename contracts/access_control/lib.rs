@@ -34,6 +34,8 @@ mod access_control {
         Owner(AccountId),
         /// Indicates account can initialize a contract from a given code hash.
         Initializer(Hash),
+        /// Indicates account can add liquidity to a DEX contract (call certain functions)
+        LiquidityProvider(AccountId),
     }
 
     #[ink(storage)]

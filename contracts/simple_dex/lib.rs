@@ -11,7 +11,7 @@ mod simple_dex {
     };
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags, DefaultEnvironment, Environment as EnvironmentTrait, Error as InkEnvError,
+        CallFlags, DefaultEnvironment, Error as InkEnvError,
     };
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
@@ -19,10 +19,18 @@ mod simple_dex {
     };
     use ink_prelude::{format, string::String, vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
+    use num::integer::Roots;
     use openbrush::contracts::traits::errors::PSP22Error;
 
     // Event type
     // type Event = <SimpleDex as ContractEventBase>::Type;
+
+    // |why: InkEnvError| {
+    //     DexError::CrossContractCall(format!(
+    //         "Calling access control has failed: {:?}",
+    //         why
+    //     ))
+    // },
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -91,13 +99,8 @@ mod simple_dex {
                 access_control,
                 caller,
                 required_role,
-                |why: InkEnvError| {
-                    DexError::CrossContractCall(format!(
-                        "Calling access control has failed: {:?}",
-                        why
-                    ))
-                },
-                DexError::MissingRole,
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
             );
 
             match role_check {
@@ -215,6 +218,89 @@ mod simple_dex {
             Ok(())
         }
 
+        /// LP: single-asset native deposit
+        /// Can be called only by an account carrying a LiquidityProvider role for this contract
+        #[ink(message, payable)]
+        pub fn native_asset_deposit(&mut self) -> Result<(), DexError> {
+            // calculates number of pool shares corresponding to a token deposit amount and current balance in the pool (assuming all other stay constant)
+            let pool_shares_issued = |deposit_amount: u128,
+                                      token_balance: u128,
+                                      total_liquidity: u128|
+             -> Result<u128, DexError> {
+                let op1 = deposit_amount
+                    .checked_div(token_balance)
+                    .ok_or(DexError::Arithmethic)?;
+
+                let op2 = op1.checked_add(1).ok_or(DexError::Arithmethic)?;
+
+                let op3 = op2.nth_root(4);
+
+                let op4 = op3.checked_sub(1).ok_or(DexError::Arithmethic)?;
+
+                let op5 = op4
+                    .checked_mul(total_liquidity)
+                    .ok_or(DexError::Arithmethic)?;
+
+                Ok(op5)
+            };
+
+            let total_liquidity = self.total_liquidity;
+            let caller = Self::env().caller();
+
+            let native_deposit = Self::env().transferred_value();
+            let native_balance = Self::env()
+                .balance()
+                .checked_sub(native_deposit)
+                .ok_or(DexError::Arithmethic)?;
+
+            let minted_liquidity =
+                pool_shares_issued(native_deposit, native_balance, total_liquidity)?;
+
+            // issue liquidity shares to the caller
+            let caller_liquidity = self
+                .liquidity
+                .get(&caller)
+                .unwrap_or(0)
+                .checked_add(minted_liquidity)
+                .ok_or(DexError::Arithmethic)?;
+            self.liquidity.insert(&caller, &caller_liquidity);
+
+            // increase total liquidity
+            self.total_liquidity = self
+                .total_liquidity
+                .checked_add(minted_liquidity)
+                .ok_or(DexError::Arithmethic)?;
+
+            Ok(())
+        }
+
+        /// Terminates the contract.
+        ///
+        /// can only be called by the contract's Owner
+        #[ink(message, selector = 7)]
+        pub fn terminate(&mut self) -> Result<(), DexError> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                caller,
+                Role::Owner(this),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )?;
+
+            self.env().terminate_contract(caller)
+        }
+
+        /// Returns own code hash
+        #[ink(message)]
+        pub fn code_hash(&self) -> Result<Hash, DexError> {
+            self.env()
+                .own_code_hash()
+                .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
+        }
+
         // END: mesages
 
         fn new_init(&mut self, ubik: AccountId, cyberiad: AccountId, lono: AccountId) {
@@ -322,19 +408,19 @@ mod simple_dex {
                 .ok_or(DexError::Arithmethic)
         }
 
+        fn access_control_error_handler(role: Role) -> DexError {
+            DexError::MissingRole(role)
+        }
+
+        fn cross_contract_call_error_handler(why: InkEnvError) -> DexError {
+            DexError::CrossContractCall(format!("Calling access control has failed: {:?}", why))
+        }
+
         // fn emit_event<EE>(emitter: EE, event: Event)
         // where
         //     EE: EmitEvent<SimpleDex>,
         // {
         //     emitter.emit_event(event);
         // }
-
-        /// Returns own code hash
-        #[ink(message)]
-        pub fn code_hash(&self) -> Result<Hash, DexError> {
-            self.env()
-                .own_code_hash()
-                .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
-        }
     }
 }
