@@ -2,6 +2,13 @@
 
 use ink_lang as ink;
 
+/// Simple DEX contract
+///
+/// This contract is based on Balancer multi asset LP design and all formulas are taken from the Balancer's whitepaper (https://balancer.fi/whitepaper.pdf)
+/// It has one pool with three PSP22 game reward tokens and our native token
+/// Swaps can be done between all pairs in the pool
+/// Liquidity provision is provided as single (native) asset deposits/withdrawals only, and calling the assosiated functions is limited to designated accounts only.
+
 #[ink::contract]
 mod simple_dex {
 
