@@ -1,3 +1,5 @@
+use std::iter::repeat;
+
 use aleph_client::{BalanceTransfer, BatchTransactions, XtStatus};
 use log::info;
 
@@ -9,10 +11,7 @@ pub fn batch_transactions(config: &Config) -> anyhow::Result<()> {
     let (connection, to) = setup_for_transfer(config);
 
     let call = connection.create_transfer_tx(to, 1000u128);
-    let mut transactions = Vec::new();
-    for _i in 0..NUMBER_OF_TRANSACTIONS {
-        transactions.push(call.clone());
-    }
+    let transactions = repeat(&call).take(NUMBER_OF_TRANSACTIONS);
 
     let finalized_block_hash = connection
         .batch_and_send_transactions(transactions, XtStatus::Finalized)

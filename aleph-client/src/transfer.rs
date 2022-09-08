@@ -3,8 +3,8 @@ use primitives::Balance;
 use sp_core::{Pair, H256};
 use sp_runtime::MultiAddress;
 use substrate_api_client::{
-    compose_call, compose_extrinsic, error::Error as SacError,
-    extrinsic::balances::BalanceTransferXt, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
+    compose_call, compose_extrinsic, compose_extrinsic_offline, error::Error as SacError,
+    AccountId, ExtrinsicParams, GenericAddress, XtStatus,
 };
 
 use crate::{
@@ -12,7 +12,8 @@ use crate::{
     SignedConnection,
 };
 
-pub type TransferTransaction = Extrinsic<([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>)>;
+pub type TransferCall = ([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>);
+pub type TransferTransaction = Extrinsic<TransferCall>;
 
 pub fn transfer(
     connection: &SignedConnection,
@@ -54,29 +55,38 @@ pub fn batch_transfer(
     );
 }
 
-// struct Tx {
-//     account: AccountId,
+#[derive(Clone)]
+pub struct Tx {
+    pub account: MultiAddress<AccountId, ()>,
+    pub amount: Balance,
+}
 
-// }
+impl SignedConnection {
+    pub fn create_transfer_extrinsic(
+        &self,
+        tx: <Self as BalanceTransfer>::TransferTx,
+    ) -> TransferTransaction {
+        let nonce = self.as_connection().get_nonce().unwrap();
+        compose_extrinsic_offline!(
+            self.as_connection().signer.unwrap(),
+            tx,
+            self.as_connection().extrinsic_params(nonce)
+        )
+    }
+}
 
 impl BalanceTransfer for SignedConnection {
-    // type TransferTx =
-    //     BalanceTransferXt<<crate::ExtrinsicParams as ac_primitives::ExtrinsicParams>::SignedExtra>;
-    // type TransferTx = ([u8; 2], MultiAddress<AccountId, ()>, Compact<u128>);
-    type TransferTx = TransferTransaction;
+    type TransferTx = TransferCall;
     type Error = SacError;
 
     fn create_transfer_tx(&self, account: AccountId, amount: Balance) -> Self::TransferTx {
-        // compose_call!(
-        //     self.as_connection().metadata,
-        //     "Balances",
-        //     "transfer",
-        //     GenericAddress::Id(account),
-        //     Compact(1000u128)
-        // )
-
-        self.as_connection()
-            .balance_transfer(GenericAddress::Id(account), amount)
+        compose_call!(
+            self.as_connection().metadata,
+            "Balances",
+            "transfer",
+            GenericAddress::Id(account),
+            amount.into()
+        )
     }
 
     fn transfer(
@@ -84,35 +94,23 @@ impl BalanceTransfer for SignedConnection {
         tx: Self::TransferTx,
         status: XtStatus,
     ) -> Result<Option<H256>, Self::Error> {
-        try_send_xt(self, tx, Some("transfer"), status)
+        let xt = self.create_transfer_extrinsic(tx);
+        try_send_xt(self, xt, Some("transfer"), status)
     }
 }
 
 impl BatchTransactions<<SignedConnection as BalanceTransfer>::TransferTx> for SignedConnection {
     type Error = SacError;
 
-    fn batch_and_send_transactions(
+    fn batch_and_send_transactions<'a>(
         &self,
-        transactions: impl IntoIterator<Item = <SignedConnection as BalanceTransfer>::TransferTx>,
+        transactions: impl IntoIterator<Item = &'a <SignedConnection as BalanceTransfer>::TransferTx>,
         status: XtStatus,
-    ) -> Result<Option<H256>, Self::Error> {
-        // let call = compose_call!(
-        //     connection.as_connection().metadata,
-        //     "Balances",
-        //     "transfer",
-        //     GenericAddress::Id(to),
-        //     Compact(1000u128)
-        // );
-        let mapped = transactions.into_iter().map(|tx| {
-            compose_call!(
-                self.as_connection().metadata,
-                "Balances",
-                "transfer",
-                tx.function.1,
-                tx.function.2
-            )
-        });
-        let txs = Vec::from_iter(mapped);
+    ) -> Result<Option<H256>, Self::Error>
+    where
+        Tx: 'a,
+    {
+        let txs = Vec::from_iter(transactions);
         let xt = compose_extrinsic!(self.as_connection(), "Utility", "batch", txs);
         try_send_xt(self, xt, Some("batch/transfer"), status)
     }

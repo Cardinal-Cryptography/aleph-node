@@ -4,16 +4,18 @@ use crate::{AnyConnection, BalanceTransfer, FeeInfo, GetTxInfo, ReadStorage, Sig
 
 impl GetTxInfo<<SignedConnection as BalanceTransfer>::TransferTx> for SignedConnection {
     fn get_tx_info(&self, tx: &<SignedConnection as BalanceTransfer>::TransferTx) -> FeeInfo {
+        let tx = self.create_transfer_extrinsic(tx.clone());
+        let tx_hex = tx.hex_encode();
         let unadjusted_weight = self
             .as_connection()
-            .get_payment_info(&tx.hex_encode(), None)
+            .get_payment_info(&tx_hex, None)
             .expect("Should access payment info")
             .expect("Payment info should be present")
             .weight as Balance;
 
         let fee = self
             .as_connection()
-            .get_fee_details(&tx.hex_encode(), None)
+            .get_fee_details(&tx_hex, None)
             .expect("Should access fee details")
             .expect("Should read fee details");
         let inclusion_fee = fee.inclusion_fee.expect("Transaction should be payable");

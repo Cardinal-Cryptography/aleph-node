@@ -230,11 +230,13 @@ pub trait BalanceTransfer {
 pub trait BatchTransactions<Tx> {
     type Error: StdError;
 
-    fn batch_and_send_transactions(
+    fn batch_and_send_transactions<'a>(
         &self,
-        transactions: impl IntoIterator<Item = Tx>,
+        transactions: impl IntoIterator<Item = &'a Tx>,
         status: XtStatus,
-    ) -> Result<Option<H256>, Self::Error>;
+    ) -> Result<Option<H256>, Self::Error>
+    where
+        Tx: 'a;
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
