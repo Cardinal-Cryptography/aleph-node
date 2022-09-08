@@ -472,6 +472,35 @@ mod simple_dex {
             self.swap_fee
         }
 
+        /// Sets access_control to a new contract address
+        ///
+        /// Potentially very destructive, can only be called by the contract's Owner.        
+        #[ink(message)]
+        pub fn set_access_control(&mut self, access_control: AccountId) -> Result<(), DexError>
+        where
+            Self: AccessControlled,
+        {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                caller,
+                Role::Owner(this),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )?;
+
+            self.access_control = access_control;
+            Ok(())
+        }
+
+        /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
+        #[ink(message)]
+        pub fn access_control(&self) -> AccountId {
+            self.access_control
+        }
+
         /// Terminates the contract.
         ///
         /// Can only be called by the contract's Owner.
@@ -506,7 +535,7 @@ mod simple_dex {
             self.lono = lono;
         }
 
-        /// transfers a given amount of a PSP22 token to a specified using the contracts own balance
+        /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
         fn transfer_tx(
             &self,
             token: AccountId,
@@ -525,7 +554,8 @@ mod simple_dex {
                 .fire()
         }
 
-        /// transfers a given amount of a PSP22 token on behalf of a specified account to another account
+        /// Transfers a given amount of a PSP22 token on behalf of a specified account to another account
+        ///
         /// Will revert if not enough allowance was given to the caller prior to executing this tx
         fn transfer_from_tx(
             &self,
@@ -543,12 +573,12 @@ mod simple_dex {
                         .push_arg(amount)
                         .push_arg(vec![0x0]),
                 )
-                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .call_flags(CallFlags::default().set_allow_reentry(true)) // needed for checking allowance before the actual tx
                 .returns::<Result<(), PSP22Error>>()
                 .fire()
         }
 
-        /// returns unused allowance that the owner has given to spender
+        /// Returns the amount of unused allowance that the token owner has given to the spender
         fn allowance(
             &self,
             token: AccountId,
