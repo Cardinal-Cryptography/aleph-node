@@ -133,6 +133,7 @@ impl pallet_timestamp::Config for Test {
 impl Config for Test {
     type AuthorityId = AuthorityId;
     type Event = Event;
+    type SessionInfoProvider = Session;
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {
