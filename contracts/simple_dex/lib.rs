@@ -119,7 +119,6 @@ mod simple_dex {
         /// tracks pool shares per account
         pub liquidity: Mapping<AccountId, u128>,
         pub swap_fee: u128,
-        /// access control contract
         pub access_control: AccountId,
         pub ubik: AccountId,
         pub cyberiad: AccountId,
@@ -296,7 +295,7 @@ mod simple_dex {
         /// LP: single-asset native deposit
         ///
         /// Can be called only by an account carrying a LiquidityProvider role for this contract.
-        /// This account gets a number of (virtual) pools shares which can than be redeemed for the
+        /// This account gets a number of (virtual) pools shares which can than be redeemed back for the native asset using the withdrawal transaction
         #[ink(message, payable)]
         pub fn native_deposit(&mut self) -> Result<(), DexError> {
             // calculates number of pool shares corresponding to a token deposit amount and current balance in the pool (assuming all other stay constant)
