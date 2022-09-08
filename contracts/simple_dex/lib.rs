@@ -22,24 +22,13 @@ mod simple_dex {
     use num::integer::Roots;
     use openbrush::contracts::traits::errors::PSP22Error;
 
-    // Event type
-    // type Event = <SimpleDex as ContractEventBase>::Type;
-
-    // |why: InkEnvError| {
-    //     DexError::CrossContractCall(format!(
-    //         "Calling access control has failed: {:?}",
-    //         why
-    //     ))
-    // },
+    type Event = <SimpleDex as ContractEventBase>::Type;
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum DexError {
         PSP22(PSP22Error),
-        // NotEnoughBalanceOf(AccountId),
-        // ArithmethicError,
         InsufficientAllowanceOf(AccountId),
-        // InsufficientTransferredValue,
         Arithmethic,
         MissingRole(Role),
         InkEnv(String),
@@ -59,12 +48,50 @@ mod simple_dex {
         }
     }
 
-    // #[ink(event)]
-    // #[derive(Debug)]
-    // pub struct DexEvt {
-    //     #[ink(topic)]
-    //     a: AccountId,
-    // }
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct NativeToToken {
+        #[ink(topic)]
+        token_out: AccountId,
+        amount_in: Balance,
+        amount_out: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct TokenToNative {
+        #[ink(topic)]
+        token_in: AccountId,
+        amount_in: Balance,
+        amount_out: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct TokenToToken {
+        #[ink(topic)]
+        token_in: AccountId,
+        #[ink(topic)]
+        token_out: AccountId,
+        amount_in: Balance,
+        amount_out: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct NativeDeposit {
+        caller: AccountId,
+        amount: Balance,
+        minted_liquidity: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct NativeWithdrawal {
+        caller: AccountId,
+        amount: Balance,
+        redeemed_liquidity: Balance,
+    }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -111,9 +138,7 @@ mod simple_dex {
             }
         }
 
-        // mesages
-
-        /// swap the transferred amount of native token to one of the pools PSP22 tokens
+        /// Swaps the transferred amount of native token to one of the pools PSP22 tokens
         #[ink(message, payable)]
         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
             let amount_token_in = self.env().transferred_value();
@@ -140,13 +165,22 @@ mod simple_dex {
             // transfer token_out from contract to user
             self.transfer_tx(token_out, caller, amount_token_out)??;
 
-            // TOOD : emit event
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::NativeToToken(NativeToToken {
+                    token_out,
+                    amount_in: amount_token_in,
+                    amount_out: amount_token_out,
+                }),
+            );
 
             Ok(())
         }
 
-        /// swap the a specified amount of pools token to the native token
-        /// calling account needs to give allowance to the DEX contract to spend amount_token_in on it's behalf
+        /// Swap the a specified amount of one of the pool PSP22 tokens to the native token
+        /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on it's behalf
+        /// before executing this tx.
         #[ink(message)]
         pub fn token_to_native(
             &mut self,
@@ -177,13 +211,22 @@ mod simple_dex {
                 .transfer(caller, amount_token_out)
                 .map_err(|_| DexError::NativeTransfer)?;
 
-            // TOOD : emit event
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::TokenToNative(TokenToNative {
+                    token_in,
+                    amount_in: amount_token_in,
+                    amount_out: amount_token_out,
+                }),
+            );
 
             Ok(())
         }
 
-        /// swap the a specified amount of one pool token to another token
-        /// calling account needs to give allowance to the DEX contract to spend amount_token_in on it's behalf
+        /// Swaps the a specified amount of one pool's PSP22 tokens to another PSP22 token
+        /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on it's behalf
+        /// before executing this tx.
         #[ink(message)]
         pub fn token_to_token(
             &mut self,
@@ -215,13 +258,26 @@ mod simple_dex {
             // transfer token_out from contract to user
             self.transfer_tx(token_out, caller, amount_token_out)??;
 
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::TokenToToken(TokenToToken {
+                    token_in,
+                    token_out,
+                    amount_in: amount_token_in,
+                    amount_out: amount_token_out,
+                }),
+            );
+
             Ok(())
         }
 
         /// LP: single-asset native deposit
-        /// Can be called only by an account carrying a LiquidityProvider role for this contract
+        ///
+        /// Can be called only by an account carrying a LiquidityProvider role for this contract.
+        /// This account gets a number of (virtual) pools shares which can than be redeemed for the
         #[ink(message, payable)]
-        pub fn native_asset_deposit(&mut self) -> Result<(), DexError> {
+        pub fn native_deposit(&mut self) -> Result<(), DexError> {
             // calculates number of pool shares corresponding to a token deposit amount and current balance in the pool (assuming all other stay constant)
             let pool_shares_issued = |deposit_amount: u128,
                                       token_balance: u128,
@@ -244,11 +300,23 @@ mod simple_dex {
                 Ok(op5)
             };
 
-            let total_liquidity = self.total_liquidity;
-            let caller = Self::env().caller();
+            let this = self.env().account_id();
+            let caller = self.env().caller();
 
-            let native_deposit = Self::env().transferred_value();
-            let native_balance = Self::env()
+            // check role, only designated account can add liquidity
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                caller,
+                Role::LiquidityProvider(this),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )?;
+
+            let total_liquidity = self.total_liquidity;
+
+            let native_deposit = self.env().transferred_value();
+            let native_balance = self
+                .env()
                 .balance()
                 .checked_sub(native_deposit)
                 .ok_or(DexError::Arithmethic)?;
@@ -271,13 +339,97 @@ mod simple_dex {
                 .checked_add(minted_liquidity)
                 .ok_or(DexError::Arithmethic)?;
 
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::NativeDeposit(NativeDeposit {
+                    caller,
+                    amount: native_deposit,
+                    minted_liquidity,
+                }),
+            );
+
+            Ok(())
+        }
+
+        /// LP: single-asset native withdrawal
+        ///
+        /// Can be called only by an account carrying a LiquidityProvider role for this contract
+        #[ink(message, payable)]
+        pub fn native_withdrawal(&mut self, amount: u128) -> Result<(), DexError> {
+            let pool_shares_redeemed = |withdraw_amount: u128,
+                                        token_balance: u128,
+                                        total_liquidity: u128|
+             -> Result<u128, DexError> {
+                let op1 = withdraw_amount
+                    .checked_div(token_balance)
+                    .ok_or(DexError::Arithmethic)?;
+
+                let op2 = 1u128.checked_sub(op1).ok_or(DexError::Arithmethic)?;
+
+                let op3 = op2.nth_root(4);
+
+                let op4 = 1u128.checked_sub(op3).ok_or(DexError::Arithmethic)?;
+
+                let op5 = total_liquidity
+                    .checked_mul(op4)
+                    .ok_or(DexError::Arithmethic)?;
+
+                Ok(op5)
+            };
+
+            let caller = self.env().caller();
+            let native_balance = self.env().balance();
+            let this = self.env().account_id();
+
+            // check role, only designated account can add liquidity
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                caller,
+                Role::LiquidityProvider(this),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )?;
+
+            let total_liquidity = self.total_liquidity;
+            let redeemed_liquidity = pool_shares_redeemed(amount, native_balance, total_liquidity)?;
+
+            // this should return Err variant if user has not enough liquidity so we can omit an explicit check
+            let caller_liquidity = self
+                .liquidity
+                .get(&caller)
+                .unwrap_or(0)
+                .checked_sub(redeemed_liquidity)
+                .ok_or(DexError::Arithmethic)?;
+
+            self.liquidity.insert(&caller, &caller_liquidity);
+
+            self.total_liquidity = self
+                .total_liquidity
+                .checked_sub(redeemed_liquidity)
+                .ok_or(DexError::Arithmethic)?;
+
+            Self::env()
+                .transfer(caller, amount)
+                .map_err(|_| DexError::NativeTransfer)?;
+
+            // emit event
+            Self::emit_event(
+                self.env(),
+                Event::NativeWithdrawal(NativeWithdrawal {
+                    caller,
+                    amount,
+                    redeemed_liquidity,
+                }),
+            );
+
             Ok(())
         }
 
         /// Terminates the contract.
         ///
-        /// can only be called by the contract's Owner
-        #[ink(message, selector = 7)]
+        /// Can only be called by the contract's Owner.
+        #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), DexError> {
             let caller = self.env().caller();
             let this = self.env().account_id();
@@ -300,8 +452,6 @@ mod simple_dex {
                 .own_code_hash()
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
-
-        // END: mesages
 
         fn new_init(&mut self, ubik: AccountId, cyberiad: AccountId, lono: AccountId) {
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
@@ -416,11 +566,11 @@ mod simple_dex {
             DexError::CrossContractCall(format!("Calling access control has failed: {:?}", why))
         }
 
-        // fn emit_event<EE>(emitter: EE, event: Event)
-        // where
-        //     EE: EmitEvent<SimpleDex>,
-        // {
-        //     emitter.emit_event(event);
-        // }
+        fn emit_event<EE>(emitter: EE, event: Event)
+        where
+            EE: EmitEvent<SimpleDex>,
+        {
+            emitter.emit_event(event);
+        }
     }
 }
