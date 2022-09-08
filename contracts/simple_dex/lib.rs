@@ -30,7 +30,7 @@ mod simple_dex {
         PSP22(PSP22Error),
         // NotEnoughBalanceOf(AccountId),
         // ArithmethicError,
-        // InsufficientAllowance,
+        InsufficientAllowanceOf(AccountId),
         // InsufficientTransferredValue,
         Arithmethic,
         MissingRole(Role),
@@ -162,19 +162,55 @@ mod simple_dex {
                 swap_fee,
             )?;
 
-            // TODO check allowance
-            // if PSP22Ref::allowance(&token_in, caller, this) < amount_token_in {
-            //     return Err(DexError::InsufficientAllowance);
-            // }
+            //  check allowance
+            if self.allowance(token_in, caller, this)? < amount_token_in {
+                return Err(DexError::InsufficientAllowanceOf(token_in));
+            }
 
             // transfer token_in from the user to the contract
-            self.transfer_from_tx(token_in, caller, this, amount_token_in)?;
+            self.transfer_from_tx(token_in, caller, this, amount_token_in)??;
 
             self.env()
                 .transfer(caller, amount_token_out)
                 .map_err(|_| DexError::NativeTransfer)?;
 
             // TOOD : emit event
+
+            Ok(())
+        }
+
+        /// swap the a specified amount of one pool token to another token
+        /// calling account needs to give allowance to the DEX contract to spend amount_token_in on it's behalf
+        #[ink(message)]
+        pub fn token_to_token(
+            &mut self,
+            token_in: AccountId,
+            token_out: AccountId,
+            amount_token_in: u128,
+        ) -> Result<(), DexError> {
+            let swap_fee = self.swap_fee;
+            let this = Self::env().account_id();
+            let caller = Self::env().caller();
+
+            let balance_token_in = self.balance_of(token_in, this)?;
+            let balance_token_out = self.balance_of(token_out, this)?;
+
+            let amount_token_out = Self::out_given_in(
+                amount_token_in,
+                balance_token_in,
+                balance_token_out,
+                swap_fee,
+            )?;
+
+            // check allowance
+            if self.allowance(token_in, caller, this)? < amount_token_in {
+                return Err(DexError::InsufficientAllowanceOf(token_in));
+            }
+
+            // transfer token_in from user to the contract
+            self.transfer_from_tx(token_in, caller, this, amount_token_in)??;
+            // transfer token_out from contract to user
+            self.transfer_tx(token_out, caller, amount_token_out)??;
 
             Ok(())
         }
