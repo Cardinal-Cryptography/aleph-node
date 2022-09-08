@@ -36,7 +36,7 @@ pub mod marketplace {
         auction_length: BlockNumber,
         sale_multiplier: Balance,
         ticket_token: AccountId,
-        game_token: AccountId,
+        reward_token: AccountId,
     }
 
     #[derive(Clone, Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
@@ -86,7 +86,7 @@ pub mod marketplace {
         #[ink(constructor)]
         pub fn new(
             ticket_token: AccountId,
-            game_token: AccountId,
+            reward_token: AccountId,
             starting_price: Balance,
             min_price: Balance,
             sale_multiplier: Balance,
@@ -97,7 +97,7 @@ pub mod marketplace {
 
             Marketplace {
                 ticket_token,
-                game_token,
+                reward_token,
                 min_price,
                 sale_multiplier,
                 auction_length,
@@ -107,58 +107,74 @@ pub mod marketplace {
             }
         }
 
-        fn ensure_role(role: Role) -> Result<(), Error> {
-            <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                Self::env().caller(),
-                role,
-                |reason| reason.into(),
-                |role| Error::missing_role(role),
-            )
-        }
-
-        fn initializer() -> Role {
-            let code_hash = Self::env()
-                .own_code_hash()
-                .expect("Failure to retrieve code hash.");
-            Initializer(code_hash)
-        }
-
-        fn admin(&self) -> Role {
-            Role::Admin(self.this())
+        #[ink(message)]
+        /// The length of each auction of a single ticket in blocks.
+        ///
+        /// The contract will decrease the price linearly from `average_price() * sale_multiplier()`
+        /// to `min_price()` over this period. The auction doesn't end after the period elapses -
+        /// the ticket remains available for purchase at `min_price()`.
+        pub fn auction_length(&self) -> BlockNumber {
+            self.auction_length
         }
 
         #[ink(message)]
+        /// The block at which the auction of the current ticket started.
+        pub fn current_start_block(&self) -> BlockNumber {
+            self.current_start_block
+        }
+
+        #[ink(message)]
+        /// The price the contract would charge when buying at the current block.
         pub fn price(&self) -> Balance {
             self.current_price()
         }
 
         #[ink(message)]
+        /// The average price over all sales the contract made.
+        fn average_price(&self) -> Balance {
+            self.total_proceeds.saturating_div(self.tickets_sold)
+        }
+
+        #[ink(message)]
+        /// The multiplier applied to the initial price after each sale.
+        ///
+        /// The contract tracks the average price of all sold tickets and starts off each new
+        /// auction at a price that is this multiplier times the average.
         pub fn sale_multiplier(&self) -> Balance {
             self.sale_multiplier
         }
 
         #[ink(message)]
+        /// Number of tickets available for sale.
+        ///
+        /// The tickets will be auctioned off one by one.
         pub fn available_tickets(&self) -> Result<Balance, Error> {
             self.ticket_balance()
         }
 
         #[ink(message)]
+        /// The minimal price the contract allows.
         pub fn min_price(&self) -> Balance {
             self.min_price
         }
 
         #[ink(message)]
-        pub fn game_token(&self) -> AccountId {
-            self.game_token
+        /// Address of the reward token contract this contract will accept as payment.
+        pub fn reward_token(&self) -> AccountId {
+            self.reward_token
         }
 
         #[ink(message)]
+        /// Address of the ticket token contract this contract will auction off.
         pub fn ticket_token(&self) -> AccountId {
             self.ticket_token
         }
 
         #[ink(message)]
+        /// Buy one ticket at the current_price.
+        ///
+        /// The caller should make an approval for at least `price()` reward tokens to make sure the
+        /// call will succeed.
         pub fn buy(&mut self) -> Result<(), Error> {
             if self.ticket_balance()? > 0 {
                 let price = self.current_price();
@@ -179,6 +195,9 @@ pub mod marketplace {
         }
 
         #[ink(message)]
+        /// Re-start the auction from the current block.
+        ///
+        /// Note that this will keep the average estimate from previous auctions.
         pub fn reset(&mut self) -> Result<(), Error> {
             Self::ensure_role(self.admin())?;
 
@@ -203,13 +222,9 @@ pub mod marketplace {
                 .max(1u128)
         }
 
-        fn average_price(&self) -> Balance {
-            self.total_proceeds.saturating_div(self.tickets_sold)
-        }
-
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
             build_call::<Environment>()
-                .call_type(Call::new().callee(self.game_token))
+                .call_type(Call::new().callee(self.reward_token))
                 .exec_input(
                     ExecutionInput::new(Selector::new(TRANSFER_FROM_GAME_TOKEN_SELECTOR))
                         .push_arg(from)
@@ -250,6 +265,27 @@ pub mod marketplace {
                 .fire()?;
 
             Ok(balance)
+        }
+
+        fn ensure_role(role: Role) -> Result<(), Error> {
+            <Self as AccessControlled>::check_role(
+                AccountId::from(ACCESS_CONTROL_PUBKEY),
+                Self::env().caller(),
+                role,
+                |reason| reason.into(),
+                |role| Error::missing_role(role),
+            )
+        }
+
+        fn initializer() -> Role {
+            let code_hash = Self::env()
+                .own_code_hash()
+                .expect("Failure to retrieve code hash.");
+            Initializer(code_hash)
+        }
+
+        fn admin(&self) -> Role {
+            Role::Admin(self.this())
         }
 
         fn this(&self) -> AccountId {
