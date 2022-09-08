@@ -131,12 +131,12 @@ pub mod marketplace {
 
         #[ink(message)]
         /// The average price over all sales the contract made.
-        fn average_price(&self) -> Balance {
+        pub fn average_price(&self) -> Balance {
             self.total_proceeds.saturating_div(self.tickets_sold)
         }
 
         #[ink(message)]
-        /// The multiplier applied to the initial price after each sale.
+        /// The multiplier applied to the average price after each sale.
         ///
         /// The contract tracks the average price of all sold tickets and starts off each new
         /// auction at a price that is this multiplier times the average.
