@@ -1,0 +1,2319 @@
+ [1/2] Checking ink! linting rules
+[1mChecking with toolchain `nightly-2022-03-14-x86_64-unknown-linux-gnu`[0m
+warning: unused import: `Environment as EnvironmentTrait`
+  --> lib.rs:12:29
+   |
+12 |         DefaultEnvironment, Environment as EnvironmentTrait, Error as InkEnvError,
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `EmitEvent`, `reflect::ContractEventBase`
+  --> lib.rs:15:40
+   |
+15 |         codegen::{initialize_contract, EmitEvent},
+   |                                        ^^^^^^^^^
+16 |         reflect::ContractEventBase,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `caller`
+   --> lib.rs:122:17
+    |
+122 |             let caller = self.env().caller();
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_caller`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `amount_token_out`
+   --> lib.rs:127:17
+    |
+127 |             let amount_token_out = Self::out_given_in(
+    |                 ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_amount_token_out`
+
+warning: `simple_dex` (lib) generated 4 warnings
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
+ [2/2] Executing `cargo check`
+    Updating crates.io index
+    Updating git repository `https://github.com/Supercolony-net/openbrush-contracts.git`
+    Checking simple_dex v0.1.0 (/tmp/cargo-contract_OIkPhg)
+error: cannot find macro `vec` in this scope
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:161:35
+    |
+161 |                         .push_arg(vec![0x0]),
+    |                                   ^^^
+    |
+    = note: consider importing this macro:
+            ink_prelude::vec
+
+warning: unused import: `Environment as EnvironmentTrait`
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:12:29
+   |
+12 |         DefaultEnvironment, Environment as EnvironmentTrait, Error as InkEnvError,
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `EmitEvent`, `reflect::ContractEventBase`
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:15:40
+   |
+15 |         codegen::{initialize_contract, EmitEvent},
+   |                                        ^^^^^^^^^
+16 |         reflect::ContractEventBase,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: duplicate lang item in crate `std`: `panic_impl`.
+  |
+  = note: the lang item is first defined in crate `ink_env` (which `simple_dex` depends on)
+  = note: first definition in `ink_env` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libink_env-4dd2a3ff5e73501d.rmeta
+  = note: second definition in `std` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libstd-029a8450b0f90c5b.rmeta
+
+error: duplicate lang item in crate `std`: `oom`.
+  |
+  = note: the lang item is first defined in crate `ink_allocator` (which `ink_env` depends on)
+  = note: first definition in `ink_allocator` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libink_allocator-0e2573d576e36ef2.rmeta
+  = note: second definition in `std` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libstd-029a8450b0f90c5b.rmeta
+
+error: duplicate lang item in crate `core`: `sized`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `unsize`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `structural_peq`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `structural_teq`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `copy`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `clone`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `sync`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `discriminant_kind`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `discriminant_type`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `pointee_trait`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `metadata_type`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `dyn_metadata`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `freeze`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `drop`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `destruct`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `coerce_unsized`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `dispatch_from_dyn`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `transmute_trait`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `add`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `sub`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `mul`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `div`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `rem`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `neg`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `not`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitxor`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitand`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitor`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `shl`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `shr`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `add_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `sub_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `mul_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `div_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `rem_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitxor_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitand_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `bitor_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `shl_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `shr_assign`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `index`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `index_mut`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `unsafe_cell`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `va_list`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `deref`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `deref_mut`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `deref_target`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `receiver`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `fn`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `fn_mut`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `fn_once`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `fn_once_output`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `future_trait`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `generator_state`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `generator`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `generator_return`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `unpin`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `pin`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `eq`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `partial_ord`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_fmt`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_display`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `const_panic_fmt`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_bounds_check`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_info`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_location`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `panic_no_unwind`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `drop_in_place`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `alloc_layout`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `const_eval_select`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `const_eval_select_ct`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `phantom_data`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `manually_drop`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `maybe_uninit`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `align_offset`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Try`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `slice_len_fn`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `from_residual`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `from_output`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `branch`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `from_yeet`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Ready`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Pending`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `from_generator`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `get_context`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `poll`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `from`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Some`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `None`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Ok`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Err`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Continue`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Break`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `into_future`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `into_iter`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `next`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `new_unchecked`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `RangeFrom`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `RangeFull`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `RangeInclusive`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `range_inclusive_new`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `Range`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `RangeToInclusive`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+error: duplicate lang item in crate `core`: `RangeTo`.
+  |
+  = note: the lang item is first defined in crate `core` (which `simple_dex` depends on)
+  = note: first definition in `core` loaded from /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink/wasm32-unknown-unknown/release/deps/libcore-4ebef8fca2dad587.rlib
+  = note: second definition in `core` loaded from /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/wasm32-unknown-unknown/lib/libcore-658cdd8d8c2a0952.rlib
+
+warning: default bound relaxed for a type parameter, but this does nothing because the given bound is not a default; only `?Sized` is supported
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^
+
+warning: default bound relaxed for a type parameter, but this does nothing because the given bound is not a default; only `?Sized` is supported
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:36
+   |
+25 |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+   |                                    ^^^^^^^^^^^^^
+   |
+   = note: this warning originates in the derive macro `scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `ink_env::AccountId` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:65:24
+   |
+65 |         pub liquidity: Mapping<AccountId, u128>,
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `ink_env::AccountId`
+note: required by a bound in `ink_storage::Mapping`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_storage-3.3.1/src/lazy/mapping.rs:90:20
+   |
+90 | pub struct Mapping<K, V> {
+   |                    ^ required by this bound in `ink_storage::Mapping`
+
+error[E0277]: the size for values of type `u128` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:65:24
+   |
+65 |         pub liquidity: Mapping<AccountId, u128>,
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `u128`
+note: required by a bound in `ink_storage::Mapping`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_storage-3.3.1/src/lazy/mapping.rs:90:23
+   |
+90 | pub struct Mapping<K, V> {
+   |                       ^ required by this bound in `ink_storage::Mapping`
+
+error[E0277]: the size for values of type `__ink_ConstructorDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_ConstructorDecoder`
+note: required by a bound in `DecodeDispatch`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_lang-3.3.1/src/reflect/dispatch.rs:653:27
+    |
+653 | pub trait DecodeDispatch: scale::Decode {
+    |                           ^^^^^^^^^^^^^ required by this bound in `DecodeDispatch`
+
+error[E0277]: the size for values of type `__ink_ConstructorDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_ConstructorDecoder`
+note: required by a bound in `parity_scale_codec::Decode`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/codec.rs:295:19
+    |
+295 | pub trait Decode: Sized {
+    |                   ^^^^^ required by this bound in `parity_scale_codec::Decode`
+
+error[E0277]: the size for values of type `__ink_MessageDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_MessageDecoder`
+note: required by a bound in `DecodeDispatch`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_lang-3.3.1/src/reflect/dispatch.rs:653:27
+    |
+653 | pub trait DecodeDispatch: scale::Decode {
+    |                           ^^^^^^^^^^^^^ required by this bound in `DecodeDispatch`
+
+error[E0277]: the size for values of type `__ink_MessageDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_MessageDecoder`
+note: required by a bound in `parity_scale_codec::Decode`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/codec.rs:295:19
+    |
+295 | pub trait Decode: Sized {
+    |                   ^^^^^ required by this bound in `parity_scale_codec::Decode`
+
+error[E0277]: the size for values of type `SimpleDex` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:78:10
+   |
+78 |     impl SimpleDex {
+   |          ^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `SimpleDex`
+note: required by a bound in `IsSameType`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_lang-3.3.1/src/codegen/utils/same_type.rs:34:23
+   |
+34 | pub struct IsSameType<T> {
+   |                       ^ required by this bound in `IsSameType`
+
+error[E0277]: the size for values of type `simple_dex::_::CallBuilder` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `simple_dex::_::CallBuilder`
+note: required by a bound in `PackedLayout`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_storage-3.3.1/src/traits/packed.rs:32:56
+   |
+32 | pub trait PackedLayout: SpreadLayout + scale::Encode + scale::Decode {
+   |                                                        ^^^^^^^^^^^^^ required by this bound in `PackedLayout`
+   = note: this error originates in the derive macro `::ink_storage::traits::PackedLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `simple_dex::_::CallBuilder` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `simple_dex::_::CallBuilder`
+note: required by a bound in `EncodeLike`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/encode_like.rs:73:41
+   |
+73 | pub trait EncodeLike<T: Encode = Self>: Sized + Encode {}
+   |                                         ^^^^^ required by this bound in `EncodeLike`
+   = note: this error originates in the derive macro `::scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `simple_dex::_::CallBuilder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `simple_dex::_::CallBuilder`
+note: required by a bound in `parity_scale_codec::Decode`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/codec.rs:295:19
+    |
+295 | pub trait Decode: Sized {
+    |                   ^^^^^ required by this bound in `parity_scale_codec::Decode`
+    = note: this error originates in the derive macro `::scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `simple_dex::_::CallBuilder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `simple_dex::_::CallBuilder`
+note: required by a bound in `Clone`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/clone.rs:110:18
+    |
+110 | pub trait Clone: Sized {
+    |                  ^^^^^ required by this bound in `Clone`
+    = note: this error originates in the derive macro `::core::clone::Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `FromAccountId`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:45:25
+   |
+45 | pub trait FromAccountId<T>
+   |                         ^ required by this bound in `FromAccountId`
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `ToAccountId`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_lang-3.3.1/src/contract_ref.rs:20:23
+   |
+20 | pub trait ToAccountId<T>
+   |                       ^ required by this bound in `ToAccountId`
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `PackedLayout`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_storage-3.3.1/src/traits/packed.rs:32:56
+   |
+32 | pub trait PackedLayout: SpreadLayout + scale::Encode + scale::Decode {
+   |                                                        ^^^^^^^^^^^^^ required by this bound in `PackedLayout`
+   = note: this error originates in the derive macro `::ink_storage::traits::PackedLayout` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+   |
+60 | /     #[derive(SpreadAllocate)]
+61 | |     pub struct SimpleDex {
+62 | |         /// total supply of pool shares
+63 | |         pub total_liquidity: u128,
+...  |
+71 | |         pub lono: AccountId,
+72 | |     }
+   | |_____^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `EncodeLike`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/encode_like.rs:73:41
+   |
+73 | pub trait EncodeLike<T: Encode = Self>: Sized + Encode {}
+   |                                         ^^^^^ required by this bound in `EncodeLike`
+   = note: this error originates in the derive macro `::scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `parity_scale_codec::Decode`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/codec.rs:295:19
+    |
+295 | pub trait Decode: Sized {
+    |                   ^^^^^ required by this bound in `parity_scale_codec::Decode`
+    = note: this error originates in the derive macro `::scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `Clone`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/clone.rs:110:18
+    |
+110 | pub trait Clone: Sized {
+    |                  ^^^^^ required by this bound in `Clone`
+    = note: this error originates in the derive macro `::core::clone::Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:36
+   |
+25 |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+   |                                    ^^^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `EncodeLike`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/encode_like.rs:73:41
+   |
+73 | pub trait EncodeLike<T: Encode = Self>: Sized + Encode {}
+   |                                         ^^^^^ required by this bound in `EncodeLike`
+   = note: this error originates in the derive macro `scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:51
+    |
+25  |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+    |                                                   ^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `parity_scale_codec::Decode`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/parity-scale-codec-3.1.5/src/codec.rs:295:19
+    |
+295 | pub trait Decode: Sized {
+    |                   ^^^^^ required by this bound in `parity_scale_codec::Decode`
+    = note: this error originates in the derive macro `scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `openbrush::openbrush_contracts::psp22::PSP22Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:40:10
+    |
+40  |     impl From<PSP22Error> for DexError {
+    |          ^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `openbrush::openbrush_contracts::psp22::PSP22Error`
+note: required by a bound in `From`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/convert/mod.rs:369:16
+    |
+369 | pub trait From<T>: Sized {
+    |                ^ required by this bound in `From`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:40:10
+    |
+40  |     impl From<PSP22Error> for DexError {
+    |          ^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `From`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/convert/mod.rs:369:20
+    |
+369 | pub trait From<T>: Sized {
+    |                    ^^^^^ required by this bound in `From`
+
+error[E0277]: the size for values of type `ink_env::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:46:10
+    |
+46  |     impl From<InkEnvError> for DexError {
+    |          ^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Error`
+note: required by a bound in `From`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/convert/mod.rs:369:16
+    |
+369 | pub trait From<T>: Sized {
+    |                ^ required by this bound in `From`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:46:10
+    |
+46  |     impl From<InkEnvError> for DexError {
+    |          ^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `From`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/convert/mod.rs:369:20
+    |
+369 | pub trait From<T>: Sized {
+    |                    ^^^^^ required by this bound in `From`
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+  --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:5:1
+   |
+5  | #[ink::contract]
+   | ^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `EnvAccess`
+  --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_lang-3.3.1/src/env_access.rs:38:26
+   |
+38 | pub struct EnvAccess<'a, E> {
+   |                          ^ required by this bound in `EnvAccess`
+   = note: this error originates in the attribute macro `ink::contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:9
+    |
+112 | /         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+113 | |             let amount_token_in = self.env().transferred_value();
+114 | |             // we use the balance of the native token just before the exchange tx
+115 | |             let balance_token_in = self
+...   |
+136 | |             Ok(())
+137 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:9
+    |
+112 | /         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+113 | |             let amount_token_in = self.env().transferred_value();
+114 | |             // we use the balance of the native token just before the exchange tx
+115 | |             let balance_token_in = self
+...   |
+136 | |             Ok(())
+137 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `ink_env::Hash` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Hash`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `ink_env::Hash` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:212:9
+    |
+212 | /         /// Returns own code hash
+213 | |         #[ink(message)]
+214 | |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+215 | |             self.env()
+216 | |                 .own_code_hash()
+217 | |                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
+218 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Hash`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:212:9
+    |
+212 | /         /// Returns own code hash
+213 | |         #[ink(message)]
+214 | |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+215 | |             self.env()
+216 | |                 .own_code_hash()
+217 | |                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
+218 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `__ink_ConstructorDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_ConstructorDecoder`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DispatchError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DispatchError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `parity_scale_codec::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `parity_scale_codec::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `__ink_MessageDecoder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `__ink_MessageDecoder`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `Result<(), openbrush::openbrush_contracts::psp22::PSP22Error>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:154:14
+    |
+154 |         ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Result<(), openbrush::openbrush_contracts::psp22::PSP22Error>`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `ink_env::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:154:14
+    |
+154 |         ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:154:14
+    |
+154 |         ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `openbrush::openbrush_contracts::psp22::PSP22Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:154:14
+    |
+154 |         ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `openbrush::openbrush_contracts::psp22::PSP22Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `u128` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:168:71
+    |
+168 |         fn balance_of(&self, token: AccountId, account: AccountId) -> Result<Balance, InkEnvError> {
+    |                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `u128`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `ink_env::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:168:71
+    |
+168 |         fn balance_of(&self, token: AccountId, account: AccountId) -> Result<Balance, InkEnvError> {
+    |                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `u128` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:183:14
+    |
+183 |         ) -> Result<u128, DexError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `u128`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:183:14
+    |
+183 |         ) -> Result<u128, DexError> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `::core::fmt::Debug` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `core::fmt::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `core::fmt::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `::core::fmt::Debug` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `u8` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `u8`
+note: required by a bound in `Vec`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:400:16
+    |
+400 | pub struct Vec<T, #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global> {
+    |                ^ required by this bound in `Vec`
+    = note: this error originates in the derive macro `::scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `Global` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Global`
+note: required by a bound in `Vec`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:400:75
+    |
+400 | pub struct Vec<T, #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global> {
+    |                                                                           ^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Vec`
+    = note: this error originates in the derive macro `::scale::Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `simple_dex::_::CallBuilder` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `simple_dex::_::CallBuilder`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `::scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `parity_scale_codec::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `parity_scale_codec::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `::scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:24
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                        ^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<Call<DefaultEnvironment>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<Call<DefaultEnvironment>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:27
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                           ^^^^^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:37
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                                     ^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<ReturnType<Result<(), DexError>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<ReturnType<Result<(), DexError>>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:43
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                                           ^^^^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Call<DefaultEnvironment>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Call<DefaultEnvironment>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>`
+note: required by a bound in `ExecutionInput`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:19:27
+    |
+19  | pub struct ExecutionInput<Args> {
+    |                           ^^^^ required by this bound in `ExecutionInput`
+
+error[E0277]: the size for values of type `ink_env::call::utils::Argument<ink_env::AccountId>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::call::utils::Argument<ink_env::AccountId>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:25
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                         ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ArgumentList<ArgumentListEnd, ArgumentListEnd>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ArgumentListEnd, ArgumentListEnd>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:31
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                               ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ink_env::AccountId` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::AccountId`
+note: required by a bound in `ink_env::call::utils::Argument`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:86:21
+    |
+86  | pub struct Argument<T> {
+    |                     ^ required by this bound in `ink_env::call::utils::Argument`
+
+error[E0277]: the size for values of type `ArgumentListEnd` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentListEnd`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:25
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                         ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ReturnType<Result<(), DexError>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ReturnType<Result<(), DexError>>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `Result<(), DexError>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:112:68
+    |
+112 |         pub fn native_to_token(&mut self, token_out: AccountId) -> Result<(), DexError> {
+    |                                                                    ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Result<(), DexError>`
+note: required by a bound in `ReturnType`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:23:23
+    |
+23  | pub struct ReturnType<T>(PhantomData<fn() -> T>);
+    |                       ^ required by this bound in `ReturnType`
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:24
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                        ^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<Call<DefaultEnvironment>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<Call<DefaultEnvironment>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:27
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                           ^^^^^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<ExecutionInput<ArgumentList<ArgumentListEnd, ArgumentListEnd>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<ExecutionInput<ArgumentList<ArgumentListEnd, ArgumentListEnd>>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:37
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                                     ^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Set<ReturnType<Result<ink_env::Hash, DexError>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<ReturnType<Result<ink_env::Hash, DexError>>>`
+note: required by a bound in `ink_env::call::CallBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/call_builder.rs:346:43
+    |
+346 | pub struct CallBuilder<E, CallType, Args, RetType>
+    |                                           ^^^^^^^ required by this bound in `ink_env::call::CallBuilder`
+
+error[E0277]: the size for values of type `Call<DefaultEnvironment>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Call<DefaultEnvironment>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `ExecutionInput<ArgumentList<ArgumentListEnd, ArgumentListEnd>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ExecutionInput<ArgumentList<ArgumentListEnd, ArgumentListEnd>>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `ArgumentList<ArgumentListEnd, ArgumentListEnd>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ArgumentListEnd, ArgumentListEnd>`
+note: required by a bound in `ExecutionInput`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:19:27
+    |
+19  | pub struct ExecutionInput<Args> {
+    |                           ^^^^ required by this bound in `ExecutionInput`
+
+error[E0277]: the size for values of type `ArgumentListEnd` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentListEnd`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:25
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                         ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ReturnType<Result<ink_env::Hash, DexError>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ReturnType<Result<ink_env::Hash, DexError>>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `Result<ink_env::Hash, DexError>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:214:36
+    |
+214 |         pub fn code_hash(&self) -> Result<Hash, DexError> {
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Result<ink_env::Hash, DexError>`
+note: required by a bound in `ReturnType`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:23:23
+    |
+23  | pub struct ReturnType<T>(PhantomData<fn() -> T>);
+    |                       ^ required by this bound in `ReturnType`
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:60:5
+    |
+60  | /     #[derive(SpreadAllocate)]
+61  | |     pub struct SimpleDex {
+62  | |         /// total supply of pool shares
+63  | |         pub total_liquidity: u128,
+...   |
+71  | |         pub lono: AccountId,
+72  | |     }
+    | |_____^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `::scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DefaultEnvironment` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DefaultEnvironment`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:26
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                          ^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `Unset<ink_env::Hash>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Unset<ink_env::Hash>`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:29
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                             ^^^^^^^^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `Unset<u64>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Unset<u64>`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:39
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                                       ^^^^^^^^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `Unset<u128>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Unset<u128>`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:49
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                                                 ^^^^^^^^^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `Set<ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Set<ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>>>`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:60
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                                                            ^^^^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `Unset<Salt>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Unset<Salt>`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:66
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                                                                  ^^^^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `SimpleDexRef` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `SimpleDexRef`
+note: required by a bound in `CreateBuilder`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/create_builder.rs:129:72
+    |
+129 | pub struct CreateBuilder<E, CodeHash, GasLimit, Endowment, Args, Salt, R>
+    |                                                                        ^ required by this bound in `CreateBuilder`
+
+error[E0277]: the size for values of type `ink_env::Hash` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::Hash`
+note: required by a bound in `Unset`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:55:18
+    |
+55  | pub struct Unset<T>(PhantomData<fn() -> T>);
+    |                  ^ required by this bound in `Unset`
+
+error[E0277]: the size for values of type `u64` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `u64`
+note: required by a bound in `Unset`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:55:18
+    |
+55  | pub struct Unset<T>(PhantomData<fn() -> T>);
+    |                  ^ required by this bound in `Unset`
+
+error[E0277]: the size for values of type `u128` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `u128`
+note: required by a bound in `Unset`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:55:18
+    |
+55  | pub struct Unset<T>(PhantomData<fn() -> T>);
+    |                  ^ required by this bound in `Unset`
+
+error[E0277]: the size for values of type `ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ExecutionInput<ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>>`
+note: required by a bound in `Set`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:43:16
+    |
+43  | pub struct Set<T>(pub T);
+    |                ^ required by this bound in `Set`
+
+error[E0277]: the size for values of type `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>>`
+note: required by a bound in `ExecutionInput`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:19:27
+    |
+19  | pub struct ExecutionInput<Args> {
+    |                           ^^^^ required by this bound in `ExecutionInput`
+
+error[E0277]: the size for values of type `ink_env::call::utils::Argument<ink_env::AccountId>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::call::utils::Argument<ink_env::AccountId>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:25
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                         ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:31
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                               ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ink_env::AccountId` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ink_env::AccountId`
+note: required by a bound in `ink_env::call::utils::Argument`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:86:21
+    |
+86  | pub struct Argument<T> {
+    |                     ^ required by this bound in `ink_env::call::utils::Argument`
+
+error[E0277]: the size for values of type `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ink_env::call::utils::Argument<ink_env::AccountId>, ArgumentList<ArgumentListEnd, ArgumentListEnd>>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:31
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                               ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ArgumentList<ArgumentListEnd, ArgumentListEnd>` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentList<ArgumentListEnd, ArgumentListEnd>`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:31
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                               ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `ArgumentListEnd` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `ArgumentListEnd`
+note: required by a bound in `ArgumentList`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/execution_input.rs:74:25
+    |
+74  | pub struct ArgumentList<Head, Rest> {
+    |                         ^^^^ required by this bound in `ArgumentList`
+
+error[E0277]: the size for values of type `Salt` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:80:9
+    |
+80  | /         pub fn new(ubik: AccountId, cyberiad: AccountId, lono: AccountId) -> Self {
+81  | |             let caller = Self::env().caller();
+82  | |             let code_hash = Self::env()
+83  | |                 .own_code_hash()
+...   |
+106 | |             }
+107 | |         }
+    | |_________^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `Salt`
+note: required by a bound in `Unset`
+   --> /home/filip/.cargo/registry/src/github.com-1ecc6299db9ec823/ink_env-3.3.1/src/call/common.rs:55:18
+    |
+55  | pub struct Unset<T>(PhantomData<fn() -> T>);
+    |                  ^ required by this bound in `Unset`
+
+error[E0277]: the size for values of type `()` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:14
+    |
+25  |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+    |              ^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `()`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `Debug` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `core::fmt::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:14
+    |
+25  |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+    |              ^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `core::fmt::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `Debug` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `DexError` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:51
+    |
+25  |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+    |                                                   ^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `DexError`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:17
+    |
+504 | pub enum Result<T, E> {
+    |                 ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the size for values of type `parity_scale_codec::Error` cannot be known at compilation time
+   --> /home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/lib.rs:25:51
+    |
+25  |     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+    |                                                   ^^^^^^^^^^^^^ doesn't have a size known at compile-time
+    |
+    = help: the trait `Sized` is not implemented for `parity_scale_codec::Error`
+note: required by a bound in `Result`
+   --> /home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:504:20
+    |
+504 | pub enum Result<T, E> {
+    |                    ^ required by this bound in `Result`
+    = note: this error originates in the derive macro `scale::Decode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `simple_dex` (lib) generated 4 warnings
+error: could not compile `simple_dex` due to 211 previous errors; 4 warnings emitted
+ERROR: `"/home/filip/.rustup/toolchains/nightly-2022-08-12-x86_64-unknown-linux-gnu/bin/cargo" "check" "--target=wasm32-unknown-unknown" "-Zbuild-std" "--no-default-features" "--release" "--target-dir=/home/filip/CloudStation/aleph/aleph-node/contracts/simple_dex/target/ink" "-Zbuild-std-features=panic_immediate_abort"` failed with exit code: Some(101)
