@@ -102,10 +102,11 @@ pub trait Versioned {
     const VERSION: Version;
 }
 
-/// It provides a generic implementation of the Decode and Encode traits by prepending byte
-/// representations for provided type parameters with their version (they need to implement the `Versioned` trait).
-/// If one provides data types with equal versions, the first data parameter will have priority while decoding.
-/// Keep in mind that with this approach, `decode` might fail even if the second data type could parse (fast fail).
+/// The main purpose of this data type is to enable a seamless transition between protocol versions at the Network level. It
+/// provides a generic implementation of the Decode and Encode traits (LE byte representation) by prepending byte
+/// representations for provided type parameters with their version (they need to implement the `Versioned` trait). If one
+/// provides data types that declares equal versions, the first data type parameter will have priority while decoding. Keep in
+/// mind that in such case, `decode` might fail even if the second data type would be able decode provided byte representation.
 #[derive(Clone)]
 pub enum VersionedEitherMessage<L, R> {
     Left(L),
