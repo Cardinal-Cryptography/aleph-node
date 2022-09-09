@@ -16,9 +16,9 @@ ark-ec = { version = "^0.3.0", default-features = false }
 ark-ed-on-bls12-381 = { version = "^0.3.0", features = ["r1cs"] }
 ark-bls12-381 = { version = "^0.3.0" }
 ark-std = { version = "^0.3.0", default-features = false }
-ark-relations = { version = "^0.3.0", default-features = false, optional = true }
+ark-relations = { version = "^0.3.0", default-features = false }
 
-ark-r1cs-std = { version = "^0.3.0", optional = true, default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false }
 ark-snark = { version = "^0.3.0", default-features = false }
 ark-groth16 = { version = "^0.3.0", default-features = false }
 ark-gm17 = { version = "^0.3.0", default-features = false }
