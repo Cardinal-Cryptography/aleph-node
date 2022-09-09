@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod relation;
+
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
 
