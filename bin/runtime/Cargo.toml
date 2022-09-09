@@ -60,6 +60,7 @@ sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptogra
 primitives = { path = "../../primitives", default-features = false }
 pallet-aleph = { path = "../../pallets/aleph", default-features = false }
 pallet-elections = { path = "../../pallets/elections", default-features = false }
+pallet-snarcos = { path = "../../pallets/snarcos", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
@@ -80,6 +81,7 @@ std = [
     "pallet-randomness-collective-flip/std",
     "pallet-session/std",
     "pallet-staking/std",
+    "pallet-snarcos/std",
     "pallet-sudo/std",
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",

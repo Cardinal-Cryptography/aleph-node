@@ -314,6 +314,10 @@ impl pallet_aleph::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_snarcos::Config for Runtime {
+    type Event = Event;
+}
+
 impl_opaque_keys! {
     pub struct SessionKeys {
         pub aura: Aura,
@@ -726,6 +730,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
+        Snarcos: pallet_snarcos,
     }
 );
 
