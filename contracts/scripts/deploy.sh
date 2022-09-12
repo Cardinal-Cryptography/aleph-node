@@ -28,11 +28,9 @@ function upload_contract {
 
   echo "$contract_name code hash: $code_hash"
 
-  # --- GRANT PRIVILEGES ON THE TICKET CONTRACT
-
   cd "$CONTRACTS_PATH"/access_control
 
-  # set the initializer of the token contract
+  # Set the initializer of the contract
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$code_hash"')' --suri "$AUTHORITY_SEED"
 
   eval $__resultvar="'$code_hash'"

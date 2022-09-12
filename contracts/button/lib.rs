@@ -112,20 +112,7 @@ mod button_game {
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
-            let role_check = <Self as AccessControlled>::check_role(
-                access_control,
-                caller,
-                required_role,
-                |why: InkEnvError| {
-                    GameError::CrossContractCallFailed(format!(
-                        "Calling access control has failed: {:?}",
-                        why
-                    ))
-                },
-                |role: Role| GameError::MissingRole(role),
-            );
-
-            match role_check {
+            match ButtonGame::check_role(&access_control, &caller, required_role) {
                 Ok(_) => Self::init(ticket_token, reward_token, button_lifetime, scoring),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
@@ -173,12 +160,9 @@ mod button_game {
         /// Returns own code hash
         #[ink(message)]
         pub fn code_hash(&self) -> ButtonResult<Hash> {
-            self.env().own_code_hash().map_err(|why| {
-                GameError::CrossContractCallFailed(format!(
-                    "Can't retrieve own code hash: {:?}",
-                    why
-                ))
-            })
+            self.env()
+                .own_code_hash()
+                .map_err(|_| GameError::CantRetrieveOwnCodeHash)
         }
 
         /// Presses the button
@@ -258,7 +242,7 @@ mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            self.check_role(caller, required_role)?;
+            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
             self.access_control = new_access_control;
             Ok(())
         }
@@ -271,7 +255,7 @@ mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            self.check_role(caller, required_role)?;
+            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
             self.env().terminate_contract(caller)
         }
 
@@ -311,13 +295,17 @@ mod button_game {
             contract
         }
 
-        fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()>
+        fn check_role(
+            access_control: &AccountId,
+            account: &AccountId,
+            role: Role,
+        ) -> ButtonResult<()>
         where
             Self: AccessControlled,
         {
             <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
+                access_control.clone(),
+                account.clone(),
                 role,
                 |why: InkEnvError| {
                     GameError::CrossContractCallFailed(format!(

@@ -15,6 +15,8 @@ pub enum GameError {
     MissingRole(Role),
     /// Returned if a call to another contract has failed
     CrossContractCallFailed(String),
+    /// Couldn't have retrieved own code hash
+    CantRetrieveOwnCodeHash,
 }
 
 impl From<PSP22Error> for GameError {
