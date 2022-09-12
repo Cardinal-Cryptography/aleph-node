@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use sc_client_api::HeaderBackend;
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
@@ -128,7 +128,7 @@ where
                 }
             }
             SchedulerActions::ClearQueue => {
-                debug!(target: "aleph-justification", "Clearing queue");
+                info!(target: "aleph-justification", "Clearing justification request queue");
                 self.block_requester.clear_justification_requests();
             }
             SchedulerActions::Wait => (),
