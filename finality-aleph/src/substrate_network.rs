@@ -69,6 +69,12 @@ impl Decode for PeerId {
     }
 }
 
+impl fmt::Display for PeerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl PeerIdT for PeerId {}
 
 fn peer_id(protocol: &MultiaddressProtocol<'_>) -> Option<PeerId> {

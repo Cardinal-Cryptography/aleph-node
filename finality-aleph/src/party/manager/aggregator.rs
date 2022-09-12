@@ -17,7 +17,7 @@ use crate::{
     metrics::Checkpoint,
     network::DataNetwork,
     party::{AuthoritySubtaskCommon, Task},
-    BlockHashNum, Metrics, SessionBoundaries,
+    status, BlockHashNum, Metrics, SessionBoundaries,
 };
 
 /// IO channels used by the aggregator task.
@@ -113,6 +113,9 @@ where
     pin_mut!(blocks_from_interpreter);
     let mut hash_of_last_block = None;
     let mut no_more_blocks = false;
+
+    let mut status_ticker = status::status_ticker();
+
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
@@ -140,6 +143,9 @@ where
                     break;
                 }
             }
+            _ = status_ticker.tick() => {
+                aggregator.status_report();
+            },
             _ = &mut exit_rx => {
                 debug!(target: "aleph-party", "Aggregator received exit signal. Terminating.");
                 break;
