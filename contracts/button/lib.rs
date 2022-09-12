@@ -117,9 +117,12 @@ mod button_game {
                 caller,
                 required_role,
                 |why: InkEnvError| {
-                    GameError::ContractCall(format!("Calling access control has failed: {:?}", why))
+                    GameError::CrossContractCallFailed(format!(
+                        "Calling access control has failed: {:?}",
+                        why
+                    ))
                 },
-                |role: Role| GameError::MissingRole(format!("{:?}", role)),
+                |role: Role| GameError::MissingRole(role),
             );
 
             match role_check {
@@ -171,7 +174,10 @@ mod button_game {
         #[ink(message)]
         pub fn code_hash(&self) -> ButtonResult<Hash> {
             self.env().own_code_hash().map_err(|why| {
-                GameError::ContractCall(format!("Can't retrieve own code hash: {:?}", why))
+                GameError::CrossContractCallFailed(format!(
+                    "Can't retrieve own code hash: {:?}",
+                    why
+                ))
             })
         }
 
@@ -314,9 +320,12 @@ mod button_game {
                 account,
                 role,
                 |why: InkEnvError| {
-                    GameError::ContractCall(format!("Calling access control has failed: {:?}", why))
+                    GameError::CrossContractCallFailed(format!(
+                        "Calling access control has failed: {:?}",
+                        why
+                    ))
                 },
-                |role: Role| GameError::MissingRole(format!("{:?}", role)),
+                |role: Role| GameError::MissingRole(role),
             )
         }
 

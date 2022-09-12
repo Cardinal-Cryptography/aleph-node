@@ -38,6 +38,10 @@ std = [
     "ink_primitives/std",
     "ink_storage/std",
     "scale-info/std",
-    "scale/std"
+    "scale/std",
+    "access_control/std",
+    "game_token/std",
+    "ticket_token/std",
+    "openbrush/std",
 ]
 ink-as-dependency = []
