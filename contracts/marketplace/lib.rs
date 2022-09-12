@@ -19,8 +19,6 @@ pub mod marketplace {
         TRANSFER_SELECTOR as TRANSFER_TICKET_SELECTOR,
     };
 
-    use crate::marketplace::Error::MissingRole;
-
     type Event = <Marketplace as ContractEventBase>::Type;
 
     const DUMMY_DATA: &[u8] = &[0x0];
@@ -37,12 +35,12 @@ pub mod marketplace {
         reward_token: AccountId,
     }
 
-    #[derive(Clone, Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
+    #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
-        MissingRole(String),
+        MissingRole(Role),
         ContractCall(String),
-        PSP22TokenCall(String),
+        PSP22TokenCall(PSP22Error),
         MarketplaceEmpty,
     }
 
@@ -58,12 +56,6 @@ pub mod marketplace {
     #[derive(Clone, Eq, PartialEq, Debug)]
     pub struct Reset;
 
-    impl Error {
-        fn missing_role(role: Role) -> Self {
-            MissingRole(format!("{:?}", role))
-        }
-    }
-
     impl From<ink_env::Error> for Error {
         fn from(inner: ink_env::Error) -> Self {
             Error::ContractCall(format!("{:?}", inner))
@@ -72,7 +64,7 @@ pub mod marketplace {
 
     impl From<PSP22Error> for Error {
         fn from(inner: PSP22Error) -> Self {
-            Error::PSP22TokenCall(format!("{:?}", inner))
+            Error::PSP22TokenCall(inner)
         }
     }
 
@@ -154,6 +146,16 @@ pub mod marketplace {
         #[ink(message)]
         pub fn min_price(&self) -> Balance {
             self.min_price
+        }
+
+        /// Update the minimal price.
+        #[ink(message)]
+        pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
+            Self::ensure_role(self.admin())?;
+
+            self.min_price = value;
+
+            Ok(())
         }
 
         /// Address of the reward token contract this contract will accept as payment.
@@ -271,7 +273,7 @@ pub mod marketplace {
                 Self::env().caller(),
                 role,
                 |reason| reason.into(),
-                |role| Error::missing_role(role),
+                |role| Error::MissingRole(role),
             )
         }
 

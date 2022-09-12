@@ -41,10 +41,16 @@ std = [
     "ink_metadata/std",
     "ink_primitives/std",
     "ink_storage/std",
+    "ink_prelude/std",
+    "ink_engine/std",
     "openbrush/std",
     "scale-info",
     "scale-info/std",
     "scale/std",
+    "openbrush/std",
+    "access_control/std",
+    "game_token/std",
+    "ticket_token/std"
 ]
 ink-as-dependency = []
 
