@@ -1,17 +1,21 @@
 use std::{
     collections::{HashMap, HashSet},
+   
     future::Future,
     iter,
 };
 
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 
-use crate::network::{
-    ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network, NetworkSender,
-    Protocol,
+use crate::{
+    network::{
+        ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
+        NetworkSender, Protocol,
+    },
+    status,
 };
 
 /// A service managing all the direct interaction with the underlying network implementation. It
@@ -248,8 +252,36 @@ impl<N: Network, D: Data> Service<N, D> {
         }
     }
 
+    fn status_report(&self) {
+        let mut status = String::from("Network status report: ");
+
+        status.push_str(&format!(
+            "validator connected peers - {:?} [",
+            self.validator_connected_peers.len(),
+        ));
+        self.validator_connected_peers
+            .iter()
+            .fold(true, |first, peer_id| {
+                if !first {
+                    status.push_str(", ");
+                }
+                status.push_str(&format!("{}", peer_id));
+                false
+            });
+        status.push_str("]; ");
+
+        status.push_str(&format!(
+            "generic connected peers - {:?}; ",
+            self.generic_connected_peers.len()
+        ));
+
+        info!(target: "aleph-network", "{}", status);
+    }
+
     pub async fn run(mut self) {
         let mut events_from_network = self.network.event_stream();
+
+        let mut status_ticker = status::status_ticker();
         loop {
             tokio::select! {
                 maybe_event = events_from_network.next_event() => match maybe_event {
@@ -275,6 +307,9 @@ impl<N: Network, D: Data> Service<N, D> {
                         error!(target: "aleph-network", "User message stream ended.");
                         return;
                     }
+                },
+                _ = status_ticker.tick() => {
+                    self.status_report();
                 },
             }
         }
