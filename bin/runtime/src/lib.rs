@@ -898,18 +898,15 @@ impl_runtime_apis! {
             ))
         }
 
-        fn aleph_bft_version(session: SessionIndex) -> AlephBFTVersion {
-            let version_change = Aleph::aleph_bft_version_change();
-            let version_incoming = version_change.version_incoming;
-            let version_current = match version_incoming {
-                AlephBFTVersion::Legacy => AlephBFTVersion::Current,
-                _ => AlephBFTVersion::Legacy,
-            };
-            if session < version_change.session {
-                version_current
-            } else {
-                version_incoming
+        // Scan for the most recent historical change relative to the provided session or return
+        // the scheduled version.
+        fn aleph_bft_version(session: SessionIndex) -> Result<AlephBFTVersion, AlephApiError> {
+            if let Some(scheduled_version_change) = Aleph::aleph_bft_version_change() {
+                if session >= scheduled_version_change.session {
+                    return Ok(scheduled_version_change.version_incoming)
+                }
             }
+            Aleph::find_historical_aleph_bft_version_for_session(session).or(Err(AlephApiError::AlephBFTVersion))
         }
     }
 

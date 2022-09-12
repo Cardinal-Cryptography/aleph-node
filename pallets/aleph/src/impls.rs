@@ -1,0 +1,49 @@
+use crate::{Config, Pallet};
+
+impl<T> pallet_session::Session_Manager<T::AccountId> for Pallet<T>
+where
+    T: Config,
+{
+    fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
+        None
+    }
+
+    fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
+        Self::new_session()
+    }
+
+    fn end_session(end_index: SessionIndex) { }
+
+    fn start_session(start_index: SessionIndex) {
+        Self::update_version_change_history_and_schedule();
+    }
+}
+
+impl<T> Pallet<T>
+where T: Config,
+{
+    // Check if a schedule version change has moved into the past. If so, update history.
+    // Does not reset the scheduled version.
+    fn update_version_change_history() {
+        let current_session = Self::current_session();
+
+        if let Some(previously_scheduled_version_change) =
+        <AlephBFTScheduledVersionChange<T>>::get()
+        {
+            let previously_scheduled_session = previously_scheduled_version_change.session;
+            let previously_scheduled_version =
+                previously_scheduled_version_change.version_incoming;
+
+            if previously_scheduled_session < current_session {
+                // Record the previously scheduled version in version change history.
+                <AlephBFTVersion<T>>::set(
+                    previously_scheduled_session,
+                    previously_scheduled_version,
+                );
+                Self::deposit_event(Event::UpdateAlephBFTVersionHistory(
+                    previously_scheduled_version_change,
+                ));
+            }
+        }
+    }
+}
