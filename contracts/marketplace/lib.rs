@@ -1,3 +1,21 @@
+//! Implement a Dutch auction of one token for another.
+//!
+//! This contract will auction off units of one token (referred to as `tickets`), accepting payment
+//! in another token (`reward token`). The auction keeps track of the average price over all sales
+//! made (before the first auction, this number is set on contract initialization) and starts off
+//! the auction at `average_price() * sale_multiplier()`. Afterwards the price decreases linearly
+//! with each block until reaching `min_price()` after `auction_length()` blocks, at which point
+//! the price stays at that level indefinitely.
+//!
+//! A user can use the `buy(max_price)` call (after issuing a `psp22::approve` for the appropriate
+//! amount to the reward token contract) to accept the current price and buy one ticket. This
+//! transaction will fail if the price increased to above `max_price`, for example, due to a ticket
+//! getting sold.
+//!
+//! The admin of the contract is expected to transfer a number of reward tokens for sale
+//! into this contract and then call `reset()` in the same transaction to begin the auction. Calling
+//! `reset()` if an auction is already in progress.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
@@ -41,6 +59,7 @@ pub mod marketplace {
         MissingRole(Role),
         ContractCall(String),
         PSP22TokenCall(PSP22Error),
+        MaxPriceExceeded,
         MarketplaceEmpty,
     }
 
@@ -173,30 +192,39 @@ pub mod marketplace {
         /// Buy one ticket at the current_price.
         ///
         /// The caller should make an approval for at least `price()` reward tokens to make sure the
-        /// call will succeed.
+        /// call will succeed. The caller can specify a `max_price` - the call will fail if the
+        /// current price is greater than that.
         #[ink(message)]
-        pub fn buy(&mut self) -> Result<(), Error> {
-            if self.ticket_balance()? > 0 {
-                let price = self.current_price();
-                let account_id = self.env().caller();
-
-                self.take_payment(account_id, price)?;
-                self.give_ticket(account_id)?;
-
-                self.total_proceeds = self.total_proceeds.saturating_add(price);
-                self.tickets_sold = self.tickets_sold.saturating_add(1);
-                self.current_start_block = self.env().block_number();
-                Self::emit_event(self.env(), Event::Bought(Bought { price, account_id }));
-
-                Ok(())
-            } else {
-                Err(Error::MarketplaceEmpty)
+        pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
+            if self.ticket_balance()? <= 0 {
+                return Err(Error::MarketplaceEmpty);
             }
+
+            let price = self.current_price();
+            if let Some(max_price) = max_price {
+                if price > max_price {
+                    return Err(Error::MaxPriceExceeded);
+                }
+            }
+
+            let account_id = self.env().caller();
+
+            self.take_payment(account_id, price)?;
+            self.give_ticket(account_id)?;
+
+            self.total_proceeds = self.total_proceeds.saturating_add(price);
+            self.tickets_sold = self.tickets_sold.saturating_add(1);
+            self.current_start_block = self.env().block_number();
+            Self::emit_event(self.env(), Event::Bought(Bought { price, account_id }));
+
+            Ok(())
         }
 
         /// Re-start the auction from the current block.
         ///
         /// Note that this will keep the average estimate from previous auctions.
+        ///
+        /// Requires `Role::Admin`.
         #[ink(message)]
         pub fn reset(&mut self) -> Result<(), Error> {
             Self::ensure_role(self.admin())?;
