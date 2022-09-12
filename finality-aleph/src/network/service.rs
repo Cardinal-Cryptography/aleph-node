@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-   
     future::Future,
     iter,
 };
@@ -255,20 +254,17 @@ impl<N: Network, D: Data> Service<N, D> {
     fn status_report(&self) {
         let mut status = String::from("Network status report: ");
 
-        status.push_str(&format!(
-            "validator connected peers - {:?} [",
-            self.validator_connected_peers.len(),
-        ));
-        self.validator_connected_peers
+        let peer_ids = self
+            .validator_connected_peers
             .iter()
-            .fold(true, |first, peer_id| {
-                if !first {
-                    status.push_str(", ");
-                }
-                status.push_str(&format!("{}", peer_id));
-                false
-            });
-        status.push_str("]; ");
+            .map(|peer_id| format!("{}", peer_id))
+            .collect::<Vec<_>>()
+            .join(", ");
+        status.push_str(&format!(
+            "validator connected peers - {:?} [{}]; ",
+            self.validator_connected_peers.len(),
+            peer_ids,
+        ));
 
         status.push_str(&format!(
             "generic connected peers - {:?}; ",
