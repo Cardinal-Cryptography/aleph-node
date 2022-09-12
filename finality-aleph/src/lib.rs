@@ -33,6 +33,7 @@ mod hash;
 mod import;
 mod justification;
 pub mod metrics;
+pub mod status;
 mod network;
 mod nodes;
 mod party;
