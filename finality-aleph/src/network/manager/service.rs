@@ -9,7 +9,7 @@ use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use tokio::time::{interval_at, Instant};
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         },
         ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, Protocol,
     },
-    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
+    status, MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
 
 /// Commands for manipulating sessions, stopping them and starting both validator and non-validator
@@ -544,6 +544,77 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             }
         }
     }
+
+    pub fn status_report(&self) {
+        let mut status = String::from("Connection Manager Service status report: ");
+
+        let authenticated: Vec<_> = self
+            .sessions
+            .iter()
+            .map(|(session_id, session)| {
+                (
+                    session_id.0,
+                    session.handler.node_count().0,
+                    session
+                        .handler
+                        .peers()
+                        .into_iter()
+                        .map(|(node_id, peer_id)| (node_id.0, peer_id))
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        let authenticated_status = authenticated
+            .iter()
+            .map(|(session_id, node_count, peers)| {
+                let peer_ids = peers
+                    .iter()
+                    .map(|(node_id, peer_id)| format!("{:?}: {}", node_id, peer_id,))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                format!(
+                    "{:?}: {}/{} {{{}}}",
+                    session_id,
+                    peers.len() + 1,
+                    node_count,
+                    peer_ids
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        status.push_str(&format!(
+            "authenticated authorities: {}; ",
+            authenticated_status
+        ));
+
+        let missing: Vec<_> = self
+            .sessions
+            .iter()
+            .map(|(session_id, session)| {
+                (
+                    session_id.0,
+                    session
+                        .handler
+                        .missing_nodes()
+                        .iter()
+                        .map(|id| id.0)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .filter(|(_, missing)| !missing.is_empty())
+            .collect();
+        if !missing.is_empty() {
+            let missing_status = missing
+                .iter()
+                .map(|(session_id, missing)| format!("{:?}: {:?}", session_id, missing))
+                .collect::<Vec<_>>()
+                .join(", ");
+            status.push_str(&format!("missing authorities: {}; ", missing_status));
+        }
+
+        info!(target: "aleph-network", "{}", status);
+    }
 }
 
 /// Input/output interface for the connectiona manager service.
@@ -637,6 +708,8 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
             Instant::now() + service.initial_delay,
             service.maintenance_period,
         );
+
+        let mut status_ticker = status::status_ticker();
         loop {
             trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {
@@ -682,6 +755,9 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
                         self.send_data(to_send)?;
                     }
                 },
+                _ = status_ticker.tick() => {
+                    service.status_report();
+                }
             }
         }
     }

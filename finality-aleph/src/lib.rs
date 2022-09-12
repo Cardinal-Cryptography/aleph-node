@@ -33,12 +33,12 @@ mod hash;
 mod import;
 mod justification;
 pub mod metrics;
-pub mod status;
 mod network;
 mod nodes;
 mod party;
 mod session;
 mod session_map;
+pub mod status;
 mod substrate_network;
 #[cfg(test)]
 pub mod testing;
