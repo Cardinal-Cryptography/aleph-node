@@ -10,7 +10,8 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
-    use ark_bls12_381::Bls12_381;
+    use ark_bls12_381::{Bls12_381, Fr};
+    use ark_ff::{One, Zero};
     use ark_groth16::Groth16;
     use ark_snark::SNARK;
     use ark_std::rand::{prelude::StdRng, SeedableRng};
@@ -48,7 +49,12 @@ pub mod pallet {
             let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(circuit.clone(), &mut rng)
                 .unwrap_or_else(|e| panic!("Problems with setup: {:?}", e));
 
-            let public_input = [circuit.public_xoree.into()];
+            let mut public_input = [Fr::zero(); 8];
+            for (idx, bit) in public_input.iter_mut().enumerate() {
+                if (circuit.public_xoree >> idx) & 1 == 1 {
+                    *bit = Fr::one();
+                }
+            }
 
             let proof = Groth16::prove(&pk, circuit, &mut rng)
                 .unwrap_or_else(|e| panic!("Cannot prove: {:?}", e));
