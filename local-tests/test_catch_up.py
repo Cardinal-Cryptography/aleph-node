@@ -65,7 +65,7 @@ if finalized_before_start[0] - finalized_before_kill[0] < 10:
 printt('Restarting nodes')
 chain.start('aleph', nodes=[3, 4])
 printt('Waiting for finalization')
-chain.wait_for_finalization(max(finalized_before_start))
+chain.wait_for_finalization(max(finalized_before_start) + 50)
 
 finalized_after = check_finalized(chain)
 
