@@ -71,7 +71,20 @@ impl Decode for PeerId {
 
 impl fmt::Display for PeerId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        let peer_id: String = self.0.to_string();
+
+        let prefix: String = peer_id.chars().take(4).collect();
+
+        let suffix: String = peer_id
+            .chars()
+            .rev()
+            .take(8)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
+
+        write!(f, "{}…{}", &prefix, &suffix)
     }
 }
 
