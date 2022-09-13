@@ -33,7 +33,7 @@ pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
     signatures: HashMap<H, PMS>,
     hash_queue: VecDeque<H>,
     started_hashes: HashSet<H>,
-    front_instant: Instant,
+    last_change: Instant,
     metrics: Option<Metrics<H>>,
 }
 
@@ -43,7 +43,7 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
             signatures: HashMap::new(),
             hash_queue: VecDeque::new(),
             started_hashes: HashSet::new(),
-            front_instant: Instant::now(),
+            last_change: Instant::now(),
             metrics,
         }
     }
@@ -56,7 +56,7 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
             metrics.report_block(hash, std::time::Instant::now(), Checkpoint::Aggregating);
         }
         if self.hash_queue.is_empty() {
-            self.front_instant = Instant::now();
+            self.last_change = Instant::now();
         }
         self.hash_queue.push_back(hash);
 
@@ -72,7 +72,7 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
         match self.hash_queue.pop_front() {
             Some(hash) => {
                 if let Some(multisignature) = self.signatures.remove(&hash) {
-                    self.front_instant = Instant::now();
+                    self.last_change = Instant::now();
                     Ok((hash, multisignature))
                 } else {
                     self.hash_queue.push_front(hash);
@@ -92,7 +92,7 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
         ));
 
         status.push_str(&format!(
-            "collected sginatures - {:?}; ",
+            "collected signatures - {:?}; ",
             self.signatures.len()
         ));
 
@@ -100,9 +100,11 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
 
         if let Some(hash) = self.hash_queue.front() {
             status.push_str(&format!(
-                "front of hash queue - {} for - {:?}; ",
+                "front of hash queue - {} for - {:.2} s; ",
                 hash,
-                Instant::now() - self.front_instant
+                Instant::now()
+                    .saturating_duration_since(self.last_change)
+                    .as_secs_f64()
             ));
         }
 
