@@ -551,6 +551,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         let mut authenticated: Vec<_> = self
             .sessions
             .iter()
+            .filter(|(_, session)| session.handler.authentication().is_some())
             .map(|(session_id, session)| {
                 let mut peers = session
                     .handler
@@ -563,33 +564,36 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             })
             .collect();
         authenticated.sort_by(|x, y| x.0.cmp(&y.0));
-        let authenticated_status = authenticated
-            .iter()
-            .map(|(session_id, node_count, peers)| {
-                let peer_ids = peers
-                    .iter()
-                    .map(|(node_id, peer_id)| format!("{:?}: {}", node_id, peer_id,))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+        if !authenticated.is_empty() {
+            let authenticated_status = authenticated
+                .iter()
+                .map(|(session_id, node_count, peers)| {
+                    let peer_ids = peers
+                        .iter()
+                        .map(|(node_id, peer_id)| format!("{:?}: {}", node_id, peer_id,))
+                        .collect::<Vec<_>>()
+                        .join(", ");
 
-                format!(
-                    "{:?}: {}/{} {{{}}}",
-                    session_id,
-                    peers.len() + 1,
-                    node_count,
-                    peer_ids
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        status.push_str(&format!(
-            "authenticated authorities: {}; ",
-            authenticated_status
-        ));
+                    format!(
+                        "{:?}: {}/{} {{{}}}",
+                        session_id,
+                        peers.len() + 1,
+                        node_count,
+                        peer_ids
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            status.push_str(&format!(
+                "authenticated authorities: {}; ",
+                authenticated_status
+            ));
+        }
 
         let mut missing: Vec<_> = self
             .sessions
             .iter()
+            .filter(|(_, session)| session.handler.authentication().is_some())
             .map(|(session_id, session)| {
                 (
                     session_id.0,
@@ -613,7 +617,9 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             status.push_str(&format!("missing authorities: {}; ", missing_status));
         }
 
-        info!(target: "aleph-network", "{}", status);
+        if !authenticated.is_empty() || !missing.is_empty() {
+            info!(target: "aleph-network", "{}", status);
+        }
     }
 }
 
