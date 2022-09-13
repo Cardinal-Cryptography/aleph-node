@@ -13,20 +13,22 @@ pub enum GameError {
     AfterDeadline,
     /// Call has been made from an account with missing access control privileges
     MissingRole(Role),
-    /// Returned if a call to another contract has failed
-    CrossContractCallFailed(String),
+    /// A call to a PSP22 contract has failed
+    PSP22Error(PSP22Error),
+    /// An interaction with ink! environment has failed
+    InkEnvError(String),
     /// Couldn't have retrieved own code hash
     CantRetrieveOwnCodeHash,
 }
 
 impl From<PSP22Error> for GameError {
     fn from(e: PSP22Error) -> Self {
-        GameError::CrossContractCallFailed(format!("{:?}", e))
+        GameError::PSP22Error(e)
     }
 }
 
 impl From<InkEnvError> for GameError {
     fn from(e: InkEnvError) -> Self {
-        GameError::CrossContractCallFailed(format!("Contract call failed due to {:?}", e))
+        GameError::InkEnvError(format!("{:?}", e))
     }
 }

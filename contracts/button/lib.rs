@@ -308,10 +308,7 @@ mod button_game {
                 account.clone(),
                 role,
                 |why: InkEnvError| {
-                    GameError::CrossContractCallFailed(format!(
-                        "Calling access control has failed: {:?}",
-                        why
-                    ))
+                    GameError::InkEnvError(format!("Calling access control has failed: {:?}", why))
                 },
                 |role: Role| GameError::MissingRole(role),
             )
