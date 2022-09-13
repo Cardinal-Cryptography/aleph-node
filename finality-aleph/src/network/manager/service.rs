@@ -546,24 +546,23 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
     }
 
     pub fn status_report(&self) {
-        let mut status = String::from("Connection Manager Service status report: ");
+        let mut status = String::from("Connection Manager status report: ");
 
-        let authenticated: Vec<_> = self
+        let mut authenticated: Vec<_> = self
             .sessions
             .iter()
             .map(|(session_id, session)| {
-                (
-                    session_id.0,
-                    session.handler.node_count().0,
-                    session
-                        .handler
-                        .peers()
-                        .into_iter()
-                        .map(|(node_id, peer_id)| (node_id.0, peer_id))
-                        .collect::<Vec<_>>(),
-                )
+                let mut peers = session
+                    .handler
+                    .peers()
+                    .into_iter()
+                    .map(|(node_id, peer_id)| (node_id.0, peer_id))
+                    .collect::<Vec<_>>();
+                peers.sort_by(|x, y| x.0.cmp(&y.0));
+                (session_id.0, session.handler.node_count().0, peers)
             })
             .collect();
+        authenticated.sort_by(|x, y| x.0.cmp(&y.0));
         let authenticated_status = authenticated
             .iter()
             .map(|(session_id, node_count, peers)| {
@@ -588,7 +587,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             authenticated_status
         ));
 
-        let missing: Vec<_> = self
+        let mut missing: Vec<_> = self
             .sessions
             .iter()
             .map(|(session_id, session)| {
@@ -604,6 +603,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
             })
             .filter(|(_, missing)| !missing.is_empty())
             .collect();
+        missing.sort_by(|x, y| x.0.cmp(&y.0));
         if !missing.is_empty() {
             let missing_status = missing
                 .iter()
