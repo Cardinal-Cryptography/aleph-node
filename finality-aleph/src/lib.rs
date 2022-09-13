@@ -53,7 +53,7 @@ pub use session::SessionPeriod;
 
 pub use crate::metrics::Metrics;
 
-/// Constant defining oh often components of finality-aleph should report their state
+/// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, Encode, Decode)]

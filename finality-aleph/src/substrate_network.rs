@@ -77,11 +77,7 @@ impl fmt::Display for PeerId {
 
         let suffix: String = peer_id
             .chars()
-            .rev()
-            .take(8)
-            .collect::<String>()
-            .chars()
-            .rev()
+            .skip(peer_id.len().saturating_sub(8))
             .collect();
 
         write!(f, "{}…{}", &prefix, &suffix)
