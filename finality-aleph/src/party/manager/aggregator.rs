@@ -9,6 +9,7 @@ use futures::{
 use log::{debug, error, trace};
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
+use tokio::time;
 
 use crate::{
     aggregation::{BlockSignatureAggregator, RmcNetworkData, SignableHash, IO as AggregatorIO},
@@ -17,7 +18,7 @@ use crate::{
     metrics::Checkpoint,
     network::DataNetwork,
     party::{AuthoritySubtaskCommon, Task},
-    status, BlockHashNum, Metrics, SessionBoundaries,
+    BlockHashNum, Metrics, SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
 /// IO channels used by the aggregator task.
@@ -114,7 +115,7 @@ where
     let mut hash_of_last_block = None;
     let mut no_more_blocks = false;
 
-    let mut status_ticker = status::status_ticker();
+    let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
 
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");

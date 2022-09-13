@@ -10,7 +10,7 @@ use futures::{
     StreamExt,
 };
 use log::{debug, info, trace, warn};
-use tokio::time::{interval_at, Instant};
+use tokio::time::{self, Instant};
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
@@ -21,7 +21,7 @@ use crate::{
         },
         ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, Protocol,
     },
-    status, MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
+    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
 };
 
 /// Commands for manipulating sessions, stopping them and starting both validator and non-validator
@@ -704,12 +704,12 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
     ) -> Result<(), Error> {
         // Initial delay is needed so that Network is fully set up and we received some first discovery broadcasts from other nodes.
         // Otherwise this might cause first maintenance never working, as it happens before first broadcasts.
-        let mut maintenance = interval_at(
+        let mut maintenance = time::interval_at(
             Instant::now() + service.initial_delay,
             service.maintenance_period,
         );
 
-        let mut status_ticker = status::status_ticker();
+        let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             trace!(target: "aleph-network", "Manager Loop started a next iteration");
             tokio::select! {

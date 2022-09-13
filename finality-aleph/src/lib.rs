@@ -14,6 +14,7 @@ use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
+use tokio::time::Duration;
 
 use crate::{
     aggregation::RmcNetworkData,
@@ -38,7 +39,6 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
-pub mod status;
 mod substrate_network;
 #[cfg(test)]
 pub mod testing;
@@ -52,6 +52,9 @@ pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
 
 pub use crate::metrics::Metrics;
+
+/// Constant defining oh often components of finality-aleph should report their state
+const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, Encode, Decode)]
 enum Error {

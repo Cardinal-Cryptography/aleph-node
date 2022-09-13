@@ -8,13 +8,14 @@ use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, info, trace, warn};
 use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
+use tokio::time;
 
 use crate::{
     network::{
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
         NetworkSender, Protocol,
     },
-    status,
+    STATUS_REPORT_INTERVAL,
 };
 
 /// A service managing all the direct interaction with the underlying network implementation. It
@@ -277,7 +278,7 @@ impl<N: Network, D: Data> Service<N, D> {
     pub async fn run(mut self) {
         let mut events_from_network = self.network.event_stream();
 
-        let mut status_ticker = status::status_ticker();
+        let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
                 maybe_event = events_from_network.next_event() => match maybe_event {
