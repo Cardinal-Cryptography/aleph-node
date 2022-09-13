@@ -116,13 +116,13 @@ impl<N: Network, D: Data> Service<N, D> {
                         match network.sender(peer_id, protocol) {
                             Ok(sender) => senders.entry(protocol).or_insert(sender),
                             Err(e) => {
-                                debug!(target: "aleph-network", "Failed creating sender. Dropping message: {:?}", e);
+                                info!(target: "aleph-network", "Failed creating sender. Dropping message: {}", e);
                                 continue;
                             }
                         }
                     };
                     if let Err(e) = sender.send(data.encode()).await {
-                        debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {:?}", e);
+                        info!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {}", e);
                         senders.remove(&protocol);
                     }
                 } else {
