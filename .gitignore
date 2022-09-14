@@ -1,5 +1,5 @@
 # IDEs
-/.idea
+**/.idea
 /.vscode
 .projectile
 
@@ -14,7 +14,7 @@
 *.out
 
 # docker
-docker/data/
+**/docker/data/
 db/
 keystore/
 chainspec.json

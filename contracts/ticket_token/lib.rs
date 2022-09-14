@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
+pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR};
 
 #[openbrush::contract]
 pub mod ticket_token {

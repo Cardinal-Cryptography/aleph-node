@@ -10,7 +10,7 @@ mod button_game {
     use game_token::MINT_TO_SELECTOR;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
-        DefaultEnvironment, Error as InkEnvError,
+        CallFlags, DefaultEnvironment, Error as InkEnvError,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, vec};
@@ -341,6 +341,7 @@ mod button_game {
                         .push_arg(value)
                         .push_arg(vec![0x0]),
                 )
+                .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<Result<(), PSP22Error>>()
                 .fire()
         }

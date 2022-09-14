@@ -119,6 +119,42 @@ function deploy_button_game {
   eval "$__resultvar='$contract_address'"
 }
 
+function deploy_marketplace {
+  local  __resultvar=$1
+  local code_hash=$2
+  local contract_name=$3
+  local salt=$4
+  local ticket_token=$5
+  local game_token=$6
+  local game=$7
+
+  # --- CREATE AN INSTANCE OF THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/marketplace
+
+  local blocks_per_hour=3600
+  local initial_price="$TOTAL_BALANCE"
+  local min_price=1
+  local sale_price_multiplier=2
+
+  local contract_address
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new \
+    --args "$ticket_token" "$game_token" "$initial_price" "$min_price" "$sale_price_multiplier" "$blocks_per_hour" \
+    --suri "$AUTHORITY_SEED" --salt "$salt")
+  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+
+  echo "Marketplace for $contract_name instance address: $contract_address"
+
+  # --- GRANT PRIVILEGES ON THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$game" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
+
+  eval "$__resultvar='$contract_address'"
+}
 
 function link_bytecode() {
   local contract=$1
@@ -151,6 +187,9 @@ cd "$CONTRACTS_PATH"/button
 cargo contract build --release
 
 
+cd "$CONTRACTS_PATH"/marketplace
+cargo contract build --release
+
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
@@ -168,9 +207,9 @@ echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 upload_contract TICKET_TOKEN_CODE_HASH ticket_token
 upload_contract GAME_TOKEN_CODE_HASH game_token
 upload_contract BUTTON_CODE_HASH button
+upload_contract MARKETPLACE_CODE_HASH marketplace
 
-
-start=`date +%s.%N`
+start=$(date +%s.%N)
 
 #
 # --- EARLY_BIRD_SPECIAL GAME
@@ -181,6 +220,7 @@ salt="0x4561726C79426972645370656369616C"
 deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
 deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
 deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN $salt
+deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
 
 #
 # --- BACK_TO_THE_FUTURE GAME
@@ -191,6 +231,7 @@ salt="0x4261636B546F546865467574757265"
 deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
 deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
 deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN $salt
+deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE"
 
 #
 # --- THE_PRESSIAH_COMETH GAME
@@ -201,29 +242,35 @@ salt="0x7468655F70726573736961685F636F6D657468"
 deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
 deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh $THE_PRESSIAH_COMETH_TICKET $THE_PRESSIAH_COMETH_TOKEN $salt
-
+deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH"
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
 
-jq -n --arg early_bird_special $EARLY_BIRD_SPECIAL \
-   --arg early_bird_special_ticket $EARLY_BIRD_SPECIAL_TICKET \
-   --arg early_bird_special_token $EARLY_BIRD_SPECIAL_TOKEN \
-   --arg back_to_the_future $BACK_TO_THE_FUTURE \
-   --arg back_to_the_future_ticket $BACK_TO_THE_FUTURE_TICKET \
-   --arg back_to_the_future_token $BACK_TO_THE_FUTURE_TOKEN \
-   --arg the_pressiah_cometh $THE_PRESSIAH_COMETH \
-   --arg the_pressiah_cometh_ticket $THE_PRESSIAH_COMETH_TICKET \
-   --arg the_pressiah_cometh_token $THE_PRESSIAH_COMETH_TOKEN \
+jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
+   --arg early_bird_special_marketplace "$EARLY_BIRD_SPECIAL_MARKETPLACE" \
+   --arg early_bird_special_ticket "$EARLY_BIRD_SPECIAL_TICKET" \
+   --arg early_bird_special_token "$EARLY_BIRD_SPECIAL_TOKEN" \
+   --arg back_to_the_future "$BACK_TO_THE_FUTURE" \
+   --arg back_to_the_future_ticket "$BACK_TO_THE_FUTURE_TICKET" \
+   --arg back_to_the_future_token "$BACK_TO_THE_FUTURE_TOKEN" \
+   --arg back_to_the_future_marketplace "$BACK_TO_THE_FUTURE_MARKETPLACE" \
+   --arg the_pressiah_cometh "$THE_PRESSIAH_COMETH" \
+   --arg the_pressiah_cometh_ticket "$THE_PRESSIAH_COMETH_TICKET" \
+   --arg the_pressiah_cometh_token "$THE_PRESSIAH_COMETH_TOKEN" \
+   --arg the_pressiah_cometh_marketplace "$THE_PRESSIAH_COMETH_MARKETPLACE" \
    '{early_bird_special: $early_bird_special,
+     early_bird_special_marketplace: $early_bird_special_marketplace,
      early_bird_special_ticket: $early_bird_special_ticket,
      early_bird_special_token: $early_bird_special_token,
      back_to_the_future: $back_to_the_future,
      back_to_the_future_ticket: $back_to_the_future_ticket,
      back_to_the_future_token: $back_to_the_future_token,
+     back_to_the_future_marketplace: $back_to_the_future_marketplace,
      the_pressiah_cometh: $the_pressiah_cometh,
      the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
-     the_pressiah_cometh_token: $the_pressiah_cometh_token}' > addresses.json
+     the_pressiah_cometh_token: $the_pressiah_cometh_token,
+     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace}' > addresses.json
 
 
 end=`date +%s.%N`
