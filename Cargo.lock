@@ -198,6 +198,7 @@ dependencies = [
 name = "aleph-runtime"
 version = "0.7.0"
 dependencies = [
+ "ark-bls12-381",
  "frame-executive",
  "frame-support",
  "frame-system",

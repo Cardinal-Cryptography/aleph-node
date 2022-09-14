@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use ark_bls12_381::Bls12_381;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -314,8 +315,15 @@ impl pallet_aleph::Config for Runtime {
     type Event = Event;
 }
 
+parameter_types! {
+    // We allow 10kB keys. This is in 100% blind guess.
+    pub const MaximumVerificationKeyLength: u32 = 10_000;
+}
+
 impl pallet_snarcos::Config for Runtime {
     type Event = Event;
+    type Field = Bls12_381;
+    type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
 }
 
 impl_opaque_keys! {

@@ -8,28 +8,37 @@ pub use pallet::*;
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
+/// We store verification keys under short identifiers.
+pub type VerificationKeyIdentifier = [u8; 4];
+
 #[frame_support::pallet]
 pub mod pallet {
-    use ark_bls12_381::{Bls12_381, Fr};
-    use ark_ff::{One, Zero};
-    use ark_groth16::Groth16;
-    use ark_snark::SNARK;
-    use ark_std::rand::{prelude::StdRng, SeedableRng};
+    use ark_ec::PairingEngine;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::OriginFor;
+    use sp_std::prelude::Vec;
 
     use super::*;
-    use crate::relation::XorRelation;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type Field: PairingEngine;
+
+        #[pallet::constant]
+        type MaximumVerificationKeyLength: Get<u32>;
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        IdentifierAlreadyInUse,
+        VerificationKeyTooLong,
     }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        ElSnarco,
+        VerificationKeyStored,
     }
 
     #[pallet::pallet]
@@ -37,33 +46,39 @@ pub mod pallet {
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
+    #[pallet::storage]
+    pub type VerificationKeys<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        VerificationKeyIdentifier,
+        BoundedVec<u8, T::MaximumVerificationKeyLength>,
+    >;
+
     impl<T: Config> Pallet<T> {}
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(41)]
-        pub fn summon_el_snarco(_origin: OriginFor<T>) -> DispatchResult {
-            let mut rng = StdRng::from_seed([0u8; 32]);
-            let circuit = XorRelation::new(2, 3, 1);
+        pub fn store_key(
+            _origin: OriginFor<T>,
+            identifier: VerificationKeyIdentifier,
+            key: Vec<u8>,
+        ) -> DispatchResult {
+            ensure!(
+                !VerificationKeys::<T>::contains_key(identifier.clone()),
+                Error::<T>::IdentifierAlreadyInUse
+            );
+            ensure!(
+                key.len() <= T::MaximumVerificationKeyLength::get() as usize,
+                Error::<T>::VerificationKeyTooLong
+            );
 
-            let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(circuit.clone(), &mut rng)
-                .unwrap_or_else(|e| panic!("Problems with setup: {:?}", e));
+            VerificationKeys::<T>::insert(
+                identifier,
+                BoundedVec::try_from(key).unwrap(), // must succeed since we've just check length
+            );
 
-            let mut public_input = [Fr::zero(); 8];
-            for (idx, bit) in public_input.iter_mut().enumerate() {
-                if (circuit.public_xoree >> idx) & 1 == 1 {
-                    *bit = Fr::one();
-                }
-            }
-
-            let proof = Groth16::prove(&pk, circuit, &mut rng)
-                .unwrap_or_else(|e| panic!("Cannot prove: {:?}", e));
-            let valid_proof = Groth16::verify(&vk, &public_input, &proof)
-                .unwrap_or_else(|e| panic!("Cannot verify: {:?}", e));
-
-            ensure!(valid_proof, "Something is no yes");
-
-            Self::deposit_event(Event::ElSnarco);
+            Self::deposit_event(Event::VerificationKeyStored);
             Ok(())
         }
     }
