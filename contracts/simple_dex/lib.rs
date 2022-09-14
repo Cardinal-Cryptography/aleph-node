@@ -197,7 +197,7 @@ mod simple_dex {
         }
 
         /// Swap the specified amount of one of the pools PSP22 tokens to the native token
-        /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on it's behalf
+        /// Calling account needs to give allowance to the DEX contract to spend `amount_token_in` of `token_in` on its behalf
         /// before executing this tx.
         #[ink(message)]
         pub fn token_to_native(
