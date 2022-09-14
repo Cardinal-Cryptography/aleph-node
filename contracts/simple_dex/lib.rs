@@ -621,24 +621,23 @@ mod simple_dex {
             balance_token_out: u128,
             swap_fee: u128,
         ) -> Result<u128, DexError> {
-            let op1 = 1u128.checked_sub(swap_fee).ok_or(DexError::Arithmethic)?;
-
-            let op2 = amount_token_in
-                .checked_mul(op1)
+            let op0 = amount_token_in
+                .checked_mul(swap_fee)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op3 = balance_token_in
-                .checked_add(op2)
+            let op1 = balance_token_in
+                .checked_add(amount_token_in)
+                .and_then(|result| result.checked_sub(op0))
                 .ok_or(DexError::Arithmethic)?;
 
-            let op4 = balance_token_in
-                .checked_div(op3)
+            let op2 = balance_token_out
+                .checked_mul(balance_token_in)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op5 = 1u128.checked_sub(op4).ok_or(DexError::Arithmethic)?;
+            let op3 = op2.checked_div(op1).ok_or(DexError::Arithmethic)?;
 
             balance_token_out
-                .checked_mul(op5)
+                .checked_sub(op3)
                 .ok_or(DexError::Arithmethic)
         }
 
