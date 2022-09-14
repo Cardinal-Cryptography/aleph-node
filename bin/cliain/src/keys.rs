@@ -1,6 +1,6 @@
 use aleph_client::{
     get_next_session_keys, rotate_keys as rotate, rotate_keys_raw_result, set_keys as set,
-    staking_bond, AnyConnection, RootConnection, SessionKeys, SignedConnection,
+    staking_bond, AnyConnection, Connection, RootConnection, SessionKeys, SignedConnection,
 };
 use hex::ToHex;
 use log::{error, info};
@@ -32,7 +32,7 @@ pub fn rotate_keys<C: AnyConnection>(connection: C) {
     info!("Rotated keys: {:?}", new_keys);
 }
 
-pub fn next_session_keys<C: AnyConnection>(connection: &C, account_id: String) {
+pub fn next_session_keys(connection: &Connection, account_id: String) {
     let account_id = AccountId::from_ss58check(&account_id).expect("Address is valid");
     match get_next_session_keys(connection, account_id) {
         Some(keys) => {

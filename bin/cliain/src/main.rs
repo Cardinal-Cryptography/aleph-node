@@ -116,7 +116,7 @@ fn main() {
         Command::TreasuryReject { proposal_id } => treasury_reject(cfg.into(), proposal_id),
         Command::RotateKeys => rotate_keys::<SignedConnection>(cfg.into()),
         Command::NextSessionKeys { account_id } => {
-            next_session_keys::<SignedConnection>(&cfg.into(), account_id)
+            next_session_keys(&cfg.into(), account_id)
         }
         Command::SetStakingLimits {
             minimal_nominator_stake,
