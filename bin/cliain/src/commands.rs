@@ -165,7 +165,8 @@ pub enum Command {
     },
 
     /// Gets next session keys for a validator with specified AccountId
-    NextKeys {
+    NextSessionKeys {
+        /// SS58 id of the validator for which we want to retrieve the keys
         #[clap(long)]
         account_id: String,
     },

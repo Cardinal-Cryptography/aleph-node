@@ -2,7 +2,8 @@ use aleph_client::{
     get_next_session_keys, rotate_keys as rotate, rotate_keys_raw_result, set_keys as set,
     staking_bond, AnyConnection, RootConnection, SessionKeys, SignedConnection,
 };
-use log::info;
+use hex::ToHex;
+use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
 use sp_core::crypto::Ss58Codec;
 use substrate_api_client::{AccountId, XtStatus};
@@ -31,7 +32,13 @@ pub fn rotate_keys<C: AnyConnection>(connection: C) {
     info!("Rotated keys: {:?}", new_keys);
 }
 
-pub fn next_keys<C: AnyConnection>(connection: &C, account_id: String) -> Option<SessionKeys> {
+pub fn next_session_keys<C: AnyConnection>(connection: &C, account_id: String) {
     let account_id = AccountId::from_ss58check(&account_id).expect("Address is valid");
-    get_next_session_keys(connection, account_id)
+    match get_next_session_keys(connection, account_id) {
+        Some(keys) => {
+            println!("{}", keys.aura.encode_hex::<String>());
+            println!("{}", keys.aleph.encode_hex::<String>());
+        }
+        None => error!("No keys set for the specified account."),
+    }
 }
