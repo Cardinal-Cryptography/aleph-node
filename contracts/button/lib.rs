@@ -1,391 +1,372 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use access_control::{traits::AccessControlled, Role};
-use game_token::MINT_TO_SELECTOR;
-use ink_env::{
-    call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, CallFlags, DefaultEnvironment, Environment, Error as InkEnvError,
-};
+mod errors;
+
 use ink_lang as ink;
-use ink_prelude::{format, string::String, vec};
-use ink_storage::traits::{SpreadAllocate, SpreadLayout};
-use openbrush::contracts::psp22::PSP22Error;
-use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR};
 
-pub type BlockNumber = <DefaultEnvironment as ink_env::Environment>::BlockNumber;
-pub type Balance = <DefaultEnvironment as ink_env::Environment>::Balance;
-pub type ButtonResult<T> = core::result::Result<T, GameError>;
+#[ink::contract]
+mod button_game {
+    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use game_token::MINT_TO_SELECTOR;
+    use ink_env::{
+        call::{build_call, Call, ExecutionInput, Selector},
+        CallFlags, DefaultEnvironment, Error as InkEnvError,
+    };
+    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
+    use ink_prelude::{format, vec};
+    use ink_storage::traits::{PackedLayout, SpreadLayout};
+    use openbrush::contracts::psp22::PSP22Error;
+    use scale::{Decode, Encode};
+    use ticket_token::TRANSFER_FROM_SELECTOR;
 
-/// GameError types
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum GameError {
-    /// Returned if reset is called before the deadline
-    BeforeDeadline,
-    /// Returned if button is pressed after the deadline
-    AfterDeadline,
-    /// Returned if a call is made from an account with missing access control privileges
-    MissingRole(String),
-    /// Returned if a call to another contract has failed
-    ContractCall(String),
-}
+    use crate::errors::GameError;
 
-impl From<PSP22Error> for GameError {
-    fn from(e: PSP22Error) -> Self {
-        match e {
-            PSP22Error::Custom(message) => GameError::ContractCall(message),
-            PSP22Error::InsufficientBalance => {
-                GameError::ContractCall(String::from("PSP22::InsufficientBalance"))
-            }
-            PSP22Error::InsufficientAllowance => {
-                GameError::ContractCall(String::from("PSP22::InsufficientAllowance"))
-            }
-            PSP22Error::ZeroRecipientAddress => {
-                GameError::ContractCall(String::from("PSP22::ZeroRecipientAddress"))
-            }
-            PSP22Error::ZeroSenderAddress => {
-                GameError::ContractCall(String::from("PSP22::ZeroSenderAddress"))
-            }
-            PSP22Error::SafeTransferCheckFailed(message) => {
-                GameError::ContractCall(format!("PSP22::SafeTransferCheckFailed({})", message))
+    /// Result type
+    type ButtonResult<T> = core::result::Result<T, GameError>;
+
+    /// Event type
+    type Event = <ButtonGame as ContractEventBase>::Type;
+
+    /// Event emitted when TheButton is created
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct ButtonCreated {
+        #[ink(topic)]
+        reward_token: AccountId,
+        #[ink(topic)]
+        ticket_token: AccountId,
+        start: BlockNumber,
+        deadline: BlockNumber,
+    }
+
+    /// Event emitted when TheButton is pressed
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct ButtonPressed {
+        #[ink(topic)]
+        by: AccountId,
+        when: BlockNumber,
+    }
+
+    /// Event emitted when the finished game is reset and pressiah is rewarded
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct GameReset {
+        when: BlockNumber,
+    }
+
+    /// Scoring strategy indicating what kind of reward users get for pressing the button
+    #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
+    #[cfg_attr(
+        feature = "std",
+        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
+    )]
+    pub enum Scoring {
+        /// Pressing the button as soon as possible gives the highest reward
+        EarlyBirdSpecial,
+        /// Pressing the button as late as possible gives the highest reward
+        BackToTheFuture,
+        /// The reward increases linearly with the number of participants
+        ThePressiahCometh,
+    }
+
+    /// Game contracts storage
+    #[ink(storage)]
+    pub struct ButtonGame {
+        /// How long does TheButton live for?
+        pub button_lifetime: BlockNumber,
+        /// stores the last account that pressed The Button
+        pub last_presser: Option<AccountId>,
+        /// block number of the last press, set to current block number at button start/reset
+        pub last_press: BlockNumber,
+        /// sum of rewards paid to players in the current iteration
+        pub total_rewards: u128,
+        /// counter for the number of presses
+        pub presses: u128,
+        /// AccountId of the PSP22 ButtonToken instance on-chain
+        pub reward_token: AccountId,
+        /// Account ID of the ticket token
+        pub ticket_token: AccountId,
+        /// access control contract
+        pub access_control: AccountId,
+        /// scoring strategy
+        pub scoring: Scoring,
+    }
+
+    impl AccessControlled for ButtonGame {
+        type ContractError = GameError;
+    }
+
+    impl ButtonGame {
+        #[ink(constructor)]
+        pub fn new(
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+            scoring: Scoring,
+        ) -> Self {
+            let caller = Self::env().caller();
+            let code_hash = Self::env()
+                .own_code_hash()
+                .expect("Called new on a contract with no code hash");
+            let required_role = Role::Initializer(code_hash);
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+
+            match ButtonGame::check_role(&access_control, &caller, required_role) {
+                Ok(_) => Self::init(ticket_token, reward_token, button_lifetime, scoring),
+                Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
-    }
-}
 
-impl From<InkEnvError> for GameError {
-    fn from(e: InkEnvError) -> Self {
-        match e {
-            InkEnvError::Decode(_e) => {
-                GameError::ContractCall(String::from("Contract call failed due to Decode error"))
-            }
-            InkEnvError::CalleeTrapped => GameError::ContractCall(String::from(
-                "Contract call failed due to CalleeTrapped error",
-            )),
-            InkEnvError::CalleeReverted => GameError::ContractCall(String::from(
-                "Contract call failed due to CalleeReverted error",
-            )),
-            InkEnvError::KeyNotFound => GameError::ContractCall(String::from(
-                "Contract call failed due to KeyNotFound error",
-            )),
-            InkEnvError::_BelowSubsistenceThreshold => GameError::ContractCall(String::from(
-                "Contract call failed due to _BelowSubsistenceThreshold error",
-            )),
-            InkEnvError::TransferFailed => GameError::ContractCall(String::from(
-                "Contract call failed due to TransferFailed error",
-            )),
-            InkEnvError::_EndowmentTooLow => GameError::ContractCall(String::from(
-                "Contract call failed due to _EndowmentTooLow error",
-            )),
-            InkEnvError::CodeNotFound => GameError::ContractCall(String::from(
-                "Contract call failed due to CodeNotFound error",
-            )),
-            InkEnvError::NotCallable => GameError::ContractCall(String::from(
-                "Contract call failed due to NotCallable error",
-            )),
-            InkEnvError::Unknown => {
-                GameError::ContractCall(String::from("Contract call failed due to Unknown error"))
-            }
-            InkEnvError::LoggingDisabled => GameError::ContractCall(String::from(
-                "Contract call failed due to LoggingDisabled error",
-            )),
-            InkEnvError::EcdsaRecoveryFailed => GameError::ContractCall(String::from(
-                "Contract call failed due to EcdsaRecoveryFailed error",
-            )),
-            #[cfg(any(feature = "std", test, doc))]
-            InkEnvError::OffChain(_e) => {
-                GameError::ContractCall(String::from("Contract call failed due to OffChain error"))
-            }
+        /// Returns the current deadline
+        ///
+        /// Deadline is the block number at which the game will end if there are no more participants
+        #[ink(message)]
+        pub fn deadline(&self) -> BlockNumber {
+            self.last_press + self.button_lifetime
         }
-    }
-}
 
-/// Game contracts storage
-#[derive(Debug, SpreadLayout, SpreadAllocate, Default)]
-#[cfg_attr(
-    feature = "std",
-    derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-)]
-pub struct ButtonData {
-    /// How long does TheButton live for?
-    pub button_lifetime: BlockNumber,
-    /// stores the last account that pressed The Button
-    pub last_presser: Option<AccountId>,
-    /// block number of the last press, set to current block number at button start/reset
-    pub last_press: BlockNumber,
-    /// sum of rewards paid to players in the current iteration
-    pub total_rewards: u128,
-    /// counter for the number of presses
-    pub presses: u128,
-    /// AccountId of the PSP22 ButtonToken instance on-chain
-    pub reward_token: AccountId,
-    /// Account ID of the ticket token
-    pub ticket_token: AccountId,
-    /// access control contract
-    pub access_control: AccountId,
-}
+        /// Returns the buttons status
+        #[ink(message)]
+        pub fn is_dead(&self) -> bool {
+            self.env().block_number() > self.deadline()
+        }
 
-/// Provides default implementations of the games API to be called inside IButtonGame trait methods
-///
-/// Implementing contract needs to return ButtonData read-only and mutably
-/// as well as implement `score`: the logic that based on the current block number and the contract storage state returns a users score.
-/// Remaining methods have default implementations that can be overriden as needed.
-///
-/// NOTE: no contract events are being emitted, so the implementing contract is responsible for defining and emitting those.
-pub trait ButtonGame {
-    /// Getter for the button data
-    fn get(&self) -> &ButtonData;
+        /// Returns the last player who pressed the button.
+        /// If button is dead, this is The Pressiah.
+        #[ink(message)]
+        pub fn last_presser(&self) -> Option<AccountId> {
+            self.last_presser
+        }
 
-    /// Mutable getter for the button data
-    fn get_mut(&mut self) -> &mut ButtonData;
+        /// Returns the current access control contract address
+        #[ink(message)]
+        pub fn access_control(&self) -> AccountId {
+            self.access_control
+        }
 
-    /// Logic for calculating user score given the particular games rules
-    fn score(&self, now: BlockNumber) -> Balance;
+        /// Returns address of the game's reward token
+        #[ink(message)]
+        pub fn reward_token(&self) -> AccountId {
+            self.reward_token
+        }
 
-    /// Logic for calculating pressiah score
-    ///
-    /// By default the pressiah gets 20% of the total rewards paid in the current game iteration
-    /// Can be overriden to some other custom calculation
-    fn pressiah_score(&self) -> Balance {
-        (self.get().total_rewards / 4) as Balance
-    }
+        /// Returns address of the game's ticket token
+        #[ink(message)]
+        pub fn ticket_token(&self) -> AccountId {
+            self.ticket_token
+        }
 
-    fn is_dead(&self, now: BlockNumber) -> bool {
-        now > self.deadline()
-    }
+        /// Returns own code hash
+        #[ink(message)]
+        pub fn code_hash(&self) -> ButtonResult<Hash> {
+            self.env()
+                .own_code_hash()
+                .map_err(|_| GameError::CantRetrieveOwnCodeHash)
+        }
 
-    fn deadline(&self) -> BlockNumber {
-        let ButtonData {
-            last_press,
-            button_lifetime,
-            ..
-        } = self.get();
-        last_press + button_lifetime
-    }
+        /// Presses the button
+        ///
+        /// If called on alive button, instantaneously mints reward tokens to the caller
+        #[ink(message)]
+        pub fn press(&mut self) -> ButtonResult<()> {
+            if self.is_dead() {
+                return Err(GameError::AfterDeadline);
+            }
 
-    fn access_control(&self) -> AccountId {
-        self.get().access_control
-    }
+            let caller = self.env().caller();
+            let now = Self::env().block_number();
+            let this = self.env().account_id();
 
-    fn ticket_token(&self) -> AccountId {
-        self.get().ticket_token
-    }
+            // transfers 1 ticket token from the caller to self
+            // tx will fail if user did not give allowance to the game contract
+            // or does not have enough balance
+            self.transfer_ticket(caller, this, 1u128)??;
 
-    fn set_access_control(
-        &mut self,
-        new_access_control: AccountId,
-        caller: AccountId,
-        this: AccountId,
-    ) -> ButtonResult<()>
-    where
-        Self: AccessControlled,
-    {
-        let required_role = Role::Owner(this);
-        self.check_role(caller, required_role)?;
-        self.get_mut().access_control = new_access_control;
-        Ok(())
-    }
+            let score = self.score(now);
 
-    fn last_presser(&self) -> Option<AccountId> {
-        self.get().last_presser
-    }
+            // mints reward tokens to pay out the reward
+            // contract needs to have a Minter role on the reward token contract
+            self.mint_reward(caller, score)??;
 
-    fn reward_token(&self) -> AccountId {
-        self.get().reward_token
-    }
+            self.presses += 1;
+            self.last_presser = Some(caller);
+            self.last_press = now;
+            self.total_rewards += score;
 
-    fn balance<E>(&self, this: AccountId) -> ButtonResult<Balance>
-    where
-        E: Environment<AccountId = AccountId>,
-    {
-        let ticket_token = self.get().ticket_token;
-        let balance = build_call::<E>()
-            .call_type(Call::new().callee(ticket_token))
-            .exec_input(ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR)).push_arg(this))
-            .returns::<Balance>()
-            .fire()?;
-        Ok(balance)
-    }
+            Self::emit_event(
+                self.env(),
+                Event::ButtonPressed(ButtonPressed {
+                    by: caller,
+                    when: now,
+                }),
+            );
 
-    fn transfer_from_tx<E>(
-        &self,
-        from: AccountId,
-        to: AccountId,
-        value: Balance,
-    ) -> Result<Result<(), PSP22Error>, InkEnvError>
-    where
-        E: Environment<AccountId = AccountId>,
-    {
-        build_call::<E>()
-            .call_type(Call::new().callee(self.get().ticket_token))
-            .exec_input(
-                ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
-                    .push_arg(from)
-                    .push_arg(to)
-                    .push_arg(value)
-                    .push_arg(vec![0x0]),
+            Ok(())
+        }
+
+        /// Resets the game
+        ///
+        /// Erases the storage and pays award to the Pressiah
+        /// Can be called by any account on behalf of a player
+        /// Can only be called after button's deadline
+        #[ink(message)]
+        pub fn reset(&mut self) -> ButtonResult<()> {
+            if !self.is_dead() {
+                return Err(GameError::BeforeDeadline);
+            }
+
+            let now = self.env().block_number();
+
+            // reward the Pressiah
+            if let Some(pressiah) = self.last_presser {
+                let reward = self.pressiah_score();
+                self.mint_reward(pressiah, reward)??;
+            };
+
+            self.presses = 0;
+            self.last_presser = None;
+            self.last_press = now;
+            self.total_rewards = 0;
+
+            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
+            Ok(())
+        }
+
+        /// Sets new access control contract address
+        ///
+        /// Should only be called by the contract owner
+        /// Implementing contract is responsible for setting up proper AccessControl
+        #[ink(message)]
+        pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Owner(this);
+            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
+            self.access_control = new_access_control;
+            Ok(())
+        }
+
+        /// Terminates the contract
+        ///
+        /// Should only be called by the contract Owner
+        #[ink(message)]
+        pub fn terminate(&mut self) -> ButtonResult<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Owner(this);
+            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
+            self.env().terminate_contract(caller)
+        }
+
+        //===================================================================================================
+
+        fn init(
+            ticket_token: AccountId,
+            reward_token: AccountId,
+            button_lifetime: BlockNumber,
+            scoring: Scoring,
+        ) -> Self {
+            let now = Self::env().block_number();
+            let deadline = now + button_lifetime;
+
+            let contract = Self {
+                access_control: AccountId::from(ACCESS_CONTROL_PUBKEY),
+                button_lifetime,
+                reward_token,
+                ticket_token,
+                last_press: now,
+                scoring,
+                last_presser: None,
+                presses: 0,
+                total_rewards: 0,
+            };
+
+            Self::emit_event(
+                Self::env(),
+                Event::ButtonCreated(ButtonCreated {
+                    start: now,
+                    deadline,
+                    ticket_token,
+                    reward_token,
+                }),
+            );
+
+            contract
+        }
+
+        fn check_role(
+            access_control: &AccountId,
+            account: &AccountId,
+            role: Role,
+        ) -> ButtonResult<()>
+        where
+            Self: AccessControlled,
+        {
+            <Self as AccessControlled>::check_role(
+                access_control.clone(),
+                account.clone(),
+                role,
+                |why: InkEnvError| {
+                    GameError::InkEnvError(format!("Calling access control has failed: {:?}", why))
+                },
+                |role: Role| GameError::MissingRole(role),
             )
-            .call_flags(CallFlags::default().set_allow_reentry(true))
-            .returns::<Result<(), PSP22Error>>()
-            .fire()
-    }
-
-    fn mint_tx<E>(
-        &self,
-        to: AccountId,
-        amount: Balance,
-    ) -> Result<Result<(), PSP22Error>, InkEnvError>
-    where
-        E: Environment<AccountId = AccountId>,
-    {
-        build_call::<E>()
-            .call_type(Call::new().callee(self.get().reward_token))
-            .exec_input(
-                ExecutionInput::new(Selector::new(MINT_TO_SELECTOR))
-                    .push_arg(to)
-                    .push_arg(amount),
-            )
-            .returns::<Result<(), PSP22Error>>()
-            .fire()
-    }
-
-    fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()>
-    where
-        Self: AccessControlled,
-    {
-        <Self as AccessControlled>::check_role(
-            self.get().access_control,
-            account,
-            role,
-            |why: InkEnvError| {
-                GameError::ContractCall(format!("Calling access control has failed: {:?}", why))
-            },
-            |role: Role| GameError::MissingRole(format!("{:?}", role)),
-        )
-    }
-
-    fn press<E>(&mut self, now: BlockNumber, caller: AccountId, this: AccountId) -> ButtonResult<()>
-    where
-        E: Environment<AccountId = AccountId>,
-    {
-        if self.is_dead(now) {
-            return Err(GameError::AfterDeadline);
         }
 
-        // transfers 1 ticket token from the caller to self
-        // tx will fail if user did not give allowance to the game contract
-        // or does not have enough balance
-        self.transfer_from_tx::<E>(caller, this, 1u128)??;
-
-        let score = self.score(now);
-
-        // mints reward tokens to pay out the reward
-        // contract needs to have a Minter role on the reward token contract
-        self.mint_tx::<E>(caller, score)??;
-
-        let mut state = self.get_mut();
-
-        state.presses += 1;
-        state.last_presser = Some(caller);
-        state.last_press = now;
-        state.total_rewards += score;
-
-        Ok(())
-    }
-
-    /// Reset the game
-    ///
-    /// Erases the storage and pays award to the Pressiah
-    /// Can be called by any account on behalf of a player
-    /// Can only be called after button's deadline
-    fn reset<E>(&mut self, now: BlockNumber) -> ButtonResult<()>
-    where
-        E: Environment<AccountId = AccountId>,
-    {
-        let ButtonData { last_presser, .. } = self.get();
-
-        if !self.is_dead(now) {
-            return Err(GameError::BeforeDeadline);
+        fn score(&self, now: BlockNumber) -> Balance {
+            match self.scoring {
+                Scoring::EarlyBirdSpecial => self.deadline().saturating_sub(now) as Balance,
+                Scoring::BackToTheFuture => now.saturating_sub(self.last_press) as Balance,
+                Scoring::ThePressiahCometh => (self.presses + 1) as Balance,
+            }
         }
 
-        // reward the Pressiah
-        if let Some(pressiah) = last_presser {
-            let reward = self.pressiah_score();
-            self.mint_tx::<E>(*pressiah, reward)??;
-        };
+        fn pressiah_score(&self) -> Balance {
+            (self.total_rewards / 4) as Balance
+        }
 
-        // zero the counters in storage
-        let mut state = self.get_mut();
+        fn transfer_ticket(
+            &self,
+            from: AccountId,
+            to: AccountId,
+            value: Balance,
+        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+            build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.ticket_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
+                        .push_arg(from)
+                        .push_arg(to)
+                        .push_arg(value)
+                        .push_arg(vec![0x0]),
+                )
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .returns::<Result<(), PSP22Error>>()
+                .fire()
+        }
 
-        state.presses = 0;
-        state.last_presser = None;
-        state.last_press = now;
-        state.total_rewards = 0;
+        fn mint_reward(
+            &self,
+            to: AccountId,
+            amount: Balance,
+        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
+            build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.reward_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(MINT_TO_SELECTOR))
+                        .push_arg(to)
+                        .push_arg(amount),
+                )
+                .returns::<Result<(), PSP22Error>>()
+                .fire()
+        }
 
-        Ok(())
+        fn emit_event<EE>(emitter: EE, event: Event)
+        where
+            EE: EmitEvent<ButtonGame>,
+        {
+            emitter.emit_event(event);
+        }
     }
-}
-
-/// Contract trait definition
-///
-/// This trait defines the game's API
-/// You will get default implementations of the matching methods by impl ButtonGame trait
-#[ink::trait_definition]
-pub trait IButtonGame {
-    /// Button press logic
-    ///
-    /// Will instantenously mint reward tokens to the caller
-    #[ink(message)]
-    fn press(&mut self) -> ButtonResult<()>;
-
-    /// Returns the buttons status
-    #[ink(message)]
-    fn is_dead(&self) -> bool;
-
-    /// Returns the current deadline
-    ///
-    /// Deadline is the block number at which the game will end if there are no more participants
-    #[ink(message)]
-    fn deadline(&self) -> BlockNumber;
-
-    /// Returns the current Pressiah
-    ///
-    /// When button is DEAD this is ThePressiah and the winner of the current iteration
-    #[ink(message)]
-    fn last_presser(&self) -> Option<AccountId>;
-
-    /// Returns the current access control contract address
-    #[ink(message)]
-    fn access_control(&self) -> AccountId;
-
-    /// Returns address of the game's reward token
-    #[ink(message)]
-    fn reward_token(&self) -> AccountId;
-
-    /// Returns address of the game's ticket token
-    #[ink(message)]
-    fn ticket_token(&self) -> AccountId;
-
-    /// Returns then number of ticket tokens in the game contract
-    #[ink(message)]
-    fn balance(&self) -> ButtonResult<Balance>;
-
-    /// Resets the game
-    ///
-    /// rewards the Pressiah and resets the counters as well as all other neccessary storage fields
-    #[ink(message)]
-    fn reset(&mut self) -> ButtonResult<()>;
-
-    /// Sets new access control contract address
-    ///
-    /// Should only be called by the contract owner
-    /// Implementing contract is responsible for setting up proper AccessControl
-    #[ink(message)]
-    fn set_access_control(&mut self, access_control: AccountId) -> ButtonResult<()>;
-
-    /// Terminates the contract
-    ///
-    /// Should only be called by the contract Owner
-    #[ink(message)]
-    fn terminate(&mut self) -> ButtonResult<()>;
 }

@@ -4,52 +4,81 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
-function instrument_ticket_token {
+function upload_contract {
 
   local  __resultvar=$1
   local contract_name=$2
-  local salt=$3
-  local token_name=$4
-  local token_symbol=$5
-
-  # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
 
   cd "$CONTRACTS_PATH"/$contract_name
 
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args \"$token_name\" \"$token_symbol\" $TOTAL_BALANCE --suri "$AUTHORITY_SEED" --salt $salt)
+  # --- REPLACE THE ADDRESS OF ACCESS CONTROL CONTRACT
 
+  # replace address placeholder with the on-chain address of the AccessControl contract
+  link_bytecode $contract_name 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
+  # remove just in case
+  rm target/ink/$contract_name.wasm
+  # NOTE : here we go from hex to binary using a nodejs cli tool
+  # availiable from https://github.com/fbielejec/polkadot-cljs
+  node ../scripts/hex-to-wasm.js target/ink/$contract_name.contract target/ink/$contract_name.wasm
+
+  # --- UPLOAD CONTRACT CODE
+
+  code_hash=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
+  code_hash=$(echo "$code_hash" | grep hash | tail -1 | cut -c 15-)
+
+  echo "$contract_name code hash: $code_hash"
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  # Set the initializer of the contract
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$code_hash"')' --suri "$AUTHORITY_SEED"
+
+  eval $__resultvar="'$code_hash'"
+}
+
+function deploy_ticket_token {
+
+  local  __resultvar=$1
+  local token_name=$2
+  local token_symbol=$3
+  local salt=$4
+
+  # --- CREATE AN INSTANCE OF THE TICKET CONTRACT
+
+  cd "$CONTRACTS_PATH"/ticket_token
+
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
-  echo $contract_name "ticket contract instance address: " $contract_address
+  echo "$token_symbol ticket contract instance address:  $contract_address"
 
-  # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
+  # --- GRANT PRIVILEGES ON THE TICKET CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
   # set the admin and the owner of the contract instance
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   eval $__resultvar="'$contract_address'"
 }
 
-function instrument_game_token {
+
+function deploy_game_token {
 
   local  __resultvar=$1
-  local contract_name=$2
-  local token_name=\"$3\"
-  local token_symbol=\"$4\"
-  local salt=$5
+  local token_name=$2
+  local token_symbol=$3
+  local salt=$4
 
   # --- CREATE AN INSTANCE OF THE TOKEN CONTRACT
 
-  cd "$CONTRACTS_PATH"/"$contract_name"
+  cd "$CONTRACTS_PATH"/game_token
 
-  local contract_address
   # TODO : remove balance when token is mintable
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$token_name" "$token_symbol" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
-  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt")
+  local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
-  echo "$contract_name token contract instance address: $contract_address"
+  echo "$token_symbol token contract instance address: $contract_address"
 
   # --- GRANT PRIVILEGES ON THE TOKEN CONTRACT
 
@@ -63,49 +92,34 @@ function instrument_game_token {
   eval "$__resultvar='$contract_address'"
 }
 
-function deploy_and_instrument_game {
+
+function deploy_button_game {
 
   local  __resultvar=$1
-  local contract_name=$2
+  local game_type=$2
   local ticket_token=$3
   local game_token=$4
-
-  # --- UPLOAD CONTRACT CODE
-
-  cd "$CONTRACTS_PATH/$contract_name"
-  link_bytecode "$contract_name" 4465614444656144446561444465614444656144446561444465614444656144 "$ACCESS_CONTROL_PUBKEY"
-  rm target/ink/"$contract_name".wasm
-  node ../scripts/hex-to-wasm.js target/ink/"$contract_name".contract target/ink/"$contract_name".wasm
-
-  local code_hash
-  code_hash=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
-  code_hash=$(echo "$code_hash" | grep hash | tail -1 | cut -c 15-)
-
-  # --- GRANT INIT PRIVILEGES ON THE CONTRACT CODE
-
-  cd "$CONTRACTS_PATH"/access_control
-
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$code_hash"')' --suri "$AUTHORITY_SEED"
+  local salt=$5
 
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
-  cd "$CONTRACTS_PATH/$contract_name"
+  cd "$CONTRACTS_PATH"/button
 
-  local contract_address=$(cargo contract instantiate --url $NODE --constructor new --args $ticket_token $game_token $LIFETIME --suri "$AUTHORITY_SEED")
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt")
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
-  echo "$contract_name contract instance address: $contract_address"
+  echo "$game_type contract instance address: $contract_address"
 
   # --- GRANT PRIVILEGES ON THE CONTRACT
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url $NODE --contract $ACCESS_CONTROL --message grant_role --args $AUTHORITY 'Owner('$contract_address')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
 
-function instrument_marketplace {
+function deploy_marketplace {
   local  __resultvar=$1
   local code_hash=$2
   local contract_name=$3
@@ -150,11 +164,13 @@ function link_bytecode() {
   sed -i 's/'"$placeholder"'/'"$replacement"'/' "target/ink/$contract.contract"
 }
 
+
 # --- GLOBAL CONSTANTS
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
 CONTRACTS_PATH=$(pwd)/contracts
+
 
 # --- COMPILE CONTRACTS
 
@@ -167,14 +183,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/game_token
 cargo contract build --release
 
-cd "$CONTRACTS_PATH"/early_bird_special
+cd "$CONTRACTS_PATH"/button
 cargo contract build --release
 
-cd "$CONTRACTS_PATH"/back_to_the_future
-cargo contract build --release
-
-cd "$CONTRACTS_PATH"/the_pressiah_cometh
-cargo contract build --release
 
 cd "$CONTRACTS_PATH"/marketplace
 cargo contract build --release
@@ -190,117 +201,48 @@ ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
-# --- UPLOAD TICKET TOKEN CONTRACT CODE
 
-cd "$CONTRACTS_PATH"/ticket_token
-# replace address placeholder with the on-chain address of the AccessControl contract
-link_bytecode ticket_token 4465614444656144446561444465614444656144446561444465614444656144 $ACCESS_CONTROL_PUBKEY
-# remove just in case
-rm target/ink/ticket_token.wasm
-# NOTE : here we go from hex to binary using a nodejs cli tool
-# availiable from https://github.com/fbielejec/polkadot-cljs
-node ../scripts/hex-to-wasm.js target/ink/ticket_token.contract target/ink/ticket_token.wasm
+# --- UPLOAD CONTRACTS CODES
 
-CODE_HASH=$(cargo contract upload --url $NODE --suri "$AUTHORITY_SEED")
-TICKET_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
-
-echo "ticket token code hash" $TICKET_TOKEN_CODE_HASH
-
-# --- UPLOAD REWARD TOKEN CONTRACT CODE
-
-cd "$CONTRACTS_PATH"/game_token
-# replace address placeholder with the on-chain address of the AccessControl contract
-link_bytecode game_token 4465614444656144446561444465614444656144446561444465614444656144 "$ACCESS_CONTROL_PUBKEY"
-# remove just in case
-rm target/ink/game_token.wasm
-# NOTE : here we go from hex to binary using a nodejs cli tool
-# availiable from https://github.com/fbielejec/polkadot-cljs
-node ../scripts/hex-to-wasm.js target/ink/game_token.contract target/ink/game_token.wasm
-
-CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
-GAME_TOKEN_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
-
-echo "button token code hash" "$GAME_TOKEN_CODE_HASH"
-
-# --- UPLOAD MARKETPLACE CONTRACT CODE
-
-cd "$CONTRACTS_PATH"/marketplace
-# replace address placeholder with the on-chain address of the AccessControl contract
-link_bytecode marketplace 4465614444656144446561444465614444656144446561444465614444656144 "$ACCESS_CONTROL_PUBKEY"
-# remove just in case
-rm target/ink/marketplace.wasm
-# NOTE : here we go from hex to binary using a nodejs cli tool
-# availiable from https://github.com/fbielejec/polkadot-cljs
-node ../scripts/hex-to-wasm.js target/ink/marketplace.contract target/ink/marketplace.wasm
-
-CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
-MARKETPLACE_CODE_HASH=$(echo "$CODE_HASH" | grep hash | tail -1 | cut -c 15-)
-
-echo "marketplace code hash" "$MARKETPLACE_CODE_HASH"
-
-# --- GRANT INIT PRIVILEGES ON THE TOKEN, TICKET, AND MARKETPLACE CONTRACT CODE
-
-cd "$CONTRACTS_PATH"/access_control
-
-# set the initializer of the token contract
-cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$GAME_TOKEN_CODE_HASH"')' --suri "$AUTHORITY_SEED"
-
-# set the initializer of the ticket contract
-cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$TICKET_TOKEN_CODE_HASH"')' --suri "$AUTHORITY_SEED"
-
-# set the initializer of the marketplace contract
-cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('"$MARKETPLACE_CODE_HASH"')' --suri "$AUTHORITY_SEED"
-
+upload_contract TICKET_TOKEN_CODE_HASH ticket_token
+upload_contract GAME_TOKEN_CODE_HASH game_token
+upload_contract BUTTON_CODE_HASH button
+upload_contract MARKETPLACE_CODE_HASH marketplace
 
 start=$(date +%s.%N)
 
 #
 # --- EARLY_BIRD_SPECIAL GAME
 #
+echo "Early Bird Special"
 
-# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE EARLY_BIRD_SPECIAL GAME
-
-instrument_ticket_token EARLY_BIRD_SPECIAL_TICKET ticket_token 0x4561726C79426972645370656369616C early_bird_special EBS
-
-instrument_game_token EARLY_BIRD_SPECIAL_TOKEN game_token Ubik UBI 0x4561726C79426972645370656369616C
-
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE EARLY_BIRD_SPECIAL GAME
-
-deploy_and_instrument_game EARLY_BIRD_SPECIAL early_bird_special "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN"
-
-instrument_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special 0x4561726C79426972645370656369616C "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
+salt="0x4561726C79426972645370656369616C"
+deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
+deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
+deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN $salt
+deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
 
 #
 # --- BACK_TO_THE_FUTURE GAME
 #
+echo "Back To The Future"
 
-# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE BACK_TO_THE_FUTURE GAME
-
-instrument_ticket_token BACK_TO_THE_FUTURE_TICKET ticket_token 0x4261636B546F546865467574757265 back_to_the_future BTF
-
-instrument_game_token BACK_TO_THE_FUTURE_TOKEN game_token Cyberiad CYB 0x4261636B546F546865467574757265
-
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE BACK_TO_THE_FUTURE GAME
-
-deploy_and_instrument_game BACK_TO_THE_FUTURE back_to_the_future "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN"
-
-instrument_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future 0x4261636B546F546865467574757265 "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE"
+salt="0x4261636B546F546865467574757265"
+deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
+deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
+deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN $salt
+deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE"
 
 #
 # --- THE_PRESSIAH_COMETH GAME
 #
+echo "The Pressiah Cometh"
 
-# --- CREATE AN INSTANCE OF THE TICKET CONTRACT FOR THE THE_PRESSIAH_COMETH GAME
-
-instrument_ticket_token THE_PRESSIAH_COMETH_TICKET ticket_token 0x7468655F70726573736961685F636F6D657468 the_pressiah_cometh TPC
-
-instrument_game_token THE_PRESSIAH_COMETH_TOKEN game_token Dune DUN 0x7468655F70726573736961685F636F6D657468
-
-# --- UPLOAD CODE AND CREATE AN INSTANCE OF THE THE_PRESSIAH_COMETH GAME
-
-deploy_and_instrument_game THE_PRESSIAH_COMETH the_pressiah_cometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
-
-instrument_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh 0x7468655F70726573736961685F636F6D657468 "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH"
+salt="0x7468655F70726573736961685F636F6D657468"
+deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
+deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
+deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh $THE_PRESSIAH_COMETH_TICKET $THE_PRESSIAH_COMETH_TOKEN $salt
+deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH"
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
@@ -330,7 +272,8 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
      the_pressiah_cometh_token: $the_pressiah_cometh_token,
      the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace}' > addresses.json
 
-end=$( date +%s.%N )
+
+end=`date +%s.%N`
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"
 
 exit $?
