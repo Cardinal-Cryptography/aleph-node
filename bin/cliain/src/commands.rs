@@ -164,6 +164,12 @@ pub enum Command {
         finalizer_seed: Option<String>,
     },
 
+    /// Gets next session keys for a validator with specified AccountId
+    NextKeys {
+        #[clap(long)]
+        account_id: String,
+    },
+
     /// Declare the desire to nominate target account
     Nominate {
         #[clap(long)]

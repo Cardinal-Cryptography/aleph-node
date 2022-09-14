@@ -7,11 +7,12 @@ use aleph_client::{
 use clap::Parser;
 use cliain::{
     bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
-    nominate, prepare_keys, prompt_password_hidden, remove_code, rotate_keys,
+    next_keys, nominate, prepare_keys, prompt_password_hidden, remove_code, rotate_keys,
     set_emergency_finalizer, set_keys, set_staking_limits, transfer, treasury_approve,
     treasury_propose, treasury_reject, update_runtime, upload_code, validate, vest, vest_other,
     vested_transfer, Command, ConnectionConfig,
 };
+use hex::ToHex;
 use log::{error, info};
 use sp_core::Pair;
 
@@ -40,6 +41,7 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
             hash: _,
             finalizer_seed: _,
         }
+        | Command::NextKeys { account_id: _ }
         | Command::RotateKeys
         | Command::DebugStorage
         | Command::SeedToSS58 { input: _ } => String::new(),
@@ -114,6 +116,16 @@ fn main() {
         Command::TreasuryApprove { proposal_id } => treasury_approve(cfg.into(), proposal_id),
         Command::TreasuryReject { proposal_id } => treasury_reject(cfg.into(), proposal_id),
         Command::RotateKeys => rotate_keys::<SignedConnection>(cfg.into()),
+        Command::NextKeys { account_id } => {
+            match next_keys::<SignedConnection>(&cfg.into(), account_id) {
+                Some(keys) => {
+                    let aura_hex = keys.aura.encode_hex::<String>();
+                    let aleph_hex = keys.aleph.encode_hex::<String>();
+                    println!("0x{}{}", aura_hex, aleph_hex);
+                }
+                None => error!("No keys set for the specified account."),
+            }
+        }
         Command::SetStakingLimits {
             minimal_nominator_stake,
             minimal_validator_stake,
