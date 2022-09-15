@@ -39,6 +39,7 @@ mod simple_dex {
         MissingRole(Role),
         InkEnv(String),
         CrossContractCall(String),
+        TooMuchSlippage,
     }
 
     impl From<PSP22Error> for DexError {
@@ -78,9 +79,6 @@ mod simple_dex {
     pub struct SimpleDex {
         pub swap_fee: Balance,
         pub access_control: AccountId,
-        pub ubik: AccountId,
-        pub cyberiad: AccountId,
-        pub lono: AccountId,
     }
 
     impl AccessControlled for SimpleDex {
@@ -90,6 +88,8 @@ mod simple_dex {
     impl SimpleDex {
         #[ink(constructor)]
         pub fn new() -> Self {
+            // TODO : token addresses in the pool (4)
+
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -119,11 +119,14 @@ mod simple_dex {
             &mut self,
             token_in: AccountId,
             token_out: AccountId,
-            amount_token_in: u128,
+            amount_token_in: Balance,
+            min_amount_token_out: Balance,
         ) -> Result<(), DexError> {
             let this = self.env().account_id();
             let caller = self.env().caller();
             let swap_fee = self.swap_fee;
+
+            // TODO : check if tokens are supported by the pool
 
             // check allowance
             if self.allowance(token_in, caller, this)? < amount_token_in {
@@ -133,7 +136,7 @@ mod simple_dex {
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
 
-            // TODO : check if we have enough liquidity
+            // TODO : check if we have enough liquidity in the pool
 
             let amount_token_out = Self::out_given_in(
                 amount_token_in,
@@ -141,6 +144,10 @@ mod simple_dex {
                 balance_token_out,
                 swap_fee,
             )?;
+
+            if amount_token_out < min_amount_token_out {
+                return Err(DexError::TooMuchSlippage);
+            }
 
             // transfer token_in from user to the contract
             self.transfer_from_tx(token_in, caller, this, amount_token_in)??;
