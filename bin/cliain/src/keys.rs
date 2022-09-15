@@ -5,6 +5,7 @@ use aleph_client::{
 use hex::ToHex;
 use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
+use serde_json::json;
 use sp_core::crypto::Ss58Codec;
 use substrate_api_client::{AccountId, XtStatus};
 
@@ -36,10 +37,11 @@ pub fn next_session_keys(connection: &Connection, account_id: String) {
     let account_id = AccountId::from_ss58check(&account_id).expect("Address is valid");
     match get_next_session_keys(connection, account_id) {
         Some(keys) => {
-            println!("{{");
-            println!("  \"aura\": \"0x{}\",", keys.aura.encode_hex::<String>());
-            println!("  \"aleph\": \"0x{}\"", keys.aleph.encode_hex::<String>());
-            println!("}}");
+            let keys_json = json!({
+                "aura": "0x".to_owned() + keys.aura.encode_hex::<String>().as_str(),
+                "aleph": "0x".to_owned() + keys.aleph.encode_hex::<String>().as_str(),
+            });
+            println!("{}", serde_json::to_string_pretty(&keys_json).unwrap());
         }
         None => error!("No keys set for the specified account."),
     }
