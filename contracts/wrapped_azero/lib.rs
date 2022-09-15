@@ -26,20 +26,6 @@ pub mod wrapped_azero {
     pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
     pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
 
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct Wrapped {
-        caller: AccountId,
-        amount: Balance,
-    }
-
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct UnWrapped {
-        caller: AccountId,
-        amount: Balance,
-    }
-
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
     pub struct WrappedAzero {
@@ -118,6 +104,20 @@ pub mod wrapped_azero {
         value: Balance,
     }
 
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct Wrapped {
+        caller: AccountId,
+        amount: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct UnWrapped {
+        caller: AccountId,
+        amount: Balance,
+    }
+
     impl WrappedAzero {
         /// Creates a new token
         ///
@@ -131,12 +131,11 @@ pub mod wrapped_azero {
             let code_hash = Self::env()
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
-            let required_role = Role::Initializer(code_hash);
 
             let role_check = <Self as AccessControlled>::check_role(
                 AccountId::from(ACCESS_CONTROL_PUBKEY),
                 caller,
-                required_role,
+                Role::Initializer(code_hash),
                 Self::cross_contract_call_error_handler,
                 Self::access_control_error_handler,
             );
@@ -170,7 +169,6 @@ pub mod wrapped_azero {
         #[ink(message, payable)]
         pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
             let caller = self.env().caller();
-            // let this = self.env().account_id();
 
             if !amount.eq(&Balance::zero()) {
                 // burn the token form the caller, will fail if the calling account doesn't have enough balance
