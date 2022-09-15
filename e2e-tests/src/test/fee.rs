@@ -2,9 +2,7 @@ use aleph_client::{
     balances_transfer, get_next_fee_multiplier, AccountId, BalanceTransfer, CallSystem, FeeInfo,
     GetTxInfo, ReadStorage, RootConnection, XtStatus,
 };
-use codec::Encode;
 use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
-use substrate_api_client::{compose_call, compose_extrinsic, GenericAddress};
 
 use crate::{config::Config, transfer::setup_for_transfer};
 

@@ -2,7 +2,6 @@ use std::iter::repeat;
 
 use aleph_client::{BalanceTransfer, BatchTransactions, XtStatus};
 use log::info;
-use substrate_api_client::{compose_call, compose_extrinsic, GenericAddress};
 
 use crate::{config::Config, transfer::setup_for_transfer};
 
