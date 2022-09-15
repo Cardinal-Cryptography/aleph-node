@@ -36,8 +36,10 @@ pub fn next_session_keys(connection: &Connection, account_id: String) {
     let account_id = AccountId::from_ss58check(&account_id).expect("Address is valid");
     match get_next_session_keys(connection, account_id) {
         Some(keys) => {
-            println!("{}", keys.aura.encode_hex::<String>());
-            println!("{}", keys.aleph.encode_hex::<String>());
+            println!("{{");
+            println!("  \"aura\": \"0x{}\",", keys.aura.encode_hex::<String>());
+            println!("  \"aleph\": \"0x{}\"", keys.aleph.encode_hex::<String>());
+            println!("}}");
         }
         None => error!("No keys set for the specified account."),
     }
