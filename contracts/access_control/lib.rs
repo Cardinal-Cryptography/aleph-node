@@ -1,8 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use crate::access_control::{
-    AccessControlError, Role, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
+    AccessControlError, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
 };
+pub mod roles;
 pub mod traits;
 use ink_lang as ink;
 
@@ -10,33 +11,16 @@ use ink_lang as ink;
 mod access_control {
 
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_storage::{
-        traits::{PackedLayout, SpreadAllocate, SpreadLayout},
-        Mapping,
-    };
+    use ink_storage::{traits::SpreadAllocate, Mapping};
     use scale::{Decode, Encode};
+
+    use crate::roles::Role;
 
     // address placeholder, to be set in the bytecode
     // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
     pub const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
     pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
-
-    #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
-    #[cfg_attr(
-        feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub enum Role {
-        /// Indicates a superuser.
-        Admin(AccountId),
-        /// Indicates account can terminate a contract.
-        Owner(AccountId),
-        /// Indicates account can initialize a contract from a given code hash.
-        Initializer(Hash),
-        /// Indicates account can add liquidity to a DEX contract (call certain functions)
-        LiquidityProvider(AccountId),
-    }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]

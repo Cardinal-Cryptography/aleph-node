@@ -8,7 +8,7 @@ pub use crate::game_token::{
 
 #[openbrush::contract]
 pub mod game_token {
-    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{EmitEvent, Env},

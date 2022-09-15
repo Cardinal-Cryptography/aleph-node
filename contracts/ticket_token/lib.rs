@@ -5,7 +5,7 @@ pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANS
 
 #[openbrush::contract]
 pub mod ticket_token {
-    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
         codegen::{EmitEvent, Env},

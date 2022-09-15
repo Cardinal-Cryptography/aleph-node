@@ -1,4 +1,4 @@
-use access_control::Role;
+use access_control::roles::Role;
 use ink_env::Error as InkEnvError;
 use ink_prelude::{format, string::String};
 use openbrush::contracts::psp22::PSP22Error;

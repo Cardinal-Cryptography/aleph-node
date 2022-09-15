@@ -3,7 +3,7 @@ use ink_env::{
     AccountId, DefaultEnvironment, Error as InkEnvError,
 };
 
-use crate::access_control::{Role, HAS_ROLE_SELECTOR};
+use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
 
 pub trait AccessControlled {
     type ContractError;
