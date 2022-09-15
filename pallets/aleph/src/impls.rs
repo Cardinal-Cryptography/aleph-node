@@ -18,7 +18,7 @@ where
 
     fn start_session(start_index: SessionIndex) {
         <T as Config>::SessionManager::start_session(start_index);
-        Self::update_version_change_history_and_schedule();
+        Self::update_version_change_history();
     }
 }
 
@@ -37,7 +37,7 @@ where T: Config,
             let previously_scheduled_version =
                 previously_scheduled_version_change.version_incoming;
 
-            if previously_scheduled_session < current_session {
+            if previously_scheduled_session <= current_session {
                 // Record the previously scheduled version in version change history.
                 <AlephBFTVersion<T>>::set(
                     previously_scheduled_session,

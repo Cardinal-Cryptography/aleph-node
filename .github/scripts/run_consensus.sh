@@ -6,6 +6,9 @@ set -euo pipefail
 # change when increasing the number of node containers
 NODE_COUNT=5
 
+# default minimum validator count
+MIN_VALIDATOR_COUNT=4
+
 export NODE_IMAGE=aleph-node:latest
 
 mkdir -p docker/data/
