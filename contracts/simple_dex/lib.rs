@@ -12,7 +12,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod simple_dex {
 
-    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::{
         ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR,
     };
@@ -118,7 +118,7 @@ mod simple_dex {
         pub total_liquidity: u128,
         /// tracks pool shares per account
         pub liquidity: Mapping<AccountId, u128>,
-        pub swap_fee: u128,
+        pub swap_fee: Balance,
         pub access_control: AccountId,
         pub ubik: AccountId,
         pub cyberiad: AccountId,
@@ -616,11 +616,11 @@ mod simple_dex {
         }
 
         fn out_given_in(
-            amount_token_in: u128,
-            balance_token_in: u128,
-            balance_token_out: u128,
-            swap_fee: u128,
-        ) -> Result<u128, DexError> {
+            amount_token_in: Balance,
+            balance_token_in: Balance,
+            balance_token_out: Balance,
+            swap_fee: Balance,
+        ) -> Result<Balance, DexError> {
             let op0 = amount_token_in
                 .checked_mul(swap_fee)
                 .ok_or(DexError::Arithmethic)?;
