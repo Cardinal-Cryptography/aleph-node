@@ -135,7 +135,7 @@ pub mod game_token {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
                     instance.metadata.name = Some(name);
                     instance.metadata.symbol = Some(symbol);
-                    instance.metadata.decimals = 18;
+                    instance.metadata.decimals = 12;
                     instance
                         ._mint(instance.env().caller(), total_supply)
                         .expect("Should mint");

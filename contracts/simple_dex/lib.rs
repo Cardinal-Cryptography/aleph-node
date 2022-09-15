@@ -36,6 +36,7 @@ mod simple_dex {
         PSP22(PSP22Error),
         InsufficientAllowanceOf(AccountId),
         Arithmethic,
+        WrongParameterValue,
         MissingRole(Role),
         InkEnv(String),
         CrossContractCall(String),
@@ -73,13 +74,13 @@ mod simple_dex {
     pub struct SwapFeeSet {
         #[ink(topic)]
         caller: AccountId,
-        swap_fee: Balance,
+        swap_fee: u128,
     }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct SimpleDex {
-        pub swap_fee: Balance,
+        pub swap_fee: u128,
         pub access_control: AccountId,
         // pool tokens
         pub tokens: [AccountId; 4],
@@ -260,7 +261,11 @@ mod simple_dex {
         ///
         /// Can only be called by the contract's Admin.
         #[ink(message)]
-        pub fn set_swap_fee(&mut self, swap_fee: Balance) -> Result<(), DexError> {
+        pub fn set_swap_fee(&mut self, swap_fee: u128) -> Result<(), DexError> {
+            if swap_fee.gt(&100) || swap_fee.lt(&0) {
+                return Err(DexError::WrongParameterValue);
+            }
+
             let caller = self.env().caller();
             let this = self.env().account_id();
 
@@ -426,10 +431,11 @@ mod simple_dex {
             amount_token_in: Balance,
             balance_token_in: Balance,
             balance_token_out: Balance,
-            swap_fee: Balance,
+            swap_fee: u128,
         ) -> Result<Balance, DexError> {
             let op0 = amount_token_in
                 .checked_mul(swap_fee)
+                .and_then(|result| result.checked_div(100))
                 .ok_or(DexError::Arithmethic)?;
 
             let op1 = balance_token_in
