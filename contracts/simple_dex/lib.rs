@@ -40,6 +40,8 @@ mod simple_dex {
         InkEnv(String),
         CrossContractCall(String),
         TooMuchSlippage,
+        NotEnoughLiquidityOf(AccountId),
+        UnsupportedToken(AccountId),
     }
 
     impl From<PSP22Error> for DexError {
@@ -79,6 +81,8 @@ mod simple_dex {
     pub struct SimpleDex {
         pub swap_fee: Balance,
         pub access_control: AccountId,
+        // pool tokens
+        pub tokens: [AccountId; 4],
     }
 
     impl AccessControlled for SimpleDex {
@@ -87,9 +91,7 @@ mod simple_dex {
 
     impl SimpleDex {
         #[ink(constructor)]
-        pub fn new() -> Self {
-            // TODO : token addresses in the pool (4)
-
+        pub fn new(tokens: [AccountId; 4]) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -106,7 +108,7 @@ mod simple_dex {
             );
 
             match role_check {
-                Ok(_) => initialize_contract(|contract| Self::new_init(contract)),
+                Ok(_) => initialize_contract(|contract| Self::new_init(contract, tokens)),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
@@ -126,7 +128,14 @@ mod simple_dex {
             let caller = self.env().caller();
             let swap_fee = self.swap_fee;
 
-            // TODO : check if tokens are supported by the pool
+            // check if tokens are supported by the pool
+            if !self.tokens.contains(&token_in) {
+                return Err(DexError::UnsupportedToken(token_in));
+            }
+
+            if !self.tokens.contains(&token_out) {
+                return Err(DexError::UnsupportedToken(token_out));
+            }
 
             // check allowance
             if self.allowance(token_in, caller, this)? < amount_token_in {
@@ -136,7 +145,10 @@ mod simple_dex {
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
 
-            // TODO : check if we have enough liquidity in the pool
+            if balance_token_out < min_amount_token_out {
+                // throw early if we cannot support this swap anyway due to liquidity being too low
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
 
             let amount_token_out = Self::out_given_in(
                 amount_token_in,
@@ -145,7 +157,14 @@ mod simple_dex {
                 swap_fee,
             )?;
 
+            if balance_token_out < amount_token_out {
+                // liquidity too low
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
+
             if amount_token_out < min_amount_token_out {
+                // thrown if too much slippage occured before this tx gets executed
+                // as a sandwitch atack prevention
                 return Err(DexError::TooMuchSlippage);
             }
 
@@ -191,6 +210,10 @@ mod simple_dex {
             deposits
                 .into_iter()
                 .try_for_each(|(token_in, amount)| -> Result<(), DexError> {
+                    if !self.tokens.contains(&token_in) {
+                        return Err(DexError::UnsupportedToken(token_in));
+                    }
+
                     // transfer token_in from the caller to the contract
                     // will revert if the contract does not have enough allowance from the caller
                     // in which case the whole tx is reverted
@@ -220,6 +243,10 @@ mod simple_dex {
 
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
+                    if !self.tokens.contains(&token_out) {
+                        return Err(DexError::UnsupportedToken(token_out));
+                    }
+
                     // transfer token_out from the contract to the caller
                     self.transfer_tx(token_out, caller, amount)??;
                     Ok(())
@@ -317,8 +344,10 @@ mod simple_dex {
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
 
-        fn new_init(&mut self) {
+        fn new_init(&mut self, tokens: [AccountId; 4]) {
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            self.tokens = tokens;
+            self.swap_fee = 0;
         }
 
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
