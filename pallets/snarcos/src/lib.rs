@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod relation;
-
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
 
@@ -103,7 +101,7 @@ pub mod pallet {
             _origin: OriginFor<T>,
             verification_key_identifier: VerificationKeyIdentifier,
             proof: Vec<u8>,
-            public_input: (),
+            _public_input: (),
         ) -> DispatchResult {
             let proof = Proof::<T::Field>::deserialize(&*proof)
                 .map_err(|_| Error::<T>::DeserializingProofFailed)?;
