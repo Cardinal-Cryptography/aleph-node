@@ -1,7 +1,7 @@
 use primitives::SessionIndex;
 use sp_std::vec::Vec;
 
-use crate::{Config, Event, Pallet, AlephBFTVersion, AlephBFTScheduledVersionChange};
+use crate::{AlephBFTScheduledVersionChange, AlephBFTVersion, Config, Event, Pallet};
 
 impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 where
