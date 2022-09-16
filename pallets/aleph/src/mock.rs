@@ -32,7 +32,6 @@ construct_runtime!(
         Aleph: pallet_aleph::{Pallet, Storage, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Elections: pallet_elections::{Pallet, Event<T>},
     }
 );
 
@@ -106,7 +105,7 @@ impl pallet_session::Config for Test {
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-    type SessionManager = ();
+    type SessionManager = Aleph;
     type SessionHandler = <TestSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = TestSessionKeys;
     type WeightInfo = ();
@@ -131,21 +130,11 @@ impl pallet_timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-impl pallet_elections::Config for Test {
-    type EraInfoProvider = ();
-    type Event = Event;
-    type DataProvider = ();
-    type SessionInfoProvider = Session;
-    type SessionPeriod = ();
-    type SessionManager = ();
-    type ValidatorRewardsHandler = ();
-}
-
 impl Config for Test {
     type AuthorityId = AuthorityId;
     type Event = Event;
     type SessionInfoProvider = Session;
-    type SessionManager = Elections;
+    type SessionManager = Aleph;
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {
