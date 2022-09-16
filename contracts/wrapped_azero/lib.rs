@@ -166,7 +166,7 @@ pub mod wrapped_azero {
         }
 
         /// Unwraps a specified amount
-        #[ink(message, payable)]
+        #[ink(message)]
         pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
             let caller = self.env().caller();
 
