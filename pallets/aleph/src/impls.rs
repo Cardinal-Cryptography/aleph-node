@@ -33,12 +33,7 @@ where
     // Does not reset the scheduled version.
     fn update_version_change_history() {
         let current_session = Self::current_session();
-        // TODO: delete this event
-        Self::deposit_event(Event::UpdateAlephBFTVersionHistory(VersionChange {
-            version_incoming: 100,
-            session: 100,
-        }));
-
+        
         if let Some(previously_scheduled_version_change) =
             <AlephBFTScheduledVersionChange<T>>::get()
         {
