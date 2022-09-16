@@ -33,7 +33,7 @@ where
     // Does not reset the scheduled version.
     fn update_version_change_history() {
         let current_session = Self::current_session();
-        
+
         if let Some(previously_scheduled_version_change) =
             <AlephBFTScheduledVersionChange<T>>::get()
         {
