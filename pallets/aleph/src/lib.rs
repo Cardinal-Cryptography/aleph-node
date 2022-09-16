@@ -10,9 +10,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-mod traits;
-
+mod impls;
 mod migrations;
+mod traits;
 
 use frame_support::{
     log,
@@ -165,9 +165,8 @@ pub mod pallet {
 
             // If a scheduled future version change is rescheduled to a different session,
             // it should be possible to reschedule it to the same version.
-            // If a scheduled version change has moved into the past,
-            // `pallet_session::SessionManager` records it in history and a new future version
-            // change needs to set a different version.
+            // If a scheduled version change has moved into the past, `SessionManager` records it
+            // in history and a new future version change needs to set a different version.
             if let Some(previously_scheduled_version_change) =
                 <AlephBFTScheduledVersionChange<T>>::get()
             {
