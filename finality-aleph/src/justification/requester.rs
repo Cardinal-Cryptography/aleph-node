@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
@@ -16,6 +16,64 @@ use crate::{
     network, Metrics,
 };
 
+/// This structure is created for keeping and reporting status of BlockRequester
+pub struct LastRequest<B: BlockT> {
+    block_number: Option<NumberFor<B>>,
+    block_hash: Option<B::Hash>,
+    tries: u64,
+}
+
+impl<B: BlockT> LastRequest<B> {
+    fn new() -> Self {
+        Self {
+            block_number: None,
+            block_hash: None,
+            tries: 0,
+        }
+    }
+
+    fn save_block_number(&mut self, num: NumberFor<B>) {
+        if Some(num) == self.block_number {
+            self.tries += 1;
+        } else {
+            self.block_number = Some(num);
+            self.block_hash = None;
+            self.tries = 1;
+        }
+    }
+
+    fn insert_hash(&mut self, hash: B::Hash) {
+        self.block_hash = Some(hash);
+    }
+
+    fn try_reset(&mut self, number: NumberFor<B>) {
+        if let Some(n) = self.block_number {
+            if number >= n {
+                self.block_number = None;
+                self.block_hash = None;
+                self.tries = 0;
+            }
+        }
+    }
+}
+
+impl<B: BlockT> fmt::Display for LastRequest<B> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(n) = self.block_number {
+            let mut status = format!("tries - {}; requested block number - {}; ", self.tries, n);
+            if let Some(header) = self.block_hash {
+                status.push_str(&format!("hash - {}; ", header));
+            } else {
+                status.push_str("hash - unknown; ");
+            }
+
+            write!(f, "{}", status)
+        } else {
+            write!(f, "tries - 0; ")
+        }
+    }
+}
+
 pub struct BlockRequester<B, RB, C, S, F, V>
 where
     B: BlockT,
@@ -31,6 +89,7 @@ where
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     min_allowed_delay: NumberFor<B>,
+    last_request: LastRequest<B>,
     _phantom: PhantomData<V>,
 }
 
@@ -58,6 +117,7 @@ where
             justification_request_scheduler,
             metrics,
             min_allowed_delay,
+            last_request: LastRequest::new(),
             _phantom: PhantomData,
         }
     }
@@ -93,6 +153,7 @@ where
         );
         match finalization_res {
             Ok(()) => {
+                self.last_request.try_reset(number);
                 self.justification_request_scheduler.on_block_finalized();
                 debug!(target: "aleph-justification", "Successfully finalized {:?}", number);
                 if let Some(metrics) = &self.metrics {
@@ -103,6 +164,10 @@ where
                 error!(target: "aleph-justification", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);
             }
         }
+    }
+
+    pub fn status_report(&self) {
+        info!(target: "aleph-justification", "Justification requester status report: {}", self.last_request);
     }
 
     pub fn request_justification(&mut self, num: NumberFor<B>) {
@@ -117,8 +182,10 @@ where
                 };
 
                 debug!(target: "aleph-justification", "Trying to request block {:?}", num);
+                self.last_request.save_block_number(num);
 
                 if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
+                    self.last_request.insert_hash(header.hash());
                     debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
                     self.justification_request_scheduler.on_request_sent();
                     self.block_requester
@@ -128,7 +195,7 @@ where
                 }
             }
             SchedulerActions::ClearQueue => {
-                info!(target: "aleph-justification", "Clearing justification request queue");
+                debug!(target: "aleph-justification", "Clearing justification request queue");
                 self.block_requester.clear_justification_requests();
             }
             SchedulerActions::Wait => (),
