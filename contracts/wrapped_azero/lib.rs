@@ -168,18 +168,20 @@ pub mod wrapped_azero {
         /// Unwraps a specified amount
         #[ink(message)]
         pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
+            if amount.eq(&Balance::zero()) {
+                return Ok(());
+            }
+
             let caller = self.env().caller();
 
-            if !amount.eq(&Balance::zero()) {
-                // burn the token form the caller, will fail if the calling account doesn't have enough balance
-                self._burn_from(caller, amount)?;
+            // burn the token form the caller, will fail if the calling account doesn't have enough balance
+            self._burn_from(caller, amount)?;
 
-                // return the native token to the caller
-                self.env().transfer(caller, amount).map_err(|why| {
-                    PSP22Error::Custom(format!("Native transfer failed: {:?}", why))
-                })?;
-                Self::emit_event(self.env(), Event::UnWrapped(UnWrapped { caller, amount }));
-            }
+            // return the native token to the caller
+            self.env()
+                .transfer(caller, amount)
+                .map_err(|why| PSP22Error::Custom(format!("Native transfer failed: {:?}", why)))?;
+            Self::emit_event(self.env(), Event::UnWrapped(UnWrapped { caller, amount }));
 
             Ok(())
         }
