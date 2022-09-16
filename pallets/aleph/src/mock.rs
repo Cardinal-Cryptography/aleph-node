@@ -32,6 +32,7 @@ construct_runtime!(
         Aleph: pallet_aleph::{Pallet, Storage, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Elections: pallet_elections::{Pallet, Event<T>},
     }
 );
 
@@ -130,10 +131,21 @@ impl pallet_timestamp::Config for Test {
     type WeightInfo = ();
 }
 
+impl pallet_elections::Config for Test {
+    type EraInfoProvider = ();
+    type Event = Event;
+    type DataProvider = ();
+    type SessionInfoProvider = Session;
+    type SessionPeriod = ();
+    type SessionManager = ();
+    type ValidatorRewardsHandler = ();
+}
+
 impl Config for Test {
     type AuthorityId = AuthorityId;
     type Event = Event;
     type SessionInfoProvider = Session;
+    type SessionManager = Elections;
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {

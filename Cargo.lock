@@ -4627,6 +4627,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
+ "pallet-elections",
  "pallet-session",
  "pallet-timestamp",
  "pallets-support",

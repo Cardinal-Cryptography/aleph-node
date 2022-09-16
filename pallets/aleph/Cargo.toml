@@ -17,6 +17,7 @@ pallet-session = { default-features = false, git = "https://github.com/Cardinal-
 sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 
+pallet-elections = { path = "../elections", default-features = false }
 pallets-support = { path = "../support", default-features = false }
 primitives = { path = "../../primitives", default-features = false }
 
