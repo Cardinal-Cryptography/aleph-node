@@ -1,6 +1,6 @@
 [package]
 name = "access_control"
-version = "1.0.0"
+version = "0.2.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 publish = false
