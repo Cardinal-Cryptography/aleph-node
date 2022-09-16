@@ -74,13 +74,13 @@ mod simple_dex {
     pub struct SwapFeeSet {
         #[ink(topic)]
         caller: AccountId,
-        swap_fee: u128,
+        swap_fee_percentage: u128,
     }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct SimpleDex {
-        pub swap_fee: u128,
+        pub swap_fee_percentage: u128,
         pub access_control: AccountId,
         // pool tokens
         pub tokens: [AccountId; 4],
@@ -127,7 +127,6 @@ mod simple_dex {
         ) -> Result<(), DexError> {
             let this = self.env().account_id();
             let caller = self.env().caller();
-            let swap_fee = self.swap_fee;
 
             // check if tokens are supported by the pool
             if !self.tokens.contains(&token_in) {
@@ -155,7 +154,7 @@ mod simple_dex {
                 amount_token_in,
                 balance_token_in,
                 balance_token_out,
-                swap_fee,
+                self.swap_fee_percentage,
             )?;
 
             if balance_token_out < amount_token_out {
@@ -261,8 +260,11 @@ mod simple_dex {
         ///
         /// Can only be called by the contract's Admin.
         #[ink(message)]
-        pub fn set_swap_fee(&mut self, swap_fee: u128) -> Result<(), DexError> {
-            if swap_fee.gt(&100) || swap_fee.lt(&0) {
+        pub fn set_swap_fee_percentage(
+            &mut self,
+            swap_fee_percentage: u128,
+        ) -> Result<(), DexError> {
+            if swap_fee_percentage.gt(&100) {
                 return Err(DexError::WrongParameterValue);
             }
 
@@ -280,17 +282,20 @@ mod simple_dex {
             // emit event
             Self::emit_event(
                 self.env(),
-                Event::SwapFeeSet(SwapFeeSet { caller, swap_fee }),
+                Event::SwapFeeSet(SwapFeeSet {
+                    caller,
+                    swap_fee_percentage,
+                }),
             );
 
-            self.swap_fee = swap_fee;
+            self.swap_fee_percentage = swap_fee_percentage;
             Ok(())
         }
 
-        /// Returns current value of the swap_fee parameter
+        /// Returns current value of the swap_fee_percentage parameter
         #[ink(message)]
-        pub fn swap_fee(&mut self) -> Balance {
-            self.swap_fee
+        pub fn swap_fee_percentage(&mut self) -> Balance {
+            self.swap_fee_percentage
         }
 
         /// Sets access_control to a new contract address
@@ -352,7 +357,7 @@ mod simple_dex {
         fn new_init(&mut self, tokens: [AccountId; 4]) {
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.tokens = tokens;
-            self.swap_fee = 0;
+            self.swap_fee_percentage = 0;
         }
 
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
@@ -427,30 +432,36 @@ mod simple_dex {
                 .fire()
         }
 
+        /// Swap trade output given a curve with equal token weights
+        ///
+        /// swap_fee_percentage (integer) is a percentage of the trade that goes towards the pool
+        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) -A_i * fee)
         fn out_given_in(
             amount_token_in: Balance,
             balance_token_in: Balance,
             balance_token_out: Balance,
-            swap_fee: u128,
+            swap_fee_percentage: u128,
         ) -> Result<Balance, DexError> {
             let op0 = amount_token_in
-                .checked_mul(swap_fee)
-                .and_then(|result| result.checked_div(100))
+                .checked_mul(swap_fee_percentage)
                 .ok_or(DexError::Arithmethic)?;
 
             let op1 = balance_token_in
                 .checked_add(amount_token_in)
-                .and_then(|result| result.checked_sub(op0))
+                .and_then(|result| result.checked_mul(100))
                 .ok_or(DexError::Arithmethic)?;
 
-            let op2 = balance_token_out
-                .checked_mul(balance_token_in)
+            let op2 = op1.checked_sub(op0).ok_or(DexError::Arithmethic)?;
+
+            let op3 = balance_token_in
+                .checked_mul(balance_token_out)
+                .and_then(|result| result.checked_mul(100))
                 .ok_or(DexError::Arithmethic)?;
 
-            let op3 = op2.checked_div(op1).ok_or(DexError::Arithmethic)?;
+            let op4 = op3.checked_div(op2).ok_or(DexError::Arithmethic)?;
 
             balance_token_out
-                .checked_sub(op3)
+                .checked_sub(op4)
                 .ok_or(DexError::Arithmethic)
         }
 
