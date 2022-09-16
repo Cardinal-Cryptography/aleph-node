@@ -314,6 +314,7 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type Event = Event;
     type SessionInfoProvider = Session;
+    type SessionManager = Elections;
 }
 
 impl_opaque_keys! {

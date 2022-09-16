@@ -1,6 +1,6 @@
 use crate::{Config, Pallet};
 
-impl<T> pallet_session::Session_Manager<T::AccountId> for Pallet<T>
+impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 where
     T: Config,
 {
