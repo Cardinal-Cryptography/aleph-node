@@ -1,4 +1,4 @@
-use primitives::{SessionIndex, VersionChange};
+use primitives::SessionIndex;
 use sp_std::vec::Vec;
 
 use crate::{AlephBFTScheduledVersionChange, AlephBFTVersion, Config, Event, Pallet};
