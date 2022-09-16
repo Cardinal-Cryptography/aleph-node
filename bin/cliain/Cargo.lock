@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "1.5.0"
+version = "1.5.3"
 dependencies = [
  "ac-primitives",
  "anyhow",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "cliain"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "aleph_client",
  "anyhow",
@@ -428,6 +428,7 @@ dependencies = [
  "contract-transcode",
  "dialoguer",
  "env_logger 0.8.4",
+ "hex",
  "ink_metadata",
  "log",
  "pallet-staking",
@@ -2000,12 +2001,13 @@ checksum = "648001efe5d5c0102d8cea768e348da85d90af8ba91f0bea908f157951493cd4"
 
 [[package]]
 name = "pallet-aleph"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
  "pallet-session",
+ "pallets-support",
  "parity-scale-codec",
  "primitives",
  "scale-info",

@@ -10,7 +10,7 @@ concurrency:
 jobs:
   deploy-mainnet:
     name: Deploy new aleph-node image to Mainnet EKS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     environment: 'mainnet'
     env:
       AWS_REGION: us-east-1 # this region is used by all public ECR repos
@@ -51,6 +51,26 @@ jobs:
             echo "::error title=Wrong docker image tag::Docker image ${{ env.IMAGE }} doesn't exist"
             exit 1
           fi
+
+      - name: Login to Docker Hub
+        id: login-docker-hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Tag and push image of Mainnet to DockerHub
+        env:
+          MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          DOCKERHUB_MAINNET_IMAGE: cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
+          DOCKERHUB_MAINNET_LATEST_IMAGE: cardinalcryptography/aleph-zero:mainnet-latest
+        run: |
+          echo "FROM ${{ env.MAINNET_IMAGE }}" > Dockerfile.dockerhub
+          echo 'ENTRYPOINT ["/usr/local/bin/aleph-node"]' >> Dockerfile.dockerhub
+          docker build -t ${{ env.DOCKERHUB_MAINNET_IMAGE }} -f Dockerfile.dockerhub .
+          docker tag ${{ env.DOCKERHUB_MAINNET_IMAGE }} ${{ env.DOCKERHUB_MAINNET_LATEST_IMAGE }}
+          docker push ${{ env.DOCKERHUB_MAINNET_IMAGE }}
+          docker push ${{ env.DOCKERHUB_MAINNET_LATEST_IMAGE }}
 
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
@@ -96,7 +116,7 @@ jobs:
 
   slack:
     name: Slack notification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [deploy-mainnet]
     if: always()
     steps:

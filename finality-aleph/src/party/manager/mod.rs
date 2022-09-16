@@ -14,10 +14,10 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, Keychain},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     default_aleph_config, mpsc,
-    network::{split, ManagerError, RequestBlocks, SessionManager},
+    network::{split, ComponentNetworkMap, ManagerError, RequestBlocks, SessionManager},
     party::{backup::ABFTBackup, traits::NodeSessionManager},
     AuthorityId, JustificationNotification, Metrics, NodeIndex, SessionBoundaries, SessionId,
-    SessionPeriod, SplitData, UnitCreationDelay,
+    SessionPeriod, UnitCreationDelay, VersionedNetworkData,
 };
 
 mod aggregator;
@@ -46,7 +46,7 @@ where
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     spawn_handle: crate::SpawnHandle,
-    session_manager: SessionManager<SplitData<B>>,
+    session_manager: SessionManager<VersionedNetworkData<B>>,
     keystore: Arc<dyn CryptoStore>,
     _phantom: PhantomData<BE>,
 }
@@ -69,7 +69,7 @@ where
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
         spawn_handle: crate::SpawnHandle,
-        session_manager: SessionManager<SplitData<B>>,
+        session_manager: SessionManager<VersionedNetworkData<B>>,
         keystore: Arc<dyn CryptoStore>,
     ) -> Self {
         Self {
@@ -144,7 +144,10 @@ where
             .await
             .expect("Failed to start validator session!");
 
-        let (unfiltered_aleph_network, rmc_network) = split(data_network);
+        let data_network = data_network.map();
+
+        let (unfiltered_aleph_network, rmc_network) =
+            split(data_network, "aleph_network", "rmc_network");
         let (data_store, aleph_network) = DataStore::new(
             session_boundaries.clone(),
             self.client.clone(),
@@ -212,7 +215,7 @@ where
         AuthorityTask::new(
             self.spawn_handle
                 .spawn_essential("aleph/session_authority", async move {
-                    if subtasks.failed().await {
+                    if subtasks.wait_completion().await.is_err() {
                         warn!(target: "aleph-party", "Authority subtasks failed.");
                     }
                 }),
