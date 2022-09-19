@@ -157,11 +157,6 @@ mod simple_dex {
                 self.swap_fee_percentage,
             )?;
 
-            if balance_token_out < amount_token_out {
-                // liquidity too low
-                return Err(DexError::NotEnoughLiquidityOf(token_out));
-            }
-
             if amount_token_out < min_amount_token_out {
                 // thrown if too much slippage occured before this tx gets executed
                 // as a sandwitch atack prevention
