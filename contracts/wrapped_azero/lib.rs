@@ -122,7 +122,7 @@ pub mod wrapped_azero {
         /// Creates a new token
         ///
         /// The token will have its name and symbol set in metadata to the specified values.
-        /// Decimals are fixed at 18.
+        /// Decimals are fixed at 12.
         ///
         /// Will revert if called from an account without a proper role
         #[ink(constructor)]
