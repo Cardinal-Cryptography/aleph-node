@@ -192,20 +192,14 @@ mod simple_dex {
         ///
         /// Can only be performed by an account with a LiquidityProvider role
         /// Caller needs to give at least the passed amount of allowance to the contract to spend the deposited tokens on his behalf
-        // Will revert if not enough allowance was given to the contract by the caller prior to executing this tx
+        /// prior to executing this tx
         #[ink(message)]
         pub fn deposit(&mut self, deposits: Vec<(AccountId, Balance)>) -> Result<(), DexError> {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
             // check role, only designated account can add liquidity
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                caller,
-                Role::LiquidityProvider(this),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )?;
+            self.check_role(caller, Role::LiquidityProvider(this))?;
 
             deposits
                 .into_iter()
@@ -232,14 +226,8 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            // check role, only designated account can add liquidity
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                caller,
-                Role::LiquidityProvider(this),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )?;
+            // check role, only designated account can remove liquidity
+            self.check_role(caller, Role::LiquidityProvider(this))?;
 
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
@@ -271,13 +259,7 @@ mod simple_dex {
             let caller = self.env().caller();
             let this = self.env().account_id();
 
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                caller,
-                Role::Admin(this),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )?;
+            self.check_role(caller, Role::Admin(this))?;
 
             // emit event
             Self::emit_event(
@@ -309,13 +291,7 @@ mod simple_dex {
             let caller = self.env().caller();
             let this = self.env().account_id();
 
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                caller,
-                Role::Owner(this),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )?;
+            self.check_role(caller, Role::Owner(this))?;
 
             self.access_control = access_control;
             Ok(())
@@ -334,15 +310,7 @@ mod simple_dex {
         pub fn terminate(&mut self) -> Result<(), DexError> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                caller,
-                Role::Owner(this),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )?;
-
+            self.check_role(caller, Role::Owner(this))?;
             self.env().terminate_contract(caller)
         }
 
@@ -471,6 +439,19 @@ mod simple_dex {
 
         fn cross_contract_call_error_handler(why: InkEnvError) -> DexError {
             DexError::CrossContractCall(format!("Calling access control has failed: {:?}", why))
+        }
+
+        fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError>
+        where
+            Self: AccessControlled,
+        {
+            <Self as AccessControlled>::check_role(
+                self.access_control,
+                account,
+                role,
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
+            )
         }
 
         fn emit_event<EE>(emitter: EE, event: Event)
