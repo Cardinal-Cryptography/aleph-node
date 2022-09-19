@@ -263,6 +263,7 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
    --arg ticket_token_code_hash "$TICKET_TOKEN_CODE_HASH" \
    --arg game_token_code_hash "$GAME_TOKEN_CODE_HASH" \
    --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
+   --arg access_control "$ACCESS_CONTROL" \
    --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
    '{early_bird_special: $early_bird_special,
      early_bird_special_marketplace: $early_bird_special_marketplace,
@@ -276,6 +277,7 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
      the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
      the_pressiah_cometh_token: $the_pressiah_cometh_token,
      the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
+     access_control: $access_control,
      button_code_hash: $button_code_hash,
      ticket_token_code_hash: $ticket_token_code_hash,
      game_token_code_hash: $game_token_code_hash,
