@@ -52,7 +52,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleAlephBFTVersionChange(VersionChange),
-        UpdateAlephBFTVersionHistory(VersionChange),
+        ReachedScheduledAlephBFTVersionChange(VersionChange),
     }
 
     #[pallet::pallet]

@@ -29,25 +29,30 @@ impl<T> Pallet<T>
 where
     T: Config,
 {
-    // Check if a schedule version change has moved into the past. If so, update history.
-    // Does not reset the scheduled version.
+    // Check if a schedule version change has moved into the past. Update history, even if there is
+    // no change. Does not reset the scheduled version.
     fn update_version_change_history() {
         let current_session = Self::current_session();
 
-        if let Some(previously_scheduled_version_change) =
-            <AlephBFTScheduledVersionChange<T>>::get()
-        {
-            let previously_scheduled_session = previously_scheduled_version_change.session;
-            let previously_scheduled_version = previously_scheduled_version_change.version_incoming;
+        // Carry over version from previous session.
+        if current_session != 0 {
+            if let Ok(version_for_previous_session) =
+                <AlephBFTVersion<T>>::try_get(current_session - 1)
+            {
+                <AlephBFTVersion<T>>::set(current_session, version_for_previous_session);
+            }
+        }
 
-            if previously_scheduled_session <= current_session {
-                // Record the previously scheduled version in version change history.
-                <AlephBFTVersion<T>>::set(
-                    previously_scheduled_session,
-                    previously_scheduled_version,
-                );
-                Self::deposit_event(Event::UpdateAlephBFTVersionHistory(
-                    previously_scheduled_version_change,
+        if let Some(scheduled_version_change) = <AlephBFTScheduledVersionChange<T>>::get() {
+            let scheduled_session = scheduled_version_change.session;
+            let scheduled_version = scheduled_version_change.version_incoming;
+
+            // Record the scheduled version in version change history as it moves into the past.
+            if scheduled_session == current_session {
+                <AlephBFTVersion<T>>::set(current_session, scheduled_version);
+
+                Self::deposit_event(Event::ReachedScheduledAlephBFTVersionChange(
+                    scheduled_version_change,
                 ));
             }
         }
