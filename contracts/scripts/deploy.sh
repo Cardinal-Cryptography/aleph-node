@@ -164,13 +164,11 @@ function link_bytecode() {
   sed -i 's/'"$placeholder"'/'"$replacement"'/' "target/ink/$contract.contract"
 }
 
-
 # --- GLOBAL CONSTANTS
 
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
 
 CONTRACTS_PATH=$(pwd)/contracts
-
 
 # --- COMPILE CONTRACTS
 
@@ -194,8 +192,10 @@ cargo contract build --release
 
 cd "$CONTRACTS_PATH"/access_control
 
-CONTRACT=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
-ACCESS_CONTROL=$(echo "$CONTRACT" | grep Contract | tail -1 | cut -c 15-)
+ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
+ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | grep Contract | tail -1 | cut -c 15-)
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
 echo "access control contract address: $ACCESS_CONTROL"
@@ -259,6 +259,11 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
    --arg the_pressiah_cometh_ticket "$THE_PRESSIAH_COMETH_TICKET" \
    --arg the_pressiah_cometh_token "$THE_PRESSIAH_COMETH_TOKEN" \
    --arg the_pressiah_cometh_marketplace "$THE_PRESSIAH_COMETH_MARKETPLACE" \
+   --arg button_code_hash "$BUTTON_CODE_HASH" \
+   --arg ticket_token_code_hash "$TICKET_TOKEN_CODE_HASH" \
+   --arg game_token_code_hash "$GAME_TOKEN_CODE_HASH" \
+   --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
+   --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
    '{early_bird_special: $early_bird_special,
      early_bird_special_marketplace: $early_bird_special_marketplace,
      early_bird_special_ticket: $early_bird_special_ticket,
@@ -270,7 +275,12 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
      the_pressiah_cometh: $the_pressiah_cometh,
      the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
      the_pressiah_cometh_token: $the_pressiah_cometh_token,
-     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace}' > addresses.json
+     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
+     button_code_hash: $button_code_hash,
+     ticket_token_code_hash: $ticket_token_code_hash,
+     game_token_code_hash: $game_token_code_hash,
+     marketplace_code_hash: $marketplace_code_hash,
+     access_control_code_hash: $access_control_code_hash}' > addresses.json
 
 
 end=`date +%s.%N`
