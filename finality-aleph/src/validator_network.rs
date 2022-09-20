@@ -37,7 +37,7 @@ pub struct MockNetwork(AuthorityId);
 
 impl MockNetwork {
     #[allow(dead_code)]
-    pub async fn new(&mut self) -> MockNetwork {
+    pub async fn new() -> MockNetwork {
         let key_type: KeyTypeId = KeyTypeId(*b"alp0");
         let key_store = KeyStore::new();
         let pk = key_store
