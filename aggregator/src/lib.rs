@@ -1,7 +1,5 @@
-use std::{
-    fmt::Debug,
-    hash::Hash
-};
+use std::{fmt::Debug, hash::Hash};
+
 use aleph_bft::Recipient;
 use aleph_bft_rmc::Message;
 
