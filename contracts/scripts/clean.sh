@@ -9,7 +9,7 @@ function terminate_contract {
   local contract_dir=$2
   local contract_address=$(get_address $contract_name)
 
-  cd "$CONTRACTS_PATH"/$contract_dir
+  cd "$CONTRACTS_PATH"/"$contract_dir"
   cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED"
 }
 
@@ -20,7 +20,6 @@ function get_address {
 
 function remove_contract_code {
   local code_hash=$(cat "$CONTRACTS_PATH"/addresses.json | jq --raw-output ".$1")
-  
   docker run --network host -e RUST_LOG=info "${CLIAIN_IMAGE}" --seed "$AUTHORITY_SEED" --node "$NODE" contract-remove-code --code-hash $code_hash
 }
 
@@ -32,14 +31,14 @@ CLIAIN_IMAGE=public.ecr.aws/p6e8q1z1/cliain:latest
 # --- CLEAN BUTTON CONTRACT
 
 terminate_contract early_bird_special button
-terminate_contract early_bird_special_marketplace marketplace 
+terminate_contract early_bird_special_marketplace marketplace
 terminate_contract early_bird_special_ticket ticket_token
 terminate_contract early_bird_special_token game_token
 
 echo "succesfully terminated early_bird_special"
 
 terminate_contract back_to_the_future button
-terminate_contract back_to_the_future_ticket ticket_token 
+terminate_contract back_to_the_future_ticket ticket_token
 terminate_contract back_to_the_future_token game_token
 terminate_contract back_to_the_future_marketplace marketplace
 
