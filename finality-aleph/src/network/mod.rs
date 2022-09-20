@@ -15,7 +15,6 @@ pub mod mock;
 mod service;
 mod session;
 mod split;
-mod validator_network;
 
 pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
 pub use component::{

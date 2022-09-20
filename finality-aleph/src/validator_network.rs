@@ -9,9 +9,9 @@ use aleph_primitives::AuthorityId;
 /// implementation fails to deliver a message, it may assume that the send method will be called
 /// again.
 #[async_trait::async_trait]
-pub trait Network<D>: Send {
+pub trait Network<A, D>: Send {
     /// Add the peer to the set of connected peers.
-    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<String>);
+    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>);
 
     /// Remove the peer from the set of connected peers and close the connection.
     fn del_connection(&mut self, peer: AuthorityId);
@@ -29,7 +29,7 @@ pub struct MockNetwork;
 pub struct MockData;
 
 #[async_trait::async_trait]
-impl Network<MockData> for MockNetwork {
+impl Network<String, MockData> for MockNetwork {
     fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<String>) {}
 
     fn del_connection(&mut self, peer: AuthorityId) {}
