@@ -1,4 +1,3 @@
-use codec::{Encode, Decode};
 use aleph_primitives::AuthorityId;
 
 /// Network represents an interface for opening and closing connections with other Validators,
@@ -25,18 +24,14 @@ pub trait Network<A, D>: Send {
 }
 
 pub struct MockNetwork;
-#[derive(Encode, Decode)]
-pub struct MockData;
 
 #[async_trait::async_trait]
-impl Network<String, MockData> for MockNetwork {
-    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<String>) {}
+impl Network<(), ()> for MockNetwork {
+    fn add_connection(&mut self, _peer: AuthorityId, _addresses: Vec<()>) {}
 
-    fn del_connection(&mut self, peer: AuthorityId) {}
+    fn del_connection(&mut self, _peer: AuthorityId) {}
 
-    fn send(&self, data: MockData, recipient: AuthorityId) {}
+    fn send(&self, _data: (), _recipient: AuthorityId) {}
 
-    async fn next(&mut self) -> MockData {
-        MockData
-    }
+    async fn next(&mut self) {}
 }
