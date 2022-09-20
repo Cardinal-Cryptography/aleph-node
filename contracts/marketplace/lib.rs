@@ -235,6 +235,17 @@ pub mod marketplace {
             Ok(())
         }
 
+        /// Terminates the contract
+        ///
+        /// Should only be called by the contract Owner
+        #[ink(message)]
+        pub fn terminate(&mut self) -> Result<(), Error> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            Self::ensure_role(Role::Owner(this))?;
+            self.env().terminate_contract(caller)
+        }
+
         fn current_price(&self) -> Balance {
             let block = self.env().block_number();
             let elapsed = block.saturating_sub(self.current_start_block.into());
