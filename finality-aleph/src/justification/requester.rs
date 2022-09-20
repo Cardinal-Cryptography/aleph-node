@@ -16,19 +16,24 @@ use crate::{
     network, Metrics,
 };
 
+/// Threshold for how many tries are needed so that JustificationRequestStatus is logged
+const REPORT_THRESHOLD: u32 = 2;
+
 /// This structure is created for keeping and reporting status of BlockRequester
-pub struct LastRequest<B: BlockT> {
+pub struct JustificationRequestStatus<B: BlockT> {
     block_number: Option<NumberFor<B>>,
     block_hash: Option<B::Hash>,
-    tries: u64,
+    tries: u32,
+    report_threshold: u32,
 }
 
-impl<B: BlockT> LastRequest<B> {
+impl<B: BlockT> JustificationRequestStatus<B> {
     fn new() -> Self {
         Self {
             block_number: None,
             block_hash: None,
             tries: 0,
+            report_threshold: REPORT_THRESHOLD,
         }
     }
 
@@ -46,18 +51,12 @@ impl<B: BlockT> LastRequest<B> {
         self.block_hash = Some(hash);
     }
 
-    fn try_reset(&mut self, number: NumberFor<B>) {
-        if let Some(n) = self.block_number {
-            if number >= n {
-                self.block_number = None;
-                self.block_hash = None;
-                self.tries = 0;
-            }
-        }
+    fn should_report(&self) -> bool {
+        self.tries >= self.report_threshold
     }
 }
 
-impl<B: BlockT> fmt::Display for LastRequest<B> {
+impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(n) = self.block_number {
             let mut status = format!("tries - {}; requested block number - {}; ", self.tries, n);
@@ -67,10 +66,9 @@ impl<B: BlockT> fmt::Display for LastRequest<B> {
                 status.push_str("hash - unknown; ");
             }
 
-            write!(f, "{}", status)
-        } else {
-            write!(f, "tries - 0; ")
+            write!(f, "{}", status)?;
         }
+        Ok(())
     }
 }
 
@@ -89,7 +87,7 @@ where
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     min_allowed_delay: NumberFor<B>,
-    last_request: LastRequest<B>,
+    request_status: JustificationRequestStatus<B>,
     _phantom: PhantomData<V>,
 }
 
@@ -117,7 +115,7 @@ where
             justification_request_scheduler,
             metrics,
             min_allowed_delay,
-            last_request: LastRequest::new(),
+            request_status: JustificationRequestStatus::new(),
             _phantom: PhantomData,
         }
     }
@@ -153,7 +151,6 @@ where
         );
         match finalization_res {
             Ok(()) => {
-                self.last_request.try_reset(number);
                 self.justification_request_scheduler.on_block_finalized();
                 debug!(target: "aleph-justification", "Successfully finalized {:?}", number);
                 if let Some(metrics) = &self.metrics {
@@ -167,7 +164,9 @@ where
     }
 
     pub fn status_report(&self) {
-        info!(target: "aleph-justification", "Justification requester status report: {}", self.last_request);
+        if self.request_status.should_report() {
+            info!(target: "aleph-justification", "Justification requester status report: {}", self.request_status);
+        }
     }
 
     pub fn request_justification(&mut self, num: NumberFor<B>) {
@@ -182,10 +181,10 @@ where
                 };
 
                 debug!(target: "aleph-justification", "Trying to request block {:?}", num);
-                self.last_request.save_block_number(num);
+                self.request_status.save_block_number(num);
 
                 if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
-                    self.last_request.insert_hash(header.hash());
+                    self.request_status.insert_hash(header.hash());
                     debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
                     self.justification_request_scheduler.on_request_sent();
                     self.block_requester

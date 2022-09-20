@@ -54,7 +54,7 @@ pub use session::SessionPeriod;
 pub use crate::metrics::Metrics;
 
 /// Constant defining how often components of finality-aleph should report their state
-const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
+const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
 
 #[derive(Clone, Debug, Encode, Decode)]
 enum Error {
