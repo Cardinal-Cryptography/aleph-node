@@ -16,7 +16,7 @@ use substrate_api_client::{
 
 use crate::{
     account_from_keypair, create_connection, locks, send_xt, session::wait_for_predicate,
-    wait_for_session, AnyConnection, AnyConnectionExt, BlockNumber, KeyPair, RootConnection,
+    wait_for_session, AnyConnection, BlockNumber, KeyPair, ReadStorage, RootConnection,
     SignedConnection,
 };
 
@@ -102,18 +102,18 @@ pub fn force_new_era(connection: &RootConnection, status: XtStatus) {
     send_xt(connection, xt, Some("force_new_era"), status);
 }
 
-pub fn wait_for_full_era_completion<C: AnyConnection>(connection: &C) -> anyhow::Result<EraIndex> {
+pub fn wait_for_full_era_completion<C: ReadStorage>(connection: &C) -> anyhow::Result<EraIndex> {
     // staking works in such a way, that when we request a controller to be a validator in era N,
     // then the changes are applied in the era N+1 (so the new validator is receiving points in N+1),
     // so that we need N+1 to finish in order to claim the reward in era N+2 for the N+1 era
     wait_for_era_completion(connection, get_current_era(connection) + 2)
 }
 
-pub fn wait_for_next_era<C: AnyConnection>(connection: &C) -> anyhow::Result<EraIndex> {
+pub fn wait_for_next_era<C: ReadStorage>(connection: &C) -> anyhow::Result<EraIndex> {
     wait_for_era_completion(connection, get_current_era(connection) + 1)
 }
 
-pub fn wait_for_at_least_era<C: AnyConnectionExt>(
+pub fn wait_for_at_least_era<C: ReadStorage>(
     connection: &C,
     era: EraIndex,
 ) -> anyhow::Result<EraIndex> {
@@ -127,7 +127,7 @@ pub fn wait_for_at_least_era<C: AnyConnectionExt>(
     Ok(get_era(connection, None))
 }
 
-pub fn wait_for_era_completion<C: AnyConnection>(
+pub fn wait_for_era_completion<C: ReadStorage>(
     connection: &C,
     next_era_index: EraIndex,
 ) -> anyhow::Result<EraIndex> {
@@ -142,7 +142,7 @@ pub fn wait_for_era_completion<C: AnyConnection>(
     Ok(next_era_index)
 }
 
-pub fn get_sessions_per_era<C: AnyConnection>(connection: &C) -> u32 {
+pub fn get_sessions_per_era<C: ReadStorage>(connection: &C) -> u32 {
     connection.read_constant(PALLET, "SessionsPerEra")
 }
 
@@ -301,7 +301,7 @@ pub fn bonded<C: AnyConnection>(connection: &C, stash: &KeyPair) -> Option<Accou
 /// `T: pallet_staking::Config` (somehow breaking consistency with similar structures in other
 /// pallets) we have no easy way of retrieving ledgers from storage. Thus, we chose cloning
 /// (relevant part of) this struct instead of implementing `Config` trait.
-#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
+#[derive(Clone, Eq, PartialEq, Debug, Encode, Decode)]
 pub struct StakingLedger {
     pub stash: AccountId,
     #[codec(compact)]
@@ -440,7 +440,7 @@ pub fn chill_validator(connection: &SignedConnection) {
 }
 
 /// Chill all validators in `chilling`.
-pub fn chill_all_validators(node: &str, chilling: Vec<KeyPair>) {
+pub fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
     for validator in chilling.into_iter() {
         info!("Chilling validator {:?}", validator.public());
         let connection = SignedConnection::new(node, validator);
@@ -454,4 +454,8 @@ pub fn bond_extra_stake(connection: &SignedConnection, additional_stake: Balance
         .as_connection()
         .staking_bond_extra(additional_stake);
     send_xt(connection, xt, Some("bond_extra"), XtStatus::Finalized);
+}
+
+pub fn get_minimum_validator_count<C: AnyConnection>(connection: &C) -> u32 {
+    connection.read_storage_value(PALLET, "MinimumValidatorCount")
 }

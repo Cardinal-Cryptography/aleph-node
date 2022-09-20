@@ -2,8 +2,7 @@ use aleph_client::{
     account_from_keypair, balances_batch_transfer, keypair_from_string, rotate_keys, set_keys,
     staking_bond, staking_validate, AccountId, KeyPair, SignedConnection, XtStatus,
 };
-use pallet_elections::EraValidators;
-use primitives::{staking::MIN_VALIDATOR_BOND, TOKEN};
+use primitives::{staking::MIN_VALIDATOR_BOND, EraValidators, TOKEN};
 
 use crate::{accounts::get_validators_keys, Config};
 
@@ -44,8 +43,8 @@ impl Accounts {
 }
 
 /// Generate `Accounts` struct.
-pub fn setup_accounts() -> Accounts {
-    let seeds = (0..6).map(|idx| format!("//Validator//{}", idx));
+pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
+    let seeds = (0..desired_validator_count).map(|idx| format!("//Validator//{}", idx));
 
     let stash_seeds = seeds.clone().map(|seed| format!("{}//Stash", seed));
     let stash_keys = stash_seeds.map(|s| keypair_from_string(&s));
