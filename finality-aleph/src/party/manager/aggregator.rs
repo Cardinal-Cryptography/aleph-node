@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
+use aleph_aggregator::{BlockSignatureAggregator, SignableHash, IO as AggregatorIO};
 use aleph_bft::{Keychain as BftKeychain, SignatureSet};
 use aleph_bft_rmc::{DoublingDelayScheduler, ReliableMulticast};
 use futures::{
@@ -11,13 +12,13 @@ use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
-    aggregation::{BlockSignatureAggregator, RmcNetworkData, SignableHash, IO as AggregatorIO},
+    aggregation::NetworkWrapper,
     crypto::{Keychain, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
     network::DataNetwork,
     party::{AuthoritySubtaskCommon, Task},
-    BlockHashNum, Metrics, SessionBoundaries,
+    BlockHashNum, Metrics, RmcNetworkData, SessionBoundaries,
 };
 
 /// IO channels used by the aggregator task.
@@ -33,9 +34,10 @@ async fn process_new_block_data<B, N>(
     aggregator: &mut AggregatorIO<
         B::Hash,
         RmcNetworkData<B>,
-        N,
+        NetworkWrapper<RmcNetworkData<B>, N>,
         SignatureSet<Signature>,
         Rmc<'_, B>,
+        Metrics<B::Hash>,
     >,
     block: BlockHashNum<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
@@ -80,9 +82,10 @@ async fn run_aggregator<B, C, N>(
     mut aggregator: AggregatorIO<
         B::Hash,
         RmcNetworkData<B>,
-        N,
+        NetworkWrapper<RmcNetworkData<B>, N>,
         SignatureSet<Signature>,
         Rmc<'_, B>,
+        Metrics<<B::Header as Header>::Hash>,
     >,
     io: IO<B>,
     client: Arc<C>,
@@ -190,7 +193,7 @@ where
             let aggregator_io = AggregatorIO::new(
                 messages_for_rmc,
                 messages_from_rmc,
-                rmc_network,
+                NetworkWrapper(rmc_network, PhantomData),
                 rmc,
                 aggregator,
             );

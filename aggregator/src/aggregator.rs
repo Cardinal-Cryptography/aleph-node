@@ -9,9 +9,8 @@ use futures::{channel::mpsc, StreamExt};
 use log::{debug, trace, warn};
 
 use crate::{
-    aggregation::multicast::{Hash, Multicast, SignableHash},
-    metrics::{Checkpoint, Metrics},
-    network::DataNetwork,
+    multicast::{Hash, Multicast, SignableHash},
+    DataNetwork, Metrics,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,15 +27,15 @@ pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
-pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
+pub struct BlockSignatureAggregator<H: Hash + Copy, PMS, M: Metrics<H>> {
     signatures: HashMap<H, PMS>,
     hash_queue: VecDeque<H>,
     started_hashes: HashSet<H>,
-    metrics: Option<Metrics<H>>,
+    metrics: Option<M>,
 }
 
-impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
-    pub(crate) fn new(metrics: Option<Metrics<H>>) -> Self {
+impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
+    pub fn new(metrics: Option<M>) -> Self {
         BlockSignatureAggregator {
             signatures: HashMap::new(),
             hash_queue: VecDeque::new(),
@@ -49,8 +48,8 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
         if !self.started_hashes.insert(hash) {
             return Err(AggregatorError::DuplicateHash);
         }
-        if let Some(metrics) = &self.metrics {
-            metrics.report_block(hash, std::time::Instant::now(), Checkpoint::Aggregating);
+        if let Some(metrics) = &mut self.metrics {
+            metrics.report_aggregation_complete(hash);
         }
         self.hash_queue.push_back(hash);
 
@@ -83,12 +82,13 @@ pub struct IO<
     N: DataNetwork<D>,
     PMS,
     RMC: Multicast<H, PMS>,
+    M: Metrics<H>,
 > {
     messages_for_rmc: mpsc::UnboundedSender<D>,
     messages_from_rmc: mpsc::UnboundedReceiver<D>,
     network: N,
     multicast: RMC,
-    aggregator: BlockSignatureAggregator<H, PMS>,
+    aggregator: BlockSignatureAggregator<H, PMS, M>,
 }
 
 impl<
@@ -97,14 +97,15 @@ impl<
         N: DataNetwork<D>,
         PMS,
         RMC: Multicast<H, PMS>,
-    > IO<H, D, N, PMS, RMC>
+        M: Metrics<H>,
+    > IO<H, D, N, PMS, RMC, M>
 {
-    pub(crate) fn new(
+    pub fn new(
         messages_for_rmc: mpsc::UnboundedSender<D>,
         messages_from_rmc: mpsc::UnboundedReceiver<D>,
         network: N,
         multicast: RMC,
-        aggregator: BlockSignatureAggregator<H, PMS>,
+        aggregator: BlockSignatureAggregator<H, PMS, M>,
     ) -> Self {
         IO {
             messages_for_rmc,
@@ -115,7 +116,7 @@ impl<
         }
     }
 
-    pub(crate) async fn start_aggregation(&mut self, hash: H) {
+    pub async fn start_aggregation(&mut self, hash: H) {
         debug!(target: "aleph-aggregator", "Started aggregation for block hash {:?}", hash);
         if let Err(AggregatorError::DuplicateHash) = self.aggregator.on_start(hash) {
             debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, ignoring.", hash);
@@ -161,7 +162,7 @@ impl<
         }
     }
 
-    pub(crate) async fn next_multisigned_hash(&mut self) -> Option<(H, PMS)> {
+    pub async fn next_multisigned_hash(&mut self) -> Option<(H, PMS)> {
         loop {
             trace!(target: "aleph-aggregator", "Entering next_multisigned_hash loop.");
             match self.aggregator.try_pop_hash() {
@@ -187,21 +188,31 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use substrate_test_runtime::Hash as THash;
+    pub type THash = [u8; 32];
 
-    use crate::aggregation::aggregator::{AggregatorError, BlockSignatureAggregator};
+    use crate::{
+        aggregator::{AggregatorError, BlockSignatureAggregator},
+        Metrics,
+    };
 
     type TestMultisignature = usize;
     const TEST_SIGNATURE: TestMultisignature = 42;
 
-    fn build_aggregator() -> BlockSignatureAggregator<THash, TestMultisignature> {
+    struct MockMetrics;
+    impl Metrics<THash> for MockMetrics {
+        fn report_aggregation_complete(&mut self, _h: THash) {
+            todo!()
+        }
+    }
+
+    fn build_aggregator() -> BlockSignatureAggregator<THash, TestMultisignature, MockMetrics> {
         BlockSignatureAggregator::new(None)
     }
 
     fn build_hash(b0: u8) -> THash {
         let mut bytes = [0u8; 32];
         bytes[0] = b0;
-        THash::from(bytes)
+        bytes
     }
 
     #[test]
