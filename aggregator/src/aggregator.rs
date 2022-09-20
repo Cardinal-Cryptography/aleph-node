@@ -1,12 +1,13 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
+    time::Instant,
 };
 
 use aleph_bft::Recipient;
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 
 use crate::{
     multicast::{Hash, Multicast, SignableHash},
@@ -32,6 +33,7 @@ pub struct BlockSignatureAggregator<H: Hash + Copy, PMS, M: Metrics<H>> {
     hash_queue: VecDeque<H>,
     started_hashes: HashSet<H>,
     metrics: Option<M>,
+    last_change: Instant,
 }
 
 impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
@@ -40,6 +42,7 @@ impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
             signatures: HashMap::new(),
             hash_queue: VecDeque::new(),
             started_hashes: HashSet::new(),
+            last_change: Instant::now(),
             metrics,
         }
     }
@@ -50,6 +53,9 @@ impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
         }
         if let Some(metrics) = &mut self.metrics {
             metrics.report_aggregation_complete(hash);
+        }
+        if self.hash_queue.is_empty() {
+            self.last_change = Instant::now();
         }
         self.hash_queue.push_back(hash);
 
@@ -65,6 +71,7 @@ impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
         match self.hash_queue.pop_front() {
             Some(hash) => {
                 if let Some(multisignature) = self.signatures.remove(&hash) {
+                    self.last_change = Instant::now();
                     Ok((hash, multisignature))
                 } else {
                     self.hash_queue.push_front(hash);
@@ -73,6 +80,34 @@ impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
             }
             None => Err(AggregatorError::NoHashFound),
         }
+    }
+
+    pub fn status_report(&self) {
+        let mut status = String::from("Block Signature Aggregator status report: ");
+
+        status.push_str(&format!(
+            "started hashes - {:?}; ",
+            self.started_hashes.len()
+        ));
+
+        status.push_str(&format!(
+            "collected signatures - {:?}; ",
+            self.signatures.len()
+        ));
+
+        status.push_str(&format!("hashes in queue - {:?}; ", self.hash_queue.len()));
+
+        if let Some(hash) = self.hash_queue.front() {
+            status.push_str(&format!(
+                "front of hash queue - {} for - {:.2} s; ",
+                hash,
+                Instant::now()
+                    .saturating_duration_since(self.last_change)
+                    .as_secs_f64()
+            ));
+        }
+
+        info!(target: "aleph-aggregator", "{}", status);
     }
 }
 
@@ -114,6 +149,10 @@ impl<
             multicast,
             aggregator,
         }
+    }
+
+    pub fn status_report(&self) {
+        self.aggregator.status_report()
     }
 
     pub async fn start_aggregation(&mut self, hash: H) {

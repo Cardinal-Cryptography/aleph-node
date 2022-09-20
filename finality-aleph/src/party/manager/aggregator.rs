@@ -10,6 +10,7 @@ use futures::{
 use log::{debug, error, trace};
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
+use tokio::time;
 
 use crate::{
     aggregation::NetworkWrapper,
@@ -18,7 +19,7 @@ use crate::{
     metrics::Checkpoint,
     network::DataNetwork,
     party::{AuthoritySubtaskCommon, Task},
-    BlockHashNum, Metrics, RmcNetworkData, SessionBoundaries,
+    BlockHashNum, Metrics, RmcNetworkData, SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
 /// IO channels used by the aggregator task.
@@ -116,6 +117,9 @@ where
     pin_mut!(blocks_from_interpreter);
     let mut hash_of_last_block = None;
     let mut no_more_blocks = false;
+
+    let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
+
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
@@ -143,6 +147,9 @@ where
                     break;
                 }
             }
+            _ = status_ticker.tick() => {
+                aggregator.status_report();
+            },
             _ = &mut exit_rx => {
                 debug!(target: "aleph-party", "Aggregator received exit signal. Terminating.");
                 break;
