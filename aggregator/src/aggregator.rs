@@ -227,10 +227,9 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    pub type THash = [u8; 32];
-
     use crate::{
         aggregator::{AggregatorError, BlockSignatureAggregator},
+        multicast::MockHash,
         Metrics,
     };
 
@@ -238,20 +237,20 @@ mod tests {
     const TEST_SIGNATURE: TestMultisignature = 42;
 
     struct MockMetrics;
-    impl Metrics<THash> for MockMetrics {
-        fn report_aggregation_complete(&mut self, _h: THash) {
+    impl Metrics<MockHash> for MockMetrics {
+        fn report_aggregation_complete(&mut self, _h: MockHash) {
             todo!()
         }
     }
 
-    fn build_aggregator() -> BlockSignatureAggregator<THash, TestMultisignature, MockMetrics> {
+    fn build_aggregator() -> BlockSignatureAggregator<MockHash, TestMultisignature, MockMetrics> {
         BlockSignatureAggregator::new(None)
     }
 
-    fn build_hash(b0: u8) -> THash {
+    fn build_hash(b0: u8) -> MockHash {
         let mut bytes = [0u8; 32];
         bytes[0] = b0;
-        bytes
+        MockHash(bytes)
     }
 
     #[test]
