@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use aleph_aggregator::{BlockSignatureAggregator, SignableHash, IO as AggregatorIO};
+use aleph_aggregator::{BlockSignatureAggregator, SignableHash, IO as Aggregator};
 use aleph_bft::{Keychain as BftKeychain, SignatureSet};
 use aleph_bft_rmc::{DoublingDelayScheduler, ReliableMulticast};
 use futures::{
@@ -30,16 +30,17 @@ pub struct IO<B: Block> {
 
 type SignableBlockHash<B> = SignableHash<<B as Block>::Hash>;
 type Rmc<'a, B> = ReliableMulticast<'a, SignableBlockHash<B>, Keychain>;
+type AggregatorIO<'a, B, N> = Aggregator<
+    <B as Block>::Hash,
+    RmcNetworkData<B>,
+    NetworkWrapper<RmcNetworkData<B>, N>,
+    SignatureSet<Signature>,
+    Rmc<'a, B>,
+    Metrics<<B as Block>::Hash>,
+>;
 
 async fn process_new_block_data<B, N>(
-    aggregator: &mut AggregatorIO<
-        B::Hash,
-        RmcNetworkData<B>,
-        NetworkWrapper<RmcNetworkData<B>, N>,
-        SignatureSet<Signature>,
-        Rmc<'_, B>,
-        Metrics<B::Hash>,
-    >,
+    aggregator: &mut AggregatorIO<'_, B, N>,
     block: BlockHashNum<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
 ) where
@@ -80,14 +81,7 @@ where
 }
 
 async fn run_aggregator<B, C, N>(
-    mut aggregator: AggregatorIO<
-        B::Hash,
-        RmcNetworkData<B>,
-        NetworkWrapper<RmcNetworkData<B>, N>,
-        SignatureSet<Signature>,
-        Rmc<'_, B>,
-        Metrics<<B::Header as Header>::Hash>,
-    >,
+    mut aggregator: AggregatorIO<'_, B, N>,
     io: IO<B>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries<B>,
@@ -197,7 +191,7 @@ where
                 scheduler,
             );
             let aggregator = BlockSignatureAggregator::new(metrics.clone());
-            let aggregator_io = AggregatorIO::new(
+            let aggregator_io = AggregatorIO::<B, N>::new(
                 messages_for_rmc,
                 messages_from_rmc,
                 NetworkWrapper(rmc_network, PhantomData),
