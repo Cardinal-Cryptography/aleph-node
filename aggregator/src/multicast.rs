@@ -4,7 +4,7 @@
 //! We expose the `Multicast` trait, mimicking the interface of `aleph_bft::ReliableMulticast`
 
 use std::{
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Display},
     hash::Hash as StdHash,
 };
 
@@ -15,21 +15,6 @@ use codec::{Codec, Decode, Encode};
 pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync {}
 
 impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync> Hash for T {}
-
-#[derive(StdHash, PartialEq, Eq, Clone, Copy, Encode, Decode, Debug)]
-pub struct MockHash(pub [u8; 32]);
-
-impl AsRef<[u8]> for MockHash {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl Display for MockHash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.0, f)
-    }
-}
 
 /// A wrapper allowing block hashes to be signed.
 #[derive(PartialEq, Eq, StdHash, Clone, Debug, Default, Encode, Decode)]

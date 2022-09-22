@@ -1,7 +1,7 @@
 use std::{fmt::Debug, hash::Hash};
 
-use aleph_bft::Recipient;
 use aleph_bft_rmc::Message;
+use aleph_bft_types::Recipient;
 
 mod aggregator;
 mod multicast;

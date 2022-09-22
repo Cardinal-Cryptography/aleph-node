@@ -7,8 +7,8 @@ license = "Apache 2.0"
 
 
 [dependencies]
-aleph-bft = "0.18.1"
 aleph-bft-rmc = "0.4.0"
+aleph-bft-types = "0.6.0"
 
 async-trait = "0.1"
 futures = "0.3"

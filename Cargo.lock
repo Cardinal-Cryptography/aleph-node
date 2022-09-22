@@ -66,8 +66,8 @@ dependencies = [
 name = "aggregator"
 version = "0.1.0"
 dependencies = [
- "aleph-bft",
  "aleph-bft-rmc",
+ "aleph-bft-types",
  "async-trait",
  "futures",
  "log",

@@ -4,7 +4,7 @@ use std::{
     time::Instant,
 };
 
-use aleph_bft::Recipient;
+use aleph_bft_types::Recipient;
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, info, trace, warn};
@@ -227,20 +227,38 @@ impl<
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        fmt::{Debug, Display, Formatter},
+        hash::Hash,
+    };
+
+    use codec::{Decode, Encode};
+
     use crate::{
         aggregator::{AggregatorError, BlockSignatureAggregator},
-        multicast::MockHash,
         Metrics,
     };
 
+    #[derive(Hash, PartialEq, Eq, Clone, Copy, Encode, Decode, Debug)]
+    struct MockHash(pub [u8; 32]);
+
+    impl AsRef<[u8]> for MockHash {
+        fn as_ref(&self) -> &[u8] {
+            &self.0
+        }
+    }
+
+    impl Display for MockHash {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(&self.0, f)
+        }
+    }
     type TestMultisignature = usize;
     const TEST_SIGNATURE: TestMultisignature = 42;
 
     struct MockMetrics;
     impl Metrics<MockHash> for MockMetrics {
-        fn report_aggregation_complete(&mut self, _h: MockHash) {
-            todo!()
-        }
+        fn report_aggregation_complete(&mut self, _h: MockHash) {}
     }
 
     fn build_aggregator() -> BlockSignatureAggregator<MockHash, TestMultisignature, MockMetrics> {
