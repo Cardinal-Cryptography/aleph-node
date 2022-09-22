@@ -18,6 +18,7 @@ scale-info = { version = "2", default-features = false, features = ["derive"], o
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 game_token = { path = "../game_token", default-features = false, features = ["ink-as-dependency"] }
 ticket_token = { path = "../ticket_token", default-features = false, features = ["ink-as-dependency"] }
+marketplace = { path = "../marketplace", default-features = false, features = ["ink-as-dependency"] }
 openbrush = { git = "https://github.com/Supercolony-net/openbrush-contracts.git", rev = "8a20f95", default-features = false, features = ["psp22"] }
 
 [lib]
@@ -42,6 +43,7 @@ std = [
     "access_control/std",
     "game_token/std",
     "ticket_token/std",
+    "marketplace/std",
     "openbrush/std",
 ]
 ink-as-dependency = []

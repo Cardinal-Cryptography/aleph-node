@@ -21,6 +21,8 @@
 
 use ink_lang as ink;
 
+pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
+
 #[ink::contract]
 pub mod marketplace {
     use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
@@ -225,7 +227,7 @@ pub mod marketplace {
         /// Note that this will keep the average estimate from previous auctions.
         ///
         /// Requires `Role::Admin`.
-        #[ink(message)]
+        #[ink(message, selector = 0x00000001)]
         pub fn reset(&mut self) -> Result<(), Error> {
             Self::ensure_role(self.admin())?;
 

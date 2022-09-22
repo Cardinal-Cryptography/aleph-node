@@ -14,7 +14,7 @@ pub mod ticket_token {
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
-        contracts::psp22::{extensions::metadata::*, Internal, Transfer},
+        contracts::psp22::{extensions::metadata::*, Internal},
         traits::Storage,
     };
 
@@ -36,25 +36,6 @@ pub mod ticket_token {
     impl PSP22 for TicketToken {}
 
     impl PSP22Metadata for TicketToken {}
-
-    impl Transfer for TicketToken {
-        fn _before_token_transfer(
-            &mut self,
-            from: Option<&AccountId>,
-            to: Option<&AccountId>,
-            amount: &Balance,
-        ) -> core::result::Result<(), PSP22Error> {
-            // if from is None this is an initial mint in the constructor
-            // and we don't want to enforce it there
-            if from.is_some() && to.is_some() && !amount.eq(&1u128) {
-                return Err(PSP22Error::Custom(String::from(
-                    "Only single ticket can be transferred at once",
-                )));
-            }
-
-            Ok(())
-        }
-    }
 
     impl Internal for TicketToken {
         fn _emit_transfer_event(
