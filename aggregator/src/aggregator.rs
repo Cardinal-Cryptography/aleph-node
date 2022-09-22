@@ -11,7 +11,7 @@ use log::{debug, info, trace, warn};
 
 use crate::{
     multicast::{Hash, Multicast, SignableHash},
-    DataNetwork, Metrics,
+    ProtocolSink, Metrics,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -114,7 +114,7 @@ impl<H: Copy + Hash, PMS, M: Metrics<H>> BlockSignatureAggregator<H, PMS, M> {
 pub struct IO<
     H: Hash + Copy,
     D: Clone + Codec + Debug + Send + Sync + 'static,
-    N: DataNetwork<D>,
+    N: ProtocolSink<D>,
     PMS,
     RMC: Multicast<H, PMS>,
     M: Metrics<H>,
@@ -129,7 +129,7 @@ pub struct IO<
 impl<
         H: Copy + Hash,
         D: Clone + Codec + Debug + Send + Sync,
-        N: DataNetwork<D>,
+        N: ProtocolSink<D>,
         PMS,
         RMC: Multicast<H, PMS>,
         M: Metrics<H>,
