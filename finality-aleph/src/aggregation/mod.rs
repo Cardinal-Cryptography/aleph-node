@@ -14,7 +14,13 @@ use crate::{
 pub type RmcNetworkData<B> =
     aleph_aggregator::RmcNetworkData<<B as Block>::Hash, Signature, SignatureSet<Signature>>;
 
-pub struct NetworkWrapper<D: Data, N: DataNetwork<D>>(pub N, pub PhantomData<D>);
+pub struct NetworkWrapper<D: Data, N: DataNetwork<D>>(N, PhantomData<D>);
+
+impl<D: Data, N: DataNetwork<D>> NetworkWrapper<D, N> {
+    pub fn new(network: N) -> Self {
+        Self (network, PhantomData)
+    }
+}
 
 impl<H: Debug + Hash + Eq + Debug + Copy> aleph_aggregator::Metrics<H> for Metrics<H> {
     fn report_aggregation_complete(&mut self, h: H) {

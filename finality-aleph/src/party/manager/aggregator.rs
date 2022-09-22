@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use aleph_aggregator::{BlockSignatureAggregator, SignableHash, IO as Aggregator};
 use aleph_bft::{Keychain as BftKeychain, SignatureSet};
@@ -194,7 +194,7 @@ where
             let aggregator_io = AggregatorIO::<B, N>::new(
                 messages_for_rmc,
                 messages_from_rmc,
-                NetworkWrapper(rmc_network, PhantomData),
+                NetworkWrapper::new(rmc_network),
                 rmc,
                 aggregator,
             );
