@@ -18,7 +18,7 @@ pub struct NetworkWrapper<D: Data, N: DataNetwork<D>>(N, PhantomData<D>);
 
 impl<D: Data, N: DataNetwork<D>> NetworkWrapper<D, N> {
     pub fn new(network: N) -> Self {
-        Self (network, PhantomData)
+        Self(network, PhantomData)
     }
 }
 
