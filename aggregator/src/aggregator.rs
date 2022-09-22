@@ -11,7 +11,7 @@ use log::{debug, info, trace, warn};
 
 use crate::{
     multicast::{Hash, Multicast, SignableHash},
-    ProtocolSink, Metrics,
+    Metrics, ProtocolSink,
 };
 
 #[derive(Debug, PartialEq, Eq)]
