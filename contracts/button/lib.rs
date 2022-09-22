@@ -330,8 +330,7 @@ mod button_game {
 
         fn dump_tickets_in_marketplace(&self) -> ButtonResult<()> {
             self.transfer_tickets_to_marketplace()?;
-            self.reset_marketplace()?;
-            Ok(())
+            self.reset_marketplace()
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
