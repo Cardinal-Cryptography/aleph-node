@@ -134,7 +134,7 @@ impl Config for Test {
     type AuthorityId = AuthorityId;
     type Event = Event;
     type SessionInfoProvider = Session;
-    type SessionManager = Aleph;
+    type SessionManager = ();
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {
