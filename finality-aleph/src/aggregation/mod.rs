@@ -29,7 +29,7 @@ impl<H: Debug + Hash + Eq + Debug + Copy> aleph_aggregator::Metrics<H> for Metri
 }
 
 #[async_trait::async_trait]
-impl<T, D> aleph_aggregator::DataNetwork<D> for NetworkWrapper<D, T>
+impl<T, D> aleph_aggregator::ProtocolSink<D> for NetworkWrapper<D, T>
 where
     T: DataNetwork<D>,
     D: Data,
