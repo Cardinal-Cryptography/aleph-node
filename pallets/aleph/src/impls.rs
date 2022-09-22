@@ -30,30 +30,22 @@ where
     T: Config,
 {
     // Check if a schedule version change has moved into the past. Update history, even if there is
-    // no change. Does not reset the scheduled version.
+    // no change. Resets the scheduled version.
     fn update_version_change_history() {
         let current_session = Self::current_session();
-
-        // Carry over version from previous session.
-        if current_session != 0 {
-            if let Ok(version_for_previous_session) =
-                <AlephBFTVersion<T>>::try_get(current_session - 1)
-            {
-                <AlephBFTVersion<T>>::set(current_session, version_for_previous_session);
-            }
-        }
 
         if let Some(scheduled_version_change) = <AlephBFTScheduledVersionChange<T>>::get() {
             let scheduled_session = scheduled_version_change.session;
             let scheduled_version = scheduled_version_change.version_incoming;
 
-            // Record the scheduled version in version change history as it moves into the past.
+            // Record the scheduled version as the current version as it moves into the past.
             if scheduled_session == current_session {
-                <AlephBFTVersion<T>>::set(current_session, scheduled_version);
+                <AlephBFTVersion<T>>::put(scheduled_version);
 
-                Self::deposit_event(Event::ReachedScheduledAlephBFTVersionChange(
-                    scheduled_version_change,
-                ));
+                // Reset the scheduled version.
+                <AlephBFTScheduledVersionChange<T>>::kill();
+
+                Self::deposit_event(Event::AlephBFTVersionChange(scheduled_version_change));
             }
         }
     }

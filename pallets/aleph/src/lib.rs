@@ -52,7 +52,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleAlephBFTVersionChange(VersionChange),
-        ReachedScheduledAlephBFTVersionChange(VersionChange),
+        AlephBFTVersionChange(VersionChange),
     }
 
     #[pallet::pallet]
@@ -102,11 +102,10 @@ pub mod pallet {
     #[pallet::storage]
     type NextEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
-    /// AlephBFT version change history.
+    /// Current AlephBFT version.
     #[pallet::storage]
     #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> =
-        StorageMap<_, Twox64Concat, SessionIndex, Version, ValueQuery>;
+    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, Version, OptionQuery>;
 
     /// Scheduled AlephBFT version change.
     #[pallet::storage]
@@ -163,21 +162,14 @@ pub mod pallet {
                 );
             }
 
+            // Can only schedule version changes with a version different than the current one.
             // If a scheduled future version change is rescheduled to a different session,
-            // it should be possible to reschedule it to the same version.
+            // it should be possible to reschedule it with the same version as initially.
             // If a scheduled version change has moved into the past, `SessionManager` records it
-            // in history and a new future version change needs to set a different version.
-            if let Some(previously_scheduled_version_change) =
-                <AlephBFTScheduledVersionChange<T>>::get()
-            {
-                let previously_scheduled_session = previously_scheduled_version_change.session;
-                // If the scheduled version is recorded in history, it is in the past.
-                if let Ok(current_version) =
-                    <AlephBFTVersion<T>>::try_get(previously_scheduled_session)
-                {
-                    if current_version == version_to_schedule {
-                        return Err("Tried to schedule an AlephBFT version change which does not change the current version!");
-                    }
+            // as the current version.
+            if let Some(current_version) = <AlephBFTVersion<T>>::get() {
+                if current_version == version_to_schedule {
+                    return Err("Tried to schedule an AlephBFT version change which does not change the current version!");
                 }
             }
 
@@ -185,19 +177,6 @@ pub mod pallet {
             <AlephBFTScheduledVersionChange<T>>::put(version_change);
 
             Ok(())
-        }
-
-        // Scan for the most recent historical version relative to the provided session.
-        pub fn find_historical_aleph_bft_version_for_session(
-            session: SessionIndex,
-        ) -> Result<Version, &'static str> {
-            for idx in (0..session + 1).rev() {
-                if let Ok(version) = <AlephBFTVersion<T>>::try_get(idx) {
-                    return Ok(version);
-                }
-            }
-
-            Err("No AlephBFT version has been recorded in history!")
         }
     }
 
@@ -216,10 +195,8 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Schedules an AlephBFT version change for a future session. Checks whether a previously
-        /// scheduled version change has moved into the past and updates the version change history
-        /// if needed. If such a scheduled future version is already set, it is replaced with the
-        /// provided one.
+        /// Schedules an AlephBFT version change for a future session. If such a scheduled future
+        /// version is already set, it is replaced with the provided one.
         /// Any rescheduling of a future version change needs to occur at least 2 sessions in
         /// advance of the provided session of the version change.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]

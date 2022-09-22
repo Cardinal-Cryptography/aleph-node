@@ -35,9 +35,8 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, SessionAuthorityData, SessionIndex, Version as AlephBFTVersion,
-    ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK,
-    TOKEN,
+    AuthorityId as AlephId, SessionAuthorityData, Version as AlephBFTVersion, ADDRESSES_ENCODING,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -899,15 +898,8 @@ impl_runtime_apis! {
             ))
         }
 
-        // Scan for the most recent historical change relative to the provided session or return
-        // the scheduled version.
-        fn aleph_bft_version(session: SessionIndex) -> Result<AlephBFTVersion, AlephApiError> {
-            if let Some(scheduled_version_change) = Aleph::aleph_bft_version_change() {
-                if session >= scheduled_version_change.session {
-                    return Ok(scheduled_version_change.version_incoming)
-                }
-            }
-            Aleph::find_historical_aleph_bft_version_for_session(session).or(Err(AlephApiError::AlephBFTVersion))
+        fn aleph_bft_version() -> Result<AlephBFTVersion, AlephApiError> {
+            Aleph::aleph_bft_version().ok_or(AlephApiError::AlephBFTVersion)
         }
     }
 
