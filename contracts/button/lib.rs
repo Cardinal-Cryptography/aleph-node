@@ -231,7 +231,7 @@ mod button_game {
             self.ensure_dead()?;
             self.reward_pressiah()?;
             self.reset_state();
-            self.dump_tickets_in_marketplace()?;
+            self.dump_tickets_in_marketplace()
 
             Ok(())
         }
