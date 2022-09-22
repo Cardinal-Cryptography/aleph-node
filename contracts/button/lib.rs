@@ -232,8 +232,6 @@ mod button_game {
             self.reward_pressiah()?;
             self.reset_state();
             self.dump_tickets_in_marketplace()
-
-            Ok(())
         }
 
         /// Sets new access control contract address
