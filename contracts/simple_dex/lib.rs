@@ -25,10 +25,23 @@ mod simple_dex {
         reflect::ContractEventBase,
     };
     use ink_prelude::{format, string::String, vec, vec::Vec};
-    use ink_storage::traits::SpreadAllocate;
-    use openbrush::contracts::traits::errors::PSP22Error;
+    use ink_storage::traits::{PackedLayout, SpreadAllocate, SpreadLayout};
+    use openbrush::{contracts::traits::errors::PSP22Error, storage::Mapping};
 
     type Event = <SimpleDex as ContractEventBase>::Type;
+
+    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub struct SwapPair {
+        pub from: AccountId,
+        pub to: AccountId,
+    }
+
+    impl SwapPair {
+        pub fn new(from: AccountId, to: AccountId) -> Self {
+            Self { from, to }
+        }
+    }
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -42,7 +55,7 @@ mod simple_dex {
         CrossContractCall(String),
         TooMuchSlippage,
         NotEnoughLiquidityOf(AccountId),
-        UnsupportedToken(AccountId),
+        UnsupportedSwapPair(SwapPair),
     }
 
     impl From<PSP22Error> for DexError {
@@ -58,7 +71,18 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    #[derive(Debug)]
+    pub struct SwapPairAdded {
+        #[ink(topic)]
+        pair: SwapPair,
+    }
+
+    #[ink(event)]
+    pub struct SwapPairRemoved {
+        #[ink(topic)]
+        pair: SwapPair,
+    }
+
+    #[ink(event)]
     pub struct Swapped {
         caller: AccountId,
         #[ink(topic)]
@@ -70,7 +94,6 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    #[derive(Debug)]
     pub struct SwapFeeSet {
         #[ink(topic)]
         caller: AccountId,
@@ -82,8 +105,8 @@ mod simple_dex {
     pub struct SimpleDex {
         pub swap_fee_percentage: u128,
         pub access_control: AccountId,
-        // pool tokens
-        pub tokens: [AccountId; 4],
+        // a set of pairs that are availiable for swapping between
+        pub swap_pairs: Mapping<SwapPair, ()>,
     }
 
     impl AccessControlled for SimpleDex {
@@ -92,7 +115,7 @@ mod simple_dex {
 
     impl SimpleDex {
         #[ink(constructor)]
-        pub fn new(tokens: [AccountId; 4]) -> Self {
+        pub fn new() -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -109,7 +132,7 @@ mod simple_dex {
             );
 
             match role_check {
-                Ok(_) => initialize_contract(|contract| Self::new_init(contract, tokens)),
+                Ok(_) => initialize_contract(|contract| Self::new_init(contract)),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
@@ -128,13 +151,9 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            // check if tokens are supported by the pool
-            if !self.tokens.contains(&token_in) {
-                return Err(DexError::UnsupportedToken(token_in));
-            }
-
-            if !self.tokens.contains(&token_out) {
-                return Err(DexError::UnsupportedToken(token_out));
+            let swap_pair = SwapPair::new(token_in, token_out);
+            if !self.swap_pairs.contains(&swap_pair) {
+                return Err(DexError::UnsupportedSwapPair(swap_pair));
             }
 
             // check allowance
@@ -199,10 +218,6 @@ mod simple_dex {
             deposits
                 .into_iter()
                 .try_for_each(|(token_in, amount)| -> Result<(), DexError> {
-                    if !self.tokens.contains(&token_in) {
-                        return Err(DexError::UnsupportedToken(token_in));
-                    }
-
                     // transfer token_in from the caller to the contract
                     // will revert if the contract does not have enough allowance from the caller
                     // in which case the whole tx is reverted
@@ -226,10 +241,6 @@ mod simple_dex {
 
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
-                    if !self.tokens.contains(&token_out) {
-                        return Err(DexError::UnsupportedToken(token_out));
-                    }
-
                     // transfer token_out from the contract to the caller
                     self.transfer_tx(token_out, caller, amount)??;
                     Ok(())
@@ -298,6 +309,42 @@ mod simple_dex {
             self.access_control
         }
 
+        /// Whitelists a token pair for swapping between
+        ///
+        /// Token pair is understood as a swap between tokens in one direction
+        /// Can only be called by an Admin
+        #[ink(message)]
+        pub fn add_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
+
+            let pair = SwapPair::new(from, to);
+            self.swap_pairs.insert(&pair, &());
+
+            Self::emit_event(self.env(), Event::SwapPairAdded(SwapPairAdded { pair }));
+
+            Ok(())
+        }
+
+        /// Blacklists a token pair from swapping
+        ///
+        /// Token pair is understood as a swap between tokens in one direction
+        /// Can only be called by an Admin
+        #[ink(message)]
+        pub fn remove_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
+
+            let pair = SwapPair::new(from, to);
+            self.swap_pairs.remove(&pair);
+
+            Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
+
+            Ok(())
+        }
+
         /// Terminates the contract.
         ///
         /// Can only be called by the contract's Owner.
@@ -317,9 +364,8 @@ mod simple_dex {
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
 
-        fn new_init(&mut self, tokens: [AccountId; 4]) {
+        fn new_init(&mut self) {
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.tokens = tokens;
             self.swap_fee_percentage = 0;
         }
 
