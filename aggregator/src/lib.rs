@@ -17,7 +17,7 @@ pub type RmcNetworkData<H, S, SS> = Message<SignableHash<H>, S, SS>;
 pub enum NetworkError {
     SendFail,
 }
-
+obvouiserror :)
 #[async_trait::async_trait]
 pub trait ProtocolSink<D>: Send + Sync {
     async fn next(&mut self) -> Option<D>;
