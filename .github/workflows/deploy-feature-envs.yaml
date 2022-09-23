@@ -351,27 +351,27 @@ jobs:
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
-          labels: env.LABEL_DEPLOY
+          labels: ${{ env.LABEL_DEPLOY }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove mainnet deployment request label if exists
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_HOT)
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
-          labels: env.LABEL_DEPLOY_HOT
+          labels: ${{ env.LABEL_DEPLOY_HOT }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove destroyed label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DESTROYED)
         with:
-          labels: env.LABEL_DESTROYED
+          labels: ${{ env.LABEL_DESTROYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that feature branch has been deployed
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
-          labels: env.LABEL_DEPLOYED
+          labels: ${{ env.LABEL_DEPLOYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Finish Feature Env Deployment
@@ -406,20 +406,20 @@ jobs:
       - name: Remove labels
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
-          labels: env.LABEL_DELETE
+          labels: ${{ env.LABEL_DELETE }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove "DEPLOYED" label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
         with:
-          labels: env.LABEL_DEPLOYED
+          labels: ${{ env.LABEL_DEPLOYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that feature branch has been destroyed
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
-          labels: env.LABEL_DESTROYED
+          labels: ${{ env.LABEL_DESTROYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Deactivate deployed environment
@@ -457,20 +457,20 @@ jobs:
       - name: Remove labels
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
-          labels: env.LABEL_DELETE
+          labels: ${{ env.LABEL_DELETE }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove "DEPLOYED" label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
         with:
-          labels: env.LABEL_DEPLOYED
+          labels: ${{ env.LABEL_DEPLOYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that feature branch has been destroyed
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
-          labels: env.LABEL_DESTROYED
+          labels: ${{ env.LABEL_DESTROYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Deactivate deployed environment
