@@ -115,7 +115,7 @@ mod simple_dex {
         }
 
         /// Swaps the a specified amount of one of the pool's PSP22 tokens to another PSP22 token
-        /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on it's behalf
+        /// Calling account needs to give allowance to the DEX contract to spend amount_token_in of token_in on its behalf
         /// before executing this tx.
         #[ink(message)]
         pub fn swap(
