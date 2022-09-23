@@ -1,0 +1,45 @@
+name: Deploy the button game
+
+on:
+  push:
+    branches:
+    - A0-1416-deployment-workflow-for-the-button-game
+
+jobs:
+  checkout_benjamin:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+        ref: benjamin
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+      
+      - name: Install cargo addiotnal libs
+        run: |
+          cargo install dylint-link
+          cargo install cargo-dylint
+
+      - name: Install jq
+        shell: bash
+        run: |
+          apt-get install -y jq
+
+      - name: Run additional cargo install
+        shell: bash
+        run: |
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
+    
+      - name: Install node
+        uses: actions/setup-node@v3
+          with:
+            node-version: 16
+
+      - name: Run deploy.sh script
+        shell: bash
+        run: |
+          source contacts/env/fe-benjamin && ./contracts/scripts/deploy.sh
