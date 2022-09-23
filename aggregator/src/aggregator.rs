@@ -7,7 +7,7 @@ use std::{
 use aleph_bft_types::Recipient;
 use codec::Codec;
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 
 use crate::{
     multicast::{Hash, Multicast, SignableHash},
@@ -177,8 +177,9 @@ impl<
                     trace!(target: "aleph-aggregator", "Our rmc message {:?}.", message_from_rmc);
                     match message_from_rmc {
                         Some(message_from_rmc) => {
-                            self.network.send(message_from_rmc, Recipient::Everyone)
-                                        .expect("sending message from rmc failed");
+                            if let Err(e) = self.network.send(message_from_rmc, Recipient::Everyone) {
+                                error!(target: "aleph-aggregator", "error sending message from rmc.\n{:?}", e);
+                            }
                         },
                         None => {
                             warn!(target: "aleph-aggregator", "the channel of messages from rmc closed");
