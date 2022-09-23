@@ -11,7 +11,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
-        ref: benjamin
+        with:
+          ref: benjamin
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
