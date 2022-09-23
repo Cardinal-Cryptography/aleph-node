@@ -65,8 +65,9 @@ dependencies = [
 [[package]]
 name = "aggregator"
 version = "0.1.0"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-rmcv0.4#5e7e4300e92b2b4c6fd18acd2f430b83e6e28903"
 dependencies = [
- "aleph-bft-rmc 0.5.1",
+ "aleph-bft-rmc 0.4.0",
  "aleph-bft-types",
  "async-trait",
  "futures",
@@ -77,10 +78,9 @@ dependencies = [
 
 [[package]]
 name = "aggregator"
-version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-rmcv0.4#5e7e4300e92b2b4c6fd18acd2f430b83e6e28903"
+version = "0.2.0"
 dependencies = [
- "aleph-bft-rmc 0.4.0",
+ "aleph-bft-rmc 0.5.1",
  "aleph-bft-types",
  "async-trait",
  "futures",
@@ -1788,7 +1788,7 @@ dependencies = [
 name = "finality-aleph"
 version = "0.5.0"
 dependencies = [
- "aggregator 0.1.0 (git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-rmcv0.4)",
+ "aggregator 0.1.0",
  "aleph-bft",
  "aleph-bft-rmc 0.4.0",
  "async-trait",
