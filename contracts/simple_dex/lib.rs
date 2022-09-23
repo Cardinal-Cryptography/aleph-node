@@ -159,7 +159,7 @@ mod simple_dex {
 
             if amount_token_out < min_amount_token_out {
                 // thrown if too much slippage occured before this tx gets executed
-                // as a sandwitch atack prevention
+                // as a sandwich attack prevention
                 return Err(DexError::TooMuchSlippage);
             }
 
