@@ -99,6 +99,7 @@ impl<AccountId> Default for EraValidators<AccountId> {
 pub enum ApiError {
     DecodeKey,
     AlephBFTVersion,
+    AlephBFTVersionNextSession,
 }
 
 /// All the data needed to verify block finalization justifications.
@@ -142,6 +143,7 @@ sp_api::decl_runtime_apis! {
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
         fn aleph_bft_version() -> Result<Version, ApiError>;
+        fn next_session_aleph_bft_version() -> Result<Version, ApiError>;
     }
 }
 

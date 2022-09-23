@@ -52,6 +52,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleAlephBFTVersionChange(VersionChange),
+        UnscheduleAlephBFTVersionChange(VersionChange),
         AlephBFTVersionChange(VersionChange),
     }
 
@@ -146,13 +147,16 @@ pub mod pallet {
             T::SessionInfoProvider::current_session()
         }
 
+        // If a scheduled future version change is rescheduled to a different session,
+        // it should be possible to reschedule it with the same version as initially.
+        // If a scheduled version change has moved into the past, `SessionManager` records it
+        // as the current version.
         pub(crate) fn schedule_next_aleph_bft_version_change(
             version_change: VersionChange,
         ) -> Result<(), &'static str> {
             let current_session = Self::current_session();
 
             let session_to_schedule = version_change.session;
-            let version_to_schedule = version_change.version_incoming;
 
             if session_to_schedule < current_session {
                 return Err("Cannot schedule AlephBFT version changes for sessions in the past!");
@@ -162,21 +166,32 @@ pub mod pallet {
                 );
             }
 
-            // Can only schedule version changes with a version different than the current one.
-            // If a scheduled future version change is rescheduled to a different session,
-            // it should be possible to reschedule it with the same version as initially.
-            // If a scheduled version change has moved into the past, `SessionManager` records it
-            // as the current version.
-            if let Some(current_version) = <AlephBFTVersion<T>>::get() {
-                if current_version == version_to_schedule {
-                    return Err("Tried to schedule an AlephBFT version change which does not change the current version!");
-                }
-            }
-
             // Update the scheduled version change with the supplied version change.
             <AlephBFTScheduledVersionChange<T>>::put(version_change);
 
             Ok(())
+        }
+
+        pub(crate) fn remove_next_aleph_bft_version_change() -> Result<VersionChange, &'static str>
+        {
+            let version_change_to_remove = Self::aleph_bft_version_change()
+                .ok_or("No AlephBFT version change to unschedule!")?;
+            <AlephBFTScheduledVersionChange<T>>::kill();
+
+            Ok(version_change_to_remove)
+        }
+
+        pub fn next_session_aleph_bft_version() -> Option<Version> {
+            let next_session = Self::current_session() + 1;
+            let scheduled_version_change = Self::aleph_bft_version_change();
+
+            if let Some(version_change) = scheduled_version_change {
+                if next_session == version_change.session {
+                    return Some(version_change.version_incoming);
+                }
+            }
+
+            Self::aleph_bft_version()
         }
     }
 
@@ -206,15 +221,35 @@ pub mod pallet {
             session: SessionIndex,
         ) -> DispatchResult {
             ensure_root(origin)?;
+
             let version_change = VersionChange {
                 version_incoming,
                 session,
             };
+
             if let Err(e) = Self::schedule_next_aleph_bft_version_change(version_change.clone()) {
                 return Err(DispatchError::Other(e));
-            };
+            }
+
             Self::deposit_event(Event::ScheduleAlephBFTVersionChange(version_change));
             Ok(())
+        }
+
+        /// Unschedules a future AlephBFT version change. Does not allow to unschedule non-existent
+        /// version changes.
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn remove_aleph_bft_version_change(origin: OriginFor<T>) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let unscheduled_version_change = Self::remove_next_aleph_bft_version_change();
+
+            match unscheduled_version_change {
+                Ok(version_change) => {
+                    Self::deposit_event(Event::UnscheduleAlephBFTVersionChange(version_change));
+                    Ok(())
+                }
+                Err(e) => Err(DispatchError::Other(e)),
+            }
         }
     }
 

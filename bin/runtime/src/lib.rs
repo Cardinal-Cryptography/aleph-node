@@ -901,6 +901,10 @@ impl_runtime_apis! {
         fn aleph_bft_version() -> Result<AlephBFTVersion, AlephApiError> {
             Aleph::aleph_bft_version().ok_or(AlephApiError::AlephBFTVersion)
         }
+
+        fn next_session_aleph_bft_version() -> Result<AlephBFTVersion, AlephApiError> {
+            Aleph::next_session_aleph_bft_version().ok_or(AlephApiError::AlephBFTVersionNextSession)
+        }
     }
 
     impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash> for Runtime {
