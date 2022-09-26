@@ -34,8 +34,6 @@ pub enum MultisigError {
     IncorrectThreshold(usize),
     #[error("👪❌ There should be at least 2 unique members.")]
     TooFewMembers,
-    #[error("👪❌ There is no available member at the provided index.")]
-    IncorrectMemberIndex,
     #[error("👪❌ There is no such member in the party.")]
     NoSuchMember,
     #[error("👪❌ There is no entry for this multisig aggregation in the pallet storage.")]
@@ -44,7 +42,7 @@ pub enum MultisigError {
     CallConflict,
     #[error("👪❌ Only the author can cancel aggregation.")]
     NotAuthor,
-    #[error("👪❌ The connection is signed by an incorrect account.")]
+    #[error("👪❌ The connection is signed by an account that doesn't match to any member.")]
     IncorrectSignature,
 }
 
@@ -263,31 +261,22 @@ impl MultisigParty {
         Ok(multisig.when)
     }
 
-    /// Checks whether:
-    ///  - `member_idx` is a proper position for `self.members`
-    ///  - `connection` is signed by the member at `member_idx`
-    fn ensure_signer(&self, connection: &SignedConnection, member_idx: usize) -> Result<()> {
-        ensure!(
-            member_idx < self.members.len(),
-            MultisigError::IncorrectMemberIndex
-        );
-        ensure!(
-            self.members[member_idx] == account_from_keypair(&connection.signer()),
-            MultisigError::IncorrectSignature
-        );
-        Ok(())
+    /// Checks whether `connection` is signed by some member and if so, returns their index.
+    fn map_signer_to_member(&self, connection: &SignedConnection) -> Result<usize> {
+        self.members
+            .binary_search(&account_from_keypair(&connection.signer))
+            .map_err(|_| MultisigError::IncorrectSignature.into())
     }
 
     /// Effectively starts the aggregation process by calling `approveAsMulti`.
     ///
-    /// `connection` should be signed by the account corresponding to `author_idx`.
+    /// `connection` should be signed by some member.
     pub fn initiate_aggregation_with_hash(
         &self,
         connection: &SignedConnection,
         call_hash: CallHash,
-        author_idx: usize,
     ) -> Result<SignatureAggregation> {
-        self.ensure_signer(connection, author_idx)?;
+        let author_idx = self.map_signer_to_member(connection)?;
 
         let other_signatories = self.designate_represented(author_idx);
         let xt = self.construct_approve_as_multi(connection, other_signatories, None, call_hash);
@@ -328,15 +317,14 @@ impl MultisigParty {
 
     /// Effectively starts aggregation process by calling `asMulti`.
     ///
-    /// `connection` should be signed by the account corresponding to `author_idx`.
+    /// `connection` should be signed by some member.
     pub fn initiate_aggregation_with_call<CallDetails: Encode + Clone>(
         &self,
         connection: &SignedConnection,
         call: Extrinsic<CallDetails>,
         store_call: bool,
-        author_idx: usize,
     ) -> Result<SignatureAggregation> {
-        self.ensure_signer(connection, author_idx)?;
+        let author_idx = self.map_signer_to_member(connection)?;
 
         let xt = self.construct_as_multi(
             connection,
@@ -363,14 +351,13 @@ impl MultisigParty {
 
     /// Report approval for `sig_agg` aggregation.
     ///
-    /// `connection` should be signed by the account corresponding to `member_idx`.
+    /// `connection` should be signed by some member.
     pub fn approve(
         &self,
         connection: &SignedConnection,
-        member_idx: usize,
         mut sig_agg: SignatureAggregation,
     ) -> Result<SignatureAggregation> {
-        self.ensure_signer(connection, member_idx)?;
+        let member_idx = self.map_signer_to_member(connection)?;
 
         let xt = self.construct_approve_as_multi(
             connection,
@@ -388,16 +375,15 @@ impl MultisigParty {
 
     /// Report approval for `sig_agg` aggregation.
     ///     
-    /// `connection` should be signed by the account corresponding to `member_idx`.
+    /// `connection` should be signed by some member.
     pub fn approve_with_call<CallDetails: Encode + Clone>(
         &self,
         connection: &SignedConnection,
-        member_idx: usize,
         mut sig_agg: SignatureAggregation,
         call: Extrinsic<CallDetails>,
         store_call: bool,
     ) -> Result<SignatureAggregation> {
-        self.ensure_signer(connection, member_idx)?;
+        let member_idx = self.map_signer_to_member(connection)?;
         if let Some(ref reported_call) = sig_agg.call {
             ensure!(
                 reported_call.eq(&call.encode()),
@@ -451,15 +437,13 @@ impl MultisigParty {
 
     /// Cancel `sig_agg` aggregation.
     ///
-    /// `connection` should be signed by the canceling member (aggregation author), which
-    /// corresponds to `author_idx`.
+    /// `connection` should be signed by the aggregation author.
     pub fn cancel(
         &self,
         connection: &SignedConnection,
-        author_idx: usize,
         sig_agg: SignatureAggregation,
     ) -> Result<()> {
-        self.ensure_signer(connection, author_idx)?;
+        let author_idx = self.map_signer_to_member(connection)?;
         ensure!(sig_agg.author == author_idx, MultisigError::NotAuthor);
 
         let xt = self.construct_cancel_as_multi(
