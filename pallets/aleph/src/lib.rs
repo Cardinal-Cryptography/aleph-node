@@ -52,7 +52,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleAlephBFTVersionChange(VersionChange),
-        UnscheduleAlephBFTVersionChange(VersionChange),
         AlephBFTVersionChange(VersionChange),
     }
 
@@ -87,6 +86,12 @@ pub mod pallet {
         }
     }
 
+    /// Default AlephBFT version. Relevant for sessions before the first version change occurs.
+    #[pallet::type_value]
+    pub(crate) fn DefaultAlephBFTVersion<T: Config>() -> Version {
+        0
+    }
+
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
@@ -106,7 +111,8 @@ pub mod pallet {
     /// Current AlephBFT version.
     #[pallet::storage]
     #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> = StorageValue<_, Version, OptionQuery>;
+    pub(super) type AlephBFTVersion<T: Config> =
+        StorageValue<_, Version, ValueQuery, DefaultAlephBFTVersion<T>>;
 
     /// Scheduled AlephBFT version change.
     #[pallet::storage]
@@ -148,7 +154,8 @@ pub mod pallet {
         }
 
         // If a scheduled future version change is rescheduled to a different session,
-        // it should be possible to reschedule it with the same version as initially.
+        // it is possible to reschedule it with the same version as initially.
+        // To cancel a future version change, reschedule it with the current version.
         // If a scheduled version change has moved into the past, `SessionManager` records it
         // as the current version.
         pub(crate) fn schedule_next_aleph_bft_version_change(
@@ -162,7 +169,7 @@ pub mod pallet {
                 return Err("Cannot schedule AlephBFT version changes for sessions in the past!");
             } else if session_to_schedule < current_session + 2 {
                 return Err(
-                    "Tried to schedule AlephBFT version change less than 2 sessions in advance!",
+                    "Tried to schedule an AlephBFT version change less than 2 sessions in advance!",
                 );
             }
 
@@ -172,22 +179,13 @@ pub mod pallet {
             Ok(())
         }
 
-        pub(crate) fn remove_next_aleph_bft_version_change() -> Result<VersionChange, &'static str>
-        {
-            let version_change_to_remove = Self::aleph_bft_version_change()
-                .ok_or("No AlephBFT version change to unschedule!")?;
-            <AlephBFTScheduledVersionChange<T>>::kill();
-
-            Ok(version_change_to_remove)
-        }
-
-        pub fn next_session_aleph_bft_version() -> Option<Version> {
+        pub fn next_session_aleph_bft_version() -> Version {
             let next_session = Self::current_session() + 1;
             let scheduled_version_change = Self::aleph_bft_version_change();
 
             if let Some(version_change) = scheduled_version_change {
                 if next_session == version_change.session {
-                    return Some(version_change.version_incoming);
+                    return version_change.version_incoming;
                 }
             }
 
@@ -214,6 +212,8 @@ pub mod pallet {
         /// version is already set, it is replaced with the provided one.
         /// Any rescheduling of a future version change needs to occur at least 2 sessions in
         /// advance of the provided session of the version change.
+        /// In order to cancel a scheduled version change, a new version change should be scheduled
+        /// with the same version as the current one.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn schedule_aleph_bft_version_change(
             origin: OriginFor<T>,
@@ -233,23 +233,6 @@ pub mod pallet {
 
             Self::deposit_event(Event::ScheduleAlephBFTVersionChange(version_change));
             Ok(())
-        }
-
-        /// Unschedules a future AlephBFT version change. Does not allow to unschedule non-existent
-        /// version changes.
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn remove_aleph_bft_version_change(origin: OriginFor<T>) -> DispatchResult {
-            ensure_root(origin)?;
-
-            let unscheduled_version_change = Self::remove_next_aleph_bft_version_change();
-
-            match unscheduled_version_change {
-                Ok(version_change) => {
-                    Self::deposit_event(Event::UnscheduleAlephBFTVersionChange(version_change));
-                    Ok(())
-                }
-                Err(e) => Err(DispatchError::Other(e)),
-            }
         }
     }
 

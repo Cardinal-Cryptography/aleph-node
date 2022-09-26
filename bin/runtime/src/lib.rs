@@ -898,12 +898,12 @@ impl_runtime_apis! {
             ))
         }
 
-        fn aleph_bft_version() -> Result<AlephBFTVersion, AlephApiError> {
-            Aleph::aleph_bft_version().ok_or(AlephApiError::AlephBFTVersion)
+        fn aleph_bft_version() -> AlephBFTVersion {
+            Aleph::aleph_bft_version()
         }
 
-        fn next_session_aleph_bft_version() -> Result<AlephBFTVersion, AlephApiError> {
-            Aleph::next_session_aleph_bft_version().ok_or(AlephApiError::AlephBFTVersionNextSession)
+        fn next_session_aleph_bft_version() -> AlephBFTVersion {
+            Aleph::next_session_aleph_bft_version()
         }
     }
 

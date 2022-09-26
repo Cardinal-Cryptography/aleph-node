@@ -98,8 +98,6 @@ impl<AccountId> Default for EraValidators<AccountId> {
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
 pub enum ApiError {
     DecodeKey,
-    AlephBFTVersion,
-    AlephBFTVersionNextSession,
 }
 
 /// All the data needed to verify block finalization justifications.
@@ -133,6 +131,7 @@ pub struct VersionChange {
     pub version_incoming: Version,
     pub session: SessionIndex,
 }
+
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi
     {
@@ -142,8 +141,8 @@ sp_api::decl_runtime_apis! {
         fn authority_data() -> SessionAuthorityData;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
-        fn aleph_bft_version() -> Result<Version, ApiError>;
-        fn next_session_aleph_bft_version() -> Result<Version, ApiError>;
+        fn aleph_bft_version() -> Version;
+        fn next_session_aleph_bft_version() -> Version;
     }
 }
 

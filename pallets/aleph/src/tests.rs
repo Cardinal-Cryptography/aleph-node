@@ -154,9 +154,17 @@ fn test_aleph_bft_version_scheduling() {
         run_session(4);
 
         let current_version = Aleph::aleph_bft_version();
-        assert_eq!(current_version, Some(version_to_schedule.version_incoming));
+        assert_eq!(current_version, version_to_schedule.version_incoming);
 
         let scheduled_version_change = Aleph::aleph_bft_version_change();
         assert_eq!(scheduled_version_change, None);
+
+        let version_to_schedule = VersionChange {
+            version_incoming: 1,
+            session: 5,
+        };
+
+        let scheduling_result = Aleph::schedule_next_aleph_bft_version_change(version_to_schedule);
+        assert!(scheduling_result.is_err());
     })
 }
