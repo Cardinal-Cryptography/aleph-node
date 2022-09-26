@@ -2,7 +2,7 @@ use std::env;
 
 use aleph_client::{
     account_from_keypair, aleph_keypair_from_string, keypair_from_string, print_storages,
-    SignedConnection,
+    Connection, MultisigParty, SignedConnection,
 };
 use clap::Parser;
 use cliain::{
@@ -14,6 +14,7 @@ use cliain::{
 };
 use log::{error, info};
 use sp_core::Pair;
+use substrate_api_client::GenericAddress;
 
 #[derive(Debug, Parser, Clone)]
 #[clap(version = "1.0")]
@@ -43,6 +44,7 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
         | Command::NextSessionKeys { account_id: _ }
         | Command::RotateKeys
         | Command::DebugStorage
+        | Command::SomeMulti
         | Command::SeedToSS58 { input: _ } => String::new(),
         _ => read_secret(seed, "Provide seed for the signer account:"),
     }
@@ -180,6 +182,32 @@ fn main() {
             Ok(result) => println!("{:?}", result),
             Err(why) => error!("Contract remove code failed {:?}", why),
         },
+        Command::SomeMulti => {
+            let zero = keypair_from_string("//0");
+            let zero_account = account_from_keypair(&zero);
+            let one = keypair_from_string("//1");
+            let one_account = account_from_keypair(&one);
+            let two = keypair_from_string("//2");
+            let two_account = account_from_keypair(&two);
+
+            let connection: Connection = cfg.into();
+
+            let beneficiary = GenericAddress::Id(zero_account.clone());
+            let xt = connection.balance_transfer(beneficiary, 2_000_000_000_000);
+
+            let ms = MultisigParty::new(&vec![zero_account, one_account, two_account], 2).unwrap();
+            eprintln!("{:?}", ms);
+
+            let connection = SignedConnection::from_any_connection(&connection, zero.clone());
+            let agg = ms
+                .initiate_aggregation_with_call(&connection, xt, true)
+                .unwrap();
+            eprintln!("{:?}", agg);
+
+            let connection = SignedConnection::from_any_connection(&connection, one.clone());
+            let agg = ms.approve(&connection, agg).unwrap();
+            eprintln!("{:?}", agg);
+        }
     }
 }
 
