@@ -326,6 +326,4 @@ pub enum Command {
     /// Code can only be removed by its original uploader (its owner) and only if it is not used by any contract.
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#removecodecode_hash-h256
     ContractRemoveCode(ContractRemoveCode),
-
-    SomeMulti,
 }
