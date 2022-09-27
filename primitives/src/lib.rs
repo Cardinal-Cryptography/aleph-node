@@ -35,6 +35,8 @@ pub type Balance = u128;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type BlockHash = <Header as HeaderT>::Hash;
 pub type BlockNumber = u32;
+pub type BlockCount = u32;
+pub type SessionCount = u32;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
@@ -58,6 +60,9 @@ pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
+pub const DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD: BlockCount = 0;
+pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 1;
+
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeSeats {
@@ -76,6 +81,22 @@ impl Default for CommitteeSeats {
         CommitteeSeats {
             reserved_seats: DEFAULT_COMMITTEE_SIZE,
             non_reserved_seats: 0,
+        }
+    }
+}
+
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct CommitteeKickOutThresholds {
+    pub session_block_count_threshold: BlockCount,
+    pub underperformed_session_count_threshold: SessionCount,
+}
+
+impl Default for CommitteeKickOutThresholds {
+    fn default() -> Self {
+        CommitteeKickOutThresholds {
+            session_block_count_threshold: DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD,
+            underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
         }
     }
 }

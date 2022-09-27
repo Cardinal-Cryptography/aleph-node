@@ -30,10 +30,9 @@ use sp_std::{
     prelude::*,
 };
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
-
-pub type BlockCount = u32;
 pub type TotalReward = u32;
+
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
@@ -49,7 +48,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::CommitteeSeats;
+    use primitives::{BlockCount, CommitteeKickOutThresholds, CommitteeSeats, SessionCount};
 
     use super::*;
     use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
@@ -167,6 +166,45 @@ pub mod pallet {
     #[pallet::storage]
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
+
+    /// Default value for kick out threshold, see `CurrentEraCommitteeKickOutThresholds` docs
+    #[pallet::type_value]
+    pub fn DefaultCommitteeKickOutThresholds<T: Config>() -> CommitteeKickOutThresholds {
+        CommitteeKickOutThresholds::default()
+    }
+
+    /// Configurable threshold values for kick-out functionality:
+    /// * How many produced blocks makes a session underperformed,
+    /// * how many underperformed sessions makes a validator underperformer.
+    /// They impact current era only.
+    #[pallet::storage]
+    #[pallet::getter(fn current_era_committee_kick_out_thresholds)]
+    pub type CurrentEraCommitteeKickOutThresholds<T> = StorageValue<
+        _,
+        CommitteeKickOutThresholds,
+        ValueQuery,
+        DefaultCommitteeKickOutThresholds<T>,
+    >;
+
+    /// Next era configurable threshold values for kick-out functionality. When chain advances to the
+    /// next era, below values become `CurrentEraCommitteeKickOutThresholds`
+    #[pallet::storage]
+    #[pallet::getter(fn next_era_committee_kick_out_thresholds)]
+    pub type NextEraCommitteeKickOutThresholds<T> = StorageValue<
+        _,
+        CommitteeKickOutThresholds,
+        ValueQuery,
+        DefaultCommitteeKickOutThresholds<T>,
+    >;
+
+    /// A validator, if:
+    /// * it produced less or equal blocks to a `CurrentEraCommitteeKickOutThresholds::session_block_count_threshold`, and,
+    /// * it happened at least `CurrentEraCommitteeKickOutThresholds::underperformed_session_count_threshold` times,
+    /// then the validator is considered an underperformer and hence removed (ie _kicked out_)
+    /// from a current committee. Therefore we need a storage to count such events
+    #[pallet::storage]
+    pub type UnderperformedValidatorSessionCount<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
