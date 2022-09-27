@@ -37,6 +37,8 @@ use sp_std::prelude::*;
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
+const DEFAULT_ALEPH_BFT_VERSION: Version = 0;
+
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
@@ -100,7 +102,7 @@ pub mod pallet {
     /// Default AlephBFT version. Relevant for sessions before the first version change occurs.
     #[pallet::type_value]
     pub(crate) fn DefaultAlephBFTVersion<T: Config>() -> Version {
-        0
+        DEFAULT_ALEPH_BFT_VERSION
     }
 
     #[pallet::storage]
