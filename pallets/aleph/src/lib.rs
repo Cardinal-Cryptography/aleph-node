@@ -1,7 +1,18 @@
-//! This pallet is a runtime companion of Aleph finality gadget.
+//! This pallet is the runtime companion of the Aleph finality gadget.
 //!
 //! Currently, it only provides support for changing sessions but in the future
 //! it will allow reporting equivocation in AlephBFT.
+//!
+//! This pallet relies on an extension of the `AlephSessionApi` Runtime API to handle the AlephBFT
+//! version. The scheduled version change is persisted as `AlephBFTScheduledVersionChange`. This
+//! value stores the information about a scheduled AlephBFT version change, where `version_incoming`
+//! is the version to be set and `session` is the session on which the new version will be set.
+//! A `pallet_session::Session_Manager` checks whether a scheduled version change has moved into
+//! the past and, if so, records it as the current version represented as `AlephBFTVersion`,
+//! and clears `AlephBFTScheduledVersionChange`.
+//! It is always possible to reschedule a version change. In order to cancel a scheduled version
+//! change rather than reschedule it, a new version change should be scheduled with
+//! `version_incoming` set to the current value of `AlephBFTVersion`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
