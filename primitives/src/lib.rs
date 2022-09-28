@@ -88,14 +88,14 @@ impl Default for CommitteeSeats {
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeKickOutThresholds {
-    pub session_block_count_threshold: BlockCount,
+    pub block_count_threshold: BlockCount,
     pub underperformed_session_count_threshold: SessionCount,
 }
 
 impl Default for CommitteeKickOutThresholds {
     fn default() -> Self {
         CommitteeKickOutThresholds {
-            session_block_count_threshold: DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD,
+            block_count_threshold: DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD,
             underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
         }
     }

@@ -203,12 +203,12 @@ pub mod pallet {
         DefaultCommitteeKickOutThresholds<T>,
     >;
 
-    /// A validator, if:
-    /// * it produced less or equal blocks to a `CurrentEraCommitteeKickOutThresholds::session_block_count_threshold`, and,
+    /// A lookup for a number of underperformance sessions for a given validator
+    /// In more details: if a validator:
+    /// * produced less or equal blocks to a `CurrentEraCommitteeKickOutThresholds::block_count_threshold`, and,
     /// * it happened at least `CurrentEraCommitteeKickOutThresholds::underperformed_session_count_threshold` times,
     /// then the validator is considered an underperformer and hence removed (ie _kicked out_)
-    /// from a current committee. Below StorageMap counts such events every session, when committee
-    /// rotates
+    /// from the current committee.
     #[pallet::storage]
     pub type UnderperformedValidatorSessionCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
@@ -216,7 +216,7 @@ pub mod pallet {
     /// Kick out reasons - if validator is present in this map, it will be removed from the committee
     /// in the next era
     #[pallet::storage]
-    #[pallet::getter(fn child_bounty_descriptions)]
+    #[pallet::getter(fn to_be_kicked_out_from_committee)]
     pub type ToBeKickedOutFromCommittee<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<u8, T::MaximumKickOutReasonLength>>;
 
@@ -276,20 +276,19 @@ pub mod pallet {
             Ok(())
         }
 
-        // TODO do we need to consider kick_out_description.len() in weight calculation?
-        // what's the cost of below tx?
-        //     #[pallet::weight(<T as Config>::WeightInfo::add_child_bounty(description.len() as u32))]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn kick_out_from_committee(
             origin: OriginFor<T>,
             to_be_kicked: T::AccountId,
-            kick_out_description: Vec<u8>,
+            kick_out_reason: Vec<u8>,
         ) -> DispatchResult {
             ensure_root(origin)?;
             let bounded_description: BoundedVec<u8, T::MaximumKickOutReasonLength> =
-                kick_out_description
+                kick_out_reason
                     .try_into()
                     .map_err(|_| Error::<T>::KickOutReasonTooBig)?;
+
+            ToBeKickedOutFromCommittee::<T>::insert(to_be_kicked, bounded_description);
 
             Ok(())
         }

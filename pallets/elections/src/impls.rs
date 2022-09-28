@@ -9,8 +9,9 @@ use sp_std::{
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
-    NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
+    CommitteeSize, Config, CurrentEraCommitteeKickOutThresholds, CurrentEraValidators,
+    NextEraCommitteeSize, NextEraNonReservedValidators, NextEraReservedValidators, Pallet,
+    SessionValidatorBlockCount, ToBeKickedOutFromCommittee, UnderperformedValidatorSessionCount,
     ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 
@@ -39,7 +40,7 @@ fn calculate_adjusted_session_points(
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
 
     // when produced between 90% to 100% expected blocks get 100% possible reward for session
-    if performance >= LENIENT_THRESHOLD && blocks_to_produce_per_session >= blocks_created {
+    if performance >= LENIENT_THRESHOLD {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
             * total_possible_reward as u64) as u32;
     }
@@ -220,7 +221,6 @@ where
             }
         }
     }
-
     fn populate_next_era_validators_on_next_era_start(session: SessionIndex) {
         let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
@@ -293,6 +293,51 @@ where
 
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
+
+    fn kick_out_underperformed_validators(session: SessionIndex) {
+        let active_era = match T::EraInfoProvider::active_era() {
+            Some(ae) => ae,
+            _ => return,
+        };
+
+        // this will be populated once for the session `n+1` on the start of the session `n` where session
+        // `n+1` starts a new era.
+        Self::if_era_starts_do(active_era + 1, session, || {
+            let to_be_kicked_validators =
+                ToBeKickedOutFromCommittee::<T>::iter_keys().collect::<BTreeSet<_>>();
+            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+            let filtered_non_reserved_validators = non_reserved_validators
+                .difference(&to_be_kicked_validators)
+                .cloned()
+                .collect::<Vec<_>>();
+            NextEraNonReservedValidators::<T>::put(filtered_non_reserved_validators);
+            let result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
+            debug!(target: "pallet_elections", "Result of clearing the ToBeKickedOutFromCommittee, {:?}", result.deconstruct());
+        });
+    }
+
+    fn calculate_underperforming_validators() {
+        let thresholds = CurrentEraCommitteeKickOutThresholds::<T>::get();
+        let current_committee = T::SessionInfoProvider::current_committee();
+        for validator in current_committee {
+            let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {
+                Ok(block_count) => block_count <= thresholds.block_count_threshold,
+                Err(_) => true,
+            };
+            if underperformance {
+                UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
+                    *count += 1;
+                });
+                let counter = UnderperformedValidatorSessionCount::<T>::get(&validator);
+                if counter >= thresholds.underperformed_session_count_threshold {
+                    ToBeKickedOutFromCommittee::<T>::insert(&validator, Vec::new());
+                    UnderperformedValidatorSessionCount::<T>::remove(&validator);
+                }
+            }
+        }
+    }
 }
 
 impl<T> pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
@@ -313,6 +358,9 @@ where
     T: Config,
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
+        // we need to modify NextEraNonReservedValidators before elect() happens in new_session(new_index)
+        Self::kick_out_underperformed_validators(new_index);
+
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
@@ -327,8 +375,9 @@ where
     fn end_session(end_index: SessionIndex) {
         <T as Config>::SessionManager::end_session(end_index);
         Self::adjust_rewards_for_session();
-
-        // clear block count
+        Self::calculate_underperforming_validators();
+        // clear block count after calculating stats for underperforming vlaidators, as they use
+        // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<T>::clear(u32::MAX, None);
         debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
     }
