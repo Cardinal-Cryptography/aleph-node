@@ -333,6 +333,7 @@ impl pallet_elections::Config for Runtime {
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
     type ValidatorRewardsHandler = Staking;
+    type MaximumKickOutReasonLength = ConstU32<300>;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}

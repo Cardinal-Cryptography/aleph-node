@@ -72,12 +72,18 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<Self>;
         /// Something that handles addition of rewards for validators.
         type ValidatorRewardsHandler: ValidatorRewardsHandler<Self>;
+
+        /// Maximum acceptable kick-out reason length.
+        #[pallet::constant]
+        type MaximumKickOutReasonLength: Get<u32>;
     }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeValidators(Vec<T::AccountId>, Vec<T::AccountId>, CommitteeSeats),
+
+        SetCommitteeKickOutThresholds(CommitteeKickOutThresholds),
     }
 
     #[pallet::pallet]
@@ -201,10 +207,18 @@ pub mod pallet {
     /// * it produced less or equal blocks to a `CurrentEraCommitteeKickOutThresholds::session_block_count_threshold`, and,
     /// * it happened at least `CurrentEraCommitteeKickOutThresholds::underperformed_session_count_threshold` times,
     /// then the validator is considered an underperformer and hence removed (ie _kicked out_)
-    /// from a current committee. Therefore we need a storage to count such events
+    /// from a current committee. Below StorageMap counts such events every session, when committee
+    /// rotates
     #[pallet::storage]
     pub type UnderperformedValidatorSessionCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
+
+    /// Kick out reasons - if validator is present in this map, it will be removed from the committee
+    /// in the next era
+    #[pallet::storage]
+    #[pallet::getter(fn child_bounty_descriptions)]
+    pub type ToBeKickedOutFromCommittee<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<u8, T::MaximumKickOutReasonLength>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -240,6 +254,45 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_kick_out_thresholds(
+            origin: OriginFor<T>,
+            committee_kick_out_thresholds: CommitteeKickOutThresholds,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            ensure!(
+                committee_kick_out_thresholds.underperformed_session_count_threshold > 0,
+                Error::<T>::InvalidKickOutThresholds
+            );
+
+            NextEraCommitteeKickOutThresholds::<T>::put(committee_kick_out_thresholds.clone());
+
+            Self::deposit_event(Event::SetCommitteeKickOutThresholds(
+                committee_kick_out_thresholds,
+            ));
+
+            Ok(())
+        }
+
+        // TODO do we need to consider kick_out_description.len() in weight calculation?
+        // what's the cost of below tx?
+        //     #[pallet::weight(<T as Config>::WeightInfo::add_child_bounty(description.len() as u32))]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn kick_out_from_committee(
+            origin: OriginFor<T>,
+            to_be_kicked: T::AccountId,
+            kick_out_description: Vec<u8>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            let bounded_description: BoundedVec<u8, T::MaximumKickOutReasonLength> =
+                kick_out_description
+                    .try_into()
+                    .map_err(|_| Error::<T>::KickOutReasonTooBig)?;
+
+            Ok(())
+        }
     }
 
     #[pallet::genesis_config]
@@ -247,6 +300,7 @@ pub mod pallet {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
         pub committee_seats: CommitteeSeats,
+        pub committee_kick_out_thresholds: CommitteeKickOutThresholds,
     }
 
     #[cfg(feature = "std")]
@@ -256,6 +310,7 @@ pub mod pallet {
                 non_reserved_validators: Vec::new(),
                 reserved_validators: Vec::new(),
                 committee_seats: Default::default(),
+                committee_kick_out_thresholds: Default::default(),
             }
         }
     }
@@ -271,6 +326,10 @@ pub mod pallet {
                 reserved: self.reserved_validators.clone(),
                 non_reserved: self.non_reserved_validators.clone(),
             });
+            <CurrentEraCommitteeKickOutThresholds<T>>::put(
+                &self.committee_kick_out_thresholds.clone(),
+            );
+            <NextEraCommitteeKickOutThresholds<T>>::put(&self.committee_kick_out_thresholds);
         }
     }
 
@@ -330,6 +389,14 @@ pub mod pallet {
         NotEnoughReservedValidators,
         NotEnoughNonReservedValidators,
         NonUniqueListOfValidators,
+
+        /// Raised in any scenario thresholds for kick out functionality are incorrect:
+        /// * underperformed session count threshold must be a positive number,
+        InvalidKickOutThresholds,
+
+        /// Kick out reason is too big, ie given vector of bytes is greater than
+        /// `Config::MaximumKickOutReasonLength`
+        KickOutReasonTooBig,
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {
