@@ -63,10 +63,13 @@ pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 pub const DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD: BlockCount = 0;
 pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 1;
 
+/// Represent desirable size of a committee in a session
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeSeats {
+    /// Size of reserved validators in a session
     pub reserved_seats: u32,
+    /// Size of non reserved valiadtors in a session
     pub non_reserved_seats: u32,
 }
 
@@ -85,10 +88,13 @@ impl Default for CommitteeSeats {
     }
 }
 
+/// Configurable parameters for kick-out validator mechanism
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeKickOutThresholds {
+    /// in a session, what is a limit for produced blocks under which the session counts as bad uptime
     pub block_count_threshold: BlockCount,
+    /// how many bad uptime sessions force validator to be removed from the committee
     pub underperformed_session_count_threshold: SessionCount,
 }
 
@@ -101,9 +107,12 @@ impl Default for CommitteeKickOutThresholds {
     }
 }
 
+/// Represent committee, ie set of nodes that produce and finalize blocks in the session
 #[derive(Eq, PartialEq, Decode, Encode, TypeInfo)]
 pub struct EraValidators<AccountId> {
+    /// Validators that are chosen to be in committee every single session.
     pub reserved: Vec<AccountId>,
+    /// Validators that can be kicked out from the committee, under the circumstances
     pub non_reserved: Vec<AccountId>,
 }
 
