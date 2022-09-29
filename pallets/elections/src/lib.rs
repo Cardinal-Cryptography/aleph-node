@@ -375,6 +375,20 @@ pub mod pallet {
 
             Ok(())
         }
+
+        fn kick_out_underperformed_validators() {
+            let to_be_kicked_validators =
+                ToBeKickedOutFromCommittee::<T>::iter_keys().collect::<BTreeSet<_>>();
+            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+            let filtered_non_reserved_validators = non_reserved_validators
+                .difference(&to_be_kicked_validators)
+                .cloned()
+                .collect::<Vec<_>>();
+            NextEraNonReservedValidators::<T>::put(filtered_non_reserved_validators);
+            let _result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
+        }
     }
 
     #[derive(Debug)]
@@ -409,6 +423,8 @@ pub mod pallet {
         ///
         /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
+            Self::kick_out_underperformed_validators();
+
             let staking_validators = Self::DataProvider::electable_targets(None)
                 .map_err(Self::Error::DataProvider)?
                 .into_iter()

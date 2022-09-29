@@ -1,6 +1,10 @@
 use frame_election_provider_support::sp_arithmetic::Perquintill;
-use frame_support::{log::debug, pallet_prelude::Get};
-use primitives::{CommitteeSeats, EraValidators};
+use frame_support::{
+    log::{debug, error},
+    pallet_prelude::Get,
+    BoundedVec,
+};
+use primitives::{CommitteeKickOutThresholds, CommitteeSeats, EraValidators};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -10,9 +14,9 @@ use sp_std::{
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
     CommitteeSize, Config, CurrentEraCommitteeKickOutThresholds, CurrentEraValidators,
-    NextEraCommitteeSize, NextEraNonReservedValidators, NextEraReservedValidators, Pallet,
-    SessionValidatorBlockCount, ToBeKickedOutFromCommittee, UnderperformedValidatorSessionCount,
-    ValidatorEraTotalReward, ValidatorTotalRewards,
+    NextEraCommitteeKickOutThresholds, NextEraCommitteeSize, NextEraNonReservedValidators,
+    NextEraReservedValidators, Pallet, SessionValidatorBlockCount, ToBeKickedOutFromCommittee,
+    UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -242,12 +246,14 @@ where
             let reserved_validators = NextEraReservedValidators::<T>::get();
             let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
             let committee_size = NextEraCommitteeSize::<T>::get();
+            let kick_out_committee_thresholds = NextEraCommitteeKickOutThresholds::<T>::get();
 
             CurrentEraValidators::<T>::put(EraValidators {
                 reserved: retain_elected(reserved_validators),
                 non_reserved: retain_elected(non_reserved_validators),
             });
             CommitteeSize::<T>::put(committee_size);
+            CurrentEraCommitteeKickOutThresholds::<T>::put(kick_out_committee_thresholds);
         });
     }
 
@@ -294,30 +300,6 @@ where
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
 
-    fn kick_out_underperformed_validators(session: SessionIndex) {
-        let active_era = match T::EraInfoProvider::active_era() {
-            Some(ae) => ae,
-            _ => return,
-        };
-
-        // this will be populated once for the session `n+1` on the start of the session `n` where session
-        // `n+1` starts a new era.
-        Self::if_era_starts_do(active_era + 1, session, || {
-            let to_be_kicked_validators =
-                ToBeKickedOutFromCommittee::<T>::iter_keys().collect::<BTreeSet<_>>();
-            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            let filtered_non_reserved_validators = non_reserved_validators
-                .difference(&to_be_kicked_validators)
-                .cloned()
-                .collect::<Vec<_>>();
-            NextEraNonReservedValidators::<T>::put(filtered_non_reserved_validators);
-            let result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
-            debug!(target: "pallet_elections", "Result of clearing the ToBeKickedOutFromCommittee, {:?}", result.deconstruct());
-        });
-    }
-
     fn calculate_underperforming_validators() {
         let thresholds = CurrentEraCommitteeKickOutThresholds::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
@@ -327,13 +309,31 @@ where
                 Err(_) => true,
             };
             if underperformance {
-                UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
-                    *count += 1;
-                });
-                let counter = UnderperformedValidatorSessionCount::<T>::get(&validator);
-                if counter >= thresholds.underperformed_session_count_threshold {
-                    ToBeKickedOutFromCommittee::<T>::insert(&validator, Vec::new());
+                Self::mark_validator_underperformance(&thresholds, &validator)
+            }
+        }
+    }
+
+    fn mark_validator_underperformance(
+        thresholds: &CommitteeKickOutThresholds,
+        validator: &T::AccountId,
+    ) {
+        UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
+            *count += 1;
+        });
+        let counter = UnderperformedValidatorSessionCount::<T>::get(&validator);
+        if counter >= thresholds.underperformed_session_count_threshold {
+            // ideally we'd include here information about how many sessions a validator missed,
+            // yet in no_std world String does not exist. Instead BoundedVec, we should use some
+            // encoded error struct
+            let reason: Vec<u8> = "Insufficient uptime".into();
+            match BoundedVec::try_from(reason) {
+                Ok(reason) => {
+                    ToBeKickedOutFromCommittee::<T>::insert(&validator, reason);
                     UnderperformedValidatorSessionCount::<T>::remove(&validator);
+                }
+                Err(_) => {
+                    error!(target: "pallet_elections", "Failed to create bounded vec!")
                 }
             }
         }
@@ -358,9 +358,6 @@ where
     T: Config,
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
-        // we need to modify NextEraNonReservedValidators before elect() happens in new_session(new_index)
-        Self::kick_out_underperformed_validators(new_index);
-
         <T as Config>::SessionManager::new_session(new_index);
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
@@ -376,7 +373,7 @@ where
         <T as Config>::SessionManager::end_session(end_index);
         Self::adjust_rewards_for_session();
         Self::calculate_underperforming_validators();
-        // clear block count after calculating stats for underperforming vlaidators, as they use
+        // clear block count after calculating stats for underperforming validators, as they use
         // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<T>::clear(u32::MAX, None);
         debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
