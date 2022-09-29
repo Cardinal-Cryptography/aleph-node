@@ -3,10 +3,10 @@ use std::{
     mem::size_of,
 };
 
-use aleph_bft::{PartialMultisignature, SignatureSet};
 use codec::{Decode, DecodeAll, Encode, Error as CodecError, Input as CodecInput};
 
 use crate::{
+    abft::SignatureSet,
     crypto::{Signature, SignatureV1},
     justification::AlephJustification,
 };
@@ -182,7 +182,6 @@ pub fn versioned_encode(justification: AlephJustification) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use aleph_bft::{NodeCount, PartialMultisignature, SignatureSet};
     use aleph_primitives::{AuthorityPair, AuthoritySignature};
     use codec::{Decode, Encode};
     use sp_core::Pair;
@@ -194,6 +193,7 @@ mod test {
     use crate::{
         crypto::{Signature, SignatureV1},
         justification::AlephJustification,
+        NodeCount, SignatureSet,
     };
 
     #[test]

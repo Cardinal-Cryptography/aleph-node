@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-use aleph_bft::Recipient;
 use codec::Encode;
 use futures::channel::{mpsc, oneshot};
 use sc_service::TaskManager;
@@ -21,7 +20,7 @@ use crate::{
         ConnectionIO, ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity,
         Protocol, Service as NetworkService, SessionManager, IO as NetworkIO,
     },
-    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
+    MillisecsPerBlock, NodeIndex, Recipient, SessionId, SessionPeriod,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);

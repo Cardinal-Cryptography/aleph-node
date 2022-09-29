@@ -4,14 +4,14 @@ use std::{
     hash::Hash,
 };
 
-use aleph_bft::Recipient;
 use async_trait::async_trait;
 use bytes::Bytes;
 use codec::Codec;
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 
-mod aleph;
+use crate::abft::Recipient;
+
 mod component;
 mod manager;
 #[cfg(test)]
@@ -20,7 +20,6 @@ mod service;
 mod session;
 mod split;
 
-pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
 pub use component::{
     Network as ComponentNetwork, NetworkExt as ComponentNetworkExt,
     NetworkMap as ComponentNetworkMap, Receiver as ReceiverComponent, Sender as SenderComponent,
@@ -29,7 +28,7 @@ pub use component::{
 use manager::SessionCommand;
 pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
 pub use service::{Service, IO};
-pub use session::{Manager as SessionManager, ManagerError};
+pub use session::{Manager as SessionManager, ManagerError, Sender};
 pub use split::{split, Split};
 
 #[cfg(test)]
