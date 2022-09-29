@@ -4,7 +4,7 @@ use log::{debug, error};
 use sc_client_api::Backend;
 use sc_network::ExHashT;
 use sp_consensus::SelectChain;
-use sp_runtime::traits::Block;
+use sp_runtime::traits::{Block, Header};
 
 use crate::{
     mpsc,
@@ -19,10 +19,10 @@ use crate::{
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
-    AlephConfig,
+    AlephConfig, Metrics,
 };
 
-pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
+pub async fn run_validator_node<B, H, C, BE, SC, M>(aleph_config: AlephConfig<B, H, C, SC, M>)
 where
     B: Block,
     H: ExHashT,
@@ -30,6 +30,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
+    M: Metrics<<B::Header as Header>::Hash> + Send + Sync + Clone + 'static,
 {
     let AlephConfig {
         network,

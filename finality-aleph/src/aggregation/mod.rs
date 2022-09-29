@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, marker::PhantomData, time::Instant};
+use std::{marker::PhantomData, time::Instant};
 
 use aleph_aggregator::NetworkError;
 use aleph_bft::{Recipient, SignatureSet};
@@ -6,7 +6,7 @@ use sp_runtime::traits::Block;
 
 use crate::{
     crypto::Signature,
-    metrics::Checkpoint,
+    metrics::{Checkpoint, Key},
     network::{Data, DataNetwork, SendError},
     Metrics,
 };
@@ -15,6 +15,7 @@ pub type RmcNetworkData<B> =
     aleph_aggregator::RmcNetworkData<<B as Block>::Hash, Signature, SignatureSet<Signature>>;
 
 pub struct NetworkWrapper<D: Data, N: DataNetwork<D>>(N, PhantomData<D>);
+pub struct MetricsWrapper<H: Key, M: Metrics<H>>(M, PhantomData<H>);
 
 impl<D: Data, N: DataNetwork<D>> NetworkWrapper<D, N> {
     pub fn new(network: N) -> Self {
@@ -22,9 +23,16 @@ impl<D: Data, N: DataNetwork<D>> NetworkWrapper<D, N> {
     }
 }
 
-impl<H: Debug + Hash + Eq + Debug + Copy> aleph_aggregator::Metrics<H> for Metrics<H> {
+impl<H: Key, M: Metrics<H>> MetricsWrapper<H, M> {
+    pub fn new(metrics: M) -> Self {
+        Self(metrics, PhantomData)
+    }
+}
+
+impl<H: Key, M: Metrics<H>> aleph_aggregator::Metrics<H> for MetricsWrapper<H, M> {
     fn report_aggregation_complete(&mut self, h: H) {
-        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
+        self.0
+            .report_block(h, Instant::now(), Checkpoint::Aggregating);
     }
 }
 

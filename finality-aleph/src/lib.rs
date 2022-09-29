@@ -52,7 +52,7 @@ pub use network::Protocol;
 pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
 
-pub use crate::metrics::Metrics;
+pub use crate::metrics::{Metrics, MetricsImpl};
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
@@ -275,14 +275,14 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, M: Metrics<<B::Header as Header>::Hash>> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    pub metrics: M,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,

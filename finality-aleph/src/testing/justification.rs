@@ -17,7 +17,7 @@ use crate::{
         MockedBlockFinalizer, MockedBlockRequester, SessionInfoProviderImpl, TBlock,
         VerifierWrapper,
     },
-    JustificationNotification, SessionPeriod,
+    JustificationNotification, MetricsImpl, SessionPeriod,
 };
 
 const SESSION_PERIOD: SessionPeriod = SessionPeriod(5u32);
@@ -31,6 +31,7 @@ type TJustHandler = JustificationHandler<
     JustificationRequestSchedulerImpl,
     SessionInfoProviderImpl,
     MockedBlockFinalizer,
+    Option<MetricsImpl<<TBlock as Block>::Hash>>,
 >;
 type Sender = UnboundedSender<JustificationNotification<TBlock>>;
 type Environment = (

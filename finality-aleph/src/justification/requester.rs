@@ -72,7 +72,7 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, C, S, F, V>
+pub struct BlockRequester<B, RB, C, S, F, V, M>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
@@ -80,18 +80,19 @@ where
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
+    M: Metrics<<B::Header as Header>::Hash>,
 {
     block_requester: RB,
     client: Arc<C>,
     finalizer: F,
     justification_request_scheduler: S,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: M,
     min_allowed_delay: NumberFor<B>,
     request_status: JustificationRequestStatus<B>,
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, C, S, F, V> BlockRequester<B, RB, C, S, F, V>
+impl<B, RB, C, S, F, V, M> BlockRequester<B, RB, C, S, F, V, M>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
@@ -99,13 +100,14 @@ where
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
+    M: Metrics<<B::Header as Header>::Hash>,
 {
     pub fn new(
         block_requester: RB,
         client: Arc<C>,
         finalizer: F,
         justification_request_scheduler: S,
-        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+        metrics: M,
         min_allowed_delay: NumberFor<B>,
     ) -> Self {
         BlockRequester {
@@ -153,9 +155,8 @@ where
             Ok(()) => {
                 self.justification_request_scheduler.on_block_finalized();
                 debug!(target: "aleph-justification", "Successfully finalized {:?}", number);
-                if let Some(metrics) = &self.metrics {
-                    metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
-                }
+                self.metrics
+                    .report_block(hash, Instant::now(), Checkpoint::Finalized);
             }
             Err(e) => {
                 error!(target: "aleph-justification", "Fail in finalization of {:?} {:?} -- {:?}", number, hash, e);

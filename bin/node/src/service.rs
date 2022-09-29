@@ -9,7 +9,7 @@ use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
-    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, SessionPeriod,
+    JustificationNotification, MetricsImpl, MillisecsPerBlock, Protocol, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -58,11 +58,16 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            AlephBlockImport<Block, FullBackend, FullClient>,
+            AlephBlockImport<
+                Block,
+                FullBackend,
+                FullClient,
+                Option<MetricsImpl<<<Block as BlockT>::Header as HeaderT>::Hash>>,
+            >,
             mpsc::UnboundedSender<JustificationNotification<Block>>,
             mpsc::UnboundedReceiver<JustificationNotification<Block>>,
             Option<Telemetry>,
-            Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
+            Option<MetricsImpl<<<Block as BlockT>::Header as HeaderT>::Hash>>,
         ),
     >,
     ServiceError,
@@ -112,7 +117,7 @@ pub fn new_partial(
     );
 
     let metrics = config.prometheus_registry().cloned().and_then(|r| {
-        Metrics::register(&r)
+        MetricsImpl::register(&r)
             .map_err(|err| {
                 warn!("Failed to register Prometheus metrics\n{:?}", err);
             })

@@ -19,15 +19,16 @@ use crate::{
     metrics::{Checkpoint, Metrics},
 };
 
-pub struct AlephBlockImport<Block, Be, I>
+pub struct AlephBlockImport<Block, Be, I, M>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    M: Metrics<<Block::Header as Header>::Hash>,
 {
     inner: Arc<I>,
     justification_tx: UnboundedSender<JustificationNotification<Block>>,
-    metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
+    metrics: M,
     _phantom: PhantomData<Be>,
 }
 
@@ -47,17 +48,18 @@ impl<Block: BlockT> From<DecodeError> for SendJustificationError<Block> {
     }
 }
 
-impl<Block, Be, I> AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, M> AlephBlockImport<Block, Be, I, M>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    M: Metrics<<Block::Header as Header>::Hash>,
 {
     pub fn new(
         inner: Arc<I>,
         justification_tx: UnboundedSender<JustificationNotification<Block>>,
-        metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
-    ) -> AlephBlockImport<Block, Be, I> {
+        metrics: M,
+    ) -> Self {
         AlephBlockImport {
             inner,
             justification_tx,
@@ -91,11 +93,12 @@ where
     }
 }
 
-impl<Block, Be, I> Clone for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, M> Clone for AlephBlockImport<Block, Be, I, M>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    M: Metrics<<Block::Header as Header>::Hash> + Clone + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
         AlephBlockImport {
@@ -108,7 +111,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I> BlockImport<Block> for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, M> BlockImport<Block> for AlephBlockImport<Block, Be, I, M>
 where
     Block: BlockT,
     Be: Backend<Block>,
@@ -116,6 +119,7 @@ where
     for<'a> &'a I:
         BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<I, Block>>,
     TransactionFor<I, Block>: Send + 'static,
+    M: Metrics<<Block::Header as Header>::Hash> + Clone + Send + Sync + 'static,
 {
     type Error = <I as BlockImport<Block>>::Error;
     type Transaction = TransactionFor<I, Block>;
@@ -134,9 +138,8 @@ where
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
         let post_hash = block.post_hash();
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Importing);
-        };
+        self.metrics
+            .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
         let justifications = block.justifications.take();
 
@@ -161,20 +164,19 @@ where
             }
         }
 
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Imported);
-        };
-
+        self.metrics
+            .report_block(post_hash, Instant::now(), Checkpoint::Imported);
         Ok(ImportResult::Imported(imported_aux))
     }
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I> JustificationImport<Block> for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, M> JustificationImport<Block> for AlephBlockImport<Block, Be, I, M>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    M: Metrics<<Block::Header as Header>::Hash> + Clone + Send + Sync + 'static,
 {
     type Error = ConsensusError;
 

@@ -60,7 +60,7 @@ impl<H: Key> Inner<H> {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub(crate) enum Checkpoint {
+pub enum Checkpoint {
     Importing,
     Imported,
     Ordering,
@@ -69,12 +69,16 @@ pub(crate) enum Checkpoint {
     Finalized,
 }
 
+pub trait Metrics<H: Key> {
+    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint);
+}
+
 #[derive(Clone)]
-pub struct Metrics<H: Key> {
+pub struct MetricsImpl<H: Key> {
     inner: Arc<Mutex<Inner<H>>>,
 }
 
-impl<H: Key> Metrics<H> {
+impl<H: Key> MetricsImpl<H> {
     pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
@@ -110,16 +114,22 @@ impl<H: Key> Metrics<H> {
 
         Ok(Self { inner })
     }
+}
 
-    pub(crate) fn report_block(
-        &self,
-        hash: H,
-        checkpoint_time: Instant,
-        checkpoint_type: Checkpoint,
-    ) {
+impl<H: Key> Metrics<H> for MetricsImpl<H> {
+    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
         self.inner
             .lock()
             .report_block(hash, checkpoint_time, checkpoint_type);
+    }
+}
+
+impl<H: Key, M: Metrics<H>> Metrics<H> for Option<M> {
+    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
+        match self {
+            None => {}
+            Some(m) => m.report_block(hash, checkpoint_time, checkpoint_type),
+        }
     }
 }
 
@@ -129,11 +139,14 @@ mod tests {
 
     use super::*;
 
-    fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
+    fn starts_for<H: Key>(m: &MetricsImpl<H>, c: Checkpoint) -> usize {
         m.inner.lock().starts.get(&c).unwrap().len()
     }
 
-    fn check_reporting_with_memory_excess(metrics: &Metrics<usize>, checkpoint: Checkpoint) {
+    fn check_reporting_with_memory_excess(
+        metrics: &mut MetricsImpl<usize>,
+        checkpoint: Checkpoint,
+    ) {
         for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
             metrics.report_block(i, Instant::now(), checkpoint);
             assert_eq!(
@@ -145,20 +158,20 @@ mod tests {
 
     #[test]
     fn should_keep_entries_up_to_defined_limit() {
-        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
-        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
+        let mut m = MetricsImpl::<usize>::register(&Registry::new()).unwrap();
+        check_reporting_with_memory_excess(&mut m, Checkpoint::Ordered);
     }
 
     #[test]
     fn should_manage_space_for_checkpoints_independently() {
-        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
-        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
-        check_reporting_with_memory_excess(&m, Checkpoint::Imported);
+        let mut m = MetricsImpl::<usize>::register(&Registry::new()).unwrap();
+        check_reporting_with_memory_excess(&mut m, Checkpoint::Ordered);
+        check_reporting_with_memory_excess(&mut m, Checkpoint::Imported);
     }
 
     #[test]
     fn given_not_monotonic_clock_when_report_block_is_called_repeatedly_code_does_not_panic() {
-        let metrics = Metrics::<usize>::register(&Registry::new()).unwrap();
+        let mut metrics = MetricsImpl::<usize>::register(&Registry::new()).unwrap();
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         metrics.report_block(0, later_timestamp, Checkpoint::Ordering);

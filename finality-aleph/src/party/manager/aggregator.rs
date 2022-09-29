@@ -13,7 +13,7 @@ use sp_runtime::traits::{Block, Header};
 use tokio::time;
 
 use crate::{
-    aggregation::NetworkWrapper,
+    aggregation::{MetricsWrapper, NetworkWrapper},
     crypto::{Keychain, Signature},
     justification::{AlephJustification, JustificationNotification},
     metrics::Checkpoint,
@@ -30,28 +30,26 @@ pub struct IO<B: Block> {
 
 type SignableBlockHash<B> = SignableHash<<B as Block>::Hash>;
 type Rmc<'a, B> = ReliableMulticast<'a, SignableBlockHash<B>, Keychain>;
-type AggregatorIO<'a, B, N> = Aggregator<
+type AggregatorIO<'a, B, N, M> = Aggregator<
     <B as Block>::Hash,
     RmcNetworkData<B>,
     NetworkWrapper<RmcNetworkData<B>, N>,
     SignatureSet<Signature>,
     Rmc<'a, B>,
-    Metrics<<B as Block>::Hash>,
+    MetricsWrapper<<B as Block>::Hash, M>,
 >;
 
-async fn process_new_block_data<B, N>(
-    aggregator: &mut AggregatorIO<'_, B, N>,
+async fn process_new_block_data<B, N, M: Metrics<<B::Header as Header>::Hash>>(
+    aggregator: &mut AggregatorIO<'_, B, N, M>,
     block: BlockHashNum<B>,
-    metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: &mut M,
 ) where
     B: Block,
     N: DataNetwork<RmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    if let Some(metrics) = &metrics {
-        metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
-    }
+    metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
 
     aggregator.start_aggregation(block.hash).await;
 }
@@ -80,12 +78,12 @@ where
     Ok(())
 }
 
-async fn run_aggregator<B, C, N>(
-    mut aggregator: AggregatorIO<'_, B, N>,
+async fn run_aggregator<B, C, N, M>(
+    mut aggregator: AggregatorIO<'_, B, N, M>,
     io: IO<B>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries<B>,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    mut metrics: M,
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
@@ -93,6 +91,7 @@ where
     C: HeaderBackend<B> + Send + Sync + 'static,
     N: DataNetwork<RmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
+    M: Metrics<<B::Header as Header>::Hash> + Clone + Send + Sync + 'static,
 {
     let IO {
         blocks_from_interpreter,
@@ -120,10 +119,10 @@ where
             maybe_block = blocks_from_interpreter.next() => {
                 if let Some(block) = maybe_block {
                     hash_of_last_block = Some(block.hash);
-                    process_new_block_data::<B, N>(
+                    process_new_block_data::<B, N, M>(
                         &mut aggregator,
                         block,
-                        &metrics
+                        &mut metrics
                     ).await;
                 } else {
                     debug!(target: "aleph-party", "Blocks ended in aggregator.");
@@ -159,12 +158,12 @@ where
 }
 
 /// Runs the justification signature aggregator within a single session.
-pub fn task<B, C, N>(
+pub fn task<B, C, N, M>(
     subtask_common: AuthoritySubtaskCommon,
     client: Arc<C>,
     io: IO<B>,
     session_boundaries: SessionBoundaries<B>,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: M,
     multikeychain: Keychain,
     rmc_network: N,
 ) -> Task
@@ -172,6 +171,7 @@ where
     B: Block,
     C: HeaderBackend<B> + Send + Sync + 'static,
     N: DataNetwork<RmcNetworkData<B>> + 'static,
+    M: Metrics<<B::Header as Header>::Hash> + Clone + Send + Sync + 'static,
 {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -190,8 +190,9 @@ where
                 multikeychain.node_count(),
                 scheduler,
             );
-            let aggregator = BlockSignatureAggregator::new(metrics.clone());
-            let aggregator_io = AggregatorIO::<B, N>::new(
+            let aggregator =
+                BlockSignatureAggregator::new(Some(MetricsWrapper::new(metrics.clone())));
+            let aggregator_io = AggregatorIO::<B, N, M>::new(
                 messages_for_rmc,
                 messages_from_rmc,
                 NetworkWrapper::new(rmc_network),

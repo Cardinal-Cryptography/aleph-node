@@ -20,7 +20,7 @@ use crate::{
     network, Metrics, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, C, S, SI, F>
+pub struct JustificationHandler<B, V, RB, C, S, SI, F, M>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -29,14 +29,15 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
+    M: Metrics<<B::Header as Header>::Hash>,
 {
     session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, C, S, F, V>,
+    block_requester: BlockRequester<B, RB, C, S, F, V, M>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, C, S, SI, F> JustificationHandler<B, V, RB, C, S, SI, F>
+impl<B, V, RB, C, S, SI, F, M> JustificationHandler<B, V, RB, C, S, SI, F, M>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -45,6 +46,7 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
+    M: Metrics<<B::Header as Header>::Hash>,
 {
     pub fn new(
         session_info_provider: SI,
@@ -52,7 +54,7 @@ where
         client: Arc<C>,
         finalizer: F,
         justification_request_scheduler: S,
-        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+        metrics: M,
         justification_handler_config: JustificationHandlerConfig<B>,
     ) -> Self {
         Self {

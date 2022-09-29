@@ -78,11 +78,11 @@ impl<B: Block> Verifier<B> for JustificationVerifier {
     }
 }
 
-struct JustificationParams<B: Block, H: ExHashT, C> {
+struct JustificationParams<B: Block, H: ExHashT, C, M: Metrics<<B::Header as Header>::Hash>> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    pub metrics: M,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub session_map: ReadOnlySessionMap,
@@ -121,8 +121,8 @@ impl<B: Block> SessionInfoProvider<B, JustificationVerifier> for SessionInfoProv
     }
 }
 
-fn setup_justification_handler<B, H, C, BE>(
-    just_params: JustificationParams<B, H, C>,
+fn setup_justification_handler<B, H, C, BE, M>(
+    just_params: JustificationParams<B, H, C, M>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,
     impl Future<Output = ()>,
@@ -133,6 +133,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
+    M: Metrics<<B::Header as Header>::Hash>,
 {
     let JustificationParams {
         network,

@@ -8,7 +8,7 @@ use log::{debug, trace, warn};
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::traits::{Block as BlockT, Header};
+use sp_runtime::traits::Block as BlockT;
 
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier, Keychain},
@@ -30,13 +30,14 @@ mod task;
 pub use authority::{SubtaskCommon, Subtasks, Task as AuthorityTask};
 pub use task::{Handle, Task};
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, M>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    M: Metrics<<B as BlockT>::Hash> + Send + Sync + Clone + 'static,
 {
     client: Arc<C>,
     select_chain: SC,
@@ -44,20 +45,21 @@ where
     unit_creation_delay: UnitCreationDelay,
     authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
     block_requester: RB,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: M,
     spawn_handle: crate::SpawnHandle,
     session_manager: SessionManager<VersionedNetworkData<B>>,
     keystore: Arc<dyn CryptoStore>,
     _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE> NodeSessionManagerImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE, M> NodeSessionManagerImpl<C, SC, B, RB, BE, M>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    M: Metrics<<B as BlockT>::Hash> + Send + Sync + Clone + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -67,7 +69,7 @@ where
         unit_creation_delay: UnitCreationDelay,
         authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
         block_requester: RB,
-        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+        metrics: M,
         spawn_handle: crate::SpawnHandle,
         session_manager: SessionManager<VersionedNetworkData<B>>,
         keystore: Arc<dyn CryptoStore>,
@@ -189,7 +191,7 @@ pub enum SessionManagerError {
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE>
+impl<C, SC, B, RB, BE, M> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, M>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -197,6 +199,7 @@ where
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
+    M: Metrics<<B as BlockT>::Hash> + Send + Sync + Clone + 'static,
 {
     type Error = SessionManagerError;
 

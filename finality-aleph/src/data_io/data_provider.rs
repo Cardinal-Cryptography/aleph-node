@@ -8,7 +8,7 @@ use sc_client_api::HeaderBackend;
 use sp_consensus::SelectChain;
 use sp_runtime::{
     generic::BlockId,
-    traits::{Block as BlockT, Header as HeaderT, NumberFor, One, Zero},
+    traits::{Block as BlockT, Header as HeaderT, Header, NumberFor, One, Zero},
     SaturatedConversion,
 };
 
@@ -137,12 +137,12 @@ where
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
-    pub fn new(
+    pub fn new<M: Metrics<<B::Header as Header>::Hash> + Send>(
         select_chain: SC,
         client: Arc<C>,
         session_boundaries: SessionBoundaries<B>,
         config: ChainTrackerConfig,
-        metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
+        metrics: M,
     ) -> (Self, impl aleph_bft::DataProvider<AlephData<B>>) {
         let data_to_propose = Arc::new(Mutex::new(None));
         (
@@ -292,9 +292,9 @@ where
 
 /// Provides data to AlephBFT for ordering.
 #[derive(Clone)]
-struct DataProvider<B: BlockT> {
+struct DataProvider<B: BlockT, M: Metrics<<B::Header as Header>::Hash>> {
     data_to_propose: Arc<Mutex<Option<AlephData<B>>>>,
-    metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
+    metrics: M,
 }
 
 // Honest nodes propose data in session `k` as follows:
@@ -306,18 +306,18 @@ struct DataProvider<B: BlockT> {
 //    last finalized till `best_block` with the restriction that the branch must be truncated to length
 //    at most MAX_DATA_BRANCH_LEN.
 #[async_trait]
-impl<B: BlockT> aleph_bft::DataProvider<AlephData<B>> for DataProvider<B> {
+impl<B: BlockT, M: Metrics<<B::Header as Header>::Hash> + Send>
+    aleph_bft::DataProvider<AlephData<B>> for DataProvider<B, M>
+{
     async fn get_data(&mut self) -> Option<AlephData<B>> {
         let data_to_propose = (*self.data_to_propose.lock()).take();
 
         if let Some(data) = &data_to_propose {
-            if let Some(m) = &self.metrics {
-                m.report_block(
-                    *data.head_proposal.branch.last().unwrap(),
-                    std::time::Instant::now(),
-                    Checkpoint::Ordering,
-                );
-            }
+            self.metrics.report_block(
+                *data.head_proposal.branch.last().unwrap(),
+                std::time::Instant::now(),
+                Checkpoint::Ordering,
+            );
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
 
@@ -330,6 +330,7 @@ mod tests {
     use std::{future::Future, sync::Arc, time::Duration};
 
     use futures::channel::oneshot;
+    use sp_runtime::traits::Block as BlockT;
     use substrate_test_runtime_client::{
         runtime::Block, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
     };
@@ -341,7 +342,7 @@ mod tests {
             AlephData, MAX_DATA_BRANCH_LEN,
         },
         testing::{client_chain_builder::ClientChainBuilder, mocks::aleph_data_from_blocks},
-        SessionBoundaries, SessionId, SessionPeriod,
+        MetricsImpl, SessionBoundaries, SessionId, SessionPeriod,
     };
 
     const SESSION_LEN: u32 = 100;
@@ -366,8 +367,13 @@ mod tests {
             refresh_interval: REFRESH_INTERVAL,
         };
 
-        let (chain_tracker, data_provider) =
-            ChainTracker::new(select_chain, client, session_boundaries, config, None);
+        let (chain_tracker, data_provider) = ChainTracker::new(
+            select_chain,
+            client,
+            session_boundaries,
+            config,
+            None::<MetricsImpl<<Block as BlockT>::Hash>>,
+        );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
         (
