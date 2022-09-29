@@ -43,7 +43,7 @@ pub enum MultisigError {
     #[error("👪❌ Only the author can cancel aggregation.")]
     NotAuthor,
     #[error("👪❌ The connection is signed by an account that doesn't match to any member.")]
-    IncorrectSignature,
+    NonMemberSignature,
 }
 
 type CallHash = [u8; 32];
@@ -265,7 +265,7 @@ impl MultisigParty {
     fn map_signer_to_member_index(&self, connection: &SignedConnection) -> Result<usize> {
         self.members
             .binary_search(&account_from_keypair(&connection.signer))
-            .map_err(|_| MultisigError::IncorrectSignature.into())
+            .map_err(|_| MultisigError::NonMemberSignature.into())
     }
 
     /// Effectively starts the aggregation process by calling `approveAsMulti`.
