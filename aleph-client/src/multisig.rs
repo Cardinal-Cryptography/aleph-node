@@ -262,7 +262,7 @@ impl MultisigParty {
     }
 
     /// Checks whether `connection` is signed by some member and if so, returns their index.
-    fn map_signer_to_member(&self, connection: &SignedConnection) -> Result<usize> {
+    fn map_signer_to_member_index(&self, connection: &SignedConnection) -> Result<usize> {
         self.members
             .binary_search(&account_from_keypair(&connection.signer))
             .map_err(|_| MultisigError::IncorrectSignature.into())
@@ -276,7 +276,7 @@ impl MultisigParty {
         connection: &SignedConnection,
         call_hash: CallHash,
     ) -> Result<SignatureAggregation> {
-        let author_idx = self.map_signer_to_member(connection)?;
+        let author_idx = self.map_signer_to_member_index(connection)?;
 
         let other_signatories = self.designate_represented(author_idx);
         let xt = self.construct_approve_as_multi(connection, other_signatories, None, call_hash);
@@ -324,7 +324,7 @@ impl MultisigParty {
         call: Extrinsic<CallDetails>,
         store_call: bool,
     ) -> Result<SignatureAggregation> {
-        let author_idx = self.map_signer_to_member(connection)?;
+        let author_idx = self.map_signer_to_member_index(connection)?;
 
         let xt = self.construct_as_multi(
             connection,
@@ -357,7 +357,7 @@ impl MultisigParty {
         connection: &SignedConnection,
         mut sig_agg: SignatureAggregation,
     ) -> Result<SignatureAggregation> {
-        let member_idx = self.map_signer_to_member(connection)?;
+        let member_idx = self.map_signer_to_member_index(connection)?;
 
         let xt = self.construct_approve_as_multi(
             connection,
@@ -383,7 +383,7 @@ impl MultisigParty {
         call: Extrinsic<CallDetails>,
         store_call: bool,
     ) -> Result<SignatureAggregation> {
-        let member_idx = self.map_signer_to_member(connection)?;
+        let member_idx = self.map_signer_to_member_index(connection)?;
         if let Some(ref reported_call) = sig_agg.call {
             ensure!(
                 reported_call.eq(&call.encode()),
@@ -443,7 +443,7 @@ impl MultisigParty {
         connection: &SignedConnection,
         sig_agg: SignatureAggregation,
     ) -> Result<()> {
-        let author_idx = self.map_signer_to_member(connection)?;
+        let author_idx = self.map_signer_to_member_index(connection)?;
         ensure!(sig_agg.author == author_idx, MultisigError::NotAuthor);
 
         let xt = self.construct_cancel_as_multi(
