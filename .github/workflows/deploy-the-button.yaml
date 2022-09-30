@@ -36,7 +36,7 @@ jobs:
           cd /tmp
           wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz
           tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz
-          cp -rf /tmp/binaryen-version_110-x86_64-linux.tar.gz/* /usr/
+          cp -rf /tmp/binaryen-version_110/* /usr/
 
       - name: Run additional cargo install
         shell: bash
