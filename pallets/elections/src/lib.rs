@@ -39,7 +39,7 @@ mod tests;
 mod traits;
 
 use codec::{Decode, Encode};
-use frame_support::traits::StorageVersion;
+use frame_support::{log::info, traits::StorageVersion};
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
 pub use pallet::*;
 use pallets_support::StorageMigration;
@@ -101,9 +101,14 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
+        /// Emitted via [`Pallet<T>::change_validators`]
         ChangeValidators(Vec<T::AccountId>, Vec<T::AccountId>, CommitteeSeats),
 
+        /// Emitted via [`Pallet<T>::set_kick_out_thresholds`]
         SetCommitteeKickOutThresholds(CommitteeKickOutThresholds),
+
+        /// Emitted during elections when there are some underperforming validators
+        KickOutValidators(BTreeSet<T::AccountId>),
     }
 
     #[pallet::pallet]
@@ -375,15 +380,25 @@ pub mod pallet {
         fn kick_out_underperformed_non_reserved_validators() {
             let to_be_kicked_validators =
                 ToBeKickedOutFromCommittee::<T>::iter_keys().collect::<BTreeSet<_>>();
-            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            let filtered_non_reserved_validators = non_reserved_validators
-                .difference(&to_be_kicked_validators)
-                .cloned()
-                .collect::<Vec<_>>();
-            NextEraNonReservedValidators::<T>::put(filtered_non_reserved_validators);
-            let _result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
+            if !to_be_kicked_validators.is_empty() {
+                let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+                    .into_iter()
+                    .collect::<BTreeSet<_>>();
+                let filtered_non_reserved_validators = non_reserved_validators
+                    .difference(&to_be_kicked_validators)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                if filtered_non_reserved_validators.len() < non_reserved_validators.len() {
+                    info!(target: "pallet_elections", "Removing following validators from non reserved, {:?}", to_be_kicked_validators);
+                    let non_reserved_in_order = non_reserved_validators
+                        .into_iter()
+                        .filter(|v| filtered_non_reserved_validators.contains(v))
+                        .collect::<Vec<_>>();
+                    NextEraNonReservedValidators::<T>::put(non_reserved_in_order);
+                    Self::deposit_event(Event::KickOutValidators(to_be_kicked_validators));
+                }
+                let _result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
+            }
         }
     }
 

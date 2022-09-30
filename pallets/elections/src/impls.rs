@@ -26,6 +26,7 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///
 /// 1. Block `B` initialized
 /// 2. `end_session(S)` is called
+/// -  Based on block count we might mark the session for a given validator as undeperformed
 /// -  We update rewards and clear block count for the session `S`.
 /// 3. `start_session(S + 1)` is called.
 /// -  if session `S+1` starts new era we populate totals.
@@ -300,7 +301,7 @@ where
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
 
-    fn calculate_underperforming_validators() {
+    fn calculate_underperforming_non_reserved_validators() {
         let thresholds = CurrentEraCommitteeKickOutThresholds::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
         for validator in current_committee {
@@ -372,7 +373,7 @@ where
     fn end_session(end_index: SessionIndex) {
         <T as Config>::SessionManager::end_session(end_index);
         Self::adjust_rewards_for_session();
-        Self::calculate_underperforming_validators();
+        Self::calculate_underperforming_non_reserved_validators();
         // clear block count after calculating stats for underperforming validators, as they use
         // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<T>::clear(u32::MAX, None);
