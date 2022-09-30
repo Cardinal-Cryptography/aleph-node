@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
         with:
-          ref: benjamin
+          ref: A0-1416-deployment-workflow-for-the-button-game
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -33,8 +33,7 @@ jobs:
       - name: Install binaryen
         shell: bash
         run: |
-          cd /tmp
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
           tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz
           sudo chmod +x /tmp/binaryen-version_110/bin/*
           sudo cp -rf /tmp/binaryen-version_110/* /usr/
