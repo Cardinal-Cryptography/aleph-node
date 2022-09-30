@@ -59,6 +59,12 @@ jobs:
         run: |
           rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
 
+      - name: Run clean.sh script
+        continue-on-error: true
+        shell: bash
+        run: |
+          source contracts/env/fe-benjamin && ./contracts/scripts/clean.sh
+
       - name: Run deploy.sh script
         shell: bash
         run: |
