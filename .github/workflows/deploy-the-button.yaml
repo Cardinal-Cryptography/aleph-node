@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
-          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz
+          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
           sudo chmod +x /tmp/binaryen-version_110/bin/*
           sudo cp -rf /tmp/binaryen-version_110/* /usr/
 
