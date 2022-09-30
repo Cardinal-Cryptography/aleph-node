@@ -6,7 +6,7 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod button_game {
-    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::MINT_TO_SELECTOR;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
