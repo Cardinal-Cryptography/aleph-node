@@ -20,7 +20,7 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
       
-      - name: Install cargo addiotnal libs
+      - name: Install cargo additional libs
         run: |
           cargo install dylint-link
           cargo install cargo-dylint
@@ -28,7 +28,15 @@ jobs:
       - name: Install jq
         shell: bash
         run: |
-          apt-get install -y jq
+          sudo apt-get install -y jq
+
+      - name: Install binaryen
+        shell: bash
+        run: |
+          cd /tmp
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz
+          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz
+          cp -rf /tmp/binaryen-version_110-x86_64-linux.tar.gz/* /usr/
 
       - name: Run additional cargo install
         shell: bash
