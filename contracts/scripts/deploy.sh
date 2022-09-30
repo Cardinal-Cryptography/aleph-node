@@ -218,7 +218,7 @@ echo "Early Bird Special"
 
 salt="0x4561726C79426972645370656369616C"
 deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
-deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
+deploy_game_token EARLY_BIRD_SPECIAL_TOKEN Ubik UBI $salt
 deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN $salt
 deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
 
@@ -229,7 +229,7 @@ echo "Back To The Future"
 
 salt="0x4261636B546F546865467574757265"
 deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
-deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
+deploy_game_token BACK_TO_THE_FUTURE_TOKEN Cyberiad CYB $salt
 deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN $salt
 deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE"
 
@@ -240,7 +240,7 @@ echo "The Pressiah Cometh"
 
 salt="0x7468655F70726573736961685F636F6D657468"
 deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
-deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
+deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh $THE_PRESSIAH_COMETH_TICKET $THE_PRESSIAH_COMETH_TOKEN $salt
 deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH"
 
@@ -283,7 +283,6 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
      game_token_code_hash: $game_token_code_hash,
      marketplace_code_hash: $marketplace_code_hash,
      access_control_code_hash: $access_control_code_hash}' > addresses.json
-
 
 end=`date +%s.%N`
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"
