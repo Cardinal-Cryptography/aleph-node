@@ -240,14 +240,6 @@ impl TestExtBuilder {
         self
     }
 
-    pub fn with_committee_kick_out_thresholds(
-        mut self,
-        committee_kick_out_thresholds: CommitteeKickOutThresholds,
-    ) -> Self {
-        self.committee_kick_out_thresholds = committee_kick_out_thresholds;
-        self
-    }
-
     #[cfg(feature = "try-runtime")]
     pub fn with_storage_version(mut self, version: u16) -> Self {
         self.storage_version = StorageVersion::new(version);

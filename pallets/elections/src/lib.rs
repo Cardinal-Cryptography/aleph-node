@@ -263,7 +263,7 @@ pub mod pallet {
                 Error::<T>::InvalidKickOutThresholds
             );
 
-            NextEraCommitteeKickOutThresholds::<T>::put(committee_kick_out_thresholds.clone());
+            NextEraCommitteeKickOutThresholds::<T>::put(committee_kick_out_thresholds);
 
             Self::deposit_event(Event::SetCommitteeKickOutThresholds(
                 committee_kick_out_thresholds,
