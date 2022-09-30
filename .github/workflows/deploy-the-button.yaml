@@ -52,4 +52,4 @@ jobs:
       - name: Run deploy.sh script
         shell: bash
         run: |
-          source contacts/env/fe-benjamin && ./contracts/scripts/deploy.sh
+          source contracts/env/fe-benjamin && ./contracts/scripts/deploy.sh
