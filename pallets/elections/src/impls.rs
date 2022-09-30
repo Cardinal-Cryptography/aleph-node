@@ -43,7 +43,7 @@ fn calculate_adjusted_session_points(
     let performance =
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
 
-    // when produced between 90% to 100% expected blocks get 100% possible reward for session
+    // when produced more than 90% expected blocks, get 100% possible reward for session
     if performance >= LENIENT_THRESHOLD {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
             * total_possible_reward as u64) as u32;
@@ -427,17 +427,17 @@ mod tests {
     #[test]
     fn adjusted_session_points_more_than_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
-            2 * 5000,
+            5000,
             calculate_adjusted_session_points(5, 30, 2 * 30, 25_000)
         );
 
         assert_eq!(
-            3 * 6250000,
+            6250000,
             calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000)
         );
 
         assert_eq!(
-            6152662,
+            6145833,
             calculate_adjusted_session_points(96, 900, 901, 590_000_000)
         );
     }

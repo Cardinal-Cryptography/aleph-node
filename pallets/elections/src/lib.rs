@@ -12,12 +12,13 @@
 //! # Kick out logic
 //! In case of insufficient validator's uptime, we need to make such validators are removed from
 //! the committee, so that the network is as healthy as possible. This is achieved by calculating
-//! number of _underperformance_ sessions, where it means that number of blocks produced by the
+//! number of _underperformance_ sessions, which means that number of blocks produced by the
 //! validator is less than some predefined threshold.
 //! In other words, if a validator:
 //! * produced less or equal blocks to a `CurrentEraCommitteeKickOutThresholds::block_count_threshold`, and,
 //! * it happened at least `CurrentEraCommitteeKickOutThresholds::underperformed_session_count_threshold` times,
-//! then the validator is considered an underperformer and hence removed (ie _kicked out_)
+//! then the validator is considered an underperformer and hence removed (ie _kicked out_) from the
+//! committee.
 //!
 //! ## Thresholds
 //! There are two kick-out thresholds described above, see [`CommitteeKickOutThresholds`].

@@ -7,7 +7,7 @@ use frame_support::{
     weights::RuntimeDbWeight,
     BasicExternalities, BoundedVec,
 };
-use primitives::CommitteeSeats;
+use primitives::{CommitteeKickOutThresholds, CommitteeSeats};
 use sp_core::H256;
 use sp_runtime::{
     testing::{Header, TestXt},
@@ -167,6 +167,7 @@ impl Config for Test {
     type SessionManager = ();
     type SessionInfoProvider = MockProvider;
     type ValidatorRewardsHandler = MockProvider;
+    type MaximumKickOutReasonLength = ConstU32<300>;
 }
 
 type MaxVotesPerVoter = ConstU32<1>;
@@ -213,6 +214,7 @@ pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
     committee_seats: CommitteeSeats,
+    committee_kick_out_thresholds: CommitteeKickOutThresholds,
     storage_version: StorageVersion,
 }
 
@@ -228,12 +230,21 @@ impl TestExtBuilder {
             },
             reserved_validators,
             non_reserved_validators,
+            committee_kick_out_thresholds: CommitteeKickOutThresholds::default(),
             storage_version: STORAGE_VERSION,
         }
     }
 
     pub fn with_committee_seats(mut self, committee_seats: CommitteeSeats) -> Self {
         self.committee_seats = committee_seats;
+        self
+    }
+
+    pub fn with_committee_kick_out_thresholds(
+        mut self,
+        committee_kick_out_thresholds: CommitteeKickOutThresholds,
+    ) -> Self {
+        self.committee_kick_out_thresholds = committee_kick_out_thresholds;
         self
     }
 
@@ -267,6 +278,7 @@ impl TestExtBuilder {
             non_reserved_validators: self.non_reserved_validators,
             reserved_validators: self.reserved_validators,
             committee_seats: self.committee_seats,
+            committee_kick_out_thresholds: self.committee_kick_out_thresholds,
         }
         .assimilate_storage(&mut t)
         .unwrap();

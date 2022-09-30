@@ -5,14 +5,15 @@ use frame_support::bounded_vec;
 use pallet_session::SessionManager;
 #[cfg(feature = "try-runtime")]
 use pallets_support::StorageMigration;
-use primitives::CommitteeSeats;
+use primitives::{CommitteeKickOutThresholds, CommitteeSeats};
 
 use crate::{
     mock::{
         with_active_era, with_electable_targets, with_elected_validators, with_electing_voters,
         AccountId, Balance, Elections, SessionsPerEra, Test, TestExtBuilder,
     },
-    CommitteeSize, CurrentEraValidators, NextEraCommitteeSize, NextEraNonReservedValidators,
+    CommitteeSize, CurrentEraCommitteeKickOutThresholds, CurrentEraValidators,
+    NextEraCommitteeKickOutThresholds, NextEraCommitteeSize, NextEraNonReservedValidators,
     NextEraReservedValidators,
 };
 
@@ -46,8 +47,17 @@ fn storage_is_initialized_already_in_genesis() {
                 CurrentEraValidators::<Test>::get().non_reserved,
                 NON_RESERVED
             );
+            assert_eq!(
+                CurrentEraCommitteeKickOutThresholds::<Test>::get(),
+                CommitteeKickOutThresholds::default()
+            );
+            assert_eq!(
+                NextEraCommitteeKickOutThresholds::<Test>::get(),
+                CommitteeKickOutThresholds::default()
+            );
             // We do not expect SessionValidatorBlockCount and ValidatorEraTotalReward to be
-            // populated from genesis.
+            // populated from genesis, so does the kick-out related storages:
+            // UnderperformedValidatorSessionCount and ToBeKickedOutFromCommittee
         });
 }
 
