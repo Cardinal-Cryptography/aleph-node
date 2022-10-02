@@ -100,7 +100,6 @@ dependencies = [
 name = "aleph-e2e-client"
 version = "0.3.1"
 dependencies = [
- "ac-primitives",
  "aleph_client",
  "anyhow",
  "clap",
@@ -118,12 +117,11 @@ dependencies = [
  "serde_json",
  "sp-core",
  "sp-runtime",
- "substrate-api-client",
 ]
 
 [[package]]
 name = "aleph_client"
-version = "1.5.2"
+version = "1.7.0"
 dependencies = [
  "ac-primitives",
  "anyhow",
