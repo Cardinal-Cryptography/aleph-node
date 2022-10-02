@@ -23,7 +23,7 @@ use ink_lang as ink;
 
 #[ink::contract]
 pub mod marketplace {
-    use access_control::{traits::AccessControlled, Role, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::TRANSFER_FROM_SELECTOR as TRANSFER_FROM_GAME_TOKEN_SELECTOR;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
