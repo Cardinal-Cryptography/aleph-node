@@ -5,6 +5,13 @@ on:
     branches:
     - A0-1416-deployment-workflow-for-the-button-game
 
+env:
+  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
+  CACHE_KEY: fe-benjamin-button
+  CONTRACTS_ENVFILE: fe-benjamin
+  CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
+  NODE_VERSION: 16
+
 jobs:
   checkout_benjamin:
     runs-on: ubuntu-20.04
@@ -12,7 +19,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
         with:
-          ref: A0-1416-deployment-workflow-for-the-button-game
+          ref: ${{ env.CHECKOUT_REF }}
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -23,8 +30,8 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
-          target-key: fe-benjamin-button
-          cargo-key: fe-benjamin-button
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
           cache-version: v1
 
       - name: Install cargo additional libs
@@ -48,12 +55,12 @@ jobs:
       - name: Run additional cargo install
         shell: bash
         run: |
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
     
       - name: Install node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Add nightly-2022-08-12-x86_64-unknown-linux-gnu
         run: |
@@ -63,9 +70,9 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          source contracts/env/fe-benjamin && ./contracts/scripts/clean.sh
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
         shell: bash
         run: |
-          source contracts/env/fe-benjamin && ./contracts/scripts/deploy.sh
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
