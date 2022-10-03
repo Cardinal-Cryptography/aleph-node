@@ -66,13 +66,32 @@ jobs:
         run: |
           rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
 
-      - name: Run clean.sh script
-        continue-on-error: true
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+      # download the files from s3 bucket?
 
-      - name: Run deploy.sh script
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+      #- name: Run clean.sh script
+      #  continue-on-error: true
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+
+      #- name: Run deploy.sh script
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+
+      # upload the following files to s3 bucket:
+      # contracts/addresses.json
+      # contracts/{ticket_token,marketplace,button,game_token,access_control}/target/ink/metadata.json
+
+      # trigger the-button workflow from another repository using API
+
+      # modify workflow in the-button to download the JSON files from S3, create a separate ${{ sha }}-fe-benjamin tag and deploy it (switchable)
+
+
+      # TODO:
+      # 1. add alephzero-devnet-ci s3 bucket in aleph-infra in devnet
+      # 2. create a dummy test to check if it can be accessed to create files
+      # 3. add step that downloads the *.json files
+      # 4. add step that puts the *.json files
+      # 5. add step that triggers github workflow from the-button
+      # 6. modify the workflow in the-button to download the json files, create a separate docker image, and use that one instead of clean one
