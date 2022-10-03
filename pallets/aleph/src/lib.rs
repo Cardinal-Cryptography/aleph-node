@@ -171,7 +171,7 @@ pub mod pallet {
         // To cancel a future version change, reschedule it with the current version.
         // If a scheduled version change has moved into the past, `SessionManager` records it
         // as the current version.
-        pub(crate) fn schedule_next_aleph_bft_version_change(
+        pub(crate) fn do_schedule_aleph_bft_version_change(
             version_change: VersionChange,
         ) -> Result<(), &'static str> {
             let current_session = Self::current_session();
@@ -240,7 +240,7 @@ pub mod pallet {
                 session,
             };
 
-            if let Err(e) = Self::schedule_next_aleph_bft_version_change(version_change.clone()) {
+            if let Err(e) = Self::do_schedule_aleph_bft_version_change(version_change.clone()) {
                 return Err(DispatchError::Other(e));
             }
 
