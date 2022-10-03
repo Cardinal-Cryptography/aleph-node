@@ -191,18 +191,12 @@ cargo contract build --release
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
-env
-echo '1'
+
 ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
-echo '2'
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
-echo '3'
 ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
-echo '4'
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | grep Contract | tail -1 | cut -c 15-)
-echo '5'
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
-echo '6'
 
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"

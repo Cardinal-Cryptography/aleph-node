@@ -55,8 +55,7 @@ jobs:
       - name: Run additional cargo install
         shell: bash
         run: |
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} 
-      # Removed --force just for now
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
     
       - name: Install node
         uses: actions/setup-node@v3
