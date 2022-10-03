@@ -1,7 +1,7 @@
 use primitives::SessionIndex;
 use sp_std::vec::Vec;
 
-use crate::{AlephBFTScheduledVersionChange, AlephBFTVersion, Config, Event, Pallet};
+use crate::{Config, Event, FinalityScheduledVersionChange, FinalityVersion, Pallet};
 
 impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 where
@@ -34,18 +34,18 @@ where
     fn update_version_change_history() {
         let current_session = Self::current_session();
 
-        if let Some(scheduled_version_change) = <AlephBFTScheduledVersionChange<T>>::get() {
+        if let Some(scheduled_version_change) = <FinalityScheduledVersionChange<T>>::get() {
             let scheduled_session = scheduled_version_change.session;
             let scheduled_version = scheduled_version_change.version_incoming;
 
             // Record the scheduled version as the current version as it moves into the past.
             if scheduled_session == current_session {
-                <AlephBFTVersion<T>>::put(scheduled_version);
+                <FinalityVersion<T>>::put(scheduled_version);
 
                 // Reset the scheduled version.
-                <AlephBFTScheduledVersionChange<T>>::kill();
+                <FinalityScheduledVersionChange<T>>::kill();
 
-                Self::deposit_event(Event::AlephBFTVersionChange(scheduled_version_change));
+                Self::deposit_event(Event::FinalityVersionChange(scheduled_version_change));
             }
         }
     }

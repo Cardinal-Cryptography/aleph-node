@@ -3,16 +3,16 @@
 //! Currently, it only provides support for changing sessions but in the future
 //! it will allow reporting equivocation in AlephBFT.
 //!
-//! This pallet relies on an extension of the `AlephSessionApi` Runtime API to handle the AlephBFT
-//! version. The scheduled version change is persisted as `AlephBFTScheduledVersionChange`. This
-//! value stores the information about a scheduled AlephBFT version change, where `version_incoming`
+//! This pallet relies on an extension of the `AlephSessionApi` Runtime API to handle the finality
+//! version. The scheduled version change is persisted as `FinalityScheduledVersionChange`. This
+//! value stores the information about a scheduled finality version change, where `version_incoming`
 //! is the version to be set and `session` is the session on which the new version will be set.
 //! A `pallet_session::Session_Manager` checks whether a scheduled version change has moved into
-//! the past and, if so, records it as the current version represented as `AlephBFTVersion`,
-//! and clears `AlephBFTScheduledVersionChange`.
+//! the past and, if so, records it as the current version represented as `FinalityVersion`,
+//! and clears `FinalityScheduledVersionChange`.
 //! It is always possible to reschedule a version change. In order to cancel a scheduled version
 //! change rather than reschedule it, a new version change should be scheduled with
-//! `version_incoming` set to the current value of `AlephBFTVersion`.
+//! `version_incoming` set to the current value of `FinalityVersion`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -37,7 +37,7 @@ use sp_std::prelude::*;
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
-const DEFAULT_ALEPH_BFT_VERSION: Version = 0;
+const DEFAULT_FINALITY_VERSION: Version = 0;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -64,8 +64,8 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
-        ScheduleAlephBFTVersionChange(VersionChange),
-        AlephBFTVersionChange(VersionChange),
+        ScheduleFinalityVersionChange(VersionChange),
+        FinalityVersionChange(VersionChange),
     }
 
     #[pallet::pallet]
@@ -99,10 +99,10 @@ pub mod pallet {
         }
     }
 
-    /// Default AlephBFT version. Relevant for sessions before the first version change occurs.
+    /// Default finality version. Relevant for sessions before the first version change occurs.
     #[pallet::type_value]
-    pub(crate) fn DefaultAlephBFTVersion<T: Config>() -> Version {
-        DEFAULT_ALEPH_BFT_VERSION
+    pub(crate) fn DefaultFinalityVersion<T: Config>() -> Version {
+        DEFAULT_FINALITY_VERSION
     }
 
     #[pallet::storage]
@@ -121,16 +121,16 @@ pub mod pallet {
     #[pallet::storage]
     type NextEmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
-    /// Current AlephBFT version.
+    /// Current finality version.
     #[pallet::storage]
-    #[pallet::getter(fn aleph_bft_version)]
-    pub(super) type AlephBFTVersion<T: Config> =
-        StorageValue<_, Version, ValueQuery, DefaultAlephBFTVersion<T>>;
+    #[pallet::getter(fn finality_version)]
+    pub(super) type FinalityVersion<T: Config> =
+        StorageValue<_, Version, ValueQuery, DefaultFinalityVersion<T>>;
 
-    /// Scheduled AlephBFT version change.
+    /// Scheduled finality version change.
     #[pallet::storage]
-    #[pallet::getter(fn aleph_bft_version_change)]
-    pub(super) type AlephBFTScheduledVersionChange<T: Config> =
+    #[pallet::getter(fn finality_version_change)]
+    pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
@@ -171,7 +171,7 @@ pub mod pallet {
         // To cancel a future version change, reschedule it with the current version.
         // If a scheduled version change has moved into the past, `SessionManager` records it
         // as the current version.
-        pub(crate) fn do_schedule_aleph_bft_version_change(
+        pub(crate) fn do_schedule_finality_version_change(
             version_change: VersionChange,
         ) -> Result<(), &'static str> {
             let current_session = Self::current_session();
@@ -179,22 +179,22 @@ pub mod pallet {
             let session_to_schedule = version_change.session;
 
             if session_to_schedule < current_session {
-                return Err("Cannot schedule AlephBFT version changes for sessions in the past!");
+                return Err("Cannot schedule finality version changes for sessions in the past!");
             } else if session_to_schedule < current_session + 2 {
                 return Err(
-                    "Tried to schedule an AlephBFT version change less than 2 sessions in advance!",
+                    "Tried to schedule an finality version change less than 2 sessions in advance!",
                 );
             }
 
             // Update the scheduled version change with the supplied version change.
-            <AlephBFTScheduledVersionChange<T>>::put(version_change);
+            <FinalityScheduledVersionChange<T>>::put(version_change);
 
             Ok(())
         }
 
-        pub fn next_session_aleph_bft_version() -> Version {
+        pub fn next_session_finality_version() -> Version {
             let next_session = Self::current_session() + 1;
-            let scheduled_version_change = Self::aleph_bft_version_change();
+            let scheduled_version_change = Self::finality_version_change();
 
             if let Some(version_change) = scheduled_version_change {
                 if next_session == version_change.session {
@@ -202,7 +202,7 @@ pub mod pallet {
                 }
             }
 
-            Self::aleph_bft_version()
+            Self::finality_version()
         }
     }
 
@@ -221,14 +221,14 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Schedules an AlephBFT version change for a future session. If such a scheduled future
+        /// Schedules a finality version change for a future session. If such a scheduled future
         /// version is already set, it is replaced with the provided one.
         /// Any rescheduling of a future version change needs to occur at least 2 sessions in
         /// advance of the provided session of the version change.
         /// In order to cancel a scheduled version change, a new version change should be scheduled
         /// with the same version as the current one.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn schedule_aleph_bft_version_change(
+        pub fn schedule_finality_version_change(
             origin: OriginFor<T>,
             version_incoming: Version,
             session: SessionIndex,
@@ -240,11 +240,11 @@ pub mod pallet {
                 session,
             };
 
-            if let Err(e) = Self::do_schedule_aleph_bft_version_change(version_change.clone()) {
+            if let Err(e) = Self::do_schedule_finality_version_change(version_change.clone()) {
                 return Err(DispatchError::Other(e));
             }
 
-            Self::deposit_event(Event::ScheduleAlephBFTVersionChange(version_change));
+            Self::deposit_event(Event::ScheduleFinalityVersionChange(version_change));
             Ok(())
         }
     }

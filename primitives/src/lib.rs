@@ -141,8 +141,8 @@ sp_api::decl_runtime_apis! {
         fn authority_data() -> SessionAuthorityData;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
-        fn aleph_bft_version() -> Version;
-        fn next_session_aleph_bft_version() -> Version;
+        fn finality_version() -> Version;
+        fn next_session_finality_version() -> Version;
     }
 }
 

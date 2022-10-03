@@ -133,7 +133,7 @@ fn test_emergency_signer() {
 }
 
 #[test]
-fn test_aleph_bft_version_scheduling() {
+fn test_finality_version_scheduling() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         initialize_session();
 
@@ -145,18 +145,18 @@ fn test_aleph_bft_version_scheduling() {
         };
 
         let scheduling_result =
-            Aleph::do_schedule_aleph_bft_version_change(version_to_schedule.clone());
+            Aleph::do_schedule_finality_version_change(version_to_schedule.clone());
         assert_eq!(scheduling_result, Ok(()));
 
-        let scheduled_version_change = Aleph::aleph_bft_version_change();
+        let scheduled_version_change = Aleph::finality_version_change();
         assert_eq!(scheduled_version_change, Some(version_to_schedule.clone()));
 
         run_session(4);
 
-        let current_version = Aleph::aleph_bft_version();
+        let current_version = Aleph::finality_version();
         assert_eq!(current_version, version_to_schedule.version_incoming);
 
-        let scheduled_version_change = Aleph::aleph_bft_version_change();
+        let scheduled_version_change = Aleph::finality_version_change();
         assert_eq!(scheduled_version_change, None);
 
         let version_to_schedule = VersionChange {
@@ -164,7 +164,7 @@ fn test_aleph_bft_version_scheduling() {
             session: 5,
         };
 
-        let scheduling_result = Aleph::do_schedule_aleph_bft_version_change(version_to_schedule);
+        let scheduling_result = Aleph::do_schedule_finality_version_change(version_to_schedule);
         assert!(scheduling_result.is_err());
     })
 }
