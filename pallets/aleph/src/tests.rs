@@ -145,7 +145,7 @@ fn test_aleph_bft_version_scheduling() {
         };
 
         let scheduling_result =
-            Aleph::schedule_next_aleph_bft_version_change(version_to_schedule.clone());
+            Aleph::do_schedule_aleph_bft_version_change(version_to_schedule.clone());
         assert_eq!(scheduling_result, Ok(()));
 
         let scheduled_version_change = Aleph::aleph_bft_version_change();
@@ -164,7 +164,7 @@ fn test_aleph_bft_version_scheduling() {
             session: 5,
         };
 
-        let scheduling_result = Aleph::schedule_next_aleph_bft_version_change(version_to_schedule);
+        let scheduling_result = Aleph::do_schedule_aleph_bft_version_change(version_to_schedule);
         assert!(scheduling_result.is_err());
     })
 }
