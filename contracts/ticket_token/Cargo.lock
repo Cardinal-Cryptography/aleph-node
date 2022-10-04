@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "access_control"
-version = "1.0.0"
+version = "0.2.0"
 dependencies = [
  "ink_env",
  "ink_lang",
