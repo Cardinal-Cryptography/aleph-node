@@ -84,7 +84,7 @@ jobs:
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           cargo clean
-          cargo build --release -p aleph-runtime
+          cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
 
@@ -554,7 +554,7 @@ jobs:
           then
             echo "::set-output name=diff::0"
           else
-            echo "::set-output name=diff::1"            
+            echo "::set-output name=diff::1"
           fi
 
   build-new-runtime-and-try_runtime:
@@ -578,10 +578,10 @@ jobs:
           target-key: try-runtime
 
       - name: Build try-runtime
-        run: cargo build --release -p aleph-node --features "try-runtime"
+        run: cargo build --profile production -p aleph-node --features "try-runtime"
 
       - name: Build runtime
-        run: cargo build --release -p aleph-runtime --features "try-runtime"
+        run: cargo build --profile production -p aleph-runtime --features "try-runtime"
 
       - name: Upload try-runtime
         uses: actions/upload-artifact@v3
