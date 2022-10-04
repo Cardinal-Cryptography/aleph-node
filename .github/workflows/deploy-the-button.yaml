@@ -27,17 +27,8 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: ${{ env.CACHE_KEY }}
-          cargo-key: ${{ env.CACHE_KEY }}
-          cache-version: v1
-
-      - name: Install cargo additional libs
-        run: |
-          cargo install dylint-link
-          cargo install cargo-dylint
+      - name: Add nightly-2022-08-12-x86_64-unknown-linux-gnu
+        run: rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
 
       - name: Install jq
         shell: bash
@@ -52,19 +43,23 @@ jobs:
           sudo chmod +x /tmp/binaryen-version_110/bin/*
           sudo cp -rf /tmp/binaryen-version_110/* /usr/
 
-      - name: Run additional cargo install
-        shell: bash
-        run: |
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
-    
       - name: Install node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Add nightly-2022-08-12-x86_64-unknown-linux-gnu
-        run: |
-          rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
+          cache-version: v1
+
+      - name: Install cargo additional libs
+        run: cargo install dylint-link cargo-dylint
+
+      - name: Install cargo-contract with bug fixes around URL parsing
+        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       # download the files from s3 bucket?
 
