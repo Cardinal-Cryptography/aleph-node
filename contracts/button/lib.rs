@@ -231,7 +231,8 @@ mod button_game {
             self.ensure_dead()?;
             self.reward_pressiah()?;
             self.reset_state();
-            self.dump_tickets_in_marketplace()
+            self.transfer_tickets_to_marketplace()?;
+            self.reset_marketplace()
         }
 
         /// Sets new access control contract address
@@ -324,11 +325,6 @@ mod button_game {
             } else {
                 Ok(())
             }
-        }
-
-        fn dump_tickets_in_marketplace(&self) -> ButtonResult<()> {
-            self.transfer_tickets_to_marketplace()?;
-            self.reset_marketplace()
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
