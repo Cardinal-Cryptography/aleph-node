@@ -1,13 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
-pub use crate::game_token::{
-    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_FROM_SELECTOR,
-    TRANSFER_SELECTOR,
+pub use crate::wrapped_azero::{
+    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR,
 };
 
 #[openbrush::contract]
-pub mod game_token {
+pub mod wrapped_azero {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use ink_env::Error as InkEnvError;
     use ink_lang::{
@@ -16,6 +15,7 @@ pub mod game_token {
     };
     use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
+    use num_traits::identities::Zero;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
         traits::Storage,
@@ -25,12 +25,10 @@ pub mod game_token {
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
     pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
     pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
-    // TODO : use correct selector when mint/burn is implemented
-    pub const MINT_TO_SELECTOR: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
-    pub struct GameToken {
+    pub struct WrappedAzero {
         #[storage_field]
         psp22: psp22::Data,
         #[storage_field]
@@ -39,20 +37,20 @@ pub mod game_token {
         access_control: AccountId,
     }
 
-    impl PSP22 for GameToken {}
+    impl PSP22 for WrappedAzero {}
 
-    impl PSP22Metadata for GameToken {}
+    impl PSP22Metadata for WrappedAzero {}
 
     // emit events
     // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
-    impl Internal for GameToken {
+    impl Internal for WrappedAzero {
         fn _emit_transfer_event(
             &self,
             _from: Option<AccountId>,
             _to: Option<AccountId>,
             _amount: Balance,
         ) {
-            GameToken::emit_event(
+            WrappedAzero::emit_event(
                 self.env(),
                 Event::Transfer(Transfer {
                     from: _from,
@@ -63,7 +61,7 @@ pub mod game_token {
         }
 
         fn _emit_approval_event(&self, _owner: AccountId, _spender: AccountId, _amount: Balance) {
-            GameToken::emit_event(
+            WrappedAzero::emit_event(
                 self.env(),
                 Event::Approval(Approval {
                     owner: _owner,
@@ -74,14 +72,14 @@ pub mod game_token {
         }
     }
 
-    impl AccessControlled for GameToken {
+    impl AccessControlled for WrappedAzero {
         type ContractError = PSP22Error;
     }
 
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
     /// Event type
-    pub type Event = <GameToken as ContractEventBase>::Type;
+    pub type Event = <WrappedAzero as ContractEventBase>::Type;
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
@@ -106,39 +104,47 @@ pub mod game_token {
         value: Balance,
     }
 
-    impl GameToken {
-        /// Creates a new game token with the specified initial supply.
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct Wrapped {
+        caller: AccountId,
+        amount: Balance,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct UnWrapped {
+        caller: AccountId,
+        amount: Balance,
+    }
+
+    impl WrappedAzero {
+        /// Creates a new token
         ///
         /// The token will have its name and symbol set in metadata to the specified values.
-        /// Decimals are fixed at 18.
+        /// Decimals are fixed at 12.
         ///
         /// Will revert if called from an account without a proper role
         #[ink(constructor)]
-        pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
+        pub fn new(name: String, symbol: String) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
-            let required_role = Role::Initializer(code_hash);
 
             let role_check = <Self as AccessControlled>::check_role(
                 AccountId::from(ACCESS_CONTROL_PUBKEY),
                 caller,
-                required_role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                Role::Initializer(code_hash),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
             );
 
             match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
+                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut WrappedAzero| {
                     instance.metadata.name = Some(name);
                     instance.metadata.symbol = Some(symbol);
-                    instance.metadata.decimals = 12;
-                    instance
-                        ._mint(instance.env().caller(), total_supply)
-                        .expect("Should mint");
+                    instance.metadata.decimals = 12; // same as AZERO
 
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
@@ -146,14 +152,44 @@ pub mod game_token {
             }
         }
 
-        pub fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
-            emitter.emit_event(event);
+        /// Wraps the transferred amount of native token and mints it to the callers account
+        #[ink(message, payable)]
+        pub fn wrap(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            let amount = self.env().transferred_value();
+            if !amount.eq(&Balance::zero()) {
+                self._mint(caller, amount)?;
+                Self::emit_event(self.env(), Event::Wrapped(Wrapped { caller, amount }));
+            }
+
+            Ok(())
+        }
+
+        /// Unwraps a specified amount
+        #[ink(message)]
+        pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
+            if amount.eq(&Balance::zero()) {
+                return Ok(());
+            }
+
+            let caller = self.env().caller();
+
+            // burn the token form the caller, will fail if the calling account doesn't have enough balance
+            self._burn_from(caller, amount)?;
+
+            // return the native token to the caller
+            self.env()
+                .transfer(caller, amount)
+                .map_err(|why| PSP22Error::Custom(format!("Native transfer failed: {:?}", why)))?;
+            Self::emit_event(self.env(), Event::UnWrapped(UnWrapped { caller, amount }));
+
+            Ok(())
         }
 
         /// Terminates the contract.
         ///
         /// can only be called by the contract's Owner
-        #[ink(message, selector = 7)]
+        #[ink(message)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
@@ -164,9 +200,43 @@ pub mod game_token {
         }
 
         /// Returns the contract's access control contract address
-        #[ink(message, selector = 8)]
+        #[ink(message)]
         pub fn access_control(&self) -> AccountId {
             self.access_control
+        }
+
+        /// Sets new access control contract address
+        ///
+        /// Can only be called by the contract's Owner
+        #[ink(message)]
+        pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+
+            self.check_role(caller, Role::Owner(this))?;
+
+            self.access_control = access_control;
+            Ok(())
+        }
+
+        /// Returns own code hash
+        #[ink(message)]
+        pub fn code_hash(&self) -> Result<Hash> {
+            Self::env().own_code_hash().map_err(|why| {
+                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
+            })
+        }
+
+        pub fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
+            emitter.emit_event(event);
+        }
+
+        fn access_control_error_handler(role: Role) -> PSP22Error {
+            PSP22Error::Custom(format!("MissingRole:{:?}", role))
+        }
+
+        fn cross_contract_call_error_handler(why: InkEnvError) -> PSP22Error {
+            PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
@@ -174,33 +244,9 @@ pub mod game_token {
                 self.access_control,
                 account,
                 role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                Self::cross_contract_call_error_handler,
+                Self::access_control_error_handler,
             )
-        }
-
-        /// Sets new access control contract address
-        ///
-        /// Can only be called by the contract's Owner
-        #[ink(message, selector = 9)]
-        pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Owner(this);
-
-            self.check_role(caller, required_role)?;
-            self.access_control = access_control;
-            Ok(())
-        }
-
-        /// Returns own code hash
-        #[ink(message, selector = 10)]
-        pub fn code_hash(&self) -> Result<Hash> {
-            Self::env().own_code_hash().map_err(|why| {
-                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
-            })
         }
     }
 }
