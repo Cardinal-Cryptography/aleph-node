@@ -1,5 +1,6 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
+use codec::DecodeAll;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::validator_network::Data;
@@ -104,7 +105,7 @@ pub async fn receive_data<S: AsyncReadExt + Unpin, D: Data>(
         .read_exact(&mut buf[..])
         .await
         .map_err(|_| Error::ConnectionClosed)?;
-    let data = D::decode(&mut &buf[..]).map_err(|_| ReceiveError::DataCorrupted)?;
+    let data = D::decode_all(&mut &buf[..]).map_err(|_| ReceiveError::DataCorrupted)?;
     Ok((stream, data))
 }
 

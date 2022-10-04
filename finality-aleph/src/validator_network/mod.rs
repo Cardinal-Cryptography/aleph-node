@@ -19,7 +19,7 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 ///
 /// Note on Network reliability and security: it is neither assumed that the sent messages must be
 /// always delivered, nor the established connections must be secure in any way. The Network
-/// implementation might fail to deliver any specific message, so messages have to be resend while
+/// implementation might fail to deliver any specific message, so messages have to be resent while
 /// they still should be delivered.
 #[async_trait::async_trait]
 pub trait Network<A: Data, D: Data>: Send {
