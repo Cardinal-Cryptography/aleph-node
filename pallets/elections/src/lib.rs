@@ -68,7 +68,9 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::{BlockCount, CommitteeKickOutThresholds, CommitteeSeats, SessionCount};
+    use primitives::{
+        BlockCount, CommitteeKickOutThresholds, CommitteeSeats, KickOutReason, SessionCount,
+    };
 
     use super::*;
     use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
@@ -219,7 +221,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn to_be_kicked_out_from_committee)]
     pub type ToBeKickedOutFromCommittee<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<u8, T::MaximumKickOutReasonLength>>;
+        StorageMap<_, Twox64Concat, T::AccountId, KickOutReason>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -256,6 +258,7 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Sets kick-out thresholds (in effect in the next era)
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_kick_out_thresholds(
             origin: OriginFor<T>,
@@ -268,7 +271,7 @@ pub mod pallet {
                 Error::<T>::InvalidKickOutThresholds
             );
 
-            NextEraCommitteeKickOutThresholds::<T>::put(committee_kick_out_thresholds);
+            NextEraCommitteeKickOutThresholds::<T>::put(committee_kick_out_thresholds.clone());
 
             Self::deposit_event(Event::SetCommitteeKickOutThresholds(
                 committee_kick_out_thresholds,
@@ -277,6 +280,7 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Remove node from the committee.
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn kick_out_from_committee(
             origin: OriginFor<T>,
@@ -284,12 +288,20 @@ pub mod pallet {
             kick_out_reason: Vec<u8>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            let bounded_description: BoundedVec<u8, T::MaximumKickOutReasonLength> =
-                kick_out_reason
-                    .try_into()
-                    .map_err(|_| Error::<T>::KickOutReasonTooBig)?;
+            let bounded_description: BoundedVec<_, _> = kick_out_reason
+                .try_into()
+                .map_err(|_| Error::<T>::KickOutReasonTooBig)?;
 
-            ToBeKickedOutFromCommittee::<T>::insert(to_be_kicked, bounded_description);
+            let next_era_non_reserved_validators = NextEraNonReservedValidators::<T>::get();
+            ensure!(
+                next_era_non_reserved_validators.contains(&to_be_kicked),
+                Error::<T>::KickedNodeNotInNonReservedSet
+            );
+
+            ToBeKickedOutFromCommittee::<T>::insert(
+                to_be_kicked,
+                KickOutReason::OtherReason(bounded_description),
+            );
 
             Ok(())
         }
@@ -420,6 +432,9 @@ pub mod pallet {
         /// Kick out reason is too big, ie given vector of bytes is greater than
         /// [`Config::MaximumKickOutReasonLength`]
         KickOutReasonTooBig,
+
+        /// Trying to remove a node from the committe which is not in the [`NextEraNonReservedValidators`] set
+        KickedNodeNotInNonReservedSet,
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {

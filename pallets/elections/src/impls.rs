@@ -1,10 +1,6 @@
 use frame_election_provider_support::sp_arithmetic::Perquintill;
-use frame_support::{
-    log::{debug, error},
-    pallet_prelude::Get,
-    BoundedVec,
-};
-use primitives::{CommitteeKickOutThresholds, CommitteeSeats, EraValidators};
+use frame_support::{log::debug, pallet_prelude::Get};
+use primitives::{CommitteeKickOutThresholds, CommitteeSeats, EraValidators, KickOutReason};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -304,13 +300,17 @@ where
     fn calculate_underperforming_non_reserved_validators() {
         let thresholds = CurrentEraCommitteeKickOutThresholds::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
-        for validator in current_committee {
+        let next_era_non_reserved = NextEraNonReservedValidators::<T>::get()
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        let non_reserved_nodes_in_next_era = current_committee.intersection(&next_era_non_reserved);
+        for validator in non_reserved_nodes_in_next_era {
             let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {
                 Ok(block_count) => block_count <= thresholds.block_count_threshold,
                 Err(_) => true,
             };
             if underperformance {
-                Self::mark_validator_underperformance(&thresholds, &validator)
+                Self::mark_validator_underperformance(&thresholds, validator);
             }
         }
     }
@@ -319,24 +319,16 @@ where
         thresholds: &CommitteeKickOutThresholds,
         validator: &T::AccountId,
     ) {
-        UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
+        let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
             *count += 1;
+            *count
         });
-        let counter = UnderperformedValidatorSessionCount::<T>::get(&validator);
         if counter >= thresholds.underperformed_session_count_threshold {
-            // ideally we'd include here information about how many sessions a validator missed,
-            // yet in no_std world String does not exist. Instead BoundedVec, we should use some
-            // encoded error struct
-            let reason: Vec<u8> = "Insufficient uptime".into();
-            match BoundedVec::try_from(reason) {
-                Ok(reason) => {
-                    ToBeKickedOutFromCommittee::<T>::insert(&validator, reason);
-                    UnderperformedValidatorSessionCount::<T>::remove(&validator);
-                }
-                Err(_) => {
-                    error!(target: "pallet_elections", "Failed to create bounded vec!")
-                }
-            }
+            ToBeKickedOutFromCommittee::<T>::insert(
+                &validator,
+                KickOutReason::InsufficientUptime(counter),
+            );
+            UnderperformedValidatorSessionCount::<T>::remove(&validator);
         }
     }
 }

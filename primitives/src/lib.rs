@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
     generic::Header as GenericHeader,
-    traits::{BlakeTwo256, Header as HeaderT},
-    ConsensusEngineId,
+    traits::{BlakeTwo256, ConstU32, Header as HeaderT},
+    BoundedVec, ConsensusEngineId,
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
@@ -62,6 +62,7 @@ pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
 pub const DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD: BlockCount = 0;
 pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 1;
+pub const DEFAULT_KICK_OUT_REASON_LENGTH: u32 = 300;
 
 /// Represent desirable size of a committee in a session
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +90,7 @@ impl Default for CommitteeSeats {
 }
 
 /// Configurable parameters for kick-out validator mechanism
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CommitteeKickOutThresholds {
     /// in a session, what is a limit for produced blocks under which the session counts as bad uptime
@@ -105,6 +106,17 @@ impl Default for CommitteeKickOutThresholds {
             underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
         }
     }
+}
+
+/// Represent any possible reason a validator can be removed from the committee due to
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo)]
+pub enum KickOutReason {
+    /// Validator has been removed from the committee due to insufficient uptime in a given number
+    /// of sessions
+    InsufficientUptime(u32),
+
+    /// Any arbitrary reason
+    OtherReason(BoundedVec<u8, ConstU32<DEFAULT_KICK_OUT_REASON_LENGTH>>),
 }
 
 /// Represent committee, ie set of nodes that produce and finalize blocks in the session
