@@ -48,12 +48,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      #- name: Restore cache
-      #  uses: ./.github/actions/restore-cache
-      #  with:
-      #    target-key: ${{ env.CACHE_KEY }}
-      #    cargo-key: ${{ env.CACHE_KEY }}
-      #    cache-version: v1
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
+          cache-version: v1
 
       - name: Install cargo additional libs
         run: cargo install dylint-link cargo-dylint
@@ -63,27 +63,26 @@ jobs:
 
       # download the files from s3 bucket?
 
-      - name: Run clean.sh script
-        continue-on-error: true
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+      #- name: Run clean.sh script
+      #  continue-on-error: true
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
-      - name: Run deploy.sh script
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+      #- name: Run deploy.sh script
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-      - name: Run clean.sh script again
-        continue-on-error: true
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+      #- name: Run clean.sh script again
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
-      - name: Run deploy.sh script again
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+      #- name: Run deploy.sh script again
+      #  shell: bash
+      #  run: |
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
       # upload the following files to s3 bucket:
       # contracts/addresses.json
