@@ -214,7 +214,7 @@ pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
     committee_seats: CommitteeSeats,
-    committee_kick_out_thresholds: CommitteeKickOutConfig,
+    committee_kick_out_config: CommitteeKickOutConfig,
     storage_version: StorageVersion,
 }
 
@@ -230,7 +230,7 @@ impl TestExtBuilder {
             },
             reserved_validators,
             non_reserved_validators,
-            committee_kick_out_thresholds: CommitteeKickOutConfig::default(),
+            committee_kick_out_config: CommitteeKickOutConfig::default(),
             storage_version: STORAGE_VERSION,
         }
     }
@@ -270,7 +270,7 @@ impl TestExtBuilder {
             non_reserved_validators: self.non_reserved_validators,
             reserved_validators: self.reserved_validators,
             committee_seats: self.committee_seats,
-            committee_kick_out_thresholds: self.committee_kick_out_thresholds,
+            committee_kick_out_config: self.committee_kick_out_config,
         }
         .assimilate_storage(&mut t)
         .unwrap();
