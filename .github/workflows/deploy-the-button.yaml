@@ -59,7 +59,8 @@ jobs:
         run: cargo install dylint-link cargo-dylint
 
       - name: Install cargo-contract with bug fixes around URL parsing
-        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
+        # --force
 
       # download the files from s3 bucket?
 
