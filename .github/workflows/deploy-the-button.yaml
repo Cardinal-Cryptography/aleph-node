@@ -70,6 +70,11 @@ jobs:
         with:
           path: |
             contracts/addresses.json
+            contracts/ticket_token/target/ink/metadata.json
+            contracts/marketplace/target/ink/metadata.json
+            contracts/button/target/ink/metadata.json
+            contracts/game_token/target/ink/metadata.json
+            contracts/access_control/target/ink/metadata.json
           key: contracts-addresses-${{ env.CACHE_KEY }}
 
       - name: Run clean.sh script
