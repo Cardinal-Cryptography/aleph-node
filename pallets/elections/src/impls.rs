@@ -1,6 +1,10 @@
 use frame_election_provider_support::sp_arithmetic::Perquintill;
-use frame_support::{log::debug, pallet_prelude::Get};
-use primitives::{CommitteeKickOutThresholds, CommitteeSeats, EraValidators, KickOutReason};
+use frame_support::{
+    log::{debug, info},
+    pallet_prelude::Get,
+};
+use primitives::{CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason};
+use sp_runtime::Perbill;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -9,8 +13,8 @@ use sp_std::{
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSize, Config, CurrentEraCommitteeKickOutThresholds, CurrentEraValidators,
-    NextEraCommitteeKickOutThresholds, NextEraCommitteeSize, NextEraNonReservedValidators,
+    CommitteeSize, Config, CurrentEraCommitteeKickOutConfig, CurrentEraValidators,
+    NextEraCommitteeKickOutConfig, NextEraCommitteeSize, NextEraNonReservedValidators,
     NextEraReservedValidators, Pallet, SessionValidatorBlockCount, ToBeKickedOutFromCommittee,
     UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
 };
@@ -22,13 +26,17 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///
 /// 1. Block `B` initialized
 /// 2. `end_session(S)` is called
-/// -  Based on block count we might mark the session for a given validator as undeperformed
-/// -  We update rewards and clear block count for the session `S`.
+/// *  Based on block count we might mark the session for a given validator as underperformed
+/// *  We update rewards and clear block count for the session `S`.
 /// 3. `start_session(S + 1)` is called.
-/// -  if session `S+1` starts new era we populate totals.
+/// *  if session `S+1` starts new era we populate totals.
+/// *  if session `S+1` % [`CommitteeKickOutConfig::clean_session_counter_delay`] == 0, we
+///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
-/// -  If session `S+2` starts new era then we update the reserved and non_reserved validators.
-/// -  We rotate the validators for session `S + 2` using the information about reserved and non_reserved validators.
+/// *  If session `S+2` starts new era:
+///    * during elections, we kick out underperforming validators from non_reserved set,
+///    * then we update the reserved and non reserved validators.
+/// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
 ///
 
 fn calculate_adjusted_session_points(
@@ -243,14 +251,14 @@ where
             let reserved_validators = NextEraReservedValidators::<T>::get();
             let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
             let committee_size = NextEraCommitteeSize::<T>::get();
-            let kick_out_committee_thresholds = NextEraCommitteeKickOutThresholds::<T>::get();
+            let kick_out_committee_thresholds = NextEraCommitteeKickOutConfig::<T>::get();
 
             CurrentEraValidators::<T>::put(EraValidators {
                 reserved: retain_elected(reserved_validators),
                 non_reserved: retain_elected(non_reserved_validators),
             });
             CommitteeSize::<T>::put(committee_size);
-            CurrentEraCommitteeKickOutThresholds::<T>::put(kick_out_committee_thresholds);
+            CurrentEraCommitteeKickOutConfig::<T>::put(kick_out_committee_thresholds);
         });
     }
 
@@ -298,15 +306,23 @@ where
     }
 
     fn calculate_underperforming_non_reserved_validators() {
-        let thresholds = CurrentEraCommitteeKickOutThresholds::<T>::get();
+        let thresholds = CurrentEraCommitteeKickOutConfig::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
         let next_era_non_reserved = NextEraNonReservedValidators::<T>::get()
             .into_iter()
             .collect::<BTreeSet<_>>();
         let non_reserved_nodes_in_next_era = current_committee.intersection(&next_era_non_reserved);
+        let expected_blocks_per_validator = Self::blocks_to_produce_per_session();
         for validator in non_reserved_nodes_in_next_era {
             let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {
-                Ok(block_count) => block_count <= thresholds.block_count_threshold,
+                Ok(block_count) => {
+                    let block_performance_ratio = match block_count <= expected_blocks_per_validator
+                    {
+                        true => Perbill::from_rational(block_count, expected_blocks_per_validator),
+                        false => Perbill::one(),
+                    };
+                    block_performance_ratio <= thresholds.minimal_expected_performance
+                }
                 Err(_) => true,
             };
             if underperformance {
@@ -316,7 +332,7 @@ where
     }
 
     fn mark_validator_underperformance(
-        thresholds: &CommitteeKickOutThresholds,
+        thresholds: &CommitteeKickOutConfig,
         validator: &T::AccountId,
     ) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
@@ -329,6 +345,15 @@ where
                 KickOutReason::InsufficientUptime(counter),
             );
             UnderperformedValidatorSessionCount::<T>::remove(&validator);
+        }
+    }
+
+    fn clear_underperformance_session_counter(session: SessionIndex) {
+        let clean_session_counter_delay =
+            CurrentEraCommitteeKickOutConfig::<T>::get().clean_session_counter_delay;
+        if session % clean_session_counter_delay == 0 {
+            info!(target: "pallet_elections", "Clearing UnderperformedValidatorSessionCount");
+            let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
         }
     }
 }
@@ -375,6 +400,7 @@ where
     fn start_session(start_index: SessionIndex) {
         <T as Config>::SessionManager::start_session(start_index);
         Self::populate_totals_on_new_era_start(start_index);
+        Self::clear_underperformance_session_counter(start_index);
     }
 }
 

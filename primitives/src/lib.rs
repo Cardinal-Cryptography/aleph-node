@@ -8,7 +8,7 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
     generic::Header as GenericHeader,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
-    BoundedVec, ConsensusEngineId,
+    BoundedVec, ConsensusEngineId, Perbill,
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
@@ -35,8 +35,8 @@ pub type Balance = u128;
 pub type Header = GenericHeader<BlockNumber, BlakeTwo256>;
 pub type BlockHash = <Header as HeaderT>::Hash;
 pub type BlockNumber = u32;
-pub type BlockCount = u32;
 pub type SessionCount = u32;
+pub type BlockCount = u32;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
@@ -60,9 +60,10 @@ pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
-pub const DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD: BlockCount = 0;
-pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 1;
+pub const DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
+pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 3;
 pub const DEFAULT_KICK_OUT_REASON_LENGTH: u32 = 300;
+pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 
 /// Represent desirable size of a committee in a session
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,18 +93,22 @@ impl Default for CommitteeSeats {
 /// Configurable parameters for kick-out validator mechanism
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct CommitteeKickOutThresholds {
-    /// in a session, what is a limit for produced blocks under which the session counts as bad uptime
-    pub block_count_threshold: BlockCount,
+pub struct CommitteeKickOutConfig {
+    /// performance ratio threshold in a session
+    /// calculated as ratio of number of blocks produced to expected number of blocks for a single validator
+    pub minimal_expected_performance: Perbill,
     /// how many bad uptime sessions force validator to be removed from the committee
     pub underperformed_session_count_threshold: SessionCount,
+    /// underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
+    pub clean_session_counter_delay: SessionCount,
 }
 
-impl Default for CommitteeKickOutThresholds {
+impl Default for CommitteeKickOutConfig {
     fn default() -> Self {
-        CommitteeKickOutThresholds {
-            block_count_threshold: DEFAULT_KICK_OUT_BLOCK_COUNT_THRESHOLD,
+        CommitteeKickOutConfig {
+            minimal_expected_performance: DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
             underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+            clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
         }
     }
 }

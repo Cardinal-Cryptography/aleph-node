@@ -19,12 +19,10 @@ sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptog
 sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 sp-staking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
+sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 
 pallets-support = { path = "../support", default-features = false }
 primitives = { path = "../../primitives", default-features = false }
-
-[dev-dependencies]
-sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 
 [features]
 default = ["std"]
@@ -42,6 +40,7 @@ std = [
     "primitives/std",
     "pallet-balances/std",
     "sp-staking/std",
+    "sp-runtime/std",
 ]
 try-runtime = [
     "frame-support/try-runtime",

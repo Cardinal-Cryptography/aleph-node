@@ -7,7 +7,7 @@ use frame_support::{
     weights::RuntimeDbWeight,
     BasicExternalities, BoundedVec,
 };
-use primitives::{CommitteeKickOutThresholds, CommitteeSeats};
+use primitives::{CommitteeKickOutConfig, CommitteeSeats};
 use sp_core::H256;
 use sp_runtime::{
     testing::{Header, TestXt},
@@ -214,7 +214,7 @@ pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
     committee_seats: CommitteeSeats,
-    committee_kick_out_thresholds: CommitteeKickOutThresholds,
+    committee_kick_out_thresholds: CommitteeKickOutConfig,
     storage_version: StorageVersion,
 }
 
@@ -230,7 +230,7 @@ impl TestExtBuilder {
             },
             reserved_validators,
             non_reserved_validators,
-            committee_kick_out_thresholds: CommitteeKickOutThresholds::default(),
+            committee_kick_out_thresholds: CommitteeKickOutConfig::default(),
             storage_version: STORAGE_VERSION,
         }
     }
