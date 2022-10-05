@@ -45,7 +45,7 @@ function remove_contract_code {
     echo "** Exiting with error code 1. Process has been killed after 1m and 'CodeNotFound' error has not been found in the output"
     exit 1
   else
-    echo "** Ignoring 'CodeNotFound' error"
+    echo "** Ignoring 'CodeNotFound' error or 'Received ContractCodeRemoved' message"
   fi
   set -e
 }
