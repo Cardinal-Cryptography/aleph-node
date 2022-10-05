@@ -74,15 +74,15 @@ jobs:
         run: |
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-      #- name: Run clean.sh script again
-      #  shell: bash
-      #  run: |
-      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+      - name: Run clean.sh script again
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
-      #- name: Run deploy.sh script again
-      #  shell: bash
-      #  run: |
-      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+      - name: Run deploy.sh script again
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
       # upload the following files to s3 bucket:
       # contracts/addresses.json
