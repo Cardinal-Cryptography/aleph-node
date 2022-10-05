@@ -11,6 +11,8 @@ env:
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
   NODE_VERSION: 16
+  S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
+  S3BUCKET_PATH: contracts/fe-benjamin-button
 
 jobs:
   checkout_benjamin:
@@ -81,18 +83,22 @@ jobs:
         run: |
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-      #- name: Configure AWS credentials
-      #  uses: aws-actions/configure-aws-credentials@v1
-      #  env:
-      #    AWS_REGION: us-east-1
-      #  with:
-      #    aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-      #    aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-      #    aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      # upload the following files to s3 bucket:
-      # contracts/addresses.json
-      # contracts/{ticket_token,marketplace,button,game_token,access_control}/target/ink/metadata.json
+      - name: Copy metadata.json and addresses.json files onto S3 bucket
+        shell: bash
+        run: |
+          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+          done
 
       # trigger the-button workflow from another repository using API
 
