@@ -172,9 +172,9 @@ CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
-#cd "$CONTRACTS_PATH"/access_control
-#cargo contract build --release
-#
+cd "$CONTRACTS_PATH"/access_control
+cargo contract build --release
+
 #cd "$CONTRACTS_PATH"/ticket_token
 #cargo contract build --release
 #
