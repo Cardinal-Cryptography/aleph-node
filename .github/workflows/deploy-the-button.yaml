@@ -27,6 +27,9 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Install nightly
+        run: rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+
       - name: Install jq
         shell: bash
         run: |
@@ -55,9 +58,6 @@ jobs:
       - name: Install cargo additional libs
         run: cargo install dylint-link cargo-dylint
 
-      - name: Install nightly
-        run: rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
-
       - name: Install cargo-contract with bug fixes around URL parsing
         run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
@@ -70,6 +70,17 @@ jobs:
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+
+      - name: Run clean.sh script again
+        continue-on-error: true
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+
+      - name: Run deploy.sh script again
         shell: bash
         run: |
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
