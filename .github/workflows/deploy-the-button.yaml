@@ -18,102 +18,109 @@ jobs:
   checkout_benjamin:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2.3.4
-        with:
-          ref: ${{ env.CHECKOUT_REF }}
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Install nightly
-        run: rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
-
-      - name: Install jq
-        shell: bash
+      - name: Trigger The Button deployment workflow
         run: |
-          sudo apt-get install -y jq
+          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yml/dispatches' \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+          -d '{"ref":"main"}'
 
-      - name: Install binaryen
-        shell: bash
-        run: |
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
-          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
-          sudo chmod +x /tmp/binaryen-version_110/bin/*
-          sudo cp -rf /tmp/binaryen-version_110/* /usr/
-
-      - name: Install node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: ${{ env.CACHE_KEY }}
-          cargo-key: ${{ env.CACHE_KEY }}
-          cache-version: v1
-
-      - name: Install cargo additional libs
-        run: cargo install dylint-link cargo-dylint
-
-      - name: Install cargo-contract with bug fixes around URL parsing
-        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
-
-      - name: Restore contracts cache
-        uses: actions/cache@v3
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-        with:
-          path: |
-            contracts/addresses.json
-            contracts/ticket_token/target/ink/metadata.json
-            contracts/marketplace/target/ink/metadata.json
-            contracts/button/target/ink/metadata.json
-            contracts/game_token/target/ink/metadata.json
-            contracts/access_control/target/ink/metadata.json
-          key: contracts-addresses-${{ env.CACHE_KEY }}
-
-      - name: Run clean.sh script
-        continue-on-error: true
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
-
-      - name: Run deploy.sh script
-        shell: bash
-        run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        env:
-          AWS_REGION: us-east-1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Copy metadata.json and addresses.json files onto S3 bucket
-        shell: bash
-        run: |
-          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
-          for i in ticket_token marketplace button game_token access_control; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
-          done
-
-      # trigger the-button workflow from another repository using API
-
-      # modify workflow in the-button to download the JSON files from S3, create a separate ${{ sha }}-fe-benjamin tag and deploy it (switchable)
-
-
-      # TODO:
-      # 1. add alephzero-devnet-ci s3 bucket in aleph-infra in devnet
-      # 2. create a dummy test to check if it can be accessed to create files
-      # 3. add step that downloads the *.json files
-      # 4. add step that puts the *.json files
-      # 5. add step that triggers github workflow from the-button
-      # 6. modify the workflow in the-button to download the json files, create a separate docker image, and use that one instead of clean one
+#      - name: Checkout repo
+#        uses: actions/checkout@v2.3.4
+#        with:
+#          ref: ${{ env.CHECKOUT_REF }}
+#
+#      - name: Install Rust toolchain
+#        uses: actions-rs/toolchain@v1
+#
+#      - name: Install WASM target
+#        run: rustup target add wasm32-unknown-unknown
+#
+#      - name: Install nightly
+#        run: rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+#
+#      - name: Install jq
+#        shell: bash
+#        run: |
+#          sudo apt-get install -y jq
+#
+#      - name: Install binaryen
+#        shell: bash
+#        run: |
+#          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
+#          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
+#          sudo chmod +x /tmp/binaryen-version_110/bin/*
+#          sudo cp -rf /tmp/binaryen-version_110/* /usr/
+#
+#      - name: Install node
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: ${{ env.NODE_VERSION }}
+#
+#      - name: Restore cache
+#        uses: ./.github/actions/restore-cache
+#        with:
+#          target-key: ${{ env.CACHE_KEY }}
+#          cargo-key: ${{ env.CACHE_KEY }}
+#          cache-version: v1
+#
+#      - name: Install cargo additional libs
+#        run: cargo install dylint-link cargo-dylint
+#
+#      - name: Install cargo-contract with bug fixes around URL parsing
+#        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+#
+#      - name: Restore contracts cache
+#        uses: actions/cache@v3
+#        env:
+#          SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
+#        with:
+#          path: |
+#            contracts/addresses.json
+#            contracts/ticket_token/target/ink/metadata.json
+#            contracts/marketplace/target/ink/metadata.json
+#            contracts/button/target/ink/metadata.json
+#            contracts/game_token/target/ink/metadata.json
+#            contracts/access_control/target/ink/metadata.json
+#          key: contracts-addresses-${{ env.CACHE_KEY }}
+#
+#      - name: Run clean.sh script
+#        continue-on-error: true
+#        shell: bash
+#        run: |
+#          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+#
+#      - name: Run deploy.sh script
+#        shell: bash
+#        run: |
+#          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+#
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        env:
+#          AWS_REGION: us-east-1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ env.AWS_REGION }}
+#
+#      - name: Copy metadata.json and addresses.json files onto S3 bucket
+#        shell: bash
+#        run: |
+#          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+#          for i in ticket_token marketplace button game_token access_control; do \
+#            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+#          done
+#
+#      # trigger the-button workflow from another repository using API
+#
+#      # modify workflow in the-button to download the JSON files from S3, create a separate ${{ sha }}-fe-benjamin tag and deploy it (switchable)
+#
+#
+#      # TODO:
+#      # 1. add alephzero-devnet-ci s3 bucket in aleph-infra in devnet
+#      # 2. create a dummy test to check if it can be accessed to create files
+#      # 3. add step that downloads the *.json files
+#      # 4. add step that puts the *.json files
+#      # 5. add step that triggers github workflow from the-button
+#      # 6. modify the workflow in the-button to download the json files, create a separate docker image, and use that one instead of clean one
