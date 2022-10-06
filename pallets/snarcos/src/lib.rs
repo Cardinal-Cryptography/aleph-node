@@ -15,6 +15,7 @@ pub mod pallet {
     use ark_groth16::{Groth16, Proof, VerifyingKey};
     use ark_serialize::CanonicalDeserialize;
     use ark_snark::SNARK;
+    use frame_support::log;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::OriginFor;
     use sp_std::prelude::Vec;
@@ -40,6 +41,8 @@ pub mod pallet {
         VerificationKeyTooLong,
         /// Couldn't deserialize proof.
         DeserializingProofFailed,
+        /// Couldn't deserialize public input.
+        DeserializingPublicInputFailed,
         /// Couldn't deserialize verification key from storage.
         DeserializingVerificationKeyFailed,
         /// Verification procedure has failed. Proof still can be correct.
@@ -101,20 +104,33 @@ pub mod pallet {
             _origin: OriginFor<T>,
             verification_key_identifier: VerificationKeyIdentifier,
             proof: Vec<u8>,
-            _public_input: (),
+            public_input: Vec<u8>,
         ) -> DispatchResult {
             let proof = Proof::<T::Field>::deserialize(&*proof)
-                .map_err(|_| Error::<T>::DeserializingProofFailed)?;
+                .map_err(|e| {
+                    log::error!("Deserializing proof failed: {:?}", e);
+                    Error::<T>::DeserializingProofFailed
+                })?;
+
+            let public_input = Vec::<<<T as Config>::Field as PairingEngine>::Fr>::deserialize(&*public_input)
+                .map_err(|e| {
+                    log::error!("Deserializing public input failed: {:?}", e);
+                    Error::<T>::DeserializingPublicInputFailed
+                })?;
 
             let verification_key = VerificationKeys::<T>::get(verification_key_identifier)
                 .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
             let verification_key = VerifyingKey::<T::Field>::deserialize(&**verification_key)
-                .map_err(|_| Error::<T>::DeserializingVerificationKeyFailed)?;
-
-            let public_input = Vec::new();
+                .map_err(|e| {
+                    log::error!("Deserializing verification key failed: {:?}", e);
+                    Error::<T>::DeserializingVerificationKeyFailed
+                })?;
 
             let valid_proof = Groth16::verify(&verification_key, &public_input, &proof)
-                .map_err(|_| Error::<T>::VerificationFailed)?;
+                .map_err(|e| {
+                    log::error!("Verifying failed: {:?}", e);
+                    Error::<T>::VerificationFailed
+                })?;
 
             ensure!(valid_proof, Error::<T>::IncorrectProof);
 
