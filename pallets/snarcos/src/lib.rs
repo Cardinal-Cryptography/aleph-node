@@ -15,8 +15,7 @@ pub mod pallet {
     use ark_groth16::{Groth16, Proof, VerifyingKey};
     use ark_serialize::CanonicalDeserialize;
     use ark_snark::SNARK;
-    use frame_support::log;
-    use frame_support::pallet_prelude::*;
+    use frame_support::{log, pallet_prelude::*};
     use frame_system::pallet_prelude::OriginFor;
     use sp_std::prelude::Vec;
 
@@ -106,17 +105,17 @@ pub mod pallet {
             proof: Vec<u8>,
             public_input: Vec<u8>,
         ) -> DispatchResult {
-            let proof = Proof::<T::Field>::deserialize(&*proof)
-                .map_err(|e| {
-                    log::error!("Deserializing proof failed: {:?}", e);
-                    Error::<T>::DeserializingProofFailed
-                })?;
+            let proof = Proof::<T::Field>::deserialize(&*proof).map_err(|e| {
+                log::error!("Deserializing proof failed: {:?}", e);
+                Error::<T>::DeserializingProofFailed
+            })?;
 
-            let public_input = Vec::<<<T as Config>::Field as PairingEngine>::Fr>::deserialize(&*public_input)
-                .map_err(|e| {
-                    log::error!("Deserializing public input failed: {:?}", e);
-                    Error::<T>::DeserializingPublicInputFailed
-                })?;
+            let public_input =
+                Vec::<<<T as Config>::Field as PairingEngine>::Fr>::deserialize(&*public_input)
+                    .map_err(|e| {
+                        log::error!("Deserializing public input failed: {:?}", e);
+                        Error::<T>::DeserializingPublicInputFailed
+                    })?;
 
             let verification_key = VerificationKeys::<T>::get(verification_key_identifier)
                 .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
@@ -126,8 +125,8 @@ pub mod pallet {
                     Error::<T>::DeserializingVerificationKeyFailed
                 })?;
 
-            let valid_proof = Groth16::verify(&verification_key, &public_input, &proof)
-                .map_err(|e| {
+            let valid_proof =
+                Groth16::verify(&verification_key, &public_input, &proof).map_err(|e| {
                     log::error!("Verifying failed: {:?}", e);
                     Error::<T>::VerificationFailed
                 })?;
