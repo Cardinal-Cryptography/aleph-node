@@ -53,7 +53,7 @@ function remove_contract_code {
 # --- GLOBAL CONSTANTS
 
 CONTRACTS_PATH=$(pwd)/contracts
-CLIAIN_IMAGE=public.ecr.aws/p6e8q1z1/cliain:A0-1449-workflow-for-cliain
+CLIAIN_IMAGE=public.ecr.aws/p6e8q1z1/cliain:latest
 
 # --- CLEAN BUTTON CONTRACT
 
