@@ -81,7 +81,7 @@ pub mod pallet {
             key: Vec<u8>,
         ) -> DispatchResult {
             ensure!(
-                !VerificationKeys::<T>::contains_key(identifier.clone()),
+                !VerificationKeys::<T>::contains_key(identifier),
                 Error::<T>::IdentifierAlreadyInUse
             );
             ensure!(
