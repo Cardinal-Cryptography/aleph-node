@@ -1,4 +1,7 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::{
+    fmt::{Display, Error as FmtError, Formatter},
+    io::Error as IoError,
+};
 
 use codec::DecodeAll;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -9,9 +12,9 @@ use crate::validator_network::Data;
 pub const MAX_DATA_SIZE: u32 = 16 * 1024 * 1024;
 
 /// A general error when sending or receving data.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Error {
-    ConnectionClosed,
+    ConnectionClosed(IoError),
     DataTooLong(u32),
 }
 
@@ -19,7 +22,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            ConnectionClosed => write!(f, "connection unexpectedly closed"),
+            ConnectionClosed(e) => write!(f, "connection unexpectedly closed: {}", e),
             DataTooLong(length) => write!(
                 f,
                 "encoded data too long - {} bytes, the limit is {}",
@@ -30,7 +33,7 @@ impl Display for Error {
 }
 
 /// An error when sending data.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct SendError(Error);
 
 impl Display for SendError {
@@ -46,7 +49,7 @@ impl From<Error> for SendError {
 }
 
 /// An error when receiving data.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum ReceiveError {
     Error(Error),
     DataCorrupted,
@@ -73,17 +76,20 @@ pub async fn send_data<S: AsyncWriteExt + Unpin, D: Data>(
     mut stream: S,
     data: D,
 ) -> Result<S, SendError> {
-    let mut encoded = data.encode();
+    let encoded = data.encode();
     let len = u32::try_from(encoded.len()).map_err(|_| Error::DataTooLong(u32::MAX))?;
     if len > MAX_DATA_SIZE {
         return Err(Error::DataTooLong(len).into());
     }
-    let mut payload = len.to_le_bytes().to_vec();
-    payload.append(&mut encoded);
+    let encoded_len = len.to_le_bytes().to_vec();
     stream
-        .write_all(&payload)
+        .write_all(&encoded_len)
         .await
-        .map_err(|_| Error::ConnectionClosed)?;
+        .map_err(Error::ConnectionClosed)?;
+    stream
+        .write_all(&encoded)
+        .await
+        .map_err(Error::ConnectionClosed)?;
     Ok(stream)
 }
 
@@ -95,7 +101,7 @@ pub async fn receive_data<S: AsyncReadExt + Unpin, D: Data>(
     stream
         .read_exact(&mut buf[..])
         .await
-        .map_err(|_| Error::ConnectionClosed)?;
+        .map_err(Error::ConnectionClosed)?;
     let len = u32::from_le_bytes(buf);
     if len > MAX_DATA_SIZE {
         return Err(Error::DataTooLong(len).into());
@@ -104,7 +110,7 @@ pub async fn receive_data<S: AsyncReadExt + Unpin, D: Data>(
     stream
         .read_exact(&mut buf[..])
         .await
-        .map_err(|_| Error::ConnectionClosed)?;
+        .map_err(Error::ConnectionClosed)?;
     let data = D::decode_all(&mut &buf[..]).map_err(|_| ReceiveError::DataCorrupted)?;
     Ok((stream, data))
 }
@@ -131,7 +137,10 @@ mod tests {
     async fn fails_to_receive_from_dropped_connection() {
         let (_, receiver) = duplex(4096);
         match receive_data::<_, i32>(receiver).await {
-            Err(e) => assert_eq!(ReceiveError::Error(Error::ConnectionClosed), e),
+            Err(e) => match e {
+                ReceiveError::Error(Error::ConnectionClosed(_)) => (),
+                e => panic!("unexpected error: {}", e),
+            },
             _ => panic!("received data from a dropped stream!"),
         }
     }
@@ -141,7 +150,28 @@ mod tests {
         let (sender, _) = duplex(4096);
         let data: Vec<i32> = vec![4, 3, 43];
         match send_data(sender, data.clone()).await {
-            Err(e) => assert_eq!(SendError(Error::ConnectionClosed), e),
+            Err(e) => match e {
+                SendError(Error::ConnectionClosed(_)) => (),
+                e => panic!("unexpected error: {}", e),
+            },
+            _ => panic!("send data to a dropped stream!"),
+        }
+    }
+
+    #[tokio::test]
+    async fn fails_to_send_too_big_message() {
+        let (sender, _) = duplex(4096);
+        let data: Vec<u8> = vec![
+            43;
+            (MAX_DATA_SIZE + 1)
+                .try_into()
+                .expect("why are you running tests on a 16 bit machine? o.0")
+        ];
+        match send_data(sender, data.clone()).await {
+            Err(e) => match e {
+                SendError(Error::DataTooLong(_)) => (),
+                e => panic!("unexpected error: {}", e),
+            },
             _ => panic!("send data to a dropped stream!"),
         }
     }
@@ -156,7 +186,10 @@ mod tests {
             .await
             .expect("sending should work");
         match receive_data::<_, i32>(receiver).await {
-            Err(e) => assert_eq!(ReceiveError::Error(Error::DataTooLong(too_long)), e),
+            Err(e) => match e {
+                ReceiveError::Error(Error::DataTooLong(long)) => assert_eq!(long, too_long),
+                e => panic!("unexpected error: {}", e),
+            },
             _ => panic!("received too long data!"),
         }
     }
@@ -170,7 +203,10 @@ mod tests {
             .await
             .expect("sending should work");
         match receive_data::<_, i32>(receiver).await {
-            Err(e) => assert_eq!(ReceiveError::DataCorrupted, e),
+            Err(e) => match e {
+                ReceiveError::DataCorrupted => (),
+                e => panic!("unexpected error: {}", e),
+            },
             _ => panic!("decoded no data into something?!"),
         }
     }
