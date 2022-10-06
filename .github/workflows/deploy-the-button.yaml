@@ -105,10 +105,10 @@ jobs:
             aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
 
-      # Additional "only-deploy-fe-benjamin-contracts" input tells the workflow to only re-create docker image with new JSON files and re-deploy it
+      # Additional "onlyDeployFEBenjaminContracts" input tells the workflow to only re-create docker image with new JSON files and re-deploy it
       - name: Trigger The Button deployment workflow
         run: |
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"main", "inputs": { "only-deploy-fe-benjamin-contracts": "true" }}'
+          -d '{ "ref":"main", "inputs": { "onlyDeployFEBenjaminContracts": true }}'
