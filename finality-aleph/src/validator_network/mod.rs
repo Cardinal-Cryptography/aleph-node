@@ -7,9 +7,12 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 mod handshake;
 mod heartbeat;
+mod incoming;
 mod io;
 #[cfg(test)]
 mod mock;
+mod outgoing;
+mod protocol_negotiation;
 mod protocols;
 
 /// What the data sent using the network has to satisfy.
