@@ -47,6 +47,7 @@ mod button_game {
         #[ink(topic)]
         by: AccountId,
         when: BlockNumber,
+        score: Balance,
     }
 
     /// Event emitted when the finished game is reset and pressiah is rewarded
@@ -215,6 +216,7 @@ mod button_game {
                 Event::ButtonPressed(ButtonPressed {
                     by: caller,
                     when: now,
+                    score,
                 }),
             );
 
