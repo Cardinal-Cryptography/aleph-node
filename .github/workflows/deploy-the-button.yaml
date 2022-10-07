@@ -23,6 +23,10 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
 
+      - name: Get branch name and commit SHA
+        id: get_branch
+        uses: ./.github/actions/get-branch
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
@@ -104,6 +108,8 @@ jobs:
           for i in ticket_token marketplace button game_token access_control; do \
             aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
+          echo "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+          aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
       - name: Trigger The Button deployment workflow
         run: |
