@@ -17,14 +17,13 @@ struct Heartbeat(u32);
 /// Sends heartbeat messages at regular intervals, indefinitely.
 /// Fails if the communication channel is closed.
 pub async fn heartbeat_sender<S: AsyncWrite + Unpin + Send>(mut stream: S) {
-    let mut counter: u32 = 0;
     loop {
-        stream = match send_data(stream, Heartbeat(counter)).await {
+        // Random number so the message contains something.
+        stream = match send_data(stream, Heartbeat(43)).await {
             Ok(stream) => stream,
             // If anything at all went wrong, the heartbeat is dead.
             Err(_) => return,
         };
-        counter += 1;
         sleep(HEARTBEAT_TIMEOUT).await;
     }
 }
