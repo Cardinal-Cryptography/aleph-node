@@ -1,8 +1,11 @@
 name: Deploy the button game
 
 on:
+  pull_request:
+    types: [labeled]
   push:
     branches:
+    - benjamin
     - A0-1416-deployment-workflow-for-the-button-game
 
 env:
@@ -13,11 +16,22 @@ env:
   NODE_VERSION: 16
   S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/fe-benjamin-button
+  LABEL_DEPLOY_CONTRACTS: '[AZERO] DEPLOY-CONTRACTS'
+  LABEL_DESTROYED: 'DESTROYED'
+  LABEL_DEPLOYED: 'DEPLOYED'
+  LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
 
 jobs:
   checkout_benjamin:
+    if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
     steps:
+      - name: Fail when feature environment is not deployed
+        if: !contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
+        run: |
+          echo "Feature environment does not seem to be deployed (label not found)"
+          exit 1
+
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
         with:
@@ -67,19 +81,28 @@ jobs:
       - name: Install cargo-contract with bug fixes around URL parsing
         run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
-      - name: Restore contracts cache
-        uses: actions/cache@v3
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-        with:
-          path: |
-            contracts/addresses.json
-            contracts/ticket_token/target/ink/metadata.json
-            contracts/marketplace/target/ink/metadata.json
-            contracts/button/target/ink/metadata.json
-            contracts/game_token/target/ink/metadata.json
-            contracts/access_control/target/ink/metadata.json
-          key: contracts-addresses-${{ env.CACHE_KEY }}
+      - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
+        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
+        shell: bash
+        run: |
+          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+          done
+
+      #- name: Restore contracts cache
+      #  uses: actions/cache@v3
+      #  env:
+      #    SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
+      #  with:
+      #    path: |
+      #      contracts/addresses.json
+      #      contracts/ticket_token/target/ink/metadata.json
+      #      contracts/marketplace/target/ink/metadata.json
+      #      contracts/button/target/ink/metadata.json
+      #      contracts/game_token/target/ink/metadata.json
+      #      contracts/access_control/target/ink/metadata.json
+      #    key: contracts-addresses-${{ env.CACHE_KEY }}
 
       - name: Run clean.sh script
         continue-on-error: true
@@ -117,3 +140,9 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
+
+      - name: Add label to mark that contracts have been deployed
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
