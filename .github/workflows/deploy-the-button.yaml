@@ -71,18 +71,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: ${{ env.CACHE_KEY }}
-          cargo-key: ${{ env.CACHE_KEY }}
-          cache-version: v1
+      #- name: Restore cache
+      #  uses: ./.github/actions/restore-cache
+      #  with:
+      #    target-key: ${{ env.CACHE_KEY }}
+      #    cargo-key: ${{ env.CACHE_KEY }}
+      #    cache-version: v1
 
       - name: Install cargo additional libs
-        run: cargo install dylint-link cargo-dylint
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install dylint-link cargo-dylint
 
       - name: Install cargo-contract with bug fixes around URL parsing
-        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
 
       - name: Restore contracts cache
         uses: actions/cache@v3
@@ -111,11 +115,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
         shell: bash
         run: |
+          . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
       - name: Configure AWS credentials
