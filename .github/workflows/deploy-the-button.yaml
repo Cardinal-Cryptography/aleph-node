@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Fail when feature environment is not deployed
-        if: !contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
+        if: ${{ !contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED) }}
         run: |
           echo "Feature environment does not seem to be deployed (label not found)"
           exit 1
