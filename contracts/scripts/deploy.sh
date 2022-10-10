@@ -188,6 +188,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/marketplace
 cargo contract build --release
 
+echo "Sleeping 10 seconds. Maybe it will prevent next step from failing..."
+sleep 10
+
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
