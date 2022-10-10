@@ -105,23 +105,37 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         )
     }
 
+    fn spawn_new_outgoing(
+        &self,
+        peer_id: AuthorityId,
+        addresses: Vec<A>,
+        result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    ) {
+        let authority_pen = self.authority_pen.clone();
+        let dialer = self.dialer.clone();
+        self.spawn_handle
+            .spawn("aleph/validator_network_outgoing", None, async move {
+                outgoing(authority_pen, peer_id, dialer, addresses, result_for_parent).await;
+            });
+    }
+
     /// Run the service until a signal from exit.
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         // channel used to receive tuple (peer_id, exit_handle) from a spawned worker
         // that has just established an incoming connection
         // exit_handle may be used to kill the worker later
-        let (result_for_parent, mut incoming_workers) = mpsc::unbounded();
+        let (incoming_result_for_parent, mut incoming_workers) = mpsc::unbounded();
         // channel used to receive information about failure from a spawned worker
         // that managed an outgoing connection
         // the received peer_id can be used to spawn another worker
-        let (failure_for_parent, mut outgoing_workers) = mpsc::unbounded::<AuthorityId>();
+        let (outgoing_result_for_parent, mut outgoing_workers) = mpsc::unbounded();
         loop {
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
                 Ok(stream) = self.listener.accept() => {
                     let authority_pen = self.authority_pen.clone();
-                    let result_for_parent = result_for_parent.clone();
+                    let result_for_parent = incoming_result_for_parent.clone();
                     let next_to_interface = self.next_to_interface.clone();
                     self.spawn_handle.spawn("aleph/validator_network_incoming", None, async move {
                         incoming(
@@ -137,21 +151,7 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                 // spawn a worker managing outgoing connection if the peer was not known
                 Some((peer_id, addresses)) = self.add_connection_from_interface.next() => {
                     if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
-                        let authority_pen = self.authority_pen.clone();
-                        let failure_for_parent = failure_for_parent.clone();
-                        let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
-                        let dialer = self.dialer.clone();
-                        self.manager.add_outgoing(peer_id.clone(), data_for_network);
-                        self.spawn_handle.spawn("aleph/validator_network_outgoing", None, async move {
-                            outgoing(
-                                authority_pen,
-                                peer_id,
-                                dialer,
-                                addresses,
-                                data_from_user,
-                                failure_for_parent,
-                            ).await;
-                        });
+                        self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone());
                     };
                 },
                 // got new remove_connection request from API, remove the peer from the manager
@@ -172,25 +172,14 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                 Some((peer_id, exit)) = incoming_workers.next() => {
                     self.manager.add_incoming(peer_id, exit);
                 },
-                // received information about failure from a spawned worker managing an outgoing connection
-                // check if we still want to be connected to the peer, and if so, spawn a new worker
-                Some(peer_id) = outgoing_workers.next() => {
+                // received information from a spawned worker managing an outgoing connection
+                // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
+                Some((peer_id, maybe_data_for_network)) = outgoing_workers.next() => {
                     if let Some(addresses) = self.manager.peer_addresses(&peer_id) {
-                        let authority_pen = self.authority_pen.clone();
-                        let dialer = self.dialer.clone();
-                        let failure_for_parent = failure_for_parent.clone();
-                        let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
-                        self.manager.add_outgoing(peer_id.clone(), data_for_network);
-                        self.spawn_handle.spawn("aleph/validator_network_outgoing", None, async move {
-                            outgoing(
-                                authority_pen,
-                                peer_id,
-                                dialer,
-                                addresses,
-                                data_from_user,
-                                failure_for_parent,
-                            ).await;
-                        });
+                        match maybe_data_for_network {
+                            Some(data_for_network) => self.manager.add_outgoing(peer_id, data_for_network),
+                            None => self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone()),
+                        }
                     };
                 },
                 // periodically reporting what we are trying to do
