@@ -8,9 +8,7 @@ use crate::{
     validator_network::Network,
 };
 
-type MockPeerId = AuthorityId;
-
-impl PeerId for MockPeerId {}
+impl PeerId for AuthorityId {}
 
 type MockMultiaddress = (AuthorityId, String);
 
@@ -30,25 +28,25 @@ impl Multiaddress for MockMultiaddress {
 }
 
 pub struct MockNetwork<D: Data> {
-    pub add_connection: Channel<(MockPeerId, Vec<MockMultiaddress>)>,
-    pub remove_connection: Channel<MockPeerId>,
-    pub send: Channel<(D, MockPeerId)>,
+    pub add_connection: Channel<(AuthorityId, Vec<MockMultiaddress>)>,
+    pub remove_connection: Channel<AuthorityId>,
+    pub send: Channel<(D, AuthorityId)>,
     pub next: Channel<D>,
-    id: MockPeerId,
+    id: AuthorityId,
     addresses: Vec<MockMultiaddress>,
 }
 
 #[async_trait::async_trait]
 impl<D: Data> Network<MockMultiaddress, D> for MockNetwork<D> {
-    fn add_connection(&mut self, peer: MockPeerId, addresses: Vec<MockMultiaddress>) {
+    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<MockMultiaddress>) {
         self.add_connection.send((peer, addresses));
     }
 
-    fn remove_connection(&mut self, peer: MockPeerId) {
+    fn remove_connection(&mut self, peer: AuthorityId) {
         self.remove_connection.send(peer);
     }
 
-    fn send(&self, data: D, recipient: MockPeerId) {
+    fn send(&self, data: D, recipient: AuthorityId) {
         self.send.send((data, recipient));
     }
 
@@ -58,7 +56,7 @@ impl<D: Data> Network<MockMultiaddress, D> for MockNetwork<D> {
 }
 
 impl<D: Data> NetworkIdentity for MockNetwork<D> {
-    type PeerId = MockPeerId;
+    type PeerId = AuthorityId;
     type Multiaddress = MockMultiaddress;
 
     fn identity(&self) -> (Vec<Self::Multiaddress>, Self::PeerId) {
