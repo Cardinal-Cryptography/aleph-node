@@ -336,7 +336,7 @@ mod button_game {
                     ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
                         .push_arg(self.marketplace)
                         .push_arg(self.held_tickets()?)
-                        .push_arg(vec![0x0]),
+                        .push_arg::<vec::Vec<u8>>(vec![]),
                 )
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<Result<(), PSP22Error>>()
@@ -414,7 +414,7 @@ mod button_game {
                         .push_arg(from)
                         .push_arg(to)
                         .push_arg(value)
-                        .push_arg(vec![0x0]),
+                        .push_arg::<vec::Vec<u8>>(vec![]),
                 )
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<Result<(), PSP22Error>>()

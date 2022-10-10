@@ -10,10 +10,14 @@ use scale::{Decode, Encode};
 pub enum Role {
     /// Indicates a superuser.
     Admin(AccountId),
-    /// Indicates account can terminate a contract.
+    /// Indicates account that can terminate a contract.
     Owner(AccountId),
-    /// Indicates account can initialize a contract from a given code hash.
+    /// Indicates account that can initialize a contract from a given code hash.
     Initializer(Hash),
-    /// Indicates account can add liquidity to a DEX contract (call certain functions)
+    /// Indicates account that can add liquidity to a DEX contract (call certain functions)
     LiquidityProvider(AccountId),
+    /// Indicates account that can mint tokens of a given token contract,
+    Minter(AccountId),
+    /// Indicates account that can burn tokens of a given token contract,
+    Burner(AccountId),
 }
