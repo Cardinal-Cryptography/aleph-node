@@ -4,7 +4,6 @@ services:
   smartnode:
     image: public.ecr.aws/p6e8q1z1/aleph-node:latest
     container_name: smartnode
-    network_mode: host
     environment:
       - ALLOW_PRIVATE_IPV4=true
       - BASE_PATH=/data/$NODE_ID
@@ -14,7 +13,7 @@ services:
       - NAME=Smartnode
       - NODE_KEY_PATH=/data/$NODE_ID/p2p_secret
       - PORT=30333
-      - PURGE_BEFORE_START=true
+      # - PURGE_BEFORE_START=true
       - RPC_PORT=9933
       - RUST_LOG=info
       - UNIT_CREATION_DELAY=50
@@ -23,3 +22,16 @@ services:
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333
     volumes:
       - ./data/:/data/
+    expose:
+      - 30333
+      - 9933
+      - 9943
+    ports:
+      - 0.0.0.0:30333:30333
+      - 0.0.0.0:9933:9933
+      - 0.0.0.0:9943:9943
+
+networks:
+  default:
+    external:
+      name: node-network
