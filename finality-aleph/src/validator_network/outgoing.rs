@@ -3,6 +3,7 @@ use std::fmt::{Display, Error as FmtError, Formatter};
 use aleph_primitives::AuthorityId;
 use futures::channel::mpsc;
 use log::{debug, info};
+use tokio::time::{sleep, Duration};
 
 use crate::{
     crypto::AuthorityPen,
@@ -62,6 +63,8 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
         .await?)
 }
 
+const RETRY_DELAY: Duration = Duration::from_secs(10);
+
 /// Establish an outgoing connection to the provided peer using the dialer and then manage it.
 /// While this works it will send any data from the user to the peer. Any failures will be reported
 /// to the parent, so that connections can be reestablished if necessary.
@@ -82,9 +85,10 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
     )
     .await
     {
-        info!(target: "validator-network", "Outgoing connection to {} failed: {}.", peer_id, e);
-    }
-    if failure_for_parent.unbounded_send(peer_id).is_err() {
-        debug!(target: "validator-network", "Could not send the closing message, we've probably been terminated by the parent service.");
+        info!(target: "validator-network", "Outgoing connection to {} failed: {}, will retry after {}s.", peer_id, e, RETRY_DELAY.as_secs());
+        sleep(RETRY_DELAY).await;
+        if failure_for_parent.unbounded_send(peer_id).is_err() {
+            debug!(target: "validator-network", "Could not send the closing message, we've probably been terminated by the parent service.");
+        }
     }
 }
