@@ -1,0 +1,206 @@
+use aleph_primitives::AuthorityId;
+use futures::{
+    channel::{mpsc, oneshot},
+    StreamExt,
+};
+use log::info;
+use tokio::time;
+
+use crate::{
+    crypto::AuthorityPen,
+    validator_network::{
+        incoming::incoming, manager::Manager, outgoing::outgoing, Data, Dialer, Listener, Network,
+    },
+    SpawnTaskHandle, STATUS_REPORT_INTERVAL,
+};
+
+struct ServiceInterface<D: Data, A: Data> {
+    c_add_connection: mpsc::UnboundedSender<(AuthorityId, Vec<A>)>,
+    c_remove_connection: mpsc::UnboundedSender<AuthorityId>,
+    c_send: mpsc::UnboundedSender<(D, AuthorityId)>,
+    c_next: mpsc::UnboundedReceiver<D>,
+}
+
+#[async_trait::async_trait]
+impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
+    /// Add the peer to the set of connected peers.
+    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>) {
+        if self
+            .c_add_connection
+            .unbounded_send((peer, addresses))
+            .is_err()
+        {
+            info!(target: "validator-network", "Service is dead.");
+        };
+    }
+
+    /// Remove the peer from the set of connected peers and close the connection.
+    fn remove_connection(&mut self, peer: AuthorityId) {
+        if self.c_remove_connection.unbounded_send(peer).is_err() {
+            info!(target: "validator-network", "Service is dead.");
+        };
+    }
+
+    /// Send a message to a single peer.
+    /// This function should be implemented in a non-blocking manner.
+    fn send(&self, data: D, recipient: AuthorityId) {
+        if self.c_send.unbounded_send((data, recipient)).is_err() {
+            info!(target: "validator-network", "Service is dead.");
+        };
+    }
+
+    /// Receive a message from the network.
+    async fn next(&mut self) -> Option<D> {
+        self.c_next.next().await
+    }
+}
+
+/// A service that has to be run for the validator network to work.
+pub struct Service<D: Data, A: Data, ND: Dialer<A>, NL: Listener> {
+    add_connection_from_interface: mpsc::UnboundedReceiver<(AuthorityId, Vec<A>)>,
+    remove_connection_from_interface: mpsc::UnboundedReceiver<AuthorityId>,
+    send_from_interface: mpsc::UnboundedReceiver<(D, AuthorityId)>,
+    next_to_interface: mpsc::UnboundedSender<D>,
+    manager: Manager<A, D>,
+    dialer: ND,
+    listener: NL,
+    spawn_handle: SpawnTaskHandle,
+    authority_pen: AuthorityPen,
+}
+
+impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
+    /// Create a new validator network service plus an interface for interacting with it.
+    pub fn new(
+        dialer: ND,
+        listener: NL,
+        authority_pen: AuthorityPen,
+        spawn_handle: SpawnTaskHandle,
+    ) -> (Self, impl Network<A, D>) {
+        // Channel for command: add new peer
+        let (add_connection_to_service, add_connection_from_interface) = mpsc::unbounded();
+        // Channel for command: remove peer
+        let (remove_connection_to_service, remove_connection_from_interface) = mpsc::unbounded();
+        // Channel for sending data through the network
+        let (send_to_service, send_from_interface) = mpsc::unbounded();
+        // Channel for receiving data from the network
+        let (next_to_interface, next_from_service) = mpsc::unbounded();
+        (
+            Self {
+                add_connection_from_interface,
+                remove_connection_from_interface,
+                send_from_interface,
+                next_to_interface,
+                manager: Manager::new(),
+                dialer,
+                listener,
+                spawn_handle,
+                authority_pen,
+            },
+            ServiceInterface {
+                c_add_connection: add_connection_to_service,
+                c_remove_connection: remove_connection_to_service,
+                c_send: send_to_service,
+                c_next: next_from_service,
+            },
+        )
+    }
+
+    /// Run the service until a signal from exit.
+    pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
+        let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
+        // channel used to receive tuple (peer_id, exit_handle) from a spawned worker
+        // that has just established an incoming connection
+        // exit_handle may be used to kill the worker later
+        let (result_for_parent, mut incoming_workers) = mpsc::unbounded();
+        // channel used to receive information about failure from a spawned worker
+        // that managed an outgoing connection
+        // the received peer_id can be used to spawn another worker
+        let (failure_for_parent, mut outgoing_workers) = mpsc::unbounded::<AuthorityId>();
+        loop {
+            tokio::select! {
+                // got new incoming connection from the listener - spawn an incoming worker
+                Ok(stream) = self.listener.accept() => {
+                    let authority_pen = self.authority_pen.clone();
+                    let result_for_parent = result_for_parent.clone();
+                    let next_to_interface = self.next_to_interface.clone();
+                    self.spawn_handle.spawn("aleph/validator_network_incoming", None, async move {
+                        incoming(
+                            authority_pen,
+                            stream,
+                            result_for_parent,
+                            next_to_interface,
+                        ).await;
+                    });
+                },
+                // got new add_connection request from API, register new peer in manager
+                // or update its list of addresses if already there
+                // spawn a worker managing outgoing connection if the peer was not known
+                Some((peer_id, addresses)) = self.add_connection_from_interface.next() => {
+                    if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
+                        let authority_pen = self.authority_pen.clone();
+                        let failure_for_parent = failure_for_parent.clone();
+                        let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
+                        let dialer = self.dialer.clone();
+                        self.manager.add_outgoing(peer_id.clone(), data_for_network);
+                        self.spawn_handle.spawn("aleph/validator_network_outgoing", None, async move {
+                            outgoing(
+                                authority_pen,
+                                peer_id,
+                                dialer,
+                                addresses,
+                                data_from_user,
+                                failure_for_parent,
+                            ).await;
+                        });
+                    };
+                },
+                // got new remove_connection request from API, remove the peer from the manager
+                // all workers will be killed automatically, due to closed channels
+                Some(peer_id) = self.remove_connection_from_interface.next() => {
+                    self.manager.remove_peer(&peer_id);
+                },
+                // got new send request from API, pass the data to the manager
+                Some((data, peer_id)) = self.send_from_interface.next() => {
+                    if let Err(e) = self.manager.send_to(&peer_id, data) {
+                        info!(target: "validator-network", "Failed sending to {}: {}", peer_id, e);
+                    }
+                },
+                // received tuple (peer_id, exit_handle) from a spawned worker
+                // that has just established an incoming connection
+                // pass the tuple to the manager to register the connection
+                // the manager will be responsible for killing the worker if necessary
+                Some((peer_id, exit)) = incoming_workers.next() => {
+                    self.manager.add_incoming(peer_id, exit);
+                },
+                // received information about failure from a spawned worker managing an outgoing connection
+                // check if we still want to be connected to the peer, and if so, spawn a new worker
+                Some(peer_id) = outgoing_workers.next() => {
+                    if let Some(addresses) = self.manager.peer_addresses(&peer_id) {
+                        let authority_pen = self.authority_pen.clone();
+                        let dialer = self.dialer.clone();
+                        let failure_for_parent = failure_for_parent.clone();
+                        let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
+                        self.manager.add_outgoing(peer_id.clone(), data_for_network);
+                        self.spawn_handle.spawn("aleph/validator_network_outgoing", None, async move {
+                            outgoing(
+                                authority_pen,
+                                peer_id,
+                                dialer,
+                                addresses,
+                                data_from_user,
+                                failure_for_parent,
+                            ).await;
+                        });
+                    };
+                },
+                // periodically reporting what we are trying to do
+                _ = status_ticker.tick() => {
+                    info!(target: "validator-network", "Manager status report: {}.", self.manager.status_report())
+                }
+                // received exit signal, stop the network
+                // all workers will be killed automatically after the manager gets dropped
+                _ = &mut exit => break,
+            };
+        }
+    }
+}
