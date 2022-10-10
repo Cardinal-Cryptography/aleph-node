@@ -99,13 +99,14 @@ function deploy_button_game {
   local game_type=$2
   local ticket_token=$3
   local game_token=$4
-  local salt=$5
+  local marketplace=$5
+  local salt=$6
 
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
   cd "$CONTRACTS_PATH"/button
 
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt")
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$marketplace" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt")
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 15-)
 
   echo "$game_type contract instance address: $contract_address"
@@ -115,6 +116,7 @@ function deploy_button_game {
   cd "$CONTRACTS_PATH"/access_control
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Admin('"$marketplace"')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
@@ -126,7 +128,6 @@ function deploy_marketplace {
   local salt=$4
   local ticket_token=$5
   local game_token=$6
-  local game=$7
 
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
@@ -151,7 +152,6 @@ function deploy_marketplace {
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED"
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$game" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED"
 
   eval "$__resultvar='$contract_address'"
 }
@@ -223,9 +223,9 @@ echo "Early Bird Special"
 
 salt="0x4561726C79426972645370656369616C"
 deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
-deploy_game_token EARLY_BIRD_SPECIAL_TOKEN Ubik UBI $salt
-deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial $EARLY_BIRD_SPECIAL_TICKET $EARLY_BIRD_SPECIAL_TOKEN $salt
-deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL"
+deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
+deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN"
+deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL_MARKETPLACE" "$salt"
 
 #
 # --- BACK_TO_THE_FUTURE GAME
@@ -234,9 +234,9 @@ echo "Back To The Future"
 
 salt="0x4261636B546F546865467574757265"
 deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
-deploy_game_token BACK_TO_THE_FUTURE_TOKEN Cyberiad CYB $salt
-deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture $BACK_TO_THE_FUTURE_TICKET $BACK_TO_THE_FUTURE_TOKEN $salt
-deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE"
+deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
+deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN"
+deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE_MARKETPLACE" "$salt"
 
 #
 # --- THE_PRESSIAH_COMETH GAME
@@ -245,9 +245,9 @@ echo "The Pressiah Cometh"
 
 salt="0x7468655F70726573736961685F636F6D657468"
 deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
-deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
-deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh $THE_PRESSIAH_COMETH_TICKET $THE_PRESSIAH_COMETH_TOKEN $salt
-deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH"
+deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
+deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
+deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"

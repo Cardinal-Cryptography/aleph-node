@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "access_control"
-version = "1.0.0"
+version = "0.2.0"
 dependencies = [
  "ink_env",
  "ink_lang",
@@ -93,6 +93,7 @@ dependencies = [
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
+ "marketplace",
  "openbrush",
  "parity-scale-codec",
  "scale-info",
@@ -528,6 +529,25 @@ name = "libc"
 version = "0.2.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8371e4e5341c3a96db127eb2465ac681ced4c433e01dd0e938adbef26ba93ba5"
+
+[[package]]
+name = "marketplace"
+version = "0.1.0"
+dependencies = [
+ "access_control",
+ "game_token",
+ "ink_engine",
+ "ink_env",
+ "ink_lang",
+ "ink_metadata",
+ "ink_prelude",
+ "ink_primitives",
+ "ink_storage",
+ "openbrush",
+ "parity-scale-codec",
+ "scale-info",
+ "ticket_token",
+]
 
 [[package]]
 name = "num-traits"

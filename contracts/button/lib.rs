@@ -15,9 +15,10 @@ mod button_game {
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, vec};
     use ink_storage::traits::{PackedLayout, SpreadLayout};
+    use marketplace::RESET_SELECTOR as MARKETPLACE_RESET_SELECTOR;
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
-    use ticket_token::TRANSFER_FROM_SELECTOR;
+    use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR};
 
     use crate::errors::GameError;
 
@@ -46,6 +47,7 @@ mod button_game {
         #[ink(topic)]
         by: AccountId,
         when: BlockNumber,
+        score: Balance,
     }
 
     /// Event emitted when the finished game is reset and pressiah is rewarded
@@ -89,6 +91,8 @@ mod button_game {
         pub ticket_token: AccountId,
         /// access control contract
         pub access_control: AccountId,
+        /// ticket marketplace contract
+        pub marketplace: AccountId,
         /// scoring strategy
         pub scoring: Scoring,
     }
@@ -102,6 +106,7 @@ mod button_game {
         pub fn new(
             ticket_token: AccountId,
             reward_token: AccountId,
+            marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
         ) -> Self {
@@ -113,7 +118,13 @@ mod button_game {
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
             match ButtonGame::check_role(&access_control, &caller, required_role) {
-                Ok(_) => Self::init(ticket_token, reward_token, button_lifetime, scoring),
+                Ok(_) => Self::init(
+                    ticket_token,
+                    reward_token,
+                    marketplace,
+                    button_lifetime,
+                    scoring,
+                ),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
@@ -155,6 +166,12 @@ mod button_game {
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
             self.ticket_token
+        }
+
+        /// Returns the address of the marketplace for exchanging this game's rewards for tickets.
+        #[ink(message)]
+        pub fn marketplace(&self) -> AccountId {
+            self.marketplace
         }
 
         /// Returns own code hash
@@ -199,6 +216,7 @@ mod button_game {
                 Event::ButtonPressed(ButtonPressed {
                     by: caller,
                     when: now,
+                    score,
                 }),
             );
 
@@ -212,25 +230,11 @@ mod button_game {
         /// Can only be called after button's deadline
         #[ink(message)]
         pub fn reset(&mut self) -> ButtonResult<()> {
-            if !self.is_dead() {
-                return Err(GameError::BeforeDeadline);
-            }
-
-            let now = self.env().block_number();
-
-            // reward the Pressiah
-            if let Some(pressiah) = self.last_presser {
-                let reward = self.pressiah_score();
-                self.mint_reward(pressiah, reward)??;
-            };
-
-            self.presses = 0;
-            self.last_presser = None;
-            self.last_press = now;
-            self.total_rewards = 0;
-
-            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
-            Ok(())
+            self.ensure_dead()?;
+            self.reward_pressiah()?;
+            self.reset_state();
+            self.transfer_tickets_to_marketplace()?;
+            self.reset_marketplace()
         }
 
         /// Sets new access control contract address
@@ -264,6 +268,7 @@ mod button_game {
         fn init(
             ticket_token: AccountId,
             reward_token: AccountId,
+            marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
         ) -> Self {
@@ -275,6 +280,7 @@ mod button_game {
                 button_lifetime,
                 reward_token,
                 ticket_token,
+                marketplace,
                 last_press: now,
                 scoring,
                 last_presser: None,
@@ -293,6 +299,75 @@ mod button_game {
             );
 
             contract
+        }
+
+        fn reset_state(&mut self) {
+            let now = self.env().block_number();
+
+            self.presses = 0;
+            self.last_presser = None;
+            self.last_press = now;
+            self.total_rewards = 0;
+
+            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
+        }
+
+        fn reward_pressiah(&self) -> ButtonResult<()> {
+            if let Some(pressiah) = self.last_presser {
+                let reward = self.pressiah_score();
+                self.mint_reward(pressiah, reward)??;
+            };
+
+            Ok(())
+        }
+
+        fn ensure_dead(&self) -> ButtonResult<()> {
+            if !self.is_dead() {
+                return Err(GameError::BeforeDeadline);
+            } else {
+                Ok(())
+            }
+        }
+
+        fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
+            build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.ticket_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
+                        .push_arg(self.marketplace)
+                        .push_arg(self.held_tickets()?)
+                        .push_arg(vec![0x0]),
+                )
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .returns::<Result<(), PSP22Error>>()
+                .fire()??;
+
+            Ok(())
+        }
+
+        fn held_tickets(&self) -> ButtonResult<Balance> {
+            let result = build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.ticket_token))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR))
+                        .push_arg(self.env().account_id()),
+                )
+                .returns::<Balance>()
+                .fire()?;
+
+            Ok(result)
+        }
+
+        fn reset_marketplace(&self) -> ButtonResult<()> {
+            build_call::<DefaultEnvironment>()
+                .call_type(Call::new().callee(self.marketplace))
+                .exec_input(ExecutionInput::new(Selector::new(
+                    MARKETPLACE_RESET_SELECTOR,
+                )))
+                .returns::<Result<(), PSP22Error>>()
+                .fire()??;
+
+            Ok(())
         }
 
         fn check_role(
