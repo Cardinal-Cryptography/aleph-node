@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_when_connection_droped() {
+    async fn fails_when_connection_dropped() {
         let (stream, _) = duplex(4096);
         incorrect_negotiation(
             negotiate_protocol_version(stream, supported_protocol_range()).await,
