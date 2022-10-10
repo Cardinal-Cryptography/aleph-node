@@ -48,6 +48,7 @@ jobs:
           toolchain: nightly-2022-08-12-x86_64-unknown-linux-gnu
           override: true
           target: wasm32-unknown-unknown
+          default: true
 
       - name: Install jq
         shell: bash
@@ -74,17 +75,11 @@ jobs:
           cargo-key: ${{ env.CACHE_KEY }}
           cache-version: v1
 
-      - name: Install additional cargo libs
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: dylint-link cargo-dylint
+      - name: Install cargo additional libs
+        run: cargo install dylint-link cargo-dylint
 
       - name: Install cargo-contract with bug fixes around URL parsing
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
+        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
 
       - name: Restore contracts cache
         uses: actions/cache@v3
