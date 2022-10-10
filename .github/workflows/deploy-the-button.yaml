@@ -44,11 +44,13 @@ jobs:
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2022-08-12-x86_64-unknown-linux-gnu
-          override: true
-          target: wasm32-unknown-unknown
-          default: true
+
+      - name: Setup rust toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup toolchain install nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup default nightly-2022-08-12-x86_64-unknown-linux-gnu
 
       - name: Install jq
         shell: bash
