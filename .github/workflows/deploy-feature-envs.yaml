@@ -10,6 +10,7 @@ env:
   LABEL_DELETE: '[AZERO] DELETE-FEATURE-ENV'
   LABEL_DESTROYED: 'DESTROYED'
   LABEL_DEPLOYED: 'DEPLOYED'
+  LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
   REGISTRY_HOST: 573243519133.dkr.ecr.us-east-1.amazonaws.com
   FE_ALEPHNODE_REGISTRY: 573243519133.dkr.ecr.us-east-1.amazonaws.com/feature-env-aleph-node
   FE_ALEPHNODE_REGISTRY_ESCAPED: '573243519133.dkr.ecr.us-east-1.amazonaws.com\/feature-env-aleph-node'
@@ -419,6 +420,13 @@ jobs:
           labels: ${{ env.LABEL_DEPLOYED }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
+      - name: Remove "DEPLOYED-CONTRACTS" label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
+        with:
+          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
       - name: Add label to mark that feature branch has been destroyed
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
@@ -468,6 +476,13 @@ jobs:
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
         with:
           labels: ${{ env.LABEL_DEPLOYED }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove "DEPLOYED-CONTRACTS" label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
+        with:
+          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that feature branch has been destroyed
