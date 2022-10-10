@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::sync::Arc;
 
 use aleph_primitives::{AuthorityId, KEY_TYPE};
@@ -68,7 +67,7 @@ impl<D: Data> NetworkIdentity for MockNetwork<D> {
 }
 
 impl<D: Data> MockNetwork<D> {
-    pub async fn new(address: &str) -> Self {
+    pub async fn _new(address: &str) -> Self {
         let key_store = Arc::new(KeyStore::new());
         let id: AuthorityId = key_store
             .ed25519_generate_new(KEY_TYPE, None)
@@ -87,7 +86,7 @@ impl<D: Data> MockNetwork<D> {
     }
 
     // Consumes the network asserting there are no unreceived messages in the channels.
-    pub async fn close_channels(self) {
+    pub async fn _close_channels(self) {
         assert!(self.add_connection.close().await.is_none());
         assert!(self.remove_connection.close().await.is_none());
         assert!(self.send.close().await.is_none());
