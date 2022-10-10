@@ -46,7 +46,7 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 - Tokens are continuously minted at the end of each iteration
 - Players are rewarded for playing, with the ultimate goal of being the Pressiah (the last person to click the button)
 - Reward rules:
-  - If you’re not ThePressiah, you get _k_ tokens if you pressed the button as the _k-th_ person in a row.
+  - If you're not ThePressiah, you get _k_ tokens if you pressed the button as the _k-th_ person in a row.
   - ThePressiah gets 20% of the total reward pool.
 
 # Development
@@ -54,7 +54,7 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 ## Prerequisites
 
 - Rust nightly
-- cargo-contract with bug fixes around URL parsing: `cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force`
+- cargo-contract with bug fixes around URL parsing: `cargo install --git https://github.com/paritytech/cargo-contract.git --rev 2b1758756de59bd81e7bed5f8429d364f281cb9a --force`
 
 ## Instructions
 
@@ -74,7 +74,7 @@ Specifically it will:
 
 - Deploy the contracts.
 - Set access control on them.
-- Make neccessary token transfers.
+- Make necessary token transfers.
 
 Third `test.sh` script plays the game from two well-known dev addresses.
 

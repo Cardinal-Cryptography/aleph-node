@@ -16,11 +16,11 @@ function play {
 
   echo "sending ticket token" ${contract_name}_ticket "["$ticket_address"]" "to " $PLAYER1
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER1 1 "[0]" --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER1 1 "[0]" --suri $AUTHORITY_SEED --skip-confirm
 
   echo "sending ticket token" ${contract_name}_ticket "["$ticket_address"]" "to " $PLAYER2
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER2 1 "[0]" --suri $AUTHORITY_SEED
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::transfer --args $PLAYER2 1 "[0]" --suri $AUTHORITY_SEED --skip-confirm
 
   # give allowance for spending tickets to the game contract
 
@@ -28,11 +28,11 @@ function play {
 
   echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER1
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER1_SEED
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER1_SEED --skip-confirm
 
   echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER2
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED --skip-confirm
 
   # TODO : can't test before mint / burn for game tokens is implemented; uncomment when A0-1236 is done
 
