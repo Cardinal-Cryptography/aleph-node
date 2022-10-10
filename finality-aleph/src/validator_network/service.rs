@@ -3,7 +3,7 @@ use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use log::info;
+use log::{info, warn};
 use tokio::time;
 
 use crate::{
@@ -119,6 +119,19 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
             });
     }
 
+    fn spawn_new_incoming(
+        &self,
+        stream: NL::Connection,
+        result_for_parent: mpsc::UnboundedSender<(AuthorityId, oneshot::Sender<()>)>,
+    ) {
+        let authority_pen = self.authority_pen.clone();
+        let next_to_interface = self.next_to_interface.clone();
+        self.spawn_handle
+            .spawn("aleph/validator_network_incoming", None, async move {
+                incoming(authority_pen, stream, result_for_parent, next_to_interface).await;
+            });
+    }
+
     /// Run the service until a signal from exit.
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
@@ -133,18 +146,9 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         loop {
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
-                Ok(stream) = self.listener.accept() => {
-                    let authority_pen = self.authority_pen.clone();
-                    let result_for_parent = incoming_result_for_parent.clone();
-                    let next_to_interface = self.next_to_interface.clone();
-                    self.spawn_handle.spawn("aleph/validator_network_incoming", None, async move {
-                        incoming(
-                            authority_pen,
-                            stream,
-                            result_for_parent,
-                            next_to_interface,
-                        ).await;
-                    });
+                maybe_stream = self.listener.accept() => match maybe_stream {
+                    Ok(stream) => self.spawn_new_incoming(stream, incoming_result_for_parent.clone()),
+                    Err(e) => warn!(target: "validator-network", "Listener failed to accept connection: {}", e),
                 },
                 // got new add_connection request from API, register new peer in manager
                 // or update its list of addresses if already there
