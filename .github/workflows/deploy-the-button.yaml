@@ -79,7 +79,21 @@ jobs:
         run: cargo install dylint-link cargo-dylint
 
       - name: Install cargo-contract with bug fixes around URL parsing
-        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+        run: cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
+
+      - name: Restore contracts cache
+        uses: actions/cache@v3
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
+        with:
+          path: |
+            contracts/addresses.json
+            contracts/ticket_token/target/**
+            contracts/marketplace/target/**
+            contracts/button/target/**
+            contracts/game_token/target/**
+            contracts/access_control/target/**
+          key: contracts-target-${{ env.CACHE_KEY }}
 
       - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
         if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
@@ -89,20 +103,6 @@ jobs:
           for i in ticket_token marketplace button game_token access_control; do \
             aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
           done
-
-      #- name: Restore contracts cache
-      #  uses: actions/cache@v3
-      #  env:
-      #    SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-      #  with:
-      #    path: |
-      #      contracts/addresses.json
-      #      contracts/ticket_token/target/ink/metadata.json
-      #      contracts/marketplace/target/ink/metadata.json
-      #      contracts/button/target/ink/metadata.json
-      #      contracts/game_token/target/ink/metadata.json
-      #      contracts/access_control/target/ink/metadata.json
-      #    key: contracts-addresses-${{ env.CACHE_KEY }}
 
       - name: Run clean.sh script
         continue-on-error: true

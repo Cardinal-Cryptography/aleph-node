@@ -196,7 +196,7 @@ sleep 10
 cd "$CONTRACTS_PATH"/access_control
 
 echo "1"
-ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --verbose --url "$NODE" --suri "$AUTHORITY_SEED" 2>&1)
+ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --verbose --url "$NODE" --suri "$AUTHORITY_SEED")
 echo "2"
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 echo "3"
