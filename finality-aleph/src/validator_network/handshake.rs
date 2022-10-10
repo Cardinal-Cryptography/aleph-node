@@ -85,8 +85,6 @@ impl Response {
 
 /// Performs the handshake. The goal is to obtain ID of the peer,
 /// and split the communication stream into two halves.
-/// Current version makes an unrealistic assumption that the peer is not malicious.
-/// To be rewritten.
 pub async fn execute_v0_handshake<S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
