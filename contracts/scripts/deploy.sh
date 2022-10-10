@@ -175,32 +175,32 @@ CONTRACTS_PATH=$(pwd)/contracts
 cd "$CONTRACTS_PATH"/access_control
 cargo contract build --release
 
-cd "$CONTRACTS_PATH"/ticket_token
-cargo contract build --release
-
-cd "$CONTRACTS_PATH"/game_token
-cargo contract build --release
-
-cd "$CONTRACTS_PATH"/button
-cargo contract build --release
-
-
-cd "$CONTRACTS_PATH"/marketplace
-cargo contract build --release
-
-echo "Sleeping 10 seconds. Maybe it will prevent next step from failing..."
-sleep 10
+#cd "$CONTRACTS_PATH"/ticket_token
+#cargo contract build --release
+#
+#cd "$CONTRACTS_PATH"/game_token
+#cargo contract build --release
+#
+#cd "$CONTRACTS_PATH"/button
+#cargo contract build --release
+#
+#
+#cd "$CONTRACTS_PATH"/marketplace
+#cargo contract build --release
+#
+#echo "Sleeping 10 seconds. Maybe it will prevent next step from failing..."
+#sleep 10
 
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
 
 echo "1"
-ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --verbose --url "$NODE" --suri "$AUTHORITY_SEED")
 echo "2"
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 echo "3"
-ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL=$(cargo contract instantiate --verbose --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
 echo "4"
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | grep Contract | tail -1 | cut -c 15-)
 echo "5"
@@ -212,87 +212,87 @@ echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
 # --- UPLOAD CONTRACTS CODES
 
-upload_contract TICKET_TOKEN_CODE_HASH ticket_token
-upload_contract GAME_TOKEN_CODE_HASH game_token
-upload_contract BUTTON_CODE_HASH button
-upload_contract MARKETPLACE_CODE_HASH marketplace
-
-start=$(date +%s.%N)
+#upload_contract TICKET_TOKEN_CODE_HASH ticket_token
+#upload_contract GAME_TOKEN_CODE_HASH game_token
+#upload_contract BUTTON_CODE_HASH button
+#upload_contract MARKETPLACE_CODE_HASH marketplace
+#
+#start=$(date +%s.%N)
 
 #
 # --- EARLY_BIRD_SPECIAL GAME
 #
 echo "Early Bird Special"
 
-salt="0x4561726C79426972645370656369616C"
-deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
-deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
-deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN"
-deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL_MARKETPLACE" "$salt"
+#salt="0x4561726C79426972645370656369616C"
+#deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
+#deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
+#deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN"
+#deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL_MARKETPLACE" "$salt"
 
 #
 # --- BACK_TO_THE_FUTURE GAME
 #
 echo "Back To The Future"
 
-salt="0x4261636B546F546865467574757265"
-deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
-deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
-deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN"
-deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE_MARKETPLACE" "$salt"
+#salt="0x4261636B546F546865467574757265"
+#deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
+#deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
+#deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN"
+#deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE_MARKETPLACE" "$salt"
 
 #
 # --- THE_PRESSIAH_COMETH GAME
 #
 echo "The Pressiah Cometh"
 
-salt="0x7468655F70726573736961685F636F6D657468"
-deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
-deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
-deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
-deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
+#salt="0x7468655F70726573736961685F636F6D657468"
+#deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
+#deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
+#deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
+#deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
 # spit adresses to a JSON file
-cd "$CONTRACTS_PATH"
-
-jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
-   --arg early_bird_special_marketplace "$EARLY_BIRD_SPECIAL_MARKETPLACE" \
-   --arg early_bird_special_ticket "$EARLY_BIRD_SPECIAL_TICKET" \
-   --arg early_bird_special_token "$EARLY_BIRD_SPECIAL_TOKEN" \
-   --arg back_to_the_future "$BACK_TO_THE_FUTURE" \
-   --arg back_to_the_future_ticket "$BACK_TO_THE_FUTURE_TICKET" \
-   --arg back_to_the_future_token "$BACK_TO_THE_FUTURE_TOKEN" \
-   --arg back_to_the_future_marketplace "$BACK_TO_THE_FUTURE_MARKETPLACE" \
-   --arg the_pressiah_cometh "$THE_PRESSIAH_COMETH" \
-   --arg the_pressiah_cometh_ticket "$THE_PRESSIAH_COMETH_TICKET" \
-   --arg the_pressiah_cometh_token "$THE_PRESSIAH_COMETH_TOKEN" \
-   --arg the_pressiah_cometh_marketplace "$THE_PRESSIAH_COMETH_MARKETPLACE" \
-   --arg button_code_hash "$BUTTON_CODE_HASH" \
-   --arg ticket_token_code_hash "$TICKET_TOKEN_CODE_HASH" \
-   --arg game_token_code_hash "$GAME_TOKEN_CODE_HASH" \
-   --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
-   --arg access_control "$ACCESS_CONTROL" \
-   --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
-   '{early_bird_special: $early_bird_special,
-     early_bird_special_marketplace: $early_bird_special_marketplace,
-     early_bird_special_ticket: $early_bird_special_ticket,
-     early_bird_special_token: $early_bird_special_token,
-     back_to_the_future: $back_to_the_future,
-     back_to_the_future_ticket: $back_to_the_future_ticket,
-     back_to_the_future_token: $back_to_the_future_token,
-     back_to_the_future_marketplace: $back_to_the_future_marketplace,
-     the_pressiah_cometh: $the_pressiah_cometh,
-     the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
-     the_pressiah_cometh_token: $the_pressiah_cometh_token,
-     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
-     access_control: $access_control,
-     button_code_hash: $button_code_hash,
-     ticket_token_code_hash: $ticket_token_code_hash,
-     game_token_code_hash: $game_token_code_hash,
-     marketplace_code_hash: $marketplace_code_hash,
-     access_control_code_hash: $access_control_code_hash}' > addresses.json
-
-end=`date +%s.%N`
-echo "Time elapsed: $( echo "$end - $start" | bc -l )"
+#cd "$CONTRACTS_PATH"
+#
+#jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
+#   --arg early_bird_special_marketplace "$EARLY_BIRD_SPECIAL_MARKETPLACE" \
+#   --arg early_bird_special_ticket "$EARLY_BIRD_SPECIAL_TICKET" \
+#   --arg early_bird_special_token "$EARLY_BIRD_SPECIAL_TOKEN" \
+#   --arg back_to_the_future "$BACK_TO_THE_FUTURE" \
+#   --arg back_to_the_future_ticket "$BACK_TO_THE_FUTURE_TICKET" \
+#   --arg back_to_the_future_token "$BACK_TO_THE_FUTURE_TOKEN" \
+#   --arg back_to_the_future_marketplace "$BACK_TO_THE_FUTURE_MARKETPLACE" \
+#   --arg the_pressiah_cometh "$THE_PRESSIAH_COMETH" \
+#   --arg the_pressiah_cometh_ticket "$THE_PRESSIAH_COMETH_TICKET" \
+#   --arg the_pressiah_cometh_token "$THE_PRESSIAH_COMETH_TOKEN" \
+#   --arg the_pressiah_cometh_marketplace "$THE_PRESSIAH_COMETH_MARKETPLACE" \
+#   --arg button_code_hash "$BUTTON_CODE_HASH" \
+#   --arg ticket_token_code_hash "$TICKET_TOKEN_CODE_HASH" \
+#   --arg game_token_code_hash "$GAME_TOKEN_CODE_HASH" \
+#   --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
+#   --arg access_control "$ACCESS_CONTROL" \
+#   --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
+#   '{early_bird_special: $early_bird_special,
+#     early_bird_special_marketplace: $early_bird_special_marketplace,
+#     early_bird_special_ticket: $early_bird_special_ticket,
+#     early_bird_special_token: $early_bird_special_token,
+#     back_to_the_future: $back_to_the_future,
+#     back_to_the_future_ticket: $back_to_the_future_ticket,
+#     back_to_the_future_token: $back_to_the_future_token,
+#     back_to_the_future_marketplace: $back_to_the_future_marketplace,
+#     the_pressiah_cometh: $the_pressiah_cometh,
+#     the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
+#     the_pressiah_cometh_token: $the_pressiah_cometh_token,
+#     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
+#     access_control: $access_control,
+#     button_code_hash: $button_code_hash,
+#     ticket_token_code_hash: $ticket_token_code_hash,
+#     game_token_code_hash: $game_token_code_hash,
+#     marketplace_code_hash: $marketplace_code_hash,
+#     access_control_code_hash: $access_control_code_hash}' > addresses.json
+#
+#end=`date +%s.%N`
+#echo "Time elapsed: $( echo "$end - $start" | bc -l )"
 
 exit $?
