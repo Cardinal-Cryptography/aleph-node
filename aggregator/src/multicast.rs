@@ -3,18 +3,18 @@
 //!
 //! We expose the `Multicast` trait, mimicking the interface of `aleph_bft::ReliableMulticast`
 
-use std::{fmt::Debug, hash::Hash as StdHash};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash as StdHash,
+};
 
-use aleph_bft::{Signable, SignatureSet};
-use aleph_bft_rmc::ReliableMulticast;
+use aleph_bft_rmc::{MultiKeychain, ReliableMulticast, Signable, Signature};
 use codec::{Codec, Decode, Encode};
 
-use crate::crypto::{Keychain, Signature};
-
 /// A convenience trait for gathering all of the desired hash characteristics.
-pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync {}
+pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync {}
 
-impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync> Hash for T {}
+impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync> Hash for T {}
 
 /// A wrapper allowing block hashes to be signed.
 #[derive(PartialEq, Eq, StdHash, Clone, Debug, Default, Encode, Decode)]
@@ -50,14 +50,14 @@ pub trait Multicast<H: Hash, PMS>: Send + Sync {
 }
 
 #[async_trait::async_trait]
-impl<'a, H: Hash> Multicast<H, SignatureSet<Signature>>
-    for ReliableMulticast<'a, SignableHash<H>, Keychain>
+impl<'a, H: Hash, MK: MultiKeychain<PartialMultisignature = SS>, SS: Signature + Send + Sync>
+    Multicast<H, SS> for ReliableMulticast<'a, SignableHash<H>, MK>
 {
     async fn start_multicast(&mut self, hash: SignableHash<H>) {
         self.start_rmc(hash).await;
     }
 
-    async fn next_signed_pair(&mut self) -> (H, SignatureSet<Signature>) {
+    async fn next_signed_pair(&mut self) -> (H, SS) {
         let ms = self.next_multisigned_hash().await.into_unchecked();
         (ms.as_signable().get_hash(), ms.signature())
     }
