@@ -103,12 +103,11 @@ pub async fn execute_v0_handshake<S: Splittable>(
     // receive response
     let (stream, peer_response) = receive_data::<_, Response>(stream).await?;
     // validate response
-    if peer_response.verify(&peer_id, &our_challenge) {
-        let (sender, receiver) = stream.split();
-        Ok((sender, receiver, peer_id))
-    } else {
-        Err(HandshakeError::SignatureError)
+    if !peer_response.verify(&peer_id, &our_challenge) {
+        return Err(HandshakeError::SignatureError);
     }
+    let (sender, receiver) = stream.split();
+    Ok((sender, receiver, peer_id))
 }
 
 /// Wrapper that adds timeout to the function performing handshake.
@@ -157,12 +156,11 @@ mod tests {
         // receive response
         let (stream, peer_response) = receive_data::<_, Response>(stream).await?;
         // validate response
-        if peer_response.verify(&peer_id, &our_challenge) {
-            let (sender, receiver) = stream.split();
-            Ok((sender, receiver, peer_id))
-        } else {
-            Err(HandshakeError::SignatureError)
+        if !peer_response.verify(&peer_id, &our_challenge) {
+            return Err(HandshakeError::SignatureError);
         }
+        let (sender, receiver) = stream.split();
+        Ok((sender, receiver, peer_id))
     }
 
     pub async fn execute_broken_v0_handshake<S: Splittable>(
