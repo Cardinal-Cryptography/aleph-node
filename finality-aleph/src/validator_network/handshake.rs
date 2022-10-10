@@ -103,11 +103,11 @@ pub async fn execute_v0_handshake<S: Splittable>(
     // receive response
     let (stream, peer_response) = receive_data::<_, Response>(stream).await?;
     // validate response
-    if !peer_response.verify(&peer_id, &our_challenge) {
-        Err(HandshakeError::SignatureError)
-    } else {
+    if peer_response.verify(&peer_id, &our_challenge) {
         let (sender, receiver) = stream.split();
         Ok((sender, receiver, peer_id))
+    } else {
+        Err(HandshakeError::SignatureError)
     }
 }
 
@@ -157,11 +157,11 @@ mod tests {
         // receive response
         let (stream, peer_response) = receive_data::<_, Response>(stream).await?;
         // validate response
-        if !peer_response.verify(&peer_id, &our_challenge) {
-            Err(HandshakeError::SignatureError)
-        } else {
+        if peer_response.verify(&peer_id, &our_challenge) {
             let (sender, receiver) = stream.split();
             Ok((sender, receiver, peer_id))
+        } else {
+            Err(HandshakeError::SignatureError)
         }
     }
 
