@@ -38,6 +38,7 @@ impl Display for SendError {
 struct ManagerStatus {
     wanted_peers: usize,
     incoming_peers: usize,
+    outgoing_peers: usize,
 }
 
 impl Display for ManagerStatus {
@@ -45,10 +46,13 @@ impl Display for ManagerStatus {
         if self.wanted_peers == 0 {
             return write!(f, "not maintaining any connections");
         }
+        if self.incoming_peers == 0 {
+            write!(f, "WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible.")?;
+        }
         write!(
             f,
-            "maintaining {} connections, with {} peers connected to us",
-            self.wanted_peers, self.incoming_peers
+            "maintaining {} connections, incoming connections {}, outgoing connections {}",
+            self.wanted_peers, self.incoming_peers, self.outgoing_peers,
         )
     }
 }
@@ -119,7 +123,16 @@ impl<A: Data, D: Data> Manager<A, D> {
     pub fn status_report(&self) -> impl Display {
         ManagerStatus {
             wanted_peers: self.addresses.len(),
-            incoming_peers: self.incoming.len(),
+            incoming_peers: self
+                .incoming
+                .values()
+                .filter(|exit| exit.is_canceled())
+                .count(),
+            outgoing_peers: self
+                .outgoing
+                .values()
+                .filter(|sender| sender.is_closed())
+                .count(),
         }
     }
 }
