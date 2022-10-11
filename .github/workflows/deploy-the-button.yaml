@@ -1,0 +1,151 @@
+name: Deploy the button game
+
+on:
+  pull_request:
+    types: [labeled]
+  push:
+    branches:
+    - benjamin
+    - A0-1416-deployment-workflow-for-the-button-game
+
+env:
+  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
+  CACHE_KEY: fe-benjamin-button
+  CONTRACTS_ENVFILE: fe-benjamin
+  CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
+  NODE_VERSION: 16
+  S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
+  S3BUCKET_PATH: contracts/fe-benjamin-button
+  LABEL_DEPLOY_CONTRACTS: '[AZERO] DEPLOY-CONTRACTS'
+  LABEL_DESTROYED: 'DESTROYED'
+  LABEL_DEPLOYED: 'DEPLOYED'
+  LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
+
+jobs:
+  checkout_benjamin:
+    if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    runs-on: ubuntu-20.04
+    #runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+
+      - name: Check if environment is reachable
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
+
+      - name: Get branch name and commit SHA
+        id: get_branch
+        uses: ./.github/actions/get-branch
+
+      # Use of 'actions-rs/toolchain@v1' has been removed as it was causing some unknown problems
+      # Also, there is a ticket to replace it with custom solution anyway
+
+      - name: Setup rust toolchain
+        run: |
+          . "$HOME/.cargo/env"
+          rustup target add wasm32-unknown-unknown
+          rustup toolchain install nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup default nightly-2022-08-12-x86_64-unknown-linux-gnu
+
+      - name: Install jq
+        shell: bash
+        run: |
+          sudo apt-get install -y jq
+
+      - name: Install binaryen
+        shell: bash
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
+          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
+          sudo chmod +x /tmp/binaryen-version_110/bin/*
+          sudo cp -rf /tmp/binaryen-version_110/* /usr/
+
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
+          cache-version: v1
+
+      - name: Install cargo additional libs
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install dylint-link cargo-dylint
+
+      - name: Install cargo-contract with bug fixes around URL parsing
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+
+      # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
+        shell: bash
+        run: |
+          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            mkdir -p contracts/"$i"/target/ink
+            aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+          done
+
+      - name: Run clean.sh script
+        continue-on-error: true
+        shell: bash
+        run: |
+          . "$HOME/.cargo/env"
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+
+      - name: Run deploy.sh script
+        shell: bash
+        run: |
+          . "$HOME/.cargo/env"
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+
+      - name: Copy metadata.json and addresses.json files onto S3 bucket
+        shell: bash
+        run: |
+          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+          done
+          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+          aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+
+      - name: Trigger The Button deployment workflow
+        run: |
+          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
+          -H "Accept: application/vnd.github+json" \
+          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
+
+      - name: Add label to mark that contracts have been deployed
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove request label if exists
+        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
