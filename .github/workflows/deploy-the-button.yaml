@@ -3,10 +3,10 @@ name: Deploy the button game
 on:
   pull_request:
     types: [labeled]
-  #push:
-  #  branches:
-  #  - benjamin
-  #  - A0-1416-deployment-workflow-for-the-button-game
+  push:
+    branches:
+    - benjamin
+    - A0-1416-deployment-workflow-for-the-button-game
 
 env:
   CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
@@ -27,23 +27,21 @@ jobs:
     #runs-on: ubuntu-20.04
     runs-on: self-hosted
     steps:
-      - name: Fail when feature environment is not deployed
-        if: ${{ !contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED) }}
-        run: |
-          echo "Feature environment does not seem to be deployed (label not found)"
-          exit 1
-
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
         with:
           ref: ${{ env.CHECKOUT_REF }}
 
+      - name: Check if environment is reachable
+        run: |
+          source contracts/env/fe-benjamin && nc -zvw5 "$NODE"
+
       - name: Get branch name and commit SHA
         id: get_branch
         uses: ./.github/actions/get-branch
 
-      #- name: Install Rust toolchain
-      #  uses: actions-rs/toolchain@v1
+      # Use of 'actions-rs/toolchain@v1' has been removed as it was causing some unknown problems
+      # Also, there is a ticket to replace it with custom solution anyway
 
       - name: Setup rust toolchain
         run: |
@@ -88,19 +86,7 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
 
-      #- name: Restore contracts cache
-      #  uses: actions/cache@v3
-      #  env:
-      #    SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-      #  with:
-      #    path: |
-      #      contracts/addresses.json
-      #      contracts/ticket_token/target/**
-      #      contracts/marketplace/target/**
-      #      contracts/button/target/**
-      #      contracts/game_token/target/**
-      #      contracts/access_control/target/**
-      #    key: contracts-target-${{ env.CACHE_KEY }}
+      # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -112,7 +98,6 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
-        #if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
         shell: bash
         run: |
           aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
