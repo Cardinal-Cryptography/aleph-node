@@ -11,7 +11,7 @@ pub mod ticket_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::format;
+    use ink_prelude::{format, string::String as Strink};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
@@ -103,7 +103,7 @@ pub mod ticket_token {
         ///
         /// Will revert if called from an account without a proper role        
         #[ink(constructor)]
-        pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
+        pub fn new(name: Strink, symbol: Strink, total_supply: Balance) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -126,8 +126,8 @@ pub mod ticket_token {
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-                    instance.metadata.name = Some(name);
-                    instance.metadata.symbol = Some(symbol);
+                    instance.metadata.name = Some(String::from(name));
+                    instance.metadata.symbol = Some(String::from(symbol));
                     instance.metadata.decimals = 0;
 
                     instance
