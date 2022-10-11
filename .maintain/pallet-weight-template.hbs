@@ -18,6 +18,15 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for {{pallet}}.
 pub trait WeightInfo {
+    // TODO: fill it with the methods that you actually need
+}
+
+impl<I: BenchmarkInfo> WeightInfo for I {
+    // TODO: compile results from benchmarks
+}
+
+/// Benchmark results for {{pallet}}.
+trait BenchmarkInfo {
 	{{#each benchmarks as |benchmark|}}
 	fn {{benchmark.name~}}
 	(
@@ -30,9 +39,9 @@ pub trait WeightInfo {
 /// Weights for {{pallet}} using the Substrate node and recommended hardware.
 pub struct AlephWeight<T>(PhantomData<T>);
 {{#if (eq pallet "frame_system")}}
-impl<T: crate::Config> WeightInfo for AlephWeight<T> {
+impl<T: crate::Config> BenchmarkInfo for AlephWeight<T> {
 {{else}}
-impl<T: frame_system::Config> WeightInfo for AlephWeight<T> {
+impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 {{/if}}
 	{{#each benchmarks as |benchmark|}}
 	{{#each benchmark.comments as |comment|}}
@@ -65,7 +74,7 @@ impl<T: frame_system::Config> WeightInfo for AlephWeight<T> {
 }
 
 // For backwards compatibility and tests
-impl WeightInfo for () {
+impl BenchmarkInfo for () {
 	{{#each benchmarks as |benchmark|}}
 	{{#each benchmark.comments as |comment|}}
 	// {{comment}}

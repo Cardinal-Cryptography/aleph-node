@@ -26,37 +26,53 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_snarcos.
 pub trait WeightInfo {
+    fn store_key(key_length: u32) -> Weight;
+    fn verify() -> Weight;
+}
+
+impl<I: BenchmarkInfo> WeightInfo for I {
+	fn store_key(key_length: u32) -> Weight {
+		<I as BenchmarkInfo>::store_key(key_length)
+	}
+
+	fn verify() -> Weight {
+		<I as BenchmarkInfo>::verify_xor()
+	}
+}
+
+/// Benchmark results for pallet_snarcos.
+trait BenchmarkInfo {
 	fn store_key(l: u32, ) -> Weight;
 	fn verify_xor() -> Weight;
 }
 
 /// Weights for pallet_snarcos using the Substrate node and recommended hardware.
 pub struct AlephWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for AlephWeight<T> {
+impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(_l: u32, ) -> Weight {
-		(7_458_000 as Weight)
+		(7_604_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_xor() -> Weight {
-		(6_166_263_000 as Weight)
+		(6_170_774_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
 }
 
 // For backwards compatibility and tests
-impl WeightInfo for () {
+impl BenchmarkInfo for () {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(_l: u32, ) -> Weight {
-		(7_458_000 as Weight)
+		(7_604_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_xor() -> Weight {
-		(6_166_263_000 as Weight)
+		(6_170_774_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 	}
 }
