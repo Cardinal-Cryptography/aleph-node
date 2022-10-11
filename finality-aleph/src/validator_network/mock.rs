@@ -34,8 +34,8 @@ impl AsyncWrite for FlakyDuplexStream {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         let _self = self.get_mut();
         _self.1 += 1;
-        // println!("_self.1: {}", _self.1);
-        if _self.1 >= 2500000 {
+        if _self.1 >= 30 {
+            println!("Terminating flaky stream");
             match Pin::new(&mut _self.0).poll_shutdown(cx) {
                 Poll::Pending => {
                     return Poll::Pending;
@@ -264,7 +264,7 @@ mod tests {
         let (tx, rx) = oneshot::channel();
 
         tokio::spawn(async move {
-            let send_timeout = Duration::from_millis(50);
+            let send_timeout = Duration::from_millis(500);
             let mut received: Vec<bool> = vec![false; n_msg];
             let mut send_ticker = tokio::time::interval(send_timeout);
             let n_peers = ids.len();
@@ -273,7 +273,6 @@ mod tests {
                     _ = send_ticker.tick() => {
                         let data: Data = thread_rng().gen_range(0..n_msg) as u32;
                         let peer: AuthorityId = ids[thread_rng().gen_range(0..n_peers)].clone();
-                        println!("send {}", data);
                         interface.send(data, peer);
                     },
                     data = interface.next() => {
@@ -301,8 +300,8 @@ mod tests {
     #[tokio::test]
     async fn integration() {
         env_logger::init();
-        let n_peers = 10;
-        let n_msg = 4343;
+        let n_peers = 5;
+        let n_msg = 20;
         let task_manager = TaskManager::new(Handle::current(), None).expect("should create TaskManager");
         let spawn_handle = task_manager.spawn_handle();
         let (mut cm, out) = ConnectionMaker::new(n_peers);
