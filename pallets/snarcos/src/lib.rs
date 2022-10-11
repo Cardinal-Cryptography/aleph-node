@@ -33,10 +33,7 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
 
         #[pallet::constant]
-        type MaxKeys: Get<u32>;
-
-        #[pallet::constant]
-        type MaxVerificationKeyLength: Get<u32>;
+        type MaximumVerificationKeyLength: Get<u32>;
     }
 
     #[pallet::error]
@@ -78,7 +75,7 @@ pub mod pallet {
         _,
         Twox64Concat,
         VerificationKeyIdentifier,
-        BoundedVec<u8, T::MaxVerificationKeyLength>,
+        BoundedVec<u8, T::MaximumVerificationKeyLength>,
     >;
 
     #[pallet::call]
@@ -94,7 +91,7 @@ pub mod pallet {
                 Error::<T>::IdentifierAlreadyInUse
             );
             ensure!(
-                key.len() <= T::MaxVerificationKeyLength::get() as usize,
+                key.len() <= T::MaximumVerificationKeyLength::get() as usize,
                 Error::<T>::VerificationKeyTooLong
             );
 
