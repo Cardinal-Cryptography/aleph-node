@@ -88,77 +88,77 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
 
-      - name: Restore contracts cache
-        uses: actions/cache@v3
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-        with:
-          path: |
-            contracts/addresses.json
-            contracts/ticket_token/target/**
-            contracts/marketplace/target/**
-            contracts/button/target/**
-            contracts/game_token/target/**
-            contracts/access_control/target/**
-          key: contracts-target-${{ env.CACHE_KEY }}
+      #- name: Restore contracts cache
+      #  uses: actions/cache@v3
+      #  env:
+      #    SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
+      #  with:
+      #    path: |
+      #      contracts/addresses.json
+      #      contracts/ticket_token/target/**
+      #      contracts/marketplace/target/**
+      #      contracts/button/target/**
+      #      contracts/game_token/target/**
+      #      contracts/access_control/target/**
+      #    key: contracts-target-${{ env.CACHE_KEY }}
 
-      - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
-        #if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
-        shell: bash
-        run: |
-          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
-          for i in ticket_token marketplace button game_token access_control; do \
-            aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
-          done
-
-      - name: Run clean.sh script
-        continue-on-error: true
-        shell: bash
-        run: |
-          . "$HOME/.cargo/env"
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
-
-      - name: Run deploy.sh script
-        shell: bash
-        run: |
-          . "$HOME/.cargo/env"
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        env:
-          AWS_REGION: us-east-1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Copy metadata.json and addresses.json files onto S3 bucket
-        shell: bash
-        run: |
-          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
-          for i in ticket_token marketplace button game_token access_control; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
-          done
-          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
-          aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
-
-      - name: Trigger The Button deployment workflow
-        run: |
-          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
-          -H "Accept: application/vnd.github+json" \
-          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
-
-      - name: Add label to mark that contracts have been deployed
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
-      - name: Remove request label if exists
-        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+#      - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
+#        #if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
+#        shell: bash
+#        run: |
+#          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+#          for i in ticket_token marketplace button game_token access_control; do \
+#            aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+#          done
+#
+#      - name: Run clean.sh script
+#        continue-on-error: true
+#        shell: bash
+#        run: |
+#          . "$HOME/.cargo/env"
+#          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+#
+#      - name: Run deploy.sh script
+#        shell: bash
+#        run: |
+#          . "$HOME/.cargo/env"
+#          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+#
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        env:
+#          AWS_REGION: us-east-1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ env.AWS_REGION }}
+#
+#      - name: Copy metadata.json and addresses.json files onto S3 bucket
+#        shell: bash
+#        run: |
+#          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+#          for i in ticket_token marketplace button game_token access_control; do \
+#            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+#          done
+#          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+#          aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+#
+#      - name: Trigger The Button deployment workflow
+#        run: |
+#          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
+#          -H "Accept: application/vnd.github+json" \
+#          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+#          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
+#
+#      - name: Add label to mark that contracts have been deployed
+#        uses: actions-ecosystem/action-add-labels@v1.1.0
+#        with:
+#          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+#          github_token: ${{ secrets.CI_GH_TOKEN }}
+#
+#      - name: Remove request label if exists
+#        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
+#        uses: actions-ecosystem/action-remove-labels@v1.3.0
+#        with:
+#          labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
+#          github_token: ${{ secrets.CI_GH_TOKEN }}
