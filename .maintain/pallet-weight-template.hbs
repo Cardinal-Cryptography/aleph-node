@@ -28,11 +28,11 @@ pub trait WeightInfo {
 }
 
 /// Weights for {{pallet}} using the Substrate node and recommended hardware.
-pub struct SubstrateWeight<T>(PhantomData<T>);
+pub struct AlephWeight<T>(PhantomData<T>);
 {{#if (eq pallet "frame_system")}}
-impl<T: crate::Config> WeightInfo for SubstrateWeight<T> {
+impl<T: crate::Config> WeightInfo for AlephWeight<T> {
 {{else}}
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+impl<T: frame_system::Config> WeightInfo for AlephWeight<T> {
 {{/if}}
 	{{#each benchmarks as |benchmark|}}
 	{{#each benchmark.comments as |comment|}}

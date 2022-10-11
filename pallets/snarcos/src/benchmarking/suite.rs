@@ -2,7 +2,7 @@ use frame_benchmarking::{account, benchmarks, vec};
 use frame_support::traits::Get;
 use frame_system::RawOrigin;
 
-use super::*;
+use crate::*;
 
 const SEED: u32 = 41;
 

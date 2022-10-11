@@ -2,10 +2,11 @@
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// mod weights;
+mod weights;
 
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
+pub use weights::{AlephWeight, WeightInfo};
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -29,6 +30,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type Field: PairingEngine;
+        type WeightInfo: WeightInfo;
 
         #[pallet::constant]
         type MaximumVerificationKeyLength: Get<u32>;
@@ -78,7 +80,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(41)]
+        #[pallet::weight(T::WeightInfo::store_key(key.len() as u32))]
         pub fn store_key(
             _origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
