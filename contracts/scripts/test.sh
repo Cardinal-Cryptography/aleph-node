@@ -24,43 +24,39 @@ function play {
 
   # give allowance for spending tickets to the game contract
 
-  cd "$CONTRACTS_PATH"/ticket_token
+  echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TICKET_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER1
 
-  echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER1
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TICKET_BALANCE --suri $PLAYER1_SEED --skip-confirm
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER1_SEED --skip-confirm
+  echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TICKET_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER2
 
-  echo "allowing" $contract_name "["$contract_address"]" "to spend up to" $TOTAL_BALANCE "of" ${contract_name}_ticket "["$ticket_address"]" "on behalf of" $PLAYER2
+  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TICKET_BALANCE --suri $PLAYER2_SEED --skip-confirm
 
-  cargo contract call --url $NODE --contract $ticket_address --message PSP22::approve --args $contract_address $TOTAL_BALANCE --suri $PLAYER2_SEED --skip-confirm
-
-  # TODO : can't test before mint / burn for game tokens is implemented; uncomment when A0-1236 is done
-
-  # # play the game
-
-  # cd "$CONTRACTS_PATH"/$contract_name
-
-  # echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
-
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER1_SEED
-
-  # sleep 1
-
-  # echo "calling press for" $contract_name "["$contract_address "]" "by" $PLAYER2_SEED
-
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::press --suri $PLAYER2_SEED
-
-  # # ---  WAIT FOR THE BUTTON DEATH
-
-  # sleep $(($LIFETIME + 1))
-
-  # # --- TRIGGER GAME RESET
-
-  # cd "$CONTRACTS_PATH"/$contract_name
-
-  # cargo contract call --url $NODE --contract $contract_address --message IButtonGame::reset --suri $AUTHORITY_SEED
-
-  # echo "Done playing" $contract_name
+# TODO: uncomment when cargo contract doesn't break on parsing "foreign" events
+#
+#  # play the game
+#
+#  cd "$CONTRACTS_PATH"/button
+#
+#  echo "calling press for" $contract_name "["$contract_address"]" "by" $PLAYER1_SEED
+#
+#  cargo contract call --url $NODE --contract $contract_address --message press --suri $PLAYER1_SEED --skip-confirm
+#
+#  sleep 1
+#
+#  echo "calling press for" $contract_name "["$contract_address "]" "by" $PLAYER2_SEED
+#
+#  cargo contract call --url $NODE --contract $contract_address --message press --suri $PLAYER2_SEED --skip-confirm
+#
+#  # ---  WAIT FOR THE BUTTON DEATH
+#
+#  sleep $(($LIFETIME + 1))
+#
+#  # --- TRIGGER GAME RESET
+#
+#  cargo contract call --url $NODE --contract $contract_address --message reset --suri $AUTHORITY_SEED --skip-confirm
+#
+#  echo "Done playing" $contract_name
 }
 
 # --- ARGUMENTS
