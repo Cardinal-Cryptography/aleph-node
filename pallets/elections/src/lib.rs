@@ -16,8 +16,8 @@
 //! validator is less than some predefined threshold.
 //! In other words, if a validator:
 //! * performance in a session is less or equal to a configurable threshold
-//! `CurrentEraCommitteeKickOutConfig::minimal_expected_performance` (from 0 to 100%), and,
-//! * it happened at least `CurrentEraCommitteeKickOutConfig::underperformed_session_count_threshold` times,
+//! `CommitteeKickOutConfig::minimal_expected_performance` (from 0 to 100%), and,
+//! * it happened at least `CommitteeKickOutConfig::underperformed_session_count_threshold` times,
 //! then the validator is considered an underperformer and hence removed (ie _kicked out_) from the
 //! committee.
 //!
@@ -70,7 +70,8 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use primitives::{
-        BlockCount, CommitteeKickOutConfig, CommitteeSeats, KickOutReason, SessionCount,
+        BlockCount, CommitteeKickOutConfig as CommitteeKickOutConfigStruct, CommitteeSeats,
+        KickOutReason, SessionCount,
     };
     use sp_runtime::Perbill;
 
@@ -109,7 +110,7 @@ pub mod pallet {
         ChangeValidators(Vec<T::AccountId>, Vec<T::AccountId>, CommitteeSeats),
 
         /// Kick out thresholds for the next era has changed
-        SetCommitteeKickOutConfig(CommitteeKickOutConfig),
+        SetCommitteeKickOutConfig(CommitteeKickOutConfigStruct),
 
         /// Validators have been kicked from the committee
         KickOutValidators(Vec<(T::AccountId, KickOutReason)>),
@@ -188,21 +189,16 @@ pub mod pallet {
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
 
-    /// Default value for kick out config, see [`CurrentEraCommitteeKickOutConfig`]
+    /// Default value for kick out config, see [`CommitteeKickOutConfig`]
     #[pallet::type_value]
-    pub fn DefaultCommitteeKickOutConfig<T: Config>() -> CommitteeKickOutConfig {
-        CommitteeKickOutConfig::default()
+    pub fn DefaultCommitteeKickOutConfig<T: Config>() -> CommitteeKickOutConfigStruct {
+        CommitteeKickOutConfigStruct::default()
     }
 
     /// Current era config for kick-out functionality, see [`CommitteeKickOutConfig`]
     #[pallet::storage]
-    pub type CurrentEraCommitteeKickOutConfig<T> =
-        StorageValue<_, CommitteeKickOutConfig, ValueQuery, DefaultCommitteeKickOutConfig<T>>;
-
-    /// Next era config for kick-out functionality.
-    #[pallet::storage]
-    pub type NextEraCommitteeKickOutConfig<T> =
-        StorageValue<_, CommitteeKickOutConfig, ValueQuery, DefaultCommitteeKickOutConfig<T>>;
+    pub type CommitteeKickOutConfig<T> =
+        StorageValue<_, CommitteeKickOutConfigStruct, ValueQuery, DefaultCommitteeKickOutConfig<T>>;
 
     /// A lookup for a number of underperformance sessions for a given validator
     #[pallet::storage]
@@ -249,7 +245,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Sets kick-out config (in effect in the next era)
+        /// Sets kick-out config, it has an immediate effect
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_kick_out_config(
             origin: OriginFor<T>,
@@ -259,7 +255,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mut current_committee_kick_out_config = NextEraCommitteeKickOutConfig::<T>::get();
+            let mut current_committee_kick_out_config = CommitteeKickOutConfig::<T>::get();
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
@@ -288,7 +284,7 @@ pub mod pallet {
                     clean_session_counter_delay;
             }
 
-            NextEraCommitteeKickOutConfig::<T>::put(current_committee_kick_out_config.clone());
+            CommitteeKickOutConfig::<T>::put(current_committee_kick_out_config.clone());
             Self::deposit_event(Event::SetCommitteeKickOutConfig(
                 current_committee_kick_out_config,
             ));
@@ -308,12 +304,6 @@ pub mod pallet {
                 .try_into()
                 .map_err(|_| Error::<T>::KickOutReasonTooBig)?;
 
-            let next_era_non_reserved_validators = NextEraNonReservedValidators::<T>::get();
-            ensure!(
-                next_era_non_reserved_validators.contains(&to_be_kicked),
-                Error::<T>::KickedNodeNotInNonReservedSet
-            );
-
             ToBeKickedOutFromCommittee::<T>::insert(
                 to_be_kicked,
                 KickOutReason::OtherReason(bounded_description),
@@ -328,7 +318,7 @@ pub mod pallet {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
         pub committee_seats: CommitteeSeats,
-        pub committee_kick_out_config: CommitteeKickOutConfig,
+        pub committee_kick_out_config: CommitteeKickOutConfigStruct,
     }
 
     #[cfg(feature = "std")]
@@ -354,8 +344,7 @@ pub mod pallet {
                 reserved: self.reserved_validators.clone(),
                 non_reserved: self.non_reserved_validators.clone(),
             });
-            <CurrentEraCommitteeKickOutConfig<T>>::put(&self.committee_kick_out_config.clone());
-            <NextEraCommitteeKickOutConfig<T>>::put(&self.committee_kick_out_config);
+            <CommitteeKickOutConfig<T>>::put(&self.committee_kick_out_config.clone());
         }
     }
 
@@ -404,22 +393,21 @@ pub mod pallet {
         }
 
         fn kick_out_underperformed_non_reserved_validators() {
-            let to_be_kicked_validators =
-                ToBeKickedOutFromCommittee::<T>::iter().collect::<Vec<_>>();
-            if !to_be_kicked_validators.is_empty() {
-                let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
-                    .into_iter()
-                    .collect::<BTreeSet<_>>();
-                let non_reserved_validators_len = non_reserved_validators.len();
-                let non_reserved_in_order = non_reserved_validators
-                    .into_iter()
-                    .filter(|v| !to_be_kicked_validators.iter().any(|(u, _)| v == u))
-                    .collect::<Vec<_>>();
-                if non_reserved_in_order.len() < non_reserved_validators_len {
-                    info!(target: "pallet_elections", "Removing following validators from non reserved, {:?}", to_be_kicked_validators);
-
-                    NextEraNonReservedValidators::<T>::put(non_reserved_in_order);
-                    Self::deposit_event(Event::KickOutValidators(to_be_kicked_validators));
+            let mut to_be_kicked = BTreeMap::from_iter(ToBeKickedOutFromCommittee::<T>::iter());
+            if !to_be_kicked.is_empty() {
+                let mut to_be_removed = Vec::new();
+                let mut filtered_non_reserved_in_order = Vec::new();
+                let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
+                for non_reserved_validator in non_reserved_validators {
+                    match to_be_kicked.remove_entry(&non_reserved_validator) {
+                        Some(candidate_and_reason) => to_be_removed.push(candidate_and_reason),
+                        None => filtered_non_reserved_in_order.push(non_reserved_validator),
+                    }
+                }
+                if !to_be_removed.is_empty() {
+                    info!(target: "pallet_elections", "Removing following validators from non reserved, {:?}", to_be_removed);
+                    NextEraNonReservedValidators::<T>::put(filtered_non_reserved_in_order);
+                    Self::deposit_event(Event::KickOutValidators(to_be_removed));
                 }
                 let _result = ToBeKickedOutFromCommittee::<T>::clear(u32::MAX, None);
             }
@@ -447,9 +435,6 @@ pub mod pallet {
         /// Kick out reason is too big, ie given vector of bytes is greater than
         /// [`Config::MaximumKickOutReasonLength`]
         KickOutReasonTooBig,
-
-        /// Trying to remove a node from the committee which is not in the [`NextEraNonReservedValidators`] set
-        KickedNodeNotInNonReservedSet,
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {

@@ -3,7 +3,10 @@ use frame_support::{
     log::{debug, info},
     pallet_prelude::Get,
 };
-use primitives::{CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason};
+use primitives::{
+    CommitteeKickOutConfig as CommitteeKickOutConfigStruct, CommitteeSeats, EraValidators,
+    KickOutReason,
+};
 use sp_runtime::Perbill;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
@@ -13,10 +16,10 @@ use sp_std::{
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeSize, Config, CurrentEraCommitteeKickOutConfig, CurrentEraValidators,
-    NextEraCommitteeKickOutConfig, NextEraCommitteeSize, NextEraNonReservedValidators,
-    NextEraReservedValidators, Pallet, SessionValidatorBlockCount, ToBeKickedOutFromCommittee,
-    UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
+    CommitteeKickOutConfig, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
+    NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
+    ToBeKickedOutFromCommittee, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+    ValidatorTotalRewards,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -251,14 +254,12 @@ where
             let reserved_validators = NextEraReservedValidators::<T>::get();
             let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
             let committee_size = NextEraCommitteeSize::<T>::get();
-            let kick_out_committee_thresholds = NextEraCommitteeKickOutConfig::<T>::get();
 
             CurrentEraValidators::<T>::put(EraValidators {
                 reserved: retain_elected(reserved_validators),
                 non_reserved: retain_elected(non_reserved_validators),
             });
             CommitteeSize::<T>::put(committee_size);
-            CurrentEraCommitteeKickOutConfig::<T>::put(kick_out_committee_thresholds);
         });
     }
 
@@ -305,34 +306,26 @@ where
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
 
-    fn calculate_underperforming_non_reserved_validators() {
-        let thresholds = CurrentEraCommitteeKickOutConfig::<T>::get();
+    fn calculate_underperforming_validators() {
+        let thresholds = CommitteeKickOutConfig::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
-        let next_era_non_reserved = NextEraNonReservedValidators::<T>::get()
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-        let non_reserved_nodes_in_next_era = current_committee.intersection(&next_era_non_reserved);
         let expected_blocks_per_validator = Self::blocks_to_produce_per_session();
-        for validator in non_reserved_nodes_in_next_era {
+        for validator in current_committee {
             let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {
                 Ok(block_count) => {
-                    let block_performance_ratio = match block_count <= expected_blocks_per_validator
-                    {
-                        true => Perbill::from_rational(block_count, expected_blocks_per_validator),
-                        false => Perbill::one(),
-                    };
-                    block_performance_ratio <= thresholds.minimal_expected_performance
+                    Perbill::from_rational(block_count, expected_blocks_per_validator)
+                        <= thresholds.minimal_expected_performance
                 }
                 Err(_) => true,
             };
             if underperformance {
-                Self::mark_validator_underperformance(&thresholds, validator);
+                Self::mark_validator_underperformance(&thresholds, &validator);
             }
         }
     }
 
     fn mark_validator_underperformance(
-        thresholds: &CommitteeKickOutConfig,
+        thresholds: &CommitteeKickOutConfigStruct,
         validator: &T::AccountId,
     ) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
@@ -350,7 +343,7 @@ where
 
     fn clear_underperformance_session_counter(session: SessionIndex) {
         let clean_session_counter_delay =
-            CurrentEraCommitteeKickOutConfig::<T>::get().clean_session_counter_delay;
+            CommitteeKickOutConfig::<T>::get().clean_session_counter_delay;
         if session % clean_session_counter_delay == 0 {
             info!(target: "pallet_elections", "Clearing UnderperformedValidatorSessionCount");
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
@@ -390,7 +383,7 @@ where
     fn end_session(end_index: SessionIndex) {
         <T as Config>::SessionManager::end_session(end_index);
         Self::adjust_rewards_for_session();
-        Self::calculate_underperforming_non_reserved_validators();
+        Self::calculate_underperforming_validators();
         // clear block count after calculating stats for underperforming validators, as they use
         // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<T>::clear(u32::MAX, None);

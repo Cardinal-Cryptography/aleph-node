@@ -5,16 +5,15 @@ use frame_support::bounded_vec;
 use pallet_session::SessionManager;
 #[cfg(feature = "try-runtime")]
 use pallets_support::StorageMigration;
-use primitives::{CommitteeKickOutConfig, CommitteeSeats};
+use primitives::{CommitteeKickOutConfig as CommitteeKickOutConfigStruct, CommitteeSeats};
 
 use crate::{
     mock::{
         with_active_era, with_electable_targets, with_elected_validators, with_electing_voters,
         AccountId, Balance, Elections, SessionsPerEra, Test, TestExtBuilder,
     },
-    CommitteeSize, CurrentEraCommitteeKickOutConfig, CurrentEraValidators,
-    NextEraCommitteeKickOutConfig, NextEraCommitteeSize, NextEraNonReservedValidators,
-    NextEraReservedValidators,
+    CommitteeKickOutConfig, CommitteeSize, CurrentEraValidators, NextEraCommitteeSize,
+    NextEraNonReservedValidators, NextEraReservedValidators,
 };
 
 fn no_support() -> Support<AccountId> {
@@ -48,12 +47,8 @@ fn storage_is_initialized_already_in_genesis() {
                 NON_RESERVED
             );
             assert_eq!(
-                CurrentEraCommitteeKickOutConfig::<Test>::get(),
-                CommitteeKickOutConfig::default()
-            );
-            assert_eq!(
-                NextEraCommitteeKickOutConfig::<Test>::get(),
-                CommitteeKickOutConfig::default()
+                CommitteeKickOutConfig::<Test>::get(),
+                CommitteeKickOutConfigStruct::default()
             );
             // We do not expect SessionValidatorBlockCount and ValidatorEraTotalReward to be
             // populated from genesis, so does the kick-out related storages:
