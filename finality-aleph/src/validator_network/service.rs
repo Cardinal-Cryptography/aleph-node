@@ -178,7 +178,9 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                 // pass the tuple to the manager to register the connection
                 // the manager will be responsible for killing the worker if necessary
                 Some((peer_id, exit)) = incoming_workers.next() => {
-                    self.manager.add_incoming(peer_id, exit);
+                    if self.manager.add_incoming(peer_id.clone(), exit) {
+                        info!(target: "validator-network", "Replaced incoming connection for peer {}.", peer_id)
+                    }
                 },
                 // received information from a spawned worker managing an outgoing connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection

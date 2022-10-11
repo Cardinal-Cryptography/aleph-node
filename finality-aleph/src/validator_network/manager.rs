@@ -94,10 +94,12 @@ impl<A: Data, D: Data> Manager<A, D> {
 
     /// Add an established incoming connection with a known peer,
     /// but only if the peer is on the list of peers that we want to stay connected with.
-    pub fn add_incoming(&mut self, peer_id: AuthorityId, exit: oneshot::Sender<()>) {
-        if self.addresses.contains_key(&peer_id) {
-            self.incoming.insert(peer_id, exit);
+    /// Returns true if it overwrote an earlier connection.
+    pub fn add_incoming(&mut self, peer_id: AuthorityId, exit: oneshot::Sender<()>) -> bool {
+        if !self.addresses.contains_key(&peer_id) {
+            return false;
         };
+        self.incoming.insert(peer_id, exit).is_some()
     }
 
     /// Remove a peer from the list of peers that we want to stay connected with.
@@ -219,19 +221,26 @@ mod tests {
             String::from("43.43.43.43:43000"),
         ];
         let (tx, rx) = oneshot::channel();
-        // try add unknown peer
-        manager.add_incoming(peer_id.clone(), tx);
+        // try add unknown peer, does not replace so should be false
+        assert!(!manager.add_incoming(peer_id.clone(), tx));
         // rx should fail
         assert!(rx.await.is_err());
         // add peer, this time for real
         assert!(manager.add_peer(peer_id.clone(), addresses.clone()));
         let (tx, mut rx) = oneshot::channel();
-        manager.add_incoming(peer_id.clone(), tx);
+        // still shouldn't replace
+        assert!(!manager.add_incoming(peer_id.clone(), tx));
         // the exit channel should be open
         assert!(rx.try_recv().is_ok());
+        let (tx, mut rx2) = oneshot::channel();
+        // should replace now
+        assert!(manager.add_incoming(peer_id.clone(), tx));
+        // receiving should fail on old, but work on new channel
+        assert!(rx.try_recv().is_err());
+        assert!(rx2.try_recv().is_ok());
         // remove peer
         manager.remove_peer(&peer_id);
         // receiving should fail
-        assert!(rx.try_recv().is_err());
+        assert!(rx2.try_recv().is_err());
     }
 }
