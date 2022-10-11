@@ -71,12 +71,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      #- name: Restore cache
-      #  uses: ./.github/actions/restore-cache
-      #  with:
-      #    target-key: ${{ env.CACHE_KEY }}
-      #    cargo-key: ${{ env.CACHE_KEY }}
-      #    cache-version: v1
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
+          cache-version: v1
 
       - name: Install cargo additional libs
         run: |
@@ -103,7 +103,7 @@ jobs:
           key: contracts-target-${{ env.CACHE_KEY }}
 
       - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
-        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
+        #if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS)
         shell: bash
         run: |
           aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
@@ -154,4 +154,11 @@ jobs:
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
           labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove request label if exists
+        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
