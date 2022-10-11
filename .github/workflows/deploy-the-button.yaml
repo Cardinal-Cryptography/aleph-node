@@ -1,4 +1,4 @@
-name: Deploy the button game
+name: Deploy The Button game
 
 on:
   pull_request:
@@ -6,10 +6,9 @@ on:
   push:
     branches:
     - benjamin
-    - A0-1416-deployment-workflow-for-the-button-game-newer
 
 env:
-  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game-newer
+  CHECKOUT_REF: benjamin
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
