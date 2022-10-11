@@ -11,11 +11,11 @@ pub mod ticket_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String};
+    use ink_prelude::format;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
-        traits::Storage,
+        traits::{Storage, String},
     };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
@@ -115,9 +115,12 @@ pub mod ticket_token {
                 caller,
                 required_role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
+                    PSP22Error::Custom(String::from(format!(
+                        "Calling access control has failed: {:?}",
+                        why
+                    )))
                 },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                |role: Role| PSP22Error::Custom(String::from(format!("MissingRole:{:?}", role))),
             );
 
             match role_check {
@@ -128,7 +131,7 @@ pub mod ticket_token {
                     instance.metadata.decimals = 0;
 
                     instance
-                        ._mint(instance.env().caller(), total_supply)
+                        ._mint_to(instance.env().caller(), total_supply)
                         .expect("Should mint");
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
@@ -164,9 +167,12 @@ pub mod ticket_token {
                 account,
                 role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
+                    PSP22Error::Custom(String::from(format!(
+                        "Calling access control has failed: {:?}",
+                        why
+                    )))
                 },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                |role: Role| PSP22Error::Custom(String::from(format!("MissingRole:{:?}", role))),
             )
         }
 
@@ -188,7 +194,10 @@ pub mod ticket_token {
         #[ink(message, selector = 10)]
         pub fn code_hash(&self) -> Result<Hash> {
             Self::env().own_code_hash().map_err(|why| {
-                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
+                PSP22Error::Custom(String::from(format!(
+                    "Can't retrieve own code hash: {:?}",
+                    why
+                )))
             })
         }
     }
