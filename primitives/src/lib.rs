@@ -114,7 +114,7 @@ impl Default for CommitteeKickOutConfig {
 }
 
 /// Represent any possible reason a validator can be removed from the committee due to
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug)]
 pub enum KickOutReason {
     /// Validator has been removed from the committee due to insufficient uptime in a given number
     /// of sessions

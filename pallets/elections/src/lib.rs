@@ -112,7 +112,7 @@ pub mod pallet {
         SetCommitteeKickOutConfig(CommitteeKickOutConfig),
 
         /// Validators have been kicked from the committee
-        KickOutValidators(BTreeSet<T::AccountId>),
+        KickOutValidators(Vec<(T::AccountId, KickOutReason)>),
     }
 
     #[pallet::pallet]
@@ -296,7 +296,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Remove node from the committee.
+        /// Schedule a non-reserved node to be kicked out from the committee at the end of the era
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn kick_out_from_committee(
             origin: OriginFor<T>,
@@ -405,7 +405,7 @@ pub mod pallet {
 
         fn kick_out_underperformed_non_reserved_validators() {
             let to_be_kicked_validators =
-                ToBeKickedOutFromCommittee::<T>::iter_keys().collect::<BTreeSet<_>>();
+                ToBeKickedOutFromCommittee::<T>::iter().collect::<Vec<_>>();
             if !to_be_kicked_validators.is_empty() {
                 let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
                     .into_iter()
@@ -413,7 +413,7 @@ pub mod pallet {
                 let non_reserved_validators_len = non_reserved_validators.len();
                 let non_reserved_in_order = non_reserved_validators
                     .into_iter()
-                    .filter(|v| !to_be_kicked_validators.contains(v))
+                    .filter(|v| !to_be_kicked_validators.iter().any(|(u, _)| v == u))
                     .collect::<Vec<_>>();
                 if non_reserved_in_order.len() < non_reserved_validators_len {
                     info!(target: "pallet_elections", "Removing following validators from non reserved, {:?}", to_be_kicked_validators);
