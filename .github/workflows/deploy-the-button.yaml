@@ -6,7 +6,7 @@ on:
   push:
     branches:
     - benjamin
-    - A0-1416-deployment-workflow-for-the-button-game
+    - A0-1416-deployment-workflow-for-the-button-game-newer
 
 env:
   CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
