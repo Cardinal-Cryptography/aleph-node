@@ -85,7 +85,7 @@ jobs:
       - name: Install cargo-contract with bug fixes around URL parsing
         run: |
           . "$HOME/.cargo/env"
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }}
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
 
