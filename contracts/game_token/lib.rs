@@ -2,7 +2,7 @@
 #![feature(min_specialization)]
 
 pub use crate::game_token::{
-    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, MINT_TO_SELECTOR, TRANSFER_FROM_SELECTOR,
+    ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, BURN_SELECTOR, MINT_SELECTOR, TRANSFER_FROM_SELECTOR,
     TRANSFER_SELECTOR,
 };
 
@@ -28,8 +28,8 @@ pub mod game_token {
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
     pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
     pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
-    pub const MINT_TO_SELECTOR: [u8; 4] = [0xfc, 0x3c, 0x75, 0xd4];
-    pub const BURN_FROM_SELECTOR: [u8; 4] = [0x7a, 0x9d, 0xa5, 0x10];
+    pub const MINT_SELECTOR: [u8; 4] = [0xfc, 0x3c, 0x75, 0xd4];
+    pub const BURN_SELECTOR: [u8; 4] = [0x7a, 0x9d, 0xa5, 0x10];
 
     #[ink(storage)]
     #[derive(Default, SpreadAllocate, Storage)]
@@ -141,7 +141,7 @@ pub mod game_token {
         ///
         /// Will revert if called from an account without a proper role
         #[ink(constructor)]
-        pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
+        pub fn new(name: String, symbol: String) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -166,10 +166,6 @@ pub mod game_token {
                     instance.metadata.name = Some(name);
                     instance.metadata.symbol = Some(symbol);
                     instance.metadata.decimals = 12;
-                    instance
-                        ._mint_to(instance.env().caller(), total_supply)
-                        .expect("Should mint");
-
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),

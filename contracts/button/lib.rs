@@ -7,7 +7,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod button_game {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use game_token::MINT_TO_SELECTOR;
+    use game_token::MINT_SELECTOR;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         CallFlags, DefaultEnvironment, Error as InkEnvError,
@@ -429,7 +429,7 @@ mod button_game {
             build_call::<DefaultEnvironment>()
                 .call_type(Call::new().callee(self.reward_token))
                 .exec_input(
-                    ExecutionInput::new(Selector::new(MINT_TO_SELECTOR))
+                    ExecutionInput::new(Selector::new(MINT_SELECTOR))
                         .push_arg(to)
                         .push_arg(amount),
                 )

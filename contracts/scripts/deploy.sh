@@ -48,7 +48,7 @@ function deploy_ticket_token {
 
   cd "$CONTRACTS_PATH"/ticket_token
 
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm)
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TICKET_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 14-)
 
   echo "$token_symbol ticket contract instance address:  $contract_address"
@@ -75,8 +75,7 @@ function deploy_game_token {
 
   cd "$CONTRACTS_PATH"/game_token
 
-  # TODO : remove balance when token is mintable
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TOTAL_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm)
+  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 14-)
 
   echo "$token_symbol token contract instance address: $contract_address"
@@ -87,8 +86,6 @@ function deploy_game_token {
 
   # set the owner of the contract instance
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-
-  # TODO : MINTER / BURNER roles
 
   eval "$__resultvar='$contract_address'"
 }
@@ -118,6 +115,7 @@ function deploy_button_game {
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Admin('"$marketplace"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -135,7 +133,7 @@ function deploy_marketplace {
   cd "$CONTRACTS_PATH"/marketplace
 
   local blocks_per_hour=3600
-  local initial_price="$TOTAL_BALANCE"
+  local initial_price="$INITIAL_PRICE"
   local min_price=1
   local sale_price_multiplier=2
 
@@ -153,6 +151,7 @@ function deploy_marketplace {
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Burner('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
