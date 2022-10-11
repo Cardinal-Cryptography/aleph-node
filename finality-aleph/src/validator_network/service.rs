@@ -14,11 +14,15 @@ use crate::{
     SpawnTaskHandle, STATUS_REPORT_INTERVAL,
 };
 
+enum ServiceCommand<D: Data, A: Data> {
+    AddConnection(AuthorityId, Vec<A>),
+    DelConnection(AuthorityId),
+    SendData(D, AuthorityId),
+}
+
 struct ServiceInterface<D: Data, A: Data> {
-    c_add_connection: mpsc::UnboundedSender<(AuthorityId, Vec<A>)>,
-    c_remove_connection: mpsc::UnboundedSender<AuthorityId>,
-    c_send: mpsc::UnboundedSender<(D, AuthorityId)>,
-    c_next: mpsc::UnboundedReceiver<D>,
+    commands_for_service: mpsc::UnboundedSender<ServiceCommand<D, A>>,
+    next_from_service: mpsc::UnboundedReceiver<D>,
 }
 
 #[async_trait::async_trait]
@@ -26,8 +30,8 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
     /// Add the peer to the set of connected peers.
     fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>) {
         if self
-            .c_add_connection
-            .unbounded_send((peer, addresses))
+            .commands_for_service
+            .unbounded_send(ServiceCommand::AddConnection(peer, addresses))
             .is_err()
         {
             info!(target: "validator-network", "Service is dead.");
@@ -36,7 +40,11 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
 
     /// Remove the peer from the set of connected peers and close the connection.
     fn remove_connection(&mut self, peer: AuthorityId) {
-        if self.c_remove_connection.unbounded_send(peer).is_err() {
+        if self
+            .commands_for_service
+            .unbounded_send(ServiceCommand::DelConnection(peer))
+            .is_err()
+        {
             info!(target: "validator-network", "Service is dead.");
         };
     }
@@ -44,22 +52,24 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
     /// Send a message to a single peer.
     /// This function should be implemented in a non-blocking manner.
     fn send(&self, data: D, recipient: AuthorityId) {
-        if self.c_send.unbounded_send((data, recipient)).is_err() {
+        if self
+            .commands_for_service
+            .unbounded_send(ServiceCommand::SendData(data, recipient))
+            .is_err()
+        {
             info!(target: "validator-network", "Service is dead.");
         };
     }
 
     /// Receive a message from the network.
     async fn next(&mut self) -> Option<D> {
-        self.c_next.next().await
+        self.next_from_service.next().await
     }
 }
 
 /// A service that has to be run for the validator network to work.
 pub struct Service<D: Data, A: Data, ND: Dialer<A>, NL: Listener> {
-    add_connection_from_interface: mpsc::UnboundedReceiver<(AuthorityId, Vec<A>)>,
-    remove_connection_from_interface: mpsc::UnboundedReceiver<AuthorityId>,
-    send_from_interface: mpsc::UnboundedReceiver<(D, AuthorityId)>,
+    commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<D, A>>,
     next_to_interface: mpsc::UnboundedSender<D>,
     manager: Manager<A, D>,
     dialer: ND,
@@ -76,19 +86,13 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         authority_pen: AuthorityPen,
         spawn_handle: SpawnTaskHandle,
     ) -> (Self, impl Network<A, D>) {
-        // Channel for command: add new peer
-        let (add_connection_to_service, add_connection_from_interface) = mpsc::unbounded();
-        // Channel for command: remove peer
-        let (remove_connection_to_service, remove_connection_from_interface) = mpsc::unbounded();
-        // Channel for sending data through the network
-        let (send_to_service, send_from_interface) = mpsc::unbounded();
+        // Channel for sending commands between the service and interface
+        let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
         let (next_to_interface, next_from_service) = mpsc::unbounded();
         (
             Self {
-                add_connection_from_interface,
-                remove_connection_from_interface,
-                send_from_interface,
+                commands_from_interface,
                 next_to_interface,
                 manager: Manager::new(),
                 dialer,
@@ -97,10 +101,8 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                 authority_pen,
             },
             ServiceInterface {
-                c_add_connection: add_connection_to_service,
-                c_remove_connection: remove_connection_to_service,
-                c_send: send_to_service,
-                c_next: next_from_service,
+                commands_for_service,
+                next_from_service,
             },
         )
     }
@@ -143,6 +145,7 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         // that managed an outgoing connection
         // the received peer_id can be used to spawn another worker
         let (outgoing_result_for_parent, mut outgoing_workers) = mpsc::unbounded();
+        use ServiceCommand::*;
         loop {
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
@@ -150,24 +153,25 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                     Ok(stream) => self.spawn_new_incoming(stream, incoming_result_for_parent.clone()),
                     Err(e) => warn!(target: "validator-network", "Listener failed to accept connection: {}", e),
                 },
-                // got new add_connection request from API, register new peer in manager
-                // or update its list of addresses if already there
-                // spawn a worker managing outgoing connection if the peer was not known
-                Some((peer_id, addresses)) = self.add_connection_from_interface.next() => {
-                    if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
-                        self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone());
-                    };
-                },
-                // got new remove_connection request from API, remove the peer from the manager
-                // all workers will be killed automatically, due to closed channels
-                Some(peer_id) = self.remove_connection_from_interface.next() => {
-                    self.manager.remove_peer(&peer_id);
-                },
-                // got new send request from API, pass the data to the manager
-                Some((data, peer_id)) = self.send_from_interface.next() => {
-                    if let Err(e) = self.manager.send_to(&peer_id, data) {
-                        info!(target: "validator-network", "Failed sending to {}: {}", peer_id, e);
-                    }
+                // got a new command from the interface
+                Some(command) = self.commands_from_interface.next() => match command {
+                    // register new peer in manager or update its list of addresses if already there
+                    // spawn a worker managing outgoing connection if the peer was not known
+                    AddConnection(peer_id, addresses) => {
+                        if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
+                            self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone());
+                        };
+                    },
+                    // remove the peer from the manager all workers will be killed automatically, due to closed channels
+                    DelConnection(peer_id) => {
+                        self.manager.remove_peer(&peer_id);
+                    },
+                    // pass the data to the manager
+                    SendData(data, peer_id) => {
+                        if let Err(e) = self.manager.send_to(&peer_id, data) {
+                            info!(target: "validator-network", "Failed sending to {}: {}", peer_id, e);
+                        }
+                    },
                 },
                 // received tuple (peer_id, exit_handle) from a spawned worker
                 // that has just established an incoming connection
