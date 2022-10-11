@@ -33,8 +33,9 @@ jobs:
           ref: ${{ env.CHECKOUT_REF }}
 
       - name: Check if environment is reachable
+        shell: bash
         run: |
-          source contracts/env/fe-benjamin && nc -zvw5 "$NODE"
+          source contracts/env/fe-benjamin && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
       - name: Get branch name and commit SHA
         id: get_branch
