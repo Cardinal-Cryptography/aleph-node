@@ -18,8 +18,8 @@ impl Splittable for TcpStream {
     type Receiver = OwnedReadHalf;
 
     fn split(self) -> (Self::Sender, Self::Receiver) {
-        let out = self.into_split();
-        (out.1, out.0)
+        let (receiver, sender) = self.into_split();
+        (sender, receiver)
     }
 }
 
@@ -29,7 +29,7 @@ impl Listener for TcpListener {
     type Error = std::io::Error;
 
     async fn accept(&mut self) -> Result<Self::Connection, Self::Error> {
-        let stream = TcpListener::accept(self).await.map(|x| x.0)?;
+        let stream = TcpListener::accept(self).await.map(|(stream, _)| stream)?;
         if stream.set_linger(None).is_err() {
             info!(target: "validator-network", "stream.set_linger(None) failed.");
         };
