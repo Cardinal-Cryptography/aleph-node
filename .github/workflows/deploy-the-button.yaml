@@ -9,7 +9,7 @@ on:
     - A0-1416-deployment-workflow-for-the-button-game-newer
 
 env:
-  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
+  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game-newer
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
