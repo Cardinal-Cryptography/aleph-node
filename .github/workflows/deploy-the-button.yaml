@@ -24,8 +24,8 @@ env:
 jobs:
   checkout_benjamin:
     if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
-    #runs-on: ubuntu-20.04
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
+    #runs-on: self-hosted
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
@@ -35,7 +35,7 @@ jobs:
       - name: Check if environment is reachable
         shell: bash
         run: |
-          source contracts/env/fe-benjamin && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
       - name: Get branch name and commit SHA
         id: get_branch

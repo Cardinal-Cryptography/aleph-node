@@ -195,15 +195,15 @@ sleep 10
 
 cd "$CONTRACTS_PATH"/access_control
 
-echo "1"
+echo "Debug: 1"
 ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --verbose --url "$NODE" --suri "$AUTHORITY_SEED")
-echo "2"
+echo "Debug: 2"
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
-echo "3"
+echo "Debug: 3"
 ACCESS_CONTROL=$(cargo contract instantiate --verbose --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
-echo "4"
+echo "Debug: 4"
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | grep Contract | tail -1 | cut -c 15-)
-echo "5"
+echo "Debug: 5"
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
 echo "access control contract address: $ACCESS_CONTROL"
