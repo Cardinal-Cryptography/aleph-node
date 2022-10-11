@@ -318,13 +318,16 @@ impl pallet_aleph::Config for Runtime {
 parameter_types! {
     // We allow 10kB keys. This is in 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
+    // We allow 100 keys. This is a random number for development purposes.
+    pub const MaximumVerificationKeyLength: u32 = 100;
 }
 
 impl pallet_snarcos::Config for Runtime {
     type Event = Event;
     type Field = Bls12_381;
     type WeightInfo = pallet_snarcos::AlephWeight<Runtime>;
-    type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
+    type MaxKeys = MaxKeys;
+    type MaxVerificationKeyLength = MaximumVerificationKeyLength;
 }
 
 impl_opaque_keys! {
