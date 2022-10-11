@@ -37,6 +37,7 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 
 	fn verify() -> Weight {
 		<I as BenchmarkInfo>::verify_xor()
+			.max(<I as BenchmarkInfo>::verify_linear_equation())
 	}
 }
 
@@ -44,6 +45,7 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 trait BenchmarkInfo {
 	fn store_key(l: u32, ) -> Weight;
 	fn verify_xor() -> Weight;
+	fn verify_linear_equation() -> Weight;
 }
 
 /// Weights for pallet_snarcos using the Substrate node and recommended hardware.
@@ -51,13 +53,18 @@ pub struct AlephWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(_l: u32, ) -> Weight {
-		(7_604_000 as Weight)
+		(7_400_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_xor() -> Weight {
-		(6_170_774_000 as Weight)
+		(6_999_254_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+	}
+	// Storage: Snarcos VerificationKeys (r:1 w:0)
+	fn verify_linear_equation() -> Weight {
+		(4_942_343_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
 }
@@ -66,13 +73,18 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 impl BenchmarkInfo for () {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(_l: u32, ) -> Weight {
-		(7_604_000 as Weight)
+		(7_400_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_xor() -> Weight {
-		(6_170_774_000 as Weight)
+		(6_999_254_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+	}
+	// Storage: Snarcos VerificationKeys (r:1 w:0)
+	fn verify_linear_equation() -> Weight {
+		(4_942_343_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 	}
 }

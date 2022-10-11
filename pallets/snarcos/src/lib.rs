@@ -104,7 +104,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(4141)]
+        #[pallet::weight(T::WeightInfo::verify())]
         pub fn verify(
             _origin: OriginFor<T>,
             verification_key_identifier: VerificationKeyIdentifier,
