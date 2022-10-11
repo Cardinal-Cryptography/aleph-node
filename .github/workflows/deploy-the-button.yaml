@@ -3,10 +3,10 @@ name: Deploy the button game
 on:
   pull_request:
     types: [labeled]
-  push:
-    branches:
-    - benjamin
-    - A0-1416-deployment-workflow-for-the-button-game
+  #push:
+  #  branches:
+  #  - benjamin
+  #  - A0-1416-deployment-workflow-for-the-button-game
 
 env:
   CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game
@@ -24,8 +24,8 @@ env:
 jobs:
   checkout_benjamin:
     if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
-    #runs-on: ubuntu-20.04
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
+    #runs-on: self-hosted
     steps:
       - name: Fail when feature environment is not deployed
         if: ${{ !contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED) }}
