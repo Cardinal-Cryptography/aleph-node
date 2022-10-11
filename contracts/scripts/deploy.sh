@@ -196,11 +196,11 @@ sleep 10
 cd "$CONTRACTS_PATH"/access_control
 
 echo "Debug: 1"
-ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --verbose --url "$NODE" --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
 echo "Debug: 2"
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 15-)
 echo "Debug: 3"
-ACCESS_CONTROL=$(cargo contract instantiate --verbose --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED")
 echo "Debug: 4"
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | grep Contract | tail -1 | cut -c 15-)
 echo "Debug: 5"
@@ -226,7 +226,7 @@ echo "Early Bird Special"
 
 salt="0x4561726C79426972645370656369616C"
 deploy_ticket_token EARLY_BIRD_SPECIAL_TICKET early_bird_special_ticket EBST $salt
-deploy_game_token EARLY_BIRD_SPECIAL_TOKEN early_bird_special EBS $salt
+deploy_game_token EARLY_BIRD_SPECIAL_TOKEN Ubik UBI $salt
 deploy_marketplace EARLY_BIRD_SPECIAL_MARKETPLACE "$MARKETPLACE_CODE_HASH" early_bird_special "$salt" "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN"
 deploy_button_game EARLY_BIRD_SPECIAL EarlyBirdSpecial "$EARLY_BIRD_SPECIAL_TICKET" "$EARLY_BIRD_SPECIAL_TOKEN" "$EARLY_BIRD_SPECIAL_MARKETPLACE" "$salt"
 
@@ -237,7 +237,7 @@ echo "Back To The Future"
 
 salt="0x4261636B546F546865467574757265"
 deploy_ticket_token BACK_TO_THE_FUTURE_TICKET back_to_the_future_ticket BTFT $salt
-deploy_game_token BACK_TO_THE_FUTURE_TOKEN back_to_the_future BTF $salt
+deploy_game_token BACK_TO_THE_FUTURE_TOKEN Cyberiad CYB $salt
 deploy_marketplace BACK_TO_THE_FUTURE_MARKETPLACE "$MARKETPLACE_CODE_HASH" back_to_the_future "$salt" "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN"
 deploy_button_game BACK_TO_THE_FUTURE BackToTheFuture "$BACK_TO_THE_FUTURE_TICKET" "$BACK_TO_THE_FUTURE_TOKEN" "$BACK_TO_THE_FUTURE_MARKETPLACE" "$salt"
 
@@ -248,7 +248,7 @@ echo "The Pressiah Cometh"
 
 salt="0x7468655F70726573736961685F636F6D657468"
 deploy_ticket_token THE_PRESSIAH_COMETH_TICKET the_pressiah_cometh_ticket TPCT $salt
-deploy_game_token THE_PRESSIAH_COMETH_TOKEN the_pressiah_cometh TPC $salt
+deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
 deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
