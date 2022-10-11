@@ -45,8 +45,30 @@ pub mod game_token {
     impl PSP22 for GameToken {}
 
     impl PSP22Metadata for GameToken {}
-    impl PSP22Mintable for GameToken {}
-    impl PSP22Burnable for GameToken {}
+
+    impl PSP22Mintable for GameToken {
+        #[ink(message)]
+        fn mint(&mut self, account: AccountId, amount: Balance) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Minter(this);
+
+            self.check_role(caller, required_role)?;
+            self._mint_to(account, amount)
+        }
+    }
+
+    impl PSP22Burnable for GameToken {
+        #[ink(message)]
+        fn burn(&mut self, account: AccountId, amount: Balance) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            let required_role = Role::Burner(this);
+
+            self.check_role(caller, required_role)?;
+            self._burn_from(account, amount)
+        }
+    }
 
     // emit events
     // https://github.com/w3f/PSPs/blob/master/PSPs/psp-22.md
