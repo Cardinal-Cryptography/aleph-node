@@ -108,6 +108,7 @@ jobs:
         run: |
           aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
           for i in ticket_token marketplace button game_token access_control; do \
+            mkdir -p contracts/"$i"/target/ink
             aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
           done
 
