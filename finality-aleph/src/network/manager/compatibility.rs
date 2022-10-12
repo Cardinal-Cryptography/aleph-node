@@ -48,6 +48,23 @@ impl<D: Data, M: Multiaddress, LM: Multiaddress> Encode for VersionedNetworkData
         use VersionedNetworkData::*;
         match self {
             Other(version, payload) => encode_with_version(*version, payload.clone()),
+            Legacy(data) => encode_with_version(0, data.encode()),
+            V1(data) => encode_with_version(1, data.encode()),
+        }
+    }
+}
+
+impl<D: Data, M: Multiaddress, LM: Multiaddress> VersionedNetworkData<D, M, LM> {
+    /// Encodes Network Data, to legacy encoding for the Legacy type. For other types
+    /// it encodes to versioned encoding. This is reverse a funtion to `backwards_compatible_decode`.
+    /// It is needed as encode needs to be a reverse function to decode, which is not possible without
+    /// data having `ByteCount` and `Version` encoded. This is something pre-compatibility
+    /// nodes will not understand.
+    /// This should be removed, after rolling update with new network is completed
+    pub fn backwards_compatible_encode(&self) -> Vec<u8> {
+        use VersionedNetworkData::*;
+        match self {
+            Other(version, payload) => encode_with_version(*version, payload.clone()),
             Legacy(data) => data.encode(),
             V1(data) => encode_with_version(1, data.encode()),
         }
@@ -60,6 +77,7 @@ impl<D: Data, M: Multiaddress, LM: Multiaddress> Decode for VersionedNetworkData
         let version = Version::decode(input)?;
         let num_bytes = ByteCount::decode(input)?;
         match version {
+            0 => Ok(Legacy(NetworkData::decode(input)?)),
             1 => Ok(V1(DiscoveryMessage::decode(input)?)),
             _ => {
                 let mut payload = vec![
@@ -108,7 +126,7 @@ fn decode_pre_compatibility_network_data<D: Data, M: Multiaddress, LM: Multiaddr
 }
 
 /// Decodes Network Data, even if it was produced by ancient code which does not conform to our
-/// backwards compatibility style.
+/// backwards compatibility style. This is reverse a funtion to `backwards_compatible_encode`.
 /// This should be removed, after rolling update with new network is completed
 pub fn backwards_compatible_decode<D: Data, M: Multiaddress, LM: Multiaddress>(
     data_raw: Vec<u8>,

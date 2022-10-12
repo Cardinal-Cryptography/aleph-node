@@ -5,7 +5,6 @@ use std::{
 };
 
 use aleph_primitives::AuthorityId;
-use codec::Encode;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, info, trace, warn};
 use sc_service::SpawnTaskHandle;
@@ -159,7 +158,9 @@ impl<
                             }
                         }
                     };
-                    if let Err(e) = s.send(data.encode()).await {
+                    // Right now we need to use backward compatible encode here.
+                    // In the future we can change it back to normal encode.
+                    if let Err(e) = s.send(data.backwards_compatible_encode()).await {
                         debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {}", e);
                         sender = None;
                     }
