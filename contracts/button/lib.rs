@@ -95,6 +95,8 @@ mod button_game {
         pub marketplace: AccountId,
         /// scoring strategy
         pub scoring: Scoring,
+        /// current round number
+        pub round: u64,
     }
 
     impl AccessControlled for ButtonGame {
@@ -117,7 +119,7 @@ mod button_game {
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
 
-            match ButtonGame::check_role(&access_control, &caller, required_role) {
+            match ButtonGame::check_role(access_control, caller, required_role) {
                 Ok(_) => Self::init(
                     ticket_token,
                     reward_token,
@@ -135,6 +137,12 @@ mod button_game {
         #[ink(message)]
         pub fn deadline(&self) -> BlockNumber {
             self.last_press + self.button_lifetime
+        }
+
+        /// Returns the curent round number
+        #[ink(message)]
+        pub fn round(&self) -> u64 {
+            self.round
         }
 
         /// Returns the buttons status
@@ -232,7 +240,7 @@ mod button_game {
         pub fn reset(&mut self) -> ButtonResult<()> {
             self.ensure_dead()?;
             self.reward_pressiah()?;
-            self.reset_state();
+            self.reset_state()?;
             self.transfer_tickets_to_marketplace()?;
             self.reset_marketplace()
         }
@@ -246,7 +254,7 @@ mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
+            ButtonGame::check_role(self.access_control, caller, required_role)?;
             self.access_control = new_access_control;
             Ok(())
         }
@@ -259,7 +267,7 @@ mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            ButtonGame::check_role(&self.access_control, &caller, required_role)?;
+            ButtonGame::check_role(self.access_control, caller, required_role)?;
             self.env().terminate_contract(caller)
         }
 
@@ -286,6 +294,7 @@ mod button_game {
                 last_presser: None,
                 presses: 0,
                 total_rewards: 0,
+                round: 0,
             };
 
             Self::emit_event(
@@ -301,15 +310,17 @@ mod button_game {
             contract
         }
 
-        fn reset_state(&mut self) {
+        fn reset_state(&mut self) -> ButtonResult<()> {
             let now = self.env().block_number();
 
             self.presses = 0;
             self.last_presser = None;
             self.last_press = now;
             self.total_rewards = 0;
+            self.round.checked_add(1).ok_or(GameError::Arithmethic)?;
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
+            Ok(())
         }
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
@@ -323,7 +334,7 @@ mod button_game {
 
         fn ensure_dead(&self) -> ButtonResult<()> {
             if !self.is_dead() {
-                return Err(GameError::BeforeDeadline);
+                Err(GameError::BeforeDeadline)
             } else {
                 Ok(())
             }
@@ -370,22 +381,18 @@ mod button_game {
             Ok(())
         }
 
-        fn check_role(
-            access_control: &AccountId,
-            account: &AccountId,
-            role: Role,
-        ) -> ButtonResult<()>
+        fn check_role(access_control: AccountId, account: AccountId, role: Role) -> ButtonResult<()>
         where
             Self: AccessControlled,
         {
             <Self as AccessControlled>::check_role(
-                access_control.clone(),
-                account.clone(),
+                access_control,
+                account,
                 role,
                 |why: InkEnvError| {
                     GameError::InkEnvError(format!("Calling access control has failed: {:?}", why))
                 },
-                |role: Role| GameError::MissingRole(role),
+                GameError::MissingRole,
             )
         }
 
