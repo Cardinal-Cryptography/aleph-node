@@ -14,14 +14,14 @@ pub mod game_token {
         codegen::{EmitEvent, Env},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String as Strink};
+    use ink_prelude::{format, string::String};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{
             extensions::{burnable::*, metadata::*, mintable::*},
             Internal,
         },
-        traits::{Storage, String},
+        traits::Storage,
     };
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
@@ -141,7 +141,7 @@ pub mod game_token {
         ///
         /// Will revert if called from an account without a proper role
         #[ink(constructor)]
-        pub fn new(name: Strink, symbol: Strink) -> Self {
+        pub fn new(name: String, symbol: String) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
@@ -153,18 +153,17 @@ pub mod game_token {
                 caller,
                 required_role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(String::from(format!(
-                        "Calling access control has failed: {:?}",
-                        why
-                    )))
+                    PSP22Error::Custom(
+                        format!("Calling access control has failed: {:?}", why).into(),
+                    )
                 },
-                |role: Role| PSP22Error::Custom(String::from(format!("MissingRole:{:?}", role))),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
             );
 
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
-                    instance.metadata.name = Some(String::from(name));
-                    instance.metadata.symbol = Some(String::from(symbol));
+                    instance.metadata.name = Some(name.into());
+                    instance.metadata.symbol = Some(symbol.into());
                     instance.metadata.decimals = 12;
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                 }),
@@ -201,12 +200,11 @@ pub mod game_token {
                 account,
                 role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(String::from(format!(
-                        "Calling access control has failed: {:?}",
-                        why
-                    )))
+                    PSP22Error::Custom(
+                        format!("Calling access control has failed: {:?}", why).into(),
+                    )
                 },
-                |role: Role| PSP22Error::Custom(String::from(format!("MissingRole:{:?}", role))),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
             )
         }
 
@@ -228,10 +226,7 @@ pub mod game_token {
         #[ink(message, selector = 10)]
         pub fn code_hash(&self) -> Result<Hash> {
             Self::env().own_code_hash().map_err(|why| {
-                PSP22Error::Custom(String::from(format!(
-                    "Can't retrieve own code hash: {:?}",
-                    why
-                )))
+                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why).into())
             })
         }
     }
