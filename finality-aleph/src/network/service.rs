@@ -2,7 +2,6 @@ use std::{
     collections::{HashMap, HashSet},
     future::Future,
     iter,
-    marker::PhantomData,
 };
 
 use aleph_primitives::AuthorityId;
@@ -456,7 +455,7 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, iter, iter::FromIterator};
+    use std::{collections::HashSet, hash::Hash, iter, iter::FromIterator};
 
     use codec::Encode;
     use futures::{channel::oneshot, StreamExt};
@@ -464,19 +463,28 @@ mod tests {
     use tokio::{runtime::Handle, task::JoinHandle};
 
     use super::{ConnectionCommand, DataCommand, Service};
-    use crate::network::{
+    use crate::{
+        network::{
+            manager::DataInSession,
             mock::{
-            MockData, MockEvent, MockIO, MockMultiaddress, MockNetwork, MockNetworkIdentity,
-            MockPeerId, MockSenderError,
+                MockData, MockEvent, MockIO, MockMultiaddress as LegacyMockMultiaddress,
+                MockNetwork, MockNetworkIdentity, MockPeerId, MockSenderError,
             },
+            testing::{NetworkData, VersionedNetworkData},
             NetworkIdentity, Protocol,
+        },
+        session::SessionId,
+        testing::mocks::validator_network::{
+            MockMultiaddress, MockNetwork as MockValidatorNetwork,
+        },
     };
 
     pub struct TestData {
         pub service_handle: JoinHandle<()>,
         pub exit_tx: oneshot::Sender<()>,
         pub network: MockNetwork<MockData>,
-        pub mock_io: MockIO,
+        pub validator_network: MockValidatorNetwork<DataInSession<MockData>>,
+        pub mock_io: MockIO<MockMultiaddress, LegacyMockMultiaddress>,
         // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
         _task_manager: TaskManager,
     }
@@ -486,11 +494,18 @@ mod tests {
             let task_manager = TaskManager::new(Handle::current(), None).unwrap();
 
             // Prepare communication with service
-            let (mock_io, io) = MockIO::new();
+            let (mock_io, io, legacy_io) = MockIO::new();
             // Prepare service
             let (event_stream_oneshot_tx, event_stream_oneshot_rx) = oneshot::channel();
             let network = MockNetwork::new(event_stream_oneshot_tx);
-            let service = Service::new(network.clone(), task_manager.spawn_handle(), io);
+            let validator_network = MockValidatorNetwork::new("addr").await;
+            let service = Service::new(
+                network.clone(),
+                validator_network.clone(),
+                task_manager.spawn_handle(),
+                io,
+                legacy_io,
+            );
             let (exit_tx, exit_rx) = oneshot::channel();
             let task_handle = async move {
                 tokio::select! {
@@ -507,6 +522,7 @@ mod tests {
                 service_handle,
                 exit_tx,
                 network,
+                validator_network,
                 mock_io,
                 _task_manager: task_manager,
             }
@@ -520,7 +536,7 @@ mod tests {
 
         // We do this only to make sure that NotificationStreamOpened/NotificationStreamClosed events are handled
         async fn wait_for_events_handled(&mut self) {
-            let address = MockMultiaddress::random_with_id(MockPeerId::random());
+            let address = LegacyMockMultiaddress::random_with_id(MockPeerId::random());
             self.network
                 .emit_event(MockEvent::Connected(address.clone()));
             assert_eq!(
@@ -534,11 +550,29 @@ mod tests {
         }
     }
 
+    fn message(i: u8) -> NetworkData<MockData, LegacyMockMultiaddress> {
+        NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
+    }
+
+    fn wrap(
+        message: NetworkData<MockData, LegacyMockMultiaddress>,
+    ) -> VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
+        VersionedNetworkData::Legacy(message)
+    }
+
+    /// This is a dummy implementation so that VersionedNetworkData can be put in HashSet.
+    /// It will inserted with other data, so this can always return the same thing.
+    impl Hash for VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            42u32.hash(state)
+        }
+    }
+
     #[tokio::test]
     async fn test_sync_connected() {
         let mut test_data = TestData::prepare().await;
 
-        let address = MockMultiaddress::random_with_id(MockPeerId::random());
+        let address = LegacyMockMultiaddress::random_with_id(MockPeerId::random());
         test_data
             .network
             .emit_event(MockEvent::Connected(address.clone()));
@@ -598,10 +632,10 @@ mod tests {
         // We do this only to make sure that NotificationStreamOpened events are handled
         test_data.wait_for_events_handled().await;
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((message.clone(), DataCommand::Broadcast))
             .unwrap();
 
@@ -622,7 +656,7 @@ mod tests {
         let expected_messages = HashSet::from_iter(
             peer_ids
                 .into_iter()
-                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
+                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -655,11 +689,11 @@ mod tests {
         // We do this only to make sure that NotificationStreamClosed events are handled
         test_data.wait_for_events_handled().await;
 
-        let messages: Vec<Vec<u8>> = vec![vec![1, 2, 3], vec![4, 5, 6]];
+        let messages: Vec<_> = vec![message(1), message(2)];
         messages.iter().for_each(|m| {
             test_data
                 .mock_io
-                .messages_for_user
+                .legacy_messages_for_user
                 .unbounded_send((m.clone(), DataCommand::Broadcast))
                 .unwrap();
         });
@@ -683,7 +717,7 @@ mod tests {
                 |peer_id| {
                     messages
                         .iter()
-                        .map(move |m| (m.clone(), peer_id, Protocol::Generic))
+                        .map(move |m| (wrap(m.clone()), peer_id, Protocol::Generic))
                 },
             ));
 
@@ -698,7 +732,7 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         test_data
             .network
@@ -709,14 +743,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Validator),
             ))
             .unwrap();
 
-        let expected = (message, peer_id, Protocol::Validator);
+        let expected = (wrap(message), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -743,8 +777,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = message(1);
+        let message_2 = message(2);
 
         test_data
             .network
@@ -755,7 +789,7 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_1.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Validator),
@@ -764,14 +798,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_2.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Validator),
             ))
             .unwrap();
 
-        let expected = (message_2, peer_id, Protocol::Validator);
+        let expected = (wrap(message_2), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -801,7 +835,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -815,7 +849,7 @@ mod tests {
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .mock_io
-                .messages_for_user
+                .legacy_messages_for_user
                 .unbounded_send((
                     message.clone(),
                     DataCommand::SendTo(*peer_id, Protocol::Validator),
@@ -841,7 +875,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), peer_id, Protocol::Validator)),
+                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -861,8 +895,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = message(1);
+        let message_2 = message(2);
 
         test_data
             .network
@@ -873,7 +907,7 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_1.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Validator),
@@ -882,14 +916,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_2.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Validator),
             ))
             .unwrap();
 
-        let expected = (message_2, peer_id, Protocol::Validator);
+        let expected = (wrap(message_2), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -919,7 +953,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -933,7 +967,7 @@ mod tests {
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .mock_io
-                .messages_for_user
+                .legacy_messages_for_user
                 .unbounded_send((
                     message.clone(),
                     DataCommand::SendTo(*peer_id, Protocol::Validator),
@@ -959,7 +993,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), peer_id, Protocol::Validator)),
+                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -973,7 +1007,7 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         test_data
             .network
@@ -984,14 +1018,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
             ))
             .unwrap();
 
-        let expected = (message, peer_id, Protocol::Generic);
+        let expected = (wrap(message), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1018,8 +1052,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = message(1);
+        let message_2 = message(2);
 
         test_data
             .network
@@ -1030,7 +1064,7 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_1.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
@@ -1039,14 +1073,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_2.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
             ))
             .unwrap();
 
-        let expected = (message_2, peer_id, Protocol::Generic);
+        let expected = (wrap(message_2), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1076,7 +1110,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -1090,7 +1124,7 @@ mod tests {
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .mock_io
-                .messages_for_user
+                .legacy_messages_for_user
                 .unbounded_send((
                     message.clone(),
                     DataCommand::SendTo(*peer_id, Protocol::Generic),
@@ -1116,7 +1150,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
+                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1136,8 +1170,8 @@ mod tests {
 
         let peer_id = MockPeerId::random();
 
-        let message_1: Vec<u8> = vec![1, 2, 3];
-        let message_2: Vec<u8> = vec![4, 5, 6];
+        let message_1 = message(1);
+        let message_2 = message(2);
 
         test_data
             .network
@@ -1148,7 +1182,7 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_1.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
@@ -1157,14 +1191,14 @@ mod tests {
 
         test_data
             .mock_io
-            .messages_for_user
+            .legacy_messages_for_user
             .unbounded_send((
                 message_2.clone(),
                 DataCommand::SendTo(peer_id, Protocol::Generic),
             ))
             .unwrap();
 
-        let expected = (message_2, peer_id, Protocol::Generic);
+        let expected = (wrap(message_2), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1194,7 +1228,7 @@ mod tests {
         }
 
         let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
@@ -1208,7 +1242,7 @@ mod tests {
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .mock_io
-                .messages_for_user
+                .legacy_messages_for_user
                 .unbounded_send((
                     message.clone(),
                     DataCommand::SendTo(*peer_id, Protocol::Generic),
@@ -1234,7 +1268,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (message.clone(), peer_id, Protocol::Generic)),
+                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1246,16 +1280,16 @@ mod tests {
     async fn test_notification_received() {
         let mut test_data = TestData::prepare().await;
 
-        let message: Vec<u8> = vec![1, 2, 3];
+        let message = message(1);
 
-        test_data
-            .network
-            .emit_event(MockEvent::Messages(vec![Vec::encode(&message).into()]));
+        test_data.network.emit_event(MockEvent::Messages(vec![
+            NetworkData::encode(&message).into()
+        ]));
 
         assert_eq!(
             test_data
                 .mock_io
-                .messages_from_user
+                .legacy_messages_from_user
                 .next()
                 .await
                 .expect("Should receive message"),
@@ -1273,7 +1307,7 @@ mod tests {
 
         test_data
             .mock_io
-            .commands_for_manager
+            .legacy_commands_for_manager
             .unbounded_send(ConnectionCommand::AddReserved(
                 addresses.clone().into_iter().collect(),
             ))
@@ -1302,7 +1336,7 @@ mod tests {
 
         test_data
             .mock_io
-            .commands_for_manager
+            .legacy_commands_for_manager
             .unbounded_send(ConnectionCommand::DelReserved(
                 iter::once(peer_id).collect(),
             ))

@@ -15,12 +15,15 @@ use parking_lot::Mutex;
 use rand::random;
 use sp_keystore::{testing::KeyStore, CryptoStore};
 
+use super::manager::VersionedNetworkData;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        manager::{backwards_compatible_decode, NetworkData},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
-        NetworkIdentity, NetworkSender, PeerId, Protocol, IO,
+        NetworkIdentity, NetworkSender, NetworkServiceIO, PeerId, Protocol,
     },
+    testing::mocks::validator_network::MockMultiaddress as ValidatorMockMultiaddress,
     AuthorityId, NodeIndex,
 };
 
@@ -130,30 +133,48 @@ impl<T> Channel<T> {
     }
 }
 
-pub type MockDataCommand = DataCommand<MockPeerId>;
-pub type MockConnectionCommand = ConnectionCommand<MockMultiaddress>;
 pub type MockEvent = Event<MockMultiaddress>;
 
 pub type MockData = Vec<u8>;
 
-pub struct MockIO {
-    pub messages_for_user: mpsc::UnboundedSender<(MockData, MockDataCommand)>,
-    pub messages_from_user: mpsc::UnboundedReceiver<MockData>,
-    pub commands_for_manager: mpsc::UnboundedSender<MockConnectionCommand>,
+pub struct MockIO<M: Multiaddress, LM: Multiaddress> {
+    pub messages_for_user:
+        mpsc::UnboundedSender<(NetworkData<MockData, M>, DataCommand<M::PeerId>)>,
+    pub messages_from_user: mpsc::UnboundedReceiver<NetworkData<MockData, M>>,
+    pub commands_for_manager: mpsc::UnboundedSender<ConnectionCommand<M>>,
+    pub legacy_messages_for_user:
+        mpsc::UnboundedSender<(NetworkData<MockData, LM>, DataCommand<LM::PeerId>)>,
+    pub legacy_messages_from_user: mpsc::UnboundedReceiver<NetworkData<MockData, LM>>,
+    pub legacy_commands_for_manager: mpsc::UnboundedSender<ConnectionCommand<LM>>,
 }
 
-impl MockIO {
-    pub fn new() -> (MockIO, IO<MockData, MockMultiaddress>) {
+impl<M: Multiaddress, LM: Multiaddress> MockIO<M, LM> {
+    pub fn new() -> (
+        MockIO<M, LM>,
+        NetworkServiceIO<MockData, M>,
+        NetworkServiceIO<MockData, LM>,
+    ) {
         let (mock_messages_for_user, messages_from_user) = mpsc::unbounded();
         let (messages_for_user, mock_messages_from_user) = mpsc::unbounded();
         let (mock_commands_for_manager, commands_from_manager) = mpsc::unbounded();
+        let (legacy_mock_messages_for_user, legacy_messages_from_user) = mpsc::unbounded();
+        let (legacy_messages_for_user, legacy_mock_messages_from_user) = mpsc::unbounded();
+        let (legacy_mock_commands_for_manager, legacy_commands_from_manager) = mpsc::unbounded();
         (
             MockIO {
                 messages_for_user: mock_messages_for_user,
                 messages_from_user: mock_messages_from_user,
                 commands_for_manager: mock_commands_for_manager,
+                legacy_messages_for_user: legacy_mock_messages_for_user,
+                legacy_messages_from_user: legacy_mock_messages_from_user,
+                legacy_commands_for_manager: legacy_mock_commands_for_manager,
             },
-            IO::new(messages_from_user, messages_for_user, commands_from_manager),
+            NetworkServiceIO::new(messages_from_user, messages_for_user, commands_from_manager),
+            NetworkServiceIO::new(
+                legacy_messages_from_user,
+                legacy_messages_for_user,
+                legacy_commands_from_manager,
+            ),
         )
     }
 }
@@ -168,7 +189,11 @@ impl EventStream<MockMultiaddress> for MockEventStream {
 }
 
 pub struct MockNetworkSender<D: Data> {
-    sender: mpsc::UnboundedSender<(D, MockPeerId, Protocol)>,
+    sender: mpsc::UnboundedSender<(
+        VersionedNetworkData<D, ValidatorMockMultiaddress, MockMultiaddress>,
+        MockPeerId,
+        Protocol,
+    )>,
     peer_id: MockPeerId,
     protocol: Protocol,
     error: Result<(), MockSenderError>,
@@ -185,7 +210,7 @@ impl<D: Data> NetworkSender for MockNetworkSender<D> {
         self.error?;
         self.sender
             .unbounded_send((
-                D::decode(&mut &data.into()[..]).unwrap(),
+                backwards_compatible_decode(data.into()).unwrap(),
                 self.peer_id,
                 self.protocol,
             ))
@@ -198,7 +223,11 @@ impl<D: Data> NetworkSender for MockNetworkSender<D> {
 pub struct MockNetwork<D: Data> {
     pub add_reserved: Channel<(HashSet<MockMultiaddress>, Protocol)>,
     pub remove_reserved: Channel<(HashSet<MockPeerId>, Protocol)>,
-    pub send_message: Channel<(D, MockPeerId, Protocol)>,
+    pub send_message: Channel<(
+        VersionedNetworkData<D, ValidatorMockMultiaddress, MockMultiaddress>,
+        MockPeerId,
+        Protocol,
+    )>,
     pub event_sinks: Arc<Mutex<Vec<mpsc::UnboundedSender<MockEvent>>>>,
     event_stream_taken_oneshot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
     pub create_sender_errors: Arc<Mutex<VecDeque<MockSenderError>>>,

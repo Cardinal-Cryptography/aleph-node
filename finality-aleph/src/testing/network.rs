@@ -6,7 +6,7 @@ use std::{
 
 use aleph_bft::Recipient;
 use codec::Encode;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::oneshot;
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
@@ -17,9 +17,16 @@ use crate::{
             crypto_basics, MockData, MockEvent, MockMultiaddress, MockNetwork, MockNetworkIdentity,
             MockPeerId,
         },
-        testing::{Authentication, DiscoveryMessage, NetworkData, SessionHandler},
-        ConnectionIO, ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity,
-        Protocol, Service as NetworkService, SessionManager, IO as NetworkIO,
+        setup_io,
+        testing::{
+            Authentication, DataInSession, DiscoveryMessage, NetworkData, SessionHandler,
+            VersionedNetworkData,
+        },
+        ConnectionManager, ConnectionManagerConfig, DataNetwork, NetworkIdentity, Protocol,
+        Service as NetworkService, SessionManager,
+    },
+    testing::mocks::validator_network::{
+        MockMultiaddress as ValidatorMockMultiaddress, MockNetwork as MockValidatorNetwork,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod,
 };
@@ -65,10 +72,13 @@ struct TestData {
     pub authorities: Vec<Authority>,
     pub authority_verifier: AuthorityVerifier,
     pub session_manager: SessionManager<MockData>,
-    pub network: MockNetwork<MockNetworkData>,
+    pub network: MockNetwork<MockData>,
+    pub _validator_network: MockValidatorNetwork<DataInSession<MockData>>,
     network_manager_exit_tx: oneshot::Sender<()>,
+    legacy_network_manager_exit_tx: oneshot::Sender<()>,
     network_service_exit_tx: oneshot::Sender<()>,
     network_manager_handle: JoinHandle<()>,
+    legacy_network_manager_handle: JoinHandle<()>,
     network_service_handle: JoinHandle<()>,
     // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
     _task_manager: TaskManager,
@@ -92,31 +102,32 @@ async fn prepare_one_session_test_data() -> TestData {
     // Prepare Network
     let (event_stream_tx, event_stream_rx) = oneshot::channel();
     let (network_manager_exit_tx, network_manager_exit_rx) = oneshot::channel();
+    let (legacy_network_manager_exit_tx, legacy_network_manager_exit_rx) = oneshot::channel();
     let (network_service_exit_tx, network_service_exit_rx) = oneshot::channel();
     let network = MockNetwork::new(event_stream_tx);
+    let validator_network = MockValidatorNetwork::new("address").await;
 
-    let (commands_for_network, commands_from_io) = mpsc::unbounded();
-    let (messages_for_network, messages_from_user) = mpsc::unbounded();
-    let (commands_for_service, commands_from_user) = mpsc::unbounded();
-    let (messages_for_service, commands_from_manager) = mpsc::unbounded();
-    let (messages_for_user, messages_from_network) = mpsc::unbounded();
+    let (connection_io, network_io, session_io) = setup_io();
+    let (legacy_connection_io, legacy_network_io, legacy_session_io) = setup_io();
 
-    let connection_io = ConnectionIO::new(
-        commands_for_network,
-        messages_for_network,
-        commands_from_user,
-        commands_from_manager,
-        messages_from_network,
+    let connection_manager = ConnectionManager::new(
+        validator_network.clone(),
+        ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
-    let connection_manager = ConnectionManager::<Authority, MockData>::new(
+
+    let legacy_connection_manager = ConnectionManager::<Authority, MockData>::new(
         authorities[0].clone(),
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
-    let session_manager = SessionManager::new(commands_for_service, messages_for_service);
+
+    let session_manager = SessionManager::new(session_io, legacy_session_io);
+
     let network_service = NetworkService::new(
         network.clone(),
+        validator_network.clone(),
         task_manager.spawn_handle(),
-        NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
+        network_io,
+        legacy_network_io,
     );
 
     let network_manager_task = async move {
@@ -127,6 +138,14 @@ async fn prepare_one_session_test_data() -> TestData {
         };
     };
 
+    let legacy_network_manager_task = async move {
+        tokio::select! {
+            _ = legacy_connection_io
+            .run(legacy_connection_manager) => { },
+            _ = legacy_network_manager_exit_rx => { },
+        };
+    };
+
     let network_service_task = async move {
         tokio::select! {
             _ = network_service.run() => { },
@@ -134,6 +153,7 @@ async fn prepare_one_session_test_data() -> TestData {
         };
     };
     let network_manager_handle = tokio::spawn(network_manager_task);
+    let legacy_network_manager_handle = tokio::spawn(legacy_network_manager_task);
     let network_service_handle = tokio::spawn(network_service_task);
 
     event_stream_rx.await.unwrap();
@@ -143,9 +163,12 @@ async fn prepare_one_session_test_data() -> TestData {
         authority_verifier,
         session_manager,
         network,
+        _validator_network: validator_network,
         network_manager_exit_tx,
+        legacy_network_manager_exit_tx,
         network_service_exit_tx,
         network_manager_handle,
+        legacy_network_manager_handle,
         network_service_handle,
         _task_manager: task_manager,
     }
@@ -226,7 +249,9 @@ impl TestData {
         let mut sent_auth = HashMap::new();
         while sent_auth.len() < NODES_N - 1 {
             if let Some((
-                MockNetworkData::Meta(DiscoveryMessage::Authentication(auth_data)),
+                VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                    DiscoveryMessage::Authentication(auth_data),
+                )),
                 peer_id,
                 protocol,
             )) = timeout(DEFAULT_TIMEOUT, self.next_sent_authentication())
@@ -285,16 +310,24 @@ impl TestData {
 
     async fn next_sent_authentication_broadcast(
         &mut self,
-    ) -> Option<(MockNetworkData, MockPeerId, Protocol)> {
+    ) -> Option<(
+        VersionedNetworkData<MockData, ValidatorMockMultiaddress, MockMultiaddress>,
+        MockPeerId,
+        Protocol,
+    )> {
         loop {
             match self.network.send_message.next().await {
                 Some((
-                    MockNetworkData::Meta(DiscoveryMessage::AuthenticationBroadcast(auth_data)),
+                    VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                        DiscoveryMessage::AuthenticationBroadcast(auth_data),
+                    )),
                     peer_id,
                     protocol,
                 )) => {
                     return Some((
-                        MockNetworkData::Meta(DiscoveryMessage::AuthenticationBroadcast(auth_data)),
+                        VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                            DiscoveryMessage::AuthenticationBroadcast(auth_data),
+                        )),
                         peer_id,
                         protocol,
                     ))
@@ -307,16 +340,24 @@ impl TestData {
 
     async fn next_sent_authentication(
         &mut self,
-    ) -> Option<(MockNetworkData, MockPeerId, Protocol)> {
+    ) -> Option<(
+        VersionedNetworkData<MockData, ValidatorMockMultiaddress, MockMultiaddress>,
+        MockPeerId,
+        Protocol,
+    )> {
         loop {
             match self.network.send_message.next().await {
                 Some((
-                    MockNetworkData::Meta(DiscoveryMessage::Authentication(auth_data)),
+                    VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                        DiscoveryMessage::Authentication(auth_data),
+                    )),
                     peer_id,
                     protocol,
                 )) => {
                     return Some((
-                        MockNetworkData::Meta(DiscoveryMessage::Authentication(auth_data)),
+                        VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                            DiscoveryMessage::Authentication(auth_data),
+                        )),
                         peer_id,
                         protocol,
                     ))
@@ -327,11 +368,25 @@ impl TestData {
         }
     }
 
-    async fn next_sent_data_message(&mut self) -> Option<(MockNetworkData, MockPeerId, Protocol)> {
+    async fn next_sent_data_message(
+        &mut self,
+    ) -> Option<(
+        VersionedNetworkData<MockData, ValidatorMockMultiaddress, MockMultiaddress>,
+        MockPeerId,
+        Protocol,
+    )> {
         loop {
             match self.network.send_message.next().await {
-                Some((MockNetworkData::Data(data, session_id), peer_id, protocol)) => {
-                    return Some((MockNetworkData::Data(data, session_id), peer_id, protocol))
+                Some((
+                    VersionedNetworkData::Legacy(MockNetworkData::Data(data, session_id)),
+                    peer_id,
+                    protocol,
+                )) => {
+                    return Some((
+                        VersionedNetworkData::Legacy(MockNetworkData::Data(data, session_id)),
+                        peer_id,
+                        protocol,
+                    ))
                 }
                 None => return None,
                 _ => {}
@@ -341,11 +396,18 @@ impl TestData {
 
     async fn cleanup(self) {
         self.network_manager_exit_tx.send(()).unwrap();
+        self.legacy_network_manager_exit_tx.send(()).unwrap();
         self.network_service_exit_tx.send(()).unwrap();
         self.network_manager_handle.await.unwrap();
+        self.legacy_network_manager_handle.await.unwrap();
         self.network_service_handle.await.unwrap();
         while let Some(message) = self.network.send_message.try_next().await {
-            if let (MockNetworkData::Data(data, session_id), peer_id, protocol) = message {
+            if let (
+                VersionedNetworkData::Legacy(MockNetworkData::Data(data, session_id)),
+                peer_id,
+                protocol,
+            ) = message
+            {
                 panic!("No Data messages should be sent during cleanup. All data messages should be handled before.\
                  Got: {:?} in {:?} to {:?} with protocol {:?}", data, session_id, peer_id, protocol);
             }
@@ -363,24 +425,33 @@ async fn test_sends_discovery_message() {
     let mut data_network = test_data.start_validator_session(0, session_id).await;
     let handler = test_data.get_session_handler(0, session_id).await;
 
-    for _ in 0..5 {
-        if let Some((
-            MockNetworkData::Meta(DiscoveryMessage::AuthenticationBroadcast(auth_data)),
-            peer_id,
-            protocol,
-        )) = timeout(DEFAULT_TIMEOUT, test_data.network.send_message.next())
+    let mut sent_legacy_authentications = 0;
+    for _ in 0..10 {
+        match timeout(DEFAULT_TIMEOUT, test_data.network.send_message.next())
             .await
             .ok()
             .flatten()
         {
-            assert_eq!(peer_id, connected_peer_id);
-            assert_eq!(protocol, Protocol::Generic);
-            assert_eq!(auth_data, handler.authentication().unwrap());
-        } else {
-            panic!("Should broadcast authentication");
+            Some((
+                VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                    DiscoveryMessage::AuthenticationBroadcast(auth_data),
+                )),
+                peer_id,
+                protocol,
+            )) => {
+                assert_eq!(peer_id, connected_peer_id);
+                assert_eq!(protocol, Protocol::Generic);
+                assert_eq!(auth_data, handler.authentication().unwrap());
+                sent_legacy_authentications += 1;
+            }
+            Some(_) => {}
+            None => panic!("Should broadcast authentication"),
         }
     }
 
+    if sent_legacy_authentications < 3 {
+        panic!("Should broadcast legacy authentications")
+    }
     test_data.cleanup().await;
     assert_eq!(
         timeout(DEFAULT_TIMEOUT, data_network.next()).await,
@@ -421,7 +492,9 @@ async fn test_sends_authentication_on_receiving_broadcast() {
     );
 
     if let Some((
-        MockNetworkData::Meta(DiscoveryMessage::Authentication(auth_data)),
+        VersionedNetworkData::Legacy(MockNetworkData::Meta(DiscoveryMessage::Authentication(
+            auth_data,
+        ))),
         peer_id,
         protocol,
     )) = timeout(DEFAULT_TIMEOUT, test_data.next_sent_authentication())
@@ -486,7 +559,9 @@ async fn test_forwards_authentication_broadcast() {
     let mut sent_authentication = HashMap::new();
     while sent_authentication.len() < NODES_N - 1 {
         if let Some((
-            MockNetworkData::Meta(DiscoveryMessage::AuthenticationBroadcast(auth_data)),
+            VersionedNetworkData::Legacy(MockNetworkData::Meta(
+                DiscoveryMessage::AuthenticationBroadcast(auth_data),
+            )),
             peer_id,
             protocol,
         )) = timeout(
@@ -681,10 +756,13 @@ async fn test_sends_data_to_correct_session() {
 
     let mut sent_data = HashSet::new();
     while sent_data.len() < 2 * (NODES_N - 1) {
-        if let Some((MockNetworkData::Data(data, session_id), peer_id, protocol)) =
-            timeout(DEFAULT_TIMEOUT, test_data.next_sent_data_message())
-                .await
-                .expect("Should send data")
+        if let Some((
+            VersionedNetworkData::Legacy(MockNetworkData::Data(data, session_id)),
+            peer_id,
+            protocol,
+        )) = timeout(DEFAULT_TIMEOUT, test_data.next_sent_data_message())
+            .await
+            .expect("Should send data")
         {
             println!("{:?} {:?}", data, peer_id);
             sent_data.insert((data, session_id, peer_id));
@@ -730,10 +808,13 @@ async fn test_broadcasts_data_to_correct_session() {
 
     let mut sent_data = HashSet::new();
     while sent_data.len() < 2 * (NODES_N - 1) {
-        if let Some((MockNetworkData::Data(data, session_id), peer_id, protocol)) =
-            timeout(DEFAULT_TIMEOUT, test_data.next_sent_data_message())
-                .await
-                .expect("Should send data")
+        if let Some((
+            VersionedNetworkData::Legacy(MockNetworkData::Data(data, session_id)),
+            peer_id,
+            protocol,
+        )) = timeout(DEFAULT_TIMEOUT, test_data.next_sent_data_message())
+            .await
+            .expect("Should send data")
         {
             sent_data.insert((data, session_id, peer_id));
             assert_eq!(protocol, Protocol::Validator);
