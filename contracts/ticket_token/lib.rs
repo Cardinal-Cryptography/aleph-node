@@ -115,20 +115,22 @@ pub mod ticket_token {
                 caller,
                 required_role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
+                    PSP22Error::Custom(
+                        format!("Calling access control has failed: {:?}", why).into(),
+                    )
                 },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
             );
 
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-                    instance.metadata.name = Some(name);
-                    instance.metadata.symbol = Some(symbol);
+                    instance.metadata.name = Some(name.into());
+                    instance.metadata.symbol = Some(symbol.into());
                     instance.metadata.decimals = 0;
 
                     instance
-                        ._mint(instance.env().caller(), total_supply)
+                        ._mint_to(instance.env().caller(), total_supply)
                         .expect("Should mint");
                 }),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
@@ -164,9 +166,11 @@ pub mod ticket_token {
                 account,
                 role,
                 |why: InkEnvError| {
-                    PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
+                    PSP22Error::Custom(
+                        format!("Calling access control has failed: {:?}", why).into(),
+                    )
                 },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role)),
+                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
             )
         }
 
@@ -188,7 +192,7 @@ pub mod ticket_token {
         #[ink(message, selector = 10)]
         pub fn code_hash(&self) -> Result<Hash> {
             Self::env().own_code_hash().map_err(|why| {
-                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
+                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why).into())
             })
         }
     }

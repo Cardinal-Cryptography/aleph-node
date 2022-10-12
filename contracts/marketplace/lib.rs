@@ -26,7 +26,7 @@ pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 #[ink::contract]
 pub mod marketplace {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use game_token::TRANSFER_FROM_SELECTOR as TRANSFER_FROM_GAME_TOKEN_SELECTOR;
+    use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         CallFlags,
@@ -267,11 +267,9 @@ pub mod marketplace {
             build_call::<Environment>()
                 .call_type(Call::new().callee(self.reward_token))
                 .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_FROM_GAME_TOKEN_SELECTOR))
+                    ExecutionInput::new(Selector::new(REWARD_BURN_SELECTOR))
                         .push_arg(from)
-                        .push_arg(self.env().account_id())
-                        .push_arg(amount)
-                        .push_arg(DUMMY_DATA),
+                        .push_arg(amount),
                 )
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<Result<(), PSP22Error>>()

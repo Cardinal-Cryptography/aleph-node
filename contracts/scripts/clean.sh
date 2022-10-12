@@ -10,7 +10,7 @@ function terminate_contract {
   local contract_address=$(get_address $contract_name)
 
   cd "$CONTRACTS_PATH"/"$contract_dir"
-  cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED"
+  cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED" --skip-confirm
 }
 
 function get_address {

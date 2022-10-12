@@ -58,7 +58,7 @@ jobs:
         run: |
               cargo install cargo-dylint dylint-link --force
               # revision merging Hans's PR changes [fix for node URL parsing ]
-              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 5e6f941805e3d6032dbfa17771a887a362cb3460 --force
+              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 2b1758756de59bd81e7bed5f8429d364f281cb9a --force
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
