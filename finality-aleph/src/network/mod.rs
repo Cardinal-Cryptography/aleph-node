@@ -39,7 +39,7 @@ pub use split::{split, Split};
 pub mod testing {
     pub use super::manager::{
         Authentication, DataInSession, DiscoveryMessage, NetworkData, SessionHandler,
-        VersionedNetworkData,
+        VersionedAuthentication,
     };
 }
 
@@ -64,6 +64,7 @@ pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq + Send + Sync {
 pub enum Protocol {
     Generic,
     Validator,
+    Authentication,
 }
 
 /// Abstraction over a sender to network.
@@ -84,7 +85,7 @@ pub enum Event<M: Multiaddress> {
     Disconnected(M::PeerId),
     StreamOpened(M::PeerId, Protocol),
     StreamClosed(M::PeerId, Protocol),
-    Messages(Vec<Bytes>),
+    Messages(Vec<(Protocol, Bytes)>),
 }
 
 #[async_trait]

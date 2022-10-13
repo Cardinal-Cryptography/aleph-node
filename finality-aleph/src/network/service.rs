@@ -5,6 +5,7 @@ use std::{
 };
 
 use aleph_primitives::AuthorityId;
+use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, info, trace, warn};
 use sc_service::SpawnTaskHandle;
@@ -14,7 +15,7 @@ use tokio::time;
 use super::manager::DataInSession;
 use crate::{
     network::{
-        manager::{backwards_compatible_decode, NetworkData, VersionedNetworkData},
+        manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
         NetworkSender, Protocol,
     },
@@ -22,6 +23,7 @@ use crate::{
     STATUS_REPORT_INTERVAL,
 };
 
+type MessageFromUser<D, A> = (NetworkData<D, A>, DataCommand<<A as Multiaddress>::PeerId>);
 /// A service managing all the direct interaction with the underlying network implementation. It
 /// handles:
 /// 1. Incoming network events
@@ -35,43 +37,43 @@ use crate::{
 pub struct Service<
     N: Network,
     D: Data,
+    LD: Data,
     A: Data + Multiaddress<PeerId = AuthorityId>,
     VN: ValidatorNetwork<A, DataInSession<D>>,
 > {
     network: N,
     validator_network: VN,
-    messages_from_user: mpsc::UnboundedReceiver<(NetworkData<D, A>, DataCommand<A::PeerId>)>,
+    messages_from_user: mpsc::UnboundedReceiver<MessageFromUser<D, A>>,
     messages_for_user: mpsc::UnboundedSender<NetworkData<D, A>>,
     commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<A>>,
     // In future these legacy senders and receiver will be removed
-    legacy_messages_from_user:
-        mpsc::UnboundedReceiver<(NetworkData<D, N::Multiaddress>, DataCommand<N::PeerId>)>,
-    legacy_messages_for_user: mpsc::UnboundedSender<NetworkData<D, N::Multiaddress>>,
+    legacy_messages_from_user: mpsc::UnboundedReceiver<(LD, DataCommand<N::PeerId>)>,
+    legacy_messages_for_user: mpsc::UnboundedSender<LD>,
     legacy_commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<N::Multiaddress>>,
-    generic_connected_peers: HashSet<N::PeerId>,
-    validator_connected_peers: HashSet<N::PeerId>,
+    legacy_generic_connected_peers: HashSet<N::PeerId>,
+    legacy_validator_connected_peers: HashSet<N::PeerId>,
+    authentication_connected_peers: HashSet<N::PeerId>,
     // For now we need to use `VersionedNetworkData<D, A, N::Multiaddress>` here, to disthinguish to which network the data should be sent.
     // This is needed for backward compatibility with old network.
     // This can be changed back to `Data` once Legacy Network is removed.
     // In future this will be changed to somethig like `AuthenticationData<A>`.
-    generic_peer_senders:
-        HashMap<N::PeerId, TracingUnboundedSender<VersionedNetworkData<D, A, N::Multiaddress>>>,
-    validator_peer_senders:
-        HashMap<N::PeerId, TracingUnboundedSender<VersionedNetworkData<D, A, N::Multiaddress>>>,
+    legacy_generic_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<Vec<u8>>>,
+    legacy_validator_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<Vec<u8>>>,
+    authentication_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<Vec<u8>>>,
     spawn_handle: SpawnTaskHandle,
 }
 
 /// Input/output channels for the network service.
 pub struct IO<D: Data, M: Multiaddress> {
-    pub messages_from_user: mpsc::UnboundedReceiver<(NetworkData<D, M>, DataCommand<M::PeerId>)>,
-    pub messages_for_user: mpsc::UnboundedSender<NetworkData<D, M>>,
+    pub messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand<M::PeerId>)>,
+    pub messages_for_user: mpsc::UnboundedSender<D>,
     pub commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<M>>,
 }
 
 impl<D: Data, M: Multiaddress> IO<D, M> {
     pub fn new(
-        messages_from_user: mpsc::UnboundedReceiver<(NetworkData<D, M>, DataCommand<M::PeerId>)>,
-        messages_for_user: mpsc::UnboundedSender<NetworkData<D, M>>,
+        messages_from_user: mpsc::UnboundedReceiver<(D, DataCommand<M::PeerId>)>,
+        messages_for_user: mpsc::UnboundedSender<D>,
         commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<M>>,
     ) -> IO<D, M> {
         IO {
@@ -97,17 +99,18 @@ enum SendToUserError {
 impl<
         N: Network,
         D: Data,
+        LD: Data,
         A: Data + Multiaddress<PeerId = AuthorityId>,
         VN: ValidatorNetwork<A, DataInSession<D>>,
-    > Service<N, D, A, VN>
+    > Service<N, D, LD, A, VN>
 {
     pub fn new(
         network: N,
         validator_network: VN,
         spawn_handle: SpawnTaskHandle,
-        io: IO<D, A>,
-        legacy_io: IO<D, N::Multiaddress>,
-    ) -> Service<N, D, A, VN> {
+        io: IO<NetworkData<D, A>, A>,
+        legacy_io: IO<LD, N::Multiaddress>,
+    ) -> Service<N, D, LD, A, VN> {
         Service {
             network,
             validator_network,
@@ -118,10 +121,12 @@ impl<
             legacy_messages_for_user: legacy_io.messages_for_user,
             legacy_commands_from_manager: legacy_io.commands_from_manager,
             spawn_handle,
-            generic_connected_peers: HashSet::new(),
-            validator_connected_peers: HashSet::new(),
-            generic_peer_senders: HashMap::new(),
-            validator_peer_senders: HashMap::new(),
+            legacy_generic_connected_peers: HashSet::new(),
+            legacy_validator_connected_peers: HashSet::new(),
+            authentication_connected_peers: HashSet::new(),
+            legacy_generic_peer_senders: HashMap::new(),
+            legacy_validator_peer_senders: HashMap::new(),
+            authentication_peer_senders: HashMap::new(),
         }
     }
 
@@ -129,17 +134,18 @@ impl<
         &mut self,
         peer: &N::PeerId,
         protocol: Protocol,
-    ) -> Option<&mut TracingUnboundedSender<VersionedNetworkData<D, A, N::Multiaddress>>> {
+    ) -> Option<&mut TracingUnboundedSender<Vec<u8>>> {
         match protocol {
-            Protocol::Generic => self.generic_peer_senders.get_mut(peer),
-            Protocol::Validator => self.validator_peer_senders.get_mut(peer),
+            Protocol::Generic => self.legacy_generic_peer_senders.get_mut(peer),
+            Protocol::Validator => self.legacy_validator_peer_senders.get_mut(peer),
+            Protocol::Authentication => self.authentication_peer_senders.get_mut(peer),
         }
     }
 
     fn peer_sender(
         &self,
         peer_id: N::PeerId,
-        mut receiver: TracingUnboundedReceiver<VersionedNetworkData<D, A, N::Multiaddress>>,
+        mut receiver: TracingUnboundedReceiver<Vec<u8>>,
         protocol: Protocol,
     ) -> impl Future<Output = ()> + Send + 'static {
         let network = self.network.clone();
@@ -160,7 +166,7 @@ impl<
                     };
                     // Right now we need to use backward compatible encode here.
                     // In the future we can change it back to normal encode.
-                    if let Err(e) = s.send(data.backwards_compatible_encode()).await {
+                    if let Err(e) = s.send(data).await {
                         debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {}", e);
                         sender = None;
                     }
@@ -174,7 +180,7 @@ impl<
 
     fn send_to_peer(
         &mut self,
-        data: VersionedNetworkData<D, A, N::Multiaddress>,
+        data: Vec<u8>,
         peer: N::PeerId,
         protocol: Protocol,
     ) -> Result<(), SendError> {
@@ -196,11 +202,17 @@ impl<
         }
     }
 
-    fn broadcast(&mut self, data: VersionedNetworkData<D, A, N::Multiaddress>) {
-        for peer in self.generic_connected_peers.clone() {
+    fn broadcast(&mut self, data: Vec<u8>, protocol: Protocol) {
+        let peers = match protocol {
+            // Validator protocol will never broadcast.
+            Protocol::Validator => HashSet::new(),
+            Protocol::Generic => self.legacy_generic_connected_peers.clone(),
+            Protocol::Authentication => self.authentication_connected_peers.clone(),
+        };
+        for peer in peers {
             // We only broadcast authentication information in this sense, so we use the generic
             // Protocol.
-            if let Err(e) = self.send_to_peer(data.clone(), peer.clone(), Protocol::Generic) {
+            if let Err(e) = self.send_to_peer(data.clone(), peer.clone(), protocol) {
                 trace!(target: "aleph-network", "Failed to send broadcast to peer{:?}, {:?}", peer, e);
             }
         }
@@ -214,27 +226,40 @@ impl<
         match event {
             Connected(multiaddress) => {
                 trace!(target: "aleph-network", "Connected event from address {:?}", multiaddress);
+                self.network.add_reserved(
+                    iter::once(multiaddress.clone()).collect(),
+                    Protocol::Generic,
+                );
                 self.network
-                    .add_reserved(iter::once(multiaddress).collect(), Protocol::Generic);
+                    .add_reserved(iter::once(multiaddress).collect(), Protocol::Authentication);
             }
             Disconnected(peer) => {
                 trace!(target: "aleph-network", "Disconnected event for peer {:?}", peer);
                 self.network
-                    .remove_reserved(iter::once(peer).collect(), Protocol::Generic);
+                    .remove_reserved(iter::once(peer.clone()).collect(), Protocol::Generic);
+                self.network
+                    .remove_reserved(iter::once(peer).collect(), Protocol::Authentication);
             }
             StreamOpened(peer, protocol) => {
                 trace!(target: "aleph-network", "StreamOpened event for peer {:?} and the protocol {:?}.", peer, protocol);
                 let rx = match &protocol {
                     Protocol::Generic => {
-                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_generic");
-                        self.generic_connected_peers.insert(peer.clone());
-                        self.generic_peer_senders.insert(peer.clone(), tx);
+                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_legacy_generic");
+                        self.legacy_generic_connected_peers.insert(peer.clone());
+                        self.legacy_generic_peer_senders.insert(peer.clone(), tx);
                         rx
                     }
                     Protocol::Validator => {
-                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_validator");
-                        self.validator_connected_peers.insert(peer.clone());
-                        self.validator_peer_senders.insert(peer.clone(), tx);
+                        let (tx, rx) =
+                            tracing_unbounded("mpsc_notification_stream_legacy_validator");
+                        self.legacy_validator_connected_peers.insert(peer.clone());
+                        self.legacy_validator_peer_senders.insert(peer.clone(), tx);
+                        rx
+                    }
+                    Protocol::Authentication => {
+                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_authentication");
+                        self.authentication_connected_peers.insert(peer.clone());
+                        self.authentication_peer_senders.insert(peer.clone(), tx);
                         rx
                     }
                 };
@@ -248,36 +273,59 @@ impl<
                 trace!(target: "aleph-network", "StreamClosed event for peer {:?} and protocol {:?}", peer, protocol);
                 match protocol {
                     Protocol::Generic => {
-                        self.generic_connected_peers.remove(&peer);
-                        self.generic_peer_senders.remove(&peer);
+                        self.legacy_generic_connected_peers.remove(&peer);
+                        self.legacy_generic_peer_senders.remove(&peer);
                     }
                     Protocol::Validator => {
-                        self.validator_connected_peers.remove(&peer);
-                        self.validator_peer_senders.remove(&peer);
+                        self.legacy_validator_connected_peers.remove(&peer);
+                        self.legacy_validator_peer_senders.remove(&peer);
+                    }
+                    Protocol::Authentication => {
+                        self.authentication_connected_peers.remove(&peer);
+                        self.authentication_peer_senders.remove(&peer);
                     }
                 }
             }
             Messages(messages) => {
-                for data in messages.into_iter() {
+                for (protocol, data) in messages.into_iter() {
                     // Right now we need to use backward compatible decode here.
                     // In the future we can change it back to normal decode.
-                    match backwards_compatible_decode::<D, A, N::Multiaddress>(data.to_vec()) {
-                        Ok(message) => match message {
-                            VersionedNetworkData::Other(_, _) => {}
-                            // This will be removed in the future
-                            VersionedNetworkData::Legacy(data) => {
-                                self.legacy_messages_for_user
-                                    .unbounded_send(data)
-                                    .map_err(|_| SendToUserError::LegacySender)?;
-                            }
-                            VersionedNetworkData::V1(data) => {
-                                self.messages_for_user
-                                    .unbounded_send(NetworkData::Meta(data))
-                                    .map_err(|_| SendToUserError::LatestSender)?;
+                    match protocol {
+                        Protocol::Generic => match LD::decode(&mut &data[..]) {
+                            Ok(data) => self
+                                .legacy_messages_for_user
+                                .unbounded_send(data)
+                                .map_err(|_| SendToUserError::LegacySender)?,
+                            Err(e) => {
+                                warn!(target: "aleph-network", "Error decoding legacy generic protocol message: {}", e)
                             }
                         },
-                        Err(e) => warn!(target: "aleph-network", "Error decoding message: {}", e),
-                    }
+                        Protocol::Validator => match LD::decode(&mut &data[..]) {
+                            Ok(data) => self
+                                .legacy_messages_for_user
+                                .unbounded_send(data)
+                                .map_err(|_| SendToUserError::LegacySender)?,
+                            Err(e) => {
+                                warn!(target: "aleph-network", "Error decoding legacy validator protocol message: {}", e)
+                            }
+                        },
+                        Protocol::Authentication => {
+                            match VersionedAuthentication::<A>::decode(&mut &data[..])
+                                .map(|a| a.try_into())
+                            {
+                                Ok(Ok(data)) => self
+                                    .messages_for_user
+                                    .unbounded_send(data)
+                                    .map_err(|_| SendToUserError::LatestSender)?,
+                                Ok(Err(e)) => {
+                                    warn!(target: "aleph-network", "Error decoding authentication protocol message: {}", e)
+                                }
+                                Err(e) => {
+                                    warn!(target: "aleph-network", "Error decoding authentication protocol message: {}", e)
+                                }
+                            }
+                        }
+                    };
                 }
             }
         }
@@ -325,9 +373,9 @@ impl<
 
         match data {
             NetworkData::Meta(discovery_message) => {
-                let data = VersionedNetworkData::<D, A, N::Multiaddress>::V1(discovery_message);
+                let data: VersionedAuthentication<A> = discovery_message.into();
                 match command {
-                    Broadcast => self.broadcast(data),
+                    Broadcast => self.broadcast(data.encode(), Protocol::Authentication),
                     SendTo(_, _) => {
                         // We ignore this for now. Sending Meta messages to peer is an optimization done for the sake of tests.
                     }
@@ -345,22 +393,12 @@ impl<
     }
 
     /// This will be removed in the future
-    fn legacy_on_user_message(
-        &mut self,
-        data: NetworkData<D, N::Multiaddress>,
-        command: DataCommand<N::PeerId>,
-    ) {
+    fn legacy_on_user_message(&mut self, data: LD, command: DataCommand<N::PeerId>) {
         use DataCommand::*;
         match command {
-            Broadcast => {
-                self.broadcast(VersionedNetworkData::<D, A, N::Multiaddress>::Legacy(data))
-            }
+            Broadcast => self.broadcast(data.encode(), Protocol::Generic),
             SendTo(peer, protocol) => {
-                if let Err(e) = self.send_to_peer(
-                    VersionedNetworkData::<D, A, N::Multiaddress>::Legacy(data),
-                    peer.clone(),
-                    protocol,
-                ) {
+                if let Err(e) = self.send_to_peer(data.encode(), peer.clone(), protocol) {
                     trace!(target: "aleph-network", "Failed to send data to peer{:?} via protocol {:?}, {:?}", peer, protocol, e);
                 }
             }
@@ -371,20 +409,20 @@ impl<
         let mut status = String::from("Network status report: ");
 
         let peer_ids = self
-            .validator_connected_peers
+            .legacy_validator_connected_peers
             .iter()
             .map(|peer_id| format!("{}", peer_id))
             .collect::<Vec<_>>()
             .join(", ");
         status.push_str(&format!(
             "validator connected peers - {:?} [{}]; ",
-            self.validator_connected_peers.len(),
+            self.legacy_validator_connected_peers.len(),
             peer_ids,
         ));
 
         status.push_str(&format!(
             "generic connected peers - {:?}; ",
-            self.generic_connected_peers.len()
+            self.legacy_generic_connected_peers.len()
         ));
 
         info!(target: "aleph-network", "{}", status);
@@ -471,7 +509,7 @@ mod tests {
                 MockData, MockEvent, MockIO, MockMultiaddress as LegacyMockMultiaddress,
                 MockNetwork, MockNetworkIdentity, MockPeerId, MockSenderError,
             },
-            testing::{NetworkData, VersionedNetworkData},
+            testing::{NetworkData, VersionedAuthentication},
             NetworkIdentity, Protocol,
         },
         session::SessionId,
@@ -555,15 +593,15 @@ mod tests {
         NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
     }
 
-    fn wrap(
-        message: NetworkData<MockData, LegacyMockMultiaddress>,
-    ) -> VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
-        VersionedNetworkData::Legacy(message)
-    }
+    // fn wrap(
+    //     message: NetworkData<MockData, LegacyMockMultiaddress>,
+    // ) -> VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
+    //     VersionedNetworkData::Legacy(message)
+    // }
 
     /// This is a dummy implementation so that VersionedNetworkData can be put in HashSet.
     /// It will inserted with other data, so this can always return the same thing.
-    impl Hash for VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
+    impl Hash for NetworkData<MockData, LegacyMockMultiaddress> {
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             42u32.hash(state)
         }

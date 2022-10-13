@@ -12,7 +12,7 @@ mod discovery;
 mod service;
 mod session;
 
-pub use compatibility::{backwards_compatible_decode, VersionedNetworkData};
+pub use compatibility::VersionedAuthentication;
 use connections::Connections;
 pub use discovery::{Discovery, DiscoveryMessage};
 pub use service::{

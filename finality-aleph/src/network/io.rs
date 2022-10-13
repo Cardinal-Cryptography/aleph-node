@@ -1,8 +1,13 @@
 use futures::channel::mpsc;
 
-use crate::network::{ConnectionManagerIO, Data, Multiaddress, NetworkServiceIO, SessionManagerIO};
+use crate::network::{
+    manager::NetworkData, ConnectionManagerIO, Data, Multiaddress, NetworkServiceIO as NetworkIo,
+    SessionManagerIO,
+};
 
-pub fn setup<D: Data, M: Multiaddress>() -> (
+type NetworkServiceIO<D, M> = NetworkIo<NetworkData<D, M>, M>;
+
+pub fn setup<D: Data, M: Multiaddress + 'static>() -> (
     ConnectionManagerIO<D, M>,
     NetworkServiceIO<D, M>,
     SessionManagerIO<D>,
