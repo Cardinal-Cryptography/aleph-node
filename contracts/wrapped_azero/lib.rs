@@ -142,8 +142,8 @@ pub mod wrapped_azero {
 
             match role_check {
                 Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut WrappedAzero| {
-                    instance.metadata.name = Some(name);
-                    instance.metadata.symbol = Some(symbol);
+                    instance.metadata.name = Some(name.into());
+                    instance.metadata.symbol = Some(symbol.into());
                     instance.metadata.decimals = 12; // same as AZERO
 
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
@@ -158,7 +158,7 @@ pub mod wrapped_azero {
             let caller = self.env().caller();
             let amount = self.env().transferred_value();
             if !amount.eq(&Balance::zero()) {
-                self._mint(caller, amount)?;
+                self._mint_to(caller, amount)?;
                 Self::emit_event(self.env(), Event::Wrapped(Wrapped { caller, amount }));
             }
 
@@ -178,9 +178,9 @@ pub mod wrapped_azero {
             self._burn_from(caller, amount)?;
 
             // return the native token to the caller
-            self.env()
-                .transfer(caller, amount)
-                .map_err(|why| PSP22Error::Custom(format!("Native transfer failed: {:?}", why)))?;
+            self.env().transfer(caller, amount).map_err(|why| {
+                PSP22Error::Custom(format!("Native transfer failed: {:?}", why).into())
+            })?;
             Self::emit_event(self.env(), Event::UnWrapped(UnWrapped { caller, amount }));
 
             Ok(())
@@ -223,7 +223,7 @@ pub mod wrapped_azero {
         #[ink(message)]
         pub fn code_hash(&self) -> Result<Hash> {
             Self::env().own_code_hash().map_err(|why| {
-                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why))
+                PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why).into())
             })
         }
 
@@ -232,11 +232,11 @@ pub mod wrapped_azero {
         }
 
         fn access_control_error_handler(role: Role) -> PSP22Error {
-            PSP22Error::Custom(format!("MissingRole:{:?}", role))
+            PSP22Error::Custom(format!("MissingRole:{:?}", role).into())
         }
 
         fn cross_contract_call_error_handler(why: InkEnvError) -> PSP22Error {
-            PSP22Error::Custom(format!("Calling access control has failed: {:?}", why))
+            PSP22Error::Custom(format!("Calling access control has failed: {:?}", why).into())
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
