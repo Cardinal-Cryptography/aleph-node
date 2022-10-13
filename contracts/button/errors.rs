@@ -19,6 +19,8 @@ pub enum GameError {
     InkEnvError(String),
     /// Couldn't have retrieved own code hash
     CantRetrieveOwnCodeHash,
+    /// Overflow error
+    Arithmethic,
 }
 
 impl From<PSP22Error> for GameError {
