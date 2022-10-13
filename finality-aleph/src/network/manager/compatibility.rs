@@ -109,3 +109,45 @@ impl Display for Error {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use codec::{Decode, Encode};
+
+    use super::{DiscoveryMessage, VersionedAuthentication};
+    use crate::{
+        network::{
+            manager::SessionHandler,
+            mock::{crypto_basics, MockMultiaddress, MockNetworkIdentity},
+            NetworkIdentity,
+        },
+        SessionId,
+    };
+
+    #[tokio::test]
+    async fn correctly_decodes_v1() {
+        let crypto_basics = crypto_basics(1).await;
+        let handler = SessionHandler::new(
+            Some(crypto_basics.0[0].clone()),
+            crypto_basics.1.clone(),
+            SessionId(43),
+            MockNetworkIdentity::new().identity().0,
+        )
+        .await
+        .unwrap();
+        let authentication_v1 = VersionedAuthentication::V1(DiscoveryMessage::Authentication(
+            handler.authentication().unwrap(),
+        ));
+        let encoded = authentication_v1.encode();
+        let decoded = VersionedAuthentication::decode(&mut encoded.as_slice());
+        assert_eq!(decoded, Ok(authentication_v1))
+    }
+
+    #[tokio::test]
+    async fn correctly_decodes_other() {
+        let other = VersionedAuthentication::<MockMultiaddress>::Other(43, vec![21, 37]);
+        let encoded = other.encode();
+        let decoded = VersionedAuthentication::decode(&mut encoded.as_slice());
+        assert_eq!(decoded, Ok(other));
+    }
+}
