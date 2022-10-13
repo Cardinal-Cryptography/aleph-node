@@ -509,7 +509,7 @@ mod tests {
                 MockData, MockEvent, MockIO, MockMultiaddress as LegacyMockMultiaddress,
                 MockNetwork, MockNetworkIdentity, MockPeerId, MockSenderError,
             },
-            testing::{NetworkData, VersionedAuthentication},
+            testing::NetworkData,
             NetworkIdentity, Protocol,
         },
         session::SessionId,
@@ -521,7 +521,7 @@ mod tests {
     pub struct TestData {
         pub service_handle: JoinHandle<()>,
         pub exit_tx: oneshot::Sender<()>,
-        pub network: MockNetwork<MockData>,
+        pub network: MockNetwork,
         pub validator_network: MockValidatorNetwork<DataInSession<MockData>>,
         pub mock_io: MockIO<MockMultiaddress, LegacyMockMultiaddress>,
         // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
@@ -592,12 +592,6 @@ mod tests {
     fn message(i: u8) -> NetworkData<MockData, LegacyMockMultiaddress> {
         NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
     }
-
-    // fn wrap(
-    //     message: NetworkData<MockData, LegacyMockMultiaddress>,
-    // ) -> VersionedNetworkData<MockData, MockMultiaddress, LegacyMockMultiaddress> {
-    //     VersionedNetworkData::Legacy(message)
-    // }
 
     /// This is a dummy implementation so that VersionedNetworkData can be put in HashSet.
     /// It will inserted with other data, so this can always return the same thing.
@@ -695,7 +689,7 @@ mod tests {
         let expected_messages = HashSet::from_iter(
             peer_ids
                 .into_iter()
-                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
+                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -756,7 +750,7 @@ mod tests {
                 |peer_id| {
                     messages
                         .iter()
-                        .map(move |m| (wrap(m.clone()), peer_id, Protocol::Generic))
+                        .map(move |m| (m.encode(), peer_id, Protocol::Generic))
                 },
             ));
 
@@ -789,7 +783,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message), peer_id, Protocol::Validator);
+        let expected = (message.encode(), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -844,7 +838,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message_2), peer_id, Protocol::Validator);
+        let expected = (message_2.encode(), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -914,7 +908,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Validator)),
+                .map(|peer_id| (message.encode(), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -962,7 +956,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message_2), peer_id, Protocol::Validator);
+        let expected = (message_2.encode(), peer_id, Protocol::Validator);
 
         assert_eq!(
             test_data
@@ -1032,7 +1026,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Validator)),
+                .map(|peer_id| (message.encode(), peer_id, Protocol::Validator)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1064,7 +1058,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message), peer_id, Protocol::Generic);
+        let expected = (message.encode(), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1119,7 +1113,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message_2), peer_id, Protocol::Generic);
+        let expected = (message_2.encode(), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1189,7 +1183,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
+                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1237,7 +1231,7 @@ mod tests {
             ))
             .unwrap();
 
-        let expected = (wrap(message_2), peer_id, Protocol::Generic);
+        let expected = (message_2.encode(), peer_id, Protocol::Generic);
 
         assert_eq!(
             test_data
@@ -1307,7 +1301,7 @@ mod tests {
             peer_ids
                 .into_iter()
                 .skip(closed_authorities_n)
-                .map(|peer_id| (wrap(message.clone()), peer_id, Protocol::Generic)),
+                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -1321,9 +1315,10 @@ mod tests {
 
         let message = message(1);
 
-        test_data.network.emit_event(MockEvent::Messages(vec![
-            NetworkData::encode(&message).into()
-        ]));
+        test_data.network.emit_event(MockEvent::Messages(vec![(
+            Protocol::Validator,
+            NetworkData::encode(&message).into(),
+        )]));
 
         assert_eq!(
             test_data

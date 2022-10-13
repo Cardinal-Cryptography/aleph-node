@@ -23,7 +23,7 @@ pub enum VersionedAuthentication<M: Multiaddress> {
 impl<D: Data, M: Multiaddress> TryInto<NetworkData<D, M>> for VersionedAuthentication<M> {
     type Error = Error;
 
-    fn try_into(self) -> Result<NetworkData<D,M>, Self::Error> {
+    fn try_into(self) -> Result<NetworkData<D, M>, Self::Error> {
         use VersionedAuthentication::*;
         match self {
             V1(message) => Ok(NetworkData::Meta(message)),
