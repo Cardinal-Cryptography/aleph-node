@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, marker::PhantomData, time::Instant};
 
 use current_aleph_aggregator::NetworkError as CurrentNetworkError;
 use legacy_aleph_aggregator::NetworkError as LegacyNetworkError;
-use legacy_aleph_bft::Recipient;
 use sp_runtime::traits::Block;
 
 use crate::{
@@ -190,7 +189,11 @@ where
         self.0.next().await
     }
 
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), LegacyNetworkError> {
+    fn send(
+        &self,
+        data: D,
+        recipient: legacy_aleph_bft::Recipient,
+    ) -> Result<(), LegacyNetworkError> {
         self.0.send(data, recipient.into()).map_err(|e| match e {
             SendError::SendFailed => LegacyNetworkError::SendFail,
         })
@@ -207,7 +210,11 @@ where
         self.0.next().await
     }
 
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), CurrentNetworkError> {
+    fn send(
+        &self,
+        data: D,
+        recipient: legacy_aleph_bft::Recipient,
+    ) -> Result<(), CurrentNetworkError> {
         self.0.send(data, recipient.into()).map_err(|e| match e {
             SendError::SendFailed => CurrentNetworkError::SendFail,
         })
