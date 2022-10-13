@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
@@ -2063,6 +2063,7 @@ dependencies = [
  "scale-info",
  "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
  "sp-io 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
  "sp-staking",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
 ]
@@ -2343,7 +2344,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

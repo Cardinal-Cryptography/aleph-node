@@ -1,13 +1,12 @@
 use aleph_client::{
     get_current_block_number, get_current_finality_version, get_current_session,
     get_next_session_finality_version, schedule_next_finality_version_change,
-    wait_for_finalized_block, wait_for_session, AnyConnection, XtStatus, ReadStorage
+    wait_for_finalized_block, wait_for_session, AnyConnection, XtStatus,
 };
+use log::info;
 use primitives::{Version, VersionChange, DEFAULT_FINALITY_VERSION, DEFAULT_SESSION_PERIOD};
 
 use crate::Config;
-
-use log::info;
 
 const FIRST_INCOMING_FINALITY_VERSION: Version = 1;
 

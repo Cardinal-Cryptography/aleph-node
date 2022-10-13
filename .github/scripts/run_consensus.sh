@@ -5,6 +5,7 @@ set -euo pipefail
 # default node count
 # change when increasing the number of node containers
 NODE_COUNT=5
+MIN_VALIDATOR_COUNT=4
 
 # default minimum validator count
 MIN_VALIDATOR_COUNT=4
