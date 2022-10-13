@@ -46,6 +46,7 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use pallets_support::StorageMigration;
+    use sp_std::marker::PhantomData;
 
     use super::*;
     use crate::traits::SessionInfoProvider;
@@ -276,5 +277,30 @@ pub mod pallet {
         }
 
         fn on_disabled(_validator_index: u32) {}
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub finality_version: Version,
+        pub next_session_finality_version: Version,
+        _marker: PhantomData<T>,
+    }
+
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                finality_version: DEFAULT_FINALITY_VERSION,
+                next_session_finality_version: DEFAULT_FINALITY_VERSION,
+                _marker: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <FinalityVersion<T>>::put(&self.finality_version);
+        }
     }
 }
