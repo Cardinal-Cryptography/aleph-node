@@ -408,6 +408,16 @@ impl<
     fn status_report(&self) {
         let mut status = String::from("Network status report: ");
 
+        status.push_str(&format!(
+            "authentication connected peers - {:?}; ",
+            self.authentication_connected_peers.len()
+        ));
+
+        status.push_str(&format!(
+            "generic connected peers - {:?}; ",
+            self.legacy_generic_connected_peers.len()
+        ));
+
         let peer_ids = self
             .legacy_validator_connected_peers
             .iter()
@@ -418,11 +428,6 @@ impl<
             "validator connected peers - {:?} [{}]; ",
             self.legacy_validator_connected_peers.len(),
             peer_ids,
-        ));
-
-        status.push_str(&format!(
-            "generic connected peers - {:?}; ",
-            self.legacy_generic_connected_peers.len()
         ));
 
         info!(target: "aleph-network", "{}", status);
