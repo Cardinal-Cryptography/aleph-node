@@ -2,7 +2,6 @@ use std::{cmp::Ordering, fmt::Debug, hash::Hash as StdHash, marker::PhantomData,
 
 use codec::{Codec, Decode, Encode};
 use futures::{channel::oneshot, Future, TryFutureExt};
-use log::error;
 use sc_service::SpawnTaskHandle;
 use sp_api::BlockT;
 use sp_blockchain::HeaderBackend;
@@ -33,15 +32,7 @@ impl<B: BlockT, C: HeaderBackend<B> + Send + 'static>
     current_aleph_bft::FinalizationHandler<AlephData<B>> for OrderedDataInterpreter<B, C>
 {
     fn data_finalized(&mut self, data: AlephData<B>) {
-        for block in self.blocks_to_finalize_from_data(data) {
-            self.set_last_finalized(block.clone());
-            self.chain_info_provider()
-                .inner()
-                .update_aux_finalized(block.clone());
-            if let Err(err) = self.send_block_to_finalize(block) {
-                error!(target: "aleph-finality", "Error in sending a block from FinalizationHandler, {}", err);
-            }
-        }
+        OrderedDataInterpreter::data_finalized(self, data)
     }
 }
 
@@ -49,15 +40,7 @@ impl<B: BlockT, C: HeaderBackend<B> + Send + 'static>
     legacy_aleph_bft::FinalizationHandler<AlephData<B>> for OrderedDataInterpreter<B, C>
 {
     fn data_finalized(&mut self, data: AlephData<B>) {
-        for block in self.blocks_to_finalize_from_data(data) {
-            self.set_last_finalized(block.clone());
-            self.chain_info_provider()
-                .inner()
-                .update_aux_finalized(block.clone());
-            if let Err(err) = self.send_block_to_finalize(block) {
-                error!(target: "aleph-finality", "Error in sending a block from FinalizationHandler, {}", err);
-            }
-        }
+        OrderedDataInterpreter::data_finalized(self, data)
     }
 }
 

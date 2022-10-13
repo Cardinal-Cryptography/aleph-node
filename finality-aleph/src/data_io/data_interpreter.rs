@@ -1,7 +1,7 @@
 use std::{default::Default, sync::Arc};
 
 use futures::channel::mpsc;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block as BlockT, NumberFor, One, Zero};
 
@@ -108,6 +108,18 @@ impl<B: BlockT, C: HeaderBackend<B>> OrderedDataInterpreter<B, C> {
                     "Pending proposal {:?} with status {:?} encountered in Data.",
                     proposal, pending_status
                 );
+            }
+        }
+    }
+
+    pub fn data_finalized(&mut self, data: AlephData<B>) {
+        for block in self.blocks_to_finalize_from_data(data) {
+            self.set_last_finalized(block.clone());
+            self.chain_info_provider()
+                .inner()
+                .update_aux_finalized(block.clone());
+            if let Err(err) = self.send_block_to_finalize(block) {
+                error!(target: "aleph-finality", "Error in sending a block from FinalizationHandler, {}", err);
             }
         }
     }

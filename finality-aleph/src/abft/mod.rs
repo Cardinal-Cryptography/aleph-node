@@ -22,7 +22,7 @@ pub use traits::{Hash, SpawnHandle, SpawnHandleT, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Encode, Decode)]
-pub struct SignatureSet<Signature>(pub legacy_aleph_bft::SignatureSet<Signature>);
+pub struct SignatureSet<Signature>(pub aleph_bft_crypto::SignatureSet<Signature>);
 
 impl<S: Clone> SignatureSet<S> {
     pub fn size(&self) -> NodeCount {
