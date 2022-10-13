@@ -2,6 +2,7 @@ pub use electing_validators::authorities_are_staking;
 pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;
 pub use fee::fee_calculation;
+pub use finality_version::finality_version;
 pub use finalization::finalization;
 pub use rewards::{
     change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
@@ -17,6 +18,7 @@ mod electing_validators;
 mod era_payout;
 mod era_validators;
 mod fee;
+mod finality_version;
 mod finalization;
 mod rewards;
 mod staking;

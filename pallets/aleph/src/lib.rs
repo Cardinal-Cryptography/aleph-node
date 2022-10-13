@@ -31,13 +31,11 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-use primitives::{SessionIndex, Version, VersionChange};
+use primitives::{SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION};
 use sp_std::prelude::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
-
-const DEFAULT_FINALITY_VERSION: Version = 0;
 
 #[frame_support::pallet]
 pub mod pallet {

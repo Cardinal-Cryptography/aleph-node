@@ -207,6 +207,7 @@ dependencies = [
  "jsonrpsee",
  "libp2p 0.44.0",
  "log",
+ "pallet-aleph-rpc",
  "pallet-contracts-rpc",
  "pallet-staking",
  "pallet-transaction-payment-rpc",
@@ -4693,6 +4694,16 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-aleph-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpsee",
+ "primitives",
+ "sp-api",
+ "sp-blockchain",
 ]
 
 [[package]]

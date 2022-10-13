@@ -12,14 +12,21 @@ pub use elections::{
     get_validator_block_count,
 };
 pub use fee::get_next_fee_multiplier;
-pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
+pub use finalization::{
+    get_current_finality_version, get_next_session_finality_version,
+    schedule_next_finality_version_change,
+    set_emergency_finalizer as finalization_set_emergency_finalizer,
+};
 use log::{info, warn};
 pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
 pub use primitives::{Balance, BlockHash, BlockNumber, Header};
-pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
+pub use rpc::{
+    emergency_finalize, next_session_finality_version, rotate_keys, rotate_keys_raw_result,
+    state_query_storage_at,
+};
 pub use session::{
     change_next_era_reserved_validators, change_validators, get_current_session,
     get_current_validator_count, get_current_validators, get_next_session_keys, get_session,
