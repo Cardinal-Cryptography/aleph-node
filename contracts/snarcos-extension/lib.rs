@@ -30,6 +30,13 @@ impl ink::env::chain_extension::FromStatusCode for StoreKeyError {
 pub trait FetchRandom {
     type ErrorCode = StoreKeyError;
 
+    /// Directly call `pallet_snarcos::store_key`.
+    ///
+    /// The identifier and the key must be both mocked in the extension itself. This is
+    /// a temporary simplification to avoid any problems with passing data between contract and
+    /// runtime.
+    ///
+    /// The extension method ID must match the one declared in runtime;
     #[ink(extension = 41, returns_result = false)]
-    fn store_key(subject: [u8; 32]);
+    fn store_key();
 }

@@ -20,6 +20,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
+    log::error,
     sp_runtime::Perquintill,
     traits::{ConstU32, ConstU64, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
     weights::constants::WEIGHT_PER_MILLIS,
@@ -27,7 +28,12 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_contracts::weights::WeightInfo;
+use pallet_contracts::{
+    chain_extension::{
+        ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
+    },
+    weights::WeightInfo,
+};
 use pallet_contracts_primitives::{
     CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
 };
@@ -51,7 +57,7 @@ use sp_runtime::{
         OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
+    ApplyExtrinsicResult, DispatchError, MultiSignature, RuntimeAppPublic,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
@@ -638,6 +644,32 @@ impl pallet_utility::Config for Runtime {
     type Call = Call;
     type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
     type PalletsOrigin = OriginCaller;
+}
+
+pub struct AlephChainExtension;
+impl ChainExtension<Runtime> for AlephChainExtension {
+    fn call<E: Ext>(func_id: u32, env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
+    where
+        <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+    {
+        match func_id {
+            41 => {
+                // The argument-passing-mode doesn't matter for now. All the data to runtime call
+                // are mocked now.
+                let mut env = env.buf_in_buf_out();
+            }
+            _ => {
+                error!("Called an unregistered `func_id`: {}", func_id);
+                return Err(DispatchError::Other("Unimplemented func_id"));
+            }
+        };
+        // Return status code for success.
+        Ok(RetVal::Converging(0))
+    }
+
+    fn enabled() -> bool {
+        true
+    }
 }
 
 // Prints debug output of the `contracts` pallet to stdout if the node is started with `-lruntime::contracts=debug`.
