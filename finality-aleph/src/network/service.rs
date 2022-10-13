@@ -5,13 +5,17 @@ use std::{
 };
 
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
+use tokio::time;
 
-use crate::network::{
-    ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network, NetworkSender,
-    Protocol,
+use crate::{
+    network::{
+        ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
+        NetworkSender, Protocol,
+    },
+    STATUS_REPORT_INTERVAL,
 };
 
 /// A service managing all the direct interaction with the underlying network implementation. It
@@ -109,16 +113,16 @@ impl<N: Network, D: Data> Service<N, D> {
                     let sender = if let Some(sender) = senders.get(&protocol) {
                         sender
                     } else {
-                        match network.sender(peer_id, protocol) {
+                        match network.sender(peer_id.clone(), protocol) {
                             Ok(sender) => senders.entry(protocol).or_insert(sender),
                             Err(e) => {
-                                debug!(target: "aleph-network", "Failed creating sender. Dropping message: {:?}", e);
+                                debug!(target: "aleph-network", "Failed creating sender. Dropping message: {}", e);
                                 continue;
                             }
                         }
                     };
                     if let Err(e) = sender.send(data.encode()).await {
-                        debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {:?}", e);
+                        debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {}", e);
                         senders.remove(&protocol);
                     }
                 } else {
@@ -157,7 +161,7 @@ impl<N: Network, D: Data> Service<N, D> {
         for peer in self.generic_connected_peers.clone() {
             // We only broadcast authentication information in this sense, so we use the generic
             // Protocol.
-            if let Err(e) = self.send_to_peer(data.clone(), peer, Protocol::Generic) {
+            if let Err(e) = self.send_to_peer(data.clone(), peer.clone(), Protocol::Generic) {
                 trace!(target: "aleph-network", "Failed to send broadcast to peer{:?}, {:?}", peer, e);
             }
         }
@@ -184,14 +188,14 @@ impl<N: Network, D: Data> Service<N, D> {
                 let rx = match &protocol {
                     Protocol::Generic => {
                         let (tx, rx) = tracing_unbounded("mpsc_notification_stream_generic");
-                        self.generic_connected_peers.insert(peer);
-                        self.generic_peer_senders.insert(peer, tx);
+                        self.generic_connected_peers.insert(peer.clone());
+                        self.generic_peer_senders.insert(peer.clone(), tx);
                         rx
                     }
                     Protocol::Validator => {
                         let (tx, rx) = tracing_unbounded("mpsc_notification_stream_validator");
-                        self.validator_connected_peers.insert(peer);
-                        self.validator_peer_senders.insert(peer, tx);
+                        self.validator_connected_peers.insert(peer.clone());
+                        self.validator_peer_senders.insert(peer.clone(), tx);
                         rx
                     }
                 };
@@ -241,15 +245,40 @@ impl<N: Network, D: Data> Service<N, D> {
         match command {
             Broadcast => self.broadcast(data),
             SendTo(peer, protocol) => {
-                if let Err(e) = self.send_to_peer(data, peer, protocol) {
+                if let Err(e) = self.send_to_peer(data, peer.clone(), protocol) {
                     trace!(target: "aleph-network", "Failed to send data to peer{:?} via protocol {:?}, {:?}", peer, protocol, e);
                 }
             }
         }
     }
 
+    fn status_report(&self) {
+        let mut status = String::from("Network status report: ");
+
+        let peer_ids = self
+            .validator_connected_peers
+            .iter()
+            .map(|peer_id| format!("{}", peer_id))
+            .collect::<Vec<_>>()
+            .join(", ");
+        status.push_str(&format!(
+            "validator connected peers - {:?} [{}]; ",
+            self.validator_connected_peers.len(),
+            peer_ids,
+        ));
+
+        status.push_str(&format!(
+            "generic connected peers - {:?}; ",
+            self.generic_connected_peers.len()
+        ));
+
+        info!(target: "aleph-network", "{}", status);
+    }
+
     pub async fn run(mut self) {
         let mut events_from_network = self.network.event_stream();
+
+        let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
                 maybe_event = events_from_network.next_event() => match maybe_event {
@@ -275,6 +304,9 @@ impl<N: Network, D: Data> Service<N, D> {
                         error!(target: "aleph-network", "User message stream ended.");
                         return;
                     }
+                },
+                _ = status_ticker.tick() => {
+                    self.status_report();
                 },
             }
         }
