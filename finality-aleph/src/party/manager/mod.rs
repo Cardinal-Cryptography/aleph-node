@@ -38,12 +38,12 @@ mod task;
 pub use authority::{SubtaskCommon, Subtasks, Task as AuthorityTask};
 pub use task::{Handle, Task};
 
-type LegacyNetworkPlaceholder<B> = SimpleNetwork<
+type LegacyNetworkType<B> = SimpleNetwork<
     LegacyRmcNetworkData<B>,
     mpsc::UnboundedReceiver<LegacyRmcNetworkData<B>>,
     Sender<LegacyRmcNetworkData<B>>,
 >;
-type CurrentNetworkPlaceholder<B> = SimpleNetwork<
+type CurrentNetworkType<B> = SimpleNetwork<
     CurrentRmcNetworkData<B>,
     mpsc::UnboundedReceiver<CurrentRmcNetworkData<B>>,
     Sender<CurrentRmcNetworkData<B>>,
@@ -192,7 +192,7 @@ where
                     session_boundaries,
                     self.metrics.clone(),
                     multikeychain,
-                    AggregatorVersion::<CurrentNetworkPlaceholder<B>, _>::Legacy(rmc_network),
+                    AggregatorVersion::<CurrentNetworkType<B>, _>::Legacy(rmc_network),
                 ),
                 chain_tracker::task(subtask_common.clone(), chain_tracker),
                 data_store::task(subtask_common, data_store),
@@ -233,7 +233,7 @@ where
                     session_boundaries,
                     self.metrics.clone(),
                     multikeychain,
-                    AggregatorVersion::<_, LegacyNetworkPlaceholder<B>>::Current(rmc_network),
+                    AggregatorVersion::<_, LegacyNetworkType<B>>::Current(rmc_network),
                 ),
                 chain_tracker::task(subtask_common.clone(), chain_tracker),
                 data_store::task(subtask_common, data_store),
