@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use ink_lang as ink;
+
 /// Gathers all the possible errors that might occur while calling `pallet_snarcos::store_key`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, scale::Decode, scale::Encode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -15,7 +17,7 @@ pub enum StoreKeyError {
     UnknownError,
 }
 
-impl ink::env::chain_extension::FromStatusCode for StoreKeyError {
+impl ink_env::chain_extension::FromStatusCode for StoreKeyError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
             0 => Ok(()),
@@ -27,7 +29,7 @@ impl ink::env::chain_extension::FromStatusCode for StoreKeyError {
 }
 
 #[ink::chain_extension]
-pub trait FetchRandom {
+pub trait StoreKeyExtension {
     type ErrorCode = StoreKeyError;
 
     /// Directly call `pallet_snarcos::store_key`.

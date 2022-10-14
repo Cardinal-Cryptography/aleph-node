@@ -583,7 +583,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "snarcos-extension"
+name = "snarcos-contract"
 version = "0.1.0"
 dependencies = [
  "ink_env",
@@ -591,6 +591,17 @@ dependencies = [
  "ink_metadata",
  "ink_primitives",
  "ink_storage",
+ "parity-scale-codec",
+ "scale-info",
+ "snarcos-extension",
+]
+
+[[package]]
+name = "snarcos-extension"
+version = "0.1.0"
+dependencies = [
+ "ink_env",
+ "ink_lang",
  "parity-scale-codec",
  "scale-info",
 ]

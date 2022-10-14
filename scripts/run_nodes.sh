@@ -96,13 +96,7 @@ run_node() {
     --execution Native \
     --rpc-cors=all \
     --no-mdns \
-    -laleph-party=debug \
-    -laleph-network=debug \
-    -laleph-finality=debug \
-    -laleph-justification=debug \
-    -laleph-data-store=debug \
-    -laleph-updater=debug \
-    -laleph-metrics=debug \
+    -lruntime::contracts=debug \
     2> $auth.log > /dev/null & \
 }
 

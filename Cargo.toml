@@ -18,5 +18,6 @@ exclude = [
   "fork-off",
   "benches/payout-stakers",
   "bin/cliain",
+  "contracts/snarcos-contract",
   "contracts/snarcos-extension",
 ]
