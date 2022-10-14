@@ -138,6 +138,8 @@ jobs:
           aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
       - name: Cache contracts' target directories in S3 bucket
+        shell: bash
+        run: |
           tar -czf targets.tgz contracts/ticket_token/target \
             contracts/marketplace/target \
             contracts/button/target \
