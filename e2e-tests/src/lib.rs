@@ -1,3 +1,7 @@
+#![feature(pattern)]
+
+extern crate core;
+
 pub use cases::{possible_test_cases, PossibleTestCases};
 pub use config::Config;
 

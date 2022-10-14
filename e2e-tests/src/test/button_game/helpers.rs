@@ -1,0 +1,210 @@
+use std::{
+    sync::{
+        mpsc::{channel, Receiver, RecvTimeoutError},
+        Arc,
+    },
+    thread,
+    time::{Duration, Instant},
+};
+
+use aleph_client::{
+    contract::event::{listen_contract_events, subscribe_events, ContractEvent},
+    AnyConnection, Balance, Connection, KeyPair, SignedConnection, XtStatus,
+};
+use anyhow::Result;
+use itertools::Itertools;
+use rand::Rng;
+use sp_core::Pair;
+
+use super::contracts::{ButtonInstance, PSP22TokenInstance};
+use crate::{
+    test::button_game::contracts::{AsContractInstance, MarketplaceInstance},
+    Config,
+};
+
+/// Creates a copy of the `connection` signed by `signer`
+pub(super) fn sign<C: AnyConnection>(conn: &C, signer: KeyPair) -> SignedConnection {
+    SignedConnection::from_any_connection(conn, signer)
+}
+
+/// Returns a ticket token instance for the given button instance
+pub(super) fn ticket_token<C: AnyConnection>(
+    conn: &C,
+    button: &ButtonInstance,
+    config: &Config,
+) -> Result<PSP22TokenInstance> {
+    PSP22TokenInstance::new(
+        button.ticket_token(conn)?,
+        &config.test_case_params.ticket_token_metadata,
+    )
+}
+
+/// Returns a reward token instance for the given button instance
+pub(super) fn reward_token<C: AnyConnection>(
+    conn: &C,
+    button: &ButtonInstance,
+    config: &Config,
+) -> Result<PSP22TokenInstance> {
+    PSP22TokenInstance::new(
+        button.reward_token(conn)?,
+        &config.test_case_params.reward_token_metadata,
+    )
+}
+
+/// Returns a marketplace instance for the given button instance
+pub(super) fn marketplace<C: AnyConnection>(
+    conn: &C,
+    button: &ButtonInstance,
+    config: &Config,
+) -> Result<MarketplaceInstance> {
+    MarketplaceInstance::new(
+        button.marketplace(conn)?,
+        &config.test_case_params.marketplace_metadata,
+    )
+}
+
+/// Derives a test account based on a randomized string
+pub(super) fn random_account() -> KeyPair {
+    aleph_client::keypair_from_string(&format!(
+        "//TestAccount/{}",
+        rand::thread_rng().gen::<u128>()
+    ))
+}
+
+/// Transfer `amount` from `from` to `to`
+pub(super) fn transfer<C: AnyConnection>(
+    conn: &C,
+    from: &KeyPair,
+    to: &KeyPair,
+    amount: Balance,
+) -> () {
+    aleph_client::balances_transfer(
+        &SignedConnection::from_any_connection(conn, from.clone()),
+        &to.public().into(),
+        amount,
+        XtStatus::InBlock,
+    );
+}
+
+/// Returns a number representing the given amount of alephs (adding decimals)
+pub(super) fn alephs(basic_unit_amount: Balance) -> Balance {
+    basic_unit_amount * 1_000_000_000_000
+}
+
+pub(super) struct ButtonTestContext {
+    pub button: Arc<ButtonInstance>,
+    pub ticket_token: Arc<PSP22TokenInstance>,
+    pub reward_token: Arc<PSP22TokenInstance>,
+    pub marketplace: Arc<MarketplaceInstance>,
+    pub conn: Connection,
+    pub events: BufferedReceiver<Result<ContractEvent>>,
+    pub authority: KeyPair,
+    pub player: KeyPair,
+}
+
+pub(super) fn setup_button_test(config: &Config) -> Result<ButtonTestContext> {
+    let conn = config.get_first_signed_connection().as_connection();
+
+    let authority = aleph_client::keypair_from_string("//Alice");
+    let player = random_account();
+
+    let button = Arc::new(ButtonInstance::new(config)?);
+    let ticket_token = Arc::new(ticket_token(&conn, &button, &config)?);
+    let reward_token = Arc::new(reward_token(&conn, &button, &config)?);
+    let marketplace = Arc::new(marketplace(&conn, &button, &config)?);
+
+    let c1 = button.clone();
+    let c2 = ticket_token.clone();
+    let c3 = reward_token.clone();
+    let c4 = marketplace.clone();
+
+    let subscription = subscribe_events(&conn)?;
+    let (events_tx, events_rx) = channel();
+
+    thread::spawn(move || {
+        let contract_metadata = vec![
+            c1.as_contract(),
+            c2.as_contract(),
+            c3.as_contract(),
+            c4.as_contract(),
+        ];
+
+        listen_contract_events(subscription, &contract_metadata, None, |event| {
+            let _ = events_tx.send(event);
+        });
+    });
+
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+
+    transfer(&conn, &authority, &player, alephs(100));
+
+    Ok(ButtonTestContext {
+        button,
+        ticket_token,
+        reward_token,
+        marketplace,
+        conn,
+        events,
+        authority,
+        player,
+    })
+}
+
+/// A receiver where it's possible to wait for messages out of order.
+pub(super) struct BufferedReceiver<T> {
+    buffer: Vec<T>,
+    receiver: Receiver<T>,
+    default_timeout: Duration,
+}
+
+impl<T> BufferedReceiver<T> {
+    pub(super) fn new(receiver: Receiver<T>, default_timeout: Duration) -> Self {
+        Self {
+            buffer: Vec::new(),
+            receiver,
+            default_timeout,
+        }
+    }
+
+    pub(super) fn recv_timeout<F: Fn(&T) -> bool>(
+        &mut self,
+        filter: F,
+    ) -> Result<T, RecvTimeoutError> {
+        match self.buffer.iter().find_position(|m| filter(m)) {
+            Some((i, _)) => Ok(self.buffer.remove(i)),
+            None => {
+                let mut timeout = self.default_timeout;
+
+                while timeout > Duration::from_millis(0) {
+                    let start = Instant::now();
+                    if let Ok(msg) = self.receiver.recv_timeout(timeout) {
+                        if filter(&msg) {
+                            return Ok(msg);
+                        } else {
+                            self.buffer.push(msg);
+                            timeout -= Instant::now().duration_since(start);
+                        }
+                    }
+                }
+
+                return Err(RecvTimeoutError::Timeout);
+            }
+        }
+    }
+}
+
+pub(super) fn assert_recv<T, F: Fn(&T) -> bool>(
+    events: &mut BufferedReceiver<Result<T>>,
+    filter: F,
+    context: &str,
+) -> () {
+    assert!(
+        events
+            .recv_timeout(|event_or_error| {
+                event_or_error.as_ref().map(|x| filter(x)).unwrap_or(false)
+            })
+            .is_ok(),
+        "{}",
+        context
+    );
+}

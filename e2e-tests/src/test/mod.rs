@@ -1,3 +1,4 @@
+pub use button_game::early_bird_special;
 pub use electing_validators::authorities_are_staking;
 pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;
@@ -13,6 +14,7 @@ pub use utility::batch_transactions;
 pub use validators_change::change_validators;
 pub use validators_rotate::validators_rotate;
 
+mod button_game;
 mod electing_validators;
 mod era_payout;
 mod era_validators;

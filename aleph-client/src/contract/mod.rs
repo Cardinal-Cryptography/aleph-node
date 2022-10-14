@@ -70,7 +70,7 @@ pub struct ContractInstance {
 
 impl ContractInstance {
     const MAX_READ_GAS: u64 = 500000000000u64;
-    const MAX_GAS: u64 = 10000000000u64;
+    const MAX_GAS: u64 = 100000000000u64;
     const PAYABLE_VALUE: u64 = 0u64;
     const STORAGE_FEE_LIMIT: Option<u128> = None;
 

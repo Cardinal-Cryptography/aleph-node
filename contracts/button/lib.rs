@@ -5,7 +5,7 @@ mod errors;
 use ink_lang as ink;
 
 #[ink::contract]
-mod button_game {
+pub mod button_game {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::MINT_SELECTOR;
     use ink_env::{

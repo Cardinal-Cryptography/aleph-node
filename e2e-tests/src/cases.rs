@@ -13,6 +13,7 @@ use crate::{
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
+        early_bird_special as test_early_bird_special
     },
 };
 
@@ -55,5 +56,6 @@ pub fn possible_test_cases() -> PossibleTestCases {
             "authorities_are_staking",
             test_authorities_are_staking as TestCase,
         ),
+        ("early_bird_special", test_early_bird_special as TestCase)
     ]
 }
