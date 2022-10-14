@@ -1,11 +1,8 @@
 use std::{collections::HashSet, str::FromStr};
 
-use aleph_primitives::{
-    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
-};
+use aleph_primitives::{staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND}, AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS};
 use aleph_runtime::{
-    AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
     SessionKeys, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use clap::Args;
@@ -393,6 +390,9 @@ fn generate_genesis_config(
             stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,
             min_nominator_bond: MIN_NOMINATOR_BOND,
+            ..Default::default()
+        },
+        aleph: AlephConfig {
             ..Default::default()
         },
         treasury: Default::default(),

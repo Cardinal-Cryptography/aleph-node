@@ -31,8 +31,9 @@ fn emergency_finalize_json(signature: Vec<u8>, hash: BlockHash, number: BlockNum
     )
 }
 
-pub fn next_session_finality_version(hash: BlockHash) -> Value {
-    json_req("finalityVersion_nextSessionFinalityVersion", json!(hash), 1)
+pub fn next_session_finality_version() -> Value {
+    //json_req("finalityVersion_nextSessionFinalityVersion", json!(hash), 1)
+    json_req("finalityVersion_nextSessionFinalityVersion", Value::Null, 1)
 }
 
 fn state_query_storage_at_json(storage_keys: &[StorageKey]) -> Value {

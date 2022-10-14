@@ -283,7 +283,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub finality_version: Version,
         pub next_session_finality_version: Version,
-        _marker: PhantomData<T>,
+        pub _marker: PhantomData<T>,
     }
 
     #[cfg(feature = "std")]
