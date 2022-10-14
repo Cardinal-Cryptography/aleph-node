@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use ink_env::Environment;
 use ink_lang as ink;
 
 /// Gathers all the possible errors that might occur while calling `pallet_snarcos::store_key`.
@@ -41,4 +42,21 @@ pub trait StoreKeyExtension {
     /// The extension method ID must match the one declared in runtime;
     #[ink(extension = 41, returns_result = false)]
     fn store_key();
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+// All default, except `ChainExtension`, which is set to `StoreKeyExtension`.
+pub enum DefaultEnvironment {}
+
+impl Environment for DefaultEnvironment {
+    const MAX_EVENT_TOPICS: usize = <ink_env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
+
+    type AccountId = <ink_env::DefaultEnvironment as Environment>::AccountId;
+    type Balance = <ink_env::DefaultEnvironment as Environment>::Balance;
+    type Hash = <ink_env::DefaultEnvironment as Environment>::Hash;
+    type Timestamp = <ink_env::DefaultEnvironment as Environment>::Timestamp;
+    type BlockNumber = <ink_env::DefaultEnvironment as Environment>::BlockNumber;
+
+    type ChainExtension = StoreKeyExtension;
 }
