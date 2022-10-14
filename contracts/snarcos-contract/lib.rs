@@ -37,7 +37,7 @@ mod snarcos {
         }
 
         #[ink(message)]
-        pub fn update(&mut self) -> Result<(), StoreKeyError> {
+        pub fn trigger(&mut self) -> Result<(), StoreKeyError> {
             self.env().extension().store_key()?;
             self.env().emit_event(KeyStored {});
             Ok(())
