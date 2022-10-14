@@ -53,7 +53,7 @@ pub struct Service<
     legacy_generic_connected_peers: HashSet<N::PeerId>,
     legacy_validator_connected_peers: HashSet<N::PeerId>,
     authentication_connected_peers: HashSet<N::PeerId>,
-    // For now we need to use `VersionedNetworkData<D, A, N::Multiaddress>` here, to disthinguish to which network the data should be sent.
+    // For now we need to use `Vec<u8>` here.
     // This is needed for backward compatibility with old network.
     // This can be changed back to `Data` once Legacy Network is removed.
     // In future this will be changed to somethig like `AuthenticationData<A>`.
@@ -164,8 +164,6 @@ impl<
                             }
                         }
                     };
-                    // Right now we need to use backward compatible encode here.
-                    // In the future we can change it back to normal encode.
                     if let Err(e) = s.send(data).await {
                         debug!(target: "aleph-network", "Failed sending data to peer. Dropping sender and message: {}", e);
                         sender = None;
@@ -288,8 +286,6 @@ impl<
             }
             Messages(messages) => {
                 for (protocol, data) in messages.into_iter() {
-                    // Right now we need to use backward compatible decode here.
-                    // In the future we can change it back to normal decode.
                     match protocol {
                         Protocol::Generic => match LD::decode(&mut &data[..]) {
                             Ok(data) => self
@@ -598,8 +594,8 @@ mod tests {
         NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
     }
 
-    /// This is a dummy implementation so that VersionedNetworkData can be put in HashSet.
-    /// It will inserted with other data, so this can always return the same thing.
+    /// This is a dummy implementation so that NetworkData can be put in HashSet.
+    /// It will be inserted with other data, so this can always return the same thing.
     impl Hash for NetworkData<MockData, LegacyMockMultiaddress> {
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             42u32.hash(state)
