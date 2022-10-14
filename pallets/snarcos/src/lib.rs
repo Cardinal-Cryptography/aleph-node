@@ -74,7 +74,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(41)]
+        #[pallet::weight(T::BlockWeights::get().max_block / 2)]
         pub fn store_key(
             _origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
@@ -83,7 +83,7 @@ pub mod pallet {
             Self::bare_store_key(identifier, key).map_err(|e| e.into())
         }
 
-        #[pallet::weight(4141)]
+        #[pallet::weight(T::BlockWeights::get().max_block / 2)]
         pub fn verify(
             _origin: OriginFor<T>,
             verification_key_identifier: VerificationKeyIdentifier,
