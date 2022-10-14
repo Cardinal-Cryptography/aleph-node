@@ -6,9 +6,10 @@ on:
   push:
     branches:
     - benjamin
+    - A0-1416-deployment-workflow-for-the-button-game-newer
 
 env:
-  CHECKOUT_REF: benjamin
+  CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game-newer
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
@@ -97,7 +98,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Copy metadata.json and addresses.json files from S3 bucket if contracts already deployed
+      - name: Get contracts' target directories cache from S3 bucket
+        shell: bash
+        continue-on-error: true
+        run: |
+          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
+          tar -xzf targets.tgz
+
+      - name: Copy metadata.json and addresses.json files from S3 bucket
         shell: bash
         run: |
           aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
@@ -128,6 +136,14 @@ jobs:
           done
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
           aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+
+      - name: Cache contracts' target directories in S3 bucket
+          tar -czf targets.tgz contracts/ticket_token/target \
+            contracts/marketplace/target \
+            contracts/button/target \
+            contracts/game_token/target \
+            contracts/access_control/target
+          aws s3 cp targets.tgz s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
       - name: Trigger The Button deployment workflow
         run: |
