@@ -594,14 +594,6 @@ mod tests {
         NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
     }
 
-    /// This is a dummy implementation so that NetworkData can be put in HashSet.
-    /// It will be inserted with other data, so this can always return the same thing.
-    impl Hash for NetworkData<MockData, LegacyMockMultiaddress> {
-        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-            42u32.hash(state)
-        }
-    }
-
     #[tokio::test]
     async fn test_sync_connected() {
         let mut test_data = TestData::prepare().await;

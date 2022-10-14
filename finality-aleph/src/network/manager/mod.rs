@@ -22,7 +22,7 @@ pub use service::{
 pub use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
 /// Data validators use to authenticate themselves for a single session
 /// and disseminate their addresses.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct AuthData<M: Multiaddress> {
     addresses: Vec<M>,
     node_id: NodeIndex,
