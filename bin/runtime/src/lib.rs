@@ -654,17 +654,34 @@ impl ChainExtension<Runtime> for AlephChainExtension {
     {
         match func_id {
             41 => {
+                use pallet_snarcos::{Error, Pallet as Snarcos};
+
                 // The argument-passing-mode doesn't matter for now. All the data to runtime call
                 // are mocked now.
                 let mut env = env.buf_in_buf_out();
+                // After benchmarking is merged and `pallet_snarcos::WeightInfo` is available,
+                // use real weight here.
+                env.charge_weight(41)?;
+
+                match Snarcos::<Runtime>::bare_store_key([0u8; 4], [0u8; 8].to_vec()) {
+                    // In case `DispatchResultWithPostInfo` was returned (or some simpler
+                    // equivalent for `bare_store_key`), we could adjust weight. However, for the
+                    // storing key action it doesn't make sense.
+                    Ok(_) => {
+                        // Return status code for success.
+                        Ok(RetVal::Converging(0))
+                    }
+                    Err(Error::<Runtime>::VerificationKeyTooLong) => Ok(RetVal::Converging(1)),
+                    Err(Error::<Runtime>::IdentifierAlreadyInUse) => Ok(RetVal::Converging(2)),
+                    // Unknown error.
+                    _ => Ok(RetVal::Converging(3)),
+                }
             }
             _ => {
                 error!("Called an unregistered `func_id`: {}", func_id);
-                return Err(DispatchError::Other("Unimplemented func_id"));
+                Err(DispatchError::Other("Unimplemented func_id"))
             }
-        };
-        // Return status code for success.
-        Ok(RetVal::Converging(0))
+        }
     }
 
     fn enabled() -> bool {
