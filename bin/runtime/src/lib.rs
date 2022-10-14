@@ -646,6 +646,8 @@ impl pallet_utility::Config for Runtime {
     type PalletsOrigin = OriginCaller;
 }
 
+const SNARCOS_CHAIN_EXT: u32 = 41;
+
 pub struct AlephChainExtension;
 impl ChainExtension<Runtime> for AlephChainExtension {
     fn call<E: Ext>(func_id: u32, env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
@@ -653,7 +655,7 @@ impl ChainExtension<Runtime> for AlephChainExtension {
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
     {
         match func_id {
-            41 => {
+            SNARCOS_CHAIN_EXT => {
                 use pallet_snarcos::{Error, Pallet as Snarcos};
 
                 // The argument-passing-mode doesn't matter for now. All the data to runtime call

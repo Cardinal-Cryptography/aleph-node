@@ -39,7 +39,7 @@ pub trait StoreKeyExtension {
     /// a temporary simplification to avoid any problems with passing data between contract and
     /// runtime.
     ///
-    /// The extension method ID must match the one declared in runtime;
+    /// The extension method ID matches the one declared in runtime: `SNARCOS_CHAIN_EXT`.
     #[ink(extension = 41, returns_result = false)]
     fn store_key();
 }

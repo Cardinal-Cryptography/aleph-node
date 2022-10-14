@@ -332,12 +332,10 @@ dependencies = [
  "cfg-if",
  "derive_more",
  "ink_env",
- "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage_derive",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -588,9 +586,6 @@ version = "0.1.0"
 dependencies = [
  "ink_env",
  "ink_lang",
- "ink_metadata",
- "ink_primitives",
- "ink_storage",
  "parity-scale-codec",
  "scale-info",
 ]
