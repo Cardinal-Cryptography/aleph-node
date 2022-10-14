@@ -3,6 +3,9 @@
 /// The functions in this module simplify parsing the data types returned by contract calls.
 pub mod util;
 
+/// Utilities for listening for contract events.
+pub mod event;
+
 use std::{
     fmt::{Debug, Formatter},
     fs::File,
