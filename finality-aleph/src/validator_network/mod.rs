@@ -14,8 +14,9 @@ mod mock;
 mod outgoing;
 mod protocol_negotiation;
 mod protocols;
-#[allow(dead_code)]
 mod service;
+
+pub use service::Service;
 
 /// What the data sent using the network has to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}

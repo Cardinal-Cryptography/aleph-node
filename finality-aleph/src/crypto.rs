@@ -72,7 +72,6 @@ impl AuthorityPen {
         )
     }
 
-    #[allow(dead_code)] // Remove when used in validator network.
     /// Return the associated AuthorityId.
     pub fn authority_id(&self) -> AuthorityId {
         self.authority_id.clone()

@@ -96,8 +96,11 @@ run_node() {
     --execution Native \
     --rpc-cors=all \
     --no-mdns \
+    --public-validator-addresses 127.0.0.1:$((30343 + i)) \
+    --validator-port $((30343 + i)) \
     -laleph-party=debug \
     -laleph-network=debug \
+    -lvalidator-network=debug \
     -laleph-finality=debug \
     -laleph-justification=debug \
     -laleph-data-store=debug \

@@ -10,6 +10,15 @@ pub struct AlephCli {
     #[clap(long)]
     unit_creation_delay: Option<u64>,
 
+    /// The addresses at which the node will be externally reachable for validator network
+    /// purposes.
+    #[clap(long)]
+    public_validator_addresses: Vec<String>,
+
+    /// The port on which to listen to validator network connections.
+    #[clap(long)]
+    validator_port: Option<u16>,
+
     /// Turn off backups, at the cost of limiting crash recoverability.
     ///
     /// If backups are turned off and the node crashes, it most likely will not be able to continue
@@ -32,6 +41,14 @@ impl AlephCli {
             self.unit_creation_delay
                 .unwrap_or(DEFAULT_UNIT_CREATION_DELAY),
         )
+    }
+
+    pub fn external_addresses(&self) -> Vec<String> {
+        self.public_validator_addresses.clone()
+    }
+
+    pub fn validator_port(&self) -> u16 {
+        self.validator_port.unwrap_or(30343)
     }
 
     pub fn backup_path(&self) -> Option<PathBuf> {
