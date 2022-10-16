@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "1.5.3"
+version = "1.7.0"
 dependencies = [
  "ac-primitives",
  "anyhow",
@@ -1780,7 +1780,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
