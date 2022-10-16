@@ -14,7 +14,7 @@ function terminate_contract {
   
   # When 'ContractNotFound' occurs, ignore it and continue
   set +e
-  cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED"  --skip-confirm 2>&1 | tee $tmp_output_file
+  cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED" --skip-confirm 2>&1 | tee $tmp_output_file
   if [ $? -ne 0 ]; then
     grep -q "ContractNotFound" $tmp_output_file
     if [ $? -ne 0 ]; then
