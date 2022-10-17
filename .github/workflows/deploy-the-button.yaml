@@ -17,7 +17,6 @@ env:
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
   NODE_VERSION: 16
-  S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/fe-benjamin-button
   LABEL_DEPLOY_CONTRACTS: '[AZERO] DEPLOY-CONTRACTS'
   LABEL_DESTROYED: 'DESTROYED'
@@ -105,16 +104,16 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
           tar -xzf targets.tgz
 
       - name: Copy metadata.json and addresses.json files from S3 bucket
         shell: bash
         run: |
-          aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
           for i in ticket_token marketplace button game_token access_control; do \
             mkdir -p contracts/"$i"/target/ink
-            aws s3 cp s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
           done
 
       - name: Run clean.sh script
@@ -133,12 +132,12 @@ jobs:
       - name: Copy metadata.json and addresses.json files onto S3 bucket
         shell: bash
         run: |
-          aws s3 cp contracts/addresses.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
           for i in ticket_token marketplace button game_token access_control; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
-          aws s3 cp commit_sha.txt s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+          aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
       - name: Cache contracts' target directories in S3 bucket
         shell: bash
@@ -148,7 +147,7 @@ jobs:
             contracts/button/target \
             contracts/game_token/target \
             contracts/access_control/target
-          aws s3 cp targets.tgz s3://${{ env.S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
+          aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
       - name: Trigger The Button deployment workflow
         run: |
