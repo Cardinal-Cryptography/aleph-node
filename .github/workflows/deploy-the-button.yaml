@@ -172,3 +172,9 @@ jobs:
         with:
           labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
           github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Create empty target directory so that restore-cache does not fail
+        run: |
+          mkdir -p target
+          touch target/emptyfile
+
