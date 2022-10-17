@@ -10,5 +10,5 @@ export LIFETIME=20
 # mint this many ticket tokens
 export TICKET_BALANCE=100
 
-# mint this many ticket tokens
-export TOTAL_BALANCE=69
+# initial price of ticket on the marketplace
+export INITIAL_PRICE=69
