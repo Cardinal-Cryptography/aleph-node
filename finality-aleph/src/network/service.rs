@@ -495,7 +495,7 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, hash::Hash, iter, iter::FromIterator};
+    use std::{collections::HashSet, iter, iter::FromIterator};
 
     use codec::Encode;
     use futures::{channel::oneshot, StreamExt};
