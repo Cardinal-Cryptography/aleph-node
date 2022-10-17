@@ -1,9 +1,13 @@
 use std::{collections::HashSet, str::FromStr};
 
-use aleph_primitives::{staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND}, AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS};
+use aleph_primitives::{
+    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
+    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
+};
 use aleph_runtime::{
-    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
-    SessionKeys, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill,
+    SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig, VestingConfig,
+    WASM_BINARY,
 };
 use clap::Args;
 use libp2p::PeerId;
