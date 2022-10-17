@@ -59,7 +59,7 @@ impl From<ReceiveError> for HandshakeError {
     }
 }
 
-/// Handshake challenge.
+/// Handshake challenge. Contains public key of the creator, and a random nonce.
 #[derive(Debug, Clone, Encode, Decode)]
 struct Challenge {
     id: AuthorityId,
@@ -74,7 +74,8 @@ impl Challenge {
     }
 }
 
-/// Handshake response.
+/// Handshake response. Contains public key of the creator, and signature
+/// related to the received challenge.
 #[derive(Debug, Clone, Encode, Decode)]
 struct Response {
     id: AuthorityId,
@@ -96,8 +97,14 @@ impl Response {
     }
 }
 
-/// Performs the handshake. The goal is to obtain ID of the peer,
+/// Performs the handshake with a peer that called us.
+/// The goal is to obtain the public key of the peer ID of the peer,
 /// and split the communication stream into two halves.
+/// The peer needs to prove their identity by signing a randomly generated
+/// challenge, but apart from that, the returned communication channels
+/// will NOT be secured in any way. We assume that if the channel is
+/// compromised after the handshake, the peer will establish another connection,
+/// which will replace the current one.
 pub async fn execute_v0_handshake_incoming<S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
@@ -116,8 +123,15 @@ pub async fn execute_v0_handshake_incoming<S: Splittable>(
     Ok((sender, receiver, peer_id))
 }
 
-/// Performs the handshake. The goal is to obtain ID of the peer,
-/// and split the communication stream into two halves.
+/// Performs the handshake with a peer that we called. We assume that their
+/// public key is known to us.
+/// The goal is to authenticate ourselves, and split the communication stream
+/// into two halves.
+/// We need to prove our identity by signing a randomly generated
+/// challenge, but apart from that, the returned communication channels
+/// will NOT be secured in any way. We assume that if the channel is
+/// compromised after the handshake, we will establish another connection,
+/// which will replace the current one.
 pub async fn execute_v0_handshake_outgoing<S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
@@ -234,7 +248,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handshake_with_malicious_incoming_peer() {
+    async fn handshake_with_malicious_server_peer() {
         async fn execute_malicious_v0_handshake_incoming<S: Splittable>(stream: S) {
             let (fake_id, _) = keys().await;
             // send challenge with incorrect id
@@ -256,7 +270,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handshake_with_malicious_outgoing_peer_fake_challenge() {
+    async fn handshake_with_malicious_client_peer_fake_challenge() {
         pub async fn execute_malicious_v0_handshake_outgoing_fake_challenge<S: Splittable>(
             stream: S,
             authority_pen: AuthorityPen,
@@ -268,7 +282,7 @@ mod tests {
             // prepare fake challenge
             let (fake_id, _) = keys().await;
             let fake_challenge = Challenge::new(fake_id);
-            // send response
+            // send response with substituted challenge
             let our_response = Response::new(&authority_pen, &fake_challenge).await;
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;
@@ -284,7 +298,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handshake_with_malicious_outgoing_peer_fake_signature() {
+    async fn handshake_with_malicious_client_peer_fake_signature() {
         pub async fn execute_malicious_v0_handshake_outgoing_fake_signature<S: Splittable>(
             stream: S,
             authority_pen: AuthorityPen,
@@ -295,7 +309,7 @@ mod tests {
                 .expect("should receive");
             // prepare fake id
             let (fake_id, _) = keys().await;
-            // send response
+            // send response with substituted id
             let mut our_response = Response::new(&authority_pen, &challenge).await;
             our_response.id = fake_id;
             send_data(stream, our_response).await.expect("should send");
@@ -313,7 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn broken_incoming_connection_step_one() {
-        // break the connection even before the handshake starts
+        // break the connection even before the handshake starts by dropping the stream
         let (stream_a, _) = MockSplittable::new(4096);
         let (_, pen_a) = keys().await;
         assert_send_error(execute_v0_handshake_incoming(stream_a, pen_a).await);
@@ -325,7 +339,7 @@ mod tests {
         let (_, pen_a) = keys().await;
         let (result, _) = join!(
             execute_v0_handshake_incoming(stream_a, pen_a),
-            // mock outgoing handshake, only receive the first message
+            // mock outgoing handshake: receive the first message and terminate
             async {
                 receive_data::<_, Challenge>(stream_b)
                     .await
@@ -337,7 +351,7 @@ mod tests {
 
     #[tokio::test]
     async fn broken_outgoing_connection_step_one() {
-        // break the connection even before the handshake starts
+        // break the connection even before the handshake starts by dropping the stream
         let (stream_a, _) = MockSplittable::new(4096);
         let (_, pen_a) = keys().await;
         let (id_b, _) = keys().await;
@@ -349,7 +363,7 @@ mod tests {
         let (stream_a, stream_b) = MockSplittable::new(4096);
         let (id_a, pen_a) = keys().await;
         let (_, pen_b) = keys().await;
-        // mock incoming handshake, only send the first message
+        // mock incoming handshake: send the first message and terminate
         send_data(stream_a, Challenge::new(pen_a.authority_id()))
             .await
             .expect("should send");
