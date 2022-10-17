@@ -12,7 +12,7 @@ env:
   CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game-newer
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
-  CARGOCONTRACT_REV: 5e6f941805e3d6032dbfa17771a887a362cb3460
+  CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
   NODE_VERSION: 16
   S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/fe-benjamin-button
