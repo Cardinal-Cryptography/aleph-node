@@ -23,6 +23,7 @@ function terminate_contract {
       echo "** Ignoring 'ContractNotFound' error."
     fi
   fi
+  rm -f $tmp_output_file
   set -e
 }
 
@@ -44,6 +45,7 @@ function remove_contract_code {
   else
     echo "** Ignoring 'CodeNotFound' error or 'Received ContractCodeRemoved' message"
   fi
+  rm -f $tmp_output_file
   set -e
 }
 
