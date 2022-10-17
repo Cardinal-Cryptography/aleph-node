@@ -3,9 +3,9 @@ name: Deploy The Button game
 on:
   pull_request:
     types: [labeled]
-  push:
-    branches:
-    - benjamin
+  #push:
+  #  branches:
+  #  - benjamin
 
 concurrency:
   group: ${{ github.workflow }}
@@ -140,6 +140,8 @@ jobs:
           done
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
           aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
+          aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
 
       - name: Cache contracts' target directories in S3 bucket
         shell: bash
