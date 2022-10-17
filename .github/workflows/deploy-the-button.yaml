@@ -8,6 +8,7 @@ on:
     - benjamin
     - A0-1416-deployment-workflow-for-the-button-game-newer
 
+group: ${{ github.workflow }}
 cancel-in-progress: true
 
 env:
