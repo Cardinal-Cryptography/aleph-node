@@ -3,10 +3,12 @@
 use ink_lang as ink;
 
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
+#[allow(clippy::let_unit_value)] // clippy complains about the return type of `trigger` message
 mod snarcos {
     use snarcos_extension::StoreKeyError;
 
     #[ink(storage)]
+    #[derive(Default)]
     pub struct SnarcosExtension;
 
     #[ink(event)]

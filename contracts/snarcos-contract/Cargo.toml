@@ -23,7 +23,7 @@ ink_lang = { version = "~3.3.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
 
-snarcos-extension = { path = "../snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
+snarcos-extension = { path = "../../bin/runtime/src/chain_extension/snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
 
 [features]
 default = ["std"]
