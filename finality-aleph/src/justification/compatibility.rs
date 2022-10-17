@@ -57,12 +57,17 @@ enum VersionedAlephJustification {
 }
 
 fn encode_with_version(version: Version, mut payload: Vec<u8>) -> Vec<u8> {
-    let mut result = version.encode();
+    let mut result =
+        Vec::with_capacity(size_of::<Version>() + size_of::<ByteCount>() + payload.len());
+    version.encode_to(&mut result);
     // This will produce rubbish if we ever try encodings that have more than u16::MAX bytes. We
     // expect this won't happen, since we will switch to proper multisignatures before proofs get
     // that big.
-    let num_bytes = payload.len() as ByteCount;
-    result.append(&mut num_bytes.encode());
+    payload
+        .len()
+        .try_into()
+        .unwrap_or(u16::MAX)
+        .encode_to(&mut result);
     result.append(&mut payload);
     result
 }
