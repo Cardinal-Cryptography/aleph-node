@@ -8,6 +8,9 @@ repository = "https://github.com/aleph-zero-foundation/aleph-node"
 license = "Apache 2.0"
 publish = false
 
+[workspace]
+members = []
+
 [lib]
 name = "snarcos_extension"
 path = "lib.rs"
