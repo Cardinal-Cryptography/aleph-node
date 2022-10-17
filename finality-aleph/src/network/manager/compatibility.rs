@@ -11,7 +11,10 @@ use crate::network::{
 };
 
 type Version = u16;
-type ByteCount = u32;
+type ByteCount = u16;
+
+// We allow sending authentications of size up to 16KiB, that should be enough.
+const MAX_AUTHENTICATION_SIZE: u16 = 16 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VersionedAuthentication<M: Multiaddress> {
@@ -77,12 +80,10 @@ impl<M: Multiaddress> Decode for VersionedAuthentication<M> {
         match version {
             1 => Ok(V1(DiscoveryMessage::decode(input)?)),
             _ => {
-                let mut payload = vec![
-                    0;
-                    num_bytes
-                        .try_into()
-                        .map_err(|_| "input too big to decode")?
-                ];
+                if num_bytes > MAX_AUTHENTICATION_SIZE {
+                    Err("Authentication too big to decode. Is over 16 KiB")?;
+                };
+                let mut payload = vec![0; num_bytes.into()];
                 input.read(payload.as_mut_slice())?;
                 Ok(Other(version, payload))
             }
