@@ -37,7 +37,7 @@ pub mod testing {
 }
 
 /// Represents the id of an arbitrary node.
-pub trait PeerId: PartialEq + Eq + Copy + Clone + Debug + Display + Hash + Codec + Send {}
+pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send {}
 
 /// Represents the address of an arbitrary node.
 pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq {

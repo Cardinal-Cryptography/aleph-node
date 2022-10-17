@@ -44,6 +44,7 @@ mod party;
 mod session;
 mod session_map;
 mod substrate_network;
+mod tcp_network;
 #[cfg(test)]
 pub mod testing;
 mod validator_network;

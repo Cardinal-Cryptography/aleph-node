@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-node"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "aleph-runtime",
  "clap",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-runtime"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "frame-executive",
  "frame-support",
@@ -4906,7 +4906,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
@@ -5493,7 +5493,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
