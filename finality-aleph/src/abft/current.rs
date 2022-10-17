@@ -21,6 +21,9 @@ use crate::{
     CurrentNetworkData, Hasher, Keychain, NodeIndex, SessionId, SignatureSet, UnitCreationDelay,
 };
 
+/// Version of the current abft
+pub const VERSION: u32 = 1;
+
 pub fn run_member<
     B: Block,
     C: HeaderBackend<B> + Send + 'static,

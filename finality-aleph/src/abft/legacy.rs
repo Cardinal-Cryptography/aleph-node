@@ -20,6 +20,9 @@ use crate::{
     Keychain, LegacyNetworkData, NodeIndex, SessionId, UnitCreationDelay,
 };
 
+/// Version of the legacy abft
+pub const VERSION: u32 = 0;
+
 pub fn run_member<
     B: Block,
     C: HeaderBackend<B> + Send + 'static,

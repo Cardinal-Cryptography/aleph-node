@@ -6,6 +6,7 @@ edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
+# fixed version to 'froze' some types used in abft, mainly `SignatureSet` used in justification and signature aggregation
 aleph-bft-crypto = "0.4.0"
 
 current-aleph-bft = { package = "aleph-bft", version = "0.19.1" }

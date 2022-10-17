@@ -1,3 +1,5 @@
+//! Module to glue legacy and current version of the aggregator;
+
 use std::{fmt::Debug, hash::Hash, marker::PhantomData, time::Instant};
 
 use current_aleph_aggregator::NetworkError as CurrentNetworkError;
@@ -56,6 +58,8 @@ where
     Legacy(LegacyAggregator<'a, B, LN>),
 }
 
+/// Wrapper on the aggregator, which is either current or legacy one. Depending on the inner variant
+/// it behaves runs the legacy one or the current.
 pub struct Aggregator<'a, B, CN, LN>
 where
     B: Block,

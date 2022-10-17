@@ -1,3 +1,11 @@
+//! Main purpose of this module is to be able to use two different versions of the abft crate.
+//! Older version is referred to as 'Legacy' while newer as 'Current'.
+//! We achieve this by hiding types & traits from abft crates behind our owns. In case of traits we
+//! implement both current and legacy ones. In case of types we implement trait `From` to be able
+//! convert them at the 'glueing' spot to the abft library. Current and legacy versions are marked
+//! by numbers. Whenever we upgrade to next version of abft we need to increment and mark each version
+//! version accordingly.
+
 mod common;
 mod crypto;
 mod current;
@@ -13,14 +21,20 @@ use codec::{Decode, Encode};
 pub use crypto::Keychain;
 pub use current::{
     create_aleph_config as current_create_aleph_config, run_member as run_current_member,
+    VERSION as CURRENT_VERSION,
 };
 pub use legacy::{
     create_aleph_config as legacy_create_aleph_config, run_member as run_legacy_member,
+    VERSION as LEGACY_VERSION,
 };
 pub use network::{CurrentNetworkData, LegacyNetworkData, NetworkWrapper};
 pub use traits::{Hash, SpawnHandle, SpawnHandleT, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
 
+/// Wrapper for `SignatureSet` to be able to implement both legacy and current `PartialMultisignature` trait.
+/// Inner `SignatureSet` is imported from `aleph_bft_crypto` with fixed version for compatibility reasons:
+/// this is also used in the justification which already exist in our chain history and we
+/// need to be careful with changing this.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Encode, Decode)]
 pub struct SignatureSet<Signature>(pub aleph_bft_crypto::SignatureSet<Signature>);
 
