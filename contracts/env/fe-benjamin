@@ -8,4 +8,7 @@ export AUTHORITY_SEED=//Alice
 export LIFETIME=20
 
 # mint this many ticket tokens
+export TICKET_BALANCE=100
+
+# mint this many ticket tokens
 export TOTAL_BALANCE=1000

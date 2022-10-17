@@ -8,6 +8,8 @@ on:
     - benjamin
     - A0-1416-deployment-workflow-for-the-button-game-newer
 
+cancel-in-progress: true
+
 env:
   CHECKOUT_REF: A0-1416-deployment-workflow-for-the-button-game-newer
   CACHE_KEY: fe-benjamin-button
