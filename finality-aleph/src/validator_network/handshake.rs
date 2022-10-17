@@ -98,8 +98,8 @@ impl Response {
 }
 
 /// Performs the handshake with a peer that called us.
-/// The goal is to obtain the public key of the peer ID of the peer,
-/// and split the communication stream into two halves.
+/// The goal is to obtain the public key of the peer, and split
+/// the communication stream into two halves.
 /// The peer needs to prove their identity by signing a randomly generated
 /// challenge, but apart from that, the returned communication channels
 /// will NOT be secured in any way. We assume that if the channel is
