@@ -17,7 +17,7 @@ use serde_json::{from_reader, from_str, from_value, json};
 use sp_core::{crypto::AccountId32, Pair};
 use substrate_api_client::{compose_extrinsic, GenericAddress, XtStatus};
 
-use crate::{try_send_xt, AnyConnection, Connection, SignedConnection};
+use crate::{try_send_xt, AnyConnection, SignedConnection};
 
 /// Represents a contract instantiated on the chain.
 ///
@@ -71,6 +71,8 @@ pub struct ContractInstance {
 impl ContractInstance {
     const MAX_READ_GAS: u64 = 500000000000u64;
     const MAX_GAS: u64 = 10000000000u64;
+    const PAYABLE_VALUE: u64 = 0u64;
+    const STORAGE_FEE_LIMIT: Option<u128> = None;
 
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
     pub fn new(address: AccountId32, metadata_path: &str) -> Result<Self> {
@@ -91,15 +93,21 @@ impl ContractInstance {
     }
 
     /// Reads the value of a read-only, 0-argument call via RPC.
-    pub fn contract_read0(&self, conn: &Connection, message: &str) -> Result<Value> {
+    pub fn contract_read0<C: AnyConnection>(&self, conn: &C, message: &str) -> Result<Value> {
         self.contract_read(conn, message, &[])
     }
 
     /// Reads the value of a read-only call via RPC.
-    pub fn contract_read(&self, conn: &Connection, message: &str, args: &[&str]) -> Result<Value> {
+    pub fn contract_read<C: AnyConnection>(
+        &self,
+        conn: &C,
+        message: &str,
+        args: &[&str],
+    ) -> Result<Value> {
         let payload = self.encode(message, args)?;
         let request = self.contract_read_request(&payload);
         let response = conn
+            .as_connection()
             .get_request(request)?
             .context("RPC request error - there may be more info in node logs.")?;
         let response_data = from_str::<serde_json::Value>(&response)?;
@@ -109,10 +117,15 @@ impl ContractInstance {
         self.decode_response(message, hex_data)
     }
 
+    /// Executes a 0-argument contract call.
+    pub fn contract_exec0(&self, conn: &SignedConnection, message: &str) -> Result<()> {
+        self.contract_exec(conn, message, &vec![])
+    }
+
     /// Executes a contract call.
     pub fn contract_exec(
         &self,
-        conn: SignedConnection,
+        conn: &SignedConnection,
         message: &str,
         args: &[&str],
     ) -> Result<()> {
@@ -122,13 +135,14 @@ impl ContractInstance {
             "Contracts",
             "call",
             GenericAddress::Id(self.address.clone()),
-            Compact(0u64),
+            Compact(Self::PAYABLE_VALUE),
             Compact(Self::MAX_GAS),
+            Self::STORAGE_FEE_LIMIT,
             None::<Option<u128>>,
             data
         );
 
-        try_send_xt(&conn, xt, Some("Contracts call"), XtStatus::InBlock)
+        try_send_xt(conn, xt, Some("Contracts call"), XtStatus::InBlock)
             .context("Failed to exec contract message")?;
         Ok(())
     }
@@ -154,7 +168,7 @@ impl ContractInstance {
     }
 
     fn decode_response(&self, from: &str, contract_response: &str) -> Result<Value> {
-        let contract_response = contract_response.replacen("0x", "", 1);
+        let contract_response = contract_response.trim_start_matches("0x");
         let bytes = hex::decode(contract_response)?;
         ContractMessageTranscoder::new(&self.ink_project).decode_return(from, &mut bytes.as_slice())
     }
