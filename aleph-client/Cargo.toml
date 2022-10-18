@@ -18,6 +18,7 @@ ink_metadata = "3.3"
 
 ac-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26" }
 substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26", features = ["staking-xt"] }
+ac-node-api = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26" }
 
 frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26", features = ["full_crypto"] }
@@ -27,7 +28,6 @@ pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git
 pallet-treasury = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
 pallet-vesting = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26" }
-ac-node-api = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.26" }
 
 pallet-aleph = { path = "../pallets/aleph" }
 pallet-elections = { path = "../pallets/elections" }
