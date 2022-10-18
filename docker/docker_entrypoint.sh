@@ -49,8 +49,11 @@ ARGS=(
   --chain "${CHAIN}"
   --node-key-file "${NODE_KEY_PATH}"
   --backup-path "${BACKUP_PATH}"
-  --rpc-port "${RPC_PORT}" --ws-port "${WS_PORT}" --port "${PORT}"
-  --validator-port ${VALIDATOR_PORT} --public-validator-addresses ${PUBLIC_VALIDATOR_ADDRESS}
+  --rpc-port "${RPC_PORT}"
+  --ws-port "${WS_PORT}"
+  --port "${PORT}"
+  --validator-port "${VALIDATOR_PORT}"
+  --public-validator-addresses "${PUBLIC_VALIDATOR_ADDRESS}"
   --rpc-cors all
   --no-mdns
   --ws-max-connections "${WS_MAX_CONNECTIONS}"

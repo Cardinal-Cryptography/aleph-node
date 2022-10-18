@@ -54,20 +54,20 @@ where
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM.
-    let peer_id = keystore
+    let validator_peer_id = keystore
         .ed25519_generate_new(
             KEY_TYPE,
             Some(Mnemonic::new(MnemonicType::Words12, Language::English).phrase()),
         )
         .await
         .expect("generating a key should work");
-    let network_authority_pen = AuthorityPen::new(peer_id.into(), keystore.clone())
+    let network_authority_pen = AuthorityPen::new(validator_peer_id.into(), keystore.clone())
         .await
         .expect("we just generated this key so everything should work");
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
         external_addresses,
-        peer_id.into(),
+        validator_peer_id.into(),
     )
     .await
     .expect("we should have working networking");

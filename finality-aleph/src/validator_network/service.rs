@@ -173,7 +173,7 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
                     SendData(data, peer_id) => {
                         match self.manager.send_to(&peer_id, data) {
                             Ok(_) => trace!(target: "validator-network", "Sending data to {}.", peer_id),
-                            Err(e) => info!(target: "validator-network", "Failed sending to {}: {}", peer_id, e),
+                            Err(e) => trace!(target: "validator-network", "Failed sending to {}: {}", peer_id, e),
                         }
                     },
                 },

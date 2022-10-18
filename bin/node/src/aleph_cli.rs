@@ -7,8 +7,8 @@ use finality_aleph::UnitCreationDelay;
 #[derive(Debug, Parser, Clone)]
 #[clap(group(ArgGroup::new("backup")))]
 pub struct AlephCli {
-    #[clap(long)]
-    unit_creation_delay: Option<u64>,
+    #[clap(long, default_value_t = DEFAULT_UNIT_CREATION_DELAY)]
+    unit_creation_delay: u64,
 
     /// The addresses at which the node will be externally reachable for validator network
     /// purposes.
@@ -16,8 +16,8 @@ pub struct AlephCli {
     public_validator_addresses: Vec<String>,
 
     /// The port on which to listen to validator network connections.
-    #[clap(long)]
-    validator_port: Option<u16>,
+    #[clap(long, default_value_t = 30343)]
+    validator_port: u16,
 
     /// Turn off backups, at the cost of limiting crash recoverability.
     ///
@@ -38,8 +38,7 @@ pub struct AlephCli {
 impl AlephCli {
     pub fn unit_creation_delay(&self) -> UnitCreationDelay {
         UnitCreationDelay(
-            self.unit_creation_delay
-                .unwrap_or(DEFAULT_UNIT_CREATION_DELAY),
+            self.unit_creation_delay,
         )
     }
 
@@ -48,7 +47,7 @@ impl AlephCli {
     }
 
     pub fn validator_port(&self) -> u16 {
-        self.validator_port.unwrap_or(30343)
+        self.validator_port
     }
 
     pub fn backup_path(&self) -> Option<PathBuf> {

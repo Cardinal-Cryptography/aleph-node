@@ -99,7 +99,7 @@ async fn v0_outgoing<D: Data, S: Splittable>(
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Extending hand to {}.", peer_id);
     let (sender, receiver) = v0_handshake_outgoing(stream, authority_pen, peer_id.clone()).await?;
-    info!(target: "validator-network", "Handshake with {} finished successfully.", peer_id);
+    info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
     let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
     result_for_parent
         .unbounded_send((peer_id.clone(), Some(data_for_network)))
@@ -142,7 +142,7 @@ async fn v0_incoming<D: Data, S: Splittable>(
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Waiting for extended hand...");
     let (sender, receiver, peer_id) = v0_handshake_incoming(stream, authority_pen).await?;
-    info!(target: "validator-network", "Handshake with {} finished successfully.", peer_id);
+    info!(target: "validator-network", "Incoming handshake with {} finished successfully.", peer_id);
 
     let (tx_exit, exit) = oneshot::channel();
     result_for_parent
