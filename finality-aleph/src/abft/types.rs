@@ -1,3 +1,5 @@
+//! Types common for current & legacy abft used across finality-aleph
+
 use codec::{Decode, Encode, Error, Input, Output};
 use derive_more::{From, Into};
 

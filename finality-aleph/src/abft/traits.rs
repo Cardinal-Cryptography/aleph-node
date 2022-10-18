@@ -1,3 +1,5 @@
+//! Implementations and definitions of traits used in legacy & current abft
+
 use std::{cmp::Ordering, fmt::Debug, hash::Hash as StdHash, marker::PhantomData, pin::Pin};
 
 use codec::{Codec, Decode, Encode};
@@ -49,6 +51,7 @@ pub struct Wrapper<H: SpHash> {
     phantom: PhantomData<H>,
 }
 
+/// AlephBFT requires an order on hashes and `SpHash` does not have one, so we wrap it to add it.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, StdHash, Encode, Decode)]
 pub struct OrdForHash<O: Eq + Copy + Clone + Send + Debug + StdHash + Encode + Decode + AsRef<[u8]>>
 {
@@ -79,13 +82,19 @@ impl<O: Eq + Copy + Clone + Send + Sync + Debug + StdHash + Encode + Decode + As
     }
 }
 
+impl<H: SpHash> Wrapper<H> {
+    fn hash(s: &[u8]) -> OrdForHash<H::Output> {
+        OrdForHash {
+            inner: <H as SpHash>::hash(s),
+        }
+    }
+}
+
 impl<H: SpHash> current_aleph_bft::Hasher for Wrapper<H> {
     type Hash = OrdForHash<H::Output>;
 
     fn hash(s: &[u8]) -> Self::Hash {
-        Self::Hash {
-            inner: <H as SpHash>::hash(s),
-        }
+        Wrapper::<H>::hash(s)
     }
 }
 
@@ -93,9 +102,7 @@ impl<H: SpHash> legacy_aleph_bft::Hasher for Wrapper<H> {
     type Hash = OrdForHash<H::Output>;
 
     fn hash(s: &[u8]) -> Self::Hash {
-        Self::Hash {
-            inner: <H as SpHash>::hash(s),
-        }
+        Wrapper::<H>::hash(s)
     }
 }
 
@@ -133,9 +140,12 @@ impl From<SpawnTaskHandle> for SpawnHandle {
     }
 }
 
+/// Trait abstracting spawning tasks
 pub trait SpawnHandleT {
+    /// Run task
     fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static);
 
+    /// Run an essential task
     fn spawn_essential(
         &self,
         name: &'static str,

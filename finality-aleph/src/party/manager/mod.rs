@@ -38,6 +38,8 @@ mod task;
 pub use authority::{SubtaskCommon, Subtasks, Task as AuthorityTask};
 pub use task::{Handle, Task};
 
+use crate::{data_io::DataProvider, network::ComponentNetwork};
+
 type LegacyNetworkType<B> = SimpleNetwork<
     LegacyRmcNetworkData<B>,
     mpsc::UnboundedReceiver<LegacyRmcNetworkData<B>>,
@@ -106,6 +108,116 @@ where
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn legacy_subtasks<N: ComponentNetwork<VersionedNetworkData<B>> + 'static>(
+        &self,
+        n_members: usize,
+        node_id: NodeIndex,
+        session_id: SessionId,
+        data_network: N,
+        session_boundaries: SessionBoundaries<B>,
+        subtask_common: SubtaskCommon,
+        data_provider: DataProvider<B>,
+        ordered_data_interpreter: OrderedDataInterpreter<B, C>,
+        aggregator_io: aggregator::IO<B>,
+        multikeychain: Keychain,
+        exit_rx: oneshot::Receiver<()>,
+        backup: ABFTBackup,
+        chain_tracker: ChainTracker<B, SC, C>,
+    ) -> Subtasks {
+        let consensus_config =
+            legacy_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
+        let data_network = data_network.map();
+
+        let (unfiltered_aleph_network, rmc_network) =
+            split(data_network, "aleph_network", "rmc_network");
+        let (data_store, aleph_network) = DataStore::new(
+            session_boundaries.clone(),
+            self.client.clone(),
+            self.block_requester.clone(),
+            Default::default(),
+            unfiltered_aleph_network,
+        );
+        Subtasks::new(
+            exit_rx,
+            run_legacy_member(
+                subtask_common.clone(),
+                multikeychain.clone(),
+                consensus_config,
+                aleph_network.into(),
+                data_provider,
+                ordered_data_interpreter,
+                backup,
+            ),
+            aggregator::task(
+                subtask_common.clone(),
+                self.client.clone(),
+                aggregator_io,
+                session_boundaries,
+                self.metrics.clone(),
+                multikeychain,
+                AggregatorVersion::<CurrentNetworkType<B>, _>::Legacy(rmc_network),
+            ),
+            chain_tracker::task(subtask_common.clone(), chain_tracker),
+            data_store::task(subtask_common, data_store),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn current_subtasks<N: ComponentNetwork<VersionedNetworkData<B>> + 'static>(
+        &self,
+        n_members: usize,
+        node_id: NodeIndex,
+        session_id: SessionId,
+        data_network: N,
+        session_boundaries: SessionBoundaries<B>,
+        subtask_common: SubtaskCommon,
+        data_provider: DataProvider<B>,
+        ordered_data_interpreter: OrderedDataInterpreter<B, C>,
+        aggregator_io: aggregator::IO<B>,
+        multikeychain: Keychain,
+        exit_rx: oneshot::Receiver<()>,
+        backup: ABFTBackup,
+        chain_tracker: ChainTracker<B, SC, C>,
+    ) -> Subtasks {
+        let consensus_config =
+            current_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
+        let data_network = data_network.map();
+
+        let (unfiltered_aleph_network, rmc_network) =
+            split(data_network, "aleph_network", "rmc_network");
+        let (data_store, aleph_network) = DataStore::new(
+            session_boundaries.clone(),
+            self.client.clone(),
+            self.block_requester.clone(),
+            Default::default(),
+            unfiltered_aleph_network,
+        );
+        Subtasks::new(
+            exit_rx,
+            run_current_member(
+                subtask_common.clone(),
+                multikeychain.clone(),
+                consensus_config,
+                aleph_network.into(),
+                data_provider,
+                ordered_data_interpreter,
+                backup,
+            ),
+            aggregator::task(
+                subtask_common.clone(),
+                self.client.clone(),
+                aggregator_io,
+                session_boundaries,
+                self.metrics.clone(),
+                multikeychain,
+                AggregatorVersion::<_, LegacyNetworkType<B>>::Current(rmc_network),
+            ),
+            chain_tracker::task(subtask_common.clone(), chain_tracker),
+            data_store::task(subtask_common, data_store),
+        )
+    }
+
     async fn spawn_subtasks(
         &self,
         session_id: SessionId,
@@ -157,86 +269,36 @@ where
             .expect("Failed to start validator session!");
 
         if session_id.0 < 5 {
-            let consensus_config = legacy_create_aleph_config(
+            self.legacy_subtasks(
                 authorities.len(),
                 node_id,
                 session_id,
-                self.unit_creation_delay,
-            );
-            let data_network = ComponentNetworkMap::map(data_network);
-
-            let (unfiltered_aleph_network, rmc_network) =
-                split(data_network, "aleph_network", "rmc_network");
-            let (data_store, aleph_network) = DataStore::new(
-                session_boundaries.clone(),
-                self.client.clone(),
-                self.block_requester.clone(),
-                Default::default(),
-                unfiltered_aleph_network,
-            );
-            Subtasks::new(
+                data_network,
+                session_boundaries,
+                subtask_common,
+                data_provider,
+                ordered_data_interpreter,
+                aggregator_io,
+                multikeychain,
                 exit_rx,
-                run_legacy_member(
-                    subtask_common.clone(),
-                    multikeychain.clone(),
-                    consensus_config,
-                    aleph_network.into(),
-                    data_provider,
-                    ordered_data_interpreter,
-                    backup,
-                ),
-                aggregator::task(
-                    subtask_common.clone(),
-                    self.client.clone(),
-                    aggregator_io,
-                    session_boundaries,
-                    self.metrics.clone(),
-                    multikeychain,
-                    AggregatorVersion::<CurrentNetworkType<B>, _>::Legacy(rmc_network),
-                ),
-                chain_tracker::task(subtask_common.clone(), chain_tracker),
-                data_store::task(subtask_common, data_store),
+                backup,
+                chain_tracker,
             )
         } else {
-            let consensus_config = current_create_aleph_config(
+            self.current_subtasks(
                 authorities.len(),
                 node_id,
                 session_id,
-                self.unit_creation_delay,
-            );
-            let data_network = ComponentNetworkMap::map(data_network);
-
-            let (unfiltered_aleph_network, rmc_network) =
-                split(data_network, "aleph_network", "rmc_network");
-            let (data_store, aleph_network) = DataStore::new(
-                session_boundaries.clone(),
-                self.client.clone(),
-                self.block_requester.clone(),
-                Default::default(),
-                unfiltered_aleph_network,
-            );
-            Subtasks::new(
+                data_network,
+                session_boundaries,
+                subtask_common,
+                data_provider,
+                ordered_data_interpreter,
+                aggregator_io,
+                multikeychain,
                 exit_rx,
-                run_current_member(
-                    subtask_common.clone(),
-                    multikeychain.clone(),
-                    consensus_config,
-                    aleph_network.into(),
-                    data_provider,
-                    ordered_data_interpreter,
-                    backup,
-                ),
-                aggregator::task(
-                    subtask_common.clone(),
-                    self.client.clone(),
-                    aggregator_io,
-                    session_boundaries,
-                    self.metrics.clone(),
-                    multikeychain,
-                    AggregatorVersion::<_, LegacyNetworkType<B>>::Current(rmc_network),
-                ),
-                chain_tracker::task(subtask_common.clone(), chain_tracker),
-                data_store::task(subtask_common, data_store),
+                backup,
+                chain_tracker,
             )
         }
     }
