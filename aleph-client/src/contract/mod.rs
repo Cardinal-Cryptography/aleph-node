@@ -46,7 +46,7 @@ use crate::{try_send_xt, AnyConnection, SignedConnection};
 ///         })
 ///     }
 ///
-///     fn transfer(&self, conn: SignedConnection, to: AccountId32, amount: u128) -> Result<()> {
+///     fn transfer(&self, conn: &SignedConnection, to: AccountId32, amount: u128) -> Result<()> {
 ///         self.contract.contract_exec(
 ///             conn,
 ///             "PSP22::transfer",
