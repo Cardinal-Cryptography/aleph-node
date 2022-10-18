@@ -4,22 +4,31 @@
 //! then run the listen loop. You might want to run the loop in a separate thread.
 //!
 //! ```no_run
+//! # use std::sync::mpsc::channel;
 //! # use std::thread;
+//! # use std::time::Duration;
 //! # use aleph_client::{Connection};
 //! # use aleph_client::contract::ContractInstance;
 //! # use aleph_client::contract::event::{listen_contract_events, subscribe_events};
 //! # use anyhow::Result;
 //! # use sp_core::crypto::AccountId32;
 //! # fn example(conn: Connection, address1: AccountId32, address2: AccountId32, path1: &str, path2: &str) -> Result<()> {
-//!     let subscription = subscribe_events(&conn, conn.metadata.clone())?;
+//!     let subscription = subscribe_events(&conn)?;
 //!     let contract1 = ContractInstance::new(address1, path1)?;
 //!     let contract2 = ContractInstance::new(address2, path2)?;
+//!     let (cancel_tx, cancel_rx) = channel();
 //!
 //!     thread::spawn(move || {
-//!         listen_contract_events(subscription, &[&contract1, &contract2], |event_or_error| {
-//!             println!("{:?}", event_or_error)
-//!         });
+//!         listen_contract_events(
+//!             subscription,
+//!             &[&contract1, &contract2],
+//!             Some(cancel_rx),
+//!             |event_or_error| { println!("{:?}", event_or_error) }
+//!         );
 //!     });
+//!
+//!     thread::sleep(Duration::from_secs(20));
+//!     cancel_tx.send(()).unwrap();
 //!
 //! #   Ok(())
 //! # }
@@ -39,7 +48,7 @@ use substrate_api_client::Metadata;
 
 use crate::{contract::ContractInstance, AnyConnection};
 
-/// Represents a single event emitted a contract.
+/// Represents a single event emitted by a contract.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ContractEvent {
     /// The address of the contract that emitted the event.
@@ -56,27 +65,31 @@ pub struct EventSubscription {
     metadata: Metadata,
 }
 
-/// Creates a subscription to all events that can be used to `listen_contract_events`
-pub fn subscribe_events<C: AnyConnection>(
-    conn: &C,
-    metadata: Metadata,
-) -> Result<EventSubscription> {
+/// Creates a subscription to all events that can be used to [listen_contract_events]
+pub fn subscribe_events<C: AnyConnection>(conn: &C) -> Result<EventSubscription> {
     let conn = conn.as_connection();
     let (sender, receiver) = channel();
 
     conn.subscribe_events(sender)?;
 
-    Ok(EventSubscription { metadata, receiver })
+    Ok(EventSubscription {
+        metadata: conn.metadata.clone(),
+        receiver,
+    })
 }
 
 /// Starts an event listening loop.
 ///
 /// Will execute the handler for every contract event and every error encountered while fetching
-/// from `subscription`. The loop will terminate once `subscription` is closed. Only events coming
-/// from the address of one of the `contracts` will be decoded.
+/// from `subscription`. Only events coming from the address of one of the `contracts` will be
+/// decoded.
+///
+/// The loop will terminate once `subscription` is closed or once any message is received on
+/// `cancel` (if provided).
 pub fn listen_contract_events<F: Fn(Result<ContractEvent>)>(
     subscription: EventSubscription,
     contracts: &[&ContractInstance],
+    cancel: Option<Receiver<()>>,
     handler: F,
 ) {
     let events_decoder = EventsDecoder::new(subscription.metadata.clone());
@@ -103,10 +116,22 @@ pub fn listen_contract_events<F: Fn(Result<ContractEvent>)>(
             }
             Err(err) => handler(Err(err)),
         }
+
+        if cancel
+            .as_ref()
+            .map(|cancel| cancel.try_recv().is_ok())
+            .unwrap_or(false)
+        {
+            break;
+        }
     }
 }
 
 /// Consumes a raw `batch` of chain events, and returns only those that are coming from `contracts`.
+///
+/// This function, somewhat confusingly, returns a `Result<Vec<Result<_>>>` - this is to represent
+/// the fact that an error might occur both while decoding the whole batch and for each event. This
+/// is unwrapped in [listen_contract_events] and doesn't leak outside this module.
 fn decode_contract_event_batch(
     metadata: &Metadata,
     events_decoder: &EventsDecoder,
