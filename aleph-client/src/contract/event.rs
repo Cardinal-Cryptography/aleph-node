@@ -73,7 +73,7 @@ pub fn subscribe_events<C: AnyConnection>(conn: &C) -> Result<EventSubscription>
     conn.subscribe_events(sender)?;
 
     Ok(EventSubscription {
-        metadata: conn.metadata.clone(),
+        metadata: conn.metadata,
         receiver,
     })
 }
