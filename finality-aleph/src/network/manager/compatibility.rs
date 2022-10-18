@@ -4,6 +4,7 @@ use std::{
 };
 
 use codec::{Decode, Encode, Error as CodecError, Input as CodecInput};
+use log::warn;
 
 use crate::network::{
     manager::{DiscoveryMessage, NetworkData},
@@ -53,6 +54,13 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
         .len()
         .try_into()
         .unwrap_or(MAX_AUTHENTICATION_SIZE + 1);
+    if size > MAX_AUTHENTICATION_SIZE {
+        warn!(
+            "Versioned Authentication too big during Encode. Size is approximately {:?} KiB. Should be {:?} KiB at max.",
+            payload.len() / 1024,
+            MAX_AUTHENTICATION_SIZE / 1024
+        );
+    }
 
     let mut result = Vec::with_capacity(version.size_hint() + size.size_hint() + payload.len());
 

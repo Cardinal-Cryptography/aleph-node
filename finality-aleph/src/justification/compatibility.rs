@@ -5,6 +5,7 @@ use std::{
 
 use aleph_bft::{PartialMultisignature, SignatureSet};
 use codec::{Decode, DecodeAll, Encode, Error as CodecError, Input as CodecInput};
+use log::warn;
 
 use crate::{
     crypto::{Signature, SignatureV1},
@@ -62,7 +63,16 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     // that big.
     // We do not have a guarantee that size_hint is implemented for AlephJustification, so we need
     // to compute actual size to place it in the encoded data.
-    let size = payload.len().try_into().unwrap_or(ByteCount::MAX);
+    let size = payload.len().try_into().unwrap_or_else(|_| {
+        if payload.len() > ByteCount::MAX.into() {
+            warn!(
+                "Versioned Justification too big during Encode. Size is approximately {:?} KiB. Should be {:?} KiB at max.",
+                payload.len() / 1024,
+                ByteCount::MAX / 1024
+            );
+        }
+        ByteCount::MAX
+    });
 
     let mut result = Vec::with_capacity(version.size_hint() + size.size_hint() + payload.len());
 
