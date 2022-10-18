@@ -8,7 +8,7 @@ use crate::{
     crypto::Signature,
     data_io::{AlephData, AlephNetworkMessage},
     network::{Data, DataNetwork},
-    Hasher,
+    Hasher, Recipient,
 };
 
 pub type LegacyNetworkData<B> =
@@ -24,6 +24,7 @@ impl<B: Block> AlephNetworkMessage<B>
         self.included_data()
     }
 }
+
 impl<B: Block> AlephNetworkMessage<B>
     for current_aleph_bft::NetworkData<Hasher, AlephData<B>, Signature, SignatureSet<Signature>>
 {
@@ -47,9 +48,11 @@ impl<D: Data, DN: DataNetwork<D>> From<DN> for NetworkWrapper<D, DN> {
     }
 }
 
-#[async_trait::async_trait]
-impl<D: Data, DN: DataNetwork<D>> current_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
-    fn send(&self, data: D, recipient: current_aleph_bft::Recipient) {
+impl<D: Data, DN: DataNetwork<D>> NetworkWrapper<D, DN> {
+    fn send<R>(&self, data: D, recipient: R)
+    where
+        R: Into<Recipient>,
+    {
         if self.inner.send(data, recipient.into()).is_err() {
             warn!(target: "aleph-network", "Error sending an AlephBFT message to the network.");
         }
@@ -61,14 +64,23 @@ impl<D: Data, DN: DataNetwork<D>> current_aleph_bft::Network<D> for NetworkWrapp
 }
 
 #[async_trait::async_trait]
-impl<D: Data, DN: DataNetwork<D>> legacy_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
-    fn send(&self, data: D, recipient: legacy_aleph_bft::Recipient) {
-        if self.inner.send(data, recipient.into()).is_err() {
-            warn!(target: "aleph-network", "Error sending an AlephBFT message to the network.");
-        }
+impl<D: Data, DN: DataNetwork<D>> current_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
+    fn send(&self, data: D, recipient: current_aleph_bft::Recipient) {
+        NetworkWrapper::send(self, data, recipient)
     }
 
     async fn next_event(&mut self) -> Option<D> {
-        self.inner.next().await
+        NetworkWrapper::next_event(self).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<D: Data, DN: DataNetwork<D>> legacy_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
+    fn send(&self, data: D, recipient: legacy_aleph_bft::Recipient) {
+        NetworkWrapper::send(self, data, recipient)
+    }
+
+    async fn next_event(&mut self) -> Option<D> {
+        NetworkWrapper::next_event(self).await
     }
 }
