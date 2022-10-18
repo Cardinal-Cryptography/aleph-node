@@ -37,9 +37,7 @@ pub struct AlephCli {
 
 impl AlephCli {
     pub fn unit_creation_delay(&self) -> UnitCreationDelay {
-        UnitCreationDelay(
-            self.unit_creation_delay,
-        )
+        UnitCreationDelay(self.unit_creation_delay)
     }
 
     pub fn external_addresses(&self) -> Vec<String> {
