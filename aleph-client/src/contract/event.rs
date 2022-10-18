@@ -1,3 +1,30 @@
+//! Utilities for listening for contract events.
+//!
+//! To use the module you will need to first create a subscription (a glorified `Receiver<String>`),
+//! then run the listen loop. You might want to run the loop in a separate thread.
+//!
+//! ```no_run
+//! # use std::thread;
+//! # use aleph_client::{Connection};
+//! # use aleph_client::contract::ContractInstance;
+//! # use aleph_client::contract::event::{listen_contract_events, subscribe_events};
+//! # use anyhow::Result;
+//! # use sp_core::crypto::AccountId32;
+//! # fn example(conn: Connection, address1: AccountId32, address2: AccountId32, path1: &str, path2: &str) -> Result<()> {
+//!     let subscription = subscribe_events(&conn, conn.metadata.clone())?;
+//!     let contract1 = ContractInstance::new(address1, path1)?;
+//!     let contract2 = ContractInstance::new(address2, path2)?;
+//!
+//!     thread::spawn(move || {
+//!         listen_contract_events(subscription, &[&contract1, &contract2], |event_or_error| {
+//!             println!("{:?}", event_or_error)
+//!         });
+//!     });
+//!
+//! #   Ok(())
+//! # }
+//! ```
+
 use std::{
     collections::HashMap,
     sync::mpsc::{channel, Receiver},
@@ -12,38 +39,48 @@ use substrate_api_client::Metadata;
 
 use crate::{contract::ContractInstance, AnyConnection};
 
+/// Represents a single event emitted a contract.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ContractEvent {
-    contract: AccountId32,
-    ident: Option<String>,
-    data: HashMap<String, Value>,
+    /// The address of the contract that emitted the event.
+    pub contract: AccountId32,
+    /// The name of the event.
+    pub ident: Option<String>,
+    /// Data contained in the event.
+    pub data: HashMap<String, Value>,
 }
 
 /// An opaque wrapper around a `Receiver<String>` that can be used to listen for contract events.
-pub struct EventSubscription(Receiver<String>);
+pub struct EventSubscription {
+    receiver: Receiver<String>,
+    metadata: Metadata,
+}
 
-/// Creates a subscription to all events that can be used to `listen_for_contract_events`
-pub fn subscribe_events<C: AnyConnection>(conn: &C) -> Result<EventSubscription> {
-    let (tx, rx) = channel();
+/// Creates a subscription to all events that can be used to `listen_contract_events`
+pub fn subscribe_events<C: AnyConnection>(
+    conn: &C,
+    metadata: Metadata,
+) -> Result<EventSubscription> {
+    let conn = conn.as_connection();
+    let (sender, receiver) = channel();
 
-    conn.as_connection().subscribe_events(tx)?;
+    conn.subscribe_events(sender)?;
 
-    Ok(EventSubscription(rx))
+    Ok(EventSubscription { metadata, receiver })
 }
 
 /// Starts an event listening loop.
 ///
 /// Will execute the handler for every contract event and every error encountered while fetching
-/// from `subscription`. The loop will terminate `subscription` is closed. Only events coming from
-/// one of the `contracts` will be decoded.
+/// from `subscription`. The loop will terminate once `subscription` is closed. Only events coming
+/// from the address of one of the `contracts` will be decoded.
 pub fn listen_contract_events<F: Fn(Result<ContractEvent>)>(
     subscription: EventSubscription,
-    metadata: &Metadata,
     contracts: &[&ContractInstance],
     handler: F,
 ) {
-    let events_decoder = EventsDecoder::new(metadata.clone());
-    let events_transcoder = TranscoderBuilder::new(&metadata.runtime_metadata().types)
+    let events_decoder = EventsDecoder::new(subscription.metadata.clone());
+    let events_transcoder = TranscoderBuilder::new(&subscription.metadata.runtime_metadata().types)
         .with_default_custom_type_transcoders()
         .done();
     let contracts = contracts
@@ -51,9 +88,9 @@ pub fn listen_contract_events<F: Fn(Result<ContractEvent>)>(
         .map(|contract| (contract.address().clone(), contract.ink_project()))
         .collect::<HashMap<_, _>>();
 
-    for batch in subscription.0.iter() {
+    for batch in subscription.receiver.iter() {
         match decode_contract_event_batch(
-            metadata,
+            &subscription.metadata,
             &events_decoder,
             &events_transcoder,
             &contracts,
