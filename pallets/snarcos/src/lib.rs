@@ -1,13 +1,22 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
+use scale_info::TypeInfo;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 /// We store verification keys under short identifiers.
 pub type VerificationKeyIdentifier = [u8; 4];
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
+pub enum ProvingSystem {
+    Groth16,
+    Gm17,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -24,7 +33,6 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type Field: PairingEngine;
 
         #[pallet::constant]
         type MaximumVerificationKeyLength: Get<u32>;
@@ -74,6 +82,14 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Stores `key` under `identifier` in `VerificationKeys` map.
+        ///
+        /// Fails if:
+        /// - `key.len()` is greater than `MaximumVerificationKeyLength`, or
+        /// - `identifier` has been already used
+        ///
+        /// `key` can come from any proving system - there are no checks that verify it, in
+        /// particular, `key` can contain just trash bytes.
         #[pallet::weight(T::BlockWeights::get().max_block / 2)]
         pub fn store_key(
             _origin: OriginFor<T>,
@@ -98,12 +114,25 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Verifies `proof` against `public_input` with a key that has been stored under
+        /// `verification_key_identifier`. All is done within `system` proving system.
+        ///
+        /// Fails if:
+        /// - there is no verification key under `verification_key_identifier`
+        /// - verification key under `verification_key_identifier` cannot be deserialized
+        /// (e.g. it has been produced for another proving system)
+        /// - `proof` cannot be deserialized (e.g. it has been produced for another proving system)
+        /// - `public_input` cannot be deserialized (e.g. it has been produced for another proving
+        /// system)
+        /// - verifying procedure fails (e.g. incompatible verification key and proof)
+        /// - proof is incorrect
         #[pallet::weight(T::BlockWeights::get().max_block / 2)]
         pub fn verify(
             _origin: OriginFor<T>,
             verification_key_identifier: VerificationKeyIdentifier,
             proof: Vec<u8>,
             public_input: Vec<u8>,
+            system: ProvingSystem,
         ) -> DispatchResult {
             let proof = Proof::<T::Field>::deserialize(&*proof).map_err(|e| {
                 log::error!("Deserializing proof failed: {:?}", e);
