@@ -41,21 +41,25 @@ impl<M: Multiaddress> From<DiscoveryMessage<M>> for VersionedAuthentication<M> {
     }
 }
 
-fn encode_with_version(version: Version, mut payload: Vec<u8>) -> Vec<u8> {
-    let mut result =
-        Vec::with_capacity(size_of::<Version>() + size_of::<ByteCount>() + payload.len());
-    version.encode_to(&mut result);
+fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     // If size is bigger then u16 we set it to MAX_AUTHENTICATION_SIZE.
     // This should never happen but in case it does we will not panic.
     // Also for other users if they have this version of protocol, authentication
     // will be decoded. If they do not know the protocol, authentication will result
     // in decoding error.
-    payload
+    // We do not have a guarantee that size_hint is implemented for DiscoveryMessage, so we need
+    // to compute actual size to place it in the encoded data.
+    let size = payload
         .len()
         .try_into()
-        .unwrap_or(MAX_AUTHENTICATION_SIZE + 1)
-        .encode_to(&mut result);
-    result.append(&mut payload);
+        .unwrap_or(MAX_AUTHENTICATION_SIZE + 1);
+
+    let mut result = Vec::with_capacity(version.size_hint() + size.size_hint() + payload.len());
+
+    version.encode_to(&mut result);
+    size.encode_to(&mut result);
+    result.extend_from_slice(payload);
+
     result
 }
 
@@ -75,10 +79,8 @@ impl<M: Multiaddress> Encode for VersionedAuthentication<M> {
     fn encode(&self) -> Vec<u8> {
         use VersionedAuthentication::*;
         match self {
-            Other(version, payload) => encode_with_version(*version, payload.clone()),
-            // size_hint is not implemented for DiscoveryMessage, so we need to use encode and pass it here.
-            // encode_to does not change much here as clone needs to happen anyway.
-            V1(data) => encode_with_version(1, data.encode()),
+            Other(version, payload) => encode_with_version(*version, payload),
+            V1(data) => encode_with_version(1, &data.encode()),
         }
     }
 }
