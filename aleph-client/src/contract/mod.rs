@@ -119,7 +119,7 @@ impl ContractInstance {
 
     /// Executes a 0-argument contract call.
     pub fn contract_exec0(&self, conn: &SignedConnection, message: &str) -> Result<()> {
-        self.contract_exec(conn, message, &vec![])
+        self.contract_exec(conn, message, &[])
     }
 
     /// Executes a contract call.
