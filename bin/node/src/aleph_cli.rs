@@ -43,7 +43,7 @@ impl AlephCli {
     pub fn external_addresses(&self) -> Vec<String> {
         self.public_validator_addresses
             .clone()
-            .unwrap_or(Vec::new())
+            .unwrap_or_default()
     }
 
     pub fn validator_port(&self) -> u16 {
