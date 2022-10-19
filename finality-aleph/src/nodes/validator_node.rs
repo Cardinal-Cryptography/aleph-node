@@ -62,9 +62,10 @@ where
         )
         .await
         .expect("generating a key should work");
-    let network_authority_pen = AuthorityPen::new(validator_peer_id.into(), keystore.clone())
-        .await
-        .expect("we just generated this key so everything should work");
+    let network_authority_pen =
+        AuthorityPen::new_with_key_type(validator_peer_id.into(), keystore.clone(), KEY_TYPE)
+            .await
+            .expect("we just generated this key so everything should work");
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
         external_addresses,

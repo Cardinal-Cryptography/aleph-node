@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use aleph_primitives::AuthorityId;
 use codec::Codec;
-use tokio::io::{AsyncRead, AsyncWrite};
 use sp_core::crypto::KeyTypeId;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 mod handshake;
 mod heartbeat;
