@@ -11,9 +11,9 @@ pub struct AlephCli {
     unit_creation_delay: u64,
 
     /// The addresses at which the node will be externally reachable for validator network
-    /// purposes.
+    /// purposes. Have to be provided for validators.
     #[clap(long)]
-    public_validator_addresses: Vec<String>,
+    public_validator_addresses: Option<Vec<String>>,
 
     /// The port on which to listen to validator network connections.
     #[clap(long, default_value_t = 30343)]
@@ -41,7 +41,7 @@ impl AlephCli {
     }
 
     pub fn external_addresses(&self) -> Vec<String> {
-        self.public_validator_addresses.clone()
+        self.public_validator_addresses.clone().unwrap_or(Vec::new())
     }
 
     pub fn validator_port(&self) -> u16 {

@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use aleph_primitives::KEY_TYPE;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
@@ -23,7 +22,7 @@ use crate::{
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
     tcp_network::new_tcp_network,
-    validator_network::Service,
+    validator_network::{Service, KEY_TYPE},
     AlephConfig,
 };
 
@@ -53,7 +52,9 @@ where
         ..
     } = aleph_config;
 
-    // We generate the phrase manually to only save the key in RAM.
+    // We generate the phrase manually to only save the key in RAM, we don't want to have these
+    // relatively low-importance keys getting spammed around the absolutely crucial Aleph keys.
+    // The interface of `ed25519_generate_new` only allows to save in RAM by providing a mnemonic.
     let validator_peer_id = keystore
         .ed25519_generate_new(
             KEY_TYPE,

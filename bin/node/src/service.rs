@@ -350,6 +350,9 @@ pub fn new_authority(
         .spawn_essential_handle()
         .spawn_blocking("aura", None, aura);
 
+    if aleph_config.external_addresses().is_empty() {
+        panic!("Cannot run a validator node without external addresses, stopping.");
+    }
     let aleph_config = AlephConfig {
         network,
         client,

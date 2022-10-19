@@ -76,6 +76,7 @@ run_node() {
   is_validator=$2
   auth=node-$i
   account_id=${account_ids[$i]}
+  validator_port=$((30343 + i))
 
   [[ $is_validator = true ]] && validator=--validator || validator=""
 
@@ -96,8 +97,8 @@ run_node() {
     --execution Native \
     --rpc-cors=all \
     --no-mdns \
-    --public-validator-addresses 127.0.0.1:$((30343 + i)) \
-    --validator-port $((30343 + i)) \
+    --public-validator-addresses 127.0.0.1:${validator_port} \
+    --validator-port ${validator_port} \
     -laleph-party=debug \
     -laleph-network=debug \
     -lvalidator-network=debug \
