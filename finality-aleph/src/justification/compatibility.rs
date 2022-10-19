@@ -66,9 +66,10 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     let size = payload.len().try_into().unwrap_or_else(|_| {
         if payload.len() > ByteCount::MAX.into() {
             warn!(
-                "Versioned Justification too big during Encode. Size is approximately {:?} KiB. Should be {:?} KiB at max.",
-                payload.len() / 1024,
-                ByteCount::MAX / 1024
+                "Versioned Justification v{:?} too big during Encode. Size is {:?}. Should be {:?} at max.",
+                version,
+                payload.len(),
+                ByteCount::MAX
             );
         }
         ByteCount::MAX
