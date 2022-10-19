@@ -55,7 +55,7 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
         .try_into()
         .unwrap_or(MAX_AUTHENTICATION_SIZE + 1);
     if size > MAX_AUTHENTICATION_SIZE {
-        println!(
+        warn!(
             "Versioned Authentication v{:?} too big during Encode. Size is {:?}. Should be {:?} at max.",
             version,
             payload.len(),
