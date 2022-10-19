@@ -319,7 +319,7 @@ impl<B: BlockT> DataProvider<B> {
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
 
-        return data_to_propose;
+        data_to_propose
     }
 }
 

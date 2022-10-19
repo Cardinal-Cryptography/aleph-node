@@ -55,18 +55,20 @@ impl<S: Clone> SignatureSet<S> {
         self.0.iter_mut().map(|(idx, s)| (idx.into(), s))
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = (NodeIndex, S)>
-    where
-        S: 'static,
-    {
-        self.0.into_iter().map(|(idx, s)| (idx.into(), s))
-    }
-
     pub fn add_signature(self, signature: &S, index: NodeIndex) -> Self
     where
         S: Signature,
     {
         SignatureSet(self.0.add_signature(signature, index.into()))
+    }
+}
+
+impl<S: 'static> IntoIterator for SignatureSet<S> {
+    type Item = (NodeIndex, S);
+    type IntoIter = Box<dyn Iterator<Item = (NodeIndex, S)>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.0.into_iter().map(|(idx, s)| (idx.into(), s)))
     }
 }
 

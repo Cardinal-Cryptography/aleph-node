@@ -51,6 +51,30 @@ type CurrentNetworkType<B> = SimpleNetwork<
     Sender<CurrentRmcNetworkData<B>>,
 >;
 
+struct SubtasksParams<C, SC, B, N, BE>
+where
+    B: BlockT,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    BE: Backend<B> + 'static,
+    SC: SelectChain<B> + 'static,
+    N: ComponentNetwork<VersionedNetworkData<B>> + 'static,
+{
+    n_members: usize,
+    node_id: NodeIndex,
+    session_id: SessionId,
+    data_network: N,
+    session_boundaries: SessionBoundaries<B>,
+    subtask_common: SubtaskCommon,
+    data_provider: DataProvider<B>,
+    ordered_data_interpreter: OrderedDataInterpreter<B, C>,
+    aggregator_io: aggregator::IO<B>,
+    multikeychain: Keychain,
+    exit_rx: oneshot::Receiver<()>,
+    backup: ABFTBackup,
+    chain_tracker: ChainTracker<B, SC, C>,
+    phantom: PhantomData<BE>,
+}
+
 pub struct NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
@@ -108,23 +132,26 @@ where
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn legacy_subtasks<N: ComponentNetwork<VersionedNetworkData<B>> + 'static>(
         &self,
-        n_members: usize,
-        node_id: NodeIndex,
-        session_id: SessionId,
-        data_network: N,
-        session_boundaries: SessionBoundaries<B>,
-        subtask_common: SubtaskCommon,
-        data_provider: DataProvider<B>,
-        ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-        aggregator_io: aggregator::IO<B>,
-        multikeychain: Keychain,
-        exit_rx: oneshot::Receiver<()>,
-        backup: ABFTBackup,
-        chain_tracker: ChainTracker<B, SC, C>,
+        params: SubtasksParams<C, SC, B, N, BE>,
     ) -> Subtasks {
+        let SubtasksParams {
+            n_members,
+            node_id,
+            session_id,
+            data_network,
+            session_boundaries,
+            subtask_common,
+            data_provider,
+            ordered_data_interpreter,
+            aggregator_io,
+            multikeychain,
+            exit_rx,
+            backup,
+            chain_tracker,
+            ..
+        } = params;
         let consensus_config =
             legacy_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
         let data_network = data_network.map();
@@ -163,23 +190,26 @@ where
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn current_subtasks<N: ComponentNetwork<VersionedNetworkData<B>> + 'static>(
         &self,
-        n_members: usize,
-        node_id: NodeIndex,
-        session_id: SessionId,
-        data_network: N,
-        session_boundaries: SessionBoundaries<B>,
-        subtask_common: SubtaskCommon,
-        data_provider: DataProvider<B>,
-        ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-        aggregator_io: aggregator::IO<B>,
-        multikeychain: Keychain,
-        exit_rx: oneshot::Receiver<()>,
-        backup: ABFTBackup,
-        chain_tracker: ChainTracker<B, SC, C>,
+        params: SubtasksParams<C, SC, B, N, BE>,
     ) -> Subtasks {
+        let SubtasksParams {
+            n_members,
+            node_id,
+            session_id,
+            data_network,
+            session_boundaries,
+            subtask_common,
+            data_provider,
+            ordered_data_interpreter,
+            aggregator_io,
+            multikeychain,
+            exit_rx,
+            backup,
+            chain_tracker,
+            ..
+        } = params;
         let consensus_config =
             current_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
         let data_network = data_network.map();
@@ -268,38 +298,27 @@ where
             .await
             .expect("Failed to start validator session!");
 
+        let params = SubtasksParams {
+            n_members: authorities.len(),
+            node_id,
+            session_id,
+            data_network,
+            session_boundaries,
+            subtask_common,
+            data_provider,
+            ordered_data_interpreter,
+            aggregator_io,
+            multikeychain,
+            exit_rx,
+            backup,
+            chain_tracker,
+            phantom: PhantomData,
+        };
+
         if session_id.0 < 5 {
-            self.legacy_subtasks(
-                authorities.len(),
-                node_id,
-                session_id,
-                data_network,
-                session_boundaries,
-                subtask_common,
-                data_provider,
-                ordered_data_interpreter,
-                aggregator_io,
-                multikeychain,
-                exit_rx,
-                backup,
-                chain_tracker,
-            )
+            self.legacy_subtasks(params)
         } else {
-            self.current_subtasks(
-                authorities.len(),
-                node_id,
-                session_id,
-                data_network,
-                session_boundaries,
-                subtask_common,
-                data_provider,
-                ordered_data_interpreter,
-                aggregator_io,
-                multikeychain,
-                exit_rx,
-                backup,
-                chain_tracker,
-            )
+            self.current_subtasks(params)
         }
     }
 }

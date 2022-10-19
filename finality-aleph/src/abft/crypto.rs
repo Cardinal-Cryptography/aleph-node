@@ -69,11 +69,11 @@ impl current_aleph_bft::Keychain for Keychain {
     }
 
     async fn sign(&self, msg: &[u8]) -> Signature {
-        Keychain::sign(self, msg).await.into()
+        Keychain::sign(self, msg).await
     }
 
     fn verify(&self, msg: &[u8], sgn: &Signature, index: current_aleph_bft::NodeIndex) -> bool {
-        Keychain::verify(self, msg, sgn, index).into()
+        Keychain::verify(self, msg, sgn, index)
     }
 }
 
@@ -86,11 +86,11 @@ impl legacy_aleph_bft::Keychain for Keychain {
     }
 
     async fn sign(&self, msg: &[u8]) -> Signature {
-        Keychain::sign(self, msg).await.into()
+        Keychain::sign(self, msg).await
     }
 
     fn verify(&self, msg: &[u8], sgn: &Signature, index: legacy_aleph_bft::NodeIndex) -> bool {
-        Keychain::verify(self, msg, sgn, index).into()
+        Keychain::verify(self, msg, sgn, index)
     }
 }
 
