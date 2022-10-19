@@ -324,7 +324,7 @@ parameter_types! {
 
 impl pallet_snarcos::Config for Runtime {
     type Event = Event;
-    type Field = Bls12_381;
+    type Pairing = Bls12_381;
     type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
 }
 
