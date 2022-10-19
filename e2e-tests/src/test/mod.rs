@@ -3,6 +3,7 @@ pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
+pub use kickout::kickout_automatic;
 pub use rewards::{
     change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
 };
@@ -18,6 +19,7 @@ mod era_payout;
 mod era_validators;
 mod fee;
 mod finalization;
+mod kickout;
 mod rewards;
 mod staking;
 mod transfer;
