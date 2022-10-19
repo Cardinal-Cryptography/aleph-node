@@ -40,6 +40,7 @@ mod party;
 mod session;
 mod session_map;
 mod substrate_network;
+mod tcp_network;
 #[cfg(test)]
 pub mod testing;
 mod validator_network;
@@ -84,6 +85,7 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
             non_reserved_mode: sc_network::config::NonReservedPeerMode::Deny,
         },
         Protocol::Generic => sc_network::config::SetConfig::default(),
+        Protocol::Authentication => sc_network::config::SetConfig::default(),
     };
     config
 }
