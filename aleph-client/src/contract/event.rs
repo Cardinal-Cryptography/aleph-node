@@ -4,24 +4,30 @@
 //! then run the listen loop. You might want to run the loop in a separate thread.
 //!
 //! ```no_run
+//! # use std::sync::Arc;
 //! # use std::sync::mpsc::channel;
 //! # use std::thread;
 //! # use std::time::Duration;
-//! # use aleph_client::{Connection};
+//! # use aleph_client::{Connection, SignedConnection};
 //! # use aleph_client::contract::ContractInstance;
 //! # use aleph_client::contract::event::{listen_contract_events, subscribe_events};
 //! # use anyhow::Result;
 //! # use sp_core::crypto::AccountId32;
-//! # fn example(conn: Connection, address1: AccountId32, address2: AccountId32, path1: &str, path2: &str) -> Result<()> {
+//! # fn example(conn: SignedConnection, address1: AccountId32, address2: AccountId32, path1: &str, path2: &str) -> Result<()> {
 //!     let subscription = subscribe_events(&conn)?;
-//!     let contract1 = ContractInstance::new(address1, path1)?;
-//!     let contract2 = ContractInstance::new(address2, path2)?;
+//!
+//!     // The `Arc` makes it possible to pass a reference to the contract to another thread
+//!     let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
+//!     let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
 //!     let (cancel_tx, cancel_rx) = channel();
+//!
+//!     let contract1_copy = contract1.clone();
+//!     let contract2_copy = contract2.clone();
 //!
 //!     thread::spawn(move || {
 //!         listen_contract_events(
 //!             subscription,
-//!             &[&contract1, &contract2],
+//!             &[contract1_copy.as_ref(), &contract2_copy.as_ref()],
 //!             Some(cancel_rx),
 //!             |event_or_error| { println!("{:?}", event_or_error) }
 //!         );
@@ -29,6 +35,9 @@
 //!
 //!     thread::sleep(Duration::from_secs(20));
 //!     cancel_tx.send(()).unwrap();
+//!
+//!     contract1.contract_exec0(&conn, "some_method")?;
+//!     contract2.contract_exec0(&conn, "some_other_method")?;
 //!
 //! #   Ok(())
 //! # }
