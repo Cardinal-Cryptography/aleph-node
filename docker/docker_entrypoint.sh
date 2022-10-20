@@ -110,14 +110,14 @@ fi
 
 if [[ "true" == "${VALIDATOR}" ]]; then
   ARGS+=(--rpc-methods Unsafe)
-		PUBLIC_VALIDATOR_ADDRESS=${PUBLIC_VALIDATOR_ADDRESS:?'Public validator address should be specified'}
+  PUBLIC_VALIDATOR_ADDRESS=${PUBLIC_VALIDATOR_ADDRESS:?'Public validator address should be specified'}
 fi
 
 if [[ "false" == "${VALIDATOR}" ]]; then
   ARGS+=(--rpc-methods Safe)
-		# We will never use this address, but because of the current shape of our code we need to have something here.
-		# This address is one reserved for documentation, so attempting to connect to it should always fail.
-		PUBLIC_VALIDATOR_ADDRESS=${PUBLIC_VALIDATOR_ADDRESS:-"192.0.2.1:${VALIDATOR_PORT}"}
+  # We will never use this address, but because of the current shape of our code we need to have something here.
+  # This address is one reserved for documentation, so attempting to connect to it should always fail.
+  PUBLIC_VALIDATOR_ADDRESS=${PUBLIC_VALIDATOR_ADDRESS:-"192.0.2.1:${VALIDATOR_PORT}"}
 fi
 
 ARGS+=(--public-validator-addresses "${PUBLIC_VALIDATOR_ADDRESS}")
