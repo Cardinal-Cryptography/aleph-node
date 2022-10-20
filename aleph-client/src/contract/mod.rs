@@ -138,7 +138,6 @@ impl ContractInstance {
             Compact(Self::PAYABLE_VALUE),
             Compact(Self::MAX_GAS),
             Self::STORAGE_FEE_LIMIT,
-            None::<Option<u128>>,
             data
         );
 
