@@ -85,6 +85,7 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
             non_reserved_mode: sc_network::config::NonReservedPeerMode::Deny,
         },
         Protocol::Generic => sc_network::config::SetConfig::default(),
+        Protocol::Authentication => sc_network::config::SetConfig::default(),
     };
     config
 }
@@ -288,4 +289,6 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
     pub backup_saving_path: Option<PathBuf>,
+    pub external_addresses: Vec<String>,
+    pub validator_port: u16,
 }

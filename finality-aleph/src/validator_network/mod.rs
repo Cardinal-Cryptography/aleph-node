@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use aleph_primitives::AuthorityId;
 use codec::Codec;
+use sp_core::crypto::KeyTypeId;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod handshake;
@@ -14,8 +15,11 @@ mod mock;
 mod outgoing;
 mod protocol_negotiation;
 mod protocols;
-#[allow(dead_code)]
 mod service;
+
+pub use service::Service;
+
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"a0vn");
 
 /// What the data sent using the network has to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
@@ -30,7 +34,7 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 /// implementation might fail to deliver any specific message, so messages have to be resent while
 /// they still should be delivered.
 #[async_trait::async_trait]
-pub trait Network<A: Data, D: Data>: Send {
+pub trait Network<A: Data, D: Data>: Send + 'static {
     /// Add the peer to the set of connected peers.
     fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>);
 

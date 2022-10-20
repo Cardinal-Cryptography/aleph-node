@@ -5,12 +5,13 @@ use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
+use log::{debug, info, trace};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        handshake::{v0_handshake, HandshakeError},
+        handshake::{v0_handshake_incoming, v0_handshake_outgoing, HandshakeError},
         heartbeat::{heartbeat_receiver, heartbeat_sender},
         io::{receive_data, send_data, ReceiveError, SendError},
         Data, Splittable,
@@ -29,8 +30,6 @@ pub enum Protocol {
 pub enum ProtocolError {
     /// Error during performing a handshake.
     HandshakeError(HandshakeError),
-    /// Connected to a peer with unexpected ID.
-    WrongPeer(AuthorityId),
     /// Sending failed.
     SendError(SendError),
     /// Receiving failed.
@@ -48,7 +47,6 @@ impl Display for ProtocolError {
         use ProtocolError::*;
         match self {
             HandshakeError(e) => write!(f, "handshake error: {}", e),
-            WrongPeer(peer_id) => write!(f, "connected to unexpected peer {}", peer_id),
             SendError(e) => write!(f, "send error: {}", e),
             ReceiveError(e) => write!(f, "receive error: {}", e),
             CardiacArrest => write!(f, "heartbeat stopped"),
@@ -99,18 +97,18 @@ async fn v0_outgoing<D: Data, S: Splittable>(
     peer_id: AuthorityId,
     result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
 ) -> Result<(), ProtocolError> {
-    let (sender, receiver, other_peer_id) = v0_handshake(stream, authority_pen).await?;
-    if peer_id != other_peer_id {
-        return Err(ProtocolError::WrongPeer(other_peer_id));
-    }
+    trace!(target: "validator-network", "Extending hand to {}.", peer_id);
+    let (sender, receiver) = v0_handshake_outgoing(stream, authority_pen, peer_id.clone()).await?;
+    info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
     let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
     result_for_parent
-        .unbounded_send((peer_id, Some(data_for_network)))
+        .unbounded_send((peer_id.clone(), Some(data_for_network)))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let sending = sending(sender, data_from_user);
     let heartbeat = heartbeat_receiver(receiver);
 
+    debug!(target: "validator-network", "Starting worker for sending to {}.", peer_id);
     loop {
         tokio::select! {
             _ = heartbeat => return Err(ProtocolError::CardiacArrest),
@@ -142,16 +140,19 @@ async fn v0_incoming<D: Data, S: Splittable>(
     result_for_parent: mpsc::UnboundedSender<(AuthorityId, oneshot::Sender<()>)>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError> {
-    let (sender, receiver, peer_id) = v0_handshake(stream, authority_pen).await?;
+    trace!(target: "validator-network", "Waiting for extended hand...");
+    let (sender, receiver, peer_id) = v0_handshake_incoming(stream, authority_pen).await?;
+    info!(target: "validator-network", "Incoming handshake with {} finished successfully.", peer_id);
 
     let (tx_exit, exit) = oneshot::channel();
     result_for_parent
-        .unbounded_send((peer_id, tx_exit))
+        .unbounded_send((peer_id.clone(), tx_exit))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let receiving = receiving(receiver, data_for_user);
     let heartbeat = heartbeat_sender(sender);
 
+    debug!(target: "validator-network", "Starting worker for receiving from {}.", peer_id);
     loop {
         tokio::select! {
             _ = heartbeat => return Err(ProtocolError::CardiacArrest),
