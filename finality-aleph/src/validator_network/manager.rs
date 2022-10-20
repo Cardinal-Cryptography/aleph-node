@@ -1,12 +1,12 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Display, Error as FmtError, Formatter},
 };
 
 use aleph_primitives::AuthorityId;
 use futures::channel::{mpsc, oneshot};
 
-use crate::validator_network::Data;
+use crate::{network::ShortId, validator_network::Data};
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to, and managing the established connections.
@@ -35,25 +35,88 @@ impl Display for SendError {
     }
 }
 
-struct ManagerStatus {
-    wanted_peers: usize,
-    incoming_peers: usize,
-    outgoing_peers: usize,
+struct ManagerStatus<'a, A: Data, D: Data> {
+    wanted_peers: &'a HashMap<AuthorityId, Vec<A>>,
+    outgoing_peers: &'a HashMap<AuthorityId, mpsc::UnboundedSender<D>>,
+    incoming_peers: &'a HashMap<AuthorityId, oneshot::Sender<()>>,
 }
 
-impl Display for ManagerStatus {
+impl<'a, A: Data, D: Data> Display for ManagerStatus<'a, A, D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        if self.wanted_peers == 0 {
-            return write!(f, "not maintaining any connections");
+        let mut status = String::from("Validator Network Manager status report: ");
+
+        if self.wanted_peers.is_empty() {
+            status.push_str("not maintaining any connections; ");
+            return write!(f, "{}", status);
         }
-        if self.incoming_peers == 0 {
-            write!(f, "WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible.")?;
+
+        let incoming: HashSet<_> = self
+            .incoming_peers
+            .iter()
+            .filter(|(_, exit)| !exit.is_canceled())
+            .map(|(k, _)| k)
+            .collect();
+        let outgoing: HashSet<_> = self
+            .outgoing_peers
+            .iter()
+            .filter(|(_, exit)| !exit.is_closed())
+            .map(|(k, _)| k)
+            .collect();
+
+        let both_ways = incoming.intersection(&outgoing).cloned().collect();
+        let incoming: HashSet<_> = incoming.difference(&both_ways).cloned().collect();
+        let outgoing: HashSet<_> = outgoing.difference(&both_ways).cloned().collect();
+
+        if !self.wanted_peers.is_empty() && both_ways.is_empty() && incoming.is_empty() {
+            status.push_str("WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible; ");
         }
-        write!(
-            f,
-            "maintaining {} connections, incoming connections {}, outgoing connections {}",
-            self.wanted_peers, self.incoming_peers, self.outgoing_peers,
-        )
+
+        let both_ways_status = (
+            both_ways.len(),
+            both_ways
+                .into_iter()
+                .map(|authority_id| authority_id.to_short_id())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        status.push_str(&format!(
+            "target - {:?} connections; both ways: {:?}, [{}]; ",
+            self.wanted_peers.len(),
+            both_ways_status.0,
+            both_ways_status.1,
+        ));
+
+        if !incoming.is_empty() {
+            let incoming_status = (
+                incoming.len(),
+                incoming
+                    .into_iter()
+                    .map(|authority_id| authority_id.to_short_id())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+            status.push_str(&format!(
+                "incoming connections {:?}, [{}]; ",
+                incoming_status.0, incoming_status.1,
+            ));
+        }
+
+        if !outgoing.is_empty() {
+            let outgoing_status = (
+                outgoing.len(),
+                outgoing
+                    .into_iter()
+                    .map(|authority_id| authority_id.to_short_id())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+            status.push_str(&format!(
+                "outgoing connections: {:?}, [{}];",
+                outgoing_status.0, outgoing_status.1,
+            ));
+        }
+
+        write!(f, "{}", status)
     }
 }
 
@@ -141,19 +204,11 @@ impl<A: Data, D: Data> Manager<A, D> {
     }
 
     /// A status of the manager, to be displayed somewhere.
-    pub fn status_report(&self) -> impl Display {
+    pub fn status_report(&self) -> impl Display + '_ {
         ManagerStatus {
-            wanted_peers: self.addresses.len(),
-            incoming_peers: self
-                .incoming
-                .values()
-                .filter(|exit| !exit.is_canceled())
-                .count(),
-            outgoing_peers: self
-                .outgoing
-                .values()
-                .filter(|sender| !sender.is_closed())
-                .count(),
+            wanted_peers: &self.addresses,
+            incoming_peers: &self.incoming,
+            outgoing_peers: &self.outgoing,
         }
     }
 }

@@ -43,6 +43,21 @@ pub mod testing {
     };
 }
 
+/// This trait is needed for logging. It implements a shorter version of PeerId for ids implementing display.
+pub trait ShortId: Display {
+    fn to_short_id(&self) -> String {
+        let id = format!("{}", self);
+
+        let prefix: String = id.chars().take(4).collect();
+
+        let suffix: String = id.chars().skip(id.len().saturating_sub(8)).collect();
+
+        format!("{}…{}", &prefix, &suffix)
+    }
+}
+
+impl<P: PeerId> ShortId for P {}
+
 /// Represents the id of an arbitrary node.
 pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send {}
 

@@ -17,7 +17,7 @@ use crate::{
     network::{
         manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
-        NetworkSender, Protocol,
+        NetworkSender, Protocol, ShortId,
     },
     validator_network::Network as ValidatorNetwork,
     STATUS_REPORT_INTERVAL,
@@ -417,7 +417,7 @@ impl<
         let peer_ids = self
             .legacy_validator_connected_peers
             .iter()
-            .map(|peer_id| format!("{}", peer_id))
+            .map(|peer_id| peer_id.to_short_id())
             .collect::<Vec<_>>()
             .join(", ");
         status.push_str(&format!(
