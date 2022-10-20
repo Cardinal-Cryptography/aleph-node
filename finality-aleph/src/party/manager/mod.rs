@@ -1,13 +1,16 @@
 use std::{collections::HashSet, fmt::Debug, marker::PhantomData, sync::Arc};
 
-use aleph_primitives::KEY_TYPE;
+use aleph_primitives::{AlephSessionApi, KEY_TYPE};
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, trace, warn};
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::traits::{Block as BlockT, Header};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{Block as BlockT, Header, NumberFor, One, Saturating},
+};
 
 use crate::{
     abft::{
@@ -38,7 +41,11 @@ mod task;
 pub use authority::{SubtaskCommon, Subtasks, Task as AuthorityTask};
 pub use task::{Handle, Task};
 
-use crate::{data_io::DataProvider, network::ComponentNetwork};
+use crate::{
+    abft::{CURRENT_VERSION, LEGACY_VERSION},
+    data_io::DataProvider,
+    network::ComponentNetwork,
+};
 
 type LegacyNetworkType<B> = SimpleNetwork<
     LegacyRmcNetworkData<B>,
@@ -100,6 +107,7 @@ impl<C, SC, B, RB, BE> NodeSessionManagerImpl<C, SC, B, RB, BE>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
@@ -298,6 +306,10 @@ where
             .await
             .expect("Failed to start validator session!");
 
+        let last_block_of_previous_session = session_boundaries
+            .first_block()
+            .saturating_sub(<NumberFor<B>>::one());
+
         let params = SubtasksParams {
             n_members: authorities.len(),
             node_id,
@@ -315,10 +327,17 @@ where
             phantom: PhantomData,
         };
 
-        if session_id.0 < 5 {
-            self.legacy_subtasks(params)
-        } else {
-            self.current_subtasks(params)
+        match self
+            .client
+            .runtime_api()
+            .next_session_finality_version(&BlockId::Number(last_block_of_previous_session))
+        {
+            Ok(version) if version == CURRENT_VERSION => self.current_subtasks(params),
+            Ok(version) if version == LEGACY_VERSION => self.legacy_subtasks(params),
+            Ok(version) => {
+                panic!("Unsuported version {}. Supported versions: {} or {}. Potentially outdated node.", version, LEGACY_VERSION, CURRENT_VERSION)
+            }
+            _ => panic!("No abft version set"),
         }
     }
 }
