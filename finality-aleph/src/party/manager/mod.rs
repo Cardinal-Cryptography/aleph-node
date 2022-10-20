@@ -340,7 +340,7 @@ where
             _ => {
                 // this might happen when there was no runtime upgrade yet. Fallback to legacy version
                 self.current_subtasks(params)
-            },
+            }
         }
     }
 }
