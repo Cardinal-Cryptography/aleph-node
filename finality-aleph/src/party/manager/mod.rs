@@ -337,7 +337,10 @@ where
             Ok(version) => {
                 panic!("Unsuported version {}. Supported versions: {} or {}. Potentially outdated node.", version, LEGACY_VERSION, CURRENT_VERSION)
             }
-            _ => panic!("No abft version set"),
+            _ => {
+                // this might happen when there was no runtime upgrade yet. Fallback to legacy version
+                self.current_subtasks(params)
+            },
         }
     }
 }
