@@ -1,6 +1,4 @@
 //! Utilities for writing contract wrappers.
-//!
-//! The functions in this module simplify parsing the data types returned by contract calls.
 
 use anyhow::{anyhow, Result};
 use contract_transcode::Value;
