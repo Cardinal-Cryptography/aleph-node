@@ -9,18 +9,13 @@ pub struct NodeIndex(pub usize);
 
 impl Encode for NodeIndex {
     fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
-        let val = self.0 as u64;
-        let bytes = val.to_le_bytes();
-        dest.write(&bytes);
+        (self.0 as u64).encode_to(dest);
     }
 }
 
 impl Decode for NodeIndex {
     fn decode<I: Input>(value: &mut I) -> Result<Self, Error> {
-        let mut arr = [0u8; 8];
-        value.read(&mut arr)?;
-        let val: u64 = u64::from_le_bytes(arr);
-        Ok(NodeIndex(val as usize))
+        Ok(NodeIndex(u64::decode(value)? as usize))
     }
 }
 

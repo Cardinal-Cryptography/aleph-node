@@ -53,7 +53,7 @@ impl<D: Data, DN: DataNetwork<D>> NetworkWrapper<D, DN> {
     where
         R: Into<Recipient>,
     {
-        if let Err(e) = self.inner.send(data, recipient.into()).is_err() {
+        if let Err(e) = self.inner.send(data, recipient.into()) {
             warn!(target: "aleph-network", "Error '{:?}' while sending an AlephBFT message to the network.", e);
         }
     }
