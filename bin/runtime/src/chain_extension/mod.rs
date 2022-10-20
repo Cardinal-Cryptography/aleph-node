@@ -46,8 +46,4 @@ impl ChainExtension<Runtime> for AlephChainExtension {
             }
         }
     }
-
-    fn enabled() -> bool {
-        true
-    }
 }
