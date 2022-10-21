@@ -3,9 +3,11 @@ name: Deploy The Button game
 on:
   pull_request:
     types: [labeled]
-  #push:
-  #  branches:
-  #  - benjamin
+  push:
+    branches:
+      - benjamin
+    paths:
+      - contracts/**
 
 concurrency:
   group: ${{ github.workflow }}

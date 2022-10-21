@@ -1,0 +1,28 @@
+        Event Balances ➜ Withdraw
+          who: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          amount: 50535530153
+        Event Contracts ➜ Terminated
+          contract: 5FEsZXx65z33Nv5aieQ5W8PqNN4NUtRtr7Knqu9jDpTEvu25
+          beneficiary: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        Event System ➜ KilledAccount
+          account: 5FEsZXx65z33Nv5aieQ5W8PqNN4NUtRtr7Knqu9jDpTEvu25
+        Event Balances ➜ ReserveRepatriated
+          from: 5FEsZXx65z33Nv5aieQ5W8PqNN4NUtRtr7Knqu9jDpTEvu25
+          to: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          amount: 881000000000
+          destination_status: Free
+        Event Balances ➜ Deposit
+          who: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          amount: 48681419294
+        Event Balances ➜ Deposit
+          who: 5EYCAe5fg5WiYGVNH6QpCFnu55Hzv9MwtjFHdQCx8EaSQTm2
+          amount: 1854110859
+        Event Treasury ➜ Deposit
+          value: 1854110859
+        Event TransactionPayment ➜ TransactionFeePaid
+          who: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          actual_fee: 1854110859
+          tip: 0
+        Event System ➜ ExtrinsicSuccess
+          dispatch_info: DispatchInfo { weight: 1767812706, class: Normal, pays_fee: Yes }
+
