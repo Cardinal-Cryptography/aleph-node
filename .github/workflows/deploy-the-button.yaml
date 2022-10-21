@@ -152,7 +152,7 @@ jobs:
           done
 
       - name: Upload artifact with contract addresses
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: contracts-addresses
           path: contracts/addresses.json
@@ -160,7 +160,7 @@ jobs:
           retention-days: 90
 
       - name: Upload artifact with contract metadata
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: contracts-metadata
           path: |
