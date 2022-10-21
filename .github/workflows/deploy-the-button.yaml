@@ -146,16 +146,16 @@ jobs:
       - name: Rename metadata and addresses JSON files to artifact upload
         shell: bash
         run: |
-          cp contracts/addresses.json addresses.featurenet.json
+          cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
           for i in ticket_token marketplace button game_token access_control; do \
-            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".featurenet.json \
+            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json \
           done
 
       - name: Upload artifact with contract addresses
         uses: actions/upload-artifact@v3
         with:
           name: contracts-addresses
-          path: addresses.featurenet.json
+          path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
           if-no-files-found: error
           retention-days: 90
 
@@ -163,7 +163,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: contracts-metadata
-          path: metadata_*.featurenet.json
+          path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
           if-no-files-found: error
           retention-days: 90
 
