@@ -74,7 +74,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     assert!(validator_to_disable_kick_out_reason.is_none());
 
-    let validator_key_to_disable = validator_keys.non_reserved[2].clone();
+    let validator_key_to_disable = validator_keys.non_reserved[0].clone();
 
     let connection_to_disable =
         SignedConnection::new(NODE_TO_DISABLE_ADDRESS, validator_key_to_disable);
