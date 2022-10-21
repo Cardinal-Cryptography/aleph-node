@@ -155,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: contracts-addresses
-          path: contracts/addresses.json
+          path: addresses.featurenet.json
           if-no-files-found: error
           retention-days: 90
 
