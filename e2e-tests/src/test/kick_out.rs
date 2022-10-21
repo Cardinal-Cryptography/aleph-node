@@ -13,13 +13,21 @@ use primitives::{
 };
 
 use crate::{
-    accounts::account_ids_from_keys, rewards::set_invalid_keys_for_validator,
-    validators::get_test_validators, Config,
+    accounts::{account_ids_from_keys, get_validator_seed, NodeKeys},
+    rewards::set_invalid_keys_for_validator,
+    validators::get_test_validators,
+    Config,
 };
 
-const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9943";
+const VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX: u32 = 0;
+const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
+const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9945";
 const SESSIONS_TO_MEET_KICK_OUT_THRESHOLD: SessionCount = 4;
 
+/// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
+/// validators. Waits for the offending validator to hit the kick-out threshold of sessions without
+/// producing blocks. Verifies that the offending validator has in fact been kicked out for the
+/// appropriate reason.
 pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection();
 
@@ -39,6 +47,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         Some(seats),
         XtStatus::InBlock,
     );
+
     wait_for_full_era_completion(&root_connection)?;
 
     let start_era_validators = get_current_era_validators(&root_connection);
@@ -61,8 +70,9 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         DEFAULT_CLEAN_SESSION_COUNTER_DELAY
     );
 
-    let validator_to_disable = &non_reserved_validators[0];
-    info!("Validator to disable: {}", validator_to_disable);
+    let validator_to_disable =
+        &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
+    info!(target: "aleph-client", "Validator to disable: {}", validator_to_disable);
 
     let underperformed_validator_session_count =
         get_underperformed_validator_session_count(&root_connection, validator_to_disable);
@@ -74,13 +84,18 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     assert!(validator_to_disable_kick_out_reason.is_none());
 
-    let validator_key_to_disable = validator_keys.non_reserved[0].clone();
+    let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
+    let stash_controller = NodeKeys::from(validator_seed);
+    let controller_key_to_disable = stash_controller.controller;
 
+    // This connection has to be set up with the controller key.
     let connection_to_disable =
-        SignedConnection::new(NODE_TO_DISABLE_ADDRESS, validator_key_to_disable);
+        SignedConnection::new(NODE_TO_DISABLE_ADDRESS, controller_key_to_disable);
+
     set_invalid_keys_for_validator(&connection_to_disable)?;
 
     let current_session = get_current_session(&root_connection);
+
     wait_for_at_least_session(
         &root_connection,
         current_session + SESSIONS_TO_MEET_KICK_OUT_THRESHOLD,
@@ -93,7 +108,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     let validator_to_disable_kick_out_reason =
         get_kick_out_reason_for_validator(&root_connection, validator_to_disable)
-            .expect("Cannot obtain kick out reason for validator!");
+            .expect("Cannot obtain kick-out reason for validator!");
     let expected_kick_out_reason =
         KickOutReason::InsufficientUptime(DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD);
 
@@ -111,7 +126,10 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         &root_connection,
         ("Elections", "KickOutValidators"),
         |e: KickOutEvent| {
-            info!("Received KickOutValidators event: {:?}", e);
+            info!(
+                "Received KickOutValidators event: {:?}",
+                e.kicked_out_validators
+            );
             true
         },
     )?;
@@ -122,7 +140,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     assert_eq!(next_era_reserved_validators, reserved_validators);
     assert_eq!(
         next_era_non_reserved_validators,
-        non_reserved_validators[1..]
+        non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..]
     );
 
     let current_era_validators = get_current_era_validators(&root_connection);
@@ -133,7 +151,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     );
     assert_eq!(
         current_era_validators.non_reserved,
-        start_era_validators.non_reserved[1..]
+        start_era_validators.non_reserved[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..]
     );
 
     Ok(())
