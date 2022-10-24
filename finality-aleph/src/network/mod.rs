@@ -4,15 +4,16 @@ use std::{
     hash::Hash,
 };
 
-use aleph_bft::Recipient;
 use async_trait::async_trait;
 use bytes::Bytes;
 use codec::Codec;
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 
-mod aleph;
+use crate::abft::Recipient;
+
 mod component;
+mod io;
 mod manager;
 #[cfg(test)]
 pub mod mock;
@@ -20,28 +21,32 @@ mod service;
 mod session;
 mod split;
 
-pub use aleph::{NetworkData as AlephNetworkData, NetworkWrapper};
 pub use component::{
     Network as ComponentNetwork, NetworkExt as ComponentNetworkExt,
     NetworkMap as ComponentNetworkMap, Receiver as ReceiverComponent, Sender as SenderComponent,
     SimpleNetwork,
 };
+pub use io::setup as setup_io;
 use manager::SessionCommand;
-pub use manager::{ConnectionIO, ConnectionManager, ConnectionManagerConfig};
-pub use service::{Service, IO};
-pub use session::{Manager as SessionManager, ManagerError};
+pub use manager::{
+    ConnectionIO as ConnectionManagerIO, ConnectionManager, ConnectionManagerConfig,
+};
+pub use service::{Service, IO as NetworkServiceIO};
+pub use session::{Manager as SessionManager, ManagerError, Sender, IO as SessionManagerIO};
 pub use split::{split, Split};
-
 #[cfg(test)]
 pub mod testing {
-    pub use super::manager::{Authentication, DiscoveryMessage, NetworkData, SessionHandler};
+    pub use super::manager::{
+        Authentication, DataInSession, DiscoveryMessage, NetworkData, SessionHandler,
+        VersionedAuthentication,
+    };
 }
 
 /// Represents the id of an arbitrary node.
-pub trait PeerId: PartialEq + Eq + Copy + Clone + Debug + Display + Hash + Codec + Send {}
+pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send {}
 
 /// Represents the address of an arbitrary node.
-pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq {
+pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq + Send + Sync {
     type PeerId: PeerId;
 
     /// Returns the peer id associated with this multiaddress if it exists and is unique.
@@ -58,6 +63,7 @@ pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq {
 pub enum Protocol {
     Generic,
     Validator,
+    Authentication,
 }
 
 /// Abstraction over a sender to network.
@@ -78,7 +84,7 @@ pub enum Event<M: Multiaddress> {
     Disconnected(M::PeerId),
     StreamOpened(M::PeerId, Protocol),
     StreamClosed(M::PeerId, Protocol),
-    Messages(Vec<Bytes>),
+    Messages(Vec<(Protocol, Bytes)>),
 }
 
 #[async_trait]
