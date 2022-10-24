@@ -26,8 +26,7 @@ use crate::{
     crypto::AuthorityPen,
     network::{mock::Channel, Data, Multiaddress, NetworkIdentity},
     validator_network::{
-        mock::random_keys, service::Service, Dialer as DialerT, Listener as ListenerT, Network,
-        Splittable,
+        mock::random_keys, Dialer as DialerT, Listener as ListenerT, Network, Service, Splittable,
     },
 };
 
@@ -377,16 +376,19 @@ fn spawn_peer(
 #[tokio::test]
 async fn integration() {
     env_logger::init();
-    const N_PEERS: usize = 5;
-    const N_MSG: usize = 400;
-    const CONNECTIONS_END_AFTER: usize = 40000;
+    const N_PEERS: usize = 100;
+    const N_MSG: usize = 15;
+    // const CONNECTIONS_END_AFTER: usize = 10;
+    const CONNECTIONS_END_AFTER: usize = 100000;
     const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(3);
     // create spawn_handle, we need to keep the task_manager
     let task_manager =
         TaskManager::new(Handle::current(), None).expect("should create TaskManager");
     let spawn_handle = task_manager.spawn_handle();
     // create peer identities
+    info!(target: "validator-network", "generating keys...");
     let keys = random_keys(N_PEERS).await;
+    info!(target: "validator-network", "done");
     // prepare and run the manager
     let (mut connection_manager, mut callers, addr) =
         UnreliableConnectionMaker::new(keys.keys().cloned().collect());
@@ -400,6 +402,7 @@ async fn integration() {
     // spawn peers
     for (id, pen) in keys.into_iter() {
         let mut addr = addr.clone();
+        // do not connect with itself
         addr.remove(&pen.authority_id());
         let (dialer, listener) = callers.remove(&id).expect("should contain all ids");
         spawn_peer(
@@ -415,7 +418,6 @@ async fn integration() {
     let mut status_ticker = interval(STATUS_REPORT_INTERVAL);
     loop {
         tokio::select! {
-            // got new incoming connection from the listener - spawn an incoming worker
             maybe_report = rx_report.next() => match maybe_report {
                 Some((peer_id, n_msg)) => {
                     reports.insert(peer_id, n_msg);
