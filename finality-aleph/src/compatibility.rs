@@ -10,38 +10,28 @@ pub trait Versioned {
 }
 
 /// Wrapper for data send over network. We need it to ensure compatibility.
+/// The order of the data and session_id is fixed in encode and the decode expects it to be data, session_id.
 #[derive(Clone)]
 pub struct NetworkDataInSession<D: Data> {
     pub data: D,
     pub session_id: SessionId,
 }
 
-impl<D: Data> Versioned for NetworkDataInSession<D> {
-    const VERSION: Version = Version(0);
-}
-
 impl<D: Data> Decode for NetworkDataInSession<D> {
     fn decode<I: Input>(input: &mut I) -> Result<Self, Error> {
-        let version = Version::decode(input)?;
-        match version {
-            Version(0) => {
-                let data = D::decode(input)?;
+        let data = D::decode(input)?;
+        let session_id = SessionId::decode(input)?;
 
-                let session_id = SessionId::decode(input)?;
-                Ok(NetworkDataInSession { data, session_id })
-            }
-            _ => Err("Invalid version while decoding NetworkDataInSession".into()),
-        }
+        Ok(Self { data, session_id })
     }
 }
 
 impl<D: Data> Encode for NetworkDataInSession<D> {
     fn size_hint(&self) -> usize {
-        Self::VERSION.size_hint() + self.data.size_hint() + self.session_id.size_hint()
+        self.data.size_hint() + self.session_id.size_hint()
     }
 
     fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
-        Self::VERSION.encode_to(dest);
         self.data.encode_to(dest);
         self.session_id.encode_to(dest);
     }
