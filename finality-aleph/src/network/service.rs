@@ -14,14 +14,14 @@ use tokio::time;
 
 use super::manager::DataInSession;
 use crate::{
-    compatibility::VersionedNetworkDataWithSessionId,
+    compatibility::NetworkDataInSession,
     network::{
         manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
         NetworkSender, Protocol,
     },
     validator_network::Network as ValidatorNetwork,
-    Versioned, STATUS_REPORT_INTERVAL,
+    STATUS_REPORT_INTERVAL,
 };
 
 type MessageFromUser<D, A> = (NetworkData<D, A>, DataCommand<<A as Multiaddress>::PeerId>);
@@ -37,7 +37,7 @@ type MessageFromUser<D, A> = (NetworkData<D, A>, DataCommand<<A as Multiaddress>
 /// We also support two connection managers one for each network.
 pub struct Service<
     N: Network,
-    D: Data + Versioned,
+    D: Data,
     LD: Data,
     A: Data + Multiaddress<PeerId = AuthorityId>,
     VN: ValidatorNetwork<A, DataInSession<D>>,
@@ -99,7 +99,7 @@ enum SendToUserError {
 
 impl<
         N: Network,
-        D: Data + Versioned,
+        D: Data,
         LD: Data,
         A: Data + Multiaddress<PeerId = AuthorityId>,
         VN: ValidatorNetwork<A, DataInSession<D>>,
@@ -385,7 +385,7 @@ impl<
                     }
                     SendTo(peer, _) => self
                         .validator_network
-                        .send(VersionedNetworkDataWithSessionId { data, session_id }, peer),
+                        .send(NetworkDataInSession { data, session_id }, peer),
                 }
             }
         }

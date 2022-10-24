@@ -11,29 +11,37 @@ pub trait Versioned {
 
 /// Wrapper for data send over network. We need it to ensure compatibility.
 #[derive(Clone)]
-pub struct VersionedNetworkDataWithSessionId<D: Data + Versioned> {
+pub struct NetworkDataInSession<D: Data> {
     pub data: D,
     pub session_id: SessionId,
 }
 
-impl<D: Data + Versioned> Decode for VersionedNetworkDataWithSessionId<D> {
-    fn decode<I: Input>(input: &mut I) -> Result<Self, Error> {
-        // for now we dont use version for anything
-        let _version = Version::decode(input)?;
-        let data = D::decode(input)?;
-        let session_id = SessionId::decode(input)?;
+impl<D: Data> Versioned for NetworkDataInSession<D> {
+    const VERSION: Version = Version(0);
+}
 
-        Ok(VersionedNetworkDataWithSessionId { data, session_id })
+impl<D: Data> Decode for NetworkDataInSession<D> {
+    fn decode<I: Input>(input: &mut I) -> Result<Self, Error> {
+        let version = Version::decode(input)?;
+        match version {
+            Version(0) => {
+                let data = D::decode(input)?;
+
+                let session_id = SessionId::decode(input)?;
+                Ok(NetworkDataInSession { data, session_id })
+            }
+            _ => Err("Invalid version while decoding NetworkDataInSession".into()),
+        }
     }
 }
 
-impl<D: Data + Versioned> Encode for VersionedNetworkDataWithSessionId<D> {
+impl<D: Data> Encode for NetworkDataInSession<D> {
     fn size_hint(&self) -> usize {
-        D::VERSION.size_hint() + self.data.size_hint() + self.session_id.size_hint()
+        Self::VERSION.size_hint() + self.data.size_hint() + self.session_id.size_hint()
     }
 
     fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
-        D::VERSION.encode_to(dest);
+        Self::VERSION.encode_to(dest);
         self.data.encode_to(dest);
         self.session_id.encode_to(dest);
     }

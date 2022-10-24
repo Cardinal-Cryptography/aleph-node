@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 use crate::{
     crypto::Signature,
     network::{Data, Multiaddress},
-    NodeIndex, SessionId, Versioned,
+    NodeIndex, SessionId,
 };
 
 mod compatibility;
@@ -21,7 +21,7 @@ pub use service::{
 };
 pub use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
 
-use crate::compatibility::VersionedNetworkDataWithSessionId;
+use crate::compatibility::NetworkDataInSession;
 
 /// Data validators use to authenticate themselves for a single session
 /// and disseminate their addresses.
@@ -50,9 +50,9 @@ impl<M: Multiaddress> AuthData<M> {
 pub type Authentication<M> = (AuthData<M>, Signature);
 
 /// Data inside session, sent to validator network.
-pub type DataInSession<D> = VersionedNetworkDataWithSessionId<D>;
+pub type DataInSession<D> = NetworkDataInSession<D>;
 
-impl<D: Data + Versioned, M: Multiaddress> From<DataInSession<D>> for NetworkData<D, M> {
+impl<D: Data, M: Multiaddress> From<DataInSession<D>> for NetworkData<D, M> {
     fn from(data: DataInSession<D>) -> Self {
         NetworkData::Data(data.data, data.session_id)
     }

@@ -124,10 +124,6 @@ pub enum VersionedEitherMessage<L, R> {
     Right(R),
 }
 
-impl<L, R> Versioned for VersionedEitherMessage<L, R> {
-    const VERSION: Version = Version(0);
-}
-
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
     fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
         let version = Version::decode(input)?;
