@@ -15,14 +15,10 @@ use parking_lot::Mutex;
 use rand::random;
 use sp_keystore::{testing::KeyStore, CryptoStore};
 
-use crate::{
-    crypto::{AuthorityPen, AuthorityVerifier},
-    network::{
-        manager::NetworkData, ConnectionCommand, DataCommand, Event, EventStream, Multiaddress,
-        Network, NetworkIdentity, NetworkSender, NetworkServiceIO as NetworkIO, PeerId, Protocol,
-    },
-    AuthorityId, NodeIndex,
-};
+use crate::{crypto::{AuthorityPen, AuthorityVerifier}, network::{
+    manager::NetworkData, ConnectionCommand, DataCommand, Event, EventStream, Multiaddress,
+    Network, NetworkIdentity, NetworkSender, NetworkServiceIO as NetworkIO, PeerId, Protocol,
+}, AuthorityId, NodeIndex, Versioned, Version};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash, Encode, Decode)]
 pub struct MockPeerId(u32);
@@ -141,6 +137,10 @@ pub type MockEvent = Event<MockMultiaddress>;
 pub type MockData = Vec<u8>;
 type MessageForUser<D, M> = (NetworkData<D, M>, DataCommand<<M as Multiaddress>::PeerId>);
 type NetworkServiceIO<M> = NetworkIO<NetworkData<MockData, M>, M>;
+
+impl Versioned for MockData {
+    const VERSION: Version = Version(0);
+}
 
 pub struct MockIO<M: Multiaddress, LM: Multiaddress> {
     pub messages_for_user: mpsc::UnboundedSender<MessageForUser<MockData, M>>,
