@@ -84,7 +84,7 @@ jobs:
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           cargo clean
-          cargo build --release -p aleph-runtime
+          cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
 
