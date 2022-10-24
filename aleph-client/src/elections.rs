@@ -2,9 +2,12 @@ use primitives::{
     CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason, SessionCount,
     SessionIndex,
 };
-use sp_core::H256;
+use sp_core::{Pair, H256};
+use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams, XtStatus};
 
-use crate::{get_session_first_block, AccountId, ReadStorage};
+use crate::{
+    get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
+};
 
 const PALLET: &str = "Elections";
 
@@ -78,4 +81,29 @@ pub fn get_kick_out_reason_for_validator<C: ReadStorage>(
     account_id: &AccountId,
 ) -> Option<KickOutReason> {
     connection.read_storage_map(PALLET, "ToBeKickedOutFromCommittee", account_id, None)
+}
+
+pub fn change_kickout_config(
+    sudo_connection: &RootConnection,
+    minimal_expected_performance: Option<u8>,
+    underperformed_session_count_threshold: Option<u32>,
+    clean_session_counter_delay: Option<u32>,
+    status: XtStatus,
+) {
+    let call = compose_call!(
+        sudo_connection.as_connection().metadata,
+        PALLET,
+        "set_kick_out_config",
+        minimal_expected_performance,
+        underperformed_session_count_threshold,
+        clean_session_counter_delay
+    );
+    let xt = compose_extrinsic!(
+        sudo_connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
+        0_u64
+    );
+    send_xt(sudo_connection, xt, Some("set_kick_out_config"), status);
 }
