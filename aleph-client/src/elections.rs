@@ -2,9 +2,13 @@ use primitives::{
     CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason, SessionCount,
     SessionIndex,
 };
-use sp_core::H256;
+use sp_core::{Pair, H256};
+use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams};
 
-use crate::{get_session_first_block, AccountId, ReadStorage};
+use crate::{
+    get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
+    XtStatus,
+};
 
 const PALLET: &str = "Elections";
 
@@ -47,6 +51,17 @@ pub fn get_next_era_non_reserved_validators<C: ReadStorage>(connection: &C) -> V
     connection.read_storage_value(PALLET, "NextEraNonReservedValidators")
 }
 
+pub fn get_next_era_validators<C: ReadStorage>(connection: &C) -> EraValidators<AccountId> {
+    let reserved: Vec<AccountId> =
+        connection.read_storage_value(PALLET, "NextEraReservedValidators");
+    let non_reserved: Vec<AccountId> =
+        connection.read_storage_value(PALLET, "NextEraNonReservedValidators");
+    EraValidators {
+        reserved,
+        non_reserved,
+    }
+}
+
 pub fn get_era_validators<C: ReadStorage>(
     connection: &C,
     session: SessionIndex,
@@ -78,4 +93,31 @@ pub fn get_kick_out_reason_for_validator<C: ReadStorage>(
     account_id: &AccountId,
 ) -> Option<KickOutReason> {
     connection.read_storage_map(PALLET, "ToBeKickedOutFromCommittee", account_id, None)
+}
+
+pub fn kick_out_from_committee(
+    connection: &RootConnection,
+    to_be_kicked_out: &AccountId,
+    reason: KickOutReason,
+    status: XtStatus,
+) {
+    let call_name = "kick_out_from_committee";
+
+    let kick_out_from_committee_call = compose_call!(
+        connection.as_connection().metadata,
+        PALLET,
+        call_name,
+        to_be_kicked_out,
+        reason
+    );
+
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        kick_out_from_committee_call,
+        0_u64
+    );
+
+    send_xt(connection, xt, Some(call_name), status);
 }
