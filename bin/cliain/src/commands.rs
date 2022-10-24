@@ -328,7 +328,7 @@ pub enum Command {
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#calldest-multiaddress-value-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-data-bytes
     ContractCall(ContractCall),
 
-    /// Returns true if code hash is stored on chain
+    /// Returns OwnerInfo if code hash is stored on chain
     ContractOwnerInfo(ContractOwnerInfo),
 
     /// Removes the code stored under code_hash and refund the deposit to its owner.
