@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     sync::{
         mpsc::{channel, Receiver, RecvTimeoutError},
         Arc,
@@ -11,8 +12,9 @@ use aleph_client::{
     contract::event::{listen_contract_events, subscribe_events, ContractEvent},
     AnyConnection, Balance, Connection, KeyPair, SignedConnection, XtStatus,
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 use itertools::Itertools;
+use log::{info, warn};
 use rand::Rng;
 use sp_core::Pair;
 
@@ -105,7 +107,7 @@ pub(super) struct ButtonTestContext {
 pub(super) fn setup_button_test(config: &Config) -> Result<ButtonTestContext> {
     let conn = config.get_first_signed_connection().as_connection();
 
-    let authority = aleph_client::keypair_from_string("//Alice");
+    let authority = aleph_client::keypair_from_string(&config.sudo_seed);
     let player = random_account();
 
     let button = Arc::new(ButtonInstance::new(config)?);
@@ -177,13 +179,16 @@ impl<T> BufferedReceiver<T> {
 
                 while timeout > Duration::from_millis(0) {
                     let start = Instant::now();
-                    if let Ok(msg) = self.receiver.recv_timeout(timeout) {
-                        if filter(&msg) {
-                            return Ok(msg);
-                        } else {
-                            self.buffer.push(msg);
-                            timeout -= Instant::now().duration_since(start);
+                    match self.receiver.recv_timeout(timeout) {
+                        Ok(msg) => {
+                            if filter(&msg) {
+                                return Ok(msg);
+                            } else {
+                                self.buffer.push(msg);
+                                timeout -= Instant::now().duration_since(start);
+                            }
                         }
+                        Err(_) => return Err(RecvTimeoutError::Timeout),
                     }
                 }
 
@@ -193,18 +198,49 @@ impl<T> BufferedReceiver<T> {
     }
 }
 
-pub(super) fn assert_recv<T, F: Fn(&T) -> bool>(
+pub(super) fn wait_for_death<C: AnyConnection>(conn: &C, button: &ButtonInstance) -> Result<()> {
+    info!("Waiting for button to die");
+    assert_soon(|| button.is_dead(conn), Duration::from_secs(30))
+}
+
+pub(super) fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) -> Result<()> {
+    let start = Instant::now();
+    while !check()? {
+        if Instant::now().duration_since(start) > timeout {
+            bail!("Condition not met within timeout")
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn assert_recv_id(
+    events: &mut BufferedReceiver<Result<ContractEvent>>,
+    id: &str,
+) -> ContractEvent {
+    assert_recv(
+        events,
+        |event| event.ident == Some(id.to_string()),
+        &format!("Expected {:?} contract event", id),
+    )
+    .unwrap()
+}
+
+pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     events: &mut BufferedReceiver<Result<T>>,
     filter: F,
     context: &str,
-) -> () {
-    assert!(
-        events
-            .recv_timeout(|event_or_error| {
-                event_or_error.as_ref().map(|x| filter(x)).unwrap_or(false)
-            })
-            .is_ok(),
-        "{}",
-        context
-    );
+) -> Result<T> {
+    let event = events.recv_timeout(|event_or_error| {
+        if event_or_error.is_ok() {
+            info!("Received contract event {:?}", event_or_error);
+        } else {
+            warn!("Contract event error {:?}", event_or_error);
+        }
+
+        event_or_error.as_ref().map(|x| filter(x)).unwrap_or(false)
+    });
+
+    assert!(event.is_ok(), "{}", context);
+
+    event.unwrap()
 }

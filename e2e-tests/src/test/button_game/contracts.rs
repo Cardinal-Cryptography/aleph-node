@@ -1,17 +1,30 @@
 use aleph_client::{
     contract::{
-        util::{to_account_id, to_u128},
+        util::{to_account_id, to_bool, to_u128},
         ContractInstance,
     },
-    AnyConnection, Balance, Connection, SignedConnection,
+    AnyConnection, Balance, Connection, KeyPair, SignedConnection,
 };
 use anyhow::{Context, Result};
-use sp_core::crypto::{AccountId32, AccountId32 as AccountId, Ss58Codec};
+use sp_core::{
+    crypto::{AccountId32, AccountId32 as AccountId, Ss58Codec},
+    Pair,
+};
 
 use crate::Config;
 
 pub trait AsContractInstance {
     fn as_contract(&self) -> &ContractInstance;
+}
+
+pub trait ToAccount {
+    fn to_account(&self) -> AccountId32;
+}
+
+impl ToAccount for KeyPair {
+    fn to_account(&self) -> AccountId32 {
+        self.public().into()
+    }
 }
 
 #[derive(Debug)]
@@ -43,6 +56,10 @@ impl ButtonInstance {
             .map(to_u128)?
     }
 
+    pub fn is_dead<C: AnyConnection>(&self, conn: &C) -> Result<bool> {
+        self.contract.contract_read0(conn, "is_dead").map(to_bool)?
+    }
+
     pub fn ticket_token<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
         self.contract
             .contract_read0(conn, "ticket_token")
@@ -61,6 +78,10 @@ impl ButtonInstance {
             .map(to_account_id)?
     }
 
+    pub fn press(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "press")
+    }
+
     pub fn reset(&self, conn: &SignedConnection) -> Result<()> {
         self.contract.contract_exec0(conn, "reset")
     }
@@ -69,6 +90,12 @@ impl ButtonInstance {
 impl AsContractInstance for ButtonInstance {
     fn as_contract(&self) -> &ContractInstance {
         &self.contract
+    }
+}
+
+impl ToAccount for ButtonInstance {
+    fn to_account(&self) -> AccountId {
+        self.as_contract().address().clone()
     }
 }
 
@@ -90,21 +117,34 @@ impl PSP22TokenInstance {
     pub fn transfer(
         &self,
         conn: &SignedConnection,
-        to: AccountId32,
+        to: &AccountId32,
         amount: Balance,
     ) -> Result<()> {
         self.contract.contract_exec(
             conn,
             "PSP22::transfer",
-            vec![to.to_string().as_str(), amount.to_string().as_str(), "0x00"].as_slice(),
+            &[to.to_string().as_str(), amount.to_string().as_str(), "0x00"],
         )
     }
 
-    pub fn balance_of(&self, conn: &Connection, account: AccountId32) -> Result<Balance> {
+    pub fn approve(
+        &self,
+        conn: &SignedConnection,
+        spender: &AccountId32,
+        value: Balance,
+    ) -> Result<()> {
+        self.contract.contract_exec(
+            conn,
+            "PSP22::approve",
+            &[spender.to_string().as_str(), value.to_string().as_str()],
+        )
+    }
+
+    pub fn balance_of(&self, conn: &Connection, account: &AccountId32) -> Result<Balance> {
         to_u128(self.contract.contract_read(
             conn,
             "PSP22::balance_of",
-            &vec![account.to_string().as_str()],
+            &[account.to_string().as_str()],
         )?)
     }
 }
@@ -112,6 +152,12 @@ impl PSP22TokenInstance {
 impl AsContractInstance for PSP22TokenInstance {
     fn as_contract(&self) -> &ContractInstance {
         &self.contract
+    }
+}
+
+impl ToAccount for PSP22TokenInstance {
+    fn to_account(&self) -> AccountId32 {
+        self.contract.address().clone()
     }
 }
 
@@ -136,5 +182,11 @@ impl MarketplaceInstance {
 impl AsContractInstance for MarketplaceInstance {
     fn as_contract(&self) -> &ContractInstance {
         &self.contract
+    }
+}
+
+impl ToAccount for MarketplaceInstance {
+    fn to_account(&self) -> AccountId {
+        self.contract.address().clone()
     }
 }

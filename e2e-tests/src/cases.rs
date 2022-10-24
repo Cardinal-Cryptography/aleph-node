@@ -6,6 +6,8 @@ use crate::{
         change_stake_and_force_new_era as test_change_stake_and_force_new_era,
         change_validators as test_change_validators,
         channeling_fee_and_tip as test_channeling_fee_and_tip, disable_node as test_disable_node,
+        early_bird_special_play as test_early_bird_special_play,
+        early_bird_special_reset as test_early_bird_special_reset,
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         force_new_era as test_force_new_era, points_basic as test_points_basic,
@@ -13,7 +15,6 @@ use crate::{
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
-        early_bird_special as test_early_bird_special
     },
 };
 
@@ -56,6 +57,13 @@ pub fn possible_test_cases() -> PossibleTestCases {
             "authorities_are_staking",
             test_authorities_are_staking as TestCase,
         ),
-        ("early_bird_special", test_early_bird_special as TestCase)
+        (
+            "early_bird_special_reset",
+            test_early_bird_special_reset as TestCase,
+        ),
+        (
+            "early_bird_special_play",
+            test_early_bird_special_play as TestCase,
+        ),
     ]
 }

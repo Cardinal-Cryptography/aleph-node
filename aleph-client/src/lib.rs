@@ -4,6 +4,7 @@ use ac_primitives::{PlainTipExtrinsicParamsBuilder, SubstrateDefaultSignedExtra}
 pub use account::{get_free_balance, locks};
 pub use balances::total_issuance;
 use codec::{Decode, Encode};
+pub use contract_transcode;
 pub use debug::print_storages;
 pub use elections::{
     get_committee_seats, get_current_era_non_reserved_validators,

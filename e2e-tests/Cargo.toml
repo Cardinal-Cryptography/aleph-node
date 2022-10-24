@@ -15,6 +15,7 @@ codec = { package = 'parity-scale-codec', version = "3.0", default-features = fa
 rayon = "1.5"
 rand = "0.8"
 itertools = "0.10"
+assert2 = "0.3"
 
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26", default-features = false, features = ["full_crypto"] }
 sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.26", default-features = false }

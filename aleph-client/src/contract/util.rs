@@ -46,3 +46,21 @@ pub fn to_account_id(value: Value) -> Result<AccountId> {
         _ => Err(anyhow!("Expected {:?} to be a string", value)),
     }
 }
+
+/// Returns `Ok(bool)` if the given `Value` represents one, or `Err(_)` otherwise.
+/// ```
+/// # #![feature(assert_matches)]
+/// # use std::assert_matches::assert_matches;
+/// # use anyhow::anyhow;
+/// # use aleph_client::contract::util::to_bool;
+/// use contract_transcode::Value;
+///
+/// assert_matches!(to_bool(Value::Bool(true)), Ok(true));
+/// assert_matches!(to_bool(Value::UInt(42)), Err(_));
+/// ```
+pub fn to_bool(value: Value) -> Result<bool> {
+    match value {
+        Value::Bool(value) => Ok(value),
+        _ => Err(anyhow!("Expected {:?} to be a boolean", value)),
+    }
+}
