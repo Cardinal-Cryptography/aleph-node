@@ -14,13 +14,14 @@ use tokio::time;
 
 use super::manager::DataInSession;
 use crate::{
+    compatibility::VersionedNetworkDataWithSessionId,
     network::{
         manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
         NetworkSender, Protocol,
     },
     validator_network::Network as ValidatorNetwork,
-    STATUS_REPORT_INTERVAL,
+    Versioned, STATUS_REPORT_INTERVAL,
 };
 
 type MessageFromUser<D, A> = (NetworkData<D, A>, DataCommand<<A as Multiaddress>::PeerId>);
@@ -36,7 +37,7 @@ type MessageFromUser<D, A> = (NetworkData<D, A>, DataCommand<<A as Multiaddress>
 /// We also support two connection managers one for each network.
 pub struct Service<
     N: Network,
-    D: Data,
+    D: Data + Versioned,
     LD: Data,
     A: Data + Multiaddress<PeerId = AuthorityId>,
     VN: ValidatorNetwork<A, DataInSession<D>>,
@@ -98,7 +99,7 @@ enum SendToUserError {
 
 impl<
         N: Network,
-        D: Data,
+        D: Data + Versioned,
         LD: Data,
         A: Data + Multiaddress<PeerId = AuthorityId>,
         VN: ValidatorNetwork<A, DataInSession<D>>,
@@ -377,12 +378,14 @@ impl<
                     }
                 }
             }
-            NetworkData::Data(data, session) => {
+            NetworkData::Data(data, session_id) => {
                 match command {
                     Broadcast => {
                         // We ignore this for now. AlephBFT does not broadcast data.
                     }
-                    SendTo(peer, _) => self.validator_network.send((data, session), peer),
+                    SendTo(peer, _) => self
+                        .validator_network
+                        .send(VersionedNetworkDataWithSessionId { data, session_id }, peer),
                 }
             }
         }

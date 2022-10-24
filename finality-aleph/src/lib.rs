@@ -32,6 +32,7 @@ use crate::{
 
 mod abft;
 mod aggregation;
+mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;
@@ -57,6 +58,7 @@ pub use network::Protocol;
 pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
 
+use crate::compatibility::{Version, Versioned};
 pub use crate::metrics::Metrics;
 
 /// Constant defining how often components of finality-aleph should report their state
@@ -111,13 +113,6 @@ impl<B: Block> Versioned for CurrentNetworkData<B> {
     const VERSION: Version = Version(1);
 }
 
-#[derive(Encode, Eq, Decode, PartialEq)]
-pub struct Version(u32);
-
-pub trait Versioned {
-    const VERSION: Version;
-}
-
 /// The main purpose of this data type is to enable a seamless transition between protocol versions at the Network level. It
 /// provides a generic implementation of the Decode and Encode traits (LE byte representation) by prepending byte
 /// representations for provided type parameters with their version (they need to implement the `Versioned` trait). If one
@@ -127,6 +122,10 @@ pub trait Versioned {
 pub enum VersionedEitherMessage<L, R> {
     Left(L),
     Right(R),
+}
+
+impl<L, R> Versioned for VersionedEitherMessage<L, R> {
+    const VERSION: Version = Version(0);
 }
 
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
