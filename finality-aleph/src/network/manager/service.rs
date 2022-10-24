@@ -19,7 +19,7 @@ use crate::{
             Connections, Discovery, DiscoveryMessage, NetworkData, SessionHandler,
             SessionHandlerError,
         },
-        ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, Protocol, ShortId,
+        ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, PeerId, Protocol,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
 };
@@ -571,7 +571,7 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                     let peer_ids = peers
                         .iter()
                         .map(|(node_id, peer_id)| {
-                            format!("{:?}: {}", node_id, peer_id.to_short_id())
+                            format!("{:?}: {}", node_id, peer_id.to_short_string())
                         })
                         .collect::<Vec<_>>()
                         .join(", ");

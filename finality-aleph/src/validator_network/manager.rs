@@ -6,7 +6,7 @@ use std::{
 use aleph_primitives::AuthorityId;
 use futures::channel::{mpsc, oneshot};
 
-use crate::{network::ShortId, validator_network::Data};
+use crate::{network::PeerId, validator_network::Data};
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to, and managing the established connections.
@@ -83,50 +83,47 @@ impl Display for ManagerStatus {
         }
 
         if !self.both_ways_peers.is_empty() {
-            let both_ways_status = (
-                self.both_ways_peers.len(),
-                self.both_ways_peers
-                    .iter()
-                    .map(|authority_id| authority_id.to_short_id())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            );
+            let peers = self
+                .both_ways_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
             write!(
                 f,
                 "both ways - {:?} [{}]; ",
-                both_ways_status.0, both_ways_status.1,
+                self.both_ways_peers.len(),
+                peers,
             )?;
         }
 
         if !self.incoming_peers.is_empty() {
-            let incoming_status = (
-                self.incoming_peers.len(),
-                self.incoming_peers
-                    .iter()
-                    .map(|authority_id| authority_id.to_short_id())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            );
+            let peers = self
+                .incoming_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
             write!(
                 f,
                 "incoming only - {:?} [{}]; ",
-                incoming_status.0, incoming_status.1,
+                self.incoming_peers.len(),
+                peers
             )?;
         }
 
         if !self.outgoing_peers.is_empty() {
-            let outgoing_status = (
-                self.outgoing_peers.len(),
-                self.outgoing_peers
-                    .iter()
-                    .map(|authority_id| authority_id.to_short_id())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            );
+            let peers = self
+                .outgoing_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
             write!(
                 f,
                 "outgoing only - {:?} [{}];",
-                outgoing_status.0, outgoing_status.1,
+                self.outgoing_peers.len(),
+                peers
             )?;
         }
         Ok(())
