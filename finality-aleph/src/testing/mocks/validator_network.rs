@@ -7,7 +7,7 @@ use std::{
 };
 
 use aleph_primitives::{AuthorityId, KEY_TYPE};
-use env_logger;
+use codec::{Decode, Encode};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
@@ -317,12 +317,57 @@ impl UnreliableConnectionMaker {
     }
 }
 
-type MockData = u32;
+#[derive(Clone)]
+struct MockData {
+    data: u32,
+    filler: Vec<u8>,
+    decodes: bool,
+}
 
+impl MockData {
+    fn new(data: u32, filler_size: usize, decodes: bool) -> MockData {
+        MockData {
+            data,
+            filler: vec![0; filler_size],
+            decodes,
+        }
+    }
+}
+
+impl Encode for MockData {
+    fn encode(&self) -> Vec<u8> {
+        // currently this is exactly the default behaviour of codec
+        let mut encoded = Vec::with_capacity(self.filler.len() + 5);
+        encoded.append(&mut u32::encode(&self.data));
+        encoded.append(&mut Vec::<u8>::encode(&self.filler));
+        encoded.append(&mut bool::encode(&self.decodes));
+        encoded
+    }
+}
+
+impl Decode for MockData {
+    fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
+        let data = u32::decode(value)?;
+        let filler = Vec::<u8>::decode(value)?;
+        let decodes = bool::decode(value)?;
+        if !decodes {
+            return Err("Simulated decode failure.".into());
+        }
+        Ok(Self {
+            data,
+            filler,
+            decodes,
+        })
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn spawn_peer(
     pen: AuthorityPen,
     addr: Addresses,
     n_msg: usize,
+    large_message_interval: usize,
+    corrupted_message_interval: usize,
     dialer: MockDialer,
     listener: MockListener,
     report: mpsc::UnboundedSender<(AuthorityId, usize)>,
@@ -350,11 +395,15 @@ fn spawn_peer(
     tokio::spawn(async move {
         let mut received: Vec<bool> = vec![false; n_msg];
         let mut send_ticker = tokio::time::interval(Duration::from_millis(5));
+        let mut counter: usize = 0;
         loop {
             tokio::select! {
                 _ = send_ticker.tick() => {
+                    counter += 1;
                     // generate random message
-                    let data: MockData = thread_rng().gen_range(0..n_msg) as u32;
+                    let filler_size = if counter % large_message_interval == 0 { 32*1024*1024 } else { 0 };
+                    let decodes = counter % corrupted_message_interval != 0;
+                    let data: MockData = MockData::new(thread_rng().gen_range(0..n_msg) as u32, filler_size, decodes);
                     // choose a peer
                     let peer: AuthorityId = peer_ids[thread_rng().gen_range(0..peer_ids.len())].clone();
                     // send
@@ -364,7 +413,7 @@ fn spawn_peer(
                     // receive the message
                     let data: MockData = data.expect("next should not be closed");
                     // mark the message as received, we do not care about sender's identity
-                    received[data as usize] = true;
+                    received[data.data as usize] = true;
                     // report the number of received messages
                     report.unbounded_send((our_id.clone(), received.iter().filter(|x| **x).count())).expect("should send");
                 },
@@ -373,27 +422,27 @@ fn spawn_peer(
     });
 }
 
-#[tokio::test]
-async fn integration() {
-    env_logger::init();
-    const N_PEERS: usize = 100;
-    const N_MSG: usize = 15;
-    // const CONNECTIONS_END_AFTER: usize = 10;
-    const CONNECTIONS_END_AFTER: usize = 100000;
-    const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(3);
+pub async fn scenario(
+    n_peers: usize,
+    n_msg: usize,
+    broken_connection_interval: usize,
+    large_message_interval: usize,
+    corrupted_message_interval: usize,
+    status_report_interval: Duration,
+) {
     // create spawn_handle, we need to keep the task_manager
     let task_manager =
         TaskManager::new(Handle::current(), None).expect("should create TaskManager");
     let spawn_handle = task_manager.spawn_handle();
     // create peer identities
     info!(target: "validator-network", "generating keys...");
-    let keys = random_keys(N_PEERS).await;
+    let keys = random_keys(n_peers).await;
     info!(target: "validator-network", "done");
     // prepare and run the manager
     let (mut connection_manager, mut callers, addr) =
         UnreliableConnectionMaker::new(keys.keys().cloned().collect());
     tokio::spawn(async move {
-        connection_manager.run(CONNECTIONS_END_AFTER).await;
+        connection_manager.run(broken_connection_interval).await;
     });
     // channel for receiving status updates from spawned peers
     let (tx_report, mut rx_report) = mpsc::unbounded::<(AuthorityId, usize)>();
@@ -408,25 +457,27 @@ async fn integration() {
         spawn_peer(
             pen,
             addr,
-            N_MSG,
+            n_msg,
+            large_message_interval,
+            corrupted_message_interval,
             dialer,
             listener,
             tx_report.clone(),
             spawn_handle.clone(),
         );
     }
-    let mut status_ticker = interval(STATUS_REPORT_INTERVAL);
+    let mut status_ticker = interval(status_report_interval);
     loop {
         tokio::select! {
             maybe_report = rx_report.next() => match maybe_report {
                 Some((peer_id, n_msg)) => {
                     reports.insert(peer_id, n_msg);
-                    if reports.values().all(|&x| x == N_MSG) { return; }
+                    if reports.values().all(|&x| x == n_msg) { return; }
                 },
                 None => panic!("should receive"),
             },
             _ = status_ticker.tick() => {
-                info!(target: "validator-network", "Peers received {:?} out of {}", reports.values(), N_MSG);
+                info!(target: "validator-network", "Peers received {:?} messages out of {}.", reports.values(), n_msg);
             }
         };
     }
