@@ -147,7 +147,7 @@ mod tests {
     };
 
     use super::{Manager, SendError};
-    use crate::validator_network::mock::keys;
+    use crate::validator_network::mock::key;
 
     type Data = String;
     type Address = String;
@@ -155,8 +155,8 @@ mod tests {
     #[tokio::test]
     async fn add_remove() {
         let mut manager = Manager::<Address, Data>::new();
-        let (peer_id, _) = keys().await;
-        let (peer_id_b, _) = keys().await;
+        let (peer_id, _) = key().await;
+        let (peer_id_b, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -184,7 +184,7 @@ mod tests {
     async fn outgoing() {
         let mut manager = Manager::<Address, Data>::new();
         let data = String::from("DATA");
-        let (peer_id, _) = keys().await;
+        let (peer_id, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -214,7 +214,7 @@ mod tests {
     #[tokio::test]
     async fn incoming() {
         let mut manager = Manager::<Address, Data>::new();
-        let (peer_id, _) = keys().await;
+        let (peer_id, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
