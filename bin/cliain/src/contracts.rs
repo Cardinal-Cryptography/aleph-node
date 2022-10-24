@@ -9,7 +9,6 @@ use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
 use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
-// use pallet_contracts::PrefabWasmModule;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, H256};
 use substrate_api_client::{
@@ -18,8 +17,8 @@ use substrate_api_client::{
 };
 
 use crate::commands::{
-    ContractCall, ContractCodeExists, ContractInstantiate, ContractInstantiateWithCode,
-    ContractOptions, ContractRemoveCode, ContractUploadCode,
+    ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
+    ContractOwnerInfo, ContractRemoveCode, ContractUploadCode,
 };
 
 #[derive(Debug, Decode, Clone)]
@@ -273,18 +272,20 @@ pub fn call(signed_connection: SignedConnection, command: ContractCall) -> anyho
     Ok(())
 }
 
-pub fn code_exists(signed_connection: SignedConnection, command: ContractCodeExists) -> bool {
-    let ContractCodeExists { code_hash } = command;
+pub fn owner_info(
+    signed_connection: SignedConnection,
+    command: ContractOwnerInfo,
+) -> Option<OwnerInfo> {
+    let ContractOwnerInfo { code_hash } = command;
     let mut code_hash_bytes: Vec<u8> = Vec::from(code_hash.0);
     let mut bytes = storage_key("Contracts", "OwnerInfoOf").0;
     bytes.append(&mut code_hash_bytes);
-    let k = StorageKey(bytes);
+    let storage_key = StorageKey(bytes);
 
     let connection = signed_connection.as_connection();
-    let exists = connection.get_storage_by_key_hash::<OwnerInfo>(k, None);
-
-    println!("@@@ exists? {:?} ", exists);
-    todo!()
+    connection
+        .get_storage_by_key_hash::<OwnerInfo>(storage_key, None)
+        .ok()?
 }
 
 pub fn remove_code(

@@ -15,7 +15,7 @@ use aleph_client::{
 };
 pub use commands::Command;
 pub use contracts::{
-    call, code_exists, instantiate, instantiate_with_code, remove_code, upload_code,
+    call, instantiate, instantiate_with_code, owner_info, remove_code, upload_code,
 };
 pub use finalization::{finalize, set_emergency_finalizer};
 pub use keys::{next_session_keys, prepare_keys, rotate_keys, set_keys};

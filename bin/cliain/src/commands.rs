@@ -91,7 +91,7 @@ pub struct ContractCall {
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct ContractCodeExists {
+pub struct ContractOwnerInfo {
     /// Code hash of the contract code
     #[clap(long, parse(try_from_str))]
     pub code_hash: H256,
@@ -329,7 +329,7 @@ pub enum Command {
     ContractCall(ContractCall),
 
     /// Returns true if code hash is stored on chain
-    ContractCodeExists(ContractCodeExists),
+    ContractOwnerInfo(ContractOwnerInfo),
 
     /// Removes the code stored under code_hash and refund the deposit to its owner.
     ///
