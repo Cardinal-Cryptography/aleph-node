@@ -150,7 +150,7 @@ jobs:
         run: |
           cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
           for i in ticket_token marketplace button game_token access_control; do \
-            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json \
+            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
           done
 
       - name: Upload artifact with contract addresses
