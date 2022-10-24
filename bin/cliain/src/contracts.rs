@@ -3,9 +3,7 @@ use std::{
     path::Path,
 };
 
-use aleph_client::{
-    get_storage_key, send_xt, wait_for_event, AnyConnection, Balance, SignedConnection,
-};
+use aleph_client::{send_xt, wait_for_event, AnyConnection, Balance, SignedConnection};
 use anyhow::anyhow;
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
@@ -15,7 +13,8 @@ use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, H256};
 use substrate_api_client::{
-    compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, StorageKey, XtStatus,
+    compose_extrinsic, utils::storage_key, AccountId, ExtrinsicParams, GenericAddress, StorageKey,
+    XtStatus,
 };
 
 use crate::commands::{
@@ -276,33 +275,15 @@ pub fn call(signed_connection: SignedConnection, command: ContractCall) -> anyho
 
 pub fn code_exists(signed_connection: SignedConnection, command: ContractCodeExists) -> bool {
     let ContractCodeExists { code_hash } = command;
-    let code_hash = code_hash.to_string();
-    let code_hash = match code_hash.starts_with("0x") {
-        true => code_hash
-            .strip_prefix("0x")
-            .expect("Can't strip 0x prefix")
-            .to_owned(),
-        false => code_hash,
-    };
+    let mut code_hash_bytes: Vec<u8> = Vec::from(code_hash.0);
+    let mut bytes = storage_key("Contracts", "OwnerInfoOf").0;
+    bytes.append(&mut code_hash_bytes);
+    let k = StorageKey(bytes);
 
     let connection = signed_connection.as_connection();
-
-    let s = format!(
-        "{}{}",
-        get_storage_key("Contracts", "OwnerInfoOf"),
-        code_hash
-    );
-
-    println!("@@@ {:?} ", s);
-
-    // println!("@@@ {:?} ", code_hash);
-
-    let k = StorageKey(s.as_bytes().to_owned());
-
-    let exists = connection.get_storage_by_key_hash::<Option<OwnerInfo>>(k, None);
+    let exists = connection.get_storage_by_key_hash::<OwnerInfo>(k, None);
 
     println!("@@@ exists? {:?} ", exists);
-
     todo!()
 }
 
