@@ -3,22 +3,37 @@ use std::{
     path::Path,
 };
 
-use aleph_client::{send_xt, wait_for_event, AnyConnection, SignedConnection};
+use aleph_client::{
+    get_storage_key, send_xt, wait_for_event, AnyConnection, Balance, SignedConnection,
+};
 use anyhow::anyhow;
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
 use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
+// use pallet_contracts::PrefabWasmModule;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, H256};
 use substrate_api_client::{
-    compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, XtStatus,
+    compose_extrinsic, AccountId, ExtrinsicParams, GenericAddress, StorageKey, XtStatus,
 };
 
 use crate::commands::{
-    ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
-    ContractRemoveCode, ContractUploadCode,
+    ContractCall, ContractCodeExists, ContractInstantiate, ContractInstantiateWithCode,
+    ContractOptions, ContractRemoveCode, ContractUploadCode,
 };
+
+#[derive(Debug, Decode, Clone)]
+pub struct OwnerInfo {
+    /// The account that has deployed the contract and hence is allowed to remove it.
+    pub owner: AccountId,
+    /// The amount of balance that was deposited by the owner in order to deploy it.
+    #[codec(compact)]
+    pub deposit: Balance,
+    /// The number of contracts that use this as their code.
+    #[codec(compact)]
+    pub refcount: u64,
+}
 
 #[derive(Debug, Decode, Clone)]
 pub struct ContractCodeRemovedEvent {
@@ -257,6 +272,38 @@ pub fn call(signed_connection: SignedConnection, command: ContractCall) -> anyho
 
     let _block_hash = send_xt(&connection, xt, Some("call"), XtStatus::Finalized);
     Ok(())
+}
+
+pub fn code_exists(signed_connection: SignedConnection, command: ContractCodeExists) -> bool {
+    let ContractCodeExists { code_hash } = command;
+    let code_hash = code_hash.to_string();
+    let code_hash = match code_hash.starts_with("0x") {
+        true => code_hash
+            .strip_prefix("0x")
+            .expect("Can't strip 0x prefix")
+            .to_owned(),
+        false => code_hash,
+    };
+
+    let connection = signed_connection.as_connection();
+
+    let s = format!(
+        "{}{}",
+        get_storage_key("Contracts", "OwnerInfoOf"),
+        code_hash
+    );
+
+    println!("@@@ {:?} ", s);
+
+    // println!("@@@ {:?} ", code_hash);
+
+    let k = StorageKey(s.as_bytes().to_owned());
+
+    let exists = connection.get_storage_by_key_hash::<Option<OwnerInfo>>(k, None);
+
+    println!("@@@ exists? {:?} ", exists);
+
+    todo!()
 }
 
 pub fn remove_code(
