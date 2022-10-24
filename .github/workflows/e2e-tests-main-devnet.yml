@@ -78,7 +78,7 @@ jobs:
       - name: Build runtime and compare checksum with artifact
         env:
           ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/release/wbuild/aleph-runtime
+          TARGET_DIR: target/production/wbuild/aleph-runtime
         run: |
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
