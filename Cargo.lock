@@ -147,6 +147,7 @@ dependencies = [
  "aleph-runtime",
  "clap",
  "finality-aleph",
+ "frame-benchmarking",
  "frame-benchmarking-cli",
  "futures",
  "hex",
