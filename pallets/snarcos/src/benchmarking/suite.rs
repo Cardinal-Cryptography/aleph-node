@@ -31,7 +31,7 @@ benchmarks! {
             BoundedVec::try_from(key).unwrap()
         );
 
-    } : verify(RawOrigin::Signed(caller), identifier, proof, input)
+    } : verify(RawOrigin::Signed(caller), identifier, proof, input, ProvingSystem::Groth16)
 
     verify_linear_equation {
         let caller = account("caller", 0, SEED);
@@ -46,6 +46,6 @@ benchmarks! {
             BoundedVec::try_from(key).unwrap()
         );
 
-    } : verify(RawOrigin::Signed(caller), identifier, proof, input)
+    } : verify(RawOrigin::Signed(caller), identifier, proof, input, ProvingSystem::Groth16)
 
 }
