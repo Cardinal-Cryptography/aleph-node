@@ -15,10 +15,14 @@ use parking_lot::Mutex;
 use rand::random;
 use sp_keystore::{testing::KeyStore, CryptoStore};
 
-use crate::{crypto::{AuthorityPen, AuthorityVerifier}, network::{
-    manager::NetworkData, ConnectionCommand, DataCommand, Event, EventStream, Multiaddress,
-    Network, NetworkIdentity, NetworkSender, NetworkServiceIO as NetworkIO, PeerId, Protocol,
-}, AuthorityId, NodeIndex, Versioned, Version};
+use crate::{
+    crypto::{AuthorityPen, AuthorityVerifier},
+    network::{
+        manager::NetworkData, ConnectionCommand, DataCommand, Event, EventStream, Multiaddress,
+        Network, NetworkIdentity, NetworkSender, NetworkServiceIO as NetworkIO, PeerId, Protocol,
+    },
+    AuthorityId, NodeIndex, Version, Versioned,
+};
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash, Encode, Decode)]
 pub struct MockPeerId(u32);
