@@ -35,8 +35,9 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, SessionAuthorityData, ADDRESSES_ENCODING, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK, TOKEN,
+    AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
+    DEFAULT_KICK_OUT_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+    MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -107,10 +108,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 34,
+    spec_version: 36,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 9,
+    transaction_version: 11,
     state_version: 0,
 };
 
@@ -312,6 +313,8 @@ impl pallet_sudo::Config for Runtime {
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type Event = Event;
+    type SessionInfoProvider = Session;
+    type SessionManager = Elections;
 }
 
 impl_opaque_keys! {
@@ -323,6 +326,7 @@ impl_opaque_keys! {
 
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+    pub const MaximumKickOutReasonLength: u32 = DEFAULT_KICK_OUT_REASON_LENGTH;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -333,6 +337,7 @@ impl pallet_elections::Config for Runtime {
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
     type ValidatorRewardsHandler = Staking;
+    type MaximumKickOutReasonLength = MaximumKickOutReasonLength;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -347,7 +352,7 @@ impl pallet_session::Config for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = Elections;
+    type SessionManager = Aleph;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
@@ -894,6 +899,14 @@ impl_runtime_apis! {
                 .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
                 Aleph::queued_emergency_finalizer(),
             ))
+        }
+
+        fn finality_version() -> FinalityVersion {
+            Aleph::finality_version()
+        }
+
+        fn next_session_finality_version() -> FinalityVersion {
+            Aleph::next_session_finality_version()
         }
     }
 
