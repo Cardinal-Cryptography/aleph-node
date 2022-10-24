@@ -3,9 +3,11 @@ name: Deploy The Button game
 on:
   pull_request:
     types: [labeled]
-  #push:
-  #  branches:
-  #  - benjamin
+  push:
+    branches:
+      - benjamin
+    paths:
+      - contracts/**
 
 concurrency:
   group: ${{ github.workflow }}
@@ -142,6 +144,30 @@ jobs:
           aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
           aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
+
+      - name: Rename metadata and addresses JSON files to artifact upload
+        shell: bash
+        run: |
+          cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json \
+          done
+
+      - name: Upload artifact with contract addresses
+        uses: actions/upload-artifact@v3
+        with:
+          name: contracts-addresses
+          path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload artifact with contract metadata
+        uses: actions/upload-artifact@v3
+        with:
+          name: contracts-metadata
+          path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Cache contracts' target directories in S3 bucket
         shell: bash
