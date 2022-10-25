@@ -1,9 +1,10 @@
 use aleph_client::{
     get_current_era_validators, get_current_session, get_next_era_validators,
-    wait_for_at_least_session, SignedConnection, XtStatus
+    wait_for_at_least_session, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{
+    BoundedVec,
     KickOutReason, SessionCount, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
     DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
 };
