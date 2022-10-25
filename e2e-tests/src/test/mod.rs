@@ -3,7 +3,7 @@ pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
-pub use kick_out::kick_out_automatic;
+pub use kick_out::{kick_out_automatic, kick_out_manual};
 pub use rewards::{
     change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
 };
