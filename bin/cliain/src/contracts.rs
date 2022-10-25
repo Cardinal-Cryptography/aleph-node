@@ -3,9 +3,9 @@ use std::{
     path::Path,
 };
 
-use aleph_client::{send_xt, wait_for_event, AnyConnection, Balance, SignedConnection};
+use aleph_client::{send_xt, wait_for_event, AnyConnection, Balance, Connection, SignedConnection};
 use anyhow::anyhow;
-use codec::{Compact, Decode};
+use codec::{Compact, Decode, Encode};
 use contract_metadata::ContractMetadata;
 use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
@@ -21,14 +21,14 @@ use crate::commands::{
     ContractOwnerInfo, ContractRemoveCode, ContractUploadCode,
 };
 
-#[derive(Debug, Decode, Clone)]
+#[derive(Debug, Decode, Encode, Clone)]
 pub struct OwnerInfo {
     /// The account that has deployed the contract and hence is allowed to remove it.
     pub owner: AccountId,
-    /// The amount of balance that was deposited by the owner in order to deploy it.
+    /// The amount of balance that was deposited by the owner in order to deploy the contract.
     #[codec(compact)]
     pub deposit: Balance,
-    /// The number of contracts that use this as their code.
+    /// The number of contracts that share (use) this code.
     #[codec(compact)]
     pub refcount: u64,
 }
@@ -272,17 +272,13 @@ pub fn call(signed_connection: SignedConnection, command: ContractCall) -> anyho
     Ok(())
 }
 
-pub fn owner_info(
-    signed_connection: SignedConnection,
-    command: ContractOwnerInfo,
-) -> Option<OwnerInfo> {
+pub fn owner_info(connection: Connection, command: ContractOwnerInfo) -> Option<OwnerInfo> {
     let ContractOwnerInfo { code_hash } = command;
     let mut code_hash_bytes: Vec<u8> = Vec::from(code_hash.0);
     let mut bytes = storage_key("Contracts", "OwnerInfoOf").0;
     bytes.append(&mut code_hash_bytes);
     let storage_key = StorageKey(bytes);
 
-    let connection = signed_connection.as_connection();
     connection
         .get_storage_by_key_hash::<OwnerInfo>(storage_key, None)
         .ok()?

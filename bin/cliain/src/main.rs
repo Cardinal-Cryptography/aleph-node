@@ -43,7 +43,8 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
         | Command::NextSessionKeys { account_id: _ }
         | Command::RotateKeys
         | Command::DebugStorage
-        | Command::SeedToSS58 { input: _ } => String::new(),
+        | Command::SeedToSS58 { input: _ }
+        | Command::ContractOwnerInfo { .. } => String::new(),
         _ => read_secret(seed, "Provide seed for the signer account:"),
     }
 }
