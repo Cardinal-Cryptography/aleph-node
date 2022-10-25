@@ -39,7 +39,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
     // Check current era validators.
-    let start_era_validators = check_validators(
+    check_validators(
         &root_connection,
         &reserved_validators,
         &non_reserved_validators,
@@ -86,85 +86,55 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         &Some(expected_kick_out_reason),
     );
 
-    wait_for_kick_out_event(&root_connection)?;
+    let expected_non_reserved = &non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..];
 
     // Check next era validators.
     check_validators(
         &root_connection,
         &reserved_validators,
-        &non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..],
+        expected_non_reserved,
         get_next_era_validators,
     );
+
+    wait_for_kick_out_event(&root_connection)?;
 
     // Check current validators.
     check_validators(
         &root_connection,
-        &start_era_validators.reserved,
-        &start_era_validators.non_reserved
-            [(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..],
+        &reserved_validators,
+        expected_non_reserved,
         get_current_era_validators,
     );
+
+    check_underperformed_validator_reason(&root_connection, validator_to_disable, &None);
 
     Ok(())
 }
 
 pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
-    let root_connection = config.create_root_connection();
+    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
-    let validator_keys = get_test_validators(config);
-    let reserved_validators = account_ids_from_keys(&validator_keys.reserved);
-    let non_reserved_validators = account_ids_from_keys(&validator_keys.non_reserved);
-
-    let seats = CommitteeSeats {
-        reserved_seats: 2,
-        non_reserved_seats: 2,
-    };
-
-    change_validators(
+    // Check current era validators.
+    let start_era_validators = check_validators(
         &root_connection,
-        Some(reserved_validators.clone()),
-        Some(non_reserved_validators.clone()),
-        Some(seats),
-        XtStatus::InBlock,
+        &reserved_validators,
+        &non_reserved_validators,
+        get_current_era_validators,
     );
 
-    wait_for_full_era_completion(&root_connection)?;
-
-    let start_era_validators = get_current_era_validators(&root_connection);
-
-    assert_eq!(start_era_validators.reserved, reserved_validators);
-    assert_eq!(start_era_validators.non_reserved, non_reserved_validators);
-
-    let committee_kick_out_config = get_committee_kick_out_config(&root_connection);
-
-    assert_eq!(
-        committee_kick_out_config.minimal_expected_performance,
-        DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE
-    );
-    assert_eq!(
-        committee_kick_out_config.underperformed_session_count_threshold,
-        DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD
-    );
-    assert_eq!(
-        committee_kick_out_config.clean_session_counter_delay,
-        DEFAULT_CLEAN_SESSION_COUNTER_DELAY
+    check_committee_kick_out_config(
+        &root_connection,
+        DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
+        DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+        DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
     );
 
     let validator_to_manually_kick_out =
         &non_reserved_validators[VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX as usize];
-    info!(target: "aleph-client", "Validator to disable: {}", validator_to_manually_kick_out);
+    info!(target: "aleph-client", "Validator to manually kick out: {}", validator_to_manually_kick_out);
 
-    let underperformed_validator_session_count = get_underperformed_validator_session_count(
-        &root_connection,
-        validator_to_manually_kick_out,
-    );
-
-    assert_eq!(underperformed_validator_session_count, 0);
-
-    let validator_to_disable_kick_out_reason =
-        get_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out);
-
-    assert!(validator_to_disable_kick_out_reason.is_none());
+    check_underperformed_validator_session_count(&root_connection, validator_to_manually_kick_out, 0);
+    check_underperformed_validator_reason(&root_connection, validator_to_manually_kick_out, &None);
 
     let manual_reason = MANUAL_KICK_OUT_REASON.as_bytes().to_vec();
     let reason = BoundedVec::try_from(manual_reason).expect("Incorrect manual kick out reason!");
@@ -177,6 +147,43 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
 
+    let current_session = get_current_session(&root_connection);
+
+    wait_for_at_least_session(
+        &root_connection,
+        current_session + SESSIONS_TO_MEET_KICK_OUT_THRESHOLD,
+    )?;
+
+    check_underperformed_validator_session_count(&root_connection, validator_to_manually_kick_out, 0);
+    check_underperformed_validator_reason(
+        &root_connection,
+        validator_to_manually_kick_out,
+        &Some(manual_kick_out_reason),
+    );
+
+    let expected_non_reserved = &non_reserved_validators[..VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX as usize]
+        .iter()
+        .chain(&non_reserved_validators[(VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX + 1) as usize..].iter())
+        .collect();
+
+    // Check next era validators.
+    check_validators(
+        &root_connection,
+        &reserved_validators,
+        &non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..],
+        get_next_era_validators,
+    );
+
+    wait_for_kick_out_event(&root_connection)?;
+
+    // Check current validators.
+    check_validators(
+        &root_connection,
+        &start_era_validators.reserved,
+        &start_era_validators.non_reserved
+            [(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..],
+        get_current_era_validators,
+    );
     Ok(())
 }
 
