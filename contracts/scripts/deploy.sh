@@ -285,5 +285,6 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
 
 end=`date +%s.%N`
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"
+cat addresses.json
 
 exit $?
