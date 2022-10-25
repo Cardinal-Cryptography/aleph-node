@@ -14,7 +14,6 @@ use tokio::time;
 
 use super::manager::DataInSession;
 use crate::{
-    compatibility::NetworkDataInSession,
     network::{
         manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
@@ -385,7 +384,7 @@ impl<
                     }
                     SendTo(peer, _) => self
                         .validator_network
-                        .send(NetworkDataInSession { data, session_id }, peer),
+                        .send(DataInSession { data, session_id }, peer),
                 }
             }
         }
