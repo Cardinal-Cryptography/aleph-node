@@ -40,6 +40,7 @@ struct ManagerStatus {
     both_ways_peers: HashSet<AuthorityId>,
     outgoing_peers: HashSet<AuthorityId>,
     incoming_peers: HashSet<AuthorityId>,
+    missing_peers: HashSet<AuthorityId>,
 }
 
 impl ManagerStatus {
@@ -60,12 +61,19 @@ impl ManagerStatus {
         let both_ways = incoming.intersection(&outgoing).cloned().collect();
         let incoming: HashSet<_> = incoming.difference(&both_ways).cloned().collect();
         let outgoing: HashSet<_> = outgoing.difference(&both_ways).cloned().collect();
+        let missing = manager
+            .addresses
+            .keys()
+            .filter(|a| !both_ways.contains(a) && !incoming.contains(a) && !outgoing.contains(a))
+            .cloned()
+            .collect();
 
         ManagerStatus {
             wanted_peers: manager.addresses.len(),
             both_ways_peers: both_ways,
             incoming_peers: incoming,
             outgoing_peers: outgoing,
+            missing_peers: missing,
         }
     }
 }
@@ -126,6 +134,17 @@ impl Display for ManagerStatus {
                 peers
             )?;
         }
+
+        if !self.missing_peers.is_empty() {
+            let peers = self
+                .missing_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(f, "missing - {:?} [{}];", self.missing_peers.len(), peers)?;
+        }
+
         Ok(())
     }
 }
