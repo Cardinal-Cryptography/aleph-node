@@ -71,6 +71,10 @@ RANDOMIZED="${RANDOMIZED:-"false"}"
 RESERVED_SEATS="${RESERVED_SEATS:-}"
 NON_RESERVED_SEATS="${NON_RESERVED_SEATS:-}"
 
+UPGRADE_VERSION="${UPGRADE_VERSION:-}"
+UPGRADE_SESSION="${UPGRADE_SESSION:-}"
+UPGRADE_FINALIZATION_WAIT_SESSIONS="${UPGRADE_FINALIZATION_WAIT_SESSIONS:-}"
+
 # Do not accept randomization together with test case parameters.
 if [[ "${RANDOMIZED}" == "true" && ( -n "${RESERVED_SEATS}" || -n "${NON_RESERVED_SEATS}" )]]; then
   echo "Cannot both randomize and provide test case parameters!"
@@ -97,6 +101,14 @@ if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
   )
 else
   echo "Falling back on default test case param values."
+fi
+
+if [[ -n "${UPGRADE_VERSION}" && -n "${UPGRADE_SESSION}" && -n "${UPGRADE_FINALIZATION_WAIT_SESSIONS}" ]]; then
+    ARGS+=(
+        -e "${UPGRADE_VERSION}"
+        -e "${UPGRADE_SESSION}"
+        -e "${UPGRADE_FINALIZATION_WAIT_SESSIONS}"
+    )
 fi
 
 docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest

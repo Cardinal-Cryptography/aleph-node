@@ -402,6 +402,23 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 15
 
+  run-e2e-version-upgrade:
+    needs: [build-test-docker, build-test-client]
+    name: Run basic (positive) version upgrade test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: version_upgrade
+          upgrade_to_version: 1,
+          upgrade_session: 3,
+          upgrade_finalization_wait_sessions: 2,
+        timeout-minutes: 10
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,

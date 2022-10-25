@@ -26,6 +26,15 @@ inputs:
   follow-up-finalization-check:
     description: 'Whether to run a follow-up finalization check.'
     required: false
+  upgrade_version:
+    description: 'Version which will be used during the VersionUpgrade test.'
+    required: false
+  upgrade_session:
+    description: 'Session for which an upgrade should be scheduled.'
+    required: false
+  upgrade_finalization_wait_sessions:
+    description: 'Number of sessions we should wait after performing an upgrade.'
+    required: false
 
 runs:
   using: 'composite'
@@ -64,21 +73,33 @@ runs:
           -r "${{ inputs.randomized }}"
           -m "${{ inputs.min-validator-count }}"
         )
-        
+
         RESERVED_SEATS="${{ inputs.reserved-seats }}"
         NON_RESERVED_SEATS="${{ inputs.non-reserved-seats }}"
-        
+
+        UPGRADE_VERSION=${{ inputs.upgrade_version }}
+        UPGRADE_SESSION=${{ inputs.upgrade_session }}
+        UPGRADE_FINALIZATION_WAIT_SESSIONS=${{ inputs.upgrade_finalization_wait_sessions }}
+
         if [[ -n "${RANDOMIZED}" ]]; then
           ARGS+=(-r "${RANDOMIZED}")
         fi
-        
+
         if [[ -n "${RESERVED_SEATS}" && -n "${NON_RESERVED_SEATS}" ]]; then
           ARGS+=(
             -f "${RESERVED_SEATS}"
             -n "${NON_RESERVED_SEATS}"
           )
         fi
-        
+
+        if [[ -n "${UPGRADE_VERSION}"  && -n "${UPGRADE_SESSION}" && -n "${UPGRADE_FINALIZATION_WAIT_SESSIONS}" ]]; then
+          ARGS+=(
+            -v "${UPGRADE_VERSION}"
+            -s "${UPGRADE_SESSION}"
+            -w "${UPGRADE_FINALIZATION_WAIT_SESSIONS}"
+          )
+        fi
+
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
 
     - name: Run finalization e2e test
