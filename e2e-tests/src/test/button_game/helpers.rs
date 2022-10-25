@@ -153,7 +153,7 @@ pub(super) fn setup_button_test(config: &Config) -> Result<ButtonTestContext> {
 }
 
 /// A receiver where it's possible to wait for messages out of order.
-pub(super) struct BufferedReceiver<T> {
+pub struct BufferedReceiver<T> {
     buffer: Vec<T>,
     receiver: Receiver<T>,
     default_timeout: Duration,
@@ -222,15 +222,31 @@ pub(super) fn assert_recv_id(
         |event| event.ident == Some(id.to_string()),
         &format!("Expected {:?} contract event", id),
     )
-    .unwrap()
 }
 
 pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     events: &mut BufferedReceiver<Result<T>>,
     filter: F,
     context: &str,
+) -> T {
+    let event = recv_timeout_with_log(events, filter);
+
+    assert!(event.is_ok(), "{}", context);
+
+    event.unwrap()
+}
+
+pub(super) fn refute_recv_id(events: &mut BufferedReceiver<Result<ContractEvent>>, id: &str) {
+    if let Ok(event) = recv_timeout_with_log(events, |event| event.ident == Some(id.to_string())) {
+        assert!(false, "Received unexpected event {:?}", event);
+    }
+}
+
+fn recv_timeout_with_log<T: Debug, F: Fn(&T) -> bool>(
+    events: &mut BufferedReceiver<Result<T>>,
+    filter: F,
 ) -> Result<T> {
-    let event = events.recv_timeout(|event_or_error| {
+    match events.recv_timeout(|event_or_error| {
         if event_or_error.is_ok() {
             info!("Received contract event {:?}", event_or_error);
         } else {
@@ -238,9 +254,8 @@ pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
         }
 
         event_or_error.as_ref().map(|x| filter(x)).unwrap_or(false)
-    });
-
-    assert!(event.is_ok(), "{}", context);
-
-    event.unwrap()
+    }) {
+        Ok(event) => Ok(event.unwrap()),
+        Err(err) => bail!(err),
+    }
 }

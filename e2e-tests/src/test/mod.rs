@@ -1,4 +1,4 @@
-pub use button_game::{early_bird_special_play, early_bird_special_reset};
+pub use button_game::{early_bird_special_play, early_bird_special_reset, marketplace};
 pub use electing_validators::authorities_are_staking;
 pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;

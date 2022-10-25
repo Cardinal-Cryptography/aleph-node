@@ -127,6 +127,14 @@ impl PSP22TokenInstance {
         )
     }
 
+    pub fn mint(&self, conn: &SignedConnection, to: &AccountId32, amount: Balance) -> Result<()> {
+        self.contract.contract_exec(
+            conn,
+            "PSP22Mintable::mint",
+            &[to.to_string().as_str(), amount.to_string().as_str()],
+        )
+    }
+
     pub fn approve(
         &self,
         conn: &SignedConnection,
@@ -176,6 +184,21 @@ impl MarketplaceInstance {
                     .context("Marketplace metadata not set.")?,
             )?,
         })
+    }
+
+    pub fn reset(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "reset")
+    }
+
+    pub fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
+        let max_price = max_price.map_or_else(|| "None".to_string(), |x| format!("Some({})", x));
+
+        self.contract
+            .contract_exec(conn, "buy", &[max_price.as_str()])
+    }
+
+    pub fn price<C: AnyConnection>(&self, conn: &C) -> Result<Balance> {
+        to_u128(self.contract.contract_read0(conn, "price")?)
     }
 }
 

@@ -114,6 +114,7 @@ function deploy_button_game {
   cd "$CONTRACTS_PATH"/access_control
 
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Admin('"$marketplace"')' --suri "$AUTHORITY_SEED" --skip-confirm
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
 

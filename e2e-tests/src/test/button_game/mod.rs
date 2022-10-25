@@ -10,7 +10,8 @@ use crate::{
     test::button_game::{
         contracts::ToAccount,
         helpers::{
-            assert_recv, assert_recv_id, setup_button_test, wait_for_death, ButtonTestContext,
+            assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
+            ButtonTestContext,
         },
     },
     Config,
@@ -18,6 +19,69 @@ use crate::{
 
 mod contracts;
 mod helpers;
+
+pub fn marketplace(config: &Config) -> Result<()> {
+    let ButtonTestContext {
+        conn,
+        authority,
+        player,
+        marketplace,
+        ticket_token,
+        reward_token,
+        mut events,
+        ..
+    } = setup_button_test(config)?;
+
+    marketplace.reset(&sign(&conn, authority.clone()))?;
+    assert_recv_id(&mut events, "Reset");
+    ticket_token.transfer(
+        &sign(&conn, authority.clone()),
+        &marketplace.to_account(),
+        2,
+    )?;
+
+    let early_price = marketplace.price(&conn)?;
+    thread::sleep(Duration::from_secs(2));
+    let later_price = marketplace.price(&conn)?;
+    assert!(later_price < early_price);
+
+    let player_balance = 100 * later_price;
+    reward_token.mint(
+        &sign(&conn, authority.clone()),
+        &player.to_account(),
+        player_balance,
+    )?;
+    reward_token.approve(
+        &sign(&conn, player.clone()),
+        &marketplace.to_account(),
+        later_price,
+    )?;
+    marketplace.buy(&sign(&conn, player.clone()), None)?;
+
+    let event = assert_recv_id(&mut events, "Bought");
+    assert!(event.contract == marketplace.to_account());
+    let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
+    assert!(price <= later_price);
+    let_assert!(Some(Value::Literal(account_id)) = event.data.get("account_id"));
+    assert!(account_id == &player.to_account().to_string());
+    assert!(ticket_token.balance_of(&conn, &player.to_account())? == 1);
+    assert!(reward_token.balance_of(&conn, &player.to_account())? <= player_balance - price);
+    assert!(marketplace.price(&conn)? > price);
+
+    let latest_price = marketplace.price(&conn)?;
+
+    info!("Setting max price too low");
+    marketplace.buy(&sign(&conn, player.clone()), Some(latest_price / 2))?;
+    refute_recv_id(&mut events, "Bought");
+    assert!(ticket_token.balance_of(&conn, &player.to_account())? == 1);
+
+    info!("Setting max price high enough");
+    marketplace.buy(&sign(&conn, player.clone()), Some(latest_price * 2))?;
+    assert_recv_id(&mut events, "Bought");
+    assert!(ticket_token.balance_of(&conn, &player.to_account())? == 2);
+
+    Ok(())
+}
 
 pub fn early_bird_special_reset(config: &Config) -> Result<()> {
     let ButtonTestContext {
