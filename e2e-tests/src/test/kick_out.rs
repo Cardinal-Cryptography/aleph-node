@@ -25,6 +25,10 @@ const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
 const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9945";
 const SESSIONS_TO_MEET_KICK_OUT_THRESHOLD: SessionCount = 4;
 
+const VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX: u32 = 1;
+const VALIDATOR_TO_MANUALLY_KICK_OUT_OVERALL_INDEX: u32 = 3;
+const MANUAL_KICK_OUT_REASON: &str = "Manual kick out reason";
+
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
 /// validators. Waits for the offending validator to hit the kick-out threshold of sessions without
 /// producing blocks. Verifies that the offending validator has in fact been kicked out for the
