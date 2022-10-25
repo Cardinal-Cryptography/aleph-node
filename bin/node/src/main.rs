@@ -17,9 +17,11 @@ fn main() -> sc_cli::Result<()> {
         .pruning_params
         .blocks_pruning
         .is_some()
+        || cli.run.import_params.pruning_params.state_pruning.is_some()
     {
         cli.run.import_params.pruning_params.blocks_pruning = None;
-        println!("Block pruning not supported. Switching to keeping all block bodies.");
+        cli.run.import_params.pruning_params.state_pruning = None;
+        println!("Pruning not supported. Switching to keeping all block bodies and states.");
     }
 
     match &cli.subcommand {

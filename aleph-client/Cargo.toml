@@ -20,6 +20,14 @@ ac-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate-api-
 substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.28", features = ["staking-xt"] }
 ac-node-api = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.28" }
 
+frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28", features = ["full_crypto"] }
+sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+pallet-multisig = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+pallet-treasury = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+pallet-vesting = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
 
 pallet-aleph = { path = "../pallets/aleph" }
 pallet-elections = { path = "../pallets/elections" }
