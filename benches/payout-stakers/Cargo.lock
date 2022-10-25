@@ -105,15 +105,23 @@ dependencies = [
  "anyhow",
  "contract-metadata 1.5.0",
  "contract-transcode",
+ "frame-support",
  "hex",
  "ink_metadata",
  "log",
  "pallet-aleph",
+ "pallet-balances",
  "pallet-elections",
+ "pallet-multisig",
+ "pallet-staking",
+ "pallet-treasury",
+ "pallet-vesting",
  "parity-scale-codec",
  "primitives",
  "rayon",
  "serde_json",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
  "substrate-api-client",
  "thiserror",
 ]
@@ -2110,6 +2118,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-multisig"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+]
+
+[[package]]
 name = "pallet-session"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
@@ -2180,6 +2202,36 @@ dependencies = [
  "serde",
  "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
  "sp-io 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+]
+
+[[package]]
+name = "pallet-treasury"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+]
+
+[[package]]
+name = "pallet-vesting"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
  "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
 ]
@@ -4039,7 +4091,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.5",
  "rand 0.8.5",
  "static_assertions",
