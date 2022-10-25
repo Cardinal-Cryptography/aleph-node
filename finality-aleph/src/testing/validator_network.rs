@@ -14,7 +14,6 @@ fn setup() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn normal_conditions() {
-    // env_logger::init();
     setup();
     let n_peers: usize = 10;
     let n_msg: usize = 30;
@@ -35,7 +34,6 @@ async fn normal_conditions() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn connections_break() {
-    // env_logger::init();
     setup();
     let n_peers: usize = 10;
     let n_msg: usize = 30;
@@ -56,7 +54,6 @@ async fn connections_break() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn large_messages_being_sent() {
-    // env_logger::init();
     setup();
     let n_peers: usize = 10;
     let n_msg: usize = 30;
@@ -77,7 +74,6 @@ async fn large_messages_being_sent() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn corrupted_messages_being_sent() {
-    // env_logger::init();
     setup();
     let n_peers: usize = 10;
     let n_msg: usize = 30;
@@ -98,7 +94,6 @@ async fn corrupted_messages_being_sent() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn everything_fails_all_the_time() {
-    // env_logger::init();
     setup();
     let n_peers: usize = 3;
     let n_msg: usize = 20;
