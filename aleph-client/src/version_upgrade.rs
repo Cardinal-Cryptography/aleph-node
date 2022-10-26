@@ -1,9 +1,6 @@
 use anyhow::Result;
 use primitives::SessionIndex;
-use sp_core::Pair;
-use substrate_api_client::{
-    compose_call, compose_extrinsic, ApiClientError, ExtrinsicParams, XtStatus,
-};
+use substrate_api_client::{compose_call, compose_extrinsic, ApiClientError, XtStatus};
 
 use crate::{try_send_xt, AnyConnection, RootConnection};
 
