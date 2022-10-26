@@ -16,6 +16,9 @@ concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
+env:
+  CHECKOUT_BRANCH: benjamin
+
 jobs:
   run-tests:
     name: Run smart contracts test suite
@@ -39,8 +42,9 @@ jobs:
 
       - name: Checkout Source code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
 
-        
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
@@ -90,7 +94,7 @@ jobs:
         shell: bash
         run:  .github/scripts/check_finalization.sh smartnode 9933 node-network
         timeout-minutes: 1
-        
+
       - name: Run e2e tests
         shell: bash
         run: |
