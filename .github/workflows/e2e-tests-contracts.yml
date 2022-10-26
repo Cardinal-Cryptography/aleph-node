@@ -91,8 +91,8 @@ jobs:
       - name: Wait for finalization
         shell: bash
         run:  |
-           docker network inspect node-network
-          .github/scripts/check_finalization.sh smartnode 9933 node-network
+         docker network inspect node-networkx
+         .github/scripts/check_finalization.sh smartnode 9933 node-network
         timeout-minutes: 1
 
       - name: Run e2e tests
