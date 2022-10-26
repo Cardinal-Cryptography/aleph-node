@@ -4,6 +4,7 @@ use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 #[cfg(feature = "try-runtime")]
 use aleph_runtime::Block;
 use clap::Parser;
+use log::warn;
 use sc_cli::SubstrateCli;
 use sc_network::config::Role;
 use sc_service::PartialComponents;
@@ -19,7 +20,7 @@ fn main() -> sc_cli::Result<()> {
         .is_some()
         || cli.run.import_params.pruning_params.state_pruning != Some("archive".into())
     {
-        println!("Pruning not supported. Switching to keeping all block bodies and states.");
+        warn!("Pruning not supported. Switching to keeping all block bodies and states.");
         cli.run.import_params.pruning_params.blocks_pruning = None;
         cli.run.import_params.pruning_params.state_pruning = Some("archive".into());
     }
