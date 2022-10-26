@@ -1,6 +1,5 @@
 use aleph_client::{
-    get_current_era_validators, get_current_session, get_next_era_validators,
-    wait_for_at_least_session, SignedConnection,
+    get_current_era_validators, get_current_session, wait_for_at_least_session, SignedConnection,
 };
 use log::info;
 use primitives::{
@@ -86,14 +85,6 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     let expected_kicked_out_validators =
         vec![(validator_to_disable.clone(), expected_kick_out_reason)];
     check_kick_out_event(&root_connection, &expected_kicked_out_validators)?;
-
-    // Check next era validators.
-    check_validators(
-        &root_connection,
-        &reserved_validators,
-        expected_non_reserved,
-        get_next_era_validators,
-    );
 
     // Check current validators.
     check_validators(
