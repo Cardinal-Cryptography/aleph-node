@@ -42,8 +42,6 @@ jobs:
 
       - name: Checkout Source code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
@@ -92,7 +90,9 @@ jobs:
         # wait some while docker pulls the image and starts the node
       - name: Wait for finalization
         shell: bash
-        run:  .github/scripts/check_finalization.sh smartnode 9933 node-network
+        run:  |
+           docker network inspect node-network
+          .github/scripts/check_finalization.sh smartnode 9933 node-network
         timeout-minutes: 1
 
       - name: Run e2e tests
