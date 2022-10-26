@@ -415,7 +415,7 @@ jobs:
         with:
           test-case: kick_out_automatic
           follow-up-finalization-check: true
-        timeout-minutes: 10
+        timeout-minutes: 15
 
   check-e2e-test-suite-completion:
     needs: [
