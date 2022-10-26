@@ -22,14 +22,38 @@ benchmarks! {
         let key = vec![0u8; l as usize];
     } : _(caller::<T>(), IDENTIFIER, key)
 
-    verify_xor {
+    // Groth16 benchmarks
+
+    verify_groth16_xor {
         let Artifacts { key, proof, input } = get_artifacts!(Groth16, Xor);
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
 
-    verify_linear_equation {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, Xor);
+    verify_groth16_linear_equation {
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, LinearEquation);
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
+
+    verify_groth16_merkle_tree {
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
+
+    // GM17 benchmarks
+
+    verify_gm17_xor {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, Xor);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
+
+    verify_gm17_linear_equation {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, LinearEquation);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
+
+    verify_gm17_merkle_tree {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, MerkleTree);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
 
 }
