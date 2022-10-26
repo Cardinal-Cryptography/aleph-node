@@ -97,7 +97,7 @@ impl Default for CommitteeSeats {
     }
 }
 
-/// Configurable parameters for kick-out validator mechanism
+/// Configurable parameters for ban validator mechanism
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct BanConfig {

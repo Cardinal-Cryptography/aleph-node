@@ -33,7 +33,7 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era:
-///    * during elections, we kick out underperforming validators from non_reserved set,
+///    * during elections, we ban underperforming validators from non_reserved set,
 ///    * then we update the reserved and non reserved validators.
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
 ///

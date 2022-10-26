@@ -22,10 +22,10 @@
 //! committee.
 //!
 //! ## Thresholds
-//! There are two kick-out thresholds described above, see [`BanConfig`].
+//! There are two ban thresholds described above, see [`BanConfig`].
 //!
 //! ### Next era vs current era
-//! Current and next era have distinct thresholds values, as we calculate kicks during elections.
+//! Current and next era have distinct thresholds values, as we calculate bans during elections.
 //! They follow the same logic as next era committee seats: at the time of planning the first
 //! session of next the era, next values become current ones.
 
@@ -98,7 +98,7 @@ pub mod pallet {
         /// Something that handles addition of rewards for validators.
         type ValidatorRewardsHandler: ValidatorRewardsHandler<Self>;
 
-        /// Maximum acceptable kick-out reason length.
+        /// Maximum acceptable ban reason length.
         #[pallet::constant]
         type MaximumBanReasonLength: Get<u32>;
     }
@@ -195,7 +195,7 @@ pub mod pallet {
         BanConfigStruct::default()
     }
 
-    /// Current era config for kick-out functionality, see [`BanConfig`]
+    /// Current era config for ban functionality, see [`BanConfig`]
     #[pallet::storage]
     pub type BanConfig<T> = StorageValue<_, BanConfigStruct, ValueQuery, DefaultBanConfig<T>>;
 
@@ -254,9 +254,9 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Sets kick-out config, it has an immediate effect
+        /// Sets ban config, it has an immediate effect
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn set_kick_out_config(
+        pub fn set_ban_config(
             origin: OriginFor<T>,
             minimal_expected_performance: Option<u8>,
             underperformed_session_count_threshold: Option<u32>,
@@ -264,14 +264,14 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mut current_committee_kick_out_config = BanConfig::<T>::get();
+            let mut current_committee_ban_config = BanConfig::<T>::get();
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
                     minimal_expected_performance <= 100,
                     Error::<T>::InvalidBanConfig
                 );
-                current_committee_kick_out_config.minimal_expected_performance =
+                current_committee_ban_config.minimal_expected_performance =
                     Perbill::from_percent(minimal_expected_performance as u32);
             }
             if let Some(underperformed_session_count_threshold) =
@@ -281,7 +281,7 @@ pub mod pallet {
                     underperformed_session_count_threshold > 0,
                     Error::<T>::InvalidBanConfig
                 );
-                current_committee_kick_out_config.underperformed_session_count_threshold =
+                current_committee_ban_config.underperformed_session_count_threshold =
                     underperformed_session_count_threshold;
             }
             if let Some(clean_session_counter_delay) = clean_session_counter_delay {
@@ -289,25 +289,25 @@ pub mod pallet {
                     clean_session_counter_delay > 0,
                     Error::<T>::InvalidBanConfig
                 );
-                current_committee_kick_out_config.clean_session_counter_delay =
+                current_committee_ban_config.clean_session_counter_delay =
                     clean_session_counter_delay;
             }
 
-            BanConfig::<T>::put(current_committee_kick_out_config.clone());
-            Self::deposit_event(Event::SetBanConfig(current_committee_kick_out_config));
+            BanConfig::<T>::put(current_committee_ban_config.clone());
+            Self::deposit_event(Event::SetBanConfig(current_committee_ban_config));
 
             Ok(())
         }
 
         /// Schedule a non-reserved node to be banned out from the committee at the end of the era
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
-        pub fn kick_out_from_committee(
+        pub fn ban_from_committee(
             origin: OriginFor<T>,
             banned: T::AccountId,
-            kick_out_reason: Vec<u8>,
+            ban_reason: Vec<u8>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            let bounded_description: BoundedVec<_, _> = kick_out_reason
+            let bounded_description: BoundedVec<_, _> = ban_reason
                 .try_into()
                 .map_err(|_| Error::<T>::BanReasonTooBig)?;
 
@@ -327,7 +327,7 @@ pub mod pallet {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
         pub committee_seats: CommitteeSeats,
-        pub committee_kick_out_config: BanConfigStruct,
+        pub committee_ban_config: BanConfigStruct,
     }
 
     #[cfg(feature = "std")]
@@ -337,7 +337,7 @@ pub mod pallet {
                 non_reserved_validators: Vec::new(),
                 reserved_validators: Vec::new(),
                 committee_seats: Default::default(),
-                committee_kick_out_config: Default::default(),
+                committee_ban_config: Default::default(),
             }
         }
     }
@@ -353,7 +353,7 @@ pub mod pallet {
                 reserved: self.reserved_validators.clone(),
                 non_reserved: self.non_reserved_validators.clone(),
             });
-            <BanConfig<T>>::put(&self.committee_kick_out_config.clone());
+            <BanConfig<T>>::put(&self.committee_ban_config.clone());
         }
     }
 
@@ -401,7 +401,7 @@ pub mod pallet {
             Ok(())
         }
 
-        fn kick_out_underperformed_non_reserved_validators() {
+        fn ban_underperformed_non_reserved_validators() {
             let mut banned = BTreeMap::from_iter(Banned::<T>::iter());
             if !banned.is_empty() {
                 let mut to_be_removed = Vec::new();
@@ -468,26 +468,27 @@ pub mod pallet {
         ///
         /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            Self::kick_out_underperformed_non_reserved_validators();
-
-            match Openness::<T>::get() {
-                ElectionOpenness::Permissioned => {}
-                ElectionOpenness::Permissionless => {}
-            }
+            Self::ban_underperformed_non_reserved_validators();
 
             let staking_validators = Self::DataProvider::electable_targets(None)
                 .map_err(Self::Error::DataProvider)?
                 .into_iter()
                 .collect::<BTreeSet<_>>();
-            let reserved_validators = NextEraReservedValidators::<T>::get()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
+            let banned_validators = BTreeSet::from_iter(Banned::<T>::iter_keys());
 
-            let eligible_validators =
-                &(&reserved_validators | &non_reserved_validators) & &staking_validators;
+            let mut eligible_validators = &staking_validators - &banned_validators;
+
+            if let ElectionOpenness::Permissioned = Openness::<T>::get() {
+                let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+                    .into_iter()
+                    .collect::<BTreeSet<_>>();
+                let reserved_validators = NextEraReservedValidators::<T>::get()
+                    .into_iter()
+                    .collect::<BTreeSet<_>>();
+                eligible_validators =
+                    &eligible_validators & &(&reserved_validators | &non_reserved_validators);
+            };
+
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
