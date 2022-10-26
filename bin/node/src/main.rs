@@ -19,10 +19,11 @@ fn main() -> sc_cli::Result<()> {
         .is_some()
         || cli.run.import_params.pruning_params.state_pruning.is_some()
     {
-        cli.run.import_params.pruning_params.blocks_pruning = None;
-        cli.run.import_params.pruning_params.state_pruning = None;
         println!("Pruning not supported. Switching to keeping all block bodies and states.");
     }
+    // We always override these options explicitly, to avoid defaults when no option was provided.
+    cli.run.import_params.pruning_params.blocks_pruning = None;
+    cli.run.import_params.pruning_params.state_pruning = None;
 
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
