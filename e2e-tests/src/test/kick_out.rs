@@ -75,9 +75,13 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         current_session + SESSIONS_TO_MEET_KICK_OUT_THRESHOLD,
     )?;
 
+    // The session count for underperforming validators is reset to 0 immediately on reaching the
+    // threshold.
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
+
     let expected_kick_out_reason =
         KickOutReason::InsufficientUptime(DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD);
+
     check_kick_out_reason_for_validator(
         &root_connection,
         validator_to_disable,
@@ -89,6 +93,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     let expected_kicked_out_validators =
         vec![(validator_to_disable.clone(), expected_kick_out_reason)];
+
     check_kick_out_event(&root_connection, &expected_kicked_out_validators)?;
 
     // Check current validators.

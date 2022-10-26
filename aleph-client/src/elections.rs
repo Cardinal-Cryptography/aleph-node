@@ -7,8 +7,7 @@ use substrate_api_client::{compose_call, compose_extrinsic};
 
 use crate::{
     get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
-    XtStatus,
-};
+    XtStatus};
 
 const PALLET: &str = "Elections";
 
