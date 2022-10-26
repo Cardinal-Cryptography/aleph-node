@@ -6,12 +6,11 @@ on:
       - 'contracts/**'
       - '.github/**'
   push:
-    branches:
-      - benjamin
     paths:
       - 'contracts/**'
       - '.github/**'
-  workflow_dispatch:
+    branches:
+      - benjamin
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -41,6 +40,7 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v3
 
+        
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
@@ -88,8 +88,9 @@ jobs:
         # wait some while docker pulls the image and starts the node
       - name: Wait for finalization
         shell: bash
-        run: ./.github/scripts/check_finalization.sh
-
+        run:  .github/scripts/check_finalization.sh smartnode 9933 node-network
+        timeout-minutes: 1
+        
       - name: Run e2e tests
         shell: bash
         run: |
