@@ -100,8 +100,8 @@ jobs:
          docker ps
          docker network inspect node-network
 
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
+      # - name: Setup upterm session
+      #   uses: lhotari/action-upterm@v1
 
         # wait some while docker pulls the image and starts the node
       - name: Wait for finalization
