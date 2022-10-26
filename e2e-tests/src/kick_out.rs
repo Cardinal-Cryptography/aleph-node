@@ -97,7 +97,7 @@ pub fn check_underperformed_validator_session_count<C: AnyConnection>(
     underperformed_validator_session_count
 }
 
-pub fn check_underperformed_validator_reason<C: AnyConnection>(
+pub fn check_kick_out_reason_for_validator<C: AnyConnection>(
     connection: &C,
     validator: &AccountId,
     expected_reason: Option<&KickOutReason>,
