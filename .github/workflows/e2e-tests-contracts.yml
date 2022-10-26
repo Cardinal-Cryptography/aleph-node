@@ -82,9 +82,9 @@ jobs:
         run: ./.github/scripts/run_smartnet.sh &
 
         # wait some while docker pulls the image and starts the node
-      - name: Sleep for a while
+      - name: Wait for finalization
         shell: bash
-        run: sleep 2
+        run: ./.github/scripts/check_finalization.sh
 
       - name: Run e2e tests
         shell: bash

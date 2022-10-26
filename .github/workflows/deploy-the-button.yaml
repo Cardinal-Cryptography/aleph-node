@@ -26,7 +26,7 @@ env:
   LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
 
 jobs:
-  checkout_benjamin:
+  build_and_deploy_contracts:
     if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
     #runs-on: self-hosted
@@ -203,4 +203,3 @@ jobs:
         run: |
           mkdir -p target
           touch target/emptyfile
-
