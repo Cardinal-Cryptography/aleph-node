@@ -1,6 +1,6 @@
 use aleph_client::{
-    get_current_session, get_session_period, wait_for_at_least_session, wait_for_finalized_block,
-    VersionUpgrade,
+    get_current_session, get_session_period, schedule_upgrade, wait_for_at_least_session,
+    wait_for_finalized_block,
 };
 use primitives::SessionIndex;
 
@@ -28,7 +28,7 @@ pub fn schedule_version_change(config: &Config) -> anyhow::Result<()> {
         .unwrap_or(UPGRADE_FINALIZATION_WAIT_SESSIONS);
     let session_after_upgrade = session_for_upgrade + wait_sessions_after_upgrade;
 
-    connection.schedule_upgrade(version_for_upgrade, session_for_upgrade)?;
+    schedule_upgrade(&connection, version_for_upgrade, session_for_upgrade)?;
 
     wait_for_at_least_session(&connection, session_after_upgrade)?;
     let block_number = session_after_upgrade * get_session_period(&connection);

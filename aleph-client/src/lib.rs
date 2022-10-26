@@ -18,7 +18,6 @@ pub use multisig::{
     compute_call_hash, perform_multisig_with_threshold_1, MultisigError, MultisigParty,
     SignatureAggregation,
 };
-use primitives::SessionIndex;
 pub use primitives::{Balance, BlockHash, BlockNumber, Header};
 pub use rpc::{emergency_finalize, rotate_keys, rotate_keys_raw_result, state_query_storage_at};
 pub use session::{
@@ -56,6 +55,7 @@ pub use treasury::{
     propose as make_treasury_proposal, reject as reject_treasury_proposal, staking_treasury_payout,
     treasury_account,
 };
+pub use version_upgrade::{schedule_upgrade, Version};
 pub use vesting::{
     get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,
     VestingSchedule,
@@ -258,17 +258,6 @@ pub trait CallSystem {
     type Error: StdError;
 
     fn fill_block(&self, target_ratio: u32, status: XtStatus) -> Result<(), Self::Error>;
-}
-
-pub trait VersionUpgrade {
-    type Version;
-    type Error: StdError;
-
-    fn schedule_upgrade(
-        &self,
-        version: Self::Version,
-        session: SessionIndex,
-    ) -> anyhow::Result<(), Self::Error>;
 }
 
 pub trait ManageParams {

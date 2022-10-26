@@ -1,39 +1,39 @@
+use anyhow::Result;
 use primitives::SessionIndex;
 use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams, XtStatus};
+use substrate_api_client::{
+    compose_call, compose_extrinsic, ApiClientError, ExtrinsicParams, XtStatus,
+};
 
-use crate::{try_send_xt, AnyConnection, RootConnection, VersionUpgrade};
+use crate::{try_send_xt, AnyConnection, RootConnection};
 
-impl VersionUpgrade for RootConnection {
-    type Version = u32;
-    type Error = substrate_api_client::ApiClientError;
+pub type Version = u32;
 
-    fn schedule_upgrade(
-        &self,
-        version: Self::Version,
-        session: SessionIndex,
-    ) -> anyhow::Result<(), Self::Error> {
-        let connection = self.as_connection();
-        let upgrade_call = compose_call!(
-            connection.metadata,
-            "Aleph",
-            "schedule_finality_version_change",
-            version,
-            session
-        );
-        let xt = compose_extrinsic!(
-            connection,
-            "Sudo",
-            "sudo_unchecked_weight",
-            upgrade_call,
-            0_u64
-        );
-        try_send_xt(
-            &connection,
-            xt,
-            Some("schedule finality version change"),
-            XtStatus::Finalized,
-        )
-        .map(|_| ())
-    }
+pub fn schedule_upgrade(
+    connection: &RootConnection,
+    version: Version,
+    session: SessionIndex,
+) -> Result<(), ApiClientError> {
+    let connection = connection.as_connection();
+    let upgrade_call = compose_call!(
+        connection.metadata,
+        "Aleph",
+        "schedule_finality_version_change",
+        version,
+        session
+    );
+    let xt = compose_extrinsic!(
+        connection,
+        "Sudo",
+        "sudo_unchecked_weight",
+        upgrade_call,
+        0_u64
+    );
+    try_send_xt(
+        &connection,
+        xt,
+        Some("schedule finality version change"),
+        XtStatus::Finalized,
+    )
+    .map(|_| ())
 }
