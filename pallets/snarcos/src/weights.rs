@@ -28,7 +28,8 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_snarcos.
 pub trait WeightInfo {
     fn store_key(key_length: u32) -> Weight;
-    fn verify() -> Weight;
+    fn verify_groth16() -> Weight;
+    fn verify_gm17() -> Weight;
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
@@ -36,7 +37,12 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 		<I as BenchmarkInfo>::store_key(key_length)
 	}
 
-	fn verify() -> Weight {
+	fn verify_groth16() -> Weight {
+		<I as BenchmarkInfo>::verify_xor()
+			.max(<I as BenchmarkInfo>::verify_linear_equation())
+	}
+
+	fn verify_gm17() -> Weight {
 		<I as BenchmarkInfo>::verify_xor()
 			.max(<I as BenchmarkInfo>::verify_linear_equation())
 	}
