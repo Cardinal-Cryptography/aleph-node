@@ -23,7 +23,6 @@ services:
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30333
     volumes:
       - ./data/:/data/
-    network_mode: "host"
     expose:
       - 30333
       - 9933
