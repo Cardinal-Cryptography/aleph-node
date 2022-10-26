@@ -34,8 +34,18 @@ benchmarks! {
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
 
-    verify_groth16_merkle_tree {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree);
+    verify_groth16_merkle_tree_8 {
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree8);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
+
+    verify_groth16_merkle_tree_64 {
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree64);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
+
+    verify_groth16_merkle_tree_1024 {
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
 
@@ -51,8 +61,18 @@ benchmarks! {
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
 
-    verify_gm17_merkle_tree {
-        let Artifacts { key, proof, input } = get_artifacts!(Gm17, MerkleTree);
+    verify_gm17_merkle_tree_8 {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, MerkleTree8);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
+
+    verify_gm17_merkle_tree_64 {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, MerkleTree64);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
+
+    verify_gm17_merkle_tree_1024 {
+        let Artifacts { key, proof, input } = get_artifacts!(Gm17, MerkleTree1024);
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
 
