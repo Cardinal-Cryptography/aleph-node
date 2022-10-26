@@ -4,9 +4,13 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
+      - '.github/**'
   push:
+    branches:
+      - benjamin
     paths:
       - 'contracts/**'
+      - '.github/**'
   workflow_dispatch:
 
 concurrency:

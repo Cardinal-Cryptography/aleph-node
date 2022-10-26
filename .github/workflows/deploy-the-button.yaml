@@ -1,13 +1,11 @@
 name: Deploy The Button game
 
+# triggered by the e2e-tests-contracts
 on:
-  pull_request:
-    types: [labeled]
-  push:
-    branches:
-      - benjamin
-    paths:
-      - contracts/**
+  workflow_run:
+    workflows: [e2e-tests-contracts]
+    types:
+      - completed
 
 # allow only once run instance of this workflow ever
 concurrency:
@@ -21,16 +19,15 @@ env:
   CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
   NODE_VERSION: 16
   S3BUCKET_PATH: contracts/fe-benjamin-button
-  LABEL_DEPLOY_CONTRACTS: '[AZERO] DEPLOY-CONTRACTS'
-  LABEL_DESTROYED: 'DESTROYED'
-  LABEL_DEPLOYED: 'DEPLOYED'
-  LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
+  # LABEL_DEPLOY_CONTRACTS: '[AZERO] DEPLOY-CONTRACTS'
+  # LABEL_DESTROYED: 'DESTROYED'
+  # LABEL_DEPLOYED: 'DEPLOYED'
+  # LABEL_DEPLOYED_CONTRACTS: 'DEPLOYED-CONTRACTS'
 
 jobs:
   build_and_deploy_contracts:
-    if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    # if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
-    #runs-on: self-hosted
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
@@ -104,7 +101,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Get contracts' target directories cache from S3 bucket
-        if: (github.event_name == 'push') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS))
+        # if: (github.event_name == 'push') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS))
         shell: bash
         continue-on-error: true
         run: |
@@ -112,7 +109,7 @@ jobs:
           tar -xzf targets.tgz
 
       - name: Copy metadata.json and addresses.json files from S3 bucket
-        if: (github.event_name == 'push') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS))
+        # if: (github.event_name == 'push') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED_CONTRACTS))
         shell: bash
         run: |
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
@@ -187,18 +184,18 @@ jobs:
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
 
-      - name: Add label to mark that contracts have been deployed
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Add label to mark that contracts have been deployed
+      #   uses: actions-ecosystem/action-add-labels@v1.1.0
+      #   with:
+      #     labels: ${{ env.LABEL_DEPLOYED_CONTRACTS }}
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Remove request label if exists
-        if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Remove request label if exists
+      #   if: contains(github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_CONTRACTS)
+      #   uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #   with:
+      #     labels: ${{ env.LABEL_DEPLOY_CONTRACTS }}
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Create empty target directory so that restore-cache does not fail
         run: |
