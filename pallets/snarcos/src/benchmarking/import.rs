@@ -1,3 +1,22 @@
+use frame_benchmarking::Vec;
+
+pub(super) struct Artifacts {
+    pub key: Vec<u8>,
+    pub proof: Vec<u8>,
+    pub input: Vec<u8>,
+}
+
+#[macro_export]
+macro_rules! get_artifacts {
+    ($(ProvingSystem::)?$system:tt, $(Relation::)?$relation:tt $(,)?) => {{
+        let key = $crate::get_artifact!($system, $relation, VerifyingKey);
+        let proof = $crate::get_artifact!($system, $relation, Proof);
+        let input = $crate::get_artifact!($system, $relation, PublicInput);
+
+        $crate::benchmarking::import::Artifacts { key, proof, input }
+    }};
+}
+
 #[macro_export]
 macro_rules! get_artifact {
     ($(ProvingSystem::)?$system:tt, $(Relation::)?$relation:tt, $(Artifact::)?$artifact:tt $(,)?) => {

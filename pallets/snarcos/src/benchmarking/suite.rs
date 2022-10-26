@@ -1,14 +1,18 @@
-use frame_benchmarking::{account, benchmarks, vec};
+use frame_benchmarking::{account, benchmarks, vec, Vec};
 use frame_support::{traits::Get, BoundedVec};
 use frame_system::RawOrigin;
 
-use crate::{ProvingSystem::*, *};
+use crate::{benchmarking::import::Artifacts, ProvingSystem::*, *};
 
 const SEED: u32 = 41;
 const IDENTIFIER: VerificationKeyIdentifier = [0; 4];
 
 fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
     RawOrigin::Signed(account("caller", 0, SEED))
+}
+
+fn insert_key<T: Config>(key: Vec<u8>) {
+    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
 }
 
 benchmarks! {
@@ -19,27 +23,13 @@ benchmarks! {
     } : _(caller::<T>(), IDENTIFIER, key)
 
     verify_xor {
-        let key = get_artifact!(Groth16, Xor, VerifyingKey);
-        let proof = get_artifact!(Groth16, Xor, Proof);
-        let input = get_artifact!(Groth16, Xor, PublicInput);
-
-        let _ = VerificationKeys::<T>::insert(
-            IDENTIFIER,
-            BoundedVec::try_from(key).unwrap()
-        );
-
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, Xor);
+        let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
 
     verify_linear_equation {
-        let key = get_artifact!(Groth16, LinearEquation, VerifyingKey);
-        let proof = get_artifact!(Groth16, LinearEquation, Proof);
-        let input = get_artifact!(Groth16, LinearEquation, PublicInput);
-
-        let _ = VerificationKeys::<T>::insert(
-            IDENTIFIER,
-            BoundedVec::try_from(key).unwrap()
-        );
-
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, Xor);
+        let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Groth16)
 
 }
