@@ -85,7 +85,8 @@ jobs:
 
       - name: Run one-node smartnet
         shell: bash
-        run: ./.github/scripts/run_smartnet.sh &
+        run: |
+          .github/scripts/run_smartnet.sh &
 
       - name: Debug
         shell: bash
