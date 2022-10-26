@@ -4,8 +4,9 @@ use aleph_client::{
 };
 use log::info;
 use primitives::{
-    BoundedVec, KickOutReason, SessionCount, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
-    DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+    BoundedVec, ConstU32, KickOutReason, SessionCount, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
+    DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_KICK_OUT_REASON_LENGTH,
+    DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
 };
 
 use crate::{
@@ -137,7 +138,9 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
     check_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out, None);
 
     let manual_reason = MANUAL_KICK_OUT_REASON.as_bytes().to_vec();
-    let reason = BoundedVec::try_from(manual_reason).expect("Incorrect manual kick out reason!");
+    let reason =
+        BoundedVec::<u8, ConstU32<DEFAULT_KICK_OUT_REASON_LENGTH>>::try_from(manual_reason)
+            .expect("Incorrect manual kick out reason!");
     let manual_kick_out_reason = KickOutReason::OtherReason(reason);
 
     info!("Before kick out");
