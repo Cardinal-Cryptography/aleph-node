@@ -71,7 +71,7 @@ pub mod pallet {
     use pallet_session::SessionManager;
     use primitives::{
         BlockCount, CommitteeKickOutConfig as CommitteeKickOutConfigStruct, CommitteeSeats,
-        KickOutReason, SessionCount,
+        ElectionOpenness, KickOutReason, SessionCount,
     };
     use sp_runtime::Perbill;
 
@@ -209,6 +209,17 @@ pub mod pallet {
     #[pallet::storage]
     pub type ToBeKickedOutFromCommittee<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, KickOutReason>;
+
+    /// Default value for elections openness.
+    #[pallet::type_value]
+    pub fn DefaultOpenness<T: Config>() -> ElectionOpenness {
+        ElectionOpenness::Permissioned
+    }
+
+    /// Openness of the elections, whether we allow all candidates that bonded enough tokens or
+    /// the validators list is managed by sudo
+    #[pallet::storage]
+    pub type Openness<T> = StorageValue<_, ElectionOpenness, ValueQuery, DefaultOpenness<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -449,6 +460,11 @@ pub mod pallet {
         /// We calculate the supports for them for the sake of eras payouts.
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             Self::kick_out_underperformed_non_reserved_validators();
+
+            match Openness::<T>::get() {
+                ElectionOpenness::Permissioned => {}
+                ElectionOpenness::Permissionless => {}
+            }
 
             let staking_validators = Self::DataProvider::electable_targets(None)
                 .map_err(Self::Error::DataProvider)?

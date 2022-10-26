@@ -64,6 +64,13 @@ pub const DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from
 pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 3;
 pub const DEFAULT_KICK_OUT_REASON_LENGTH: u32 = 300;
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
+pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
+
+#[derive(Decode, Encode, TypeInfo, Debug, Clone)]
+pub enum ElectionOpenness {
+    Permissioned,
+    Permissionless,
+}
 
 /// Represent desirable size of a committee in a session
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +108,8 @@ pub struct CommitteeKickOutConfig {
     pub underperformed_session_count_threshold: SessionCount,
     /// underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
     pub clean_session_counter_delay: SessionCount,
+    /// how many eras a validator is banned for
+    pub ban_periond: EraIndex,
 }
 
 impl Default for CommitteeKickOutConfig {
@@ -109,6 +118,7 @@ impl Default for CommitteeKickOutConfig {
             minimal_expected_performance: DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
             underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
             clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
+            ban_periond: DEFAULT_BAN_PERIOD,
         }
     }
 }
