@@ -88,11 +88,11 @@ jobs:
         run: |
           .github/scripts/run_smartnet.sh &
 
-      - name: Debug
-        shell: bash
-        run:  |
-         sleep 2
-         docker network inspect node-network
+      # - name: Debug
+      #   shell: bash
+      #   run:  |
+      #    sleep 2
+      #    docker network inspect node-network
 
         # wait some while docker pulls the image and starts the node
       - name: Wait for finalization
