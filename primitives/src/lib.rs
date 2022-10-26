@@ -60,9 +60,9 @@ pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
-pub const DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
-pub const DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD: SessionCount = 3;
-pub const DEFAULT_KICK_OUT_REASON_LENGTH: u32 = 300;
+pub const DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
+pub const DEFAULT_BAN_SESSION_COUNT_THRESHOLD: SessionCount = 3;
+pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
 
@@ -115,8 +115,8 @@ pub struct BanConfig {
 impl Default for BanConfig {
     fn default() -> Self {
         BanConfig {
-            minimal_expected_performance: DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
-            underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+            minimal_expected_performance: DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+            underperformed_session_count_threshold: DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
             clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
             ban_periond: DEFAULT_BAN_PERIOD,
         }
@@ -131,7 +131,7 @@ pub enum BanReason {
     InsufficientUptime(u32),
 
     /// Any arbitrary reason
-    OtherReason(BoundedVec<u8, ConstU32<DEFAULT_KICK_OUT_REASON_LENGTH>>),
+    OtherReason(BoundedVec<u8, ConstU32<DEFAULT_BAN_REASON_LENGTH>>),
 }
 
 /// Details of why and for how long a validator is removed from the committee
