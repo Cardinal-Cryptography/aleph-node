@@ -11,8 +11,6 @@ use crate::{
         force_new_era as test_force_new_era, kick_out_automatic as test_kick_out_automatic,
         kick_out_manual as test_kick_out_manual, points_basic as test_points_basic,
         points_stake_change as test_points_stake_change,
-        force_new_era as test_force_new_era, kick_out_automatic as test_kick_out_automatic,
-        points_basic as test_points_basic, points_stake_change as test_points_stake_change,
         schedule_version_change as test_schedule_version_change,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
