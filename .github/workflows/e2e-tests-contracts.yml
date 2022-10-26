@@ -94,7 +94,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y net-tools
           netstat -tulpn
-          source contracts/env/dev && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
+          source contracts/env/dev && HOSTPORT=${NODE/ws:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
       - name: Run e2e tests
         shell: bash
