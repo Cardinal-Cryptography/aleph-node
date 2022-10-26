@@ -98,7 +98,7 @@ jobs:
         run:  |
          sleep 2
          docker ps
-         network inspect node-network
+         docker network inspect node-network
 
       - name: Setup upterm session
         uses: lhotari/action-upterm@v1
