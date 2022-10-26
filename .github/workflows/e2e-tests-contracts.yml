@@ -40,8 +40,8 @@ jobs:
       #   shell: bash
       #   run: wasm-opt --version
 
-      # - name: Checkout Source code
-      #   uses: actions/checkout@v3
+      - name: Checkout Source code
+        uses: actions/checkout@v3
 
       # - name: Install Rust Toolchain
       #   uses: actions-rs/toolchain@v1
