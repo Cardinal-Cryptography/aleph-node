@@ -17,6 +17,6 @@ docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=d
 export BOOTNODE_PEER_ID=$(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=info "${NODE_IMAGE}" -c "aleph-node key inspect-node-key --file /data/$NODE_ID/p2p_secret")
 
 docker network create node-network || true
-docker-compose -f docker/smartnet-compose.yml up --remove-orphans 
+docker-compose -f docker/smartnet-compose.yml up --remove-orphans -d
 
 exit $?
