@@ -177,7 +177,7 @@ jobs:
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
+          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
 
       - name: Create empty target directory so that restore-cache does not fail
         run: |
