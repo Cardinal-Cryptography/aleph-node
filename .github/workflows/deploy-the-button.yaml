@@ -1,6 +1,6 @@
 name: Deploy The Button game
 
-# should be triggered by the e2e-tests-contracts
+# triggered by the e2e-tests-contracts
 on:
   workflow_dispatch:
 
