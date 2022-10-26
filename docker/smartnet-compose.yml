@@ -22,16 +22,17 @@ services:
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333
     volumes:
       - ./data/:/data/
-    expose:
-      - 30333
-      - 9933
-      - 9943
-    ports:
-      - 0.0.0.0:30333:30333
-      - 0.0.0.0:9933:9933
-      - 0.0.0.0:9943:9943
+    network_mode: "host"
+    # expose:
+    #   - 30333
+    #   - 9933
+    #   - 9943
+    # ports:
+    #   - 0.0.0.0:30333:30333
+    #   - 0.0.0.0:9933:9933
+    #   - 0.0.0.0:9943:9943
 
-networks:
-  default:
-    external:
-      name: node-network
+# networks:
+#   default:
+#     external:
+#       name: node-network
