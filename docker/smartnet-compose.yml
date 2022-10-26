@@ -20,19 +20,20 @@ services:
       - WS_PORT=9943
       - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333
+      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30333
     volumes:
       - ./data/:/data/
     network_mode: "host"
-    # expose:
-    #   - 30333
-    #   - 9933
-    #   - 9943
-    # ports:
-    #   - 0.0.0.0:30333:30333
-    #   - 0.0.0.0:9933:9933
-    #   - 0.0.0.0:9943:9943
+    expose:
+      - 30333
+      - 9933
+      - 9943
+    ports:
+      - 0.0.0.0:30333:30333
+      - 0.0.0.0:9933:9933
+      - 0.0.0.0:9943:9943
 
-# networks:
-#   default:
-#     external:
-#       name: node-network
+networks:
+  default:
+    external:
+      name: node-network
