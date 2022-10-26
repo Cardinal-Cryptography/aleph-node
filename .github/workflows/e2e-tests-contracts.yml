@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           apt-get update
-          apt-get install net-tools
+          apt-get install -y net-tools
           netstat -tulpn
           source contracts/env/dev && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
