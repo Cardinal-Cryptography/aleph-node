@@ -104,9 +104,8 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 }
 
 /// Runs a chain, sets up a committee and validators. Manually kicks out one of the validators
-/// from the committee. Waits for the offending validator to hit the kick-out threshold of sessions without
-/// producing blocks. Verifies that the offending validator has in fact been kicked out for the
-/// appropriate reason.
+/// from the committee with a specific reason. Verifies that validator marked for kick out has in
+/// fact been kicked out for the given reason.
 pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 

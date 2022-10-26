@@ -11,6 +11,7 @@ pub use elections::{
     get_kick_out_reason_for_validator, get_next_era_committee_seats,
     get_next_era_non_reserved_validators, get_next_era_reserved_validators,
     get_next_era_validators, get_underperformed_validator_session_count, get_validator_block_count,
+    kick_out_from_committee,
 };
 pub use fee::get_next_fee_multiplier;
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
