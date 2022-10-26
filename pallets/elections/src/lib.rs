@@ -16,13 +16,13 @@
 //! validator is less than some predefined threshold.
 //! In other words, if a validator:
 //! * performance in a session is less or equal to a configurable threshold
-//! `CommitteeBanConfig::minimal_expected_performance` (from 0 to 100%), and,
-//! * it happened at least `CommitteeBanConfig::underperformed_session_count_threshold` times,
+//! `BanConfig::minimal_expected_performance` (from 0 to 100%), and,
+//! * it happened at least `BanConfig::underperformed_session_count_threshold` times,
 //! then the validator is considered an underperformer and hence removed (ie _banned out_) from the
 //! committee.
 //!
 //! ## Thresholds
-//! There are two kick-out thresholds described above, see [`CommitteeBanConfig`].
+//! There are two kick-out thresholds described above, see [`BanConfig`].
 //!
 //! ### Next era vs current era
 //! Current and next era have distinct thresholds values, as we calculate kicks during elections.
@@ -70,8 +70,8 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use primitives::{
-        BanReason, BanReasonAndStart, BlockCount, CommitteeBanConfig as CommitteeBanConfigStruct,
-        CommitteeSeats, ElectionOpenness, EraIndex, SessionCount,
+        BanConfig as BanConfigStruct, BanInfo, BanReason, BlockCount, CommitteeSeats,
+        ElectionOpenness, EraIndex, SessionCount,
     };
     use sp_runtime::Perbill;
 
@@ -110,10 +110,10 @@ pub mod pallet {
         ChangeValidators(Vec<T::AccountId>, Vec<T::AccountId>, CommitteeSeats),
 
         /// Ban thresholds for the next era has changed
-        SetCommitteeBanConfig(CommitteeBanConfigStruct),
+        SetBanConfig(BanConfigStruct),
 
         /// Validators have been banned from the committee
-        BanValidators(Vec<(T::AccountId, BanReasonAndStart)>),
+        BanValidators(Vec<(T::AccountId, BanInfo)>),
     }
 
     #[pallet::pallet]
@@ -189,16 +189,15 @@ pub mod pallet {
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
 
-    /// Default value for ban config, see [`CommitteeBanConfig`]
+    /// Default value for ban config, see [`BanConfig`]
     #[pallet::type_value]
-    pub fn DefaultCommitteeBanConfig<T: Config>() -> CommitteeBanConfigStruct {
-        CommitteeBanConfigStruct::default()
+    pub fn DefaultBanConfig<T: Config>() -> BanConfigStruct {
+        BanConfigStruct::default()
     }
 
-    /// Current era config for kick-out functionality, see [`CommitteeBanConfig`]
+    /// Current era config for kick-out functionality, see [`BanConfig`]
     #[pallet::storage]
-    pub type CommitteeBanConfig<T> =
-        StorageValue<_, CommitteeBanConfigStruct, ValueQuery, DefaultCommitteeBanConfig<T>>;
+    pub type BanConfig<T> = StorageValue<_, BanConfigStruct, ValueQuery, DefaultBanConfig<T>>;
 
     /// A lookup for a number of underperformance sessions for a given validator
     #[pallet::storage]
@@ -207,7 +206,7 @@ pub mod pallet {
 
     /// Validators to be removed from non reserved list in the next era
     #[pallet::storage]
-    pub type ToBeBanned<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BanReasonAndStart>;
+    pub type Banned<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BanInfo>;
 
     /// Default value for elections openness.
     #[pallet::type_value]
@@ -265,12 +264,12 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mut current_committee_kick_out_config = CommitteeBanConfig::<T>::get();
+            let mut current_committee_kick_out_config = BanConfig::<T>::get();
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
                     minimal_expected_performance <= 100,
-                    Error::<T>::InvalidCommitteeBanConfig
+                    Error::<T>::InvalidBanConfig
                 );
                 current_committee_kick_out_config.minimal_expected_performance =
                     Perbill::from_percent(minimal_expected_performance as u32);
@@ -280,7 +279,7 @@ pub mod pallet {
             {
                 ensure!(
                     underperformed_session_count_threshold > 0,
-                    Error::<T>::InvalidCommitteeBanConfig
+                    Error::<T>::InvalidBanConfig
                 );
                 current_committee_kick_out_config.underperformed_session_count_threshold =
                     underperformed_session_count_threshold;
@@ -288,16 +287,14 @@ pub mod pallet {
             if let Some(clean_session_counter_delay) = clean_session_counter_delay {
                 ensure!(
                     clean_session_counter_delay > 0,
-                    Error::<T>::InvalidCommitteeBanConfig
+                    Error::<T>::InvalidBanConfig
                 );
                 current_committee_kick_out_config.clean_session_counter_delay =
                     clean_session_counter_delay;
             }
 
-            CommitteeBanConfig::<T>::put(current_committee_kick_out_config.clone());
-            Self::deposit_event(Event::SetCommitteeBanConfig(
-                current_committee_kick_out_config,
-            ));
+            BanConfig::<T>::put(current_committee_kick_out_config.clone());
+            Self::deposit_event(Event::SetBanConfig(current_committee_kick_out_config));
 
             Ok(())
         }
@@ -306,7 +303,7 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn kick_out_from_committee(
             origin: OriginFor<T>,
-            to_be_banned: T::AccountId,
+            banned: T::AccountId,
             kick_out_reason: Vec<u8>,
         ) -> DispatchResult {
             ensure_root(origin)?;
@@ -319,7 +316,7 @@ pub mod pallet {
                 .unwrap_or(0)
                 .saturating_add(1);
 
-            ToBeBanned::<T>::insert(to_be_banned, BanReasonAndStart { reason, start });
+            Banned::<T>::insert(banned, BanInfo { reason, start });
 
             Ok(())
         }
@@ -330,7 +327,7 @@ pub mod pallet {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
         pub committee_seats: CommitteeSeats,
-        pub committee_kick_out_config: CommitteeBanConfigStruct,
+        pub committee_kick_out_config: BanConfigStruct,
     }
 
     #[cfg(feature = "std")]
@@ -356,7 +353,7 @@ pub mod pallet {
                 reserved: self.reserved_validators.clone(),
                 non_reserved: self.non_reserved_validators.clone(),
             });
-            <CommitteeBanConfig<T>>::put(&self.committee_kick_out_config.clone());
+            <BanConfig<T>>::put(&self.committee_kick_out_config.clone());
         }
     }
 
@@ -405,13 +402,13 @@ pub mod pallet {
         }
 
         fn kick_out_underperformed_non_reserved_validators() {
-            let mut to_be_banned = BTreeMap::from_iter(ToBeBanned::<T>::iter());
-            if !to_be_banned.is_empty() {
+            let mut banned = BTreeMap::from_iter(Banned::<T>::iter());
+            if !banned.is_empty() {
                 let mut to_be_removed = Vec::new();
                 let mut filtered_non_reserved_in_order = Vec::new();
                 let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
                 for non_reserved_validator in non_reserved_validators {
-                    match to_be_banned.remove_entry(&non_reserved_validator) {
+                    match banned.remove_entry(&non_reserved_validator) {
                         Some(candidate_and_reason) => to_be_removed.push(candidate_and_reason),
                         None => filtered_non_reserved_in_order.push(non_reserved_validator),
                     }
@@ -421,8 +418,19 @@ pub mod pallet {
                     NextEraNonReservedValidators::<T>::put(filtered_non_reserved_in_order);
                     Self::deposit_event(Event::BanValidators(to_be_removed));
                 }
-                let _result = ToBeBanned::<T>::clear(u32::MAX, None);
             }
+        }
+
+        fn unban() {
+            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
+            let ban_periond = BanConfig::<T>::get().ban_periond;
+            let unban = Banned::<T>::iter().filter_map(|(account_id, ban_info)| {
+                if ban_info.start.saturating_add(ban_periond) >= active_era {
+                    return Some(account_id);
+                }
+                None
+            });
+            unban.for_each(|account_id| Banned::<T>::remove(account_id));
         }
     }
 
@@ -438,11 +446,11 @@ pub mod pallet {
         NotEnoughNonReservedValidators,
         NonUniqueListOfValidators,
 
-        /// Raised in any scenario [`CommitteeBanConfig`] is invalid
+        /// Raised in any scenario [`BanConfig`] is invalid
         /// * `performance_ratio_threshold` must be a number in range [0; 100]
         /// * `underperformed_session_count_threshold` must be a positive number,
         /// * `clean_session_counter_delay` must be a positive number.
-        InvalidCommitteeBanConfig,
+        InvalidBanConfig,
 
         /// Ban reason is too big, ie given vector of bytes is greater than
         /// [`Config::MaximumBanReasonLength`]
@@ -506,6 +514,8 @@ pub mod pallet {
                     support.voters.push((voter, vote as u128));
                 }
             }
+
+            Self::unban();
 
             Ok(supports.into_iter().collect())
         }

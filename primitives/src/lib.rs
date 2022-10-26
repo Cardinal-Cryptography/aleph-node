@@ -100,7 +100,7 @@ impl Default for CommitteeSeats {
 /// Configurable parameters for kick-out validator mechanism
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct CommitteeBanConfig {
+pub struct BanConfig {
     /// performance ratio threshold in a session
     /// calculated as ratio of number of blocks produced to expected number of blocks for a single validator
     pub minimal_expected_performance: Perbill,
@@ -112,9 +112,9 @@ pub struct CommitteeBanConfig {
     pub ban_periond: EraIndex,
 }
 
-impl Default for CommitteeBanConfig {
+impl Default for BanConfig {
     fn default() -> Self {
-        CommitteeBanConfig {
+        BanConfig {
             minimal_expected_performance: DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
             underperformed_session_count_threshold: DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
             clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
@@ -136,7 +136,7 @@ pub enum BanReason {
 
 /// Details of why and for how long a validator is removed from the committee
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug)]
-pub struct BanReasonAndStart {
+pub struct BanInfo {
     pub reason: BanReason,
     pub start: EraIndex,
 }
