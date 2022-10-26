@@ -6,10 +6,11 @@ on:
     workflows: [e2e-tests-contracts]
     types:
       - completed
-  branches:
-      - benjamin
+# TODO : temporary, uncomment before merging
+  # branches:
+  #     - benjamin
 
-# allow only once run instance of this workflow ever
+# allow only once run instance of this workflow EVER
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false

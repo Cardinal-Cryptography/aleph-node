@@ -86,29 +86,19 @@ jobs:
       - name: Run one-node smartnet
         shell: bash
         run: |
-          .github/scripts/run_smartnet.sh
+          .github/scripts/run_smartnet.sh &
 
-      - name: Display logs
+      - name: Display node logs
         shell: bash
         run: |
           docker logs smartnode --follow &
-
-      # - name: Debug
-      #   shell: bash
-      #   run:  |
-      #    sleep 2
-      #    docker ps
-      #    docker network inspect node-network
-
-      # - name: Setup upterm session
-      #   uses: lhotari/action-upterm@v1
 
         # wait some while docker pulls the image and starts the node
       - name: Wait for finalization
         shell: bash
         run:  |
          .github/scripts/check_finalization.sh
-        timeout-minutes: 10
+        timeout-minutes: 1
 
       - name: Run e2e tests
         shell: bash
