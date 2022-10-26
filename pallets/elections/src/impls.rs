@@ -4,8 +4,8 @@ use frame_support::{
     pallet_prelude::Get,
 };
 use primitives::{
-    CommitteeKickOutConfig as CommitteeKickOutConfigStruct, CommitteeSeats, EraValidators,
-    KickOutReason,
+    BanReason, BanReasonAndStart, CommitteeBanConfig as CommitteeBanConfigStruct, CommitteeSeats,
+    EraValidators,
 };
 use sp_runtime::Perbill;
 use sp_staking::{EraIndex, SessionIndex};
@@ -16,9 +16,9 @@ use sp_std::{
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
-    CommitteeKickOutConfig, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
+    CommitteeBanConfig, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
     NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
-    ToBeKickedOutFromCommittee, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+    ToBeBanned, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     ValidatorTotalRewards,
 };
 
@@ -33,7 +33,7 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 /// *  We update rewards and clear block count for the session `S`.
 /// 3. `start_session(S + 1)` is called.
 /// *  if session `S+1` starts new era we populate totals.
-/// *  if session `S+1` % [`CommitteeKickOutConfig::clean_session_counter_delay`] == 0, we
+/// *  if session `S+1` % [`CommitteeBanConfig::clean_session_counter_delay`] == 0, we
 ///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era:
@@ -307,7 +307,7 @@ where
     }
 
     fn calculate_underperforming_validators() {
-        let thresholds = CommitteeKickOutConfig::<T>::get();
+        let thresholds = CommitteeBanConfig::<T>::get();
         let current_committee = T::SessionInfoProvider::current_committee();
         let expected_blocks_per_validator = Self::blocks_to_produce_per_session();
         for validator in current_committee {
@@ -325,7 +325,7 @@ where
     }
 
     fn mark_validator_underperformance(
-        thresholds: &CommitteeKickOutConfigStruct,
+        thresholds: &CommitteeBanConfigStruct,
         validator: &T::AccountId,
     ) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
@@ -333,17 +333,18 @@ where
             *count
         });
         if counter >= thresholds.underperformed_session_count_threshold {
-            ToBeKickedOutFromCommittee::<T>::insert(
-                &validator,
-                KickOutReason::InsufficientUptime(counter),
-            );
+            let reason = BanReason::InsufficientUptime(counter);
+            let start: EraIndex = T::EraInfoProvider::active_era()
+                .unwrap_or(0)
+                .saturating_add(1);
+            ToBeBanned::<T>::insert(&validator, BanReasonAndStart { reason, start });
             UnderperformedValidatorSessionCount::<T>::remove(&validator);
         }
     }
 
     fn clear_underperformance_session_counter(session: SessionIndex) {
         let clean_session_counter_delay =
-            CommitteeKickOutConfig::<T>::get().clean_session_counter_delay;
+            CommitteeBanConfig::<T>::get().clean_session_counter_delay;
         if session % clean_session_counter_delay == 0 {
             info!(target: "pallet_elections", "Clearing UnderperformedValidatorSessionCount");
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
