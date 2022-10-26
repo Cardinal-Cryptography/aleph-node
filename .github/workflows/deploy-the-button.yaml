@@ -9,9 +9,10 @@ on:
     paths:
       - contracts/**
 
+# allow only once run instance of this workflow ever
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CHECKOUT_REF: benjamin
