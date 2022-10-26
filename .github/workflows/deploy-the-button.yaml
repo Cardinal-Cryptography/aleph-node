@@ -184,7 +184,7 @@ jobs:
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true", "buildFEBenjaminImage": "true", "deployFEBenjaminImage": "true" }}'
+          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
 
       - name: Add label to mark that contracts have been deployed
         uses: actions-ecosystem/action-add-labels@v1.1.0
