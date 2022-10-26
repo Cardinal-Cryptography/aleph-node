@@ -91,8 +91,8 @@ jobs:
       - name: DEBUG
         shell: bash
         run: |
-          apt-get update
-          apt-get install -y net-tools
+          sudo apt-get update
+          sudo apt-get install -y net-tools
           netstat -tulpn
           source contracts/env/dev && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
