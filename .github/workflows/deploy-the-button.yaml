@@ -1,14 +1,8 @@
 name: Deploy The Button game
 
-# triggered by the e2e-tests-contracts
+# should be triggered by the e2e-tests-contracts
 on:
-  workflow_run:
-    workflows: [e2e-tests-contracts]
-    types:
-      - completed
-# TODO : temporary, uncomment before merging
-  # branches:
-  #     - benjamin
+  workflow_dispatch:
 
 # allow only once run instance of this workflow EVER
 concurrency:
