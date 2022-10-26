@@ -105,7 +105,7 @@ jobs:
         with:
           target-key: e2e
           cargo-key: e2e
-          cache-version: v1
+          cache-version: v2
           cargo-targets: e2e-tests/target/
 
       - name: Build binary and docker image
@@ -402,9 +402,24 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 15
 
+  run-e2e-kick-out-automatic:
+    needs: [build-test-docker, build-test-client]
+    name: Run kick out automatic test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: kick_out_automatic
+          follow-up-finalization-check: true
+        timeout-minutes: 15
+
   run-e2e-version-upgrade:
     needs: [build-test-docker, build-test-client]
-    name: Run basic (positive) version upgrade test
+    name: Run basic (positive) version-upgrade test
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
@@ -414,7 +429,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: version_upgrade
-          follow-up-finalization-check: true
         env:
           UPGRADE_VERSION: 1,
           UPGRADE_SESSION: 3,
@@ -441,6 +455,8 @@ jobs:
       run-e2e-rewards-change-stake-force-new-era,
       run-e2e-rewards-points-basic,
       run-e2e-authorities-are-staking,
+      run-e2e-kick-out-automatic,
+      run-e2e-version-upgrade,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
@@ -524,7 +540,7 @@ jobs:
           python-version: '3.8'
 
       - name: Test catch up
-        timeout-minutes: 6
+        timeout-minutes: 10
         env:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
@@ -595,6 +611,7 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target-key: try-runtime
+          cache-version: v2
 
       - name: Build try-runtime
         run: cargo build --release -p aleph-node --features "try-runtime"
