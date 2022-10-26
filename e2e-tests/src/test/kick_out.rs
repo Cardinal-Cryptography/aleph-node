@@ -48,6 +48,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     let validator_to_disable =
         &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
+
     info!(target: "aleph-client", "Validator to disable: {}", validator_to_disable);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
@@ -70,9 +71,13 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         current_session + SESSIONS_TO_MEET_KICK_OUT_THRESHOLD,
     )?;
 
+    // The session count for underperforming validators is reset to 0 immediately on reaching the
+    // threshold.
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
+
     let expected_kick_out_reason =
         KickOutReason::InsufficientUptime(DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD);
+
     check_underperformed_validator_reason(
         &root_connection,
         validator_to_disable,
