@@ -2,13 +2,9 @@ use primitives::{
     CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason, SessionCount,
     SessionIndex,
 };
-use sp_core::{Pair, H256};
-use substrate_api_client::{compose_call, compose_extrinsic, ExtrinsicParams};
+use sp_core::H256;
 
-use crate::{
-    get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
-    XtStatus,
-};
+use crate::{get_session_first_block, AccountId, ReadStorage};
 
 const PALLET: &str = "Elections";
 
