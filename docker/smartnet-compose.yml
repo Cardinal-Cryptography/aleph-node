@@ -20,7 +20,8 @@ services:
       - WS_PORT=9943
       - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333
-      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30333
+      - VALIDATOR_PORT=30343
+      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30343
     volumes:
       - ./data/:/data/
     expose:
