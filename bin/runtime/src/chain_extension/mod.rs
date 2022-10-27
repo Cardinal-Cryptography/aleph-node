@@ -16,9 +16,9 @@ pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 1;
 pub const SNARCOS_STORE_KEY_IN_USE: u32 = 2;
 pub const SNARCOS_STORE_KEY_UNKNOWN: u32 = 3;
 
-pub struct AlephChainExtension;
+pub struct SnarcosChainExtension;
 
-impl ChainExtension<Runtime> for AlephChainExtension {
+impl ChainExtension<Runtime> for SnarcosChainExtension {
     fn call<E: Ext>(func_id: u32, env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
     where
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
@@ -33,7 +33,7 @@ impl ChainExtension<Runtime> for AlephChainExtension {
     }
 }
 
-impl AlephChainExtension {
+impl SnarcosChainExtension {
     fn snarcos_store_key<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
     where
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
