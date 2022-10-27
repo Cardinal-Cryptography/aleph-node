@@ -1,6 +1,6 @@
 name: Deploy The Button game
 
-# triggered by the e2e-tests-contracts
+# TODO triggered by the e2e-tests-contracts workflow completed on branch benjamin
 on:
   workflow_dispatch:
 
@@ -173,6 +173,8 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
+
+      # TODO: trigger indexer deployment
 
       - name: Create empty target directory so that restore-cache does not fail
         run: |
