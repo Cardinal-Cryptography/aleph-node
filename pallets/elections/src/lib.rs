@@ -418,23 +418,14 @@ pub mod pallet {
             Ok(())
         }
 
-        fn ban_underperformed_non_reserved_validators() {
-            let mut banned = BTreeMap::from_iter(Banned::<T>::iter());
-            if !banned.is_empty() {
-                let mut to_be_removed = Vec::new();
-                let mut filtered_non_reserved_in_order = Vec::new();
-                let non_reserved_validators = NextEraNonReservedValidators::<T>::get();
-                for non_reserved_validator in non_reserved_validators {
-                    match banned.remove_entry(&non_reserved_validator) {
-                        Some(candidate_and_reason) => to_be_removed.push(candidate_and_reason),
-                        None => filtered_non_reserved_in_order.push(non_reserved_validator),
-                    }
-                }
-                if !to_be_removed.is_empty() {
-                    info!(target: "pallet_elections", "Removing following validators from non reserved, {:?}", to_be_removed);
-                    NextEraNonReservedValidators::<T>::put(filtered_non_reserved_in_order);
-                    Self::deposit_event(Event::BanValidators(to_be_removed));
-                }
+        fn emit_fresh_bans_event() {
+            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
+            let fresh_bans: Vec<_> = Banned::<T>::iter()
+                .filter(|(_acc, info)| info.start == active_era)
+                .collect();
+            if !fresh_bans.is_empty() {
+                info!(target: "pallet_elections", "Fresh bans in era {}: {:?}",active_era, fresh_bans);
+                Self::deposit_event(Event::BanValidators(fresh_bans));
             }
         }
 
@@ -480,32 +471,43 @@ pub mod pallet {
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
 
-        /// The elections are PoA so only the nodes listed in the Validators will be elected as
-        /// validators.
-        ///
-        /// We calculate the supports for them for the sake of eras payouts.
+        /// We calculate the supports for each validator. The external validators are chosen as:
+        /// 1) "`NextEraNonReservedValidators` that are staking and are not banned" in case of Permissioned ElectionOpenness
+        /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
-            Self::ban_underperformed_non_reserved_validators();
+            Self::emit_fresh_bans_event();
 
             let staking_validators = Self::DataProvider::electable_targets(None)
                 .map_err(Self::Error::DataProvider)?
                 .into_iter()
                 .collect::<BTreeSet<_>>();
+            let staking_reserved_validators = NextEraReservedValidators::<T>::get()
+                .into_iter()
+                .filter(|v| staking_validators.contains(v))
+                .collect::<BTreeSet<_>>();
             let banned_validators = BTreeSet::from_iter(Banned::<T>::iter_keys());
+            let old_non_reserved_validators = NextEraNonReservedValidators::<T>::get().into_iter();
 
-            let mut eligible_validators = &staking_validators - &banned_validators;
-
-            if let ElectionOpenness::Permissioned = Openness::<T>::get() {
-                let non_reserved_validators = NextEraNonReservedValidators::<T>::get()
+            let new_non_reserved_validators: Vec<_> = match Openness::<T>::get() {
+                ElectionOpenness::Permissioned => old_non_reserved_validators
+                    .filter(|v| {
+                        staking_validators.contains(v)
+                            && !banned_validators.contains(v)
+                            && !staking_reserved_validators.contains(v)
+                    })
+                    .collect(),
+                ElectionOpenness::Permissionless => staking_validators
                     .into_iter()
-                    .collect::<BTreeSet<_>>();
-                let reserved_validators = NextEraReservedValidators::<T>::get()
-                    .into_iter()
-                    .collect::<BTreeSet<_>>();
-                eligible_validators =
-                    &eligible_validators & &(&reserved_validators | &non_reserved_validators);
+                    .filter(|v| {
+                        !banned_validators.contains(v) && !staking_reserved_validators.contains(v)
+                    })
+                    .collect(),
             };
+            NextEraNonReservedValidators::<T>::put(new_non_reserved_validators.clone());
 
+            let eligible_validators = staking_reserved_validators
+                .into_iter()
+                .chain(new_non_reserved_validators.into_iter());
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
