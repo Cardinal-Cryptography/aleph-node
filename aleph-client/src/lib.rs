@@ -1,6 +1,6 @@
 use std::{default::Default, error::Error as StdError, fmt::Debug, thread::sleep, time::Duration};
 
-use ac_primitives::{PlainTipExtrinsicParamsBuilder, SubstrateDefaultSignedExtra};
+use ac_primitives::{PlainTip, PlainTipExtrinsicParamsBuilder, SubstrateDefaultSignedExtra};
 pub use account::{get_free_balance, locks};
 pub use balances::total_issuance;
 use codec::{Decode, Encode};
@@ -10,8 +10,8 @@ pub use elections::{
     get_current_era_non_reserved_validators, get_current_era_reserved_validators,
     get_current_era_validators, get_era_validators, get_kick_out_reason_for_validator,
     get_next_era_committee_seats, get_next_era_non_reserved_validators,
-    get_next_era_reserved_validators, get_underperformed_validator_session_count,
-    get_validator_block_count,
+    get_next_era_reserved_validators, get_next_era_validators,
+    get_underperformed_validator_session_count, get_validator_block_count,
 };
 pub use fee::get_next_fee_multiplier;
 pub use finalization::set_emergency_finalizer as finalization_set_emergency_finalizer;
@@ -98,7 +98,7 @@ pub type KeyPair = sr25519::Pair;
 pub type AlephKeyPair = ed25519::Pair;
 pub type ExtrinsicParams = PlainTipExtrinsicParams;
 pub type Connection = Api<KeyPair, WsRpcClient, ExtrinsicParams>;
-pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra>;
+pub type Extrinsic<Call> = UncheckedExtrinsicV4<Call, SubstrateDefaultSignedExtra<PlainTip>>;
 
 /// Common abstraction for different types of connections.
 pub trait AnyConnection: Clone + Send {

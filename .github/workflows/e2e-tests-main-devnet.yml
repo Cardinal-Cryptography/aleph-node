@@ -78,13 +78,13 @@ jobs:
       - name: Build runtime and compare checksum with artifact
         env:
           ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/release/wbuild/aleph-runtime
+          TARGET_DIR: target/production/wbuild/aleph-runtime
         run: |
           mkdir -p "$TARGET_DIR"
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
           cargo clean
-          cargo build --release -p aleph-runtime
+          cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
 
@@ -105,7 +105,7 @@ jobs:
         with:
           target-key: e2e
           cargo-key: e2e
-          cache-version: v1
+          cache-version: v2
           cargo-targets: e2e-tests/target/
 
       - name: Build binary and docker image
@@ -402,6 +402,21 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 15
 
+  run-e2e-kick-out-automatic:
+    needs: [build-test-docker, build-test-client]
+    name: Run kick out automatic test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: kick_out_automatic
+          follow-up-finalization-check: true
+        timeout-minutes: 15
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
@@ -422,6 +437,7 @@ jobs:
       run-e2e-rewards-change-stake-force-new-era,
       run-e2e-rewards-points-basic,
       run-e2e-authorities-are-staking,
+      run-e2e-kick-out-automatic,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
@@ -505,7 +521,7 @@ jobs:
           python-version: '3.8'
 
       - name: Test catch up
-        timeout-minutes: 6
+        timeout-minutes: 10
         env:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
@@ -554,7 +570,7 @@ jobs:
           then
             echo "::set-output name=diff::0"
           else
-            echo "::set-output name=diff::1"            
+            echo "::set-output name=diff::1"
           fi
 
   build-new-runtime-and-try_runtime:
@@ -576,6 +592,7 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target-key: try-runtime
+          cache-version: v2
 
       - name: Build try-runtime
         run: cargo build --release -p aleph-node --features "try-runtime"

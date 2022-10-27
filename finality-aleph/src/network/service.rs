@@ -17,7 +17,7 @@ use crate::{
     network::{
         manager::{NetworkData, VersionedAuthentication},
         ConnectionCommand, Data, DataCommand, Event, EventStream, Multiaddress, Network,
-        NetworkSender, Protocol,
+        NetworkSender, PeerId, Protocol,
     },
     validator_network::Network as ValidatorNetwork,
     STATUS_REPORT_INTERVAL,
@@ -377,12 +377,14 @@ impl<
                     }
                 }
             }
-            NetworkData::Data(data, session) => {
+            NetworkData::Data(data, session_id) => {
                 match command {
                     Broadcast => {
                         // We ignore this for now. AlephBFT does not broadcast data.
                     }
-                    SendTo(peer, _) => self.validator_network.send((data, session), peer),
+                    SendTo(peer, _) => self
+                        .validator_network
+                        .send(DataInSession { data, session_id }, peer),
                 }
             }
         }
@@ -417,7 +419,7 @@ impl<
         let peer_ids = self
             .legacy_validator_connected_peers
             .iter()
-            .map(|peer_id| format!("{}", peer_id))
+            .map(|peer_id| peer_id.to_short_string())
             .collect::<Vec<_>>()
             .join(", ");
         status.push_str(&format!(
