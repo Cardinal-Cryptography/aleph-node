@@ -64,7 +64,7 @@ pub fn get_era_validators<C: ReadStorage>(
 }
 
 pub fn get_ban_config<C: ReadStorage>(connection: &C) -> BanConfig {
-    connection.read_storage_value(PALLET, "CommitteeBanConfig")
+    connection.read_storage_value(PALLET, "BanConfig")
 }
 
 pub fn get_underperformed_validator_session_count<C: ReadStorage>(
