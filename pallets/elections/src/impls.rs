@@ -233,6 +233,23 @@ where
             }
         }
     }
+    fn unban_on_new_era_start(session: SessionIndex) {
+        let active_era = match T::EraInfoProvider::active_era() {
+            Some(ae) => ae,
+            _ => return,
+        };
+
+        Self::if_era_starts_do(active_era, session, || {
+            let ban_period = BanConfig::<T>::get().ban_period;
+            let unban = Banned::<T>::iter().filter_map(|(v, ban_info)| {
+                if ban_info.start + ban_period >= active_era {
+                    return Some(v);
+                }
+                None
+            });
+            unban.for_each(Banned::<T>::remove);
+        });
+    }
     fn populate_next_era_validators_on_next_era_start(session: SessionIndex) {
         let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
@@ -395,6 +412,7 @@ where
         <T as Config>::SessionManager::start_session(start_index);
         Self::populate_totals_on_new_era_start(start_index);
         Self::clear_underperformance_session_counter(start_index);
+        Self::unban_on_new_era_start(start_index);
     }
 }
 

@@ -419,26 +419,14 @@ pub mod pallet {
         }
 
         fn emit_fresh_bans_event() {
-            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
-            let fresh_bans: Vec<_> = Banned::<T>::iter()
+            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(1);
+            let fresh_bans = Banned::<T>::iter()
                 .filter(|(_acc, info)| info.start == active_era)
-                .collect();
+                .collect::<Vec<_>>();
             if !fresh_bans.is_empty() {
                 info!(target: "pallet_elections", "Fresh bans in era {}: {:?}",active_era, fresh_bans);
                 Self::deposit_event(Event::BanValidators(fresh_bans));
             }
-        }
-
-        fn unban() {
-            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
-            let ban_period = BanConfig::<T>::get().ban_period;
-            let unban = Banned::<T>::iter().filter_map(|(account_id, ban_info)| {
-                if ban_info.start.saturating_add(ban_period) >= active_era {
-                    return Some(account_id);
-                }
-                None
-            });
-            unban.for_each(Banned::<T>::remove);
         }
     }
 
@@ -476,6 +464,8 @@ pub mod pallet {
         /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
             Self::emit_fresh_bans_event();
+            let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
+            let ban_period = BanConfig::<T>::get().ban_period;
 
             let staking_validators = Self::DataProvider::electable_targets(None)
                 .map_err(Self::Error::DataProvider)?
@@ -485,23 +475,24 @@ pub mod pallet {
                 .into_iter()
                 .filter(|v| staking_validators.contains(v))
                 .collect::<BTreeSet<_>>();
-            let banned_validators = BTreeSet::from_iter(Banned::<T>::iter_keys());
+            let banned_validators = Banned::<T>::iter()
+                .filter(|(_, info)| info.start + ban_period >= active_era + 1)
+                .map(|(v, _)| v)
+                .collect::<BTreeSet<_>>();
             let old_non_reserved_validators = NextEraNonReservedValidators::<T>::get().into_iter();
+
+            let eligible_non_reserved = staking_validators
+                .into_iter()
+                .filter(|v| {
+                    !banned_validators.contains(v) && !staking_reserved_validators.contains(v)
+                })
+                .collect::<BTreeSet<_>>();
 
             let new_non_reserved_validators: Vec<_> = match Openness::<T>::get() {
                 ElectionOpenness::Permissioned => old_non_reserved_validators
-                    .filter(|v| {
-                        staking_validators.contains(v)
-                            && !banned_validators.contains(v)
-                            && !staking_reserved_validators.contains(v)
-                    })
+                    .filter(|v| eligible_non_reserved.contains(v))
                     .collect(),
-                ElectionOpenness::Permissionless => staking_validators
-                    .into_iter()
-                    .filter(|v| {
-                        !banned_validators.contains(v) && !staking_reserved_validators.contains(v)
-                    })
-                    .collect(),
+                ElectionOpenness::Permissionless => eligible_non_reserved.into_iter().collect(),
             };
             NextEraNonReservedValidators::<T>::put(new_non_reserved_validators.clone());
 
@@ -534,8 +525,6 @@ pub mod pallet {
                     support.voters.push((voter, vote as u128));
                 }
             }
-
-            Self::unban();
 
             Ok(supports.into_iter().collect())
         }
