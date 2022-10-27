@@ -419,7 +419,7 @@ jobs:
 
   run-e2e-kick-out-counter-clearing:
     needs: [build-test-docker, build-test-client]
-    name: Run kick out automatic test
+    name: Run kick out counter clearing test
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
@@ -435,6 +435,14 @@ jobs:
   run-e2e-version-upgrade:
     needs: [build-test-docker, build-test-client]
     name: Run basic (positive) version-upgrade test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
           test-case: version_upgrade
         env:
           UPGRADE_VERSION: 1,
