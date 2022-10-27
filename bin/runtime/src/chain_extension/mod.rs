@@ -1,3 +1,5 @@
+mod decoding;
+
 use frame_support::log::error;
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
