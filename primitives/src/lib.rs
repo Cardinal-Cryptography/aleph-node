@@ -66,7 +66,8 @@ pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
 
-#[derive(Decode, Encode, TypeInfo, Debug, Clone)]
+/// Openness of the process of the elections
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 pub enum ElectionOpenness {
     Permissioned,
     Permissionless,
@@ -109,7 +110,7 @@ pub struct BanConfig {
     /// underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
     pub clean_session_counter_delay: SessionCount,
     /// how many eras a validator is banned for
-    pub ban_periond: EraIndex,
+    pub ban_period: EraIndex,
 }
 
 impl Default for BanConfig {
@@ -118,7 +119,7 @@ impl Default for BanConfig {
             minimal_expected_performance: DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
             underperformed_session_count_threshold: DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
             clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
-            ban_periond: DEFAULT_BAN_PERIOD,
+            ban_period: DEFAULT_BAN_PERIOD,
         }
     }
 }
@@ -137,7 +138,9 @@ pub enum BanReason {
 /// Details of why and for how long a validator is removed from the committee
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug)]
 pub struct BanInfo {
+    /// reason for banning a validator
     pub reason: BanReason,
+    /// index of the first era when a ban starts
     pub start: EraIndex,
 }
 

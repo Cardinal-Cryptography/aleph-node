@@ -1,13 +1,16 @@
 //! This pallet manages changes in the committee responsible for producing blocks and establishing consensus.
-//! Currently, it's PoA where the validators are set by the root account. In the future, a new
-//! version for DPoS elections will replace the current one.
 //!
 //! # Terminology
 //! For definition of session, era, staking see pallet_session and pallet_staking.
 //! - committee ([`EraValidators`]): Set of nodes that produce and finalize blocks in the session.
 //! - validator: Node that can become a member of committee (or already is) via rotation.
 //! - `EraValidators::reserved`: immutable validators, ie they cannot be removed from that list.
-//! - `EraValidators::non_reserved`: validators that can be banned out from that list
+//! - `EraValidators::non_reserved`: validators that can be banned out from that list.
+//!
+//! # Elections process
+//! There are two options for choosing validators during election process governed by ([`Openness`]) storage value:
+//! - `Permissionless`: choose all validators that bonded enough amount and are not banned.
+//! - `Permissioned`: choose `EraValidators::reserved` and all `EraValidators::non_reserved` that are not banned.
 //!
 //! # Ban logic
 //! In case of insufficient validator's uptime, we need to remove such validators from
@@ -261,6 +264,7 @@ pub mod pallet {
             minimal_expected_performance: Option<u8>,
             underperformed_session_count_threshold: Option<u32>,
             clean_session_counter_delay: Option<u32>,
+            ban_period: Option<EraIndex>,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
@@ -292,6 +296,10 @@ pub mod pallet {
                 current_committee_ban_config.clean_session_counter_delay =
                     clean_session_counter_delay;
             }
+            if let Some(ban_period) = ban_period {
+                ensure!(ban_period > 0, Error::<T>::InvalidBanConfig);
+                current_committee_ban_config.ban_period = ban_period;
+            }
 
             BanConfig::<T>::put(current_committee_ban_config.clone());
             Self::deposit_event(Event::SetBanConfig(current_committee_ban_config));
@@ -312,11 +320,20 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::BanReasonTooBig)?;
 
             let reason = BanReason::OtherReason(bounded_description);
-            let start: EraIndex = T::EraInfoProvider::active_era()
-                .unwrap_or(0)
-                .saturating_add(1);
+            Self::ban_validator(&banned, reason);
 
-            Banned::<T>::insert(banned, BanInfo { reason, start });
+            Ok(())
+        }
+
+        /// Set openness of the elections
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_elections_openness(
+            origin: OriginFor<T>,
+            openness: ElectionOpenness,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            Openness::<T>::set(openness);
 
             Ok(())
         }
@@ -423,9 +440,9 @@ pub mod pallet {
 
         fn unban() {
             let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
-            let ban_periond = BanConfig::<T>::get().ban_periond;
+            let ban_period = BanConfig::<T>::get().ban_period;
             let unban = Banned::<T>::iter().filter_map(|(account_id, ban_info)| {
-                if ban_info.start.saturating_add(ban_periond) >= active_era {
+                if ban_info.start.saturating_add(ban_period) >= active_era {
                     return Some(account_id);
                 }
                 None

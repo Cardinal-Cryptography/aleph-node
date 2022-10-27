@@ -33,8 +33,12 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era:
-///    * during elections, we ban underperforming validators from non_reserved set,
+///    * during elections, we choose validators eligible for elections depending on the openness of the process
+///       * `permsionless`: all validators that bonded sufficient amount are chosen
+///       * `permissioned`: we choose only validators from allow lists
+///    * in both cases we remove banned validators
 ///    * then we update the reserved and non reserved validators.
+///    * at the end of the elections we unban validators whose ban expired.
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
 ///
 
@@ -320,6 +324,13 @@ where
         }
     }
 
+    pub fn ban_validator(validator: &T::AccountId, reason: BanReason) {
+        let start: EraIndex = T::EraInfoProvider::active_era()
+            .unwrap_or(0)
+            .saturating_add(1);
+        Banned::<T>::insert(validator, BanInfo { reason, start });
+    }
+
     fn mark_validator_underperformance(thresholds: &BanConfigStruct, validator: &T::AccountId) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
             *count += 1;
@@ -327,10 +338,7 @@ where
         });
         if counter >= thresholds.underperformed_session_count_threshold {
             let reason = BanReason::InsufficientUptime(counter);
-            let start: EraIndex = T::EraInfoProvider::active_era()
-                .unwrap_or(0)
-                .saturating_add(1);
-            Banned::<T>::insert(&validator, BanInfo { reason, start });
+            Self::ban_validator(validator, reason);
             UnderperformedValidatorSessionCount::<T>::remove(&validator);
         }
     }
