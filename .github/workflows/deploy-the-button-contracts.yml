@@ -2,7 +2,11 @@ name: Deploy The Button game
 
 # TODO triggered by the e2e-tests-contracts workflow completed on branch benjamin
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - e2e-tests-contracts
+    types:
+      - completed
 
 # allow only once run instance of this workflow EVER
 concurrency:
