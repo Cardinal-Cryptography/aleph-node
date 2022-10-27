@@ -3,6 +3,7 @@ pub use era_payout::era_payouts_calculated_correctly;
 pub use era_validators::era_validators;
 pub use fee::fee_calculation;
 pub use finalization::finalization;
+pub use kick_out::kick_out_automatic;
 pub use rewards::{
     change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
 };
@@ -12,12 +13,14 @@ pub use treasury::{channeling_fee_and_tip, treasury_access};
 pub use utility::batch_transactions;
 pub use validators_change::change_validators;
 pub use validators_rotate::validators_rotate;
+pub use version_upgrade::schedule_version_change;
 
 mod electing_validators;
 mod era_payout;
 mod era_validators;
 mod fee;
 mod finalization;
+mod kick_out;
 mod rewards;
 mod staking;
 mod transfer;
@@ -25,3 +28,4 @@ mod treasury;
 mod utility;
 mod validators_change;
 mod validators_rotate;
+mod version_upgrade;
