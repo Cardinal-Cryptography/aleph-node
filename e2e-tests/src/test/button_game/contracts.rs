@@ -33,10 +33,8 @@ pub(super) struct ButtonInstance {
 }
 
 impl ButtonInstance {
-    pub fn new(config: &Config) -> Result<Self> {
-        let button_address = config
-            .test_case_params
-            .button_game_contract
+    pub fn new(config: &Config, button_address: &Option<String>) -> Result<Self> {
+        let button_address = button_address
             .clone()
             .context("Button game address not set.")?;
         let button_address = AccountId32::from_string(&button_address)?;

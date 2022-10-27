@@ -68,9 +68,17 @@ pub struct TestCaseParams {
     #[clap(long)]
     pub non_reserved_seats: Option<u32>,
 
-    /// Address of button game contract, only used by button game tests.
+    /// Address of the Early Bird Special game contract, only used by button game tests.
     #[clap(long)]
-    pub button_game_contract: Option<String>,
+    pub early_bird_special: Option<String>,
+
+    /// Address of the Back to the Future game contract, only used by button game tests.
+    #[clap(long)]
+    pub back_to_the_future: Option<String>,
+
+    /// Address of the The Pressiah Cometh game contract, only used by button game tests.
+    #[clap(long)]
+    pub the_pressiah_cometh: Option<String>,
 
     /// Path to the button game metadata file. Only used by button tests.
     #[clap(long)]

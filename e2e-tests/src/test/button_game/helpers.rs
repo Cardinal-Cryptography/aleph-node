@@ -104,13 +104,16 @@ pub(super) struct ButtonTestContext {
     pub player: KeyPair,
 }
 
-pub(super) fn setup_button_test(config: &Config) -> Result<ButtonTestContext> {
+pub(super) fn setup_button_test(
+    config: &Config,
+    button_contract_address: &Option<String>,
+) -> Result<ButtonTestContext> {
     let conn = config.get_first_signed_connection().as_connection();
 
     let authority = aleph_client::keypair_from_string(&config.sudo_seed);
     let player = random_account();
 
-    let button = Arc::new(ButtonInstance::new(config)?);
+    let button = Arc::new(ButtonInstance::new(config, button_contract_address)?);
     let ticket_token = Arc::new(ticket_token(&conn, &button, &config)?);
     let reward_token = Arc::new(reward_token(&conn, &button, &config)?);
     let marketplace = Arc::new(marketplace(&conn, &button, &config)?);

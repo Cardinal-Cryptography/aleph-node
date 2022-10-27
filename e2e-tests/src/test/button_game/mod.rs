@@ -30,7 +30,7 @@ pub fn marketplace(config: &Config) -> Result<()> {
         reward_token,
         mut events,
         ..
-    } = setup_button_test(config)?;
+    } = setup_button_test(config, &config.test_case_params.early_bird_special)?;
 
     marketplace.reset(&sign(&conn, authority.clone()))?;
     assert_recv_id(&mut events, "Reset");
@@ -83,7 +83,7 @@ pub fn marketplace(config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn early_bird_special_reset(config: &Config) -> Result<()> {
+pub fn button_game_reset(config: &Config) -> Result<()> {
     let ButtonTestContext {
         conn,
         button,
@@ -92,7 +92,7 @@ pub fn early_bird_special_reset(config: &Config) -> Result<()> {
         marketplace,
         ticket_token,
         ..
-    } = setup_button_test(config)?;
+    } = setup_button_test(config, &config.test_case_params.early_bird_special)?;
 
     let deadline_old = button.deadline(&conn)?;
     let marketplace_initial = ticket_token.balance_of(&conn, &marketplace.to_account())?;
@@ -122,7 +122,42 @@ pub fn early_bird_special_reset(config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn early_bird_special_play(config: &Config) -> Result<()> {
+pub fn early_bird_special(config: &Config) -> Result<()> {
+    button_game_play(
+        config,
+        &config.test_case_params.early_bird_special,
+        |early_presser_score, late_presser_score| {
+            assert!(early_presser_score > late_presser_score);
+        },
+    )
+}
+
+pub fn back_to_the_future(config: &Config) -> Result<()> {
+    button_game_play(
+        config,
+        &config.test_case_params.back_to_the_future,
+        |early_presser_score, late_presser_score| {
+            assert!(early_presser_score < late_presser_score);
+        },
+    )
+}
+
+pub fn the_pressiah_cometh(config: &Config) -> Result<()> {
+    button_game_play(
+        config,
+        &config.test_case_params.the_pressiah_cometh,
+        |early_presser_score, late_presser_score| {
+            assert!(early_presser_score == 1);
+            assert!(late_presser_score == 2);
+        },
+    )
+}
+
+fn button_game_play<F: Fn(u128, u128) -> ()>(
+    config: &Config,
+    button_contract_address: &Option<String>,
+    score_check: F,
+) -> Result<()> {
     let ButtonTestContext {
         conn,
         button,
@@ -132,7 +167,7 @@ pub fn early_bird_special_play(config: &Config) -> Result<()> {
         reward_token,
         player,
         ..
-    } = setup_button_test(config)?;
+    } = setup_button_test(config, button_contract_address)?;
 
     ticket_token.transfer(&sign(&conn, authority.clone()), &player.to_account(), 2)?;
     wait_for_death(&conn, &button)?;
@@ -156,7 +191,7 @@ pub fn early_bird_special_play(config: &Config) -> Result<()> {
     button.press(&sign(&conn, player.clone()))?;
     let event = assert_recv_id(&mut events, "ButtonPressed");
     let_assert!(Some(&Value::UInt(late_presser_score)) = event.data.get("score"));
-    assert!(early_presser_score > late_presser_score);
+    score_check(early_presser_score, late_presser_score);
     let total_score = early_presser_score + late_presser_score;
     assert!(reward_token.balance_of(&conn, &player.to_account())? == total_score);
 
