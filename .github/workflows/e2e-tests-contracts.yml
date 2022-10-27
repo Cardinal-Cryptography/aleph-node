@@ -1,4 +1,4 @@
-name: e2e-tests-contracts
+name: contracts-e2e-tests-and-deploy
 
 on:
   pull_request:
@@ -13,20 +13,24 @@ on:
       - benjamin
 
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 env:
   CHECKOUT_BRANCH: benjamin
+  CACHE_KEY: fe-benjamin-button
+  CONTRACTS_ENVFILE: fe-benjamin
+  CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
+  NODE_VERSION: 16
+  S3BUCKET_PATH: contracts/fe-benjamin-button
 
 jobs:
   run-tests:
     name: Run smart contracts test suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: full
     steps:
-
       - name: Install binaryen
         run: |
           wget https://github.com/WebAssembly/binaryen/releases/download/version_101/binaryen-version_101-x86_64-linux.tar.gz
@@ -123,3 +127,163 @@ jobs:
           notify-on: "failure"
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  build_and_deploy_contracts:
+    name: Deploy contracts on feature environment
+    needs: [run-tests]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
+
+      - name: Check if environment is reachable
+        shell: bash
+        run: |
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
+
+      - name: Get branch name and commit SHA
+        id: get_branch
+        uses: ./.github/actions/get-branch
+
+      # Use of 'actions-rs/toolchain@v1' has been removed as it was causing some unknown problems
+      # Also, there is a ticket to replace it with custom solution anyway
+
+      - name: Setup rust toolchain
+        run: |
+          . "$HOME/.cargo/env"
+          rustup target add wasm32-unknown-unknown
+          rustup toolchain install nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup default nightly-2022-08-12-x86_64-unknown-linux-gnu
+
+      - name: Install jq
+        shell: bash
+        run: |
+          sudo apt-get install -y jq
+
+      - name: Install binaryen
+        shell: bash
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
+          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
+          sudo chmod +x /tmp/binaryen-version_110/bin/*
+          sudo cp -rf /tmp/binaryen-version_110/* /usr/
+
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: ${{ env.CACHE_KEY }}
+          cargo-key: ${{ env.CACHE_KEY }}
+          cache-version: v1
+
+      - name: Install cargo additional libs
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install dylint-link cargo-dylint
+
+      - name: Install cargo-contract with bug fixes around URL parsing
+        run: |
+          . "$HOME/.cargo/env"
+          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+
+      # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get contracts' target directories cache from S3 bucket
+        shell: bash
+        continue-on-error: true
+        run: |
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
+          tar -xzf targets.tgz
+
+      - name: Copy metadata.json and addresses.json files from S3 bucket
+        shell: bash
+        run: |
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            mkdir -p contracts/"$i"/target/ink
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+          done
+
+      - name: Run clean.sh script
+        continue-on-error: true
+        shell: bash
+        run: |
+          . "$HOME/.cargo/env"
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+
+      - name: Run deploy.sh script
+        shell: bash
+        run: |
+          . "$HOME/.cargo/env"
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+
+      - name: Copy metadata.json and addresses.json files onto S3 bucket
+        shell: bash
+        run: |
+          aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+          done
+          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+          aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
+          aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
+
+      - name: Rename metadata and addresses JSON files to artifact upload
+        shell: bash
+        run: |
+          cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
+          for i in ticket_token marketplace button game_token access_control; do \
+            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
+          done
+
+      - name: Upload artifact with contract addresses
+        uses: actions/upload-artifact@v3
+        with:
+          name: contracts-addresses
+          path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload artifact with contract metadata
+        uses: actions/upload-artifact@v3
+        with:
+          name: contracts-metadata
+          path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Cache contracts' target directories in S3 bucket
+        shell: bash
+        run: |
+          tar -czf targets.tgz contracts/ticket_token/target \
+            contracts/marketplace/target \
+            contracts/button/target \
+            contracts/game_token/target \
+            contracts/access_control/target
+          aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
+
+      - name: Trigger The Button deployment workflow
+        run: |
+          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
+          -H "Accept: application/vnd.github+json" \
+          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
+
+      # TODO: trigger indexer deployment
