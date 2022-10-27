@@ -279,6 +279,13 @@ jobs:
             contracts/access_control/target
           aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
+      - name: Trigger Indexer deployment workflow
+        run: |
+          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
+          -H "Accept: application/vnd.github+json" \
+          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+          -d '{ "ref":"master" }'
+
       - name: Trigger The Button deployment workflow
         run: |
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
@@ -286,4 +293,3 @@ jobs:
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
 
-      # TODO: trigger indexer deployment
