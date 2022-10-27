@@ -235,7 +235,6 @@ impl Network for MockNetwork {
     }
 }
 
-
 pub async fn crypto_basics(
     num_crypto_basics: usize,
 ) -> (Vec<(NodeIndex, AuthorityPen)>, AuthorityVerifier) {
