@@ -18,8 +18,7 @@ use sp_keystore::{testing::KeyStore, CryptoStore};
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        manager::NetworkData, ConnectionCommand, DataCommand, Event, EventStream, Multiaddress,
-        Network, NetworkIdentity, NetworkSender, NetworkServiceIO as NetworkIO, PeerId, Protocol,
+        Event, EventStream, Multiaddress, Network, NetworkIdentity, NetworkSender, PeerId, Protocol,
     },
     AuthorityId, NodeIndex,
 };
@@ -138,46 +137,6 @@ impl<T> Default for Channel<T> {
 
 pub type MockEvent = Event<MockMultiaddress>;
 
-pub type MockData = Vec<u8>;
-type MessageForUser<D, M> = (NetworkData<D, M>, DataCommand<<M as Multiaddress>::PeerId>);
-type NetworkServiceIO<M> = NetworkIO<NetworkData<MockData, M>, M>;
-
-pub struct MockIO<M: Multiaddress, LM: Multiaddress> {
-    pub messages_for_user: mpsc::UnboundedSender<MessageForUser<MockData, M>>,
-    pub messages_from_user: mpsc::UnboundedReceiver<NetworkData<MockData, M>>,
-    pub commands_for_manager: mpsc::UnboundedSender<ConnectionCommand<M>>,
-    pub legacy_messages_for_user: mpsc::UnboundedSender<MessageForUser<MockData, LM>>,
-    pub legacy_messages_from_user: mpsc::UnboundedReceiver<NetworkData<MockData, LM>>,
-    pub legacy_commands_for_manager: mpsc::UnboundedSender<ConnectionCommand<LM>>,
-}
-
-impl<M: Multiaddress + 'static, LM: Multiaddress + 'static> MockIO<M, LM> {
-    pub fn new() -> (MockIO<M, LM>, NetworkServiceIO<M>, NetworkServiceIO<LM>) {
-        let (mock_messages_for_user, messages_from_user) = mpsc::unbounded();
-        let (messages_for_user, mock_messages_from_user) = mpsc::unbounded();
-        let (mock_commands_for_manager, commands_from_manager) = mpsc::unbounded();
-        let (legacy_mock_messages_for_user, legacy_messages_from_user) = mpsc::unbounded();
-        let (legacy_messages_for_user, legacy_mock_messages_from_user) = mpsc::unbounded();
-        let (legacy_mock_commands_for_manager, legacy_commands_from_manager) = mpsc::unbounded();
-        (
-            MockIO {
-                messages_for_user: mock_messages_for_user,
-                messages_from_user: mock_messages_from_user,
-                commands_for_manager: mock_commands_for_manager,
-                legacy_messages_for_user: legacy_mock_messages_for_user,
-                legacy_messages_from_user: legacy_mock_messages_from_user,
-                legacy_commands_for_manager: legacy_mock_commands_for_manager,
-            },
-            NetworkServiceIO::new(messages_from_user, messages_for_user, commands_from_manager),
-            NetworkServiceIO::new(
-                legacy_messages_from_user,
-                legacy_messages_for_user,
-                legacy_commands_from_manager,
-            ),
-        )
-    }
-}
-
 pub struct MockEventStream(mpsc::UnboundedReceiver<MockEvent>);
 
 #[async_trait]
@@ -222,17 +181,11 @@ pub struct MockNetwork {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum MockSenderError {
-    SomeError,
-}
+pub enum MockSenderError {}
 
 impl fmt::Display for MockSenderError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MockSenderError::SomeError => {
-                write!(f, "Some error message")
-            }
-        }
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(())
     }
 }
 
@@ -282,34 +235,6 @@ impl Network for MockNetwork {
     }
 }
 
-impl MockNetwork {
-    pub fn new(oneshot_sender: oneshot::Sender<()>) -> Self {
-        MockNetwork {
-            add_reserved: Channel::new(),
-            remove_reserved: Channel::new(),
-            send_message: Channel::new(),
-            event_sinks: Arc::new(Mutex::new(vec![])),
-            event_stream_taken_oneshot: Arc::new(Mutex::new(Some(oneshot_sender))),
-            create_sender_errors: Arc::new(Mutex::new(VecDeque::new())),
-            send_errors: Arc::new(Mutex::new(VecDeque::new())),
-        }
-    }
-
-    pub fn emit_event(&mut self, event: MockEvent) {
-        for sink in &*self.event_sinks.lock() {
-            sink.unbounded_send(event.clone()).unwrap();
-        }
-    }
-
-    // Consumes the network asserting there are no unreceived messages in the channels.
-    pub async fn close_channels(self) {
-        self.event_sinks.lock().clear();
-        // We disable it until tests regarding new substrate network protocol are created.
-        // assert!(self.add_reserved.close().await.is_none());
-        // assert!(self.remove_reserved.close().await.is_none());
-        assert!(self.send_message.close().await.is_none());
-    }
-}
 
 pub async fn crypto_basics(
     num_crypto_basics: usize,

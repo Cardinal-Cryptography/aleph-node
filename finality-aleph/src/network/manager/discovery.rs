@@ -10,7 +10,7 @@ use log::{debug, info, trace, warn};
 use crate::{
     network::{
         manager::{Authentication, SessionHandler},
-        DataCommand, Multiaddress, Protocol,
+        DataCommand, Multiaddress,
     },
     NodeIndex, SessionId,
 };
@@ -60,7 +60,7 @@ fn response<M: Multiaddress>(
 ) -> DiscoveryCommand<M> {
     (
         DiscoveryMessage::Authentication(authentication),
-        DataCommand::SendTo(peer_id, Protocol::Generic),
+        DataCommand::SendTo(peer_id),
     )
 }
 
@@ -272,7 +272,7 @@ mod tests {
             ) if rebroadcast_authentication == &authentication)));
         assert!(commands.iter().any(|command| matches!(command, (
                 DiscoveryMessage::Authentication(authentication),
-                DataCommand::SendTo(_, _),
+                DataCommand::SendTo(_),
             ) if *authentication == handler.authentication().unwrap())));
     }
 
@@ -328,7 +328,7 @@ mod tests {
         assert_eq!(commands.len(), 1);
         assert!(matches!(&commands[0], (
                 DiscoveryMessage::Authentication(authentication),
-                DataCommand::SendTo(_, _),
+                DataCommand::SendTo(_),
             ) if *authentication == handler.authentication().unwrap()));
     }
 
