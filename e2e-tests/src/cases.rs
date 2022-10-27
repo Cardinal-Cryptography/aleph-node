@@ -61,6 +61,5 @@ pub fn possible_test_cases() -> PossibleTestCases {
             "clearing_session_count",
             test_clearing_session_count as TestCase,
         ),
-        ("kick_out_automatic", test_kick_out_automatic as TestCase),
     ]
 }
