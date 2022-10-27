@@ -430,7 +430,7 @@ pub mod pallet {
                 }
                 None
             });
-            unban.for_each(|account_id| Banned::<T>::remove(account_id));
+            unban.for_each(Banned::<T>::remove);
         }
     }
 
