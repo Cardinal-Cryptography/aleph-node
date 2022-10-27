@@ -1,4 +1,4 @@
-name: e2e-tests-contracts
+name: contracts-e2e-tests-and-deploy
 
 on:
   pull_request:
@@ -129,6 +129,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   build_and_deploy_contracts:
+    name: Deploy contracts on feature environment
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
