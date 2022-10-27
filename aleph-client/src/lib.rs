@@ -57,6 +57,7 @@ pub use treasury::{
     propose as make_treasury_proposal, reject as reject_treasury_proposal, staking_treasury_payout,
     treasury_account,
 };
+pub use version_upgrade::{schedule_upgrade, Version};
 pub use vesting::{
     get_schedules, merge_schedules, vest, vest_other, vested_transfer, VestingError,
     VestingSchedule,
@@ -77,6 +78,7 @@ mod staking;
 mod system;
 mod transfer;
 mod treasury;
+mod version_upgrade;
 mod vesting;
 mod waiting;
 
