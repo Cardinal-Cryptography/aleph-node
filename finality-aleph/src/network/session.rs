@@ -86,10 +86,7 @@ impl<D: Data> Manager<D> {
         verifier: AuthorityVerifier,
     ) -> Result<(), ManagerError> {
         self.commands_for_service
-            .unbounded_send(SessionCommand::StartNonvalidator(
-                session_id,
-                verifier,
-            ))
+            .unbounded_send(SessionCommand::StartNonvalidator(session_id, verifier))
             .map_err(|_| ManagerError::CommandSendFailed)
     }
 
@@ -140,11 +137,7 @@ impl<D: Data> Manager<D> {
     ) -> Result<(), ManagerError> {
         self.commands_for_service
             .unbounded_send(SessionCommand::StartValidator(
-                session_id,
-                verifier,
-                node_id,
-                pen,
-                None,
+                session_id, verifier, node_id, pen, None,
             ))
             .map_err(|_| ManagerError::CommandSendFailed)
     }
