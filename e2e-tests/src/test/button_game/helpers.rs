@@ -25,7 +25,7 @@ use crate::{
 };
 
 /// Creates a copy of the `connection` signed by `signer`
-pub(super) fn sign<C: AnyConnection>(conn: &C, signer: KeyPair) -> SignedConnection {
+pub fn sign<C: AnyConnection>(conn: &C, signer: KeyPair) -> SignedConnection {
     SignedConnection::from_any_connection(conn, signer)
 }
 
@@ -66,7 +66,7 @@ pub(super) fn marketplace<C: AnyConnection>(
 }
 
 /// Derives a test account based on a randomized string
-pub(super) fn random_account() -> KeyPair {
+pub fn random_account() -> KeyPair {
     aleph_client::keypair_from_string(&format!(
         "//TestAccount/{}",
         rand::thread_rng().gen::<u128>()
@@ -74,7 +74,7 @@ pub(super) fn random_account() -> KeyPair {
 }
 
 /// Transfer `amount` from `from` to `to`
-pub(super) fn transfer<C: AnyConnection>(conn: &C, from: &KeyPair, to: &KeyPair, amount: Balance) {
+pub fn transfer<C: AnyConnection>(conn: &C, from: &KeyPair, to: &KeyPair, amount: Balance) {
     aleph_client::balances_transfer(
         &SignedConnection::from_any_connection(conn, from.clone()),
         &to.public().into(),
@@ -84,7 +84,7 @@ pub(super) fn transfer<C: AnyConnection>(conn: &C, from: &KeyPair, to: &KeyPair,
 }
 
 /// Returns a number representing the given amount of alephs (adding decimals)
-pub(super) fn alephs(basic_unit_amount: Balance) -> Balance {
+pub fn alephs(basic_unit_amount: Balance) -> Balance {
     basic_unit_amount * 1_000_000_000_000
 }
 
@@ -158,7 +158,7 @@ pub struct BufferedReceiver<T> {
 }
 
 impl<T> BufferedReceiver<T> {
-    pub(super) fn new(receiver: Receiver<T>, default_timeout: Duration) -> Self {
+    pub fn new(receiver: Receiver<T>, default_timeout: Duration) -> Self {
         Self {
             buffer: Vec::new(),
             receiver,
@@ -166,10 +166,7 @@ impl<T> BufferedReceiver<T> {
         }
     }
 
-    pub(super) fn recv_timeout<F: Fn(&T) -> bool>(
-        &mut self,
-        filter: F,
-    ) -> Result<T, RecvTimeoutError> {
+    pub fn recv_timeout<F: Fn(&T) -> bool>(&mut self, filter: F) -> Result<T, RecvTimeoutError> {
         match self.buffer.iter().find_position(|m| filter(m)) {
             Some((i, _)) => Ok(self.buffer.remove(i)),
             None => {
@@ -201,7 +198,7 @@ pub(super) fn wait_for_death<C: AnyConnection>(conn: &C, button: &ButtonInstance
     assert_soon(|| button.is_dead(conn), Duration::from_secs(30))
 }
 
-pub(super) fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) -> Result<()> {
+pub fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) -> Result<()> {
     let start = Instant::now();
     while !check()? {
         if Instant::now().duration_since(start) > timeout {
@@ -211,7 +208,7 @@ pub(super) fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) 
     Ok(())
 }
 
-pub(super) fn assert_recv_id(
+pub fn assert_recv_id(
     events: &mut BufferedReceiver<Result<ContractEvent>>,
     id: &str,
 ) -> ContractEvent {
@@ -222,7 +219,7 @@ pub(super) fn assert_recv_id(
     )
 }
 
-pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
+pub fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     events: &mut BufferedReceiver<Result<T>>,
     filter: F,
     context: &str,
@@ -234,7 +231,7 @@ pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     event.unwrap()
 }
 
-pub(super) fn refute_recv_id(events: &mut BufferedReceiver<Result<ContractEvent>>, id: &str) {
+pub fn refute_recv_id(events: &mut BufferedReceiver<Result<ContractEvent>>, id: &str) {
     if let Ok(event) = recv_timeout_with_log(events, |event| event.ident == Some(id.to_string())) {
         panic!("Received unexpected event {:?}", event);
     }
