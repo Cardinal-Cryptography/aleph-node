@@ -28,7 +28,7 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 /// *  Based on block count we might mark the session for a given validator as underperformed
 /// *  We update rewards and clear block count for the session `S`.
 /// 3. `start_session(S + 1)` is called.
-/// *  if session `S+1` starts new era we populate totals.
+/// *  if session `S+1` starts new era we populate totals and unban all validators whose ban expired.
 /// *  if session `S+1` % [`BanConfig::clean_session_counter_delay`] == 0, we
 ///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
@@ -36,9 +36,8 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///    * during elections, we choose validators eligible for elections depending on the openness of the process
 ///       * `permsionless`: all validators that bonded sufficient amount are chosen
 ///       * `permissioned`: we choose only validators from allow lists
-///    * in both cases we remove banned validators
+///    * in both cases, we exclude banned validators from the elections
 ///    * then we update the reserved and non reserved validators.
-///    * at the end of the elections we unban validators whose ban expired.
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
 ///
 
@@ -226,6 +225,10 @@ where
         )
     }
 
+    pub fn ban_expired(start: EraIndex, period: EraIndex, active_era: EraIndex) -> bool {
+        start + period < active_era
+    }
+
     fn if_era_starts_do<F: Fn()>(era: EraIndex, start_index: SessionIndex, on_era_start: F) {
         if let Some(era_start_index) = T::EraInfoProvider::era_start_session_index(era) {
             if era_start_index == start_index {
@@ -242,7 +245,7 @@ where
         Self::if_era_starts_do(active_era, session, || {
             let ban_period = BanConfig::<T>::get().ban_period;
             let unban = Banned::<T>::iter().filter_map(|(v, ban_info)| {
-                if ban_info.start + ban_period >= active_era {
+                if Self::ban_expired(ban_info.start, ban_period, active_era) {
                     return Some(v);
                 }
                 None

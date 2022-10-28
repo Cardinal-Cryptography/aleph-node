@@ -421,7 +421,7 @@ pub mod pallet {
         fn emit_fresh_bans_event() {
             let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(1);
             let fresh_bans = Banned::<T>::iter()
-                .filter(|(_acc, info)| info.start == active_era)
+                .filter(|(_acc, info)| info.start == active_era + 1)
                 .collect::<Vec<_>>();
             if !fresh_bans.is_empty() {
                 info!(target: "pallet_elections", "Fresh bans in era {}: {:?}",active_era, fresh_bans);
@@ -476,7 +476,7 @@ pub mod pallet {
                 .filter(|v| staking_validators.contains(v))
                 .collect::<BTreeSet<_>>();
             let banned_validators = Banned::<T>::iter()
-                .filter(|(_, info)| info.start + ban_period >= active_era + 1)
+                .filter(|(_, info)| Self::ban_expired(info.start, ban_period, active_era + 1))
                 .map(|(v, _)| v)
                 .collect::<BTreeSet<_>>();
             let old_non_reserved_validators = NextEraNonReservedValidators::<T>::get().into_iter();
