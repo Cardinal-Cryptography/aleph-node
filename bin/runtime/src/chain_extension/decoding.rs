@@ -90,7 +90,7 @@ mod tests {
                 bytes
             } else {
                 let bytes = self[..byte_limit as usize].to_vec();
-                *self = self[..byte_limit as usize].to_vec();
+                *self = self[byte_limit as usize..].to_vec();
                 bytes
             })
         }
@@ -127,5 +127,19 @@ mod tests {
 
         assert_eq!(byte_count, bytes_to_read);
         assert_store_key_args(&args, &vec![]);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn store_keys__positive_case() {
+        let key = vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8];
+        let key_len = key.len() as ByteCount;
+        let mut bytes = [IDENTIFIER.encode(), key_len.encode(), key.clone()].concat();
+        let bytes_to_read = bytes.len() as ByteCount;
+
+        let (args, byte_count) = StoreKeyArgs::decode(&mut bytes, Some(bytes_to_read)).unwrap();
+
+        assert_eq!(byte_count, bytes_to_read);
+        assert_store_key_args(&args, &key);
     }
 }
