@@ -1,14 +1,14 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::log::error;
+use frame_support::{dispatch::Weight, log::error};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
 };
-use pallet_snarcos::{Error, Pallet as Snarcos, VerificationKeyIdentifier};
+use pallet_snarcos::{Config, Error, Pallet as Snarcos, VerificationKeyIdentifier, WeightInfo};
 use scale_info::TypeInfo;
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::{traits::Get, BoundedVec, DispatchError};
 
-use crate::Runtime;
+use crate::{MaximumVerificationKeyLength, Runtime};
 
 pub const SNARCOS_CHAIN_EXT: u32 = 41;
 
@@ -44,22 +44,39 @@ pub struct StoreKeyArgs<S: Get<ByteCount>> {
 }
 
 impl SnarcosChainExtension {
+    fn store_key_weight(key_length: ByteCount) -> Weight {
+        <<Runtime as Config>::WeightInfo as WeightInfo>::store_key(key_length)
+    }
+
     fn snarcos_store_key<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
     where
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
     {
+        // We need to read input as plain bytes (encoded args).
         let mut env = env.buf_in_buf_out();
-        env.charge_weight(41)?;
 
-        let return_status = match Snarcos::<Runtime>::bare_store_key([0u8; 4], [0u8; 8].to_vec()) {
-            Ok(_) => SNARCOS_STORE_KEY_OK,
-            // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
-            // `bare_store_key`), we could adjust weight. However, for the storing key action it
-            // doesn't make sense.
-            Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
-            Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
-            _ => SNARCOS_STORE_KEY_UNKNOWN,
-        };
+        // Pre-charge caller with the maximum weight, because we have no idea now how much is there
+        // to read.
+        let pre_charged =
+            env.charge_weight(Self::store_key_weight(MaximumVerificationKeyLength::get()))?;
+        // Decode arguments.
+        let args = env.read_as::<StoreKeyArgs<MaximumVerificationKeyLength>>()?;
+        // In case the key was shorter than the limit, we give back paid overhead.
+        env.adjust_weight(
+            pre_charged,
+            Self::store_key_weight(args.key.len() as ByteCount),
+        );
+
+        let return_status =
+            match Snarcos::<Runtime>::bare_store_key(args.identifier, args.key.into_inner()) {
+                Ok(_) => SNARCOS_STORE_KEY_OK,
+                // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
+                // `bare_store_key`), we could adjust weight. However, for the storing key action it
+                // doesn't make sense.
+                Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
+                Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
+                _ => SNARCOS_STORE_KEY_UNKNOWN,
+            };
         Ok(RetVal::Converging(return_status))
     }
 }
