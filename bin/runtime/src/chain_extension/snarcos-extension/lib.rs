@@ -2,11 +2,14 @@
 
 use ink_env::Environment;
 use ink_lang as ink;
+use scale::{Decode, Encode};
+#[cfg(feature = "std")]
+use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
 /// Gathers all the possible errors that might occur while calling `pallet_snarcos::store_key`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, scale::Decode, scale::Encode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode)]
+#[cfg_attr(feature = "std", derive(TypeInfo))]
 pub enum StoreKeyError {
     /// This verification key identifier is already taken.
     IdentifierAlreadyInUse,
@@ -33,6 +36,13 @@ impl ink_env::chain_extension::FromStatusCode for StoreKeyError {
 /// Copied from `pallet_snarcos`.
 pub type VerificationKeyIdentifier = [u8; 4];
 
+#[derive(Clone, Eq, PartialEq, Debug, Decode, Encode)]
+#[cfg_attr(feature = "std", derive(TypeInfo))]
+pub struct StoreKeyArgs {
+    pub identifier: VerificationKeyIdentifier,
+    // pub key: Vec<u8>,
+}
+
 #[ink::chain_extension]
 pub trait StoreKeyExtension {
     type ErrorCode = StoreKeyError;
@@ -41,7 +51,7 @@ pub trait StoreKeyExtension {
     ///
     /// The extension method ID matches the one declared in runtime: `SNARCOS_STORE_KEY_FUNC_ID`.
     #[ink(extension = 41, returns_result = false)]
-    fn store_key(identifier: VerificationKeyIdentifier, key: Vec<u8>);
+    fn store_key(args: StoreKeyArgs);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

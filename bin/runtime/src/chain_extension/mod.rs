@@ -38,9 +38,9 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
 pub type ByteCount = u32;
 
 #[derive(Clone, Eq, PartialEq, Debug, Decode, Encode, MaxEncodedLen, TypeInfo)]
-pub struct StoreKeyArgs<S: Get<ByteCount>> {
+pub struct StoreKeyArgs {
     pub identifier: VerificationKeyIdentifier,
-    pub key: BoundedVec<u8, S>,
+    // pub key: BoundedVec<u8, S>,
 }
 
 impl SnarcosChainExtension {
@@ -60,15 +60,12 @@ impl SnarcosChainExtension {
         let pre_charged =
             env.charge_weight(Self::store_key_weight(MaximumVerificationKeyLength::get()))?;
         // Decode arguments.
-        let args = env.read_as::<StoreKeyArgs<MaximumVerificationKeyLength>>()?;
+        let args = env.read_as::<StoreKeyArgs>()?;
         // In case the key was shorter than the limit, we give back paid overhead.
-        env.adjust_weight(
-            pre_charged,
-            Self::store_key_weight(args.key.len() as ByteCount),
-        );
+        env.adjust_weight(pre_charged, Self::store_key_weight(41 as ByteCount));
 
         let return_status =
-            match Snarcos::<Runtime>::bare_store_key(args.identifier, args.key.into_inner()) {
+            match Snarcos::<Runtime>::bare_store_key(args.identifier, sp_std::vec![]) {
                 Ok(_) => SNARCOS_STORE_KEY_OK,
                 // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
                 // `bare_store_key`), we could adjust weight. However, for the storing key action it
