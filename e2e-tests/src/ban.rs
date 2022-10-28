@@ -5,7 +5,7 @@ use aleph_client::{
 };
 use codec::Decode;
 use log::info;
-use primitives::{BanConfig, BanInfo, BanReason, CommitteeSeats, EraValidators, SessionCount};
+use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount};
 use sp_runtime::Perbill;
 
 use crate::{accounts::account_ids_from_keys, validators::get_test_validators, Config};
@@ -98,14 +98,13 @@ pub fn check_underperformed_validator_session_count<C: AnyConnection>(
 pub fn check_underperformed_validator_reason<C: AnyConnection>(
     connection: &C,
     validator: &AccountId,
-    expected_reason: Option<&BanReason>,
-) -> Option<BanReason> {
-    let validator_ban_reason =
-        get_ban_reason_for_validator(connection, validator).map(|i| i.reason);
+    expected_info: Option<&BanInfo>,
+) -> Option<BanInfo> {
+    let validator_ban_info = get_ban_reason_for_validator(connection, validator);
 
-    assert_eq!(validator_ban_reason.as_ref(), expected_reason);
+    assert_eq!(validator_ban_info.as_ref(), expected_info);
 
-    validator_ban_reason
+    validator_ban_info
 }
 
 #[derive(Debug, Decode, Clone)]
@@ -115,7 +114,7 @@ pub struct BanEvent {
 
 pub fn check_ban_event<C: AnyConnection>(
     connection: &C,
-    expected_banned_validators: &[(AccountId, BanReason)],
+    expected_banned_validators: &[(AccountId, BanInfo)],
 ) -> anyhow::Result<BanEvent> {
     let event = wait_for_event(connection, ("Elections", "BanValidators"), |e: BanEvent| {
         info!("Received BanValidators event: {:?}", e.banned_validators);

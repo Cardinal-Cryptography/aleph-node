@@ -1,9 +1,10 @@
 use aleph_client::{
-    get_current_era_validators, get_current_session, wait_for_at_least_session, SignedConnection,
+    get_current_era, get_current_era_validators, get_current_session, wait_for_at_least_session,
+    SignedConnection,
 };
 use log::info;
 use primitives::{
-    BanReason, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+    BanInfo, BanReason, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
     DEFAULT_BAN_SESSION_COUNT_THRESHOLD, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
 };
 
@@ -74,18 +75,20 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     // threshold.
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
 
-    let expected_ban_reason = BanReason::InsufficientUptime(DEFAULT_BAN_SESSION_COUNT_THRESHOLD);
+    let reason = BanReason::InsufficientUptime(DEFAULT_BAN_SESSION_COUNT_THRESHOLD);
+    let start = get_current_era(&root_connection) + 1;
+    let expected_ban_info = BanInfo { reason, start };
 
     check_underperformed_validator_reason(
         &root_connection,
         validator_to_disable,
-        Some(&expected_ban_reason),
+        Some(&expected_ban_info),
     );
 
     let expected_non_reserved =
         &non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..];
 
-    let expected_banned_validators = vec![(validator_to_disable.clone(), expected_ban_reason)];
+    let expected_banned_validators = vec![(validator_to_disable.clone(), expected_ban_info)];
     check_ban_event(&root_connection, &expected_banned_validators)?;
 
     // Check current validators.
