@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     io::Result as IoResult,
     pin::Pin,
     sync::Arc,
@@ -7,7 +7,7 @@ use std::{
 };
 
 use aleph_primitives::{AuthorityId, KEY_TYPE};
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, Output};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
@@ -19,7 +19,7 @@ use sp_keystore::{testing::KeyStore, CryptoStore};
 use tokio::{
     io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf},
     runtime::Handle,
-    time::{interval, Duration},
+    time::{error::Elapsed, interval, timeout, Duration},
 };
 
 use crate::{
@@ -118,20 +118,22 @@ impl<D: Data> MockNetwork<D> {
 #[derive(Debug)]
 pub struct UnreliableDuplexStream {
     stream: DuplexStream,
-    counter: usize,
+    counter: Option<usize>,
 }
 
 impl AsyncWrite for UnreliableDuplexStream {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
-        let mut _self = self.get_mut();
-        if _self.counter == 0 {
-            if Pin::new(&mut _self.stream).poll_shutdown(cx).is_pending() {
-                return Poll::Pending;
+        let this = self.get_mut();
+        if let Some(ref mut c) = this.counter {
+            if c == &0 {
+                if Pin::new(&mut this.stream).poll_shutdown(cx).is_pending() {
+                    return Poll::Pending;
+                }
+            } else {
+                *c -= 1;
             }
-        } else {
-            _self.counter -= 1;
         }
-        Pin::new(&mut _self.stream).poll_write(cx, buf)
+        Pin::new(&mut this.stream).poll_write(cx, buf)
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
@@ -162,7 +164,7 @@ pub struct UnreliableSplittable {
 
 impl UnreliableSplittable {
     /// Create a pair of mock splittables connected to each other.
-    pub fn new(max_buf_size: usize, ends_after: usize) -> (Self, Self) {
+    pub fn new(max_buf_size: usize, ends_after: Option<usize>) -> (Self, Self) {
         let (in_a, out_b) = duplex(max_buf_size);
         let (in_b, out_a) = duplex(max_buf_size);
         (
@@ -228,9 +230,11 @@ type Addresses = HashMap<AuthorityId, Vec<Address>>;
 type Callers = HashMap<AuthorityId, (MockDialer, MockListener)>;
 type Connection = UnreliableSplittable;
 
+const TWICE_MAX_DATA_SIZE: usize = 32 * 1024 * 1024;
+
 #[derive(Clone)]
 pub struct MockDialer {
-    c_connect: mpsc::UnboundedSender<(Address, oneshot::Sender<Connection>)>,
+    channel_connect: mpsc::UnboundedSender<(Address, oneshot::Sender<Connection>)>,
 }
 
 #[async_trait::async_trait]
@@ -240,7 +244,7 @@ impl DialerT<Address> for MockDialer {
 
     async fn connect(&mut self, addresses: Vec<Address>) -> Result<Self::Connection, Self::Error> {
         let (tx, rx) = oneshot::channel();
-        self.c_connect
+        self.channel_connect
             .unbounded_send((addresses[0], tx))
             .expect("should send");
         Ok(rx.await.expect("should receive"))
@@ -248,7 +252,7 @@ impl DialerT<Address> for MockDialer {
 }
 
 pub struct MockListener {
-    c_new_connection: mpsc::UnboundedReceiver<Connection>,
+    channel_accept: mpsc::UnboundedReceiver<Connection>,
 }
 
 #[async_trait::async_trait]
@@ -257,20 +261,20 @@ impl ListenerT for MockListener {
     type Error = std::io::Error;
 
     async fn accept(&mut self) -> Result<Self::Connection, Self::Error> {
-        Ok(self.c_new_connection.next().await.expect("should receive"))
+        Ok(self.channel_accept.next().await.expect("should receive"))
     }
 }
 
 pub struct UnreliableConnectionMaker {
-    c_dialers: mpsc::UnboundedReceiver<(Address, oneshot::Sender<Connection>)>,
-    c_listeners: Vec<mpsc::UnboundedSender<Connection>>,
+    dialers: mpsc::UnboundedReceiver<(Address, oneshot::Sender<Connection>)>,
+    listeners: Vec<mpsc::UnboundedSender<Connection>>,
 }
 
 impl UnreliableConnectionMaker {
     pub fn new(ids: Vec<AuthorityId>) -> (Self, Callers, Addresses) {
-        let mut c_listeners = Vec::with_capacity(ids.len());
+        let mut listeners = Vec::with_capacity(ids.len());
         let mut callers = HashMap::with_capacity(ids.len());
-        let (tx_dialer, c_dialers) = mpsc::unbounded();
+        let (tx_dialer, dialers) = mpsc::unbounded();
         // create peer addresses that will be understood by the main loop in method run
         // each peer gets a one-element vector containing its index, so we'll be able
         // to retrieve proper communication channels
@@ -284,33 +288,30 @@ impl UnreliableConnectionMaker {
         for id in ids.into_iter() {
             let (tx_listener, rx_listener) = mpsc::unbounded();
             let dialer = MockDialer {
-                c_connect: tx_dialer.clone(),
+                channel_connect: tx_dialer.clone(),
             };
             let listener = MockListener {
-                c_new_connection: rx_listener,
+                channel_accept: rx_listener,
             };
-            c_listeners.push(tx_listener);
+            listeners.push(tx_listener);
             callers.insert(id, (dialer, listener));
         }
         (
-            UnreliableConnectionMaker {
-                c_dialers,
-                c_listeners,
-            },
+            UnreliableConnectionMaker { dialers, listeners },
             callers,
             addr,
         )
     }
 
-    pub async fn run(&mut self, connections_end_after: usize) {
+    pub async fn run(&mut self, connections_end_after: Option<usize>) {
         loop {
             info!(target: "validator-network", "UnreliableConnectionMaker: waiting for new request...");
-            let (addr, c) = self.c_dialers.next().await.expect("should receive");
+            let (addr, c) = self.dialers.next().await.expect("should receive");
             info!(target: "validator-network", "UnreliableConnectionMaker: received request");
             let (l_stream, r_stream) = Connection::new(4096, connections_end_after);
             info!(target: "validator-network", "UnreliableConnectionMaker: sending stream");
             c.send(l_stream).expect("should send");
-            self.c_listeners[addr as usize]
+            self.listeners[addr as usize]
                 .unbounded_send(r_stream)
                 .expect("should send");
         }
@@ -335,13 +336,16 @@ impl MockData {
 }
 
 impl Encode for MockData {
-    fn encode(&self) -> Vec<u8> {
-        // currently this is exactly the default behaviour of codec
-        let mut encoded = Vec::with_capacity(self.filler.len() + 5);
-        encoded.append(&mut u32::encode(&self.data));
-        encoded.append(&mut Vec::<u8>::encode(&self.filler));
-        encoded.append(&mut bool::encode(&self.decodes));
-        encoded
+    fn size_hint(&self) -> usize {
+        self.data.size_hint() + self.filler.size_hint() + self.decodes.size_hint()
+    }
+
+    fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
+        // currently this is exactly the default behaviour, but we still
+        // need it here to make sure that decode works in the future
+        self.data.encode_to(dest);
+        self.filler.encode_to(dest);
+        self.decodes.encode_to(dest);
     }
 }
 
@@ -366,8 +370,8 @@ fn spawn_peer(
     pen: AuthorityPen,
     addr: Addresses,
     n_msg: usize,
-    large_message_interval: usize,
-    corrupted_message_interval: usize,
+    large_message_interval: Option<usize>,
+    corrupted_message_interval: Option<usize>,
     dialer: MockDialer,
     listener: MockListener,
     report: mpsc::UnboundedSender<(AuthorityId, usize)>,
@@ -393,7 +397,7 @@ fn spawn_peer(
     // on receiving a message we report the total number of distinct messages received so far
     // the goal is to receive every message at least once
     tokio::spawn(async move {
-        let mut received: Vec<bool> = vec![false; n_msg];
+        let mut received: HashSet<usize> = HashSet::with_capacity(n_msg);
         let mut send_ticker = tokio::time::interval(Duration::from_millis(5));
         let mut counter: usize = 0;
         loop {
@@ -401,8 +405,14 @@ fn spawn_peer(
                 _ = send_ticker.tick() => {
                     counter += 1;
                     // generate random message
-                    let filler_size = if counter % large_message_interval == 0 { 32*1024*1024 } else { 0 };
-                    let decodes = counter % corrupted_message_interval != 0;
+                    let mut filler_size = 0;
+                    if let Some(lmi) = large_message_interval && counter % lmi == 0 {
+                        filler_size = TWICE_MAX_DATA_SIZE;
+                    }
+                    let mut decodes = true;
+                    if let Some(cmi) = corrupted_message_interval && counter % cmi == 0 {
+                        decodes = false;
+                    }
                     let data: MockData = MockData::new(thread_rng().gen_range(0..n_msg) as u32, filler_size, decodes);
                     // choose a peer
                     let peer: AuthorityId = peer_ids[thread_rng().gen_range(0..peer_ids.len())].clone();
@@ -413,21 +423,22 @@ fn spawn_peer(
                     // receive the message
                     let data: MockData = data.expect("next should not be closed");
                     // mark the message as received, we do not care about sender's identity
-                    received[data.data as usize] = true;
+                    received.insert(data.data as usize);
                     // report the number of received messages
-                    report.unbounded_send((our_id.clone(), received.iter().filter(|x| **x).count())).expect("should send");
+                    report.unbounded_send((our_id.clone(), received.len())).expect("should send");
                 },
             };
         }
     });
 }
 
+/// Takes O(n log n) rounds to finish, where n = n_peers * n_msg.
 pub async fn scenario(
     n_peers: usize,
     n_msg: usize,
-    broken_connection_interval: usize,
-    large_message_interval: usize,
-    corrupted_message_interval: usize,
+    broken_connection_interval: Option<usize>,
+    large_message_interval: Option<usize>,
+    corrupted_message_interval: Option<usize>,
     status_report_interval: Duration,
 ) {
     // create spawn_handle, we need to keep the task_manager
@@ -470,9 +481,12 @@ pub async fn scenario(
     loop {
         tokio::select! {
             maybe_report = rx_report.next() => match maybe_report {
-                Some((peer_id, n_msg)) => {
-                    reports.insert(peer_id, n_msg);
-                    if reports.values().all(|&x| x == n_msg) { return; }
+                Some((peer_id, peer_n_msg)) => {
+                    reports.insert(peer_id, peer_n_msg);
+                    if reports.values().all(|&x| x == n_msg) {
+                        info!(target: "validator-network", "Peers received {:?} messages out of {}, finishing.", reports.values(), n_msg);
+                        return;
+                    }
                 },
                 None => panic!("should receive"),
             },
@@ -481,4 +495,28 @@ pub async fn scenario(
             }
         };
     }
+}
+
+/// Takes O(n log n) rounds to finish, where n = n_peers * n_msg.
+pub async fn scenario_with_timeout(
+    n_peers: usize,
+    n_msg: usize,
+    broken_connection_interval: Option<usize>,
+    large_message_interval: Option<usize>,
+    corrupted_message_interval: Option<usize>,
+    status_report_interval: Duration,
+    scenario_timeout: Duration,
+) -> Result<(), Elapsed> {
+    timeout(
+        scenario_timeout,
+        scenario(
+            n_peers,
+            n_msg,
+            broken_connection_interval,
+            large_message_interval,
+            corrupted_message_interval,
+            status_report_interval,
+        ),
+    )
+    .await
 }

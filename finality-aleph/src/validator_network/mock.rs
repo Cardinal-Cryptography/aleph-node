@@ -30,11 +30,11 @@ pub async fn key() -> (AuthorityId, AuthorityPen) {
 /// Create a HashMap with authority ids as keys and pens as values.
 pub async fn random_keys(n_peers: usize) -> HashMap<AuthorityId, AuthorityPen> {
     let mut result = HashMap::with_capacity(n_peers);
-    // in case key() returns the same id twice
-    while result.len() < n_peers {
+    for _ in 0..n_peers {
         let (id, pen) = key().await;
         result.insert(id, pen);
     }
+    assert_eq!(result.len(), n_peers);
     result
 }
 
