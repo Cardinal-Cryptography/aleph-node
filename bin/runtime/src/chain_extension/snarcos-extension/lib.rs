@@ -36,13 +36,6 @@ impl ink_env::chain_extension::FromStatusCode for StoreKeyError {
 /// Copied from `pallet_snarcos`.
 pub type VerificationKeyIdentifier = [u8; 4];
 
-#[derive(Clone, Eq, PartialEq, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(TypeInfo))]
-pub struct StoreKeyArgs {
-    pub identifier: VerificationKeyIdentifier,
-    // pub key: Vec<u8>,
-}
-
 #[ink::chain_extension]
 pub trait StoreKeyExtension {
     type ErrorCode = StoreKeyError;
@@ -51,7 +44,7 @@ pub trait StoreKeyExtension {
     ///
     /// The extension method ID matches the one declared in runtime: `SNARCOS_STORE_KEY_FUNC_ID`.
     #[ink(extension = 41, returns_result = false)]
-    fn store_key(args: StoreKeyArgs);
+    fn store_key(identifier: VerificationKeyIdentifier, key: Vec<u8>);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

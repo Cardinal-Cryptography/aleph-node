@@ -1,12 +1,11 @@
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{dispatch::Weight, log::error};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
 };
 use pallet_snarcos::{Config, Error, Pallet as Snarcos, VerificationKeyIdentifier, WeightInfo};
-use scale_info::TypeInfo;
 use sp_core::crypto::UncheckedFrom;
-use sp_runtime::{traits::Get, BoundedVec, DispatchError};
+use sp_runtime::DispatchError;
+use sp_std::mem::size_of;
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
@@ -37,12 +36,6 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
 
 pub type ByteCount = u32;
 
-#[derive(Clone, Eq, PartialEq, Debug, Decode, Encode, MaxEncodedLen, TypeInfo)]
-pub struct StoreKeyArgs {
-    pub identifier: VerificationKeyIdentifier,
-    // pub key: BoundedVec<u8, S>,
-}
-
 impl SnarcosChainExtension {
     fn store_key_weight(key_length: ByteCount) -> Weight {
         <<Runtime as Config>::WeightInfo as WeightInfo>::store_key(key_length)
@@ -55,25 +48,34 @@ impl SnarcosChainExtension {
         // We need to read input as plain bytes (encoded args).
         let mut env = env.buf_in_buf_out();
 
-        // Pre-charge caller with the maximum weight, because we have no idea now how much is there
-        // to read.
-        let pre_charged =
-            env.charge_weight(Self::store_key_weight(MaximumVerificationKeyLength::get()))?;
-        // Decode arguments.
-        let args = env.read_as::<StoreKeyArgs>()?;
-        // In case the key was shorter than the limit, we give back paid overhead.
-        env.adjust_weight(pre_charged, Self::store_key_weight(41 as ByteCount));
+        // Check if it makes sense to start reading and decoding data.
+        let key_length = env
+            .in_len()
+            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
+        if key_length > MaximumVerificationKeyLength::get() {
+            return Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY));
+        }
 
-        let return_status =
-            match Snarcos::<Runtime>::bare_store_key(args.identifier, sp_std::vec![]) {
-                Ok(_) => SNARCOS_STORE_KEY_OK,
-                // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
-                // `bare_store_key`), we could adjust weight. However, for the storing key action it
-                // doesn't make sense.
-                Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
-                Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
-                _ => SNARCOS_STORE_KEY_UNKNOWN,
-            };
+        // We can decode identifier without charging yet - it is cheap and doesn't interact with
+        // any storage.
+        let identifier = env.read_as::<VerificationKeyIdentifier>()?;
+
+        // Now we charge - even if decoding fails and we shouldn't touch storage, we have to incur
+        // fee for reading memory.
+        env.charge_weight(Self::store_key_weight(key_length))?;
+        // Read the key.
+        let key = env.read(key_length)?;
+
+        // Pass the arguments to the pallet and interpret the result.
+        let return_status = match Snarcos::<Runtime>::bare_store_key(identifier, key) {
+            Ok(_) => SNARCOS_STORE_KEY_OK,
+            // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
+            // `bare_store_key`), we could adjust weight. However, for the storing key action it
+            // doesn't make sense.
+            Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
+            Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
+            _ => SNARCOS_STORE_KEY_UNKNOWN,
+        };
         Ok(RetVal::Converging(return_status))
     }
 }
