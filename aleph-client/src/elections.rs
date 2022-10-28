@@ -98,7 +98,7 @@ pub fn get_kick_out_reason_for_validator<C: ReadStorage>(
 pub fn kick_out_from_committee(
     connection: &RootConnection,
     to_be_kicked_out: &AccountId,
-    reason: &KickOutReason,
+    reason: &Vec<u8>,
     status: XtStatus,
 ) {
     let call_name = "kick_out_from_committee";

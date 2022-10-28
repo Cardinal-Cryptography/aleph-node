@@ -141,22 +141,19 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
     );
     check_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out, None);
 
-    let manual_reason = MANUAL_KICK_OUT_REASON.as_bytes().to_vec();
-    let reason: BoundedVec<_, _> = manual_reason
+    let reason = MANUAL_KICK_OUT_REASON.as_bytes().to_vec();
+    let bounded_reason: BoundedVec<_, _> = reason
+        .clone()
         .try_into()
         .expect("Incorrect manual kick out reason format!");
-    info!("Reason: {:?}", reason);
-    info!("Reason len: {:?}", reason.len());
-    let manual_kick_out_reason = KickOutReason::OtherReason(reason);
+    let manual_kick_out_reason = KickOutReason::OtherReason(bounded_reason);
 
-    info!("Before kick out");
     kick_out_from_committee(
         &root_connection,
         validator_to_manually_kick_out,
-        &manual_kick_out_reason,
+        &reason,
         XtStatus::InBlock,
     );
-    info!("After kick out");
 
     check_kick_out_reason_for_validator(
         &root_connection,
