@@ -1,12 +1,12 @@
-mod decoding;
-
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::log::error;
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
 };
-use pallet_snarcos::{Error, Pallet as Snarcos};
+use pallet_snarcos::{Error, Pallet as Snarcos, VerificationKeyIdentifier};
+use scale_info::TypeInfo;
 use sp_core::crypto::UncheckedFrom;
-use sp_runtime::DispatchError;
+use sp_runtime::{traits::Get, BoundedVec, DispatchError};
 
 use crate::Runtime;
 
@@ -33,6 +33,14 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
             }
         }
     }
+}
+
+pub type ByteCount = u32;
+
+#[derive(Clone, Eq, PartialEq, Debug, Decode, Encode, MaxEncodedLen, TypeInfo)]
+pub struct StoreKeyArgs<S: Get<ByteCount>> {
+    pub identifier: VerificationKeyIdentifier,
+    pub key: BoundedVec<u8, S>,
 }
 
 impl SnarcosChainExtension {
