@@ -226,7 +226,7 @@ where
     }
 
     pub fn ban_expired(start: EraIndex, period: EraIndex, active_era: EraIndex) -> bool {
-        start + period < active_era
+        start + period <= active_era
     }
 
     fn if_era_starts_do<F: Fn()>(era: EraIndex, start_index: SessionIndex, on_era_start: F) {
@@ -236,6 +236,7 @@ where
             }
         }
     }
+
     fn unban_on_new_era_start(session: SessionIndex) {
         let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
@@ -253,6 +254,7 @@ where
             unban.for_each(Banned::<T>::remove);
         });
     }
+
     fn populate_next_era_validators_on_next_era_start(session: SessionIndex) {
         let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
