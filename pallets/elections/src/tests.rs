@@ -9,8 +9,8 @@ use primitives::{BanConfig as BanConfigStruct, CommitteeSeats};
 
 use crate::{
     mock::{
-        with_active_era, with_electable_targets, with_elected_validators, with_electing_voters,
-        AccountId, Balance, Elections, SessionsPerEra, Test, TestExtBuilder,
+        with_active_era, with_current_era, with_electable_targets, with_elected_validators,
+        with_electing_voters, AccountId, Balance, Elections, SessionsPerEra, Test, TestExtBuilder,
     },
     BanConfig, CommitteeSize, CurrentEraValidators, NextEraCommitteeSize,
     NextEraNonReservedValidators, NextEraReservedValidators,
@@ -99,6 +99,7 @@ fn session_authorities_must_have_been_elected() {
 
             with_active_era(next_era - 1);
             with_elected_validators(next_era, vec![1, 5]);
+            with_current_era(next_era);
 
             let mut authorities = <Elections as SessionManager<AccountId>>::new_session(
                 next_era * SessionsPerEra::get(),

@@ -128,11 +128,16 @@ impl ValidatorRewardsHandler<Test> for MockProvider {
 
 thread_local! {
     static ACTIVE_ERA: RefCell<EraIndex> = RefCell::new(Default::default());
+    static CURRENT_ERA: RefCell<EraIndex> = RefCell::new(Default::default());
     static ELECTED_VALIDATORS: RefCell<BTreeMap<EraIndex, Vec<AccountId>>> = RefCell::new(Default::default());
 }
 
 pub fn with_active_era(era: EraIndex) {
     ACTIVE_ERA.with(|ae| *ae.borrow_mut() = era);
+}
+
+pub fn with_current_era(era: EraIndex) {
+    CURRENT_ERA.with(|ce| *ce.borrow_mut() = era);
 }
 
 pub fn with_elected_validators(era: EraIndex, validators: Vec<AccountId>) {
@@ -143,6 +148,10 @@ impl EraInfoProvider for MockProvider {
     type AccountId = AccountId;
 
     fn active_era() -> Option<EraIndex> {
+        Some(ACTIVE_ERA.with(|ae| *ae.borrow()))
+    }
+
+    fn current_era() -> Option<EraIndex> {
         Some(ACTIVE_ERA.with(|ae| *ae.borrow()))
     }
 
