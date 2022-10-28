@@ -15,6 +15,7 @@ pub enum DecodingError {
 
 pub trait Reader {
     fn read(&mut self, byte_limit: ByteCount) -> Result<Vec<u8>, DecodingError>;
+
     fn read_as<T: Decode + MaxEncodedLen>(&mut self) -> Result<T, DecodingError>;
 }
 
@@ -80,18 +81,23 @@ mod tests {
                 *self = Vec::new();
                 bytes
             } else {
-                let bytes = self[..byte_limit].to_vec();
-                *self = self[..byte_limit].to_vec();
+                let bytes = self[..byte_limit as usize].to_vec();
+                *self = self[..byte_limit as usize].to_vec();
                 bytes
             })
         }
 
         fn read_as<T: Decode + MaxEncodedLen>(&mut self) -> Result<T, DecodingError> {
-            let mut bytes = self.read(<T as MaxEncodedLen>::max_encoded_len() as ByteCount)?;
-            <T as Decode>::decode(&mut bytes).map_err(DecodingError::DecodingFailure)
+            let bytes = self.read(<T as MaxEncodedLen>::max_encoded_len() as ByteCount)?;
+            <T as Decode>::decode(&mut &bytes[..])
+                .map_err(|_| DecodingError::DecodingFailure(DispatchError::Other("")))
         }
     }
 
     #[test]
-    fn store_keys_limit_must_allow_to_read_necessary_data() {}
+    #[allow(non_snake_case)]
+    fn store_keys__limit_must_allow_to_read_necessary_data() {
+        let result = StoreKeyArgs::decode(&mut vec![], Some(2));
+        assert!(matches!(result, Err(DecodingError::LimitTooStrict)));
+    }
 }
