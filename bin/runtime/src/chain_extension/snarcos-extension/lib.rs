@@ -2,6 +2,7 @@
 
 use ink_env::Environment;
 use ink_lang as ink;
+use sp_std::vec::Vec;
 
 /// Gathers all the possible errors that might occur while calling `pallet_snarcos::store_key`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, scale::Decode, scale::Encode)]
@@ -29,19 +30,18 @@ impl ink_env::chain_extension::FromStatusCode for StoreKeyError {
     }
 }
 
+/// Copied from `pallet_snarcos`.
+pub type VerificationKeyIdentifier = [u8; 4];
+
 #[ink::chain_extension]
 pub trait StoreKeyExtension {
     type ErrorCode = StoreKeyError;
 
     /// Directly call `pallet_snarcos::store_key`.
     ///
-    /// The identifier and the key must be both mocked in the extension itself. This is
-    /// a temporary simplification to avoid any problems with passing data between contract and
-    /// runtime.
-    ///
     /// The extension method ID matches the one declared in runtime: `SNARCOS_STORE_KEY_FUNC_ID`.
     #[ink(extension = 41, returns_result = false)]
-    fn store_key();
+    fn store_key(identifier: VerificationKeyIdentifier, key: Vec<u8>);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
