@@ -345,6 +345,8 @@ where
     }
 
     pub fn ban_validator(validator: &T::AccountId, reason: BanReason) {
+        // current era is the latest planned era for which validators are already chosen
+        // so we ban from the next era
         let start: EraIndex = T::EraInfoProvider::current_era()
             .unwrap_or(0)
             .saturating_add(1);

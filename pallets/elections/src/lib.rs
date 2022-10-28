@@ -325,6 +325,15 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Schedule a non-reserved node to be banned out from the committee at the end of the era
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn cancel_ban(origin: OriginFor<T>, banned: T::AccountId) -> DispatchResult {
+            ensure_root(origin)?;
+            Banned::<T>::remove(banned);
+
+            Ok(())
+        }
+
         /// Set openness of the elections
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_elections_openness(
