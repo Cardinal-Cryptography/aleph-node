@@ -5,7 +5,7 @@ use aleph_client::{
 };
 use codec::Decode;
 use log::info;
-use primitives::{BanConfig, BanReason, CommitteeSeats, EraValidators, SessionCount};
+use primitives::{BanConfig, BanReason, BanInfo, CommitteeSeats, EraValidators, SessionCount};
 use sp_runtime::Perbill;
 
 use crate::{accounts::account_ids_from_keys, validators::get_test_validators, Config};
