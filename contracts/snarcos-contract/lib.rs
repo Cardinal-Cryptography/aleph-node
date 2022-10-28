@@ -19,7 +19,7 @@ mod snarcos {
         }
 
         #[ink(message)]
-        pub fn trigger(
+        pub fn store_key(
             &mut self,
             identifier: VerificationKeyIdentifier,
             key: Vec<u8>,
