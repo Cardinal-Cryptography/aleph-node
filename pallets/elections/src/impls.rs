@@ -345,7 +345,7 @@ where
     }
 
     pub fn ban_validator(validator: &T::AccountId, reason: BanReason) {
-        let start: EraIndex = T::EraInfoProvider::active_era()
+        let start: EraIndex = T::EraInfoProvider::current_era()
             .unwrap_or(0)
             .saturating_add(1);
         Banned::<T>::insert(validator, BanInfo { reason, start });
