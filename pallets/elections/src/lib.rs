@@ -503,6 +503,10 @@ pub mod pallet {
                     .collect(),
                 ElectionOpenness::Permissionless => eligible_non_reserved.into_iter().collect(),
             };
+            // We store new list here to ensure that validators that end up in the result of the elect
+            // method are a disjoint union of NextEraReservedValidators and NextEraNonReservedValidators.
+            // This condition is important since results of elect ends up in pallet staking while the above lists
+            // are used in our session manager, so we have to ensure consistency between them.
             NextEraNonReservedValidators::<T>::put(new_non_reserved_validators.clone());
 
             let eligible_validators = staking_reserved_validators

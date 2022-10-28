@@ -237,7 +237,7 @@ where
         }
     }
 
-    fn unban_on_new_era_start(session: SessionIndex) {
+    fn clear_expired_bans_on_new_era_start(session: SessionIndex) {
         let active_era = match T::EraInfoProvider::active_era() {
             Some(ae) => ae,
             _ => return,
@@ -419,7 +419,7 @@ where
         <T as Config>::SessionManager::start_session(start_index);
         Self::populate_totals_on_new_era_start(start_index);
         Self::clear_underperformance_session_counter(start_index);
-        Self::unban_on_new_era_start(start_index);
+        Self::clear_expired_bans_on_new_era_start(start_index);
     }
 }
 
