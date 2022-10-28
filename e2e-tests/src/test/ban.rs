@@ -99,7 +99,5 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
         get_current_era_validators,
     );
 
-    check_underperformed_validator_reason(&root_connection, validator_to_disable, None);
-
     Ok(())
 }
