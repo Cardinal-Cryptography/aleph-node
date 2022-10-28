@@ -27,6 +27,9 @@ impl ToAccount for KeyPair {
     }
 }
 
+/// A wrapper around a button game contract.
+///
+/// The methods on this type match contract methods.
 #[derive(Debug)]
 pub(super) struct ButtonInstance {
     contract: ContractInstance,
@@ -97,6 +100,9 @@ impl ToAccount for ButtonInstance {
     }
 }
 
+/// A wrapper around a PSP22 contract.
+///
+/// The methods on this type match contract methods.
 #[derive(Debug)]
 pub(super) struct PSP22TokenInstance {
     contract: ContractInstance,
@@ -167,6 +173,9 @@ impl ToAccount for PSP22TokenInstance {
     }
 }
 
+/// A wrapper around a marketplace contract instance.
+///
+/// The methods on this type match contract methods.
 #[derive(Debug)]
 pub(super) struct MarketplaceInstance {
     contract: ContractInstance,

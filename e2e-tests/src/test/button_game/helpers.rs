@@ -94,11 +94,16 @@ pub(super) struct ButtonTestContext {
     pub reward_token: Arc<PSP22TokenInstance>,
     pub marketplace: Arc<MarketplaceInstance>,
     pub conn: Connection,
+    /// A [BufferedReceiver] preconfigured to listen for events of `button`, `ticket_token`, `reward_token`, and
+    /// `marketplace`.
     pub events: BufferedReceiver<Result<ContractEvent>>,
+    /// The authority owning the initial supply of tickets and with the power to mint game tokens.
     pub authority: KeyPair,
+    /// A random account with some money for transaction fees.
     pub player: KeyPair,
 }
 
+/// Sets up a number of objects commonly used in button game tests.
 pub(super) fn setup_button_test(
     config: &Config,
     button_contract_address: &Option<String>,
@@ -166,6 +171,11 @@ impl<T> BufferedReceiver<T> {
         }
     }
 
+    /// Receive a message satisfying `filter`.
+    ///
+    /// If such a message was received earlier and is waiting in the buffer, returns the message immediately and removes
+    /// it from the buffer. Otherwise, listens for messages for `default_timeout`, storing them in the buffer. If a
+    /// matching message is found during that time, it is returned. If not, `Err(RecvTimeoutError)` is returned.
     pub fn recv_timeout<F: Fn(&T) -> bool>(&mut self, filter: F) -> Result<T, RecvTimeoutError> {
         match self.buffer.iter().find_position(|m| filter(m)) {
             Some((i, _)) => Ok(self.buffer.remove(i)),
@@ -193,11 +203,18 @@ impl<T> BufferedReceiver<T> {
     }
 }
 
+/// Wait until `button` is dead.
+///
+/// Returns `Err(_)` if the button doesn't die within 30 seconds.
 pub(super) fn wait_for_death<C: AnyConnection>(conn: &C, button: &ButtonInstance) -> Result<()> {
     info!("Waiting for button to die");
     assert_soon(|| button.is_dead(conn), Duration::from_secs(30))
 }
 
+/// Wait until `check` returns true.
+///
+/// Repeatedly performs `check` (busy wait) until `timeout` elapses. Returns `Ok(())` if `check` returns true during
+/// that time, `Err(_)` otherwise.
 pub fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) -> Result<()> {
     let start = Instant::now();
     while !check()? {
@@ -208,6 +225,7 @@ pub fn assert_soon<F: Fn() -> Result<bool>>(check: F, timeout: Duration) -> Resu
     Ok(())
 }
 
+/// Asserts that a message with `id` is received (within `events.default_timeout`) and returns it.
 pub fn assert_recv_id(
     events: &mut BufferedReceiver<Result<ContractEvent>>,
     id: &str,
@@ -219,6 +237,7 @@ pub fn assert_recv_id(
     )
 }
 
+/// Asserts that a message matching `filter` is received (within `events.default_timeout`) and returns it.
 pub fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     events: &mut BufferedReceiver<Result<T>>,
     filter: F,
@@ -231,6 +250,7 @@ pub fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
     event.unwrap()
 }
 
+/// Asserts that a message with `id` is not received (within `events.default_timeout`).
 pub fn refute_recv_id(events: &mut BufferedReceiver<Result<ContractEvent>>, id: &str) {
     if let Ok(event) = recv_timeout_with_log(events, |event| event.ident == Some(id.to_string())) {
         panic!("Received unexpected event {:?}", event);

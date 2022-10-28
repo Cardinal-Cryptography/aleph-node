@@ -20,6 +20,13 @@ use crate::{
 mod contracts;
 mod helpers;
 
+/// Tests trading on the marketplace.
+///
+/// The scenario:
+///
+/// 1. Buys a ticket without setting the max price (this should succeed).
+/// 2. Tries to buy a ticket with setting the max price too low (this should fail).
+/// 3. Tries to buy a ticket with setting the max price appropriately (this should succeed).
 pub fn marketplace(config: &Config) -> Result<()> {
     let ButtonTestContext {
         conn,
@@ -83,6 +90,7 @@ pub fn marketplace(config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Tests resetting the button game.
 pub fn button_game_reset(config: &Config) -> Result<()> {
     let ButtonTestContext {
         conn,
@@ -153,6 +161,18 @@ pub fn the_pressiah_cometh(config: &Config) -> Result<()> {
     )
 }
 
+/// Tests a basic scenario of playing the game.
+///
+/// The scenario:
+///
+/// 1. Resets the button.
+/// 2. Gives 2 tickets to the player.
+/// 3. Presses the button.
+/// 4. Waits a bit and presses the button again.
+/// 5. Waits until the button dies and checks the pressiah's score.
+///
+/// Passes the scores received by an early presser and late presser to `score_check` so that different scoring rules
+/// can be tested generically.
 fn button_game_play<F: Fn(u128, u128)>(
     config: &Config,
     button_contract_address: &Option<String>,
