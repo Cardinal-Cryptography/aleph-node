@@ -74,12 +74,7 @@ pub(super) fn random_account() -> KeyPair {
 }
 
 /// Transfer `amount` from `from` to `to`
-pub(super) fn transfer<C: AnyConnection>(
-    conn: &C,
-    from: &KeyPair,
-    to: &KeyPair,
-    amount: Balance,
-) -> () {
+pub(super) fn transfer<C: AnyConnection>(conn: &C, from: &KeyPair, to: &KeyPair, amount: Balance) {
     aleph_client::balances_transfer(
         &SignedConnection::from_any_connection(conn, from.clone()),
         &to.public().into(),
@@ -114,9 +109,9 @@ pub(super) fn setup_button_test(
     let player = random_account();
 
     let button = Arc::new(ButtonInstance::new(config, button_contract_address)?);
-    let ticket_token = Arc::new(ticket_token(&conn, &button, &config)?);
-    let reward_token = Arc::new(reward_token(&conn, &button, &config)?);
-    let marketplace = Arc::new(marketplace(&conn, &button, &config)?);
+    let ticket_token = Arc::new(ticket_token(&conn, &button, config)?);
+    let reward_token = Arc::new(reward_token(&conn, &button, config)?);
+    let marketplace = Arc::new(marketplace(&conn, &button, config)?);
 
     let c1 = button.clone();
     let c2 = ticket_token.clone();
@@ -195,7 +190,7 @@ impl<T> BufferedReceiver<T> {
                     }
                 }
 
-                return Err(RecvTimeoutError::Timeout);
+                Err(RecvTimeoutError::Timeout)
             }
         }
     }
@@ -241,7 +236,7 @@ pub(super) fn assert_recv<T: Debug, F: Fn(&T) -> bool>(
 
 pub(super) fn refute_recv_id(events: &mut BufferedReceiver<Result<ContractEvent>>, id: &str) {
     if let Ok(event) = recv_timeout_with_log(events, |event| event.ident == Some(id.to_string())) {
-        assert!(false, "Received unexpected event {:?}", event);
+        panic!("Received unexpected event {:?}", event);
     }
 }
 
@@ -256,7 +251,7 @@ fn recv_timeout_with_log<T: Debug, F: Fn(&T) -> bool>(
             warn!("Contract event error {:?}", event_or_error);
         }
 
-        event_or_error.as_ref().map(|x| filter(x)).unwrap_or(false)
+        event_or_error.as_ref().map(&filter).unwrap_or(false)
     }) {
         Ok(event) => Ok(event.unwrap()),
         Err(err) => bail!(err),

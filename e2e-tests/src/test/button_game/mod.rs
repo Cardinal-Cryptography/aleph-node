@@ -47,7 +47,7 @@ pub fn marketplace(config: &Config) -> Result<()> {
 
     let player_balance = 100 * later_price;
     reward_token.mint(
-        &sign(&conn, authority.clone()),
+        &sign(&conn, authority),
         &player.to_account(),
         player_balance,
     )?;
@@ -99,7 +99,7 @@ pub fn button_game_reset(config: &Config) -> Result<()> {
     ticket_token.transfer(&sign(&conn, authority.clone()), &button.to_account(), 1)?;
 
     wait_for_death(&conn, &button)?;
-    button.reset(&sign(&conn, authority.clone()))?;
+    button.reset(&sign(&conn, authority))?;
 
     let _ = assert_recv(
         &mut events,
@@ -153,7 +153,7 @@ pub fn the_pressiah_cometh(config: &Config) -> Result<()> {
     )
 }
 
-fn button_game_play<F: Fn(u128, u128) -> ()>(
+fn button_game_play<F: Fn(u128, u128)>(
     config: &Config,
     button_contract_address: &Option<String>,
     score_check: F,
@@ -196,7 +196,7 @@ fn button_game_play<F: Fn(u128, u128) -> ()>(
     assert!(reward_token.balance_of(&conn, &player.to_account())? == total_score);
 
     wait_for_death(&conn, &button)?;
-    button.reset(&sign(&conn, authority.clone()))?;
+    button.reset(&sign(&conn, authority))?;
     assert_recv_id(&mut events, "Reset");
 
     let pressiah_score = total_score / 4;
