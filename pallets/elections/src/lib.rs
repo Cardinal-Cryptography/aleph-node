@@ -476,7 +476,7 @@ pub mod pallet {
                 .filter(|v| staking_validators.contains(v))
                 .collect::<BTreeSet<_>>();
             let banned_validators = Banned::<T>::iter()
-                .filter(|(_, info)| Self::ban_expired(info.start, ban_period, active_era + 1))
+                .filter(|(_, info)| !Self::ban_expired(info.start, ban_period, active_era + 1))
                 .map(|(v, _)| v)
                 .collect::<BTreeSet<_>>();
             let old_non_reserved_validators = NextEraNonReservedValidators::<T>::get().into_iter();
