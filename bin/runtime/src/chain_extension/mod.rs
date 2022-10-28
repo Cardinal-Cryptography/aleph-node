@@ -10,7 +10,7 @@ use sp_runtime::{traits::Get, BoundedVec, DispatchError};
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
-pub const SNARCOS_CHAIN_EXT: u32 = 41;
+pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
 
 // Return codes.
 pub const SNARCOS_STORE_KEY_OK: u32 = 0;
@@ -26,7 +26,7 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
     {
         match func_id {
-            SNARCOS_CHAIN_EXT => Self::snarcos_store_key(env),
+            SNARCOS_STORE_KEY_FUNC_ID => Self::snarcos_store_key(env),
             _ => {
                 error!("Called an unregistered `func_id`: {}", func_id);
                 Err(DispatchError::Other("Unimplemented func_id"))
