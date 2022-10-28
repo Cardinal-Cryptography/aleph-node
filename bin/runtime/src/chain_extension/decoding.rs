@@ -1,12 +1,14 @@
-use codec::{Decode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen};
 use pallet_contracts::chain_extension::{BufInBufOutState, Environment, Ext, SysConfig};
 use pallet_snarcos::VerificationKeyIdentifier;
+use scale_info::TypeInfo;
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};
 
 pub type ByteCount = u32;
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
 pub enum DecodingError {
     LimitTooStrict,
     LimitExhausted,
@@ -52,8 +54,9 @@ impl Decodable for StoreKeyArgs {
         byte_limit: Option<ByteCount>,
     ) -> Result<(Self, ByteCount), DecodingError> {
         // We need to read at least a key and a byte count.
-        let limit_lower_bound = size_of::<VerificationKeyIdentifier>() + size_of::<ByteCount>();
-        if matches!(byte_limit, Some(limit) if limit < limit_lower_bound as ByteCount) {
+        let limit_lower_bound =
+            (size_of::<VerificationKeyIdentifier>() + size_of::<ByteCount>()) as ByteCount;
+        if matches!(byte_limit, Some(limit) if limit < limit_lower_bound) {
             return Err(DecodingError::LimitTooStrict);
         }
 
@@ -66,12 +69,17 @@ impl Decodable for StoreKeyArgs {
 
         let key = reader.read(byte_count)?;
 
-        Ok((StoreKeyArgs { identifier, key }, byte_count))
+        Ok((
+            StoreKeyArgs { identifier, key },
+            limit_lower_bound + byte_count,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use codec::Encode;
+
     use super::*;
 
     impl Reader for Vec<u8> {
@@ -94,10 +102,30 @@ mod tests {
         }
     }
 
+    const IDENTIFIER: VerificationKeyIdentifier = [0; 4];
+
+    fn assert_store_key_args(args: &StoreKeyArgs, key: &[u8]) {
+        assert_eq!(args.identifier, IDENTIFIER);
+        assert_eq!(args.key, key);
+    }
+
     #[test]
     #[allow(non_snake_case)]
     fn store_keys__limit_must_allow_to_read_necessary_data() {
         let result = StoreKeyArgs::decode(&mut vec![], Some(2));
         assert!(matches!(result, Err(DecodingError::LimitTooStrict)));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn store_keys__read_exactly_necessary_data() {
+        let key_len: ByteCount = 0;
+        let mut bytes = [IDENTIFIER.encode(), key_len.encode()].concat();
+        let bytes_to_read = bytes.len() as ByteCount;
+
+        let (args, byte_count) = StoreKeyArgs::decode(&mut bytes, Some(bytes_to_read)).unwrap();
+
+        assert_eq!(byte_count, bytes_to_read);
+        assert_store_key_args(&args, &vec![]);
     }
 }
