@@ -62,7 +62,15 @@ jobs:
           target-key: e2e-contracts
           cargo-key: e2e-contracts
           cache-version: v3
-          cargo-targets: e2e-tests-contracts/target/
+          cargo-targets: |
+            e2e-tests/target/
+            contracts/access_control/target/
+            contracts/button/target/
+            contracts/game_token/target/
+            contracts/marketplace/target/
+            contracts/simple_dex/target/
+            contracts/ticket_token/target/
+            contracts/wrapped_azero/target/
 
       - name: Install cargo-contract
         run: |
