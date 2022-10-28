@@ -1,12 +1,18 @@
 #!/bin/bash
 
-RPC_HOST=127.0.0.1
-RPC_PORT=9933
+## USAGE
+##  .github/scripts/check_finalization.sh <rpc-host> <rpc-port>
+## if <rpc-host> <rpc-port> <network> are empty default values will be used (127.0.0.1, 9933 and host)
+##
+
+RPC_HOST=${1:-127.0.0.1}
+RPC_PORT=${2:-9933}
+NETWORK=${3:-host}
+
 LAST_FINALIZED=""
-VALIDATOR=damian
 
 while [[ "$LAST_FINALIZED" =~ "0x0" ]] || [[ -z "$LAST_FINALIZED" ]]; do
-  block_hash=$(docker run --network container:$VALIDATOR appropriate/curl:latest \
+  block_hash=$(docker run --network $NETWORK appropriate/curl:latest \
                       -H "Content-Type: application/json" \
                       -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getFinalizedHead"}' http://$RPC_HOST:$RPC_PORT | jq '.result')
   ret_val=$?
@@ -15,7 +21,7 @@ while [[ "$LAST_FINALIZED" =~ "0x0" ]] || [[ -z "$LAST_FINALIZED" ]]; do
     continue
   fi
 
-  finalized_block=$(docker run --network container:$VALIDATOR appropriate/curl:latest \
+  finalized_block=$(docker run --network $NETWORK appropriate/curl:latest \
                            -H "Content-Type: application/json" \
                            -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getBlock", "params": ['$block_hash']}' http://$RPC_HOST:$RPC_PORT | jq '.result.block.header.number')
 

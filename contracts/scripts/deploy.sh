@@ -200,7 +200,6 @@ ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
-
 # --- UPLOAD CONTRACTS CODES
 
 upload_contract TICKET_TOKEN_CODE_HASH ticket_token
