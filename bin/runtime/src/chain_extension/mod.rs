@@ -15,7 +15,7 @@ pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
 pub const SNARCOS_STORE_KEY_OK: u32 = 0;
 pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 1;
 pub const SNARCOS_STORE_KEY_IN_USE: u32 = 2;
-pub const SNARCOS_STORE_KEY_UNKNOWN: u32 = 3;
+pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 3;
 
 pub struct SnarcosChainExtension;
 
@@ -74,7 +74,7 @@ impl SnarcosChainExtension {
             // doesn't make sense.
             Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
             Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
-            _ => SNARCOS_STORE_KEY_UNKNOWN,
+            _ => SNARCOS_STORE_KEY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
     }
