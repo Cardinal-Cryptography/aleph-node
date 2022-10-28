@@ -1,4 +1,3 @@
-use codec::Decode;
 use frame_support::{dispatch::Weight, log::error};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
@@ -11,12 +10,23 @@ use sp_std::{mem::size_of, vec::Vec};
 use crate::{MaximumVerificationKeyLength, Runtime};
 
 pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
+pub const SNARCOS_VERIFY_FUNC_ID: u32 = 42;
 
 // Return codes for `pallet_snarcos::store_key`.
 pub const SNARCOS_STORE_KEY_OK: u32 = 10_000;
 pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 10_001;
 pub const SNARCOS_STORE_KEY_IN_USE: u32 = 10_002;
 pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 10_003;
+
+// Return codes for associated with `SNARCOS_VERIFY_FUNC_ID`.
+pub const SNARCOS_VERIFY_OK: u32 = 0;
+pub const SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL: u32 = 1;
+pub const SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL: u32 = 2;
+pub const SNARCOS_VERIFY_UNKNOWN_IDENTIFIER: u32 = 3;
+pub const SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL: u32 = 4;
+pub const SNARCOS_VERIFY_VERIFICATION_FAIL: u32 = 5;
+pub const SNARCOS_VERIFY_INCORRECT_PROOF: u32 = 6;
+pub const SNARCOS_VERIFY_ERROR_UNKNOWN: u32 = 7;
 
 pub struct SnarcosChainExtension;
 
