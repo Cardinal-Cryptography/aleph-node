@@ -9,8 +9,8 @@ use crate::{
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         force_new_era as test_force_new_era, kick_out_automatic as test_kick_out_automatic,
-        kick_out_manual as test_kick_out_manual, points_basic as test_points_basic,
-        points_stake_change as test_points_stake_change,
+        kick_out_manual as test_kick_out_manual, kick_out_threshold as test_kick_out_threshold,
+        points_basic as test_points_basic, points_stake_change as test_points_stake_change,
         schedule_version_change as test_schedule_version_change,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator, token_transfer as test_token_transfer,
@@ -27,7 +27,7 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
-        ("kick_out_manual", test_kick_out_manual as TestCase),
+        ("kick_out_threshold", test_kick_out_threshold as TestCase),
         ("finalization", test_finalization as TestCase),
         ("version_upgrade", test_schedule_version_change),
         ("rewards_disable_node", test_disable_node as TestCase),
@@ -60,5 +60,6 @@ pub fn possible_test_cases() -> PossibleTestCases {
             test_authorities_are_staking as TestCase,
         ),
         ("kick_out_automatic", test_kick_out_automatic as TestCase),
+        ("kick_out_manual", test_kick_out_manual as TestCase),
     ]
 }

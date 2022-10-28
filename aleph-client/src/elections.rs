@@ -1,3 +1,4 @@
+use log::info;
 use primitives::{
     CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason, SessionCount,
     SessionIndex,
@@ -101,9 +102,10 @@ pub fn kick_out_from_committee(
     reason: &Vec<u8>,
     status: XtStatus,
 ) {
+    info!(target: "aleph-client", "Validator being kicked out from committee: {}", to_be_kicked_out);
     let call_name = "kick_out_from_committee";
 
-    let kick_out_from_committee_call = compose_call!(
+    let call = compose_call!(
         connection.as_connection().metadata,
         PALLET,
         call_name,
@@ -115,7 +117,37 @@ pub fn kick_out_from_committee(
         connection.as_connection(),
         "Sudo",
         "sudo_unchecked_weight",
-        kick_out_from_committee_call,
+        call,
+        0_u64
+    );
+
+    send_xt(connection, xt, Some(call_name), status);
+}
+
+pub fn set_kick_out_config(
+    connection: &RootConnection,
+    minimal_expected_performance: Option<u8>,
+    underperformed_session_count_threshold: Option<SessionCount>,
+    clean_session_counter_delay: Option<u32>,
+    status: XtStatus,
+) {
+    info!(target: "aleph-client", "Setting kick out config | min expected performance: {:#?} | session threshold: {:#?} | counter delay: {:#?}", minimal_expected_performance, underperformed_session_count_threshold, clean_session_counter_delay);
+    let call_name = "set_kick_out_config";
+
+    let call = compose_call!(
+        connection.as_connection().metadata,
+        PALLET,
+        call_name,
+        minimal_expected_performance,
+        underperformed_session_count_threshold,
+        clean_session_counter_delay
+    );
+
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
         0_u64
     );
 

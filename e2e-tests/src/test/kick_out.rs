@@ -1,5 +1,5 @@
 use aleph_client::{
-    get_current_era_validators, get_current_session, kick_out_from_committee,
+    get_current_era_validators, get_current_session, kick_out_from_committee, set_kick_out_config,
     wait_for_at_least_session, SignedConnection, XtStatus,
 };
 use log::info;
@@ -26,6 +26,8 @@ const SESSIONS_TO_MEET_KICK_OUT_THRESHOLD: SessionCount = 4;
 
 const VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX: u32 = 1;
 const MANUAL_KICK_OUT_REASON: &str = "Manual kick out reason";
+
+const MIN_EXPECTED_PERFORMANCE: u8 = 100;
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
 /// validators. Waits for the offending validator to hit the kick-out threshold of sessions without
@@ -132,8 +134,6 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
     let validator_to_manually_kick_out =
         &non_reserved_validators[VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX as usize];
 
-    info!(target: "aleph-client", "Validator to manually kick out: {}", validator_to_manually_kick_out);
-
     check_underperformed_validator_session_count(
         &root_connection,
         validator_to_manually_kick_out,
@@ -183,6 +183,55 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
     );
 
     check_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out, None);
+
+    Ok(())
+}
+
+pub fn kick_out_threshold(config: &Config) -> anyhow::Result<()> {
+    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+
+    // Check current era validators.
+    check_validators(
+        &root_connection,
+        &reserved_validators,
+        &non_reserved_validators,
+        get_current_era_validators,
+    );
+
+    check_committee_kick_out_config(
+        &root_connection,
+        DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
+        DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+        DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
+    );
+
+    set_kick_out_config(
+        &root_connection,
+        Some(MIN_EXPECTED_PERFORMANCE),
+        None,
+        None,
+        XtStatus::InBlock,
+    );
+
+    let current_session = get_current_session(&root_connection);
+
+    wait_for_at_least_session(&root_connection, current_session + 1)?;
+
+    let validators: Vec<_> = reserved_validators
+        .iter()
+        .chain(non_reserved_validators.iter())
+        .collect();
+
+    let check_start_session = get_current_session(&root_connection);
+
+    for session in check_start_session..check_start_session + 5 {
+        wait_for_at_least_session(&root_connection, session)?;
+        let expected_session_count = session - check_start_session + 1;
+        validators.iter().for_each(|&val| {
+            info!(target: "aleph-client", "Checking session count | session {} | validator {}", session, val);
+            check_underperformed_validator_session_count(&root_connection, val, &expected_session_count);
+        });
+    }
 
     Ok(())
 }
