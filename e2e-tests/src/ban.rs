@@ -110,7 +110,7 @@ pub fn check_underperformed_validator_reason<C: AnyConnection>(
 
 #[derive(Debug, Decode, Clone)]
 pub struct BanEvent {
-    banned_validators: Vec<(AccountId, BanReason)>,
+    banned_validators: Vec<(AccountId, BanInfo)>,
 }
 
 pub fn check_ban_event<C: AnyConnection>(
