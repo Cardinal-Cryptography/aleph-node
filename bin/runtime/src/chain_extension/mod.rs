@@ -1,4 +1,5 @@
-use frame_support::{dispatch::Weight, log::error};
+use codec::Decode;
+use frame_support::log::error;
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
 };
@@ -77,10 +78,6 @@ struct VerifyArgs {
 }
 
 impl SnarcosChainExtension {
-    fn store_key_weight(key_length: ByteCount) -> Weight {
-        <<Runtime as Config>::WeightInfo as WeightInfo>::store_key(key_length)
-    }
-
     fn snarcos_store_key<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
     where
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
@@ -98,7 +95,9 @@ impl SnarcosChainExtension {
 
         // We charge now - even if decoding fails and we shouldn't touch storage, we have to incur
         // fee for reading memory.
-        env.charge_weight(Self::store_key_weight(key_length))?;
+        env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::store_key(
+            key_length,
+        ))?;
 
         // Parsing will have to be done here. This is due to the fact that methods
         // `Environment<_,_,_,S: BufIn>::read*` don't move starting pointer and thus we can make
@@ -111,7 +110,6 @@ impl SnarcosChainExtension {
         let args = StoreKeyArgs::decode(&mut &*bytes)
             .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
 
-        // Pass the arguments to the pallet and interpret the result.
         let return_status = match Snarcos::<Runtime>::bare_store_key(args.identifier, args.key) {
             Ok(_) => SNARCOS_STORE_KEY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
@@ -130,5 +128,47 @@ impl SnarcosChainExtension {
     {
         // We need to read input as plain bytes (encoded args).
         let mut env = env.buf_in_buf_out();
+
+        // We charge optimistically, i.e. assuming that decoding succeeds and the verification
+        // key is present.
+        //
+        // Currently, we cannot do more in terms of charging due to insufficiently flexible
+        // weighting (`pallet_snarcos::WeightInfo` API). Once we have functions like
+        // `pallet_snarcos::WeightInfo::verify_decoding_failure`, we can both charge less here
+        // (with further `env.adjust_weight`) and in the pallet itself (returning
+        // `DispatchErrorWithPostInfo` reducing actual fee and the block weight).
+        let _pre_charge =
+            env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::verify())?;
+
+        // Parsing is done here for similar reasons as in `Self::snarcos_store_key`.
+        let bytes = env.read(env.in_len())?;
+
+        let args: VerifyArgs = VerifyArgs::decode(&mut &*bytes)
+            .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
+
+        let result =
+            Snarcos::<Runtime>::bare_verify(args.identifier, args.proof, args.input, args.system);
+
+        let return_status = match result {
+            Ok(_) => SNARCOS_VERIFY_OK,
+            // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
+            // `bare_store_key`), we could adjust weight. However, we don't support it yet.
+            Err(Error::<Runtime>::DeserializingProofFailed) => {
+                SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL
+            }
+            Err(Error::<Runtime>::DeserializingPublicInputFailed) => {
+                SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL
+            }
+            Err(Error::<Runtime>::UnknownVerificationKeyIdentifier) => {
+                SNARCOS_VERIFY_UNKNOWN_IDENTIFIER
+            }
+            Err(Error::<Runtime>::DeserializingVerificationKeyFailed) => {
+                SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL
+            }
+            Err(Error::<Runtime>::VerificationFailed) => SNARCOS_VERIFY_VERIFICATION_FAIL,
+            Err(Error::<Runtime>::IncorrectProof) => SNARCOS_VERIFY_INCORRECT_PROOF,
+            _ => SNARCOS_VERIFY_ERROR_UNKNOWN,
+        };
+        Ok(RetVal::Converging(return_status))
     }
 }
