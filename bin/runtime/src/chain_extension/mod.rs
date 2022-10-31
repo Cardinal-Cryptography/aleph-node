@@ -1,3 +1,4 @@
+use codec::Decode;
 use frame_support::{dispatch::Weight, log::error};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
@@ -5,7 +6,7 @@ use pallet_contracts::chain_extension::{
 use pallet_snarcos::{Config, Error, Pallet as Snarcos, VerificationKeyIdentifier, WeightInfo};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
-use sp_std::mem::size_of;
+use sp_std::{mem::size_of, vec::Vec};
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
@@ -36,6 +37,18 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
 
 pub type ByteCount = u32;
 
+/// Struct to be decoded from a byte slice passed from the contract.
+///
+/// Notice, that contract can pass these arguments one by one, not necessarily as such struct. Only
+/// the order of values is important.
+///
+/// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
+#[derive(Decode)]
+struct StoreKeyArgs {
+    pub identifier: VerificationKeyIdentifier,
+    pub key: Vec<u8>,
+}
+
 impl SnarcosChainExtension {
     fn store_key_weight(key_length: ByteCount) -> Weight {
         <<Runtime as Config>::WeightInfo as WeightInfo>::store_key(key_length)
@@ -48,7 +61,7 @@ impl SnarcosChainExtension {
         // We need to read input as plain bytes (encoded args).
         let mut env = env.buf_in_buf_out();
 
-        // Check if it makes sense to start reading and decoding data.
+        // Check if it makes sense to read and decode data.
         let key_length = env
             .in_len()
             .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
@@ -56,18 +69,20 @@ impl SnarcosChainExtension {
             return Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY));
         }
 
-        // We can decode identifier without charging yet - it is cheap and doesn't interact with
-        // any storage.
-        let identifier = env.read_as::<VerificationKeyIdentifier>()?;
-
-        // Now we charge - even if decoding fails and we shouldn't touch storage, we have to incur
+        // We charge now - even if decoding fails and we shouldn't touch storage, we have to incur
         // fee for reading memory.
         env.charge_weight(Self::store_key_weight(key_length))?;
-        // Read the key.
-        let key = env.read(key_length)?;
+
+        // Parsing will have to be done here due to
+        // https://substrate.stackexchange.com/questions/5616/reading-arguments-in-chain-extension.
+        // It is safe to read `env.in_len()` bytes since we already checked that it's not too much.
+        let bytes = env.read(env.in_len())?;
+
+        let args = StoreKeyArgs::decode(&mut &*bytes)
+            .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
 
         // Pass the arguments to the pallet and interpret the result.
-        let return_status = match Snarcos::<Runtime>::bare_store_key(identifier, key) {
+        let return_status = match Snarcos::<Runtime>::bare_store_key(args.identifier, args.key) {
             Ok(_) => SNARCOS_STORE_KEY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could adjust weight. However, for the storing key action it
