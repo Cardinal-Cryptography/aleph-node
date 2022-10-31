@@ -10,8 +10,32 @@ use tokio::net::{
 
 use crate::{
     network::{Multiaddress, NetworkIdentity, PeerId},
-    validator_network::{Dialer, Listener, Splittable},
+    validator_network::{ConnectionInfo, Dialer, Listener, Splittable},
 };
+
+impl ConnectionInfo for TcpStream {
+    type Address = std::net::SocketAddr;
+
+    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
+        self.peer_addr()
+    }
+}
+
+impl ConnectionInfo for OwnedWriteHalf {
+    type Address = std::net::SocketAddr;
+
+    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
+        self.peer_addr()
+    }
+}
+
+impl ConnectionInfo for OwnedReadHalf {
+    type Address = std::net::SocketAddr;
+
+    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
+        self.peer_addr()
+    }
+}
 
 impl Splittable for TcpStream {
     type Sender = OwnedWriteHalf;

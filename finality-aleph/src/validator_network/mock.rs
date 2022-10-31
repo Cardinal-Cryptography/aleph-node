@@ -10,7 +10,10 @@ use aleph_primitives::{AuthorityId, KEY_TYPE};
 use sp_keystore::{testing::KeyStore, CryptoStore};
 use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
-use crate::{crypto::AuthorityPen, validator_network::Splittable};
+use crate::{
+    crypto::AuthorityPen,
+    validator_network::{ConnectionInfo, Splittable},
+};
 
 /// Create a single authority id and pen of the same type, not related to each other.
 pub async fn keys() -> (AuthorityId, AuthorityPen) {
@@ -71,6 +74,22 @@ impl AsyncWrite for MockSplittable {
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().outgoing_data).poll_shutdown(cx)
+    }
+}
+
+impl ConnectionInfo for MockSplittable {
+    type Address = String;
+
+    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
+        Ok(String::from("MOCK_ADDRESS"))
+    }
+}
+
+impl ConnectionInfo for DuplexStream {
+    type Address = String;
+
+    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
+        Ok(String::from("MOCK_ADDRESS"))
     }
 }
 
