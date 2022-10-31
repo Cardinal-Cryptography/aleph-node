@@ -76,8 +76,8 @@ jobs:
           S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.sha_short }}/aleph-node
           S3BUCKET_FILE: aleph-node-${{ steps.get_branch.sha_short }}.tar.gz
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ BINARY_DIR }} ${{ BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ S3BUCKET_URL }}/${{ S3BUCKET_FILE }}
+          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: S3 CI | Copy release runtime to S3 bucket
         shell: bash
@@ -87,8 +87,8 @@ jobs:
           S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.sha_short }}/aleph-runtime
           S3BUCKET_FILE: aleph-runtime-${{ steps.get_branch.sha_short }}.tar.gz
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ BINARY_DIR }} ${{ BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ S3BUCKET_URL }}/${{ S3BUCKET_FILE }}
+          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: Build test binary
         run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
@@ -117,8 +117,8 @@ jobs:
           S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.sha_short }}/aleph-test-node
           S3BUCKET_FILE: aleph-test-node-${{ steps.get_branch.sha_short }}.tar.gz
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ BINARY_DIR }} ${{ BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ S3BUCKET_URL }}/${{ S3BUCKET_FILE }}
+          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: S3 CI | Copy test runtime to S3 bucket
         shell: bash
@@ -128,8 +128,8 @@ jobs:
           S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.sha_short }}/aleph-test-runtime
           S3BUCKET_FILE: aleph-test-runtime-${{ steps.get_branch.sha_short }}.tar.gz
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ BINARY_DIR }} ${{ BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ S3BUCKET_URL }}/${{ S3BUCKET_FILE }}
+          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
