@@ -1,17 +1,17 @@
 use aleph_client::{
-    get_current_era_validators, get_current_session, kick_out_from_committee,
+    ban_from_committee, get_current_era, get_current_era_validators, get_current_session,
     wait_for_at_least_session, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{
-    BoundedVec, KickOutReason, SessionCount, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
-    DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+    BanInfo, BanReason, BoundedVec, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+    DEFAULT_BAN_SESSION_COUNT_THRESHOLD, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
 };
 
 use crate::{
     accounts::{get_validator_seed, NodeKeys},
-    kick_out::{
-        check_committee_kick_out_config, check_kick_out_event, check_kick_out_reason_for_validator,
+    ban::{
+        check_ban_config, check_ban_event, check_ban_info_for_validator,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
     rewards::set_invalid_keys_for_validator,
@@ -22,16 +22,16 @@ const VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX: u32 = 0;
 const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
 // Address for //2 (Node2). Depends on the infrastructure setup.
 const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9945";
-const SESSIONS_TO_MEET_KICK_OUT_THRESHOLD: SessionCount = 4;
+const SESSIONS_TO_MEET_BAN_THRESHOLD: SessionCount = 4;
 
-const VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX: u32 = 1;
-const MANUAL_KICK_OUT_REASON: &str = "Manual kick out reason";
+const VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX: u32 = 1;
+const MANUAL_BAN_REASON: &str = "Manual kick out reason";
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
-/// validators. Waits for the offending validator to hit the kick-out threshold of sessions without
-/// producing blocks. Verifies that the offending validator has in fact been kicked out for the
+/// validators. Waits for the offending validator to hit the ban threshold of sessions without
+/// producing blocks. Verifies that the offending validator has in fact been banned out for the
 /// appropriate reason.
-pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
+pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
     // Check current era validators.
@@ -42,10 +42,10 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         get_current_era_validators,
     );
 
-    check_committee_kick_out_config(
+    check_ban_config(
         &root_connection,
-        DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
-        DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+        DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+        DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
         DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
     );
 
@@ -55,7 +55,7 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
     info!(target: "aleph-client", "Validator to disable: {}", validator_to_disable);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
-    check_kick_out_reason_for_validator(&root_connection, validator_to_disable, None);
+    check_ban_info_for_validator(&root_connection, validator_to_disable, None);
 
     let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
     let stash_controller = NodeKeys::from(validator_seed);
@@ -71,29 +71,28 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
 
     wait_for_at_least_session(
         &root_connection,
-        current_session + SESSIONS_TO_MEET_KICK_OUT_THRESHOLD,
+        current_session + SESSIONS_TO_MEET_BAN_THRESHOLD,
     )?;
 
     // The session count for underperforming validators is reset to 0 immediately on reaching the
     // threshold.
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
 
-    let expected_kick_out_reason =
-        KickOutReason::InsufficientUptime(DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD);
+    let reason = BanReason::InsufficientUptime(DEFAULT_BAN_SESSION_COUNT_THRESHOLD);
+    let start = get_current_era(&root_connection) + 1;
+    let expected_ban_info = BanInfo { reason, start };
 
-    check_kick_out_reason_for_validator(
+    check_ban_info_for_validator(
         &root_connection,
         validator_to_disable,
-        Some(&expected_kick_out_reason),
+        Some(&expected_ban_info),
     );
 
     let expected_non_reserved =
         &non_reserved_validators[(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX + 1) as usize..];
 
-    let expected_kicked_out_validators =
-        vec![(validator_to_disable.clone(), expected_kick_out_reason)];
-
-    check_kick_out_event(&root_connection, &expected_kicked_out_validators)?;
+    let expected_banned_validators = vec![(validator_to_disable.clone(), expected_ban_info)];
+    check_ban_event(&root_connection, &expected_banned_validators)?;
 
     // Check current validators.
     check_validators(
@@ -103,15 +102,13 @@ pub fn kick_out_automatic(config: &Config) -> anyhow::Result<()> {
         get_current_era_validators,
     );
 
-    check_kick_out_reason_for_validator(&root_connection, validator_to_disable, None);
-
     Ok(())
 }
 
 /// Runs a chain, sets up a committee and validators. Manually kicks out one of the validators
 /// from the committee with a specific reason. Verifies that validator marked for kick out has in
 /// fact been kicked out for the given reason.
-pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
+pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
     // Check current era validators.
@@ -122,56 +119,52 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
         get_current_era_validators,
     );
 
-    check_committee_kick_out_config(
+    check_ban_config(
         &root_connection,
-        DEFAULT_KICK_OUT_MINIMAL_EXPECTED_PERFORMANCE,
-        DEFAULT_KICK_OUT_SESSION_COUNT_THRESHOLD,
+        DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+        DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
         DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
     );
 
-    let validator_to_manually_kick_out =
-        &non_reserved_validators[VALIDATOR_TO_MANUALLY_KICK_OUT_NON_RESERVED_INDEX as usize];
+    let validator_to_manually_ban =
+        &non_reserved_validators[VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX as usize];
 
-    info!(target: "aleph-client", "Validator to manually kick out: {}", validator_to_manually_kick_out);
+    info!(target: "aleph-client", "Validator to manually kick out: {}", validator_to_manually_ban);
 
-    check_underperformed_validator_session_count(
-        &root_connection,
-        validator_to_manually_kick_out,
-        &0,
-    );
-    check_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out, None);
+    check_underperformed_validator_session_count(&root_connection, validator_to_manually_ban, &0);
+    check_ban_info_for_validator(&root_connection, validator_to_manually_ban, None);
 
-    let reason = MANUAL_KICK_OUT_REASON.as_bytes().to_vec();
-    let bounded_reason: BoundedVec<_, _> = reason
-        .clone()
+    let bounded_reason: BoundedVec<_, _> = MANUAL_BAN_REASON
+        .as_bytes()
+        .to_vec()
         .try_into()
         .expect("Incorrect manual kick out reason format!");
-    let manual_kick_out_reason = KickOutReason::OtherReason(bounded_reason);
 
-    kick_out_from_committee(
+    ban_from_committee(
         &root_connection,
-        validator_to_manually_kick_out,
-        &reason,
+        validator_to_manually_ban,
+        &bounded_reason,
         XtStatus::InBlock,
     );
 
-    check_kick_out_reason_for_validator(
+    let reason = BanReason::OtherReason(bounded_reason);
+    let start = get_current_era(&root_connection) + 1;
+    let expected_ban_info = BanInfo { reason, start };
+    check_ban_info_for_validator(
         &root_connection,
-        validator_to_manually_kick_out,
-        Some(&manual_kick_out_reason),
+        validator_to_manually_ban,
+        Some(&expected_ban_info),
     );
 
-    let expected_kicked_out_validators = vec![(
-        validator_to_manually_kick_out.clone(),
-        manual_kick_out_reason,
-    )];
+    let expected_kicked_out_validators =
+        vec![(validator_to_manually_ban.clone(), expected_ban_info)];
 
-    check_kick_out_event(&root_connection, &expected_kicked_out_validators)?;
+    check_ban_event(&root_connection, &expected_kicked_out_validators)?;
 
     let expected_non_reserved: Vec<_> = non_reserved_validators
         .clone()
         .into_iter()
-        .filter(|account_id| account_id != validator_to_manually_kick_out)
+        .filter(|account_id| account_id != validator_to_manually_ban)
         .collect();
 
     // Check current validators.
@@ -182,7 +175,7 @@ pub fn kick_out_manual(config: &Config) -> anyhow::Result<()> {
         get_current_era_validators,
     );
 
-    check_kick_out_reason_for_validator(&root_connection, validator_to_manually_kick_out, None);
+    check_ban_info_for_validator(&root_connection, validator_to_manually_ban, None);
 
     Ok(())
 }

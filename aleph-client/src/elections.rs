@@ -1,7 +1,4 @@
-use primitives::{
-    CommitteeKickOutConfig, CommitteeSeats, EraValidators, KickOutReason, SessionCount,
-    SessionIndex,
-};
+use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount, SessionIndex};
 use sp_core::H256;
 use substrate_api_client::{compose_call, compose_extrinsic};
 
@@ -70,8 +67,8 @@ pub fn get_era_validators<C: ReadStorage>(
     connection.read_storage_value_at_block(PALLET, "CurrentEraValidators", Some(block_hash))
 }
 
-pub fn get_committee_kick_out_config<C: ReadStorage>(connection: &C) -> CommitteeKickOutConfig {
-    connection.read_storage_value(PALLET, "CommitteeKickOutConfig")
+pub fn get_ban_config<C: ReadStorage>(connection: &C) -> BanConfig {
+    connection.read_storage_value(PALLET, "BanConfig")
 }
 
 pub fn get_underperformed_validator_session_count<C: ReadStorage>(
@@ -88,22 +85,22 @@ pub fn get_underperformed_validator_session_count<C: ReadStorage>(
         .unwrap_or(0)
 }
 
-pub fn get_kick_out_reason_for_validator<C: ReadStorage>(
+pub fn get_ban_reason_for_validator<C: ReadStorage>(
     connection: &C,
     account_id: &AccountId,
-) -> Option<KickOutReason> {
-    connection.read_storage_map(PALLET, "ToBeKickedOutFromCommittee", account_id, None)
+) -> Option<BanInfo> {
+    connection.read_storage_map(PALLET, "Banned", account_id, None)
 }
 
-pub fn kick_out_from_committee(
+pub fn ban_from_committee(
     connection: &RootConnection,
     to_be_kicked_out: &AccountId,
     reason: &Vec<u8>,
     status: XtStatus,
 ) {
-    let call_name = "kick_out_from_committee";
+    let call_name = "ban_from_committee";
 
-    let kick_out_from_committee_call = compose_call!(
+    let ban_from_committee_call = compose_call!(
         connection.as_connection().metadata,
         PALLET,
         call_name,
@@ -115,7 +112,7 @@ pub fn kick_out_from_committee(
         connection.as_connection(),
         "Sudo",
         "sudo_unchecked_weight",
-        kick_out_from_committee_call,
+        ban_from_committee_call,
         0_u64
     );
 
