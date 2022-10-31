@@ -26,7 +26,8 @@ use crate::{
     crypto::AuthorityPen,
     network::{mock::Channel, Data, Multiaddress, NetworkIdentity},
     validator_network::{
-        mock::random_keys, Dialer as DialerT, Listener as ListenerT, Network, Service, Splittable,
+        mock::random_keys, ConnectionInfo, Dialer as DialerT, Listener as ListenerT, Network,
+        PeerAddressInfo, Service, Splittable,
     },
 };
 
@@ -119,6 +120,7 @@ impl<D: Data> MockNetwork<D> {
 pub struct UnreliableDuplexStream {
     stream: DuplexStream,
     counter: Option<usize>,
+    peer_address: Address,
 }
 
 impl AsyncWrite for UnreliableDuplexStream {
@@ -160,11 +162,16 @@ impl AsyncRead for UnreliableDuplexStream {
 pub struct UnreliableSplittable {
     incoming_data: UnreliableDuplexStream,
     outgoing_data: UnreliableDuplexStream,
+    peer_address: Address,
 }
 
 impl UnreliableSplittable {
     /// Create a pair of mock splittables connected to each other.
-    pub fn new(max_buf_size: usize, ends_after: Option<usize>) -> (Self, Self) {
+    pub fn new(
+        max_buf_size: usize,
+        ends_after: Option<usize>,
+        peer_address: Address,
+    ) -> (Self, Self) {
         let (in_a, out_b) = duplex(max_buf_size);
         let (in_b, out_a) = duplex(max_buf_size);
         (
@@ -172,21 +179,27 @@ impl UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
                     stream: in_a,
                     counter: ends_after,
+                    peer_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
                     stream: out_a,
                     counter: ends_after,
+                    peer_address,
                 },
+                peer_address,
             },
             UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
                     stream: in_b,
                     counter: ends_after,
+                    peer_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
                     stream: out_b,
                     counter: ends_after,
+                    peer_address,
                 },
+                peer_address,
             },
         )
     }
@@ -213,6 +226,18 @@ impl AsyncWrite for UnreliableSplittable {
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().outgoing_data).poll_shutdown(cx)
+    }
+}
+
+impl ConnectionInfo for UnreliableSplittable {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.peer_address.to_string()
+    }
+}
+
+impl ConnectionInfo for UnreliableDuplexStream {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.peer_address.to_string()
     }
 }
 
@@ -308,7 +333,7 @@ impl UnreliableConnectionMaker {
             info!(target: "validator-network", "UnreliableConnectionMaker: waiting for new request...");
             let (addr, c) = self.dialers.next().await.expect("should receive");
             info!(target: "validator-network", "UnreliableConnectionMaker: received request");
-            let (l_stream, r_stream) = Connection::new(4096, connections_end_after);
+            let (l_stream, r_stream) = Connection::new(4096, connections_end_after, addr);
             info!(target: "validator-network", "UnreliableConnectionMaker: sending stream");
             c.send(l_stream).expect("should send");
             self.listeners[addr as usize]

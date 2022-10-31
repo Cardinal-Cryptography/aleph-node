@@ -49,12 +49,12 @@ pub trait Network<A: Data, D: Data>: Send + 'static {
     async fn next(&mut self) -> Option<D>;
 }
 
+pub type PeerAddressInfo = String;
+
 /// Reports address of the peer that we are connected to.
 pub trait ConnectionInfo {
-    type Address: Display;
-
     /// Return the address of the peer that we are connected to.
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error>;
+    fn peer_address_info(&self) -> PeerAddressInfo;
 }
 
 /// A stream that can be split into a sending and receiving part.

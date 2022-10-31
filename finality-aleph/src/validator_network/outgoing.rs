@@ -10,14 +10,14 @@ use crate::{
     validator_network::{
         protocol_negotiation::{protocol, ProtocolNegotiationError},
         protocols::ProtocolError,
-        Data, Dialer,
+        ConnectionInfo, Data, Dialer, PeerAddressInfo,
     },
 };
 
 enum OutgoingError<A: Data, ND: Dialer<A>> {
     Dial(ND::Error),
-    ProtocolNegotiation(ProtocolNegotiationError),
-    Protocol(ProtocolError),
+    ProtocolNegotiation(PeerAddressInfo, ProtocolNegotiationError),
+    Protocol(PeerAddressInfo, ProtocolError),
 }
 
 impl<A: Data, ND: Dialer<A>> Display for OutgoingError<A, ND> {
@@ -25,21 +25,13 @@ impl<A: Data, ND: Dialer<A>> Display for OutgoingError<A, ND> {
         use OutgoingError::*;
         match self {
             Dial(e) => write!(f, "dial error: {}", e),
-            ProtocolNegotiation(e) => write!(f, "protocol negotiation error: {}", e),
-            Protocol(e) => write!(f, "protocol error: {}", e),
+            ProtocolNegotiation(addr, e) => write!(
+                f,
+                "protocol negotiation error: {}, peer address info: {}",
+                e, addr
+            ),
+            Protocol(addr, e) => write!(f, "protocol error: {}, peer address info: {}", e, addr),
         }
-    }
-}
-
-impl<A: Data, ND: Dialer<A>> From<ProtocolNegotiationError> for OutgoingError<A, ND> {
-    fn from(e: ProtocolNegotiationError) -> Self {
-        OutgoingError::ProtocolNegotiation(e)
-    }
-}
-
-impl<A: Data, ND: Dialer<A>> From<ProtocolError> for OutgoingError<A, ND> {
-    fn from(e: ProtocolError) -> Self {
-        OutgoingError::Protocol(e)
     }
 }
 
@@ -55,12 +47,16 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
         .connect(addresses)
         .await
         .map_err(OutgoingError::Dial)?;
+    let peer_address_info = stream.peer_address_info();
     debug!(target: "validator-network", "Performing outgoing protocol negotiation.");
-    let (stream, protocol) = protocol(stream).await?;
+    let (stream, protocol) = protocol(stream)
+        .await
+        .map_err(|e| OutgoingError::ProtocolNegotiation(peer_address_info.clone(), e))?;
     debug!(target: "validator-network", "Negotiated protocol, running.");
-    Ok(protocol
+    protocol
         .manage_outgoing(stream, authority_pen, peer_id, result_for_parent)
-        .await?)
+        .await
+        .map_err(|e| OutgoingError::Protocol(peer_address_info.clone(), e))
 }
 
 const RETRY_DELAY: Duration = Duration::from_secs(10);

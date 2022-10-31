@@ -14,26 +14,29 @@ use crate::{
 };
 
 impl ConnectionInfo for TcpStream {
-    type Address = std::net::SocketAddr;
-
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
-        self.peer_addr()
+    fn peer_address_info(&self) -> String {
+        match self.peer_addr() {
+            Ok(addr) => addr.to_string(),
+            Err(e) => e.to_string(),
+        }
     }
 }
 
 impl ConnectionInfo for OwnedWriteHalf {
-    type Address = std::net::SocketAddr;
-
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
-        self.peer_addr()
+    fn peer_address_info(&self) -> String {
+        match self.peer_addr() {
+            Ok(addr) => addr.to_string(),
+            Err(e) => e.to_string(),
+        }
     }
 }
 
 impl ConnectionInfo for OwnedReadHalf {
-    type Address = std::net::SocketAddr;
-
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
-        self.peer_addr()
+    fn peer_address_info(&self) -> String {
+        match self.peer_addr() {
+            Ok(addr) => addr.to_string(),
+            Err(e) => e.to_string(),
+        }
     }
 }
 

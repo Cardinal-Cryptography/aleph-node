@@ -13,7 +13,7 @@ use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
 use crate::{
     crypto::AuthorityPen,
-    validator_network::{ConnectionInfo, Splittable},
+    validator_network::{ConnectionInfo, PeerAddressInfo, Splittable},
 };
 
 /// Create a random authority id and pen pair.
@@ -90,18 +90,14 @@ impl AsyncWrite for MockSplittable {
 }
 
 impl ConnectionInfo for MockSplittable {
-    type Address = String;
-
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
-        Ok(String::from("MOCK_ADDRESS"))
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        String::from("MOCK_ADDRESS")
     }
 }
 
 impl ConnectionInfo for DuplexStream {
-    type Address = String;
-
-    fn peer_address(&self) -> Result<Self::Address, std::io::Error> {
-        Ok(String::from("MOCK_ADDRESS"))
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        String::from("MOCK_ADDRESS")
     }
 }
 
