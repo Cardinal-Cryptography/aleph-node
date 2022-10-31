@@ -9,6 +9,7 @@ use pallet_snarcos::{
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};
+use Error::*;
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
@@ -115,8 +116,8 @@ impl SnarcosChainExtension {
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could adjust weight. However, for the storing key action it
             // doesn't make sense.
-            Err(Error::<Runtime>::VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
-            Err(Error::<Runtime>::IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
+            Err(VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
+            Err(IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IN_USE,
             _ => SNARCOS_STORE_KEY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
@@ -153,20 +154,12 @@ impl SnarcosChainExtension {
             Ok(_) => SNARCOS_VERIFY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could adjust weight. However, we don't support it yet.
-            Err(Error::<Runtime>::DeserializingProofFailed) => {
-                SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL
-            }
-            Err(Error::<Runtime>::DeserializingPublicInputFailed) => {
-                SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL
-            }
-            Err(Error::<Runtime>::UnknownVerificationKeyIdentifier) => {
-                SNARCOS_VERIFY_UNKNOWN_IDENTIFIER
-            }
-            Err(Error::<Runtime>::DeserializingVerificationKeyFailed) => {
-                SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL
-            }
-            Err(Error::<Runtime>::VerificationFailed) => SNARCOS_VERIFY_VERIFICATION_FAIL,
-            Err(Error::<Runtime>::IncorrectProof) => SNARCOS_VERIFY_INCORRECT_PROOF,
+            Err(DeserializingProofFailed) => SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL,
+            Err(DeserializingPublicInputFailed) => SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL,
+            Err(UnknownVerificationKeyIdentifier) => SNARCOS_VERIFY_UNKNOWN_IDENTIFIER,
+            Err(DeserializingVerificationKeyFailed) => SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL,
+            Err(VerificationFailed) => SNARCOS_VERIFY_VERIFICATION_FAIL,
+            Err(IncorrectProof) => SNARCOS_VERIFY_INCORRECT_PROOF,
             _ => SNARCOS_VERIFY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
