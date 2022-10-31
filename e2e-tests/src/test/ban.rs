@@ -27,7 +27,7 @@ const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9945";
 const SESSIONS_TO_MEET_BAN_THRESHOLD: SessionCount = 4;
 
 const VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX: u32 = 1;
-const MANUAL_BAN_REASON: &str = "Manual kick out reason";
+const MANUAL_BAN_REASON: &str = "Manual ban reason";
 
 fn disable_validator(validator_address: &str, validator_seed: u32) -> anyhow::Result<()> {
     let validator_seed = get_validator_seed(validator_seed);
@@ -110,9 +110,9 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs a chain, sets up a committee and validators. Manually kicks out one of the validators
-/// from the committee with a specific reason. Verifies that validator marked for kick out has in
-/// fact been kicked out for the given reason.
+/// Runs a chain, sets up a committee and validators. Manually bans one of the validators
+/// from the committee with a specific reason. Verifies that validator marked for ban has in
+/// fact been banned for the given reason.
 pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
@@ -134,7 +134,7 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
     let validator_to_manually_ban =
         &non_reserved_validators[VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX as usize];
 
-    info!(target: "aleph-client", "Validator to manually kick out: {}", validator_to_manually_ban);
+    info!(target: "aleph-client", "Validator to manually ban: {}", validator_to_manually_ban);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_manually_ban, &0);
     check_ban_info_for_validator(&root_connection, validator_to_manually_ban, None);
@@ -143,7 +143,7 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
         .as_bytes()
         .to_vec()
         .try_into()
-        .expect("Incorrect manual kick out reason format!");
+        .expect("Incorrect manual ban reason format!");
 
     ban_from_committee(
         &root_connection,
@@ -161,10 +161,9 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
         Some(&expected_ban_info),
     );
 
-    let expected_kicked_out_validators =
-        vec![(validator_to_manually_ban.clone(), expected_ban_info)];
+    let expected_banned_validators = vec![(validator_to_manually_ban.clone(), expected_ban_info)];
 
-    check_ban_event(&root_connection, &expected_kicked_out_validators)?;
+    check_ban_event(&root_connection, &expected_banned_validators)?;
 
     let expected_non_reserved: Vec<_> = non_reserved_validators
         .clone()
@@ -218,7 +217,7 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     let next_era_reserved_validators = get_next_era_reserved_validators(&root_connection);
     let next_era_non_reserved_validators = get_next_era_non_reserved_validators(&root_connection);
 
-    // checks no one was kicked out
+    // checks no one was banned
     assert_eq!(next_era_reserved_validators, reserved_validators);
     assert_eq!(next_era_non_reserved_validators, non_reserved_validators);
 

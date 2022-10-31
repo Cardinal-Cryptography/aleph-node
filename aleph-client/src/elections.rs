@@ -96,7 +96,7 @@ pub fn get_ban_reason_for_validator<C: ReadStorage>(
 
 pub fn ban_from_committee(
     connection: &RootConnection,
-    to_be_kicked_out: &AccountId,
+    to_be_banned: &AccountId,
     reason: &Vec<u8>,
     status: XtStatus,
 ) {
@@ -106,7 +106,7 @@ pub fn ban_from_committee(
         connection.as_connection().metadata,
         PALLET,
         call_name,
-        to_be_kicked_out,
+        to_be_banned,
         reason
     );
 
