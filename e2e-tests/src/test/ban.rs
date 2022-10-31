@@ -65,7 +65,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     let validator_to_disable =
         &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
 
-    info!(target: "aleph-client", "Validator to disable: {}", validator_to_disable);
+    info!("Validator to disable: {}", validator_to_disable);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
     check_ban_info_for_validator(&root_connection, validator_to_disable, None);
@@ -134,7 +134,7 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
     let validator_to_manually_ban =
         &non_reserved_validators[VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX as usize];
 
-    info!(target: "aleph-client", "Validator to manually ban: {}", validator_to_manually_ban);
+    info!("Validator to manually ban: {}", validator_to_manually_ban);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_manually_ban, &0);
     check_ban_info_for_validator(&root_connection, validator_to_manually_ban, None);
@@ -189,7 +189,7 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
 pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
 
-    info!(target: "aleph-client", "changing ban config");
+    info!("changing ban config");
     change_ban_config(
         &root_connection,
         None,
@@ -203,7 +203,7 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
         &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
     disable_validator(NODE_TO_DISABLE_ADDRESS, VALIDATOR_TO_DISABLE_OVERALL_INDEX)?;
 
-    info!(target: "aleph-client", "Disabling validator {}", validator_to_disable);
+    info!("Disabling validator {}", validator_to_disable);
     let current_session = get_current_session(&root_connection);
 
     wait_for_at_least_session(&root_connection, current_session + 5)?;
