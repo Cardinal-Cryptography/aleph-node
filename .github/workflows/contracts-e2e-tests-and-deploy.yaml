@@ -130,6 +130,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
+    if: github.event_name == 'push'
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
