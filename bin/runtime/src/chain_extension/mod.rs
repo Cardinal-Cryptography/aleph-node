@@ -12,11 +12,11 @@ use crate::{MaximumVerificationKeyLength, Runtime};
 
 pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
 
-// Return codes.
-pub const SNARCOS_STORE_KEY_OK: u32 = 0;
-pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 1;
-pub const SNARCOS_STORE_KEY_IN_USE: u32 = 2;
-pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 3;
+// Return codes for `pallet_snarcos::store_key`.
+pub const SNARCOS_STORE_KEY_OK: u32 = 10_000;
+pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 10_001;
+pub const SNARCOS_STORE_KEY_IN_USE: u32 = 10_002;
+pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 10_003;
 
 pub struct SnarcosChainExtension;
 
@@ -73,8 +73,11 @@ impl SnarcosChainExtension {
         // fee for reading memory.
         env.charge_weight(Self::store_key_weight(key_length))?;
 
-        // Parsing will have to be done here due to
-        // https://substrate.stackexchange.com/questions/5616/reading-arguments-in-chain-extension.
+        // Parsing will have to be done here. This is due to the fact that methods
+        // `Environment<_,_,_,S: BufIn>::read*` don't move starting pointer and thus we can make
+        // only a single read. Since `key` is just an ('unbounded') `Vec<u8>` we can only use
+        // `env.read()` method and decode arguments by hand here.
+        //
         // It is safe to read `env.in_len()` bytes since we already checked that it's not too much.
         let bytes = env.read(env.in_len())?;
 

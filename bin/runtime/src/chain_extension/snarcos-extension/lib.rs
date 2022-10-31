@@ -25,9 +25,9 @@ pub enum StoreKeyError {
 impl ink_env::chain_extension::FromStatusCode for StoreKeyError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
-            0 => Ok(()),
-            1 => Err(Self::VerificationKeyTooLong),
-            2 => Err(Self::IdentifierAlreadyInUse),
+            10_000 => Ok(()),
+            10_001 => Err(Self::VerificationKeyTooLong),
+            10_002 => Err(Self::IdentifierAlreadyInUse),
             _ => Err(Self::UnknownError),
         }
     }
