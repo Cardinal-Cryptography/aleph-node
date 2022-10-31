@@ -1,6 +1,7 @@
 use std::sync::Arc;
 #[cfg(test)]
 use std::{
+    collections::HashMap,
     io::Result as IoResult,
     pin::Pin,
     task::{Context, Poll},
@@ -15,8 +16,8 @@ use crate::{
     validator_network::{ConnectionInfo, Splittable},
 };
 
-/// Create a single authority id and pen of the same type, not related to each other.
-pub async fn keys() -> (AuthorityId, AuthorityPen) {
+/// Create a random authority id and pen pair.
+pub async fn key() -> (AuthorityId, AuthorityPen) {
     let keystore = Arc::new(KeyStore::new());
     let id: AuthorityId = keystore
         .ed25519_generate_new(KEY_TYPE, None)
@@ -27,6 +28,17 @@ pub async fn keys() -> (AuthorityId, AuthorityPen) {
         .await
         .expect("keys shoud sign successfully");
     (id, pen)
+}
+
+/// Create a HashMap with authority ids as keys and pens as values.
+pub async fn random_keys(n_peers: usize) -> HashMap<AuthorityId, AuthorityPen> {
+    let mut result = HashMap::with_capacity(n_peers);
+    for _ in 0..n_peers {
+        let (id, pen) = key().await;
+        result.insert(id, pen);
+    }
+    assert_eq!(result.len(), n_peers);
+    result
 }
 
 /// A mock that can be split into two streams.
