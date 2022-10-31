@@ -1,4 +1,6 @@
-use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount, SessionIndex};
+use primitives::{
+    BanConfig, BanInfo, CommitteeSeats, EraIndex, EraValidators, SessionCount, SessionIndex,
+};
 use sp_core::H256;
 use substrate_api_client::{compose_call, compose_extrinsic};
 
@@ -117,4 +119,31 @@ pub fn ban_from_committee(
     );
 
     send_xt(connection, xt, Some(call_name), status);
+}
+
+pub fn change_ban_config(
+    sudo_connection: &RootConnection,
+    minimal_expected_performance: Option<u8>,
+    underperformed_session_count_threshold: Option<u32>,
+    clean_session_counter_delay: Option<u32>,
+    ban_period: Option<EraIndex>,
+    status: XtStatus,
+) {
+    let call = compose_call!(
+        sudo_connection.as_connection().metadata,
+        PALLET,
+        "set_ban_config",
+        minimal_expected_performance,
+        underperformed_session_count_threshold,
+        clean_session_counter_delay,
+        ban_period
+    );
+    let xt = compose_extrinsic!(
+        sudo_connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
+        0_u64
+    );
+    send_xt(sudo_connection, xt, Some("set_ban_config"), status);
 }
