@@ -2,7 +2,9 @@ use frame_support::{dispatch::Weight, log::error};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
 };
-use pallet_snarcos::{Config, Error, Pallet as Snarcos, VerificationKeyIdentifier, WeightInfo};
+use pallet_snarcos::{
+    Config, Error, Pallet as Snarcos, ProvingSystem, VerificationKeyIdentifier, WeightInfo,
+};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};
@@ -12,21 +14,21 @@ use crate::{MaximumVerificationKeyLength, Runtime};
 pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
 pub const SNARCOS_VERIFY_FUNC_ID: u32 = 42;
 
-// Return codes for `pallet_snarcos::store_key`.
+// Return codes for `SNARCOS_STORE_KEY_FUNC_ID`.
 pub const SNARCOS_STORE_KEY_OK: u32 = 10_000;
 pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 10_001;
 pub const SNARCOS_STORE_KEY_IN_USE: u32 = 10_002;
 pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 10_003;
 
-// Return codes for associated with `SNARCOS_VERIFY_FUNC_ID`.
-pub const SNARCOS_VERIFY_OK: u32 = 0;
-pub const SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL: u32 = 1;
-pub const SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL: u32 = 2;
-pub const SNARCOS_VERIFY_UNKNOWN_IDENTIFIER: u32 = 3;
-pub const SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL: u32 = 4;
-pub const SNARCOS_VERIFY_VERIFICATION_FAIL: u32 = 5;
-pub const SNARCOS_VERIFY_INCORRECT_PROOF: u32 = 6;
-pub const SNARCOS_VERIFY_ERROR_UNKNOWN: u32 = 7;
+// Return codes for `SNARCOS_VERIFY_FUNC_ID`.
+pub const SNARCOS_VERIFY_OK: u32 = 11_000;
+pub const SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL: u32 = 11_001;
+pub const SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL: u32 = 11_002;
+pub const SNARCOS_VERIFY_UNKNOWN_IDENTIFIER: u32 = 11_003;
+pub const SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL: u32 = 11_004;
+pub const SNARCOS_VERIFY_VERIFICATION_FAIL: u32 = 11_005;
+pub const SNARCOS_VERIFY_INCORRECT_PROOF: u32 = 11_006;
+pub const SNARCOS_VERIFY_ERROR_UNKNOWN: u32 = 11_007;
 
 pub struct SnarcosChainExtension;
 
@@ -37,6 +39,7 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
     {
         match func_id {
             SNARCOS_STORE_KEY_FUNC_ID => Self::snarcos_store_key(env),
+            SNARCOS_VERIFY_FUNC_ID => Self::snarcos_verify(env),
             _ => {
                 error!("Called an unregistered `func_id`: {}", func_id);
                 Err(DispatchError::Other("Unimplemented func_id"))
@@ -57,6 +60,20 @@ pub type ByteCount = u32;
 struct StoreKeyArgs {
     pub identifier: VerificationKeyIdentifier,
     pub key: Vec<u8>,
+}
+
+/// Struct to be decoded from a byte slice passed from the contract.
+///
+/// Notice, that contract can pass these arguments one by one, not necessarily as such struct. Only
+/// the order of values is important.
+///
+/// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
+#[derive(Decode)]
+struct VerifyArgs {
+    pub identifier: VerificationKeyIdentifier,
+    pub proof: Vec<u8>,
+    pub input: Vec<u8>,
+    pub system: ProvingSystem,
 }
 
 impl SnarcosChainExtension {
@@ -105,5 +122,13 @@ impl SnarcosChainExtension {
             _ => SNARCOS_STORE_KEY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
+    }
+
+    fn snarcos_verify<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
+    where
+        <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+    {
+        // We need to read input as plain bytes (encoded args).
+        let mut env = env.buf_in_buf_out();
     }
 }
