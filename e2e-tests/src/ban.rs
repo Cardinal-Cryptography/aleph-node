@@ -183,9 +183,9 @@ pub fn check_session_count<C: AnyConnection>(
                 *session_count %= ban_session_threshold;
             }
 
-            let expected_session_count = expected_validator_session_count.get(&val).expect(
-                &format!("Missing expected session count for validator {}", val),
-            );
+            let expected_session_count = expected_validator_session_count
+                .get(&val)
+                .unwrap_or_else(|| panic!("Missing expected session count for validator {}", val));
 
             check_underperformed_validator_session_count(connection, val, &expected_session_count);
         });
