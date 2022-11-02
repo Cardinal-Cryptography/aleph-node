@@ -1,15 +1,6 @@
-use aleph_client::{
-    ban_from_committee, change_ban_config, change_validators, get_current_era,
-    get_current_era_non_reserved_validators, get_current_era_validators, get_current_session,
-    get_next_era_non_reserved_validators, get_next_era_reserved_validators,
-    get_underperformed_validator_session_count, wait_for_at_least_session,
-    wait_for_full_era_completion, SignedConnection, XtStatus,
-};
+use aleph_client::{ban_from_committee, change_ban_config, change_validators, get_current_era, get_current_era_non_reserved_validators, get_current_era_validators, get_current_session, get_next_era_non_reserved_validators, get_next_era_reserved_validators, get_underperformed_validator_session_count, wait_for_at_least_session, wait_for_full_era_completion, SignedConnection, XtStatus, set_elections_openness};
 use log::info;
-use primitives::{
-    BanInfo, BanReason, CommitteeSeats, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
-    DEFAULT_BAN_SESSION_COUNT_THRESHOLD, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
-};
+use primitives::{BanInfo, BanReason, CommitteeSeats, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_BAN_SESSION_COUNT_THRESHOLD, DEFAULT_CLEAN_SESSION_COUNTER_DELAY, ElectionOpenness};
 
 use crate::{
     accounts::{account_ids_from_keys, get_validator_seed, NodeKeys},
@@ -155,6 +146,7 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection();
     info!(target: "aleph-client", "changing ban config");
 
+    set_elections_openness(&root_connection, ElectionOpenness::Permissionless, XtStatus::InBlock);
     change_ban_config(
         &root_connection,
         None,
