@@ -13,7 +13,7 @@ use primitives::{
 use crate::{
     accounts::{get_validator_seed, NodeKeys},
     ban::{
-        check_ban_config, check_ban_event, check_underperformed_validator_reason,
+        check_ban_config, check_ban_event, check_ban_info_for_validator,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
     rewards::set_invalid_keys_for_validator,
@@ -25,6 +25,8 @@ const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
 // Address for //2 (Node2). Depends on the infrastructure setup.
 const NODE_TO_DISABLE_ADDRESS: &str = "127.0.0.1:9945";
 const SESSIONS_TO_MEET_BAN_THRESHOLD: SessionCount = 4;
+
+const MIN_EXPECTED_PERFORMANCE: u8 = 100;
 
 fn disable_validator(validator_address: &str, validator_seed: u32) -> anyhow::Result<()> {
     let validator_seed = get_validator_seed(validator_seed);
@@ -65,7 +67,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     info!(target: "aleph-client", "Validator to disable: {}", validator_to_disable);
 
     check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
-    check_underperformed_validator_reason(&root_connection, validator_to_disable, None);
+    check_ban_info_for_validator(&root_connection, validator_to_disable, None);
 
     disable_validator(NODE_TO_DISABLE_ADDRESS, VALIDATOR_TO_DISABLE_OVERALL_INDEX)?;
 
@@ -84,7 +86,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
     let start = get_current_era(&root_connection) + 1;
     let expected_ban_info = BanInfo { reason, start };
 
-    check_underperformed_validator_reason(
+    check_ban_info_for_validator(
         &root_connection,
         validator_to_disable,
         Some(&expected_ban_info),
@@ -145,6 +147,56 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     // checks no one was kicked out
     assert_eq!(next_era_reserved_validators, reserved_validators);
     assert_eq!(next_era_non_reserved_validators, non_reserved_validators);
+
+    Ok(())
+}
+
+pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
+    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+
+    // Check current era validators.
+    check_validators(
+        &root_connection,
+        &reserved_validators,
+        &non_reserved_validators,
+        get_current_era_validators,
+    );
+
+    check_ban_config(
+        &root_connection,
+        DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+        DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
+        DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
+    );
+
+    change_ban_config(
+        &root_connection,
+        Some(MIN_EXPECTED_PERFORMANCE),
+        None,
+        None,
+        None,
+        XtStatus::InBlock,
+    );
+
+    let current_session = get_current_session(&root_connection);
+
+    wait_for_at_least_session(&root_connection, current_session + 1)?;
+
+    let validators: Vec<_> = reserved_validators
+        .iter()
+        .chain(non_reserved_validators.iter())
+        .collect();
+
+    let check_start_session = get_current_session(&root_connection);
+
+    for session in check_start_session..check_start_session + 5 {
+        wait_for_at_least_session(&root_connection, session)?;
+        let expected_session_count = session - check_start_session + 1;
+        validators.iter().for_each(|&val| {
+            info!(target: "aleph-client", "Checking session count | session {} | validator {}", session, val);
+            check_underperformed_validator_session_count(&root_connection, val, &expected_session_count);
+        });
+    }
 
     Ok(())
 }

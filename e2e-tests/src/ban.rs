@@ -1,5 +1,5 @@
 use aleph_client::{
-    change_validators, get_ban_config, get_ban_reason_for_validator,
+    change_validators, get_ban_config, get_ban_info_for_validator,
     get_underperformed_validator_session_count, wait_for_event, wait_for_full_era_completion,
     AccountId, AnyConnection, RootConnection, XtStatus,
 };
@@ -95,12 +95,12 @@ pub fn check_underperformed_validator_session_count<C: AnyConnection>(
     underperformed_validator_session_count
 }
 
-pub fn check_kick_out_reason_for_validator<C: AnyConnection>(
+pub fn check_ban_info_for_validator<C: AnyConnection>(
     connection: &C,
     validator: &AccountId,
     expected_info: Option<&BanInfo>,
 ) -> Option<BanInfo> {
-    let validator_ban_info = get_ban_reason_for_validator(connection, validator);
+    let validator_ban_info = get_ban_info_for_validator(connection, validator);
 
     assert_eq!(validator_ban_info.as_ref(), expected_info);
 

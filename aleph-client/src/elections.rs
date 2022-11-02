@@ -1,11 +1,9 @@
 use log::info;
-
-use sp_core::H256;
-use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
-
 use primitives::{
     BanConfig, BanInfo, CommitteeSeats, EraIndex, EraValidators, SessionCount, SessionIndex,
 };
+use sp_core::H256;
+use substrate_api_client::{compose_call, compose_extrinsic};
 
 use crate::{
     get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
@@ -90,7 +88,7 @@ pub fn get_underperformed_validator_session_count<C: ReadStorage>(
         .unwrap_or(0)
 }
 
-pub fn get_ban_reason_for_validator<C: ReadStorage>(
+pub fn get_ban_info_for_validator<C: ReadStorage>(
     connection: &C,
     account_id: &AccountId,
 ) -> Option<BanInfo> {
@@ -127,32 +125,4 @@ pub fn change_ban_config(
     );
 
     send_xt(sudo_connection, xt, Some(call_name), status);
-}
-
-pub fn ban_from_committee(
-    connection: &RootConnection,
-    banned: &AccountId,
-    reason: &Vec<u8>,
-    status: XtStatus,
-) {
-    info!(target: "aleph-client", "Validator being banned from committee: {}", banned);
-    let call_name = "ban_from_committee";
-
-    let call = compose_call!(
-        connection.as_connection().metadata,
-        PALLET,
-        call_name,
-        banned,
-        reason
-    );
-
-    let xt = compose_extrinsic!(
-        connection.as_connection(),
-        "Sudo",
-        "sudo_unchecked_weight",
-        call,
-        0_u64
-    );
-
-    send_xt(connection, xt, Some(call_name), status);
 }
