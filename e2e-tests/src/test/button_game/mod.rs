@@ -49,11 +49,11 @@ pub fn marketplace(config: &Config) -> Result<()> {
     let player_balance = 100 * later_price;
     reward_token.mint(&sign(&conn, &authority), &player.into(), player_balance)?;
     reward_token.approve(
-        &sign(&conn, &player),
+        &sign(&conn, player),
         &marketplace.as_ref().into(),
         later_price,
     )?;
-    marketplace.buy(&sign(&conn, &player), None)?;
+    marketplace.buy(&sign(&conn, player), None)?;
 
     let event = assert_recv_id(&mut events, "Bought");
     let player_account: AccountId = player.into();
@@ -69,12 +69,12 @@ pub fn marketplace(config: &Config) -> Result<()> {
     let latest_price = marketplace.price(&conn)?;
 
     info!("Setting max price too low");
-    marketplace.buy(&sign(&conn, &player), Some(latest_price / 2))?;
+    marketplace.buy(&sign(&conn, player), Some(latest_price / 2))?;
     refute_recv_id(&mut events, "Bought");
     assert!(ticket_token.balance_of(&conn, &player.into())? == 1);
 
     info!("Setting max price high enough");
-    marketplace.buy(&sign(&conn, &player), Some(latest_price * 2))?;
+    marketplace.buy(&sign(&conn, player), Some(latest_price * 2))?;
     assert_recv_id(&mut events, "Bought");
     assert!(ticket_token.balance_of(&conn, &player.into())? == 2);
 
@@ -189,8 +189,8 @@ fn button_game_play<F: Fn(u128, u128)>(
     button.reset(&sign(&conn, &authority))?;
     let old_button_balance = ticket_token.balance_of(&conn, &button.as_ref().into())?;
 
-    ticket_token.approve(&sign(&conn, &player), &button.as_ref().into(), 2)?;
-    button.press(&sign(&conn, &player))?;
+    ticket_token.approve(&sign(&conn, player), &button.as_ref().into(), 2)?;
+    button.press(&sign(&conn, player))?;
 
     let event = assert_recv_id(&mut events, "ButtonPressed");
     let player_account: AccountId = player.into();
@@ -204,7 +204,7 @@ fn button_game_play<F: Fn(u128, u128)>(
     info!("Waiting before pressing again");
     thread::sleep(Duration::from_secs(5));
 
-    button.press(&sign(&conn, &player))?;
+    button.press(&sign(&conn, player))?;
     let event = assert_recv_id(&mut events, "ButtonPressed");
     let_assert!(Some(&Value::UInt(late_presser_score)) = event.data.get("score"));
     score_check(early_presser_score, late_presser_score);
