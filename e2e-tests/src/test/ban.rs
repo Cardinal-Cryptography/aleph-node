@@ -175,31 +175,35 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
         non_reserved_seats: 2,
     };
 
+    let validator_to_ban =
+        &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
+    let mut non_reserved_without_banned = non_reserved_validators.to_vec();
+    non_reserved_without_banned.remove(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize);
+
     // non reserved set to empty vec
     change_validators(
         &root_connection,
-        Some(reserved_validators.clone()),
+        Some(reserved_validators),
         Some(vec![]),
         Some(seats),
         XtStatus::InBlock,
     );
-
-    wait_for_full_era_completion(&root_connection)?;
-
-    let validator_to_ban =
-        &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
-
     ban_from_committee(
         &root_connection,
         validator_to_ban,
         "valid reason",
         XtStatus::InBlock,
     );
+    wait_for_full_era_completion(&root_connection)?;
+    assert_eq!(
+        non_reserved_without_banned,
+        get_current_era_non_reserved_validators(&root_connection)
+    );
 
     wait_for_full_era_completion(&root_connection)?;
     let new_non_reserved = get_current_era_non_reserved_validators(&root_connection);
 
-    assert_eq!(new_non_reserved, non_reserved_validators);
+    assert_eq!(non_reserved_validators, new_non_reserved);
 
     Ok(())
 }
