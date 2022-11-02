@@ -274,7 +274,7 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     ban_from_committee(
         &root_connection,
         validator_to_ban,
-        "valid reason",
+        &vec![],
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&root_connection)?;
