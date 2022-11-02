@@ -9,8 +9,6 @@ on:
     paths:
       - 'contracts/**'
       - '.github/**'
-    branches:
-      - benjamin
 
 concurrency:
   group: ${{ github.workflow }}
@@ -138,6 +136,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
+    if: github.event_name == 'push' && github.ref_name == 'benjamin'
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
