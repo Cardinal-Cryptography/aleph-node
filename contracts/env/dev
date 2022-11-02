@@ -12,3 +12,6 @@ export TICKET_BALANCE=100000000
 
 # initial price of ticket on the marketplace
 export INITIAL_PRICE=69
+
+# use dev-only hacks, like allowing the authority to mint game tokens on demand
+export ENV_NAME=dev

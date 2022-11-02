@@ -12,3 +12,6 @@ export TICKET_BALANCE=100
 
 # initial price of ticket on the marketplace
 export INITIAL_PRICE=69
+
+# serious environment with no hacks
+ENV_NAME=prod
