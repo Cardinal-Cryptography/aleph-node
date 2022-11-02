@@ -1,5 +1,7 @@
+use codec::Encode;
 use primitives::{
-    BanConfig, BanInfo, CommitteeSeats, EraIndex, EraValidators, SessionCount, SessionIndex,
+    BanConfig, BanInfo, CommitteeSeats, ElectionOpenness, EraIndex, EraValidators, SessionCount,
+    SessionIndex,
 };
 use sp_core::H256;
 use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
@@ -118,4 +120,50 @@ pub fn change_ban_config(
         0_u64
     );
     send_xt(sudo_connection, xt, Some("set_ban_config"), status);
+}
+
+pub fn set_elections_openness(
+    sudo_connection: &RootConnection,
+    mode: ElectionOpenness,
+    status: XtStatus,
+) {
+    let call = compose_call!(
+        sudo_connection.as_connection().metadata,
+        PALLET,
+        "set_elections_openness",
+        mode
+    );
+    let xt = compose_extrinsic!(
+        sudo_connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
+        0_u64
+    );
+    send_xt(sudo_connection, xt, Some("set_elections_openness"), status);
+}
+
+pub fn ban_from_committee<D: Encode>(
+    connection: &RootConnection,
+    to_be_banned: &AccountId,
+    reason: D,
+    status: XtStatus,
+) {
+    let call = compose_call!(
+        connection.as_connection().metadata,
+        PALLET,
+        "ban_from_committee",
+        to_be_banned,
+        reason.encode()
+    );
+
+    let xt = compose_extrinsic!(
+        connection.as_connection(),
+        "Sudo",
+        "sudo_unchecked_weight",
+        call,
+        0_u64
+    );
+
+    send_xt(connection, xt, Some("ban_from_committee"), status);
 }

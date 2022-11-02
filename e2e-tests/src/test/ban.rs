@@ -1,22 +1,24 @@
 use aleph_client::{
-    change_ban_config, get_current_era, get_current_era_validators, get_current_session,
+    ban_from_committee, change_ban_config, change_validators, get_current_era,
+    get_current_era_non_reserved_validators, get_current_era_validators, get_current_session,
     get_next_era_non_reserved_validators, get_next_era_reserved_validators,
-    get_underperformed_validator_session_count, wait_for_at_least_session, SignedConnection,
-    XtStatus,
+    get_underperformed_validator_session_count, wait_for_at_least_session,
+    wait_for_full_era_completion, SignedConnection, XtStatus,
 };
 use log::info;
 use primitives::{
-    BanInfo, BanReason, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+    BanInfo, BanReason, CommitteeSeats, SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE,
     DEFAULT_BAN_SESSION_COUNT_THRESHOLD, DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
 };
 
 use crate::{
-    accounts::{get_validator_seed, NodeKeys},
+    accounts::{account_ids_from_keys, get_validator_seed, NodeKeys},
     ban::{
         check_ban_config, check_ban_event, check_underperformed_validator_reason,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
     rewards::set_invalid_keys_for_validator,
+    validators::get_test_validators,
     Config,
 };
 
@@ -145,6 +147,59 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     // checks no one was kicked out
     assert_eq!(next_era_reserved_validators, reserved_validators);
     assert_eq!(next_era_non_reserved_validators, non_reserved_validators);
+
+    Ok(())
+}
+
+pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
+    let root_connection = config.create_root_connection();
+    info!(target: "aleph-client", "changing ban config");
+
+    change_ban_config(
+        &root_connection,
+        None,
+        None,
+        Some(1),
+        None,
+        XtStatus::InBlock,
+    );
+
+    let root_connection = config.create_root_connection();
+
+    let validator_keys = get_test_validators(config);
+    let reserved_validators = account_ids_from_keys(&validator_keys.reserved);
+    let non_reserved_validators = account_ids_from_keys(&validator_keys.non_reserved);
+
+    let seats = CommitteeSeats {
+        reserved_seats: 2,
+        non_reserved_seats: 2,
+    };
+
+    // non reserved set to empty vec
+    change_validators(
+        &root_connection,
+        Some(reserved_validators.clone()),
+        Some(vec![]),
+        Some(seats),
+        XtStatus::InBlock,
+    );
+
+    wait_for_full_era_completion(&root_connection)?;
+
+    let validator_to_ban =
+        &non_reserved_validators[VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize];
+
+    ban_from_committee(
+        &root_connection,
+        validator_to_ban,
+        "valid reason",
+        XtStatus::InBlock,
+    );
+
+    wait_for_full_era_completion(&root_connection)?;
+    let new_non_reserved = get_current_era_non_reserved_validators(&root_connection);
+
+    assert_eq!(new_non_reserved, non_reserved_validators);
 
     Ok(())
 }
