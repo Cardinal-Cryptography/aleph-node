@@ -2120,7 +2120,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",

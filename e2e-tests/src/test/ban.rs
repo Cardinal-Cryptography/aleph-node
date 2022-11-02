@@ -250,6 +250,8 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     let mut non_reserved_without_banned = non_reserved_validators.to_vec();
     non_reserved_without_banned.remove(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize);
 
+    let ban_period = 2;
+    let test_non_reserved_validators = vec![];
     set_elections_openness(
         &root_connection,
         ElectionOpenness::Permissionless,
@@ -260,14 +262,13 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
         None,
         None,
         None,
-        Some(2),
+        Some(ban_period),
         XtStatus::InBlock,
     );
-    // non reserved set to empty vec
     change_validators(
         &root_connection,
         Some(reserved_validators),
-        Some(vec![]),
+        Some(test_non_reserved_validators),
         Some(seats),
         XtStatus::InBlock,
     );
