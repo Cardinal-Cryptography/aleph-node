@@ -187,7 +187,7 @@ pub fn check_session_count<C: AnyConnection>(
                 .get(&val)
                 .unwrap_or_else(|| panic!("Missing expected session count for validator {}", val));
 
-            check_underperformed_validator_session_count(connection, val, &expected_session_count);
+            check_underperformed_validator_session_count(connection, val, expected_session_count);
         });
     }
 
