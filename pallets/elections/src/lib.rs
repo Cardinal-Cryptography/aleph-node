@@ -399,8 +399,10 @@ pub mod pallet {
 
             let committee_size_all = reserved + non_reserved;
 
+            let mode = Openness::<T>::get();
+
             ensure!(
-                committee_size_all <= validators_size,
+                committee_size_all <= validators_size || mode == ElectionOpenness::Permissionless,
                 Error::<T>::NotEnoughValidators
             );
 
@@ -410,8 +412,8 @@ pub mod pallet {
             );
 
             ensure!(
-                non_reserved <= non_reserved_len,
-                Error::<T>::NotEnoughReservedValidators,
+                non_reserved <= non_reserved_len || mode == ElectionOpenness::Permissionless,
+                Error::<T>::NotEnoughNonReservedValidators,
             );
 
             let member_set: BTreeSet<_> = reserved_validators

@@ -1,10 +1,5 @@
-use aleph_client::{
-    ban_from_committee, change_ban_config, change_validators, get_current_era,
-    get_current_era_non_reserved_validators, get_current_era_validators, get_current_session,
-    get_next_era_non_reserved_validators, get_next_era_reserved_validators,
-    get_underperformed_validator_session_count, set_elections_openness, wait_for_at_least_session,
-    wait_for_full_era_completion, SignedConnection, XtStatus,
-};
+use std::collections::HashSet;
+use aleph_client::{ban_from_committee, change_ban_config, change_validators, get_current_era, get_current_era_non_reserved_validators, get_current_era_validators, get_current_session, get_next_era_non_reserved_validators, get_next_era_reserved_validators, get_underperformed_validator_session_count, set_elections_openness, wait_for_at_least_session, wait_for_full_era_completion, SignedConnection, XtStatus, wait_for_next_era};
 use log::info;
 use primitives::{
     BanInfo, BanReason, CommitteeSeats, ElectionOpenness, SessionCount,
@@ -152,24 +147,11 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Setup reserved validators, non_reserved are set to empty vec. Set ban config ban_period to 2.
+/// Set Openness to Permissionless.
+/// Ban manually one validator. Check if the banned validator is out of the non_reserved and is back
+/// after ban period.
 pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
-    let root_connection = config.create_root_connection();
-    info!(target: "aleph-client", "changing ban config");
-
-    set_elections_openness(
-        &root_connection,
-        ElectionOpenness::Permissionless,
-        XtStatus::InBlock,
-    );
-    change_ban_config(
-        &root_connection,
-        None,
-        None,
-        Some(1),
-        None,
-        XtStatus::InBlock,
-    );
-
     let root_connection = config.create_root_connection();
 
     let validator_keys = get_test_validators(config);
@@ -186,6 +168,19 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     let mut non_reserved_without_banned = non_reserved_validators.to_vec();
     non_reserved_without_banned.remove(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize);
 
+    set_elections_openness(
+        &root_connection,
+        ElectionOpenness::Permissionless,
+        XtStatus::InBlock,
+    );
+    change_ban_config(
+        &root_connection,
+        None,
+        None,
+        None,
+        Some(2),
+        XtStatus::InBlock,
+    );
     // non reserved set to empty vec
     change_validators(
         &root_connection,
@@ -201,15 +196,19 @@ pub fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
     wait_for_full_era_completion(&root_connection)?;
-    assert_eq!(
-        non_reserved_without_banned,
-        get_current_era_non_reserved_validators(&root_connection)
-    );
+    let without_banned =
+        HashSet::<_>::from_iter(non_reserved_without_banned);
+    let non_reserved =
+        HashSet::<_>::from_iter(get_current_era_non_reserved_validators(&root_connection));
+    assert_eq!(without_banned, non_reserved);
 
-    wait_for_full_era_completion(&root_connection)?;
-    let new_non_reserved = get_current_era_non_reserved_validators(&root_connection);
+    wait_for_next_era(&root_connection)?;
+    let expected_non_reserved =
+        HashSet::<_>::from_iter(non_reserved_validators);
+    let non_reserved =
+        HashSet::<_>::from_iter(get_current_era_non_reserved_validators(&root_connection));
 
-    assert_eq!(non_reserved_validators, new_non_reserved);
+    assert_eq!(expected_non_reserved, non_reserved);
 
     Ok(())
 }
