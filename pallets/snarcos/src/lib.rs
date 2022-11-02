@@ -24,7 +24,7 @@ pub mod pallet {
     use sp_std::prelude::Vec;
 
     use super::*;
-    use crate::systems::{Gm17, Groth16, VerifyingSystem};
+    use crate::systems::{Gm17, Groth16, Marlin, VerifyingSystem};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -162,6 +162,9 @@ pub mod pallet {
                 }
                 ProvingSystem::Gm17 => {
                     Self::_bare_verify::<Gm17>(verification_key_identifier, proof, public_input)
+                }
+                ProvingSystem::Marlin => {
+                    Self::_bare_verify::<Marlin>(verification_key_identifier, proof, public_input)
                 }
             }
         }
