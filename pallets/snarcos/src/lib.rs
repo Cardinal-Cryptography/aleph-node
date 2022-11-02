@@ -3,10 +3,8 @@
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 mod weights;
-use codec::{Decode, Encode};
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
-use scale_info::TypeInfo;
 pub use weights::{AlephWeight, WeightInfo};
 
 /// The current storage version.
@@ -15,11 +13,8 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 /// We store verification keys under short identifiers.
 pub type VerificationKeyIdentifier = [u8; 4];
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
-pub enum ProvingSystem {
-    Groth16,
-    Gm17,
-}
+mod systems;
+pub use systems::ProvingSystem;
 
 #[frame_support::pallet]
 pub mod pallet {
