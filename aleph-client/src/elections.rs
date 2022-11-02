@@ -4,10 +4,11 @@ use primitives::{
     SessionIndex,
 };
 use sp_core::H256;
-use substrate_api_client::{compose_call, compose_extrinsic, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic};
 
 use crate::{
     get_session_first_block, send_xt, AccountId, AnyConnection, ReadStorage, RootConnection,
+    XtStatus,
 };
 
 const PALLET: &str = "Elections";
