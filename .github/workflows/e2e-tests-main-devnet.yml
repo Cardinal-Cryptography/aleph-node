@@ -445,7 +445,7 @@ jobs:
         with:
           test-case: permissionless_ban
           follow-up-finalization-check: true
-        timeout-minutes: 10
+        timeout-minutes: 15
 
   run-e2e-version-upgrade:
     needs: [build-test-docker, build-test-client]
