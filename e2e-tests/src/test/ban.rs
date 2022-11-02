@@ -118,7 +118,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
 /// from the committee with a specific reason. Verifies that validator marked for ban has in
 /// fact been banned for the given reason.
 pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
-    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+    let (root_connection, reserved_validators, non_reserved_validators, _) = setup_test(config)?;
 
     // Check current era validators.
     check_validators(
