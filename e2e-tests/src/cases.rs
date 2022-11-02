@@ -28,7 +28,6 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 /// This comes up in local tests.
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
-        ("ban_threshold", test_ban_threshold as TestCase),
         ("finalization", test_finalization as TestCase),
         ("version_upgrade", test_schedule_version_change),
         ("rewards_disable_node", test_disable_node as TestCase),
@@ -65,5 +64,6 @@ pub fn possible_test_cases() -> PossibleTestCases {
             "clearing_session_count",
             test_clearing_session_count as TestCase,
         ),
+        ("ban_threshold", test_ban_threshold as TestCase),
     ]
 }

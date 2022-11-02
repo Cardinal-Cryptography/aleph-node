@@ -1,18 +1,31 @@
+use std::collections::HashMap;
+
 use aleph_client::{
     change_validators, get_ban_config, get_ban_info_for_validator,
-    get_underperformed_validator_session_count, wait_for_event, wait_for_full_era_completion,
-    AccountId, AnyConnection, RootConnection, XtStatus,
+    get_underperformed_validator_session_count, wait_for_at_least_session, wait_for_event,
+    wait_for_full_era_completion, AccountId, AnyConnection, RootConnection, XtStatus,
 };
 use codec::Decode;
 use log::info;
-use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount};
+use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount, SessionIndex};
 use sp_runtime::Perbill;
 
-use crate::{accounts::account_ids_from_keys, validators::get_test_validators, Config};
+use crate::{
+    accounts::account_ids_from_keys, elections::get_members_subset_for_session,
+    validators::get_test_validators, Config,
+};
 
-pub fn setup_test(
-    config: &Config,
-) -> anyhow::Result<(RootConnection, Vec<AccountId>, Vec<AccountId>)> {
+const RESERVED_SEATS: u32 = 2;
+const NON_RESERVED_SEATS: u32 = 2;
+
+type BanTestSetup = (
+    RootConnection,
+    Vec<AccountId>,
+    Vec<AccountId>,
+    CommitteeSeats,
+);
+
+pub fn setup_test(config: &Config) -> anyhow::Result<BanTestSetup> {
     let root_connection = config.create_root_connection();
 
     let validator_keys = get_test_validators(config);
@@ -20,8 +33,8 @@ pub fn setup_test(
     let non_reserved_validators = account_ids_from_keys(&validator_keys.non_reserved);
 
     let seats = CommitteeSeats {
-        reserved_seats: 2,
-        non_reserved_seats: 2,
+        reserved_seats: RESERVED_SEATS,
+        non_reserved_seats: NON_RESERVED_SEATS,
     };
 
     change_validators(
@@ -38,6 +51,7 @@ pub fn setup_test(
         root_connection,
         reserved_validators,
         non_reserved_validators,
+        seats,
     ))
 }
 
@@ -123,4 +137,59 @@ pub fn check_ban_event<C: AnyConnection>(
     })?;
 
     Ok(event)
+}
+
+pub fn check_session_count<C: AnyConnection>(
+    connection: &C,
+    seats: &CommitteeSeats,
+    reserved_validators: &[AccountId],
+    non_reserved_validators: &[AccountId],
+    start_session: &SessionIndex,
+    sessions_to_check: &SessionCount,
+    ban_session_threshold: &SessionCount,
+) -> anyhow::Result<()> {
+    let validators: Vec<_> = reserved_validators
+        .iter()
+        .chain(non_reserved_validators.iter())
+        .collect();
+
+    let mut expected_validator_session_count = HashMap::new();
+
+    for session in *start_session..*start_session + *sessions_to_check {
+        wait_for_at_least_session(connection, session)?;
+
+        let reserved_members_for_session =
+            get_members_subset_for_session(seats.reserved_seats, reserved_validators, session - 1);
+        let non_reserved_members_for_session = get_members_subset_for_session(
+            seats.non_reserved_seats,
+            non_reserved_validators,
+            session - 1,
+        );
+        let members_for_session: Vec<_> = reserved_members_for_session
+            .iter()
+            .chain(non_reserved_members_for_session.iter())
+            .collect();
+
+        validators.iter().for_each(|&val| {
+            info!(
+                "Checking session count | session {} | validator {}",
+                session - 1,
+                val
+            );
+            let session_count = expected_validator_session_count.entry(val).or_insert(0);
+
+            if members_for_session.contains(&val) {
+                *session_count += 1;
+                *session_count %= ban_session_threshold;
+            }
+
+            let expected_session_count = expected_validator_session_count.get(&val).expect(
+                &format!("Missing expected session count for validator {}", val),
+            );
+
+            check_underperformed_validator_session_count(connection, val, &expected_session_count);
+        });
+    }
+
+    Ok(())
 }

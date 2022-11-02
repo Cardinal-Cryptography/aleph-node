@@ -13,12 +13,14 @@ use primitives::{
 use crate::{
     accounts::{get_validator_seed, NodeKeys},
     ban::{
-        check_ban_config, check_ban_event, check_ban_info_for_validator,
+        check_ban_config, check_ban_event, check_ban_info_for_validator, check_session_count,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
     rewards::set_invalid_keys_for_validator,
     Config,
 };
+
+const SESSIONS_TO_CHECK: SessionCount = 5;
 
 const VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX: u32 = 0;
 const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
@@ -44,7 +46,7 @@ fn disable_validator(validator_address: &str, validator_seed: u32) -> anyhow::Re
 /// producing blocks. Verifies that the offending validator has in fact been banned out for the
 /// appropriate reason.
 pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
-    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+    let (root_connection, reserved_validators, non_reserved_validators, _) = setup_test(config)?;
 
     // Check current era validators.
     check_validators(
@@ -114,7 +116,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
 /// Disable one non_reserved validator. Check if the disabled validator is still in the committee
 /// and his underperformed session count is less or equal to 2.
 pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
-    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+    let (root_connection, reserved_validators, non_reserved_validators, _) = setup_test(config)?;
 
     change_ban_config(
         &root_connection,
@@ -150,8 +152,12 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Runs a chain, sets up a committee and validators. Changes the ban config to require 100%
+/// performance. Checks that each validator has all the sessions in which they were chosen for the
+/// committee marked as ones in which they underperformed.
 pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
-    let (root_connection, reserved_validators, non_reserved_validators) = setup_test(config)?;
+    let (root_connection, reserved_validators, non_reserved_validators, seats) =
+        setup_test(config)?;
 
     // Check current era validators.
     check_validators(
@@ -181,28 +187,17 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
 
     wait_for_at_least_session(&root_connection, current_session + 1)?;
 
-    let validators: Vec<_> = reserved_validators
-        .iter()
-        .chain(non_reserved_validators.iter())
-        .collect();
-
     let check_start_session = get_current_session(&root_connection);
 
-    for session in check_start_session..check_start_session + 5 {
-        wait_for_at_least_session(&root_connection, session)?;
-        let expected_session_count = session - check_start_session + 1;
-        validators.iter().for_each(|&val| {
-            info!(
-                "Checking session count | session {} | validator {}",
-                session, val
-            );
-            check_underperformed_validator_session_count(
-                &root_connection,
-                val,
-                &expected_session_count,
-            );
-        });
-    }
+    check_session_count(
+        &root_connection,
+        &seats,
+        &reserved_validators,
+        &non_reserved_validators,
+        &check_start_session,
+        &SESSIONS_TO_CHECK,
+        &DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
+    )?;
 
     Ok(())
 }
