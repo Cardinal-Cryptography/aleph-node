@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     test::{
         authorities_are_staking as test_authorities_are_staking,
-        ban_automatic as test_ban_automatic, ban_threshold as test_ban_threshold,
+        ban_automatic as test_ban_automatic, ban_manual as test_ban_manual, ban_threshold as test_ban_threshold,
         batch_transactions as test_batch_transactions,
         change_stake_and_force_new_era as test_change_stake_and_force_new_era,
         change_validators as test_change_validators,
@@ -60,6 +60,7 @@ pub fn possible_test_cases() -> PossibleTestCases {
             test_authorities_are_staking as TestCase,
         ),
         ("ban_automatic", test_ban_automatic as TestCase),
+        ("ban_manual", test_ban_manual as TestCase),
         (
             "clearing_session_count",
             test_clearing_session_count as TestCase,
