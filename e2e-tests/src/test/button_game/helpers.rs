@@ -1,5 +1,6 @@
 use std::{
     fmt::Debug,
+    ops::Deref,
     sync::{
         mpsc::{channel, Receiver, RecvTimeoutError},
         Arc,
@@ -10,7 +11,7 @@ use std::{
 
 use aleph_client::{
     contract::event::{listen_contract_events, subscribe_events, ContractEvent},
-    AnyConnection, Balance, Connection, KeyPair, SignedConnection, XtStatus,
+    AccountId, AnyConnection, Balance, Connection, KeyPair, SignedConnection, XtStatus,
 };
 use anyhow::{bail, Result};
 use itertools::Itertools;
@@ -19,14 +20,28 @@ use rand::Rng;
 use sp_core::Pair;
 
 use super::contracts::{ButtonInstance, PSP22TokenInstance};
-use crate::{
-    test::button_game::contracts::{AsContractInstance, MarketplaceInstance},
-    Config,
-};
+use crate::{test::button_game::contracts::MarketplaceInstance, Config};
+
+/// A wrapper around a KeyPair for purposes of converting to an account id in tests.
+pub struct KeyPairWrapper(KeyPair);
+
+impl Deref for KeyPairWrapper {
+    type Target = KeyPair;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<&KeyPairWrapper> for AccountId {
+    fn from(keypair: &KeyPairWrapper) -> Self {
+        keypair.public().into()
+    }
+}
 
 /// Creates a copy of the `connection` signed by `signer`
-pub fn sign<C: AnyConnection>(conn: &C, signer: KeyPair) -> SignedConnection {
-    SignedConnection::from_any_connection(conn, signer)
+pub fn sign<C: AnyConnection>(conn: &C, signer: &KeyPair) -> SignedConnection {
+    SignedConnection::from_any_connection(conn, signer.clone())
 }
 
 /// Returns a ticket token instance for the given button instance
@@ -66,11 +81,11 @@ pub(super) fn marketplace<C: AnyConnection>(
 }
 
 /// Derives a test account based on a randomized string
-pub fn random_account() -> KeyPair {
-    aleph_client::keypair_from_string(&format!(
+pub fn random_account() -> KeyPairWrapper {
+    KeyPairWrapper(aleph_client::keypair_from_string(&format!(
         "//TestAccount/{}",
         rand::thread_rng().gen::<u128>()
-    ))
+    )))
 }
 
 /// Transfer `amount` from `from` to `to`
@@ -98,9 +113,9 @@ pub(super) struct ButtonTestContext {
     /// `marketplace`.
     pub events: BufferedReceiver<Result<ContractEvent>>,
     /// The authority owning the initial supply of tickets and with the power to mint game tokens.
-    pub authority: KeyPair,
+    pub authority: KeyPairWrapper,
     /// A random account with some money for transaction fees.
-    pub player: KeyPair,
+    pub player: KeyPairWrapper,
 }
 
 /// Sets up a number of objects commonly used in button game tests.
@@ -110,7 +125,7 @@ pub(super) fn setup_button_test(
 ) -> Result<ButtonTestContext> {
     let conn = config.get_first_signed_connection().as_connection();
 
-    let authority = aleph_client::keypair_from_string(&config.sudo_seed);
+    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
     let player = random_account();
 
     let button = Arc::new(ButtonInstance::new(config, button_contract_address)?);
@@ -128,10 +143,10 @@ pub(super) fn setup_button_test(
 
     thread::spawn(move || {
         let contract_metadata = vec![
-            c1.as_contract(),
-            c2.as_contract(),
-            c3.as_contract(),
-            c4.as_contract(),
+            c1.as_ref().into(),
+            c2.as_ref().into(),
+            c3.as_ref().into(),
+            c4.as_ref().into(),
         ];
 
         listen_contract_events(subscription, &contract_metadata, None, |event| {

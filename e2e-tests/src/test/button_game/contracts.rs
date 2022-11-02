@@ -1,31 +1,10 @@
 use aleph_client::{
-    contract::{
-        util::{to_account_id, to_bool, to_u128},
-        ContractInstance,
-    },
-    AnyConnection, Balance, Connection, KeyPair, SignedConnection,
+    contract::ContractInstance, AnyConnection, Balance, Connection, SignedConnection,
 };
 use anyhow::{Context, Result};
-use sp_core::{
-    crypto::{AccountId32, AccountId32 as AccountId, Ss58Codec},
-    Pair,
-};
+use sp_core::crypto::{AccountId32 as AccountId, Ss58Codec};
 
 use crate::Config;
-
-pub trait AsContractInstance {
-    fn as_contract(&self) -> &ContractInstance;
-}
-
-pub trait ToAccount {
-    fn to_account(&self) -> AccountId32;
-}
-
-impl ToAccount for KeyPair {
-    fn to_account(&self) -> AccountId32 {
-        self.public().into()
-    }
-}
 
 /// A wrapper around a button game contract.
 ///
@@ -40,7 +19,7 @@ impl ButtonInstance {
         let button_address = button_address
             .clone()
             .context("Button game address not set.")?;
-        let button_address = AccountId32::from_string(&button_address)?;
+        let button_address = AccountId::from_string(&button_address)?;
         let metadata_path = config
             .test_case_params
             .button_game_metadata
@@ -52,31 +31,29 @@ impl ButtonInstance {
     }
 
     pub fn deadline<C: AnyConnection>(&self, conn: &C) -> Result<u128> {
-        self.contract
-            .contract_read0(conn, "deadline")
-            .map(to_u128)?
+        self.contract.contract_read0(conn, "deadline")?.try_into()
     }
 
     pub fn is_dead<C: AnyConnection>(&self, conn: &C) -> Result<bool> {
-        self.contract.contract_read0(conn, "is_dead").map(to_bool)?
+        self.contract.contract_read0(conn, "is_dead")?.try_into()
     }
 
     pub fn ticket_token<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
         self.contract
-            .contract_read0(conn, "ticket_token")
-            .map(to_account_id)?
+            .contract_read0(conn, "ticket_token")?
+            .try_into()
     }
 
     pub fn reward_token<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
         self.contract
-            .contract_read0(conn, "reward_token")
-            .map(to_account_id)?
+            .contract_read0(conn, "reward_token")?
+            .try_into()
     }
 
     pub fn marketplace<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
         self.contract
-            .contract_read0(conn, "marketplace")
-            .map(to_account_id)?
+            .contract_read0(conn, "marketplace")?
+            .try_into()
     }
 
     pub fn press(&self, conn: &SignedConnection) -> Result<()> {
@@ -88,15 +65,15 @@ impl ButtonInstance {
     }
 }
 
-impl AsContractInstance for ButtonInstance {
-    fn as_contract(&self) -> &ContractInstance {
-        &self.contract
+impl<'a> From<&'a ButtonInstance> for &'a ContractInstance {
+    fn from(button: &'a ButtonInstance) -> Self {
+        &button.contract
     }
 }
 
-impl ToAccount for ButtonInstance {
-    fn to_account(&self) -> AccountId {
-        self.as_contract().address().clone()
+impl From<&ButtonInstance> for AccountId {
+    fn from(button: &ButtonInstance) -> Self {
+        button.contract.address().clone()
     }
 }
 
@@ -109,7 +86,7 @@ pub(super) struct PSP22TokenInstance {
 }
 
 impl PSP22TokenInstance {
-    pub fn new(address: AccountId32, metadata_path: &Option<String>) -> Result<Self> {
+    pub fn new(address: AccountId, metadata_path: &Option<String>) -> Result<Self> {
         let metadata_path = metadata_path
             .as_ref()
             .context("PSP22Token metadata not set.")?;
@@ -118,12 +95,7 @@ impl PSP22TokenInstance {
         })
     }
 
-    pub fn transfer(
-        &self,
-        conn: &SignedConnection,
-        to: &AccountId32,
-        amount: Balance,
-    ) -> Result<()> {
+    pub fn transfer(&self, conn: &SignedConnection, to: &AccountId, amount: Balance) -> Result<()> {
         self.contract.contract_exec(
             conn,
             "PSP22::transfer",
@@ -131,7 +103,7 @@ impl PSP22TokenInstance {
         )
     }
 
-    pub fn mint(&self, conn: &SignedConnection, to: &AccountId32, amount: Balance) -> Result<()> {
+    pub fn mint(&self, conn: &SignedConnection, to: &AccountId, amount: Balance) -> Result<()> {
         self.contract.contract_exec(
             conn,
             "PSP22Mintable::mint",
@@ -142,7 +114,7 @@ impl PSP22TokenInstance {
     pub fn approve(
         &self,
         conn: &SignedConnection,
-        spender: &AccountId32,
+        spender: &AccountId,
         value: Balance,
     ) -> Result<()> {
         self.contract.contract_exec(
@@ -152,24 +124,22 @@ impl PSP22TokenInstance {
         )
     }
 
-    pub fn balance_of(&self, conn: &Connection, account: &AccountId32) -> Result<Balance> {
-        to_u128(self.contract.contract_read(
-            conn,
-            "PSP22::balance_of",
-            &[account.to_string().as_str()],
-        )?)
+    pub fn balance_of(&self, conn: &Connection, account: &AccountId) -> Result<Balance> {
+        self.contract
+            .contract_read(conn, "PSP22::balance_of", &[account.to_string().as_str()])?
+            .try_into()
     }
 }
 
-impl AsContractInstance for PSP22TokenInstance {
-    fn as_contract(&self) -> &ContractInstance {
-        &self.contract
+impl<'a> From<&'a PSP22TokenInstance> for &'a ContractInstance {
+    fn from(token: &'a PSP22TokenInstance) -> Self {
+        &token.contract
     }
 }
 
-impl ToAccount for PSP22TokenInstance {
-    fn to_account(&self) -> AccountId32 {
-        self.contract.address().clone()
+impl From<&PSP22TokenInstance> for AccountId {
+    fn from(token: &PSP22TokenInstance) -> AccountId {
+        token.contract.address().clone()
     }
 }
 
@@ -182,7 +152,7 @@ pub(super) struct MarketplaceInstance {
 }
 
 impl MarketplaceInstance {
-    pub fn new(address: AccountId32, metadata_path: &Option<String>) -> Result<Self> {
+    pub fn new(address: AccountId, metadata_path: &Option<String>) -> Result<Self> {
         Ok(Self {
             contract: ContractInstance::new(
                 address,
@@ -205,18 +175,18 @@ impl MarketplaceInstance {
     }
 
     pub fn price<C: AnyConnection>(&self, conn: &C) -> Result<Balance> {
-        to_u128(self.contract.contract_read0(conn, "price")?)
+        self.contract.contract_read0(conn, "price")?.try_into()
     }
 }
 
-impl AsContractInstance for MarketplaceInstance {
-    fn as_contract(&self) -> &ContractInstance {
-        &self.contract
+impl<'a> From<&'a MarketplaceInstance> for &'a ContractInstance {
+    fn from(marketplace: &'a MarketplaceInstance) -> Self {
+        &marketplace.contract
     }
 }
 
-impl ToAccount for MarketplaceInstance {
-    fn to_account(&self) -> AccountId {
-        self.contract.address().clone()
+impl From<&MarketplaceInstance> for AccountId {
+    fn from(marketplace: &MarketplaceInstance) -> AccountId {
+        marketplace.contract.address().clone()
     }
 }
