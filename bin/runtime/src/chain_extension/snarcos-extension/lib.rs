@@ -55,6 +55,17 @@ impl ink_env::chain_extension::FromStatusCode for SnarcosError {
     }
 }
 
+/// Copied from `pallet_snarcos`.
+pub type VerificationKeyIdentifier = [u8; 4];
+
+/// Copied from `pallet_snarcos`.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode)]
+#[cfg_attr(feature = "std", derive(TypeInfo))]
+pub enum ProvingSystem {
+    Groth16,
+    Gm17,
+}
+
 #[ink::chain_extension]
 pub trait SnarcosExtension {
     type ErrorCode = SnarcosError;
