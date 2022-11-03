@@ -193,10 +193,9 @@ pub mod pallet {
                     Error::<T>::DeserializingVerificationKeyFailed
                 })?;
 
-            let valid_proof = S::verify(&verification_key, &public_input, &proof).map_err(|e| {
-                log::error!("Verifying failed: {:?}", e);
-                Error::<T>::VerificationFailed
-            })?;
+            // At some point we should enhance error type from `S::verify` and be more verbose here.
+            let valid_proof = S::verify(&verification_key, &public_input, &proof)
+                .map_err(|_| Error::<T>::VerificationFailed)?;
 
             ensure!(valid_proof, Error::<T>::IncorrectProof);
 
