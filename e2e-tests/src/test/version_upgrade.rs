@@ -37,7 +37,7 @@ pub fn schedule_version_change(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-// A test that schedules a version upgrade that supposed to fail, awaits it, and checks if finalization stopped.
+// A test that schedules a version upgrade which is supposed to fail, awaits it, and checks if finalization stopped.
 // It's up to the user of this test to ensure that version upgrade will actually break finalization (non-compatible change in protocol, # updated nodes k is f < k < 2/3n).
 pub fn schedule_doomed_version_change_and_verify_finalization_stopped(
     config: &Config,
@@ -69,7 +69,7 @@ pub fn schedule_doomed_version_change_and_verify_finalization_stopped(
         Some(block) => block.number,
         None => {
             return Err(anyhow::Error::msg(
-                "somehow no block was finalized (even we saw one)",
+                "somehow no block was finalized (even though we saw one)",
             ))
         }
     };
