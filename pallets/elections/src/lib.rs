@@ -539,6 +539,8 @@ pub mod pallet {
                 }
             }
 
+            Self::emit_fresh_bans_event();
+
             Ok(supports.into_iter().collect())
         }
     }
