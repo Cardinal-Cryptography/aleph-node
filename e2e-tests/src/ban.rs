@@ -144,9 +144,9 @@ pub fn check_session_count<C: AnyConnection>(
     seats: &CommitteeSeats,
     reserved_validators: &[AccountId],
     non_reserved_validators: &[AccountId],
-    start_session: &SessionIndex,
-    sessions_to_check: &SessionCount,
-    ban_session_threshold: &SessionCount,
+    start_session: SessionIndex,
+    sessions_to_check: SessionCount,
+    ban_session_threshold: SessionCount,
 ) -> anyhow::Result<()> {
     let validators: Vec<_> = reserved_validators
         .iter()
@@ -155,7 +155,7 @@ pub fn check_session_count<C: AnyConnection>(
 
     let mut expected_validator_session_count = HashMap::new();
 
-    for session in *start_session..*start_session + *sessions_to_check {
+    for session in start_session..start_session + sessions_to_check {
         wait_for_at_least_session(connection, session)?;
 
         let reserved_members_for_session =

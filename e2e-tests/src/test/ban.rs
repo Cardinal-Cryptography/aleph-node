@@ -269,9 +269,9 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
         &seats,
         &reserved_validators,
         &non_reserved_validators,
-        &check_start_session,
-        &SESSIONS_TO_CHECK,
-        &DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
+        check_start_session,
+        SESSIONS_TO_CHECK,
+        DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
     )?;
 
     Ok(())
