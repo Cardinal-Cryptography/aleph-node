@@ -1,13 +1,12 @@
-use std::collections::HashMap;
-
 use aleph_client::{
-    change_validators, get_ban_config, get_ban_info_for_validator,
-    get_underperformed_validator_session_count, wait_for_at_least_session, wait_for_event,
+    change_validators, get_ban_config, get_ban_info_for_validator, get_block_hash,
+    get_session_period, get_underperformed_validator_session_count, wait_for_event,
     wait_for_full_era_completion, AccountId, AnyConnection, RootConnection, XtStatus,
 };
 use codec::Decode;
 use log::info;
 use primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators, SessionCount, SessionIndex};
+use sp_core::H256;
 use sp_runtime::Perbill;
 
 use crate::{
@@ -97,9 +96,10 @@ pub fn check_underperformed_validator_session_count<C: AnyConnection>(
     connection: &C,
     validator: &AccountId,
     expected_session_count: &SessionCount,
+    block_hash: Option<H256>,
 ) -> SessionCount {
     let underperformed_validator_session_count =
-        get_underperformed_validator_session_count(connection, validator);
+        get_underperformed_validator_session_count(connection, validator, block_hash);
 
     assert_eq!(
         &underperformed_validator_session_count,
@@ -139,31 +139,36 @@ pub fn check_ban_event<C: AnyConnection>(
     Ok(event)
 }
 
-pub fn check_session_count<C: AnyConnection>(
+pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
     connection: &C,
     seats: &CommitteeSeats,
     reserved_validators: &[AccountId],
     non_reserved_validators: &[AccountId],
     start_session: SessionIndex,
-    sessions_to_check: SessionCount,
+    end_session: SessionIndex,
     ban_session_threshold: SessionCount,
 ) -> anyhow::Result<()> {
+    let session_period = get_session_period(connection);
+
     let validators: Vec<_> = reserved_validators
         .iter()
         .chain(non_reserved_validators.iter())
         .collect();
 
-    let mut expected_validator_session_count = HashMap::new();
+    for session in start_session..end_session {
+        let session_start_block = session * session_period;
+        let session_start_block_hash = get_block_hash(connection, session_start_block);
 
-    for session in start_session..start_session + sessions_to_check {
-        wait_for_at_least_session(connection, session)?;
+        let previous_session_start_block = session_start_block - session_period;
+        let previous_session_start_block_hash =
+            get_block_hash(connection, previous_session_start_block);
 
         let reserved_members_for_session =
-            get_members_subset_for_session(seats.reserved_seats, reserved_validators, session - 1);
+            get_members_subset_for_session(seats.reserved_seats, reserved_validators, session);
         let non_reserved_members_for_session = get_members_subset_for_session(
             seats.non_reserved_seats,
             non_reserved_validators,
-            session - 1,
+            session,
         );
         let members_for_session: Vec<_> = reserved_members_for_session
             .iter()
@@ -173,21 +178,38 @@ pub fn check_session_count<C: AnyConnection>(
         validators.iter().for_each(|&val| {
             info!(
                 "Checking session count | session {} | validator {}",
-                session - 1,
-                val
+                session, val
             );
-            let session_count = expected_validator_session_count.entry(val).or_insert(0);
+            let session_underperformed_count = get_underperformed_validator_session_count(
+                connection,
+                val,
+                Some(session_start_block_hash),
+            );
+            let previous_session_underperformed_count = get_underperformed_validator_session_count(
+                connection,
+                val,
+                Some(previous_session_start_block_hash),
+            );
+
+            let underperformed_diff =
+                session_underperformed_count - previous_session_underperformed_count;
 
             if members_for_session.contains(&val) {
-                *session_count += 1;
-                *session_count %= ban_session_threshold;
+                // Counter for committee members legally incremented by 1 or reset to 0 (decremented
+                // by ban_session_threshold - 1).
+                if underperformed_diff != 1 && underperformed_diff != (ban_session_threshold - 1) {
+                    panic!(
+                        "Underperformed session count for committee validator {} changed from {} to {}.",
+                        val, session_underperformed_count, previous_session_underperformed_count
+                    );
+                }
+            } else if underperformed_diff != 0 {
+                // Counter for validators on the bench should stay the same.
+                panic!(
+                    "Underperformed session count for non-committee validator {} changed from {} to {}.",
+                    val, session_underperformed_count, previous_session_underperformed_count
+                );
             }
-
-            let expected_session_count = expected_validator_session_count
-                .get(&val)
-                .unwrap_or_else(|| panic!("Missing expected session count for validator {}", val));
-
-            check_underperformed_validator_session_count(connection, val, expected_session_count);
         });
     }
 

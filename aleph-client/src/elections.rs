@@ -77,13 +77,14 @@ pub fn get_ban_config<C: ReadStorage>(connection: &C) -> BanConfig {
 pub fn get_underperformed_validator_session_count<C: ReadStorage>(
     connection: &C,
     account_id: &AccountId,
+    block_hash: Option<H256>,
 ) -> SessionCount {
     connection
         .read_storage_map(
             PALLET,
             "UnderperformedValidatorSessionCount",
             account_id,
-            None,
+            block_hash,
         )
         .unwrap_or(0)
 }

@@ -13,8 +13,9 @@ use primitives::{
 use crate::{
     accounts::{get_validator_seed, NodeKeys},
     ban::{
-        check_ban_config, check_ban_event, check_ban_info_for_validator, check_session_count,
-        check_underperformed_validator_session_count, check_validators, setup_test,
+        check_ban_config, check_ban_event, check_ban_info_for_validator,
+        check_underperformed_count_for_sessions, check_underperformed_validator_session_count,
+        check_validators, setup_test,
     },
     rewards::set_invalid_keys_for_validator,
     Config,
@@ -71,7 +72,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
 
     info!("Validator to disable: {}", validator_to_disable);
 
-    check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
+    check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0, None);
     check_ban_info_for_validator(&root_connection, validator_to_disable, None);
 
     disable_validator(NODE_TO_DISABLE_ADDRESS, VALIDATOR_TO_DISABLE_OVERALL_INDEX)?;
@@ -85,7 +86,7 @@ pub fn ban_automatic(config: &Config) -> anyhow::Result<()> {
 
     // The session count for underperforming validators is reset to 0 immediately on reaching the
     // threshold.
-    check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0);
+    check_underperformed_validator_session_count(&root_connection, validator_to_disable, &0, None);
 
     let reason = BanReason::InsufficientUptime(DEFAULT_BAN_SESSION_COUNT_THRESHOLD);
     let start = get_current_era(&root_connection) + 1;
@@ -140,7 +141,12 @@ pub fn ban_manual(config: &Config) -> anyhow::Result<()> {
 
     info!("Validator to manually ban: {}", validator_to_manually_ban);
 
-    check_underperformed_validator_session_count(&root_connection, validator_to_manually_ban, &0);
+    check_underperformed_validator_session_count(
+        &root_connection,
+        validator_to_manually_ban,
+        &0,
+        None,
+    );
     check_ban_info_for_validator(&root_connection, validator_to_manually_ban, None);
 
     let bounded_reason: BoundedVec<_, _> = MANUAL_BAN_REASON
@@ -212,7 +218,7 @@ pub fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     wait_for_at_least_session(&root_connection, current_session + 5)?;
 
     let underperformed_validator_session_count =
-        get_underperformed_validator_session_count(&root_connection, validator_to_disable);
+        get_underperformed_validator_session_count(&root_connection, validator_to_disable, None);
 
     // it only has to be ge than 0 and should be cleared before reaching values larger than 3.
     assert!(underperformed_validator_session_count <= 2);
@@ -258,19 +264,18 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
 
-    let current_session = get_current_session(&root_connection);
-
-    wait_for_at_least_session(&root_connection, current_session + 1)?;
-
     let check_start_session = get_current_session(&root_connection);
+    let check_end_session = check_start_session + SESSIONS_TO_CHECK;
 
-    check_session_count(
+    wait_for_at_least_session(&root_connection, check_end_session + 1)?;
+
+    check_underperformed_count_for_sessions(
         &root_connection,
         &seats,
         &reserved_validators,
         &non_reserved_validators,
         check_start_session,
-        SESSIONS_TO_CHECK,
+        check_end_session,
         DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
     )?;
 
