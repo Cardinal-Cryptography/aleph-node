@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-use aleph_bft::Recipient;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
@@ -13,13 +12,14 @@ use log::{debug, info, trace, warn};
 use tokio::time::{self, Instant};
 
 use crate::{
+    abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         manager::{
             Connections, Discovery, DiscoveryMessage, NetworkData, SessionHandler,
             SessionHandlerError,
         },
-        ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, Protocol,
+        ConnectionCommand, Data, DataCommand, Multiaddress, NetworkIdentity, PeerId, Protocol,
     },
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
 };
@@ -570,7 +570,9 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
                 .map(|(session_id, node_count, peers)| {
                     let peer_ids = peers
                         .iter()
-                        .map(|(node_id, peer_id)| format!("{:?}: {}", node_id, peer_id,))
+                        .map(|(node_id, peer_id)| {
+                            format!("{:?}: {}", node_id, peer_id.to_short_string())
+                        })
                         .collect::<Vec<_>>()
                         .join(", ");
 
@@ -773,7 +775,6 @@ impl<D: Data, M: Multiaddress> IO<D, M> {
 mod tests {
     use std::time::Duration;
 
-    use aleph_bft::Recipient;
     use futures::{channel::oneshot, StreamExt};
 
     use super::{Config, Error, Service, ServiceActions, SessionCommand};
@@ -783,7 +784,7 @@ mod tests {
             mock::{crypto_basics, MockNetworkIdentity},
             ConnectionCommand, DataCommand, Protocol,
         },
-        SessionId,
+        Recipient, SessionId,
     };
 
     const NUM_NODES: usize = 7;

@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use bip39::{Language, Mnemonic, MnemonicType};
+use futures::channel::oneshot;
 use log::{debug, error};
 use sc_client_api::Backend;
 use sc_network::ExHashT;
@@ -7,10 +9,10 @@ use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
 
 use crate::{
-    mpsc,
+    crypto::AuthorityPen,
     network::{
-        ConnectionIO, ConnectionManager, ConnectionManagerConfig, Service as NetworkService,
-        SessionManager, IO as NetworkIO,
+        setup_io, ConnectionManager, ConnectionManagerConfig, Service as NetworkService,
+        SessionManager,
     },
     nodes::{setup_justification_handler, JustificationParams},
     party::{
@@ -19,6 +21,8 @@ use crate::{
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
+    tcp_network::new_tcp_network,
+    validator_network::{Service, KEY_TYPE},
     AlephConfig,
 };
 
@@ -43,8 +47,43 @@ where
         millisecs_per_block,
         justification_rx,
         backup_saving_path,
+        external_addresses,
+        validator_port,
         ..
     } = aleph_config;
+
+    // We generate the phrase manually to only save the key in RAM, we don't want to have these
+    // relatively low-importance keys getting spammed around the absolutely crucial Aleph keys.
+    // The interface of `ed25519_generate_new` only allows to save in RAM by providing a mnemonic.
+    let validator_peer_id = keystore
+        .ed25519_generate_new(
+            KEY_TYPE,
+            Some(Mnemonic::new(MnemonicType::Words12, Language::English).phrase()),
+        )
+        .await
+        .expect("generating a key should work");
+    let network_authority_pen =
+        AuthorityPen::new_with_key_type(validator_peer_id.into(), keystore.clone(), KEY_TYPE)
+            .await
+            .expect("we just generated this key so everything should work");
+    let (dialer, listener, network_identity) = new_tcp_network(
+        ("0.0.0.0", validator_port),
+        external_addresses,
+        validator_peer_id.into(),
+    )
+    .await
+    .expect("we should have working networking");
+    let (validator_network_service, validator_network) = Service::new(
+        dialer,
+        listener,
+        network_authority_pen,
+        spawn_handle.clone(),
+    );
+    let (_validator_network_exit, exit) = oneshot::channel();
+    spawn_handle.spawn("aleph/validator_network", None, async move {
+        debug!(target: "aleph-party", "Validator network has started.");
+        validator_network_service.run(exit).await
+    });
 
     let block_requester = network.clone();
     let map_updater = SessionMapUpdater::<_, _, B>::new(
@@ -68,44 +107,53 @@ where
             session_map: session_authorities.clone(),
         });
 
-    // Prepare and start the network
-    let (commands_for_network, commands_from_io) = mpsc::unbounded();
-    let (messages_for_network, messages_from_user) = mpsc::unbounded();
-    let (commands_for_service, commands_from_user) = mpsc::unbounded();
-    let (messages_for_service, commands_from_manager) = mpsc::unbounded();
-    let (messages_for_user, messages_from_network) = mpsc::unbounded();
+    let (connection_io, network_io, session_io) = setup_io();
 
-    let connection_io = ConnectionIO::new(
-        commands_for_network,
-        messages_for_network,
-        commands_from_user,
-        commands_from_manager,
-        messages_from_network,
-    );
     let connection_manager = ConnectionManager::new(
-        network.clone(),
+        network_identity,
         ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
     );
-    let session_manager = SessionManager::new(commands_for_service, messages_for_service);
-    let network = NetworkService::new(
-        network.clone(),
-        spawn_handle.clone(),
-        NetworkIO::new(messages_from_user, messages_for_user, commands_from_io),
-    );
 
-    let network_manager_task = async move {
+    let connection_manager_task = async move {
         connection_io
             .run(connection_manager)
             .await
-            .expect("Failed to run new network manager")
+            .expect("Failed to run connection manager")
     };
 
+    let (legacy_connection_io, legacy_network_io, legacy_session_io) = setup_io();
+
+    let legacy_connection_manager = ConnectionManager::new(
+        network.clone(),
+        ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
+    );
+
+    let legacy_connection_manager_task = async move {
+        legacy_connection_io
+            .run(legacy_connection_manager)
+            .await
+            .expect("Failed to legacy connection manager")
+    };
+
+    let session_manager = SessionManager::new(session_io, legacy_session_io);
+    let network = NetworkService::new(
+        network.clone(),
+        validator_network,
+        spawn_handle.clone(),
+        network_io,
+        legacy_network_io,
+    );
     let network_task = async move { network.run().await };
 
     spawn_handle.spawn("aleph/justification_handler", None, handler_task);
     debug!(target: "aleph-party", "JustificationHandler has started.");
 
-    spawn_handle.spawn("aleph/network_manager", None, network_manager_task);
+    spawn_handle.spawn("aleph/connection_manager", None, connection_manager_task);
+    spawn_handle.spawn(
+        "aleph/legacy_connection_manager",
+        None,
+        legacy_connection_manager_task,
+    );
     spawn_handle.spawn("aleph/network", None, network_task);
     debug!(target: "aleph-party", "Network has started.");
 

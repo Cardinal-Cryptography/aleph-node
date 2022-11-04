@@ -36,7 +36,7 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
-    DEFAULT_KICK_OUT_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
+    DEFAULT_BAN_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
     MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
@@ -51,7 +51,7 @@ use sp_runtime::{
         OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature, RuntimeAppPublic,
+    ApplyExtrinsicResult, FixedU128, MultiSignature, RuntimeAppPublic,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
@@ -108,10 +108,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 36,
+    spec_version: 38,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 11,
+    transaction_version: 13,
     state_version: 0,
 };
 
@@ -326,7 +326,7 @@ impl_opaque_keys! {
 
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
-    pub const MaximumKickOutReasonLength: u32 = DEFAULT_KICK_OUT_REASON_LENGTH;
+    pub const MaximumBanReasonLength: u32 = DEFAULT_BAN_REASON_LENGTH;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -337,7 +337,7 @@ impl pallet_elections::Config for Runtime {
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
     type ValidatorRewardsHandler = Staking;
-    type MaximumKickOutReasonLength = MaximumKickOutReasonLength;
+    type MaximumBanReasonLength = MaximumBanReasonLength;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -366,7 +366,7 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
     pub const PostUnbondPoolsWindow: u32 = 4;
     pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
-    pub const MinPointsToBalance: u32 = 10;
+    pub const MaxPointsToBalance: u8 = 10;
 }
 
 use sp_runtime::traits::Convert;
@@ -387,6 +387,8 @@ impl pallet_nomination_pools::Config for Runtime {
     type WeightInfo = ();
     type Event = Event;
     type Currency = Balances;
+    type CurrencyBalance = Balance;
+    type RewardCounter = FixedU128;
     type BalanceToU256 = BalanceToU256;
     type U256ToBalance = U256ToBalance;
     type StakingInterface = pallet_staking::Pallet<Self>;
@@ -394,7 +396,7 @@ impl pallet_nomination_pools::Config for Runtime {
     type MaxMetadataLen = ConstU32<256>;
     type MaxUnbonding = ConstU32<8>;
     type PalletId = NominationPoolsPalletId;
-    type MinPointsToBalance = MinPointsToBalance;
+    type MaxPointsToBalance = MaxPointsToBalance;
 }
 
 parameter_types! {

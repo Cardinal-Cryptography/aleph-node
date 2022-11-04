@@ -102,7 +102,6 @@ impl NetworkIdentity for TcpNetworkIdentity {
 
 /// Create a new tcp network, including an identity that can be used for constructing
 /// authentications for other peers.
-#[allow(dead_code)]
 pub async fn new_tcp_network<A: ToSocketAddrs>(
     listening_addresses: A,
     external_addresses: Vec<String>,
@@ -110,7 +109,7 @@ pub async fn new_tcp_network<A: ToSocketAddrs>(
 ) -> IoResult<(
     impl Dialer<TcpMultiaddress>,
     impl Listener,
-    impl NetworkIdentity,
+    impl NetworkIdentity<Multiaddress = TcpMultiaddress, PeerId = AuthorityId>,
 )> {
     let listener = TcpListener::bind(listening_addresses).await?;
     let identity = TcpNetworkIdentity {

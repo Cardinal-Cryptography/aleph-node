@@ -4,11 +4,16 @@ use async_trait::async_trait;
 use codec::{Decode, Encode};
 use futures::stream::{Stream, StreamExt};
 use log::error;
+use sc_consensus::JustificationSyncLink;
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
-    NetworkService, NetworkStateInfo, NotificationSender, PeerId as SubstratePeerId,
+    NetworkService, NetworkStateInfo, NetworkSyncForkRequest, PeerId as SubstratePeerId,
+};
+use sc_network_common::service::{
+    NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender,
 };
 use sp_api::NumberFor;
+use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
 
 use crate::network::{
@@ -71,16 +76,7 @@ impl Decode for PeerId {
 
 impl fmt::Display for PeerId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let peer_id: String = self.0.to_string();
-
-        let prefix: String = peer_id.chars().take(4).collect();
-
-        let suffix: String = peer_id
-            .chars()
-            .skip(peer_id.len().saturating_sub(8))
-            .collect();
-
-        write!(f, "{}…{}", &prefix, &suffix)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -191,26 +187,33 @@ impl MultiaddressT for Multiaddress {
 /// Name of the network protocol used by Aleph Zero. This is how messages
 /// are subscribed to ensure that we are gossiping and communicating with our
 /// own network.
-const ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/2";
+const LEGACY_ALEPH_PROTOCOL_NAME: &str = "/cardinals/aleph/2";
+
+/// Name of the network protocol used by Aleph Zero. This is how messages
+/// are subscribed to ensure that we are gossiping and communicating with our
+/// own network.
+const AUTHENTICATION_PROTOCOL_NAME: &str = "/aleph/1";
 
 /// Name of the network protocol used by Aleph Zero validators. Similar to
 /// ALEPH_PROTOCOL_NAME, but only used by validators that authenticated to each other.
-const ALEPH_VALIDATOR_PROTOCOL_NAME: &str = "/cardinals/aleph_validator/1";
+const LEGACY_ALEPH_VALIDATOR_PROTOCOL_NAME: &str = "/cardinals/aleph_validator/1";
 
 /// Returns the canonical name of the protocol.
 pub fn protocol_name(protocol: &Protocol) -> Cow<'static, str> {
     use Protocol::*;
     match protocol {
-        Generic => Cow::Borrowed(ALEPH_PROTOCOL_NAME),
-        Validator => Cow::Borrowed(ALEPH_VALIDATOR_PROTOCOL_NAME),
+        Authentication => Cow::Borrowed(AUTHENTICATION_PROTOCOL_NAME),
+        Generic => Cow::Borrowed(LEGACY_ALEPH_PROTOCOL_NAME),
+        Validator => Cow::Borrowed(LEGACY_ALEPH_VALIDATOR_PROTOCOL_NAME),
     }
 }
 
 /// Attempts to convert the protocol name to a protocol.
 fn to_protocol(protocol_name: &str) -> Result<Protocol, ()> {
     match protocol_name {
-        ALEPH_PROTOCOL_NAME => Ok(Protocol::Generic),
-        ALEPH_VALIDATOR_PROTOCOL_NAME => Ok(Protocol::Validator),
+        AUTHENTICATION_PROTOCOL_NAME => Ok(Protocol::Authentication),
+        LEGACY_ALEPH_PROTOCOL_NAME => Ok(Protocol::Generic),
+        LEGACY_ALEPH_VALIDATOR_PROTOCOL_NAME => Ok(Protocol::Validator),
         _ => Err(()),
     }
 }
@@ -253,7 +256,7 @@ impl fmt::Display for SenderError {
 impl std::error::Error for SenderError {}
 
 pub struct SubstrateNetworkSender {
-    notification_sender: NotificationSender,
+    notification_sender: Box<dyn NotificationSender>,
     peer_id: PeerId,
 }
 
@@ -269,7 +272,7 @@ impl NetworkSender for SubstrateNetworkSender {
             .ready()
             .await
             .map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))?
-            .send(data)
+            .send(data.into())
             .map_err(|_| SenderError::LostConnectionToPeerReady(self.peer_id))
     }
 }
@@ -308,7 +311,7 @@ impl EventStream<Multiaddress> for NetworkEventStream {
                                 .into_iter()
                                 .filter_map(|(protocol, data)| {
                                     match to_protocol(protocol.as_ref()) {
-                                        Ok(_) => Some(data),
+                                        Ok(protocol) => Some((protocol, data)),
                                         // This might end with us returning an empty vec, but it's probably not
                                         // worth it to handle this situation here.
                                         Err(_) => None,
@@ -379,7 +382,7 @@ impl<B: Block, H: ExHashT> NetworkIdentity for Arc<NetworkService<B, H>> {
                 .into_iter()
                 .map(|address| address.into())
                 .collect(),
-            (*self.local_peer_id()).into(),
+            self.local_peer_id().into(),
         )
     }
 }

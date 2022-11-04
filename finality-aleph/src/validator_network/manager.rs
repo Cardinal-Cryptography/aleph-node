@@ -1,12 +1,12 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Display, Error as FmtError, Formatter},
 };
 
 use aleph_primitives::AuthorityId;
 use futures::channel::{mpsc, oneshot};
 
-use crate::validator_network::Data;
+use crate::{network::PeerId, validator_network::Data};
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to, and managing the established connections.
@@ -37,24 +37,127 @@ impl Display for SendError {
 
 struct ManagerStatus {
     wanted_peers: usize,
-    incoming_peers: usize,
-    outgoing_peers: usize,
+    both_ways_peers: HashSet<AuthorityId>,
+    outgoing_peers: HashSet<AuthorityId>,
+    incoming_peers: HashSet<AuthorityId>,
+    missing_peers: HashSet<AuthorityId>,
+}
+
+impl ManagerStatus {
+    fn new<A: Data, D: Data>(manager: &Manager<A, D>) -> Self {
+        let incoming: HashSet<_> = manager
+            .incoming
+            .iter()
+            .filter(|(_, exit)| !exit.is_canceled())
+            .map(|(k, _)| k.clone())
+            .collect();
+        let outgoing: HashSet<_> = manager
+            .outgoing
+            .iter()
+            .filter(|(_, exit)| !exit.is_closed())
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        let both_ways = incoming.intersection(&outgoing).cloned().collect();
+        let incoming: HashSet<_> = incoming.difference(&both_ways).cloned().collect();
+        let outgoing: HashSet<_> = outgoing.difference(&both_ways).cloned().collect();
+        let missing = manager
+            .addresses
+            .keys()
+            .filter(|a| !both_ways.contains(a) && !incoming.contains(a) && !outgoing.contains(a))
+            .cloned()
+            .collect();
+
+        ManagerStatus {
+            wanted_peers: manager.addresses.len(),
+            both_ways_peers: both_ways,
+            incoming_peers: incoming,
+            outgoing_peers: outgoing,
+            missing_peers: missing,
+        }
+    }
 }
 
 impl Display for ManagerStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         if self.wanted_peers == 0 {
-            return write!(f, "not maintaining any connections");
+            return write!(f, "not maintaining any connections; ");
         }
-        if self.incoming_peers == 0 {
-            write!(f, "WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible.")?;
+
+        write!(f, "target - {:?} connections; ", self.wanted_peers)?;
+
+        if self.both_ways_peers.is_empty() && self.incoming_peers.is_empty() {
+            write!(f, "WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible; ")?;
         }
-        write!(
-            f,
-            "maintaining {} connections, incoming connections {}, outgoing connections {}",
-            self.wanted_peers, self.incoming_peers, self.outgoing_peers,
-        )
+
+        if !self.both_ways_peers.is_empty() {
+            let peers = self
+                .both_ways_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(
+                f,
+                "both ways - {:?} [{}]; ",
+                self.both_ways_peers.len(),
+                peers,
+            )?;
+        }
+
+        if !self.incoming_peers.is_empty() {
+            let peers = self
+                .incoming_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(
+                f,
+                "incoming only - {:?} [{}]; ",
+                self.incoming_peers.len(),
+                peers
+            )?;
+        }
+
+        if !self.outgoing_peers.is_empty() {
+            let peers = self
+                .outgoing_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(
+                f,
+                "outgoing only - {:?} [{}];",
+                self.outgoing_peers.len(),
+                peers
+            )?;
+        }
+
+        if !self.missing_peers.is_empty() {
+            let peers = self
+                .missing_peers
+                .iter()
+                .map(|authority_id| authority_id.to_short_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(f, "missing - {:?} [{}];", self.missing_peers.len(), peers)?;
+        }
+
+        Ok(())
     }
+}
+
+/// Possible results of adding connections.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddResult {
+    /// We do not want to maintain a connection with this peer.
+    Uninterested,
+    /// Connection added.
+    Added,
+    /// Old connection replaced with new one.
+    Replaced,
 }
 
 impl<A: Data, D: Data> Manager<A, D> {
@@ -86,20 +189,28 @@ impl<A: Data, D: Data> Manager<A, D> {
         &mut self,
         peer_id: AuthorityId,
         data_for_network: mpsc::UnboundedSender<D>,
-    ) {
-        if self.addresses.contains_key(&peer_id) {
-            self.outgoing.insert(peer_id, data_for_network);
-        };
+    ) -> AddResult {
+        use AddResult::*;
+        if !self.addresses.contains_key(&peer_id) {
+            return Uninterested;
+        }
+        match self.outgoing.insert(peer_id, data_for_network) {
+            Some(_) => Replaced,
+            None => Added,
+        }
     }
 
     /// Add an established incoming connection with a known peer,
     /// but only if the peer is on the list of peers that we want to stay connected with.
-    /// Returns true if it overwrote an earlier connection.
-    pub fn add_incoming(&mut self, peer_id: AuthorityId, exit: oneshot::Sender<()>) -> bool {
+    pub fn add_incoming(&mut self, peer_id: AuthorityId, exit: oneshot::Sender<()>) -> AddResult {
+        use AddResult::*;
         if !self.addresses.contains_key(&peer_id) {
-            return false;
+            return Uninterested;
         };
-        self.incoming.insert(peer_id, exit).is_some()
+        match self.incoming.insert(peer_id, exit) {
+            Some(_) => Replaced,
+            None => Added,
+        }
     }
 
     /// Remove a peer from the list of peers that we want to stay connected with.
@@ -123,19 +234,7 @@ impl<A: Data, D: Data> Manager<A, D> {
 
     /// A status of the manager, to be displayed somewhere.
     pub fn status_report(&self) -> impl Display {
-        ManagerStatus {
-            wanted_peers: self.addresses.len(),
-            incoming_peers: self
-                .incoming
-                .values()
-                .filter(|exit| exit.is_canceled())
-                .count(),
-            outgoing_peers: self
-                .outgoing
-                .values()
-                .filter(|sender| sender.is_closed())
-                .count(),
-        }
+        ManagerStatus::new(self)
     }
 }
 
@@ -146,8 +245,8 @@ mod tests {
         StreamExt,
     };
 
-    use super::{Manager, SendError};
-    use crate::validator_network::mock::keys;
+    use super::{AddResult::*, Manager, SendError};
+    use crate::validator_network::mock::key;
 
     type Data = String;
     type Address = String;
@@ -155,8 +254,8 @@ mod tests {
     #[tokio::test]
     async fn add_remove() {
         let mut manager = Manager::<Address, Data>::new();
-        let (peer_id, _) = keys().await;
-        let (peer_id_b, _) = keys().await;
+        let (peer_id, _) = key().await;
+        let (peer_id_b, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -184,7 +283,7 @@ mod tests {
     async fn outgoing() {
         let mut manager = Manager::<Address, Data>::new();
         let data = String::from("DATA");
-        let (peer_id, _) = keys().await;
+        let (peer_id, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -201,7 +300,7 @@ mod tests {
         // add peer, this time for real
         assert!(manager.add_peer(peer_id.clone(), addresses.clone()));
         let (tx, mut rx) = mpsc::unbounded();
-        manager.add_outgoing(peer_id.clone(), tx);
+        assert_eq!(manager.add_outgoing(peer_id.clone(), tx), Added);
         // send and receive
         assert!(manager.send_to(&peer_id, data.clone()).is_ok());
         assert_eq!(data, rx.next().await.expect("should receive"));
@@ -214,27 +313,27 @@ mod tests {
     #[tokio::test]
     async fn incoming() {
         let mut manager = Manager::<Address, Data>::new();
-        let (peer_id, _) = keys().await;
+        let (peer_id, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
             String::from("43.43.43.43:43000"),
         ];
         let (tx, rx) = oneshot::channel();
-        // try add unknown peer, does not replace so should be false
-        assert!(!manager.add_incoming(peer_id.clone(), tx));
+        // try add unknown peer
+        assert_eq!(manager.add_incoming(peer_id.clone(), tx), Uninterested);
         // rx should fail
         assert!(rx.await.is_err());
         // add peer, this time for real
         assert!(manager.add_peer(peer_id.clone(), addresses.clone()));
         let (tx, mut rx) = oneshot::channel();
-        // still shouldn't replace
-        assert!(!manager.add_incoming(peer_id.clone(), tx));
+        // should just add
+        assert_eq!(manager.add_incoming(peer_id.clone(), tx), Added);
         // the exit channel should be open
         assert!(rx.try_recv().is_ok());
         let (tx, mut rx2) = oneshot::channel();
         // should replace now
-        assert!(manager.add_incoming(peer_id.clone(), tx));
+        assert_eq!(manager.add_incoming(peer_id.clone(), tx), Replaced);
         // receiving should fail on old, but work on new channel
         assert!(rx.try_recv().is_err());
         assert!(rx2.try_recv().is_ok());
