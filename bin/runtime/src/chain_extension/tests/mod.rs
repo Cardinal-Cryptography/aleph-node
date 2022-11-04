@@ -1,10 +1,12 @@
 use std::sync::mpsc::Receiver;
 
 use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
+use executor::MockedExecutor;
 
 use super::*;
 
 mod environment;
+mod executor;
 
 type RevertibleWeight = i64;
 
@@ -25,7 +27,7 @@ fn store_key__charges_before_reading() {
     let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(41, None);
     let key_length = env.key_len();
 
-    let result = SnarcosChainExtension::snarcos_store_key(env);
+    let result = SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor>(env);
 
     assert!(matches!(result, Err(_)));
     assert_eq!(
@@ -42,7 +44,7 @@ fn store_key__too_long_vk() {
         Some(Box::new(|| panic!("Shouldn't read anything at all"))),
     );
 
-    let result = SnarcosChainExtension::snarcos_store_key(env);
+    let result = SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor>(env);
 
     assert!(matches!(
         result,
@@ -78,7 +80,7 @@ fn store_key__too_long_vk() {
 fn verify__charges_before_reading() {
     let (env, charging_listener) = MockedEnvironment::<VerifyMode, CorruptedMode>::new(41, None);
 
-    let result = SnarcosChainExtension::snarcos_verify(env);
+    let result = SnarcosChainExtension::snarcos_verify::<_, MockedExecutor>(env);
 
     assert!(matches!(result, Err(_)));
     assert_eq!(

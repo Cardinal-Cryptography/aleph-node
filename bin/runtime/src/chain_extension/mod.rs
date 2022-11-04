@@ -1,20 +1,19 @@
 use codec::{Decode, Encode};
 use environment::Environment;
+use executor::Executor;
 use frame_support::{log::error, weights::Weight};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState, RetVal, SysConfig,
 };
-use pallet_snarcos::{
-    Config, Error, Pallet as Snarcos, ProvingSystem, VerificationKeyIdentifier, WeightInfo,
-};
+use pallet_snarcos::{Config, Error, ProvingSystem, VerificationKeyIdentifier, WeightInfo};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};
 use Error::*;
 
 use crate::{MaximumVerificationKeyLength, Runtime};
-
 mod environment;
+mod executor;
 #[cfg(test)]
 mod tests;
 
@@ -48,8 +47,10 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
     {
         match func_id {
-            SNARCOS_STORE_KEY_FUNC_ID => Self::snarcos_store_key(env.buf_in_buf_out()),
-            SNARCOS_VERIFY_FUNC_ID => Self::snarcos_verify(env.buf_in_buf_out()),
+            SNARCOS_STORE_KEY_FUNC_ID => {
+                Self::snarcos_store_key::<_, Runtime>(env.buf_in_buf_out())
+            }
+            SNARCOS_VERIFY_FUNC_ID => Self::snarcos_verify::<_, Runtime>(env.buf_in_buf_out()),
             _ => {
                 error!("Called an unregistered `func_id`: {}", func_id);
                 Err(DispatchError::Other("Unimplemented func_id"))
@@ -109,7 +110,9 @@ fn weight_of_verify(system: Option<ProvingSystem>) -> Weight {
 }
 
 impl SnarcosChainExtension {
-    fn snarcos_store_key<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
+    fn snarcos_store_key<Env: Environment, Exc: Executor>(
+        mut env: Env,
+    ) -> Result<RetVal, DispatchError> {
         // Check if it makes sense to read and decode data.
         let key_length = env
             .in_len()
@@ -133,7 +136,7 @@ impl SnarcosChainExtension {
         let args = StoreKeyArgs::decode(&mut &*bytes)
             .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
 
-        let return_status = match Snarcos::<Runtime>::bare_store_key(args.identifier, args.key) {
+        let return_status = match Exc::store_key(args.identifier, args.key) {
             Ok(_) => SNARCOS_STORE_KEY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could adjust weight. However, for the storing key action it
@@ -145,7 +148,9 @@ impl SnarcosChainExtension {
         Ok(RetVal::Converging(return_status))
     }
 
-    fn snarcos_verify<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
+    fn snarcos_verify<Env: Environment, Exc: Executor>(
+        mut env: Env,
+    ) -> Result<RetVal, DispatchError> {
         // We charge optimistically, i.e. assuming that decoding succeeds and the verification
         // key is present. However, since we don't know the system yet, we have to charge maximal
         // possible fee. We will adjust it as soon as possible.
@@ -165,8 +170,7 @@ impl SnarcosChainExtension {
 
         env.adjust_weight(pre_charge, weight_of_verify(Some(args.system)));
 
-        let result =
-            Snarcos::<Runtime>::bare_verify(args.identifier, args.proof, args.input, args.system);
+        let result = Exc::verify(args.identifier, args.proof, args.input, args.system);
 
         let return_status = match result {
             Ok(_) => SNARCOS_VERIFY_OK,
