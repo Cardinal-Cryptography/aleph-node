@@ -45,7 +45,7 @@ fn extension_is_enabled() {
 #[allow(non_snake_case)]
 fn store_key__charges_before_reading() {
     let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(41, None);
-    let key_length = env.key_len();
+    let key_length = env.approx_key_len();
 
     let result =
         SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor<{ Ok(()) }, { Ok(()) }>>(env);
@@ -88,6 +88,7 @@ fn store_key__positive_scenario() {
         result,
         Ok(RetVal::Converging(SNARCOS_STORE_KEY_OK))
     ));
+
     assert_eq!(
         charged(charging_listener),
         weight_of_store_key(VK.len() as ByteCount) as RevertibleWeight

@@ -89,8 +89,10 @@ impl<FM: FunctionMode> _Read for MockedEnvironment<FM, StandardMode> {
 }
 
 impl<RM: ReadingMode> MockedEnvironment<StoreKeyMode, RM> {
-    pub fn key_len(&self) -> ByteCount {
-        self.in_len - (size_of::<VerificationKeyIdentifier>() as ByteCount)
+    pub fn approx_key_len(&self) -> ByteCount {
+        self.in_len
+            .checked_sub(size_of::<VerificationKeyIdentifier>() as ByteCount)
+            .unwrap()
     }
 }
 

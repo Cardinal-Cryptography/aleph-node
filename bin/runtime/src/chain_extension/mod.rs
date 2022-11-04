@@ -113,20 +113,19 @@ impl SnarcosChainExtension {
     fn snarcos_store_key<Env: Environment, Exc: Executor>(
         mut env: Env,
     ) -> Result<RetVal, DispatchError> {
-        // Check if it makes sense to read and decode data.
-        let key_length = env
+        // Check if it makes sense to read and decode data. This is only an upperbound for the key
+        // length, because this bytes suffix contain (possibly compressed) info about actual key
+        // length (needed for decoding).
+        let approx_key_length = env
             .in_len()
-            // identifier encoding
-            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount)
-            // key length encoding
-            .saturating_sub(size_of::<u32>() as ByteCount);
-        if key_length > MaximumVerificationKeyLength::get() {
+            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
+        if approx_key_length > MaximumVerificationKeyLength::get() {
             return Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY));
         }
 
         // We charge now - even if decoding fails and we shouldn't touch storage, we have to incur
         // fee for reading memory.
-        env.charge_weight(weight_of_store_key(key_length))?;
+        let pre_charged = env.charge_weight(weight_of_store_key(approx_key_length))?;
 
         // Parsing will have to be done here. This is due to the fact that methods
         // `Environment<_,_,_,S: BufIn>::read*` don't move starting pointer and thus we can make
@@ -138,6 +137,12 @@ impl SnarcosChainExtension {
 
         let args = StoreKeyArgs::decode(&mut &*bytes)
             .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
+
+        // Now we know the exact key length.
+        env.adjust_weight(
+            pre_charged,
+            weight_of_store_key(args.key.len() as ByteCount),
+        );
 
         let return_status = match Exc::store_key(args.identifier, args.key) {
             Ok(_) => SNARCOS_STORE_KEY_OK,
