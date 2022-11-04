@@ -8,7 +8,6 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 mod chain_extension;
 
-use ark_bls12_381::Bls12_381;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -62,7 +61,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use crate::chain_extension::AlephChainExtension;
+use crate::chain_extension::SnarcosChainExtension;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -326,7 +325,6 @@ parameter_types! {
 
 impl pallet_snarcos::Config for Runtime {
     type Event = Event;
-    type Pairing = Bls12_381;
     type WeightInfo = pallet_snarcos::AlephWeight<Runtime>;
     type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
 }
@@ -678,7 +676,7 @@ impl pallet_contracts::Config for Runtime {
     type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = AlephChainExtension;
+    type ChainExtension = SnarcosChainExtension;
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;

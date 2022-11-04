@@ -30,6 +30,7 @@ pub trait WeightInfo {
     fn store_key(key_length: u32) -> Weight;
     fn verify_groth16() -> Weight;
     fn verify_gm17() -> Weight;
+    fn verify_marlin() -> Weight;
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
@@ -51,6 +52,10 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_8())
 			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_64())
 			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_1024())
+	}
+
+	fn verify_marlin() -> Weight {
+		todo!()
 	}
 }
 
