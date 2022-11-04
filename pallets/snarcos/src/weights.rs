@@ -5,10 +5,10 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("/tmp/chainspec.json"), DB CACHE: 1024
 
 // Executed Command:
-// ./target/release/aleph-node
+// target/release/aleph-node
 // benchmark
 // pallet
-// --chain=/tmp/chainspec.json
+// --chain=chainspec.json
 // --pallet=pallet_snarcos
 // --extrinsic=*
 // --steps=20
