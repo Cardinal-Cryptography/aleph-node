@@ -119,6 +119,23 @@ struct VerifyArgs {
     pub system: ProvingSystem,
 }
 
+/// Provides a weight of `verify` dispatchable depending on the `ProvingSystem`. In case no system
+/// is passed, we return maximal amongst all the systems.
+fn weight_of_verify(system: Option<ProvingSystem>) -> Weight {
+    match system {
+        Some(ProvingSystem::Groth16) => {
+            <<Runtime as Config>::WeightInfo as WeightInfo>::verify_groth16()
+        }
+        Some(ProvingSystem::Gm17) => <<Runtime as Config>::WeightInfo as WeightInfo>::verify_gm17(),
+        Some(ProvingSystem::Marlin) => {
+            <<Runtime as Config>::WeightInfo as WeightInfo>::verify_marlin()
+        }
+        None => weight_of_verify(Some(ProvingSystem::Groth16))
+            .max(weight_of_verify(Some(ProvingSystem::Gm17)))
+            .max(weight_of_verify(Some(ProvingSystem::Marlin))),
+    }
+}
+
 impl SnarcosChainExtension {
     fn snarcos_store_key<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
         // Check if it makes sense to read and decode data.
@@ -158,23 +175,6 @@ impl SnarcosChainExtension {
         Ok(RetVal::Converging(return_status))
     }
 
-    fn weight_of_verify(system: Option<ProvingSystem>) -> Weight {
-        match system {
-            Some(ProvingSystem::Groth16) => {
-                <<Runtime as Config>::WeightInfo as WeightInfo>::verify_groth16()
-            }
-            Some(ProvingSystem::Gm17) => {
-                <<Runtime as Config>::WeightInfo as WeightInfo>::verify_gm17()
-            }
-            Some(ProvingSystem::Marlin) => {
-                <<Runtime as Config>::WeightInfo as WeightInfo>::verify_marlin()
-            }
-            None => Self::weight_of_verify(Some(ProvingSystem::Groth16))
-                .max(Self::weight_of_verify(Some(ProvingSystem::Gm17)))
-                .max(Self::weight_of_verify(Some(ProvingSystem::Marlin))),
-        }
-    }
-
     fn snarcos_verify<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
         // We charge optimistically, i.e. assuming that decoding succeeds and the verification
         // key is present. However, since we don't know the system yet, we have to charge maximal
@@ -185,7 +185,7 @@ impl SnarcosChainExtension {
         // `pallet_snarcos::WeightInfo::verify_decoding_failure`, we can both charge less here
         // (with further `env.adjust_weight`) and in the pallet itself (returning
         // `DispatchErrorWithPostInfo` reducing actual fee and the block weight).
-        let pre_charge = env.charge_weight(Self::weight_of_verify(None))?;
+        let pre_charge = env.charge_weight(weight_of_verify(None))?;
 
         // Parsing is done here for similar reasons as in `Self::snarcos_store_key`.
         let bytes = env.read(env.in_len())?;
@@ -193,7 +193,7 @@ impl SnarcosChainExtension {
         let args: VerifyArgs = VerifyArgs::decode(&mut &*bytes)
             .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
 
-        env.adjust_weight(pre_charge, Self::weight_of_verify(Some(args.system)));
+        env.adjust_weight(pre_charge, weight_of_verify(Some(args.system)));
 
         let result =
             Snarcos::<Runtime>::bare_verify(args.identifier, args.proof, args.input, args.system);
