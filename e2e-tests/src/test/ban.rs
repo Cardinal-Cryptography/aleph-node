@@ -255,6 +255,7 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
         DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
     );
 
+    // Change ban config to require prohibitively high performance from all validators.
     change_ban_config(
         &root_connection,
         Some(MIN_EXPECTED_PERFORMANCE),
@@ -264,9 +265,11 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
         XtStatus::InBlock,
     );
 
-    let check_start_session = get_current_session(&root_connection);
+    let ban_config_change_session = get_current_session(&root_connection);
+    let check_start_session = ban_config_change_session + 1;
     let check_end_session = check_start_session + SESSIONS_TO_CHECK;
 
+    // Wait until all the sessions to be checked are in the past.
     wait_for_at_least_session(&root_connection, check_end_session + 1)?;
 
     check_underperformed_count_for_sessions(

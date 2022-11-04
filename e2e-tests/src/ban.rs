@@ -139,6 +139,9 @@ pub fn check_ban_event<C: AnyConnection>(
     Ok(event)
 }
 
+/// Checks whether underperformed counts for validators change predictably. Assumes: (a) that the
+/// sessions checked are in the past, (b) that all the checked validators are underperforming in
+/// those sessions (e.g. due to a prohibitively high performance threshold).
 pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
     connection: &C,
     seats: &CommitteeSeats,
