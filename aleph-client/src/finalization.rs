@@ -1,6 +1,5 @@
 use primitives::{SessionIndex, Version};
-use sp_core::Pair;
-use substrate_api_client::{compose_call, compose_extrinsic, AccountId, ExtrinsicParams, XtStatus};
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
 
 use crate::{next_session_finality_version, send_xt, AnyConnection, ReadStorage, RootConnection};
 
