@@ -1,11 +1,8 @@
 use codec::{Decode, Encode};
+use environment::Environment;
 use frame_support::{log::error, weights::Weight};
-use pallet_contracts::{
-    chain_extension::{
-        BufInBufOutState, ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
-        RetVal, SysConfig,
-    },
-    ChargedAmount,
+use pallet_contracts::chain_extension::{
+    ChainExtension, Environment as SubstrateEnvironment, Ext, InitState, RetVal, SysConfig,
 };
 use pallet_snarcos::{
     Config, Error, Pallet as Snarcos, ProvingSystem, VerificationKeyIdentifier, WeightInfo,
@@ -17,6 +14,7 @@ use Error::*;
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
+mod environment;
 #[cfg(test)]
 mod tests;
 
@@ -61,44 +59,6 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
 }
 
 pub type ByteCount = u32;
-
-/// Abstraction around `pallet_contracts::chain_extension::Environment`. Makes testing easier.
-///
-/// Gathers all the methods that are used by `SnarcosChainExtension`. For now all operations are
-/// performed in `BufInBufOut` mode, so we don't have to take care of other modes.
-trait Environment: Sized {
-    type ChargedAmount;
-
-    fn in_len(&self) -> ByteCount;
-    fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError>;
-
-    fn charge_weight(&mut self, amount: Weight) -> Result<Self::ChargedAmount, DispatchError>;
-    fn adjust_weight(&mut self, charged: Self::ChargedAmount, actual_weight: Weight);
-}
-
-/// Transparent delegation.
-impl<E: Ext> Environment for SubstrateEnvironment<'_, '_, E, BufInBufOutState>
-where
-    <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
-{
-    type ChargedAmount = ChargedAmount;
-
-    fn in_len(&self) -> ByteCount {
-        self.in_len()
-    }
-
-    fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError> {
-        self.read(max_len)
-    }
-
-    fn charge_weight(&mut self, amount: Weight) -> Result<ChargedAmount, DispatchError> {
-        self.charge_weight(amount)
-    }
-
-    fn adjust_weight(&mut self, charged: ChargedAmount, actual_weight: Weight) {
-        self.adjust_weight(charged, actual_weight)
-    }
-}
 
 /// Struct to be decoded from a byte slice passed from the contract.
 ///
