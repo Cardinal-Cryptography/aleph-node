@@ -225,8 +225,9 @@ impl SnarcosChainExtension {
 mod tests {
     use std::sync::mpsc::Receiver;
 
+    use environments::{InputCorruptedEnvironment, StoreKeyMode, VerifyMode};
+
     use super::*;
-    use crate::chain_extension::tests::environments::InputCorruptedEnvironment;
 
     type RevertibleWeight = i64;
 
@@ -236,38 +237,47 @@ mod tests {
 
     mod environments {
         use std::{
+            marker::PhantomData,
             ops::Neg,
             sync::mpsc::{channel, Sender},
         };
 
         use super::*;
 
+        pub trait Mode {}
+        pub enum StoreKeyMode {}
+        pub enum VerifyMode {}
+        impl Mode for StoreKeyMode {}
+        impl Mode for VerifyMode {}
+
         /// May signal that there is something to read, but no read can succeed.
-        pub struct InputCorruptedEnvironment {
+        pub struct InputCorruptedEnvironment<M: Mode> {
             in_len: ByteCount,
             charging_channel: Sender<RevertibleWeight>,
+            _phantom: PhantomData<M>,
         }
 
-        impl InputCorruptedEnvironment {
+        impl<M: Mode> InputCorruptedEnvironment<M> {
             pub fn new(in_len: ByteCount) -> (Self, Receiver<RevertibleWeight>) {
                 let (sender, receiver) = channel();
                 (
                     Self {
                         in_len,
                         charging_channel: sender,
+                        _phantom: Default::default(),
                     },
                     receiver,
                 )
             }
+        }
 
-            /// Returns how many bytes the verifying key would have taken, if this environment was
-            /// used for `store_key` call.
+        impl InputCorruptedEnvironment<StoreKeyMode> {
             pub fn key_len(&self) -> ByteCount {
                 self.in_len - (size_of::<VerificationKeyIdentifier>() as ByteCount)
             }
         }
 
-        impl Environment for InputCorruptedEnvironment {
+        impl<M: Mode> Environment for InputCorruptedEnvironment<M> {
             type ChargedAmount = Weight;
 
             fn in_len(&self) -> ByteCount {
@@ -301,7 +311,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn store_key__charges_before_reading() {
-        let (env, charging_listener) = InputCorruptedEnvironment::new(41);
+        let (env, charging_listener) = InputCorruptedEnvironment::<StoreKeyMode>::new(41);
         let key_length = env.key_len();
         let result = SnarcosChainExtension::snarcos_store_key(env);
         assert!(matches!(result, Err(_)));
@@ -314,7 +324,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn verify__charges_before_reading() {
-        let (env, charging_listener) = InputCorruptedEnvironment::new(41);
+        let (env, charging_listener) = InputCorruptedEnvironment::<VerifyMode>::new(41);
         let result = SnarcosChainExtension::snarcos_verify(env);
         assert!(matches!(result, Err(_)));
         assert_eq!(
