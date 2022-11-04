@@ -123,6 +123,11 @@ struct VerifyArgs {
     pub system: ProvingSystem,
 }
 
+/// Provides a weight of `store_key` dispatchable.
+fn weight_of_store_key(key_length: ByteCount) -> Weight {
+    <<Runtime as Config>::WeightInfo as WeightInfo>::store_key(key_length)
+}
+
 /// Provides a weight of `verify` dispatchable depending on the `ProvingSystem`. In case no system
 /// is passed, we return maximal amongst all the systems.
 fn weight_of_verify(system: Option<ProvingSystem>) -> Weight {
@@ -152,9 +157,7 @@ impl SnarcosChainExtension {
 
         // We charge now - even if decoding fails and we shouldn't touch storage, we have to incur
         // fee for reading memory.
-        env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::store_key(
-            key_length,
-        ))?;
+        env.charge_weight(weight_of_store_key(key_length))?;
 
         // Parsing will have to be done here. This is due to the fact that methods
         // `Environment<_,_,_,S: BufIn>::read*` don't move starting pointer and thus we can make
@@ -221,7 +224,6 @@ impl SnarcosChainExtension {
 #[cfg(test)]
 mod tests {
     use std::{
-        iter::Rev,
         ops::Neg,
         sync::mpsc::{channel, Receiver, Sender},
     };
@@ -234,20 +236,28 @@ mod tests {
         charging_listener.into_iter().sum()
     }
 
-    /// Signals that there is something to read, but no read can succeed.
+    /// May signal that there is something to read, but no read can succeed.
     struct InputCorruptedEnvironment {
+        in_len: ByteCount,
         charging_channel: Sender<RevertibleWeight>,
     }
 
     impl InputCorruptedEnvironment {
-        pub fn new() -> (Self, Receiver<RevertibleWeight>) {
+        pub fn new(in_len: ByteCount) -> (Self, Receiver<RevertibleWeight>) {
             let (sender, receiver) = channel();
             (
                 Self {
+                    in_len,
                     charging_channel: sender,
                 },
                 receiver,
             )
+        }
+
+        /// Returns how many bytes the verifying key would have taken, if this environment was
+        /// used for `store_key` call.
+        pub fn key_len(&self) -> ByteCount {
+            self.in_len - (size_of::<VerificationKeyIdentifier>() as ByteCount)
         }
     }
 
@@ -255,7 +265,7 @@ mod tests {
         type ChargedAmount = Weight;
 
         fn in_len(&self) -> ByteCount {
-            41
+            self.in_len
         }
 
         fn read(&self, _max_len: u32) -> Result<Vec<u8>, DispatchError> {
@@ -279,5 +289,30 @@ mod tests {
     #[test]
     fn extension_is_enabled() {
         assert!(SnarcosChainExtension::enabled())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn store_key__charges_before_reading() {
+        let (env, charging_listener) = InputCorruptedEnvironment::new(41);
+        let key_length = env.key_len();
+        let result = SnarcosChainExtension::snarcos_store_key(env);
+        assert!(matches!(result, Err(_)));
+        assert_eq!(
+            charged(charging_listener),
+            weight_of_store_key(key_length) as RevertibleWeight
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn verify__charges_before_reading() {
+        let (env, charging_listener) = InputCorruptedEnvironment::new(41);
+        let result = SnarcosChainExtension::snarcos_verify(env);
+        assert!(matches!(result, Err(_)));
+        assert_eq!(
+            charged(charging_listener),
+            weight_of_verify(None) as RevertibleWeight
+        );
     }
 }
