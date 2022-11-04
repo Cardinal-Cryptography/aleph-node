@@ -10,6 +10,7 @@ pub fn schedule_upgrade(
     connection: &RootConnection,
     version: Version,
     session: SessionIndex,
+    state: XtStatus,
 ) -> Result<(), ApiClientError> {
     let connection = connection.as_connection();
     let upgrade_call = compose_call!(
@@ -30,7 +31,7 @@ pub fn schedule_upgrade(
         &connection,
         xt,
         Some("schedule finality version change"),
-        XtStatus::Finalized,
+        state,
     )
     .map(|_| ())
 }
