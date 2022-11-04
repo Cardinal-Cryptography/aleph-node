@@ -64,11 +64,13 @@ pub type ByteCount = u32;
 /// Gathers all the methods that are used by `SnarcosChainExtension`. For now all operations are
 /// performed in `BufInBufOut` mode, so we don't have to take care of other modes.
 trait Environment: Sized {
+    type ChargedAmount;
+
     fn in_len(&self) -> ByteCount;
     fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError>;
 
-    fn charge_weight(&mut self, amount: Weight) -> Result<ChargedAmount, DispatchError>;
-    fn adjust_weight(&mut self, charged: ChargedAmount, actual_weight: Weight);
+    fn charge_weight(&mut self, amount: Weight) -> Result<Self::ChargedAmount, DispatchError>;
+    fn adjust_weight(&mut self, charged: Self::ChargedAmount, actual_weight: Weight);
 }
 
 /// Transparent delegation.
@@ -76,6 +78,8 @@ impl<E: Ext> Environment for SubstrateEnvironment<'_, '_, E, BufInBufOutState>
 where
     <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
 {
+    type ChargedAmount = ChargedAmount;
+
     fn in_len(&self) -> ByteCount {
         self.in_len()
     }
@@ -211,5 +215,69 @@ impl SnarcosChainExtension {
             _ => SNARCOS_VERIFY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        iter::Rev,
+        ops::Neg,
+        sync::mpsc::{channel, Receiver, Sender},
+    };
+
+    use super::*;
+
+    type RevertibleWeight = i64;
+
+    fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeight {
+        charging_listener.into_iter().sum()
+    }
+
+    /// Signals that there is something to read, but no read can succeed.
+    struct InputCorruptedEnvironment {
+        charging_channel: Sender<RevertibleWeight>,
+    }
+
+    impl InputCorruptedEnvironment {
+        pub fn new() -> (Self, Receiver<RevertibleWeight>) {
+            let (sender, receiver) = channel();
+            (
+                Self {
+                    charging_channel: sender,
+                },
+                receiver,
+            )
+        }
+    }
+
+    impl Environment for InputCorruptedEnvironment {
+        type ChargedAmount = Weight;
+
+        fn in_len(&self) -> ByteCount {
+            41
+        }
+
+        fn read(&self, _max_len: u32) -> Result<Vec<u8>, DispatchError> {
+            Err(DispatchError::Other("Some error"))
+        }
+
+        fn charge_weight(&mut self, amount: Weight) -> Result<Weight, DispatchError> {
+            self.charging_channel
+                .send(amount as RevertibleWeight)
+                .unwrap();
+            Ok(amount)
+        }
+
+        fn adjust_weight(&mut self, charged: Weight, actual_weight: Weight) {
+            self.charging_channel
+                .send(((charged - actual_weight) as RevertibleWeight).neg())
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn extension_is_enabled() {
+        assert!(SnarcosChainExtension::enabled())
     }
 }
