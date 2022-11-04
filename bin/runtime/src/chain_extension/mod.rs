@@ -1,7 +1,11 @@
 use codec::Decode;
-use frame_support::{log::error, pallet_prelude::Weight};
-use pallet_contracts::chain_extension::{
-    ChainExtension, Environment, Ext, InitState, RetVal, SysConfig,
+use frame_support::{log::error, weights::Weight};
+use pallet_contracts::{
+    chain_extension::{
+        BufInBufOutState, ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
+        RetVal, SysConfig,
+    },
+    ChargedAmount,
 };
 use pallet_snarcos::{
     Config, Error, Pallet as Snarcos, ProvingSystem, VerificationKeyIdentifier, WeightInfo,
@@ -35,13 +39,16 @@ pub const SNARCOS_VERIFY_ERROR_UNKNOWN: u32 = 11_007;
 pub struct SnarcosChainExtension;
 
 impl ChainExtension<Runtime> for SnarcosChainExtension {
-    fn call<E: Ext>(func_id: u32, env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
+    fn call<E: Ext>(
+        func_id: u32,
+        env: SubstrateEnvironment<E, InitState>,
+    ) -> Result<RetVal, DispatchError>
     where
         <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
     {
         match func_id {
-            SNARCOS_STORE_KEY_FUNC_ID => Self::snarcos_store_key(env),
-            SNARCOS_VERIFY_FUNC_ID => Self::snarcos_verify(env),
+            SNARCOS_STORE_KEY_FUNC_ID => Self::snarcos_store_key(env.buf_in_buf_out()),
+            SNARCOS_VERIFY_FUNC_ID => Self::snarcos_verify(env.buf_in_buf_out()),
             _ => {
                 error!("Called an unregistered `func_id`: {}", func_id);
                 Err(DispatchError::Other("Unimplemented func_id"))
@@ -51,6 +58,40 @@ impl ChainExtension<Runtime> for SnarcosChainExtension {
 }
 
 pub type ByteCount = u32;
+
+/// Abstraction around `pallet_contracts::chain_extension::Environment`. Makes testing easier.
+///
+/// Gathers all the methods that are used by `SnarcosChainExtension`. For now all operations are
+/// performed in `BufInBufOut` mode, so we don't have to take care of other modes.
+trait Environment: Sized {
+    fn in_len(&self) -> ByteCount;
+    fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError>;
+
+    fn charge_weight(&mut self, amount: Weight) -> Result<ChargedAmount, DispatchError>;
+    fn adjust_weight(&mut self, charged: ChargedAmount, actual_weight: Weight);
+}
+
+/// Transparent delegation.
+impl<E: Ext> Environment for SubstrateEnvironment<'_, '_, E, BufInBufOutState>
+where
+    <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+{
+    fn in_len(&self) -> ByteCount {
+        self.in_len()
+    }
+
+    fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError> {
+        self.read(max_len)
+    }
+
+    fn charge_weight(&mut self, amount: Weight) -> Result<ChargedAmount, DispatchError> {
+        self.charge_weight(amount)
+    }
+
+    fn adjust_weight(&mut self, charged: ChargedAmount, actual_weight: Weight) {
+        self.adjust_weight(charged, actual_weight)
+    }
+}
 
 /// Struct to be decoded from a byte slice passed from the contract.
 ///
@@ -79,13 +120,7 @@ struct VerifyArgs {
 }
 
 impl SnarcosChainExtension {
-    fn snarcos_store_key<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
-    where
-        <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
-    {
-        // We need to read input as plain bytes (encoded args).
-        let mut env = env.buf_in_buf_out();
-
+    fn snarcos_store_key<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
         // Check if it makes sense to read and decode data.
         let key_length = env
             .in_len()
@@ -140,13 +175,7 @@ impl SnarcosChainExtension {
         }
     }
 
-    fn snarcos_verify<E: Ext>(env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
-    where
-        <E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
-    {
-        // We need to read input as plain bytes (encoded args).
-        let mut env = env.buf_in_buf_out();
-
+    fn snarcos_verify<Env: Environment>(mut env: Env) -> Result<RetVal, DispatchError> {
         // We charge optimistically, i.e. assuming that decoding succeeds and the verification
         // key is present. However, since we don't know the system yet, we have to charge maximal
         // possible fee. We will adjust it as soon as possible.
