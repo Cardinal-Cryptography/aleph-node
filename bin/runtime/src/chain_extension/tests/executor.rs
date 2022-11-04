@@ -51,7 +51,7 @@ impl<const STORE_KEY_RESPONDER: Responder, const VERIFY_RESPONDER: Responder> Ex
         _public_input: Vec<u8>,
         _system: ProvingSystem,
     ) -> Result {
-        match STORE_KEY_RESPONDER {
+        match VERIFY_RESPONDER {
             Responder::Panicker => panic!("Function `verify` shouldn't have been executed"),
             Responder::Okayer => Ok(()),
             Responder::Errorer(e) => Err(e),

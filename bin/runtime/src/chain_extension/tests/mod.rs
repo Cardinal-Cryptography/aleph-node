@@ -1,10 +1,9 @@
 use std::sync::mpsc::Receiver;
 
 use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
-use pallet_snarcos::ProvingSystem::Groth16;
 
 use super::*;
-use crate::chain_extension::tests::executor::{Panicker, StoreKeyOkayer};
+use crate::chain_extension::tests::executor::{Panicker, StoreKeyOkayer, VerifyOkayer};
 
 mod environment;
 mod executor;
@@ -15,21 +14,24 @@ const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9];
 const VK: [u8; 2] = [4, 1];
 const PROOF: [u8; 20] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4];
 const INPUT: [u8; 11] = [0, 5, 7, 7, 2, 1, 5, 6, 6, 4, 9];
+const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
-fn store_key_args() -> StoreKeyArgs {
+fn store_key_args() -> Vec<u8> {
     StoreKeyArgs {
         identifier: IDENTIFIER,
         key: VK.to_vec(),
     }
+    .encode()
 }
 
-fn verify_args() -> VerifyArgs {
+fn verify_args() -> Vec<u8> {
     VerifyArgs {
         identifier: IDENTIFIER,
         proof: PROOF.to_vec(),
         input: INPUT.to_vec(),
-        system: Groth16,
+        system: SYSTEM,
     }
+    .encode()
 }
 
 fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeight {
@@ -77,7 +79,7 @@ fn store_key__too_long_vk() {
 #[allow(non_snake_case)]
 fn store_key__positive_scenario() {
     let (env, charging_listener) =
-        MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args().encode());
+        MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args());
 
     let result = SnarcosChainExtension::snarcos_store_key::<_, StoreKeyOkayer>(env);
 
@@ -103,5 +105,21 @@ fn verify__charges_before_reading() {
     assert_eq!(
         charged(charging_listener),
         weight_of_verify(None) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__positive_scenario() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<_, VerifyOkayer>(env);
+
+    assert!(matches!(result, Ok(RetVal::Converging(SNARCOS_VERIFY_OK))));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
     );
 }

@@ -79,7 +79,7 @@ struct StoreKeyArgs {
 /// the order of values is important.
 ///
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
-#[derive(Decode)]
+#[derive(Decode, Encode)]
 struct VerifyArgs {
     pub identifier: VerificationKeyIdentifier,
     pub proof: Vec<u8>,
