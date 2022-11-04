@@ -89,12 +89,12 @@ mod tests {
     use aleph_primitives::AuthorityId;
 
     use super::DirectedPeers;
-    use crate::validator_network::mock::keys;
+    use crate::validator_network::mock::key;
 
     type Address = String;
 
     async fn container_with_id() -> (DirectedPeers<Address>, AuthorityId) {
-        let (own_id, _) = keys().await;
+        let (own_id, _) = key().await;
         let own_container = DirectedPeers::new(own_id.clone());
         (own_container, own_id)
     }

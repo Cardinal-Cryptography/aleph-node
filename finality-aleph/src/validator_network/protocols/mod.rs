@@ -23,6 +23,21 @@ pub use negotiation::{protocol, ProtocolNegotiationError};
 
 pub type Version = u32;
 
+/// The types of connections needed for backwards compatibility with the legacy two connections
+/// protocol. Remove after it's no longer needed.
+#[derive(PartialEq, Debug, Eq, Clone, Copy)]
+pub enum ConnectionType {
+    New,
+    LegacyIncoming,
+    LegacyOutgoing,
+}
+
+/// What connections send back to the service after they become established. Starts with a peer id
+/// of the remote node, followed by a channel for sending data to that node, with None if the
+/// connection was unsuccessful and should be reestablished. Finally a marker for legacy
+/// compatibility.
+pub type ResultForService<D> = mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>;
+
 /// Defines the protocol for communication.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
@@ -83,12 +98,18 @@ impl From<ReceiveError> for ProtocolError {
 }
 
 impl Protocol {
+    /// Minimal supported protocol version.
+    const MIN_VERSION: Version = 0;
+
+    /// Maximal supported protocol version.
+    const MAX_VERSION: Version = 1;
+
     /// Launches the proper variant of the protocol (receiver half).
     pub async fn manage_incoming<D: Data, S: Splittable>(
         &self,
         stream: S,
         authority_pen: AuthorityPen,
-        result_for_service: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+        result_for_service: ResultForService<D>,
         data_for_user: mpsc::UnboundedSender<D>,
     ) -> Result<(), ProtocolError> {
         use Protocol::*;
@@ -104,7 +125,7 @@ impl Protocol {
         stream: S,
         authority_pen: AuthorityPen,
         peer_id: AuthorityId,
-        result_for_service: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+        result_for_service: ResultForService<D>,
         data_for_user: mpsc::UnboundedSender<D>,
     ) -> Result<(), ProtocolError> {
         use Protocol::*;
@@ -112,16 +133,6 @@ impl Protocol {
             V0 => v0::outgoing(stream, authority_pen, peer_id, result_for_service).await,
             V1 => v1::outgoing(stream, authority_pen, peer_id, result_for_service, data_for_user).await,
         }
-    }
-
-    /// Minimal supported protocol version.
-    pub fn min_version() -> Version {
-        0
-    }
-
-    /// Maximal supported protocol version.
-    pub fn max_version() -> Version {
-        1
     }
 }
 

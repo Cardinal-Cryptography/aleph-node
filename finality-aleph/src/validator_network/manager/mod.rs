@@ -235,17 +235,17 @@ mod tests {
     };
 
     use super::{AddResult::*, Manager, SendError};
-    use crate::validator_network::mock::keys;
+    use crate::validator_network::mock::key;
 
     type Data = String;
     type Address = String;
 
     #[tokio::test]
     async fn add_remove() {
-        let (own_id, _) = keys().await;
+        let (own_id, _) = key().await;
         let mut manager = Manager::<Address, Data>::new(own_id);
-        let (peer_id, _) = keys().await;
-        let (peer_id_b, _) = keys().await;
+        let (peer_id, _) = key().await;
+        let (peer_id_b, _) = key().await;
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -274,9 +274,9 @@ mod tests {
 
     #[tokio::test]
     async fn send_receive() {
-        let (mut connecting_id, _) = keys().await;
+        let (mut connecting_id, _) = key().await;
         let mut connecting_manager = Manager::<Address, Data>::new(connecting_id.clone());
-        let (mut listening_id, _) = keys().await;
+        let (mut listening_id, _) = key().await;
         let mut listening_manager = Manager::<Address, Data>::new(listening_id.clone());
         let data = String::from("DATA");
         let addresses = vec![

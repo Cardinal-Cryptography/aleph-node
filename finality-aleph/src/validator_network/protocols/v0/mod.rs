@@ -10,7 +10,7 @@ use crate::{
     crypto::AuthorityPen,
     validator_network::{
         protocols::{
-            ProtocolError,
+            ProtocolError, ResultForService, ConnectionType,
             handshake::{v0_handshake_incoming, v0_handshake_outgoing},
         },
         io::{receive_data, send_data},
@@ -43,14 +43,14 @@ pub async fn outgoing<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
     peer_id: AuthorityId,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    result_for_parent: ResultForService<D>,
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Extending hand to {}.", peer_id);
     let (sender, receiver) = v0_handshake_outgoing(stream, authority_pen, peer_id.clone()).await?;
     info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
     let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
-        .unbounded_send((peer_id.clone(), Some(data_for_network)))
+        .unbounded_send((peer_id.clone(), Some(data_for_network), ConnectionType::LegacyOutgoing))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let sending = sending(sender, data_from_user);
@@ -85,7 +85,7 @@ async fn receiving<D: Data, S: AsyncRead + Unpin + Send>(
 pub async fn incoming<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    result_for_parent: ResultForService<D>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Waiting for extended hand...");
@@ -94,7 +94,7 @@ pub async fn incoming<D: Data, S: Splittable>(
 
     let (tx_exit, mut exit) = mpsc::unbounded();
     result_for_parent
-        .unbounded_send((peer_id.clone(), Some(tx_exit)))
+        .unbounded_send((peer_id.clone(), Some(tx_exit), ConnectionType::LegacyIncoming))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let receiving = receiving(receiver, data_for_user);
@@ -122,6 +122,7 @@ mod tests {
     use crate::{
         crypto::AuthorityPen,
         validator_network::{
+            protocols::ConnectionType,
             mock::{key, MockSplittable},
             Data,
         },
@@ -135,8 +136,8 @@ mod tests {
         impl futures::Future<Output = Result<(), ProtocolError>>,
         impl futures::Future<Output = Result<(), ProtocolError>>,
         UnboundedReceiver<D>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
+        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
     ) {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key().await;
@@ -191,7 +192,8 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing) = result.expect("outgoing should have resturned Some");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                assert_eq!(connection_type, ConnectionType::LegacyOutgoing);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
                     .unbounded_send(vec![4, 3, 43])
@@ -240,7 +242,8 @@ mod tests {
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             received = result_from_incoming.next() => {
                 // we drop the exit oneshot channel, thus finishing incoming_handle
-                let (received_id, _) = received.expect("should receive");
+                let (received_id, _, connection_type) = received.expect("the chennel shouldn't be dropped");
+                assert_eq!(connection_type, ConnectionType::LegacyIncoming);
                 assert_eq!(received_id, id_outgoing);
             },
         };
@@ -299,7 +302,8 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing) = result.expect("outgoing should have resturned Some");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                assert_eq!(connection_type, ConnectionType::LegacyOutgoing);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
                     .unbounded_send(vec![2, 1, 3, 7])
@@ -353,11 +357,12 @@ mod tests {
         ) = prepare::<Vec<i32>>().await;
         let incoming_handle = incoming_handle.fuse();
         pin_mut!(incoming_handle);
-        let (_, _exit) = tokio::select! {
+        let (_, _exit, connection_type) = tokio::select! {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = outgoing_handle => panic!("outgoing process unexpectedly finished"),
             out = result_from_incoming.next() => out.expect("should receive"),
         };
+        assert_eq!(connection_type, ConnectionType::LegacyIncoming);
         // outgoing_handle got consumed by tokio::select!, the sender is dead
         match incoming_handle.await {
             Err(ProtocolError::ReceiveError(_)) => (),
@@ -402,11 +407,12 @@ mod tests {
         ) = prepare::<Vec<i32>>().await;
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(outgoing_handle);
-        let (_, _exit) = tokio::select! {
+        let (_, _exit, connection_type) = tokio::select! {
             _ = incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             out = result_from_incoming.next() => out.expect("should receive"),
         };
+        assert_eq!(connection_type, ConnectionType::LegacyIncoming);
         // incoming_handle got consumed by tokio::select!, the receiver is dead
         match outgoing_handle.await {
             // We never get the SendError variant here, because we did not send anything
@@ -432,11 +438,12 @@ mod tests {
         ) = prepare::<Vec<i32>>().await;
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(outgoing_handle);
-        let (_, _exit) = tokio::select! {
+        let (_, _exit, connection_type) = tokio::select! {
             _ = incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             out = result_from_incoming.next() => out.expect("should receive"),
         };
+        assert_eq!(connection_type, ConnectionType::LegacyIncoming);
         match outgoing_handle.await {
             Err(ProtocolError::CardiacArrest) => (),
             Err(e) => panic!("unexpected error: {}", e),

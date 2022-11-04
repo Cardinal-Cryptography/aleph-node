@@ -22,8 +22,8 @@ impl Display for ProtocolsRange {
     }
 }
 
-fn supported_protocol_range() -> ProtocolsRange {
-    ProtocolsRange(Protocol::min_version(), Protocol::max_version())
+const fn supported_protocol_range() -> ProtocolsRange {
+    ProtocolsRange(Protocol::MIN_VERSION, Protocol::MAX_VERSION)
 }
 
 /// What went wrong when negotiating a protocol.

@@ -1,13 +1,12 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use aleph_primitives::AuthorityId;
 use futures::channel::mpsc;
 use log::{debug, info};
 
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocols::{protocol, ProtocolError, ProtocolNegotiationError},
+        protocols::{protocol, ProtocolError, ProtocolNegotiationError, ResultForService},
         Data, Splittable,
     },
 };
@@ -42,7 +41,7 @@ impl From<ProtocolError> for IncomingError {
 async fn manage_incoming<D: Data, S: Splittable>(
     authority_pen: AuthorityPen,
     stream: S,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    result_for_parent: ResultForService<D>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), IncomingError> {
     debug!(target: "validator-network", "Performing incoming protocol negotiation.");
@@ -61,7 +60,7 @@ async fn manage_incoming<D: Data, S: Splittable>(
 pub async fn incoming<D: Data, S: Splittable>(
     authority_pen: AuthorityPen,
     stream: S,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    result_for_parent: ResultForService<D>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_incoming(authority_pen, stream, result_for_parent, data_for_user).await {
