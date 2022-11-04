@@ -54,6 +54,36 @@ jobs:
           retention-days: 7
 
 
+  build-cliain-image:
+    name: Build docker image for cliain
+    runs-on: ubuntu-20.04
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Cargo | Build release binary
+        run: |
+          cd ./bin/cliain && cargo build --release
+
+      - name: Build docker image
+        run: |
+          cd ./bin/cliain
+          chmod +x target/release/cliain
+          docker build --tag cliain:latest -f ./Dockerfile .
+          docker save -o cliain.tar cliain:latest
+
+      - name: Upload test docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: cliain-docker
+          path: ./bin/cliain/cliain.tar
+          if-no-files-found: error
+          retention-days: 7
+
+
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
@@ -279,6 +309,7 @@ jobs:
           test-case: fee_calculation
         timeout-minutes: 2
 
+
   run-e2e-validators-rotate:
     needs: [build-test-docker, build-test-client]
     name: Run validators rotation test
@@ -485,6 +516,130 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 15
 
+  run-e2e-version-upgrade-catchup-one-node-late:
+    needs: [build-test-docker, build-cliain-image]
+    name: Run a test where one of the nodes learns of version-upgrade during catchup
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with docker image for aleph-node
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-test-docker
+
+      - name: Load node docker image
+        shell: bash
+        run: docker load -i aleph-node.tar
+
+      - name: Download artifact with docker image for cliain
+        uses: actions/download-artifact@v2
+        with:
+          name: cliain-docker
+
+      - name: Load cliain docker image
+        shell: bash
+        run: docker load -i cliain.tar
+
+      - name: Call catchup_test.sh
+        run: |
+          chmod +x ./scripts/catchup_version_upgrade_test.sh
+          UPGRADE_ROUND=31 NODES="Node1" PORTS="9934" EXT_STATUS="finalized" DOCKER_COMPOSE=docker/docker-compose.bridged.yml ./scripts/catchup_version_upgrade_test.sh
+
+  run-e2e-version-upgrade-catchup-two-nodes-late:
+    needs: [build-test-docker, build-cliain-image]
+    name: Run a test where two nodes learn of version-upgrade during catchup
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with docker image for aleph-node
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-test-docker
+
+      - name: Load node docker image
+        shell: bash
+        run: docker load -i aleph-node.tar
+
+      - name: Download artifact with docker image for cliain
+        uses: actions/download-artifact@v2
+        with:
+          name: cliain-docker
+
+      - name: Load cliain docker image
+        shell: bash
+        run: docker load -i cliain.tar
+
+      - name: Call catchup_test.sh
+        run: |
+          chmod +x ./scripts/catchup_version_upgrade_test.sh
+          UPGRADE_ROUND=31 NODES="Node1:Node2" PORTS="9934:9935" EXT_STATUS="in-block" DOCKER_COMPOSE=docker/docker-compose.bridged.yml ./scripts/catchup_version_upgrade_test.sh
+
+  run-e2e-version-upgrade-early-catchup-one-node-late:
+    needs: [build-test-docker, build-cliain-image]
+    name: Run a test where one of the nodes learns of version-upgrade before catchup
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with docker image for aleph-node
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-test-docker
+
+      - name: Load node docker image
+        shell: bash
+        run: docker load -i aleph-node.tar
+
+      - name: Download artifact with docker image for cliain
+        uses: actions/download-artifact@v2
+        with:
+          name: cliain-docker
+
+      - name: Load cliain docker image
+        shell: bash
+        run: docker load -i cliain.tar
+
+      - name: Call catchup_test.sh
+        run: |
+          chmod +x ./scripts/catchup_version_upgrade_test.sh
+          UPGRADE_BEFORE_DISABLE=true UPGRADE_ROUND=31 NODES="Node1" PORTS="9934" EXT_STATUS="finalized" DOCKER_COMPOSE=docker/docker-compose.bridged.yml ./scripts/catchup_version_upgrade_test.sh
+
+  run-e2e-version-upgrade-early-catchup-two-nodes-late:
+    needs: [build-test-docker, build-cliain-image]
+    name: Run a test where two nodes learn of version-upgrade before catchup
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with docker image for aleph-node
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-test-docker
+
+      - name: Load node docker image
+        shell: bash
+        run: docker load -i aleph-node.tar
+
+      - name: Download artifact with docker image for cliain
+        uses: actions/download-artifact@v2
+        with:
+          name: cliain-docker
+
+      - name: Load cliain docker image
+        shell: bash
+        run: docker load -i cliain.tar
+
+      - name: Call catchup_test.sh
+        run: |
+          chmod +x ./scripts/catchup_version_upgrade_test.sh
+          UPGRADE_BEFORE_DISABLE=true UPGRADE_ROUND=31 NODES="Node1:Node2" PORTS="9934:9935" EXT_STATUS="finalized" DOCKER_COMPOSE=docker/docker-compose.bridged.yml ./scripts/catchup_version_upgrade_test.sh
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
@@ -510,6 +665,10 @@ jobs:
       run-e2e-ban-manual,
       run-e2e-version-upgrade,
       run-e2e-failing-version-upgrade,
+      run-e2e-version-upgrade-catchup-one-node-late,
+      run-e2e-version-upgrade-catchup-two-nodes-late,
+      run-e2e-version-upgrade-early-catchup-one-node-late,
+      run-e2e-version-upgrade-early-catchup-two-nodes-late,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
