@@ -6,7 +6,7 @@ use std::{
 use aleph_primitives::AuthorityId;
 use futures::channel::{mpsc, oneshot};
 
-use crate::{network::PeerId, validator_network::Data};
+use crate::{network::PeerId, validator_network::{Data, manager::{AddResult, SendError}}};
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to, and managing the established connections.
@@ -16,24 +16,6 @@ pub struct Manager<A: Data, D: Data> {
     incoming: HashMap<AuthorityId, oneshot::Sender<()>>,
 }
 
-/// Error during sending data through the Manager
-#[derive(Debug, PartialEq, Eq)]
-pub enum SendError {
-    /// Outgoing network connection closed
-    ConnectionClosed,
-    /// Peer not added to the manager
-    PeerNotFound,
-}
-
-impl Display for SendError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        use SendError::*;
-        match self {
-            ConnectionClosed => write!(f, "worker dead"),
-            PeerNotFound => write!(f, "peer not found"),
-        }
-    }
-}
 
 struct ManagerStatus {
     wanted_peers: usize,
@@ -147,17 +129,6 @@ impl Display for ManagerStatus {
 
         Ok(())
     }
-}
-
-/// Possible results of adding connections.
-#[derive(Debug, PartialEq, Eq)]
-pub enum AddResult {
-    /// We do not want to maintain a connection with this peer.
-    Uninterested,
-    /// Connection added.
-    Added,
-    /// Old connection replaced with new one.
-    Replaced,
 }
 
 impl<A: Data, D: Data> Manager<A, D> {

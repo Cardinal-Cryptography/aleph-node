@@ -8,17 +8,13 @@ use tokio::{
     time::{timeout, Duration},
 };
 
-use crate::validator_network::protocols::Protocol;
+use crate::validator_network::protocols::{Protocol, Version};
 
-pub type ProtocolVersion = u32;
-
-const MIN_SUPPORTED_PROTOCOL: ProtocolVersion = 0;
-const MAX_SUPPORTED_PROTOCOL: ProtocolVersion = 0;
 const PROTOCOL_NEGOTIATION_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A range of supported protocols, will fail to decode if the range is empty.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProtocolsRange(ProtocolVersion, ProtocolVersion);
+pub struct ProtocolsRange(Version, Version);
 
 impl Display for ProtocolsRange {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
@@ -26,8 +22,8 @@ impl Display for ProtocolsRange {
     }
 }
 
-const fn supported_protocol_range() -> ProtocolsRange {
-    ProtocolsRange(MIN_SUPPORTED_PROTOCOL, MAX_SUPPORTED_PROTOCOL)
+fn supported_protocol_range() -> ProtocolsRange {
+    ProtocolsRange(Protocol::min_version(), Protocol::max_version())
 }
 
 /// What went wrong when negotiating a protocol.
@@ -36,7 +32,7 @@ pub enum ProtocolNegotiationError {
     ConnectionClosed,
     InvalidRange(ProtocolsRange),
     ProtocolMismatch(ProtocolsRange, ProtocolsRange),
-    BadChoice(ProtocolVersion),
+    BadChoice(Version),
     TimedOut,
 }
 
@@ -74,10 +70,10 @@ impl ProtocolsRange {
 
     fn decode(encoded: &[u8; 8]) -> Result<Self, ProtocolNegotiationError> {
         let result = ProtocolsRange(
-            ProtocolVersion::from_le_bytes(
+            Version::from_le_bytes(
                 encoded[0..4].try_into().expect("this is literally 4 bytes"),
             ),
-            ProtocolVersion::from_le_bytes(
+            Version::from_le_bytes(
                 encoded[4..8].try_into().expect("this is literally 4 bytes"),
             ),
         );
@@ -103,10 +99,7 @@ fn maximum_of_intersection(
     range1: ProtocolsRange,
     range2: ProtocolsRange,
 ) -> Result<Protocol, ProtocolNegotiationError> {
-    intersection(range1, range2).map(|intersection| match intersection.1 {
-        0 => Ok(Protocol::V0),
-        unknown_version => Err(ProtocolNegotiationError::BadChoice(unknown_version)),
-    })?
+    intersection(range1, range2).map(|intersection| intersection.1.try_into().map_err(ProtocolNegotiationError::BadChoice))?
 }
 
 async fn negotiate_protocol_version<S: AsyncReadExt + AsyncWriteExt + Unpin>(
@@ -151,7 +144,7 @@ mod tests {
 
     fn correct_negotiation<S>(result: Result<(S, Protocol), ProtocolNegotiationError>) {
         match result {
-            Ok((_stream, protocol)) => assert_eq!(Protocol::V0, protocol),
+            Ok((_stream, protocol)) => assert_eq!(Protocol::V1, protocol),
             Err(e) => panic!("Unexpected error: {:?}", e),
         }
     }

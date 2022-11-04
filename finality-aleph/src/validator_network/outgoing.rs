@@ -8,8 +8,7 @@ use tokio::time::{sleep, Duration};
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocol_negotiation::{protocol, ProtocolNegotiationError},
-        protocols::ProtocolError,
+        protocols::{protocol, ProtocolError, ProtocolNegotiationError},
         Data, Dialer,
     },
 };
@@ -49,6 +48,7 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
     mut dialer: ND,
     addresses: Vec<A>,
     result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), OutgoingError<A, ND>> {
     debug!(target: "validator-network", "Trying to connect to {}.", peer_id);
     let stream = dialer
@@ -59,7 +59,7 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
     let (stream, protocol) = protocol(stream).await?;
     debug!(target: "validator-network", "Negotiated protocol, running.");
     Ok(protocol
-        .manage_outgoing(stream, authority_pen, peer_id, result_for_parent)
+        .manage_outgoing(stream, authority_pen, peer_id, result_for_parent, data_for_user)
         .await?)
 }
 
@@ -74,6 +74,7 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
     dialer: ND,
     addresses: Vec<A>,
     result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_outgoing(
         authority_pen,
@@ -81,6 +82,7 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
         dialer,
         addresses,
         result_for_parent.clone(),
+        data_for_user,
     )
     .await
     {

@@ -1,8 +1,6 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
-
 use aleph_primitives::AuthorityId;
 use futures::{
-    channel::{mpsc, oneshot},
+    channel::mpsc,
     StreamExt,
 };
 use log::{debug, info, trace};
@@ -11,68 +9,18 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        handshake::{v0_handshake_incoming, v0_handshake_outgoing, HandshakeError},
-        heartbeat::{heartbeat_receiver, heartbeat_sender},
-        io::{receive_data, send_data, ReceiveError, SendError},
+        protocols::{
+            ProtocolError,
+            handshake::{v0_handshake_incoming, v0_handshake_outgoing},
+        },
+        io::{receive_data, send_data},
         Data, Splittable,
     },
 };
 
-/// Defines the protocol for communication.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Protocol {
-    /// The current version of the protocol.
-    V0,
-}
+mod heartbeat;
 
-/// Protocol error.
-#[derive(Debug)]
-pub enum ProtocolError {
-    /// Error during performing a handshake.
-    HandshakeError(HandshakeError),
-    /// Sending failed.
-    SendError(SendError),
-    /// Receiving failed.
-    ReceiveError(ReceiveError),
-    /// Heartbeat stopped.
-    CardiacArrest,
-    /// Channel to the parent service closed.
-    NoParentConnection,
-    /// Data channel closed.
-    NoUserConnection,
-}
-
-impl Display for ProtocolError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        use ProtocolError::*;
-        match self {
-            HandshakeError(e) => write!(f, "handshake error: {}", e),
-            SendError(e) => write!(f, "send error: {}", e),
-            ReceiveError(e) => write!(f, "receive error: {}", e),
-            CardiacArrest => write!(f, "heartbeat stopped"),
-            NoParentConnection => write!(f, "cannot send result to service"),
-            NoUserConnection => write!(f, "cannot send data to user"),
-        }
-    }
-}
-
-impl From<HandshakeError> for ProtocolError {
-    fn from(e: HandshakeError) -> Self {
-        ProtocolError::HandshakeError(e)
-    }
-}
-
-impl From<SendError> for ProtocolError {
-    fn from(e: SendError) -> Self {
-        ProtocolError::SendError(e)
-    }
-}
-
-impl From<ReceiveError> for ProtocolError {
-    fn from(e: ReceiveError) -> Self {
-        ProtocolError::ReceiveError(e)
-    }
-}
+use heartbeat::{heartbeat_receiver, heartbeat_sender};
 
 /// Receives data from the parent service and sends it over the network.
 /// Exits when the parent channel is closed, or if the network connection is broken.
@@ -91,7 +39,7 @@ async fn sending<D: Data, S: AsyncWrite + Unpin + Send>(
 
 /// Performs the handshake, and then keeps sending data received from the parent service.
 /// Exits on parent request, or in case of broken or dead network connection.
-async fn v0_outgoing<D: Data, S: Splittable>(
+pub async fn outgoing<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
     peer_id: AuthorityId,
@@ -100,7 +48,7 @@ async fn v0_outgoing<D: Data, S: Splittable>(
     trace!(target: "validator-network", "Extending hand to {}.", peer_id);
     let (sender, receiver) = v0_handshake_outgoing(stream, authority_pen, peer_id.clone()).await?;
     info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
-    let (data_for_network, data_from_user) = mpsc::unbounded::<D>();
+    let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
         .unbounded_send((peer_id.clone(), Some(data_for_network)))
         .map_err(|_| ProtocolError::NoParentConnection)?;
@@ -134,19 +82,19 @@ async fn receiving<D: Data, S: AsyncRead + Unpin + Send>(
 
 /// Performs the handshake, and then keeps sending data received from the network to the parent service.
 /// Exits on parent request, or in case of broken or dead network connection.
-async fn v0_incoming<D: Data, S: Splittable>(
+pub async fn incoming<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, oneshot::Sender<()>)>,
+    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Waiting for extended hand...");
     let (sender, receiver, peer_id) = v0_handshake_incoming(stream, authority_pen).await?;
     info!(target: "validator-network", "Incoming handshake with {} finished successfully.", peer_id);
 
-    let (tx_exit, exit) = oneshot::channel();
+    let (tx_exit, mut exit) = mpsc::unbounded();
     result_for_parent
-        .unbounded_send((peer_id.clone(), tx_exit))
+        .unbounded_send((peer_id.clone(), Some(tx_exit)))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let receiving = receiving(receiver, data_for_user);
@@ -157,37 +105,7 @@ async fn v0_incoming<D: Data, S: Splittable>(
         tokio::select! {
             _ = heartbeat => return Err(ProtocolError::CardiacArrest),
             result = receiving => return result,
-            _ = exit => return Ok(()),
-        }
-    }
-}
-
-impl Protocol {
-    /// Launches the proper variant of the protocol (receiver half).
-    pub async fn manage_incoming<D: Data, S: Splittable>(
-        &self,
-        stream: S,
-        authority_pen: AuthorityPen,
-        result_for_service: mpsc::UnboundedSender<(AuthorityId, oneshot::Sender<()>)>,
-        data_for_user: mpsc::UnboundedSender<D>,
-    ) -> Result<(), ProtocolError> {
-        use Protocol::*;
-        match self {
-            V0 => v0_incoming(stream, authority_pen, result_for_service, data_for_user).await,
-        }
-    }
-
-    /// Launches the proper variant of the protocol (sender half).
-    pub async fn manage_outgoing<D: Data, S: Splittable>(
-        &self,
-        stream: S,
-        authority_pen: AuthorityPen,
-        peer_id: AuthorityId,
-        result_for_service: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
-    ) -> Result<(), ProtocolError> {
-        use Protocol::*;
-        match self {
-            V0 => v0_outgoing(stream, authority_pen, peer_id, result_for_service).await,
+            _ = exit.next() => return Ok(()),
         }
     }
 }
@@ -196,11 +114,11 @@ impl Protocol {
 mod tests {
     use aleph_primitives::AuthorityId;
     use futures::{
-        channel::{mpsc, mpsc::UnboundedReceiver, oneshot},
+        channel::{mpsc, mpsc::UnboundedReceiver},
         pin_mut, FutureExt, StreamExt,
     };
 
-    use super::{Protocol, ProtocolError};
+    use super::{ProtocolError, incoming, outgoing};
     use crate::{
         crypto::AuthorityPen,
         validator_network::{
@@ -217,24 +135,23 @@ mod tests {
         impl futures::Future<Output = Result<(), ProtocolError>>,
         impl futures::Future<Output = Result<(), ProtocolError>>,
         UnboundedReceiver<D>,
-        UnboundedReceiver<(AuthorityId, oneshot::Sender<()>)>,
+        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
         UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
     ) {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key().await;
         let (id_outgoing, pen_outgoing) = key().await;
         assert_ne!(id_incoming, id_outgoing);
-        let (incoming_result_for_service, result_from_incoming) =
-            mpsc::unbounded::<(AuthorityId, oneshot::Sender<()>)>();
+        let (incoming_result_for_service, result_from_incoming) = mpsc::unbounded();
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
-        let incoming_handle = Protocol::V0.manage_incoming(
+        let incoming_handle = incoming(
             stream_incoming,
             pen_incoming.clone(),
             incoming_result_for_service,
             data_for_user,
         );
-        let outgoing_handle = Protocol::V0.manage_outgoing(
+        let outgoing_handle = outgoing(
             stream_outgoing,
             pen_outgoing.clone(),
             id_incoming.clone(),
