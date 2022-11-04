@@ -184,12 +184,6 @@ pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
 
         let members =
             get_members_for_session(reserved_validators, non_reserved_validators, seats, session);
-        let members_previous_session = get_members_for_session(
-            reserved_validators,
-            non_reserved_validators,
-            seats,
-            session - 1,
-        );
 
         validators.iter().for_each(|&val| {
             info!(
@@ -208,9 +202,8 @@ pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
             );
 
             let underperformed_diff =
-                session_underperformed_count - previous_session_underperformed_count;
-            info!("Underperformed diff: {}", underperformed_diff);
-            
+                session_underperformed_count.abs_diff(previous_session_underperformed_count);
+
             if members.contains(&val) {
                 // Counter for committee members legally incremented by 1 or reset to 0 (decremented
                 // by ban_session_threshold - 1).
