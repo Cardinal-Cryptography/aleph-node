@@ -17,6 +17,9 @@ use Error::*;
 
 use crate::{MaximumVerificationKeyLength, Runtime};
 
+#[cfg(test)]
+mod tests;
+
 pub const SNARCOS_STORE_KEY_FUNC_ID: u32 = 41;
 pub const SNARCOS_VERIFY_FUNC_ID: u32 = 42;
 
@@ -218,118 +221,5 @@ impl SnarcosChainExtension {
             _ => SNARCOS_VERIFY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::mpsc::Receiver;
-
-    use environments::{InputCorruptedEnvironment, StoreKeyMode, VerifyMode};
-
-    use super::*;
-
-    type RevertibleWeight = i64;
-
-    fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeight {
-        charging_listener.into_iter().sum()
-    }
-
-    mod environments {
-        use std::{
-            marker::PhantomData,
-            ops::Neg,
-            sync::mpsc::{channel, Sender},
-        };
-
-        use super::*;
-
-        pub trait Mode {}
-        pub enum StoreKeyMode {}
-        pub enum VerifyMode {}
-        impl Mode for StoreKeyMode {}
-        impl Mode for VerifyMode {}
-
-        /// May signal that there is something to read, but no read can succeed.
-        pub struct InputCorruptedEnvironment<M: Mode> {
-            in_len: ByteCount,
-            charging_channel: Sender<RevertibleWeight>,
-            _phantom: PhantomData<M>,
-        }
-
-        impl<M: Mode> InputCorruptedEnvironment<M> {
-            pub fn new(in_len: ByteCount) -> (Self, Receiver<RevertibleWeight>) {
-                let (sender, receiver) = channel();
-                (
-                    Self {
-                        in_len,
-                        charging_channel: sender,
-                        _phantom: Default::default(),
-                    },
-                    receiver,
-                )
-            }
-        }
-
-        impl InputCorruptedEnvironment<StoreKeyMode> {
-            pub fn key_len(&self) -> ByteCount {
-                self.in_len - (size_of::<VerificationKeyIdentifier>() as ByteCount)
-            }
-        }
-
-        impl<M: Mode> Environment for InputCorruptedEnvironment<M> {
-            type ChargedAmount = Weight;
-
-            fn in_len(&self) -> ByteCount {
-                self.in_len
-            }
-
-            fn read(&self, _max_len: u32) -> Result<Vec<u8>, DispatchError> {
-                Err(DispatchError::Other("Some error"))
-            }
-
-            fn charge_weight(&mut self, amount: Weight) -> Result<Weight, DispatchError> {
-                self.charging_channel
-                    .send(amount as RevertibleWeight)
-                    .unwrap();
-                Ok(amount)
-            }
-
-            fn adjust_weight(&mut self, charged: Weight, actual_weight: Weight) {
-                self.charging_channel
-                    .send(((charged - actual_weight) as RevertibleWeight).neg())
-                    .unwrap();
-            }
-        }
-    }
-
-    #[test]
-    fn extension_is_enabled() {
-        assert!(SnarcosChainExtension::enabled())
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn store_key__charges_before_reading() {
-        let (env, charging_listener) = InputCorruptedEnvironment::<StoreKeyMode>::new(41);
-        let key_length = env.key_len();
-        let result = SnarcosChainExtension::snarcos_store_key(env);
-        assert!(matches!(result, Err(_)));
-        assert_eq!(
-            charged(charging_listener),
-            weight_of_store_key(key_length) as RevertibleWeight
-        );
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn verify__charges_before_reading() {
-        let (env, charging_listener) = InputCorruptedEnvironment::<VerifyMode>::new(41);
-        let result = SnarcosChainExtension::snarcos_verify(env);
-        assert!(matches!(result, Err(_)));
-        assert_eq!(
-            charged(charging_listener),
-            weight_of_verify(None) as RevertibleWeight
-        );
     }
 }
