@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 #![allow(incomplete_features)]
 #![cfg_attr(test, feature(adt_const_params))]
+#![cfg_attr(test, feature(generic_const_exprs))]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]

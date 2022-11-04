@@ -1,10 +1,10 @@
 use std::sync::mpsc::Receiver;
 
 use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
-use executor::MockedExecutor;
 use pallet_snarcos::ProvingSystem::Groth16;
 
 use super::*;
+use crate::chain_extension::tests::executor::{Panicker, StoreKeyOkayer};
 
 mod environment;
 mod executor;
@@ -47,8 +47,7 @@ fn store_key__charges_before_reading() {
     let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(41, None);
     let key_length = env.approx_key_len();
 
-    let result =
-        SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor<{ Ok(()) }, { Ok(()) }>>(env);
+    let result = SnarcosChainExtension::snarcos_store_key::<_, Panicker>(env);
 
     assert!(matches!(result, Err(_)));
     assert_eq!(
@@ -65,8 +64,7 @@ fn store_key__too_long_vk() {
         Some(Box::new(|| panic!("Shouldn't read anything at all"))),
     );
 
-    let result =
-        SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor<{ Ok(()) }, { Ok(()) }>>(env);
+    let result = SnarcosChainExtension::snarcos_store_key::<_, Panicker>(env);
 
     assert!(matches!(
         result,
@@ -81,8 +79,7 @@ fn store_key__positive_scenario() {
     let (env, charging_listener) =
         MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args().encode());
 
-    let result =
-        SnarcosChainExtension::snarcos_store_key::<_, MockedExecutor<{ Ok(()) }, { Ok(()) }>>(env);
+    let result = SnarcosChainExtension::snarcos_store_key::<_, StoreKeyOkayer>(env);
 
     assert!(matches!(
         result,
@@ -100,8 +97,7 @@ fn store_key__positive_scenario() {
 fn verify__charges_before_reading() {
     let (env, charging_listener) = MockedEnvironment::<VerifyMode, CorruptedMode>::new(41, None);
 
-    let result =
-        SnarcosChainExtension::snarcos_verify::<_, MockedExecutor<{ Ok(()) }, { Ok(()) }>>(env);
+    let result = SnarcosChainExtension::snarcos_verify::<_, Panicker>(env);
 
     assert!(matches!(result, Err(_)));
     assert_eq!(
