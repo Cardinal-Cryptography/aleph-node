@@ -18,15 +18,20 @@ impl Mode for VerifyMode {}
 pub struct InputCorruptedEnvironment<M: Mode> {
     in_len: ByteCount,
     charging_channel: Sender<RevertibleWeight>,
+    on_read: Option<Box<dyn Fn()>>,
     _phantom: PhantomData<M>,
 }
 
 impl<M: Mode> InputCorruptedEnvironment<M> {
-    pub fn new(in_len: ByteCount) -> (Self, Receiver<RevertibleWeight>) {
+    pub fn new(
+        in_len: ByteCount,
+        on_read: Option<Box<dyn Fn()>>,
+    ) -> (Self, Receiver<RevertibleWeight>) {
         let (sender, receiver) = channel();
         (
             Self {
                 in_len,
+                on_read,
                 charging_channel: sender,
                 _phantom: Default::default(),
             },
@@ -49,6 +54,7 @@ impl<M: Mode> Environment for InputCorruptedEnvironment<M> {
     }
 
     fn read(&self, _max_len: u32) -> Result<Vec<u8>, DispatchError> {
+        self.on_read.as_ref().map(|action| action());
         Err(DispatchError::Other("Some error"))
     }
 
