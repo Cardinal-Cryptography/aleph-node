@@ -1,4 +1,4 @@
-use codec::Decode;
+use codec::{Decode, Encode};
 use frame_support::{log::error, weights::Weight};
 use pallet_contracts::{
     chain_extension::{
@@ -106,7 +106,7 @@ where
 /// the order of values is important.
 ///
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
-#[derive(Decode)]
+#[derive(Decode, Encode)]
 struct StoreKeyArgs {
     pub identifier: VerificationKeyIdentifier,
     pub key: Vec<u8>,
