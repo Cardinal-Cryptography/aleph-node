@@ -70,12 +70,8 @@ impl ProtocolsRange {
 
     fn decode(encoded: &[u8; 8]) -> Result<Self, ProtocolNegotiationError> {
         let result = ProtocolsRange(
-            Version::from_le_bytes(
-                encoded[0..4].try_into().expect("this is literally 4 bytes"),
-            ),
-            Version::from_le_bytes(
-                encoded[4..8].try_into().expect("this is literally 4 bytes"),
-            ),
+            Version::from_le_bytes(encoded[0..4].try_into().expect("this is literally 4 bytes")),
+            Version::from_le_bytes(encoded[4..8].try_into().expect("this is literally 4 bytes")),
         );
         match result.valid() {
             true => Ok(result),
@@ -99,7 +95,12 @@ fn maximum_of_intersection(
     range1: ProtocolsRange,
     range2: ProtocolsRange,
 ) -> Result<Protocol, ProtocolNegotiationError> {
-    intersection(range1, range2).map(|intersection| intersection.1.try_into().map_err(ProtocolNegotiationError::BadChoice))?
+    intersection(range1, range2).map(|intersection| {
+        intersection
+            .1
+            .try_into()
+            .map_err(ProtocolNegotiationError::BadChoice)
+    })?
 }
 
 async fn negotiate_protocol_version<S: AsyncReadExt + AsyncWriteExt + Unpin>(

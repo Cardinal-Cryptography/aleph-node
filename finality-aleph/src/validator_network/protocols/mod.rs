@@ -11,14 +11,12 @@ use crate::{
     },
 };
 
-
 mod handshake;
 mod negotiation;
 mod v0;
 mod v1;
 
 use handshake::HandshakeError;
-
 pub use negotiation::{protocol, ProtocolNegotiationError};
 
 pub type Version = u32;
@@ -36,7 +34,11 @@ pub enum ConnectionType {
 /// of the remote node, followed by a channel for sending data to that node, with None if the
 /// connection was unsuccessful and should be reestablished. Finally a marker for legacy
 /// compatibility.
-pub type ResultForService<D> = mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>;
+pub type ResultForService<D> = mpsc::UnboundedSender<(
+    AuthorityId,
+    Option<mpsc::UnboundedSender<D>>,
+    ConnectionType,
+)>;
 
 /// Defines the protocol for communication.
 #[derive(Debug, PartialEq, Eq)]
@@ -131,7 +133,16 @@ impl Protocol {
         use Protocol::*;
         match self {
             V0 => v0::outgoing(stream, authority_pen, peer_id, result_for_service).await,
-            V1 => v1::outgoing(stream, authority_pen, peer_id, result_for_service, data_for_user).await,
+            V1 => {
+                v1::outgoing(
+                    stream,
+                    authority_pen,
+                    peer_id,
+                    result_for_service,
+                    data_for_user,
+                )
+                .await
+            }
         }
     }
 }

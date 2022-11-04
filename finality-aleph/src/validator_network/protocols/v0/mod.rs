@@ -1,19 +1,16 @@
 use aleph_primitives::AuthorityId;
-use futures::{
-    channel::mpsc,
-    StreamExt,
-};
+use futures::{channel::mpsc, StreamExt};
 use log::{debug, info, trace};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocols::{
-            ProtocolError, ResultForService, ConnectionType,
-            handshake::{v0_handshake_incoming, v0_handshake_outgoing},
-        },
         io::{receive_data, send_data},
+        protocols::{
+            handshake::{v0_handshake_incoming, v0_handshake_outgoing},
+            ConnectionType, ProtocolError, ResultForService,
+        },
         Data, Splittable,
     },
 };
@@ -50,7 +47,11 @@ pub async fn outgoing<D: Data, S: Splittable>(
     info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
     let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
-        .unbounded_send((peer_id.clone(), Some(data_for_network), ConnectionType::LegacyOutgoing))
+        .unbounded_send((
+            peer_id.clone(),
+            Some(data_for_network),
+            ConnectionType::LegacyOutgoing,
+        ))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let sending = sending(sender, data_from_user);
@@ -94,7 +95,11 @@ pub async fn incoming<D: Data, S: Splittable>(
 
     let (tx_exit, mut exit) = mpsc::unbounded();
     result_for_parent
-        .unbounded_send((peer_id.clone(), Some(tx_exit), ConnectionType::LegacyIncoming))
+        .unbounded_send((
+            peer_id.clone(),
+            Some(tx_exit),
+            ConnectionType::LegacyIncoming,
+        ))
         .map_err(|_| ProtocolError::NoParentConnection)?;
 
     let receiving = receiving(receiver, data_for_user);
@@ -118,12 +123,12 @@ mod tests {
         pin_mut, FutureExt, StreamExt,
     };
 
-    use super::{ProtocolError, incoming, outgoing};
+    use super::{incoming, outgoing, ProtocolError};
     use crate::{
         crypto::AuthorityPen,
         validator_network::{
-            protocols::ConnectionType,
             mock::{key, MockSplittable},
+            protocols::ConnectionType,
             Data,
         },
     };
@@ -136,8 +141,16 @@ mod tests {
         impl futures::Future<Output = Result<(), ProtocolError>>,
         impl futures::Future<Output = Result<(), ProtocolError>>,
         UnboundedReceiver<D>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
+        UnboundedReceiver<(
+            AuthorityId,
+            Option<mpsc::UnboundedSender<D>>,
+            ConnectionType,
+        )>,
+        UnboundedReceiver<(
+            AuthorityId,
+            Option<mpsc::UnboundedSender<D>>,
+            ConnectionType,
+        )>,
     ) {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key().await;

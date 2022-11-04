@@ -13,16 +13,21 @@ pub struct DirectedPeers<A: Data> {
 fn bit_xor_sum_parity((a, b): (u8, u8)) -> u8 {
     let mut result = 0;
     for i in 0..8 {
-        result += ((a >>i)^(b>>i)) % 2;
+        result += ((a >> i) ^ (b >> i)) % 2;
     }
-    result%2
+    result % 2
 }
 
 // Whether we shold call the remote or the other way around. We xor the peer ids and based on the
 // parity of the sum of bits of the result decide whether the caller should be the smaller or
 // greated lexicographically. They are never equal, because cryptography.
 fn should_call(own_id: &[u8], remote_id: &[u8]) -> bool {
-    let xor_sum_parity: u8 = own_id.iter().cloned().zip(remote_id.iter().cloned()).map(bit_xor_sum_parity).fold(0u8, |a, b| (a + b) % 2);
+    let xor_sum_parity: u8 = own_id
+        .iter()
+        .cloned()
+        .zip(remote_id.iter().cloned())
+        .map(bit_xor_sum_parity)
+        .fold(0u8, |a, b| (a + b) % 2);
     match xor_sum_parity == 0 {
         true => own_id < remote_id,
         false => own_id > remote_id,
@@ -52,7 +57,7 @@ impl<A: Data> DirectedPeers<A> {
                 // so we don't need them.
                 self.incoming.insert(peer_id);
                 false
-            },
+            }
         }
     }
 
@@ -108,7 +113,10 @@ mod tests {
             String::from("a/b/c"),
             String::from("43.43.43.43:43000"),
         ];
-        assert!(own_container.add_peer(remote_id, addresses.clone()) != remote_container.add_peer(own_id, addresses.clone()));
+        assert!(
+            own_container.add_peer(remote_id, addresses.clone())
+                != remote_container.add_peer(own_id, addresses.clone())
+        );
     }
 
     async fn container_with_added_connecting_peer() -> (DirectedPeers<Address>, AuthorityId) {
@@ -124,7 +132,7 @@ mod tests {
             false => {
                 remote_container.add_peer(own_id.clone(), addresses);
                 (remote_container, own_id)
-            },
+            }
         }
     }
 
@@ -141,7 +149,7 @@ mod tests {
             true => {
                 remote_container.add_peer(own_id.clone(), addresses);
                 (remote_container, own_id)
-            },
+            }
         }
     }
 
@@ -190,14 +198,20 @@ mod tests {
     #[tokio::test]
     async fn connecting_are_outgoing() {
         let (own_container, remote_id) = container_with_added_connecting_peer().await;
-        assert_eq!(own_container.outgoing_peers().collect::<Vec<_>>(), vec![&remote_id]);
+        assert_eq!(
+            own_container.outgoing_peers().collect::<Vec<_>>(),
+            vec![&remote_id]
+        );
         assert_eq!(own_container.incoming_peers().next(), None);
     }
 
     #[tokio::test]
     async fn nonconnecting_are_incoming() {
         let (own_container, remote_id) = container_with_added_nonconnecting_peer().await;
-        assert_eq!(own_container.incoming_peers().collect::<Vec<_>>(), vec![&remote_id]);
+        assert_eq!(
+            own_container.incoming_peers().collect::<Vec<_>>(),
+            vec![&remote_id]
+        );
         assert_eq!(own_container.outgoing_peers().next(), None);
     }
 

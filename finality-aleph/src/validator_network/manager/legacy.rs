@@ -6,7 +6,13 @@ use std::{
 use aleph_primitives::AuthorityId;
 use futures::channel::mpsc;
 
-use crate::{network::PeerId, validator_network::{Data, manager::{AddResult, SendError}}};
+use crate::{
+    network::PeerId,
+    validator_network::{
+        manager::{AddResult, SendError},
+        Data,
+    },
+};
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to, and managing the established connections.
@@ -172,7 +178,11 @@ impl<A: Data, D: Data> Manager<A, D> {
 
     /// Add an established incoming connection with a known peer,
     /// but only if the peer is on the list of peers that we want to stay connected with.
-    pub fn add_incoming(&mut self, peer_id: AuthorityId, exit: mpsc::UnboundedSender<D>) -> AddResult {
+    pub fn add_incoming(
+        &mut self,
+        peer_id: AuthorityId,
+        exit: mpsc::UnboundedSender<D>,
+    ) -> AddResult {
         use AddResult::*;
         if !self.addresses.contains_key(&peer_id) {
             return Uninterested;
@@ -210,10 +220,7 @@ impl<A: Data, D: Data> Manager<A, D> {
 
 #[cfg(test)]
 mod tests {
-    use futures::{
-        channel::mpsc,
-        StreamExt,
-    };
+    use futures::{channel::mpsc, StreamExt};
 
     use super::{AddResult::*, Manager, SendError};
     use crate::validator_network::mock::key;

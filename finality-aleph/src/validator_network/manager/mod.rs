@@ -11,8 +11,8 @@ use crate::{network::PeerId, validator_network::Data};
 mod direction;
 mod legacy;
 
-pub use legacy::Manager as LegacyManager;
 use direction::DirectedPeers;
+pub use legacy::Manager as LegacyManager;
 
 /// Network component responsible for holding the list of peers that we
 /// want to connect to or let them connect to us, and managing the established
@@ -85,8 +85,7 @@ impl ManagerStatus {
 }
 
 fn pretty_authority_id_set(set: &HashSet<AuthorityId>) -> String {
-    set
-        .iter()
+    set.iter()
         .map(|authority_id| authority_id.to_short_string())
         .collect::<Vec<_>>()
         .join(", ")
@@ -121,7 +120,7 @@ impl Display for ManagerStatus {
                         pretty_authority_id_set(&self.missing_incoming),
                     )?;
                 }
-            },
+            }
         }
 
         match wanted_outgoing {
@@ -144,7 +143,7 @@ impl Display for ManagerStatus {
                         pretty_authority_id_set(&self.missing_outgoing),
                     )?;
                 }
-            },
+            }
         }
 
         Ok(())
@@ -172,7 +171,10 @@ impl<A: Data, D: Data> Manager<A, D> {
     }
 
     fn active_connection(&self, peer_id: &AuthorityId) -> bool {
-        self.have.get(peer_id).map(|sender| !sender.is_closed()).unwrap_or(false)
+        self.have
+            .get(peer_id)
+            .map(|sender| !sender.is_closed())
+            .unwrap_or(false)
     }
 
     /// Add a peer to the list of peers we want to stay connected to, or
@@ -229,10 +231,7 @@ impl<A: Data, D: Data> Manager<A, D> {
 
 #[cfg(test)]
 mod tests {
-    use futures::{
-        channel::mpsc,
-        StreamExt,
-    };
+    use futures::{channel::mpsc, StreamExt};
 
     use super::{AddResult::*, Manager, SendError};
     use crate::validator_network::mock::key;
@@ -286,7 +285,10 @@ mod tests {
         ];
         let (tx, _rx) = mpsc::unbounded();
         // try add unknown peer
-        assert_eq!(connecting_manager.add_connection(listening_id.clone(), tx), Uninterested);
+        assert_eq!(
+            connecting_manager.add_connection(listening_id.clone(), tx),
+            Uninterested
+        );
         // sending should fail
         assert_eq!(
             connecting_manager.send_to(&listening_id, data.clone()),
@@ -308,15 +310,25 @@ mod tests {
         }
         // add outgoing to connecting
         let (tx, mut rx) = mpsc::unbounded();
-        assert_eq!(connecting_manager.add_connection(listening_id.clone(), tx), Added);
+        assert_eq!(
+            connecting_manager.add_connection(listening_id.clone(), tx),
+            Added
+        );
         // send and receive connecting
-        assert!(connecting_manager.send_to(&listening_id, data.clone()).is_ok());
+        assert!(connecting_manager
+            .send_to(&listening_id, data.clone())
+            .is_ok());
         assert_eq!(data, rx.next().await.expect("should receive"));
         // add incoming to listening
         let (tx, mut rx) = mpsc::unbounded();
-        assert_eq!(listening_manager.add_connection(connecting_id.clone(), tx), Added);
+        assert_eq!(
+            listening_manager.add_connection(connecting_id.clone(), tx),
+            Added
+        );
         // send and receive listening
-        assert!(listening_manager.send_to(&connecting_id, data.clone()).is_ok());
+        assert!(listening_manager
+            .send_to(&connecting_id, data.clone())
+            .is_ok());
         assert_eq!(data, rx.next().await.expect("should receive"));
         // remove peer
         listening_manager.remove_peer(&connecting_id);

@@ -11,10 +11,10 @@ use tokio::time;
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocols::{ResultForService, ConnectionType},
         incoming::incoming,
         manager::{AddResult, LegacyManager, Manager},
         outgoing::outgoing,
+        protocols::{ConnectionType, ResultForService},
         Data, Dialer, Listener, Network,
     },
     SpawnTaskHandle, STATUS_REPORT_INTERVAL,
@@ -129,15 +129,19 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_outgoing", None, async move {
-                outgoing(authority_pen, peer_id, dialer, addresses, result_for_parent, next_to_interface).await;
+                outgoing(
+                    authority_pen,
+                    peer_id,
+                    dialer,
+                    addresses,
+                    result_for_parent,
+                    next_to_interface,
+                )
+                .await;
             });
     }
 
-    fn spawn_new_incoming(
-        &self,
-        stream: NL::Connection,
-        result_for_parent: ResultForService<D>,
-    ) {
+    fn spawn_new_incoming(&self, stream: NL::Connection, result_for_parent: ResultForService<D>) {
         let authority_pen = self.authority_pen.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
@@ -153,7 +157,12 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         }
     }
 
-    fn add_connection(&mut self, peer_id: AuthorityId, data_for_network: mpsc::UnboundedSender<D>, connection_type: ConnectionType) -> AddResult {
+    fn add_connection(
+        &mut self,
+        peer_id: AuthorityId,
+        data_for_network: mpsc::UnboundedSender<D>,
+        connection_type: ConnectionType,
+    ) -> AddResult {
         use ConnectionType::*;
         match connection_type {
             New => self.manager.add_connection(peer_id, data_for_network),

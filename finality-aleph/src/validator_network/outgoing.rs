@@ -8,7 +8,9 @@ use tokio::time::{sleep, Duration};
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocols::{protocol, ConnectionType, ProtocolError, ProtocolNegotiationError, ResultForService},
+        protocols::{
+            protocol, ConnectionType, ProtocolError, ProtocolNegotiationError, ResultForService,
+        },
         Data, Dialer,
     },
 };
@@ -59,7 +61,13 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
     let (stream, protocol) = protocol(stream).await?;
     debug!(target: "validator-network", "Negotiated protocol, running.");
     Ok(protocol
-        .manage_outgoing(stream, authority_pen, peer_id, result_for_parent, data_for_user)
+        .manage_outgoing(
+            stream,
+            authority_pen,
+            peer_id,
+            result_for_parent,
+            data_for_user,
+        )
         .await?)
 }
 
@@ -90,7 +98,10 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
         sleep(RETRY_DELAY).await;
         // we send the "new" connection type, because we always assume it's new until proven
         // otherwise, and here we did not even get the chance to attempt negotiating a protocol
-        if result_for_parent.unbounded_send((peer_id, None, ConnectionType::New)).is_err() {
+        if result_for_parent
+            .unbounded_send((peer_id, None, ConnectionType::New))
+            .is_err()
+        {
             debug!(target: "validator-network", "Could not send the closing message, we've probably been terminated by the parent service.");
         }
     }

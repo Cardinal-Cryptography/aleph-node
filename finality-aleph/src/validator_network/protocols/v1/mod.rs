@@ -1,9 +1,6 @@
 use aleph_primitives::AuthorityId;
 use codec::{Decode, Encode};
-use futures::{
-    channel::mpsc,
-    StreamExt,
-};
+use futures::{channel::mpsc, StreamExt};
 use log::{debug, info, trace};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -13,11 +10,11 @@ use tokio::{
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
-        protocols::{
-            ProtocolError, ConnectionType, ResultForService,
-            handshake::{v0_handshake_incoming, v0_handshake_outgoing},
-        },
         io::{receive_data, send_data},
+        protocols::{
+            handshake::{v0_handshake_incoming, v0_handshake_outgoing},
+            ConnectionType, ProtocolError, ResultForService,
+        },
         Data, Splittable,
     },
 };
@@ -37,10 +34,7 @@ async fn sending<D: Data, S: AsyncWrite + Unpin + Send>(
 ) -> Result<(), ProtocolError> {
     use Message::*;
     loop {
-        let to_send = match timeout(
-            HEARTBEAT_TIMEOUT,
-            data_from_user.next(),
-        ).await {
+        let to_send = match timeout(HEARTBEAT_TIMEOUT, data_from_user.next()).await {
             Ok(maybe_data) => match maybe_data {
                 Some(data) => Data(data),
                 // We have been closed by the parent service, all good.
@@ -61,7 +55,9 @@ async fn receiving<D: Data, S: AsyncRead + Unpin + Send>(
         let (old_stream, message) = timeout(
             MAX_MISSED_HEARTBEATS * HEARTBEAT_TIMEOUT,
             receive_data(stream),
-        ).await.map_err(|_| ProtocolError::CardiacArrest)??;
+        )
+        .await
+        .map_err(|_| ProtocolError::CardiacArrest)??;
         stream = old_stream;
         match message {
             Data(data) => data_for_user
@@ -133,12 +129,12 @@ mod tests {
         pin_mut, FutureExt, StreamExt,
     };
 
-    use super::{ProtocolError, incoming, outgoing};
+    use super::{incoming, outgoing, ProtocolError};
     use crate::{
         crypto::AuthorityPen,
         validator_network::{
-            protocols::ConnectionType,
             mock::{key, MockSplittable},
+            protocols::ConnectionType,
             Data,
         },
     };
@@ -152,8 +148,16 @@ mod tests {
         impl futures::Future<Output = Result<(), ProtocolError>>,
         UnboundedReceiver<D>,
         UnboundedReceiver<D>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
-        UnboundedReceiver<(AuthorityId, Option<mpsc::UnboundedSender<D>>, ConnectionType)>,
+        UnboundedReceiver<(
+            AuthorityId,
+            Option<mpsc::UnboundedSender<D>>,
+            ConnectionType,
+        )>,
+        UnboundedReceiver<(
+            AuthorityId,
+            Option<mpsc::UnboundedSender<D>>,
+            ConnectionType,
+        )>,
     ) {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key().await;
