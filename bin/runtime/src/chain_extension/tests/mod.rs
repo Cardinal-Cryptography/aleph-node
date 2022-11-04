@@ -1,11 +1,10 @@
 use std::sync::mpsc::Receiver;
 
-use environments::{InputCorruptedEnvironment, StoreKeyMode, VerifyMode};
+use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
 
 use super::*;
-use crate::chain_extension::tests::environments::MockedEnvironment;
 
-mod environments;
+mod environment;
 
 type RevertibleWeight = i64;
 
@@ -23,7 +22,7 @@ fn extension_is_enabled() {
 #[test]
 #[allow(non_snake_case)]
 fn store_key__charges_before_reading() {
-    let (env, charging_listener) = InputCorruptedEnvironment::<StoreKeyMode>::new(41, None);
+    let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(41, None);
     let key_length = env.key_len();
 
     let result = SnarcosChainExtension::snarcos_store_key(env);
@@ -38,7 +37,7 @@ fn store_key__charges_before_reading() {
 #[test]
 #[allow(non_snake_case)]
 fn store_key__too_long_vk() {
-    let (env, charging_listener) = InputCorruptedEnvironment::<StoreKeyMode>::new(
+    let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(
         ByteCount::MAX,
         Some(Box::new(|| panic!("Shouldn't read anything at all"))),
     );
@@ -77,7 +76,7 @@ fn store_key__too_long_vk() {
 #[test]
 #[allow(non_snake_case)]
 fn verify__charges_before_reading() {
-    let (env, charging_listener) = InputCorruptedEnvironment::<VerifyMode>::new(41, None);
+    let (env, charging_listener) = MockedEnvironment::<VerifyMode, CorruptedMode>::new(41, None);
 
     let result = SnarcosChainExtension::snarcos_verify(env);
 
