@@ -204,7 +204,7 @@ pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
             let underperformed_diff =
                 session_underperformed_count.abs_diff(previous_session_underperformed_count);
 
-            if members.contains(&val) {
+            if members.contains(val) {
                 // Counter for committee members legally incremented by 1 or reset to 0 (decremented
                 // by ban_session_threshold - 1).
                 if underperformed_diff != 1 && underperformed_diff != (ban_session_threshold - 1) {
