@@ -97,17 +97,20 @@ version = "0.4.0"
 dependencies = [
  "aleph_client",
  "anyhow",
+ "assert2",
  "clap",
  "env_logger 0.8.4",
  "frame-support",
  "frame-system",
  "hex",
+ "itertools",
  "log",
  "pallet-balances",
  "pallet-elections",
  "pallet-staking",
  "parity-scale-codec",
  "primitives",
+ "rand 0.8.5",
  "rayon",
  "serde_json",
  "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.26)",
@@ -116,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "1.9.0"
+version = "1.10.0"
 dependencies = [
  "ac-node-api",
  "ac-primitives",
@@ -203,6 +206,29 @@ name = "arrayvec"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
+
+[[package]]
+name = "assert2"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce1b167af16149cd41ff2b784bf511bb4208b21c3b05f3f61e30823ce3986361"
+dependencies = [
+ "assert2-macros",
+ "atty",
+ "yansi",
+]
+
+[[package]]
+name = "assert2-macros"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6ac27dd1c8f16b282d1c22a8a5ae17119acc757101dec79054458fef62c447e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn",
+]
 
 [[package]]
 name = "async-trait"
@@ -2669,6 +2695,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 
 [[package]]
+name = "rustc_version"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+dependencies = [
+ "semver",
+]
+
+[[package]]
 name = "rustversion"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4333,6 +4368,12 @@ checksum = "30b31594f29d27036c383b53b59ed3476874d518f0efb151b27a4c275141390e"
 dependencies = [
  "tap",
 ]
+
+[[package]]
+name = "yansi"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zeroize"

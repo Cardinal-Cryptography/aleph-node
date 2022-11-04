@@ -16,7 +16,7 @@ pub struct ContractOptions {
     #[clap(long, default_value = "0")]
     pub balance: u128,
     /// The gas limit enforced when executing the constructor
-    #[clap(long, default_value = "1_000_000_000")]
+    #[clap(long, default_value = "1000000000")]
     pub gas_limit: u64,
     /// The maximum amount of balance that can be charged/reserved from the caller to pay for the storage consumed
     #[clap(long)]

@@ -5,10 +5,9 @@
 //!
 //! ```no_run
 //! # use anyhow::{Result, Context};
-//! # use sp_core::crypto::AccountId32;
+//! # use aleph_client::AccountId;
 //! # use aleph_client::{Connection, SignedConnection};
 //! # use aleph_client::contract::ContractInstance;
-//! # use aleph_client::contract::util::to_u128;
 //! #
 //! #[derive(Debug)]
 //! struct PSP22TokenInstance {
@@ -16,7 +15,7 @@
 //! }
 //!
 //! impl PSP22TokenInstance {
-//!     fn new(address: AccountId32, metadata_path: &Option<String>) -> Result<Self> {
+//!     fn new(address: AccountId, metadata_path: &Option<String>) -> Result<Self> {
 //!         let metadata_path = metadata_path
 //!             .as_ref()
 //!             .context("PSP22Token metadata not set.")?;
@@ -25,7 +24,7 @@
 //!         })
 //!     }
 //!
-//!     fn transfer(&self, conn: &SignedConnection, to: AccountId32, amount: u128) -> Result<()> {
+//!     fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: u128) -> Result<()> {
 //!         self.contract.contract_exec(
 //!             conn,
 //!             "PSP22::transfer",
@@ -33,18 +32,18 @@
 //!         )
 //!     }
 //!
-//!     fn balance_of(&self, conn: &Connection, account: AccountId32) -> Result<u128> {
-//!         to_u128(self.contract.contract_read(
+//!     fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<u128> {
+//!         self.contract.contract_read(
 //!             conn,
 //!             "PSP22::balance_of",
 //!             &vec![account.to_string().as_str()],
-//!         )?)
+//!         )?.try_into()
 //!     }
 //! }
 //! ```
 
+mod convertible_value;
 pub mod event;
-pub mod util;
 
 use std::{
     fmt::{Debug, Formatter},
@@ -54,28 +53,29 @@ use std::{
 use ac_primitives::ExtrinsicParams;
 use anyhow::{anyhow, Context, Result};
 use contract_metadata::ContractMetadata;
-use contract_transcode::{ContractMessageTranscoder, Value};
+use contract_transcode::ContractMessageTranscoder;
+pub use convertible_value::ConvertibleValue;
 use ink_metadata::{InkProject, MetadataVersioned};
 use serde_json::{from_reader, from_str, from_value, json};
-use sp_core::{crypto::AccountId32, Pair};
+use sp_core::Pair;
 use substrate_api_client::{compose_extrinsic, GenericAddress, XtStatus};
 
-use crate::{try_send_xt, AnyConnection, SignedConnection};
+use crate::{try_send_xt, AccountId, AnyConnection, SignedConnection};
 
 /// Represents a contract instantiated on the chain.
 pub struct ContractInstance {
-    address: AccountId32,
+    address: AccountId,
     ink_project: InkProject,
 }
 
 impl ContractInstance {
     const MAX_READ_GAS: u64 = 500000000000u64;
-    const MAX_GAS: u64 = 10000000000u64;
+    const MAX_GAS: u64 = 100000000000u64;
     const PAYABLE_VALUE: u64 = 0u64;
     const STORAGE_FEE_LIMIT: Option<u128> = None;
 
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
-    pub fn new(address: AccountId32, metadata_path: &str) -> Result<Self> {
+    pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
         Ok(Self {
             address,
             ink_project: load_metadata(metadata_path)?,
@@ -83,7 +83,7 @@ impl ContractInstance {
     }
 
     /// The address of this contract instance.
-    pub fn address(&self) -> &AccountId32 {
+    pub fn address(&self) -> &AccountId {
         &self.address
     }
 
@@ -93,7 +93,11 @@ impl ContractInstance {
     }
 
     /// Reads the value of a read-only, 0-argument call via RPC.
-    pub fn contract_read0<C: AnyConnection>(&self, conn: &C, message: &str) -> Result<Value> {
+    pub fn contract_read0<C: AnyConnection>(
+        &self,
+        conn: &C,
+        message: &str,
+    ) -> Result<ConvertibleValue> {
         self.contract_read(conn, message, &[])
     }
 
@@ -103,7 +107,7 @@ impl ContractInstance {
         conn: &C,
         message: &str,
         args: &[&str],
-    ) -> Result<Value> {
+    ) -> Result<ConvertibleValue> {
         let payload = self.encode(message, args)?;
         let request = self.contract_read_request(&payload);
         let response = conn
@@ -166,10 +170,12 @@ impl ContractInstance {
         ContractMessageTranscoder::new(&self.ink_project).encode(message, args)
     }
 
-    fn decode_response(&self, from: &str, contract_response: &str) -> Result<Value> {
+    fn decode_response(&self, from: &str, contract_response: &str) -> Result<ConvertibleValue> {
         let contract_response = contract_response.trim_start_matches("0x");
         let bytes = hex::decode(contract_response)?;
-        ContractMessageTranscoder::new(&self.ink_project).decode_return(from, &mut bytes.as_slice())
+        ContractMessageTranscoder::new(&self.ink_project)
+            .decode_return(from, &mut bytes.as_slice())
+            .map(ConvertibleValue)
     }
 }
 

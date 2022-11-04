@@ -62,19 +62,37 @@ impl Config {
 pub struct TestCaseParams {
     /// Desired number of reserved seats for validators, may be set within the test.
     #[clap(long)]
-    reserved_seats: Option<u32>,
+    pub reserved_seats: Option<u32>,
 
     /// Desired number of non-reserved seats for validators, may be set within the test.
     #[clap(long)]
-    non_reserved_seats: Option<u32>,
-}
+    pub non_reserved_seats: Option<u32>,
 
-impl TestCaseParams {
-    pub fn reserved_seats(&self) -> Option<u32> {
-        self.reserved_seats
-    }
+    /// Address of the Early Bird Special game contract, only used by button game tests.
+    #[clap(long)]
+    pub early_bird_special: Option<String>,
 
-    pub fn non_reserved_seats(&self) -> Option<u32> {
-        self.non_reserved_seats
-    }
+    /// Address of the Back to the Future game contract, only used by button game tests.
+    #[clap(long)]
+    pub back_to_the_future: Option<String>,
+
+    /// Address of the The Pressiah Cometh game contract, only used by button game tests.
+    #[clap(long)]
+    pub the_pressiah_cometh: Option<String>,
+
+    /// Path to the button game metadata file. Only used by button tests.
+    #[clap(long)]
+    pub button_game_metadata: Option<String>,
+
+    /// Path to the ticket token metadata file. Only used by button tests.
+    #[clap(long)]
+    pub ticket_token_metadata: Option<String>,
+
+    /// Path to the reward token metadata file. Only used by button tests.
+    #[clap(long)]
+    pub reward_token_metadata: Option<String>,
+
+    /// Path to the marketplace metadata file. Only used by button tests.
+    #[clap(long)]
+    pub marketplace_metadata: Option<String>,
 }

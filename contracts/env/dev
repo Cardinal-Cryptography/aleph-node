@@ -8,7 +8,10 @@ export AUTHORITY_SEED=//Alice
 export LIFETIME=20
 
 # mint this many ticket tokens
-export TICKET_BALANCE=100
+export TICKET_BALANCE=100000000
 
 # initial price of ticket on the marketplace
 export INITIAL_PRICE=69
+
+# use dev-only hacks, like allowing the authority to mint game tokens on demand
+export ENV_NAME=dev
