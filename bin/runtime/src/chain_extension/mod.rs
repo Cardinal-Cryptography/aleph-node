@@ -116,7 +116,10 @@ impl SnarcosChainExtension {
         // Check if it makes sense to read and decode data.
         let key_length = env
             .in_len()
-            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
+            // identifier encoding
+            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount)
+            // key length encoding
+            .saturating_sub(size_of::<u32>() as ByteCount);
         if key_length > MaximumVerificationKeyLength::get() {
             return Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY));
         }
