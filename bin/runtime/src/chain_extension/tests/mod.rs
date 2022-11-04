@@ -11,18 +11,6 @@ type RevertibleWeight = i64;
 
 const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9];
 
-fn vk_bytes() -> &'static [u8] {
-    include_bytes!("resources/xor.vk.bytes")
-}
-
-fn proof_bytes() -> &'static [u8] {
-    include_bytes!("resources/xor.proof.bytes")
-}
-
-fn input_bytes() -> &'static [u8] {
-    include_bytes!("resources/xor.public_input.bytes")
-}
-
 fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeight {
     charging_listener.into_iter().sum()
 }
@@ -68,7 +56,7 @@ fn store_key__too_long_vk() {
 #[allow(non_snake_case)]
 fn store_key__positive_scenario() {
     let content = StoreKeyArgs {
-        key: vk_bytes().to_vec(),
+        key: vec![],
         identifier: IDENTIFIER,
     };
     let (env, charging_listener) = MockedEnvironment::<StoreKeyMode>::new(content.encode());
