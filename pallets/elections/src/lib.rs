@@ -472,6 +472,7 @@ pub mod pallet {
         /// 1) "`NextEraNonReservedValidators` that are staking and are not banned" in case of Permissioned ElectionOpenness
         /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
         fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
+            Self::emit_fresh_bans_event();
             let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
             let ban_period = BanConfig::<T>::get().ban_period;
 
@@ -537,8 +538,6 @@ pub mod pallet {
                     support.voters.push((voter, vote as u128));
                 }
             }
-
-            Self::emit_fresh_bans_event();
 
             Ok(supports.into_iter().collect())
         }
