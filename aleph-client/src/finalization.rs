@@ -1,5 +1,7 @@
-use primitives::{SessionIndex, Version};
+use sp_core::H256;
 use substrate_api_client::{compose_call, compose_extrinsic, AccountId, XtStatus};
+
+use primitives::{SessionIndex, Version};
 
 use crate::{next_session_finality_version, send_xt, AnyConnection, ReadStorage, RootConnection};
 
@@ -54,14 +56,14 @@ pub fn schedule_finality_version_change(
     send_xt(connection, xt, Some(VERSION_CHANGE), status);
 }
 
-pub fn get_current_finality_version<C: ReadStorage>(connection: &C) -> Version {
-    connection.read_storage_value(PALLET, "FinalityVersion")
+pub fn get_session_finality_version<C: ReadStorage>(connection: &C, block_hash: Option<H256>) -> Version {
+    connection.read_storage_value_at_block(PALLET, "FinalityVersion", block_hash)
 }
 
-pub fn get_next_session_finality_version<C: AnyConnection>(connection: &C) -> Version {
+pub fn get_next_session_finality_version<C: AnyConnection>(connection: &C, block_hash: Option<H256>) -> Version {
     connection
         .as_connection()
-        .get_request(next_session_finality_version())
+        .get_request(next_session_finality_version(block_hash))
         .expect("Call to get next session finality version has failed!")
         .expect("Could not obtain the finality version for the next session from the runtime!")
         .parse::<Version>()

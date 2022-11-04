@@ -1,5 +1,5 @@
 use aleph_client::{
-    get_current_finality_version, get_current_session, get_next_session_finality_version,
+    get_session_finality_version, get_current_session, get_next_session_finality_version,
     schedule_finality_version_change, wait_for_finalized_block, wait_for_session, AnyConnection,
     XtStatus,
 };
@@ -32,10 +32,10 @@ pub fn check_finality_version_for_blocks_in_session<C: AnyConnection>(
         );
         current_block_number = wait_for_finalized_block(connection, current_block_number + 1)?;
 
-        let current_finality_version = get_current_finality_version(connection);
+        let current_finality_version = get_session_finality_version(connection, None);
         assert_eq!(current_finality_version, expected_finality_version);
 
-        let next_session_finality_version = get_next_session_finality_version(connection);
+        let next_session_finality_version = get_next_session_finality_version(connection, None);
         assert_eq!(
             next_session_finality_version,
             expected_finality_version_next_session
@@ -54,9 +54,9 @@ pub fn finality_version(config: &Config) -> anyhow::Result<()> {
     wait_for_session(&root_connection, start_session + 2)?;
 
     info!("Checking finality versions with no version change ever scheduled");
-    let current_finality_version = get_current_finality_version(&root_connection);
+    let current_finality_version = get_session_finality_version(&root_connection, None);
     assert_eq!(current_finality_version, DEFAULT_FINALITY_VERSION);
-    let next_session_finality_version = get_next_session_finality_version(&root_connection);
+    let next_session_finality_version = get_next_session_finality_version(&root_connection, None);
     assert_eq!(next_session_finality_version, DEFAULT_FINALITY_VERSION);
 
     let current_session = get_current_session(&root_connection);
