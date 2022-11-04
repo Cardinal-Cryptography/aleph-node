@@ -139,14 +139,30 @@ pub fn check_ban_event<C: AnyConnection>(
     Ok(event)
 }
 
+pub fn get_members_for_session(
+    reserved_validators: &[AccountId],
+    non_reserved_validators: &[AccountId],
+    seats: &CommitteeSeats,
+    session: SessionIndex,
+) -> Vec<AccountId> {
+    let reserved_members =
+        get_members_subset_for_session(seats.reserved_seats, reserved_validators, session);
+    let non_reserved_members =
+        get_members_subset_for_session(seats.non_reserved_seats, non_reserved_validators, session);
+    reserved_members
+        .into_iter()
+        .chain(non_reserved_members.into_iter())
+        .collect()
+}
+
 /// Checks whether underperformed counts for validators change predictably. Assumes: (a) that the
 /// sessions checked are in the past, (b) that all the checked validators are underperforming in
 /// those sessions (e.g. due to a prohibitively high performance threshold).
 pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
     connection: &C,
-    seats: &CommitteeSeats,
     reserved_validators: &[AccountId],
     non_reserved_validators: &[AccountId],
+    seats: &CommitteeSeats,
     start_session: SessionIndex,
     end_session: SessionIndex,
     ban_session_threshold: SessionCount,
@@ -159,24 +175,21 @@ pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
         .collect();
 
     for session in start_session..end_session {
-        let session_start_block = session * session_period;
-        let session_start_block_hash = get_block_hash(connection, session_start_block);
+        let session_end_block = (session + 1) * session_period;
+        let session_end_block_hash = get_block_hash(connection, session_end_block);
 
-        let previous_session_start_block = session_start_block - session_period;
-        let previous_session_start_block_hash =
-            get_block_hash(connection, previous_session_start_block);
+        let previous_session_end_block = session_end_block - session_period;
+        let previous_session_end_block_hash =
+            get_block_hash(connection, previous_session_end_block);
 
-        let reserved_members_for_session =
-            get_members_subset_for_session(seats.reserved_seats, reserved_validators, session);
-        let non_reserved_members_for_session = get_members_subset_for_session(
-            seats.non_reserved_seats,
+        let members =
+            get_members_for_session(reserved_validators, non_reserved_validators, seats, session);
+        let members_previous_session = get_members_for_session(
+            reserved_validators,
             non_reserved_validators,
-            session,
+            seats,
+            session - 1,
         );
-        let members_for_session: Vec<_> = reserved_members_for_session
-            .iter()
-            .chain(non_reserved_members_for_session.iter())
-            .collect();
 
         validators.iter().for_each(|&val| {
             info!(
@@ -186,31 +199,32 @@ pub fn check_underperformed_count_for_sessions<C: AnyConnection>(
             let session_underperformed_count = get_underperformed_validator_session_count(
                 connection,
                 val,
-                Some(session_start_block_hash),
+                Some(session_end_block_hash),
             );
             let previous_session_underperformed_count = get_underperformed_validator_session_count(
                 connection,
                 val,
-                Some(previous_session_start_block_hash),
+                Some(previous_session_end_block_hash),
             );
 
             let underperformed_diff =
                 session_underperformed_count - previous_session_underperformed_count;
-
-            if members_for_session.contains(&val) {
+            info!("Underperformed diff: {}", underperformed_diff);
+            
+            if members.contains(&val) {
                 // Counter for committee members legally incremented by 1 or reset to 0 (decremented
                 // by ban_session_threshold - 1).
                 if underperformed_diff != 1 && underperformed_diff != (ban_session_threshold - 1) {
                     panic!(
-                        "Underperformed session count for committee validator {} changed from {} to {}.",
-                        val, session_underperformed_count, previous_session_underperformed_count
+                        "Underperformed session count for committee validator {} for session {} changed from {} to {}.",
+                        val, session, previous_session_underperformed_count, session_underperformed_count
                     );
                 }
             } else if underperformed_diff != 0 {
                 // Counter for validators on the bench should stay the same.
                 panic!(
-                    "Underperformed session count for non-committee validator {} changed from {} to {}.",
-                    val, session_underperformed_count, previous_session_underperformed_count
+                    "Underperformed session count for non-committee validator {} for session {} changed from {} to {}.",
+                    val, session, previous_session_underperformed_count, session_underperformed_count
                 );
             }
         });

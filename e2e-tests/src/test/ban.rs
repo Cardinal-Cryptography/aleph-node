@@ -267,16 +267,16 @@ pub fn ban_threshold(config: &Config) -> anyhow::Result<()> {
 
     let ban_config_change_session = get_current_session(&root_connection);
     let check_start_session = ban_config_change_session + 1;
-    let check_end_session = check_start_session + SESSIONS_TO_CHECK;
+    let check_end_session = check_start_session + SESSIONS_TO_CHECK - 1;
 
     // Wait until all the sessions to be checked are in the past.
     wait_for_at_least_session(&root_connection, check_end_session + 1)?;
 
     check_underperformed_count_for_sessions(
         &root_connection,
-        &seats,
         &reserved_validators,
         &non_reserved_validators,
+        &seats,
         check_start_session,
         check_end_session,
         DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
