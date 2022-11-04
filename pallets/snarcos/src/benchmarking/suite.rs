@@ -76,4 +76,31 @@ benchmarks! {
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Gm17)
 
+    // Marlin benchmarks
+
+    verify_marlin_xor {
+        let Artifacts { key, proof, input } = get_artifacts!(Marlin, Xor);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
+    verify_marlin_linear_equation {
+        let Artifacts { key, proof, input } = get_artifacts!(Marlin, LinearEquation);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
+    verify_marlin_merkle_tree_8 {
+        let Artifacts { key, proof, input } = get_artifacts!(Marlin, MerkleTree8);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
+    verify_marlin_merkle_tree_64 {
+        let Artifacts { key, proof, input } = get_artifacts!(Marlin, MerkleTree64);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
+    verify_marlin_merkle_tree_1024 {
+        let Artifacts { key, proof, input } = get_artifacts!(Marlin, MerkleTree1024);
+        let _ = insert_key::<T>(key);
+    } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
 }
