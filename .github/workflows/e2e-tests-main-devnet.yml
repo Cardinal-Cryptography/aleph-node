@@ -527,19 +527,30 @@ jobs:
 
   run-e2e-version-upgrade-catchup:
     needs: [build-test-docker, build-cliain-image]
-    name: Run a series of tests where one of the nodes learns of version-upgrade during catchup
+    name: Run series of tests where some of the nodes need to do version-upgrade during catch-up
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        upgrade_before_disable: ["true", "false"]
-
         include:
           - nodes: "Node1"
             ports: "9934"
             ext_status: "finalized"
+            upgrade_before_disable: "true"
+
+          - nodes: "Node1"
+            ports: "9934"
+            ext_status: "finalized"
+            upgrade_before_disable: "false"
+
           - nodes: "Node1:Node2"
             ports: "9934:9935"
             ext_status: "in-block"
+            upgrade_before_disable: "true"
+
+          - nodes: "Node1:Node2"
+            ports: "9934:9935"
+            ext_status: "in-block"
+            upgrade_before_disable: "false"
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
