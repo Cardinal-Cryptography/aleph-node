@@ -114,7 +114,7 @@ impl SnarcosChainExtension {
         mut env: Env,
     ) -> Result<RetVal, DispatchError> {
         // Check if it makes sense to read and decode data. This is only an upperbound for the key
-        // length, because this bytes suffix contain (possibly compressed) info about actual key
+        // length, because this bytes suffix contains (possibly compressed) info about actual key
         // length (needed for decoding).
         let approx_key_length = env
             .in_len()
@@ -147,8 +147,8 @@ impl SnarcosChainExtension {
         let return_status = match Exc::store_key(args.identifier, args.key) {
             Ok(_) => SNARCOS_STORE_KEY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
-            // `bare_store_key`), we could adjust weight. However, for the storing key action it
-            // doesn't make sense.
+            // `bare_store_key`), we could have adjusted weight. However, for the storing key action
+            // it doesn't make much sense.
             Err(VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
             Err(IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IDENTIFIER_IN_USE,
             _ => SNARCOS_STORE_KEY_ERROR_UNKNOWN,
@@ -176,6 +176,7 @@ impl SnarcosChainExtension {
         let args: VerifyArgs = VerifyArgs::decode(&mut &*bytes)
             .map_err(|_| DispatchError::Other("Failed to decode arguments"))?;
 
+        // Now we know the proving system and we can charge appropriate amount of gas.
         env.adjust_weight(pre_charge, weight_of_verify(Some(args.system)));
 
         let result = Exc::verify(args.identifier, args.proof, args.input, args.system);
@@ -183,7 +184,7 @@ impl SnarcosChainExtension {
         let return_status = match result {
             Ok(_) => SNARCOS_VERIFY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
-            // `bare_store_key`), we could adjust weight. However, we don't support it yet.
+            // `bare_verify`), we could adjust weight. However, we don't support it yet.
             Err(DeserializingProofFailed) => SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL,
             Err(DeserializingPublicInputFailed) => SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL,
             Err(UnknownVerificationKeyIdentifier) => SNARCOS_VERIFY_UNKNOWN_IDENTIFIER,

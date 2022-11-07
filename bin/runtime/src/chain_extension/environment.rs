@@ -11,9 +11,15 @@ use crate::chain_extension::ByteCount;
 
 /// Abstraction around `pallet_contracts::chain_extension::Environment`. Makes testing easier.
 ///
-/// Gathers all the methods that are used by `SnarcosChainExtension`. For now all operations are
-/// performed in `BufInBufOut` mode, so we don't have to take care of other modes.
+/// Gathers all the methods that are used by `SnarcosChainExtension`. For now, all operations are
+/// performed in the `BufInBufOut` mode, so we don't have to take care of other modes.
+///
+/// Each method is already documented in `pallet_contracts::chain_extension`.
 pub(super) trait Environment: Sized {
+    /// A type returned by `charge_weight` and passed to `adjust_weight`.
+    ///
+    /// The original type `ChargedAmount` has only a private constructor and thus we have to
+    /// abstract it as well to make testing it possible.
     type ChargedAmount;
 
     fn in_len(&self) -> ByteCount;
