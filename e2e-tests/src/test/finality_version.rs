@@ -1,111 +1,82 @@
 use aleph_client::{
-    get_session_finality_version, get_current_session, get_next_session_finality_version,
-    schedule_finality_version_change, wait_for_finalized_block, wait_for_session, AnyConnection,
-    XtStatus,
+    get_session_period, schedule_finality_version_change, wait_for_finalized_block, XtStatus,
 };
 use log::info;
-use primitives::{SessionIndex, Version, DEFAULT_FINALITY_VERSION, DEFAULT_SESSION_PERIOD};
+use primitives::{SessionIndex, Version, DEFAULT_FINALITY_VERSION};
 
-use crate::Config;
+use crate::{
+    finality_version::{
+        check_finality_version_at_block, check_next_session_finality_version_at_block,
+    },
+    Config,
+};
 
 const FIRST_INCOMING_FINALITY_VERSION: Version = 1;
-
-pub fn check_finality_version_for_blocks_in_session<C: AnyConnection>(
-    connection: &C,
-    session: SessionIndex,
-    expected_finality_version: Version,
-    expected_finality_version_next_session: Version,
-) -> anyhow::Result<()> {
-    info!(
-        "Checking finality versions for session {}. Waiting for previous session to end.",
-        session
-    );
-
-    let start_block_number = session * DEFAULT_SESSION_PERIOD - 1;
-    let mut current_block_number = wait_for_finalized_block(connection, start_block_number)?;
-
-    while current_block_number < (session + 1) * DEFAULT_SESSION_PERIOD - 1 {
-        info!(
-            "Session {} | checking finality versions for block number {}",
-            session,
-            current_block_number + 1
-        );
-        current_block_number = wait_for_finalized_block(connection, current_block_number + 1)?;
-
-        let current_finality_version = get_session_finality_version(connection, None);
-        assert_eq!(current_finality_version, expected_finality_version);
-
-        let next_session_finality_version = get_next_session_finality_version(connection, None);
-        assert_eq!(
-            next_session_finality_version,
-            expected_finality_version_next_session
-        );
-    }
-
-    Ok(())
-}
+const SESSION_WITH_FINALITY_VERSION_CHANGE: SessionIndex = 5;
+const CHECK_START_OFFSET_SESSIONS: f64 = -2.5;
 
 pub fn finality_version(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection();
+    let session_period = get_session_period(&root_connection);
 
-    let start_session = get_current_session(&root_connection);
-    info!("Start session: {}", start_session);
+    let start_point_in_sessions =
+        SESSION_WITH_FINALITY_VERSION_CHANGE as f64 + CHECK_START_OFFSET_SESSIONS;
+    let end_session = SESSION_WITH_FINALITY_VERSION_CHANGE + 2;
 
-    wait_for_session(&root_connection, start_session + 2)?;
-
-    info!("Checking finality versions with no version change ever scheduled");
-    let current_finality_version = get_session_finality_version(&root_connection, None);
-    assert_eq!(current_finality_version, DEFAULT_FINALITY_VERSION);
-    let next_session_finality_version = get_next_session_finality_version(&root_connection, None);
-    assert_eq!(next_session_finality_version, DEFAULT_FINALITY_VERSION);
-
-    let current_session = get_current_session(&root_connection);
-    info!("Current session: {}", current_session);
-
-    let session_before_version_change = current_session + 1;
-    let session_with_version_change = current_session + 2;
-    let session_after_version_change = current_session + 3;
+    let start_block = (start_point_in_sessions * session_period as f64) as u32;
+    let end_block = end_session * session_period;
 
     info!(
-        "Scheduling finality version change | version {} incoming on session {}",
-        FIRST_INCOMING_FINALITY_VERSION, session_with_version_change
+        "Finality version check | start session: {} | end session: {}",
+        start_point_in_sessions, end_session
     );
+    info!(
+        "Finality version check | start block: {} | end block: {}",
+        start_block, end_block
+    );
+
+    wait_for_finalized_block(&root_connection, start_block)?;
 
     schedule_finality_version_change(
         &root_connection,
         FIRST_INCOMING_FINALITY_VERSION,
-        session_with_version_change,
+        SESSION_WITH_FINALITY_VERSION_CHANGE,
         XtStatus::Finalized,
     );
 
-    // Check finality versions for all blocks of sessions k - 1, k, k + 1, where k is the session
-    // with the scheduled version change.
-    info!("Checking finality versions after scheduling a version change | sessions to check: {}, {} and {}",
-        session_before_version_change,
-        session_with_version_change,
-        session_after_version_change,
-    );
+    wait_for_finalized_block(&root_connection, end_block)?;
 
-    check_finality_version_for_blocks_in_session(
-        &root_connection,
-        session_before_version_change,
-        DEFAULT_FINALITY_VERSION,
-        FIRST_INCOMING_FINALITY_VERSION,
-    )?;
+    info!("Checking finality versions with no version change ever scheduled");
+    for block in 0..start_block {
+        check_finality_version_at_block(&root_connection, block, DEFAULT_FINALITY_VERSION);
+        check_next_session_finality_version_at_block(
+            &root_connection,
+            block,
+            DEFAULT_FINALITY_VERSION,
+        );
+    }
 
-    check_finality_version_for_blocks_in_session(
-        &root_connection,
-        session_with_version_change,
-        FIRST_INCOMING_FINALITY_VERSION,
-        FIRST_INCOMING_FINALITY_VERSION,
-    )?;
+    let finality_change_block = (SESSION_WITH_FINALITY_VERSION_CHANGE - 1) * session_period;
 
-    check_finality_version_for_blocks_in_session(
-        &root_connection,
-        session_after_version_change,
-        FIRST_INCOMING_FINALITY_VERSION,
-        FIRST_INCOMING_FINALITY_VERSION,
-    )?;
+    info!("Checking finality versions after scheduling a version change, before the change comes into effect");
+    for block in start_block..finality_change_block {
+        check_finality_version_at_block(&root_connection, block, DEFAULT_FINALITY_VERSION);
+        check_next_session_finality_version_at_block(
+            &root_connection,
+            block,
+            FIRST_INCOMING_FINALITY_VERSION,
+        );
+    }
+
+    info!("Checking finality versions after the version change comes into effect");
+    for block in finality_change_block..(end_block + 1) {
+        check_finality_version_at_block(&root_connection, block, FIRST_INCOMING_FINALITY_VERSION);
+        check_next_session_finality_version_at_block(
+            &root_connection,
+            block,
+            FIRST_INCOMING_FINALITY_VERSION,
+        );
+    }
 
     Ok(())
 }

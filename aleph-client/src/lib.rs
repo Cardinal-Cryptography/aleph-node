@@ -15,7 +15,7 @@ pub use elections::{
 };
 pub use fee::get_next_fee_multiplier;
 pub use finalization::{
-    get_session_finality_version, get_next_session_finality_version,
+    get_next_session_finality_version, get_session_finality_version,
     schedule_finality_version_change,
     set_emergency_finalizer as finalization_set_emergency_finalizer,
 };

@@ -6,6 +6,7 @@ mod ban;
 mod cases;
 mod config;
 mod elections;
+mod finality_version;
 mod rewards;
 mod test;
 mod transfer;
