@@ -1,7 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
-#![allow(incomplete_features)]
+// For *TESTING PURPOSES ONLY* we use magnificent additional const generics.
+#![cfg_attr(test, allow(incomplete_features))]
 #![cfg_attr(test, feature(adt_const_params))]
 #![cfg_attr(test, feature(generic_const_exprs))]
 
