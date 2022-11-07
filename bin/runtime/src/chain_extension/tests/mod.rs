@@ -10,6 +10,8 @@ use crate::chain_extension::tests::executor::{
 mod environment;
 mod executor;
 
+/// In order to compute final fee (after all adjustments) sometimes we will have to subtract
+/// weights.
 type RevertibleWeight = i64;
 
 const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9];
@@ -18,6 +20,7 @@ const PROOF: [u8; 20] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8
 const INPUT: [u8; 11] = [0, 5, 7, 7, 2, 1, 5, 6, 6, 4, 9];
 const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
+/// Returns encoded arguments to `store_key`.
 fn store_key_args() -> Vec<u8> {
     StoreKeyArgs {
         identifier: IDENTIFIER,
@@ -26,6 +29,7 @@ fn store_key_args() -> Vec<u8> {
     .encode()
 }
 
+/// Returns encoded arguments to `verify`.
 fn verify_args() -> Vec<u8> {
     VerifyArgs {
         identifier: IDENTIFIER,
@@ -36,6 +40,7 @@ fn verify_args() -> Vec<u8> {
     .encode()
 }
 
+/// Fetches all charges and computes the final fee.
 fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeight {
     charging_listener.into_iter().sum()
 }

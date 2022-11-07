@@ -6,36 +6,52 @@ use std::{
 
 use super::*;
 
-pub trait FunctionMode {}
-pub enum StoreKeyMode {}
-pub enum VerifyMode {}
+/// Trait serving as a type-level flag indicating which method we are testing.
+pub(super) trait FunctionMode {}
+/// We are testing `pallet_snarcos::store_key`.
+pub(super) enum StoreKeyMode {}
 impl FunctionMode for StoreKeyMode {}
+/// We are testing `pallet_snarcos::verify`.
+pub(super) enum VerifyMode {}
 impl FunctionMode for VerifyMode {}
 
-pub trait ReadingMode {}
-pub enum CorruptedMode {}
-pub enum StandardMode {}
+/// Trait serving as a type-level flag indicating how reading input from a contract should be done.
+pub(super) trait ReadingMode {}
+/// Reading fails - we won't be able to read a single byte.
+pub(super) enum CorruptedMode {}
 impl ReadingMode for CorruptedMode {}
+/// Reading succeeds - we will read everything.
+pub(super) enum StandardMode {}
 impl ReadingMode for StandardMode {}
 
+/// We will implement reading for every `ReadingMode`. However, there is no other way than such
+/// `_Read` trait to tell Rust compiler that in fact, for every `RM` in `MockedEnvironment<_, RM>`
+/// there will be such function.
 trait _Read {
     fn _read(&self, max_len: ByteCount) -> Result<Vec<u8>, DispatchError>;
 }
 
-pub struct MockedEnvironment<FM: FunctionMode, RM: ReadingMode> {
+/// Testing counterpart for `pallet_snarcos::chain_extension::Environment`.
+pub(super) struct MockedEnvironment<FM: FunctionMode, RM: ReadingMode> {
     /// Channel to report all charges.
+    ///
+    /// We have to save charges outside this object, because it is consumed by the main call.
     charging_channel: Sender<RevertibleWeight>,
 
-    /// `Some(_)` iff `RM = CorruptedMode`.
+    /// `Some(_)` only if `RM = CorruptedMode`.
+    ///
+    /// An optional callback to be invoked just before (failing to) read.
     on_read: Option<Box<dyn Fn()>>,
     /// `Some(_)` iff `RM = StandardMode`.
     content: Option<Vec<u8>>,
 
+    /// How many bytes are there waiting to be read.
     in_len: ByteCount,
 
     _phantom: PhantomData<(FM, RM)>,
 }
 
+/// Creating environment with corrupted reading.
 impl<FM: FunctionMode> MockedEnvironment<FM, CorruptedMode> {
     pub fn new(
         in_len: ByteCount,
@@ -54,6 +70,8 @@ impl<FM: FunctionMode> MockedEnvironment<FM, CorruptedMode> {
         )
     }
 }
+
+/// Corrupted reading with possible additional callback invoked.
 impl<FM: FunctionMode> _Read for MockedEnvironment<FM, CorruptedMode> {
     fn _read(&self, _max_len: ByteCount) -> Result<Vec<u8>, DispatchError> {
         self.on_read.as_ref().map(|action| action());
@@ -61,6 +79,7 @@ impl<FM: FunctionMode> _Read for MockedEnvironment<FM, CorruptedMode> {
     }
 }
 
+/// Creating environment with correct reading of `content`.
 impl<FM: FunctionMode> MockedEnvironment<FM, StandardMode> {
     pub fn new(content: Vec<u8>) -> (Self, Receiver<RevertibleWeight>) {
         let (sender, receiver) = channel();
@@ -77,6 +96,7 @@ impl<FM: FunctionMode> MockedEnvironment<FM, StandardMode> {
     }
 }
 
+/// Successful reading.
 impl<FM: FunctionMode> _Read for MockedEnvironment<FM, StandardMode> {
     fn _read(&self, max_len: ByteCount) -> Result<Vec<u8>, DispatchError> {
         let content = self.content.as_ref().unwrap();
@@ -88,6 +108,11 @@ impl<FM: FunctionMode> _Read for MockedEnvironment<FM, StandardMode> {
     }
 }
 
+/// In case we are testing `pallet_snarcos::store_key`, we might want to approximate how long is the
+/// verifying key.
+///
+/// The returned value will be an upperbound - it will be the sum of the whole key encoding
+/// (including its length).
 impl<RM: ReadingMode> MockedEnvironment<StoreKeyMode, RM> {
     pub fn approx_key_len(&self) -> ByteCount {
         self.in_len
