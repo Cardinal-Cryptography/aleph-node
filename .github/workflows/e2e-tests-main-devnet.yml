@@ -89,6 +89,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
 
   check-determinism:
     needs: [build-new-node]
