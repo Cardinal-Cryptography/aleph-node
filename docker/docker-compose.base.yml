@@ -26,6 +26,7 @@ services:
       - VALIDATOR_PORT=30344
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30344
       - NAME=Node1
+      # key derived from "//1"
       - BASE_PATH=/data/5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
       - NODE_KEY_PATH=/data/5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o/p2p_secret
 
@@ -41,6 +42,7 @@ services:
       - VALIDATOR_PORT=30345
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30345
       - NAME=Node2
+      # key derived from "//2"
       - BASE_PATH=/data/5Dfis6XL8J2P6JHUnUtArnFWndn62SydeP8ee8sG2ky9nfm9
       - NODE_KEY_PATH=/data/5Dfis6XL8J2P6JHUnUtArnFWndn62SydeP8ee8sG2ky9nfm9/p2p_secret
 
@@ -56,6 +58,7 @@ services:
       - VALIDATOR_PORT=30346
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30346
       - NAME=Node3
+      # key derived from "//3"
       - BASE_PATH=/data/5F4H97f7nQovyrbiq4ZetaaviNwThSVcFobcA5aGab6167dK
       - NODE_KEY_PATH=/data/5F4H97f7nQovyrbiq4ZetaaviNwThSVcFobcA5aGab6167dK/p2p_secret
 
@@ -71,5 +74,6 @@ services:
       - VALIDATOR_PORT=30347
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30347
       - NAME=Node4
+      # key derived from "//4"
       - BASE_PATH=/data/5DiDShBWa1fQx6gLzpf3SFBhMinCoyvHM1BWjPNsmXS8hkrW
       - NODE_KEY_PATH=/data/5DiDShBWa1fQx6gLzpf3SFBhMinCoyvHM1BWjPNsmXS8hkrW/p2p_secret
