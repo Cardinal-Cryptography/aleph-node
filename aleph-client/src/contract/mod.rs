@@ -56,8 +56,6 @@ use contract_transcode::ContractMessageTranscoder;
 pub use convertible_value::ConvertibleValue;
 use ink_metadata::{InkProject, MetadataVersioned};
 use serde_json::{from_reader, from_str, from_value, json};
-use sp_core::Pair;
-use sp_core::crypto::AccountId32;
 use substrate_api_client::{compose_extrinsic, GenericAddress, XtStatus};
 
 use crate::{try_send_xt, AccountId, AnyConnection, SignedConnection};
