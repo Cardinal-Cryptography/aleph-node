@@ -10,9 +10,9 @@ on:
       - 'contracts/**'
       - '.github/**'
 
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}
+#   cancel-in-progress: false
 
 env:
   CHECKOUT_BRANCH: benjamin
