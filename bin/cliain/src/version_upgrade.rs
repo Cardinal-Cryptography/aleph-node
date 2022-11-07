@@ -1,4 +1,4 @@
-use aleph_client::RootConnection;
+use aleph_client::{schedule_upgrade_with_state, RootConnection};
 use anyhow::Error;
 use primitives::SessionIndex;
 
@@ -10,7 +10,7 @@ pub fn schedule_upgrade(
     session_for_upgrade: SessionIndex,
     expected_state: ExtrinsicState,
 ) -> anyhow::Result<()> {
-    aleph_client::schedule_upgrade(
+    schedule_upgrade_with_state(
         &connection,
         version,
         session_for_upgrade,

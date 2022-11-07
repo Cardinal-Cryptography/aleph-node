@@ -6,7 +6,7 @@ use crate::{try_send_xt, AnyConnection, RootConnection};
 
 pub type Version = u32;
 
-pub fn schedule_upgrade(
+pub fn schedule_upgrade_with_state(
     connection: &RootConnection,
     version: Version,
     session: SessionIndex,
@@ -34,4 +34,12 @@ pub fn schedule_upgrade(
         state,
     )
     .map(|_| ())
+}
+
+pub fn schedule_upgrade(
+    connection: &RootConnection,
+    version: Version,
+    session: SessionIndex,
+) -> Result<(), ApiClientError> {
+    schedule_upgrade_with_state(connection, version, session, XtStatus::Finalized)
 }
