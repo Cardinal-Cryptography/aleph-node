@@ -5,6 +5,10 @@ on:
     paths:
       - 'contracts/**'
       - '.github/**'
+    types:
+      - labeled
+      - opened
+      - synchronize
   push:
     paths:
       - 'contracts/**'
@@ -136,7 +140,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: github.event_name == 'push' && github.ref_name == 'benjamin'
+    if: (github.event_name == 'push' && github.ref_name == 'benjamin') || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && github.head_ref == 'benjamin') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
@@ -235,7 +239,7 @@ jobs:
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
-        shell: bash
+        shell: bash${{ env.LABEL_DEPLOYED_CONTRACTS }}
         run: |
           . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
@@ -285,6 +289,20 @@ jobs:
             contracts/game_token/target \
             contracts/access_control/target
           aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
+  
+      - name: Remove deploy label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: github.event_name == 'pull_request' && contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
+        with:
+          labels: '[AZERO] DEPLOY-CONTRACTS'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Add label to mark that contracts have been deployed
+        if: github.event_name == 'pull_request'
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: 'DEPLOYED-CONTRACTS'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Trigger Indexer deployment workflow
         run: |
@@ -299,4 +317,3 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
-
