@@ -1,10 +1,8 @@
 use codec::{Decode, Encode};
 use log::info;
 use primitives::{BlockHash, CommitteeSeats, SessionIndex};
-use sp_core::{Pair, H256};
-use substrate_api_client::{
-    compose_call, compose_extrinsic, AccountId, ExtrinsicParams, FromHexString, XtStatus,
-};
+use sp_core::H256;
+use substrate_api_client::{compose_call, compose_extrinsic, AccountId, FromHexString, XtStatus};
 
 use crate::{
     get_block_hash, send_xt, waiting::wait_for_event, AnyConnection, BlockNumber, ReadStorage,
@@ -111,7 +109,7 @@ pub fn get_session<C: ReadStorage>(connection: &C, block_hash: Option<H256>) -> 
 pub fn wait_for_predicate<C: ReadStorage, P: Fn(SessionIndex) -> bool>(
     connection: &C,
     session_predicate: P,
-) -> anyhow::Result<BlockNumber> {
+) -> anyhow::Result<SessionIndex> {
     info!(target: "aleph-client", "Waiting for session");
 
     #[derive(Debug, Decode, Clone)]

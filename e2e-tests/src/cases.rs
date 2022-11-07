@@ -2,16 +2,20 @@ use crate::{
     config::Config,
     test::{
         authorities_are_staking as test_authorities_are_staking,
-        back_to_the_future as test_back_to_the_future,
-        batch_transactions as test_batch_transactions, button_game_reset as test_button_game_reset,
+        back_to_the_future as test_back_to_the_future, ban_automatic as test_ban_automatic,
+        ban_manual as test_ban_manual, batch_transactions as test_batch_transactions,
+        button_game_reset as test_button_game_reset,
         change_stake_and_force_new_era as test_change_stake_and_force_new_era,
         change_validators as test_change_validators,
-        channeling_fee_and_tip as test_channeling_fee_and_tip, disable_node as test_disable_node,
+        channeling_fee_and_tip as test_channeling_fee_and_tip,
+        clearing_session_count as test_clearing_session_count, disable_node as test_disable_node,
         early_bird_special as test_early_bird_special,
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         force_new_era as test_force_new_era, marketplace as test_marketplace,
         points_basic as test_points_basic, points_stake_change as test_points_stake_change,
+        schedule_doomed_version_change_and_verify_finalization_stopped as test_schedule_doomed_version_change_and_verify_finalization_stopped,
+        schedule_version_change as test_schedule_version_change,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator,
         the_pressiah_cometh as test_the_pressiah_cometh, token_transfer as test_token_transfer,
@@ -29,6 +33,11 @@ pub type PossibleTestCases = Vec<(&'static str, TestCase)>;
 pub fn possible_test_cases() -> PossibleTestCases {
     vec![
         ("finalization", test_finalization as TestCase),
+        ("version_upgrade", test_schedule_version_change),
+        (
+            "doomed_version_upgrade",
+            test_schedule_doomed_version_change_and_verify_finalization_stopped,
+        ),
         ("rewards_disable_node", test_disable_node as TestCase),
         ("token_transfer", test_token_transfer as TestCase),
         (
@@ -63,5 +72,11 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("back_to_the_future", test_back_to_the_future as TestCase),
         ("the_pressiah_cometh", test_the_pressiah_cometh as TestCase),
         ("marketplace", test_marketplace as TestCase),
+        ("ban_automatic", test_ban_automatic as TestCase),
+        ("ban_manual", test_ban_manual as TestCase),
+        (
+            "clearing_session_count",
+            test_clearing_session_count as TestCase,
+        ),
     ]
 }
