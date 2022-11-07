@@ -10,9 +10,9 @@ on:
       - 'contracts/**'
       - '.github/**'
 
-# concurrency:
-#   group: ${{ github.workflow }}
-#   cancel-in-progress: false
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
   CHECKOUT_BRANCH: benjamin
@@ -137,7 +137,7 @@ jobs:
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
     if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/edit-workflow-condition') }}
-    # needs: [run-tests]
+    needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
