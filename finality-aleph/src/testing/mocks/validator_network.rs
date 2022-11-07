@@ -170,36 +170,37 @@ impl UnreliableSplittable {
     pub fn new(
         max_buf_size: usize,
         ends_after: Option<usize>,
-        peer_address: Address,
+        l_address: Address,
+        r_address: Address,
     ) -> (Self, Self) {
-        let (in_a, out_b) = duplex(max_buf_size);
-        let (in_b, out_a) = duplex(max_buf_size);
+        let (l_in, r_out) = duplex(max_buf_size);
+        let (r_in, l_out) = duplex(max_buf_size);
         (
             UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
-                    stream: in_a,
+                    stream: l_in,
                     counter: ends_after,
-                    peer_address,
+                    peer_address: r_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
-                    stream: out_a,
+                    stream: l_out,
                     counter: ends_after,
-                    peer_address,
+                    peer_address: r_address,
                 },
-                peer_address,
+                peer_address: r_address,
             },
             UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
-                    stream: in_b,
+                    stream: r_in,
                     counter: ends_after,
-                    peer_address,
+                    peer_address: l_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
-                    stream: out_b,
+                    stream: r_out,
                     counter: ends_after,
-                    peer_address,
+                    peer_address: l_address,
                 },
-                peer_address,
+                peer_address: l_address,
             },
         )
     }
@@ -259,7 +260,9 @@ const TWICE_MAX_DATA_SIZE: usize = 32 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct MockDialer {
-    channel_connect: mpsc::UnboundedSender<(Address, oneshot::Sender<Connection>)>,
+    // used for logging
+    own_address: Address,
+    channel_connect: mpsc::UnboundedSender<(Address, Address, oneshot::Sender<Connection>)>,
 }
 
 #[async_trait::async_trait]
@@ -270,7 +273,7 @@ impl DialerT<Address> for MockDialer {
     async fn connect(&mut self, addresses: Vec<Address>) -> Result<Self::Connection, Self::Error> {
         let (tx, rx) = oneshot::channel();
         self.channel_connect
-            .unbounded_send((addresses[0], tx))
+            .unbounded_send((self.own_address, addresses[0], tx))
             .expect("should send");
         Ok(rx.await.expect("should receive"))
     }
@@ -291,7 +294,7 @@ impl ListenerT for MockListener {
 }
 
 pub struct UnreliableConnectionMaker {
-    dialers: mpsc::UnboundedReceiver<(Address, oneshot::Sender<Connection>)>,
+    dialers: mpsc::UnboundedReceiver<(Address, Address, oneshot::Sender<Connection>)>,
     listeners: Vec<mpsc::UnboundedSender<Connection>>,
 }
 
@@ -313,6 +316,7 @@ impl UnreliableConnectionMaker {
         for id in ids.into_iter() {
             let (tx_listener, rx_listener) = mpsc::unbounded();
             let dialer = MockDialer {
+                own_address: addr.get(&id).expect("should be there")[0],
                 channel_connect: tx_dialer.clone(),
             };
             let listener = MockListener {
@@ -331,13 +335,19 @@ impl UnreliableConnectionMaker {
     pub async fn run(&mut self, connections_end_after: Option<usize>) {
         loop {
             info!(target: "validator-network", "UnreliableConnectionMaker: waiting for new request...");
-            let (addr, c) = self.dialers.next().await.expect("should receive");
+            let (dialer_address, listener_address, c) =
+                self.dialers.next().await.expect("should receive");
             info!(target: "validator-network", "UnreliableConnectionMaker: received request");
-            let (l_stream, r_stream) = Connection::new(4096, connections_end_after, addr);
+            let (dialer_stream, listener_stream) = Connection::new(
+                4096,
+                connections_end_after,
+                dialer_address,
+                listener_address,
+            );
             info!(target: "validator-network", "UnreliableConnectionMaker: sending stream");
-            c.send(l_stream).expect("should send");
-            self.listeners[addr as usize]
-                .unbounded_send(r_stream)
+            c.send(dialer_stream).expect("should send");
+            self.listeners[listener_address as usize]
+                .unbounded_send(listener_stream)
                 .expect("should send");
         }
     }

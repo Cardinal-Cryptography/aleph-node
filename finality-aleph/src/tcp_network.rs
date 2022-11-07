@@ -17,7 +17,7 @@ impl ConnectionInfo for TcpStream {
     fn peer_address_info(&self) -> String {
         match self.peer_addr() {
             Ok(addr) => addr.to_string(),
-            Err(e) => e.to_string(),
+            Err(e) => format!("unknown address: {}", e),
         }
     }
 }

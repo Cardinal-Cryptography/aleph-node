@@ -67,6 +67,6 @@ pub async fn incoming<D: Data, S: Splittable>(
 ) {
     let addr = stream.peer_address_info();
     if let Err(e) = manage_incoming(authority_pen, stream, result_for_parent, data_for_user).await {
-        info!(target: "validator-network", "Incoming connection failed: {}. Peer address info: {}", e, addr);
+        info!(target: "validator-network", "Incoming connection from {} failed: {}.", addr, e);
     }
 }
