@@ -23,7 +23,7 @@ pub const SNARCOS_VERIFY_FUNC_ID: u32 = 42;
 // Return codes for `SNARCOS_STORE_KEY_FUNC_ID`.
 pub const SNARCOS_STORE_KEY_OK: u32 = 10_000;
 pub const SNARCOS_STORE_KEY_TOO_LONG_KEY: u32 = 10_001;
-pub const SNARCOS_STORE_IDENTIFIER_IN_USE: u32 = 10_002;
+pub const SNARCOS_STORE_KEY_IDENTIFIER_IN_USE: u32 = 10_002;
 pub const SNARCOS_STORE_KEY_ERROR_UNKNOWN: u32 = 10_003;
 
 // Return codes for `SNARCOS_VERIFY_FUNC_ID`.
@@ -150,7 +150,7 @@ impl SnarcosChainExtension {
             // `bare_store_key`), we could adjust weight. However, for the storing key action it
             // doesn't make sense.
             Err(VerificationKeyTooLong) => SNARCOS_STORE_KEY_TOO_LONG_KEY,
-            Err(IdentifierAlreadyInUse) => SNARCOS_STORE_IDENTIFIER_IN_USE,
+            Err(IdentifierAlreadyInUse) => SNARCOS_STORE_KEY_IDENTIFIER_IN_USE,
             _ => SNARCOS_STORE_KEY_ERROR_UNKNOWN,
         };
         Ok(RetVal::Converging(return_status))
