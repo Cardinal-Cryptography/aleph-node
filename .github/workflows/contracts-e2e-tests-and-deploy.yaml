@@ -239,7 +239,7 @@ jobs:
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
-        shell: bash${{ env.LABEL_DEPLOYED_CONTRACTS }}
+        shell: bash
         run: |
           . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
