@@ -3,7 +3,9 @@ use std::sync::mpsc::Receiver;
 use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
 
 use super::*;
-use crate::chain_extension::tests::executor::{Panicker, StoreKeyOkayer, VerifyOkayer};
+use crate::chain_extension::tests::executor::{
+    Panicker, StoreKeyErrorer, StoreKeyOkayer, VerifyErrorer, VerifyOkayer,
+};
 
 mod environment;
 mod executor;
@@ -60,7 +62,7 @@ fn store_key__charges_before_reading() {
 
 #[test]
 #[allow(non_snake_case)]
-fn store_key__too_long_vk() {
+fn store_key__too_much_to_read() {
     let (env, charging_listener) = MockedEnvironment::<StoreKeyMode, CorruptedMode>::new(
         ByteCount::MAX,
         Some(Box::new(|| panic!("Shouldn't read anything at all"))),
@@ -73,6 +75,48 @@ fn store_key__too_long_vk() {
         Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY))
     ));
     assert_eq!(charged(charging_listener), 0);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn store_key__pallet_says_too_long_vk() {
+    let (env, charging_listener) =
+        MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args());
+
+    let result = SnarcosChainExtension::snarcos_store_key::<
+        _,
+        StoreKeyErrorer<{ VerificationKeyTooLong }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_STORE_KEY_TOO_LONG_KEY))
+    ));
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_store_key(VK.len() as ByteCount) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn store_key__pallet_says_identifier_in_use() {
+    let (env, charging_listener) =
+        MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args());
+
+    let result = SnarcosChainExtension::snarcos_store_key::<
+        _,
+        StoreKeyErrorer<{ IdentifierAlreadyInUse }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_STORE_IDENTIFIER_IN_USE))
+    ));
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_store_key(VK.len() as ByteCount) as RevertibleWeight
+    );
 }
 
 #[test]
@@ -105,6 +149,133 @@ fn verify__charges_before_reading() {
     assert_eq!(
         charged(charging_listener),
         weight_of_verify(None) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_proof_deserialization_failed() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<
+        _,
+        VerifyErrorer<{ DeserializingProofFailed }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_input_deserialization_failed() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<
+        _,
+        VerifyErrorer<{ DeserializingPublicInputFailed }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_no_such_vk() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<
+        _,
+        VerifyErrorer<{ UnknownVerificationKeyIdentifier }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_UNKNOWN_IDENTIFIER))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_vk_deserialization_failed() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<
+        _,
+        VerifyErrorer<{ DeserializingVerificationKeyFailed }>,
+    >(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_verification_failed() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result =
+        SnarcosChainExtension::snarcos_verify::<_, VerifyErrorer<{ VerificationFailed }>>(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_VERIFICATION_FAIL))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify__pallet_says_incorrect_proof() {
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<_, VerifyErrorer<{ IncorrectProof }>>(env);
+
+    assert!(matches!(
+        result,
+        Ok(RetVal::Converging(SNARCOS_VERIFY_INCORRECT_PROOF))
+    ));
+
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)) as RevertibleWeight
     );
 }
 

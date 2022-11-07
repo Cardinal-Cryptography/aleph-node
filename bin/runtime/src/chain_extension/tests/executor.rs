@@ -12,15 +12,15 @@ pub(super) enum Responder {
     Errorer(Error),
 }
 
-/// `struct/enum construction is not supported in generic constants`
-pub(super) const fn make_errorer<const ERROR: Error>() -> Responder {
-    Responder::Errorer(ERROR)
-}
-
 pub(super) struct MockedExecutor<
     const STORE_KEY_RESPONDER: Responder,
     const VERIFY_RESPONDER: Responder,
 >;
+
+/// `struct/enum construction is not supported in generic constants`
+pub(super) const fn make_errorer<const ERROR: Error>() -> Responder {
+    Responder::Errorer(ERROR)
+}
 
 pub(super) type Panicker = MockedExecutor<{ Responder::Panicker }, { Responder::Panicker }>;
 
