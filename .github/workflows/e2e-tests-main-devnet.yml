@@ -537,7 +537,7 @@ jobs:
           - nodes: "Node1"
             ports: "9934"
             ext_status: "finalized"
-          - nodes: "Node1:NODE2"
+          - nodes: "Node1:Node2"
             ports: "9934:9935"
             ext_status: "in-block"
     steps:
