@@ -184,7 +184,7 @@ last_block=$(get_last_block "Node0" 9933)
 block_for_upgrade=$(($UPGRADE_BLOCK + $last_block))
 if [[ $UPGRADE_BEFORE_DISABLE = false ]]; then
     log "setting upgrade at $block_for_upgrade block for version $UPGRADE_VERSION"
-    set_upgrade_session $block_for_upgrade $UPGRADE_VERSION "Node0" 9943 ${SEED} $EXT_STATUS
+    set_upgrade_session $block_for_upgrade $UPGRADE_VERSION "Node0" 9943 $SEED $EXT_STATUS
 fi
 
 last_block=$(get_last_block "Node0" 9933)
