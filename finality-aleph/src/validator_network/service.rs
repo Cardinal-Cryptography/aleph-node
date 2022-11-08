@@ -1,20 +1,20 @@
-use std::fmt::Debug;
+use std::{collections::HashSet, fmt::Debug};
 
 use aleph_primitives::AuthorityId;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use log::{info, trace, warn};
+use log::{debug, info, trace, warn};
 use tokio::time;
 
 use crate::{
     crypto::AuthorityPen,
     validator_network::{
         incoming::incoming,
-        manager::{AddResult, Manager},
+        manager::{AddResult, LegacyManager, Manager},
         outgoing::outgoing,
-        protocols::ResultForService,
+        protocols::{ConnectionType, ResultForService},
         Data, Dialer, Listener, Network,
     },
     SpawnTaskHandle, STATUS_REPORT_INTERVAL,
@@ -74,7 +74,7 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
 }
 
 /// A service that has to be run for the validator network to work.
-pub struct Service<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> {
+pub struct Service<D: Data, A: Data, ND: Dialer<A>, NL: Listener> {
     commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<D, A>>,
     next_to_interface: mpsc::UnboundedSender<D>,
     manager: Manager<A, D>,
@@ -82,6 +82,9 @@ pub struct Service<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> {
     listener: NL,
     spawn_handle: SpawnTaskHandle,
     authority_pen: AuthorityPen,
+    // Backwards compatibility with the one-sided connections, remove when no longer needed.
+    legacy_connected: HashSet<AuthorityId>,
+    legacy_manager: LegacyManager<A, D>,
 }
 
 impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
@@ -100,11 +103,13 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(),
+                manager: Manager::new(authority_pen.authority_id()),
                 dialer,
                 listener,
                 spawn_handle,
                 authority_pen,
+                legacy_connected: HashSet::new(),
+                legacy_manager: LegacyManager::new(),
             },
             ServiceInterface {
                 commands_for_service,
@@ -121,7 +126,6 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
     ) {
         let authority_pen = self.authority_pen.clone();
         let dialer = self.dialer.clone();
-        // This isn't really currently used, but soon will be.
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_outgoing", None, async move {
@@ -150,23 +154,37 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
             });
     }
 
+    fn peer_addresses(&self, peer_id: &AuthorityId) -> Option<Vec<A>> {
+        match self.legacy_connected.contains(peer_id) {
+            true => self.legacy_manager.peer_addresses(peer_id),
+            false => self.manager.peer_addresses(peer_id),
+        }
+    }
+
+    fn add_connection(
+        &mut self,
+        peer_id: AuthorityId,
+        data_for_network: mpsc::UnboundedSender<D>,
+        connection_type: ConnectionType,
+    ) -> AddResult {
+        use ConnectionType::*;
+        match connection_type {
+            New => self.manager.add_connection(peer_id, data_for_network),
+            LegacyIncoming => self.legacy_manager.add_incoming(peer_id, data_for_network),
+            LegacyOutgoing => self.legacy_manager.add_outgoing(peer_id, data_for_network),
+        }
+    }
+
     /// Run the service until a signal from exit.
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
-        // channel used to receive tuple (peer_id, exit_handle) from a spawned worker
-        // that has just established an incoming connection
-        // exit_handle may be used to kill the worker later
-        let (incoming_result_for_parent, mut incoming_workers) = mpsc::unbounded();
-        // channel used to receive information about failure from a spawned worker
-        // that managed an outgoing connection
-        // the received peer_id can be used to spawn another worker
-        let (outgoing_result_for_parent, mut outgoing_workers) = mpsc::unbounded();
+        let (result_for_parent, mut worker_results) = mpsc::unbounded();
         use ServiceCommand::*;
         loop {
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
                 maybe_stream = self.listener.accept() => match maybe_stream {
-                    Ok(stream) => self.spawn_new_incoming(stream, incoming_result_for_parent.clone()),
+                    Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone()),
                     Err(e) => warn!(target: "validator-network", "Listener failed to accept connection: {}", e),
                 },
                 // got a new command from the interface
@@ -174,52 +192,84 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
                     // register new peer in manager or update its list of addresses if already there
                     // spawn a worker managing outgoing connection if the peer was not known
                     AddConnection(peer_id, addresses) => {
+                        // we add all the peers to the legacy manager so we don't lose the
+                        // addresses, but only care about its opinion when it turns out we have to
+                        // in particular the first time we add a peer we never know whether it
+                        // requires legacy connecting, so we only attempt to connect to it if the
+                        // new criterion is satisfied, otherwise we wait for it to connect to us
+                        self.legacy_manager.add_peer(peer_id.clone(), addresses.clone());
                         if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
-                            self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone());
+                            self.spawn_new_outgoing(peer_id, addresses, result_for_parent.clone());
                         };
                     },
                     // remove the peer from the manager all workers will be killed automatically, due to closed channels
                     DelConnection(peer_id) => {
                         self.manager.remove_peer(&peer_id);
+                        self.legacy_manager.remove_peer(&peer_id);
+                        self.legacy_connected.remove(&peer_id);
                     },
                     // pass the data to the manager
                     SendData(data, peer_id) => {
-                        match self.manager.send_to(&peer_id, data) {
-                            Ok(_) => trace!(target: "validator-network", "Sending data to {}.", peer_id),
-                            Err(e) => trace!(target: "validator-network", "Failed sending to {}: {}", peer_id, e),
+                        match self.legacy_connected.contains(&peer_id) {
+                            true => match self.legacy_manager.send_to(&peer_id, data) {
+                                Ok(_) => trace!(target: "validator-network", "Sending data to {} through legacy.", peer_id),
+                                Err(e) => trace!(target: "validator-network", "Failed sending to {} through legacy: {}", peer_id, e),
+                            },
+                            false => match self.manager.send_to(&peer_id, data) {
+                                Ok(_) => trace!(target: "validator-network", "Sending data to {}.", peer_id),
+                                Err(e) => trace!(target: "validator-network", "Failed sending to {}: {}", peer_id, e),
+                            },
                         }
                     },
                 },
-                // received tuple (peer_id, exit_handle) from a spawned worker
-                // that has just established an incoming connection
-                // pass the tuple to the manager to register the connection
-                // the manager will be responsible for killing the worker if necessary
-                Some((peer_id, Some(exit), _)) = incoming_workers.next() => {
-                    use AddResult::*;
-                    match self.manager.add_incoming(peer_id.clone(), exit) {
-                        Uninterested => info!(target: "validator-network", "Peer {} connected to us despite out lack of interest.", peer_id),
-                        Added => info!(target: "validator-network", "New incoming connection for peer {}.", peer_id),
-                        Replaced => info!(target: "validator-network", "Replaced incoming connection for peer {}.", peer_id),
-                    }
-                },
-                // received information from a spawned worker managing an outgoing connection
+                // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
-                Some((peer_id, maybe_data_for_network, _)) = outgoing_workers.next() => {
-                    use AddResult::*;
-                    if let Some(addresses) = self.manager.peer_addresses(&peer_id) {
-                        match maybe_data_for_network {
-                            Some(data_for_network) => match self.manager.add_outgoing(peer_id.clone(), data_for_network) {
-                                Uninterested => warn!(target: "validator-network", "We connected to peer {} for unknown reasons.", peer_id),
-                                Added => info!(target: "validator-network", "New outgoing connection to peer {}.", peer_id),
-                                Replaced => info!(target: "validator-network", "Replaced outgoing connection to peer {}.", peer_id),
-                            },
-                            None => self.spawn_new_outgoing(peer_id, addresses, outgoing_result_for_parent.clone()),
+                Some((peer_id, maybe_data_for_network, connection_type)) = worker_results.next() => {
+                    use ConnectionType::*;
+                    let spawn_new_legacy_connection = match connection_type {
+                        LegacyIncoming => {
+                            self.manager.remove_peer(&peer_id);
+                            self.legacy_connected.insert(peer_id.clone())
+                        },
+                        LegacyOutgoing => {
+                            self.manager.remove_peer(&peer_id);
+                            self.legacy_connected.insert(peer_id.clone());
+                            false
                         }
+                        New => {
+                            // We always return New if connecting fails, so only New+Some means we
+                            // actually negotiated the new protocol, otherwise we should stay
+                            // with our previous guess.
+                            if maybe_data_for_network.is_some() {
+                                self.legacy_connected.remove(&peer_id);
+                            }
+                            false
+                        },
                     };
+                    if spawn_new_legacy_connection {
+                        match self.legacy_manager.peer_addresses(&peer_id) {
+                            Some(addresses) => self.spawn_new_outgoing(peer_id.clone(), addresses, result_for_parent.clone()),
+                            None => {
+                                self.legacy_connected.remove(&peer_id);
+                            },
+                        }
+                    }
+                    use AddResult::*;
+                    match maybe_data_for_network {
+                        Some(data_for_network) => match self.add_connection(peer_id.clone(), data_for_network, connection_type) {
+                            Uninterested => warn!(target: "validator-network", "Established connection with peer {} for unknown reasons.", peer_id),
+                            Added => info!(target: "validator-network", "New connection with peer {}.", peer_id),
+                            Replaced => info!(target: "validator-network", "Replaced connection with peer {}.", peer_id),
+                        },
+                        None => if let Some(addresses) = self.peer_addresses(&peer_id) {
+                            self.spawn_new_outgoing(peer_id, addresses, result_for_parent.clone());
+                        }
+                    }
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    info!(target: "validator-network", "Validator Network status: {}", self.manager.status_report())
+                    info!(target: "validator-network", "Validator Network status: {}", self.manager.status_report());
+                    debug!(target: "validator-network", "Validator Network legacy status: {}", self.legacy_manager.status_report());
                 }
                 // received exit signal, stop the network
                 // all workers will be killed automatically after the manager gets dropped
