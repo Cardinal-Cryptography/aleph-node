@@ -115,7 +115,7 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
         &self,
         peer_id: AuthorityId,
         addresses: Vec<A>,
-        result_for_parent: ResultForService<D>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     ) {
         let authority_pen = self.authority_pen.clone();
         let dialer = self.dialer.clone();
@@ -135,7 +135,11 @@ impl<D: Data, A: Data, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
             });
     }
 
-    fn spawn_new_incoming(&self, stream: NL::Connection, result_for_parent: ResultForService<D>) {
+    fn spawn_new_incoming(
+        &self,
+        stream: NL::Connection,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
+    ) {
         let authority_pen = self.authority_pen.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle

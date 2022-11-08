@@ -49,7 +49,7 @@ async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
     peer_id: AuthorityId,
     mut dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), OutgoingError<A, ND>> {
     debug!(target: "validator-network", "Trying to connect to {}.", peer_id);
@@ -81,7 +81,7 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
     peer_id: AuthorityId,
     dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_outgoing(

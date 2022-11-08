@@ -40,7 +40,7 @@ pub async fn outgoing<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
     peer_id: AuthorityId,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Extending hand to {}.", peer_id);
     let (sender, receiver) = v0_handshake_outgoing(stream, authority_pen, peer_id.clone()).await?;
@@ -86,7 +86,7 @@ async fn receiving<D: Data, S: AsyncRead + Unpin + Send>(
 pub async fn incoming<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError> {
     trace!(target: "validator-network", "Waiting for extended hand...");
@@ -128,7 +128,7 @@ mod tests {
         crypto::AuthorityPen,
         validator_network::{
             mock::{key, MockSplittable},
-            protocols::ConnectionType,
+            protocols::{ConnectionType, ResultForService},
             Data,
         },
     };
@@ -141,16 +141,8 @@ mod tests {
         impl futures::Future<Output = Result<(), ProtocolError>>,
         impl futures::Future<Output = Result<(), ProtocolError>>,
         UnboundedReceiver<D>,
-        UnboundedReceiver<(
-            AuthorityId,
-            Option<mpsc::UnboundedSender<D>>,
-            ConnectionType,
-        )>,
-        UnboundedReceiver<(
-            AuthorityId,
-            Option<mpsc::UnboundedSender<D>>,
-            ConnectionType,
-        )>,
+        UnboundedReceiver<ResultForService<D>>,
+        UnboundedReceiver<ResultForService<D>>,
     ) {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key().await;

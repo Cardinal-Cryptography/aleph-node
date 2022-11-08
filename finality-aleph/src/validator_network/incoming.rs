@@ -41,7 +41,7 @@ impl From<ProtocolError> for IncomingError {
 async fn manage_incoming<D: Data, S: Splittable>(
     authority_pen: AuthorityPen,
     stream: S,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), IncomingError> {
     debug!(target: "validator-network", "Performing incoming protocol negotiation.");
@@ -60,7 +60,7 @@ async fn manage_incoming<D: Data, S: Splittable>(
 pub async fn incoming<D: Data, S: Splittable>(
     authority_pen: AuthorityPen,
     stream: S,
-    result_for_parent: ResultForService<D>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_incoming(authority_pen, stream, result_for_parent, data_for_user).await {
