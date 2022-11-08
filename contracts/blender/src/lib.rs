@@ -66,7 +66,7 @@ mod blender {
         merkle_roots: Set<MerkleRoot>,
         nullifiers: Set<Nullifier>,
 
-        accepted_tokens: Mapping<TokenId, AccountId>,
+        registered_tokens: Mapping<TokenId, AccountId>,
         boss: AccountId,
     }
 
@@ -92,7 +92,7 @@ mod blender {
 
         fn acquire_deposit(&self, token_id: TokenId, deposit: Balance) -> Result<()> {
             let token_contract = self
-                .accepted_token(token_id)
+                .registered_token_address(token_id)
                 .ok_or(Error::TokenIdNotRegistered)?;
 
             build_call::<super::blender::Environment>()
@@ -125,21 +125,21 @@ mod blender {
         }
 
         #[ink(message, selector = 9)]
-        pub fn accepted_token_address(&self, token_id: TokenId) -> Option<AccountId> {
-            self.accepted_tokens.get(token_id)
+        pub fn registered_token_address(&self, token_id: TokenId) -> Option<AccountId> {
+            self.registered_tokens.get(token_id)
         }
 
         #[ink(message, selector = 10)]
-        pub fn accept_new_token(
+        pub fn register_new_token(
             &mut self,
             token_id: TokenId,
             token_address: AccountId,
         ) -> Result<()> {
             self.ensure_mr_boss()?;
-            self.accepted_tokens
+            self.registered_tokens
                 .contains(token_id)
                 .not()
-                .then(|| self.accepted_tokens.insert(token_id, &token_address))
+                .then(|| self.registered_tokens.insert(token_id, &token_address))
                 .ok_or(Error::TokenIdAlreadyRegistered)
         }
 
