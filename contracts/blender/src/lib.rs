@@ -24,6 +24,7 @@ mod blender {
     type MerkleRoot = Hash;
 
     type TokenId = u16;
+    type Balance = u128;
 
     type Set<T> = Mapping<T, ()>;
 
@@ -66,6 +67,17 @@ mod blender {
             ink_lang::utils::initialize_contract(|blender: &mut Self| {
                 blender.boss = Self::env().caller();
             })
+        }
+
+        #[ink(message, selector = 1)]
+        pub fn deposit(
+            &mut self,
+            value: Balance,
+            token_id: TokenId,
+            note: Note,
+            proof: Vec<u8>,
+        ) -> Result<()> {
+            Ok(())
         }
 
         #[ink(message, selector = 8)]
