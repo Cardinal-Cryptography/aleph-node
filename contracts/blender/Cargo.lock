@@ -3,6 +3,26 @@
 version = 3
 
 [[package]]
+name = "ark-serialize"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d6c2b318ee6e10f8c2853e73a83adc0ccb88995aa978d8a3408d492ab2ee671"
+dependencies = [
+ "ark-std",
+ "digest 0.9.0",
+]
+
+[[package]]
+name = "ark-std"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1df2c09229cbc5a028b1d70e00fdb2acee28b1055dfb5ca73eea49c5a25c4e7c"
+dependencies = [
+ "num-traits",
+ "rand",
+]
+
+[[package]]
 name = "array-init"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,6 +82,7 @@ dependencies = [
 name = "blender"
 version = "0.1.0"
 dependencies = [
+ "ark-serialize",
  "ink_env",
  "ink_lang",
  "ink_metadata",

@@ -8,6 +8,7 @@ mod binary_tree;
 mod blender {
     use core::ops::Not;
 
+    use ark_serialize::CanonicalSerialize;
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
@@ -15,9 +16,9 @@ mod blender {
     use ink_storage::{traits::SpreadAllocate, Mapping};
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
-    use snarcos_extension::{SnarcosError, VerificationKeyIdentifier};
+    use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
-    use crate::{binary_tree::BinaryTree, blender::Error::ChainExtensionError};
+    use crate::binary_tree::BinaryTree;
 
     type Scalar = u64;
     type Nullifier = Scalar;
@@ -26,6 +27,7 @@ mod blender {
     type MerkleRoot = Hash;
 
     type TokenId = u16;
+    type TokenAmount = u64;
 
     type Set<T> = Mapping<T, ()>;
 
@@ -33,6 +35,7 @@ mod blender {
         ['d' as u8, 'p' as u8, 's' as u8, 't' as u8];
     const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier =
         ['w' as u8, 't' as u8, 'h' as u8, 'd' as u8];
+    const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
     pub const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
@@ -81,16 +84,17 @@ mod blender {
         #[ink(message, selector = 1)]
         pub fn deposit(
             &mut self,
-            value: Balance,
             token_id: TokenId,
+            value: TokenAmount,
             note: Note,
             proof: Vec<u8>,
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
+            self.verify_deposit(token_id, value, note, proof)?;
             Ok(())
         }
 
-        fn acquire_deposit(&self, token_id: TokenId, deposit: Balance) -> Result<()> {
+        fn acquire_deposit(&self, token_id: TokenId, deposit: TokenAmount) -> Result<()> {
             let token_contract = self
                 .registered_token_address(token_id)
                 .ok_or(Error::TokenIdNotRegistered)?;
@@ -111,6 +115,32 @@ mod blender {
                 .map_err(Error::Psp22Error)
         }
 
+        pub fn serialize<T: CanonicalSerialize + ?Sized>(t: &T) -> Vec<u8> {
+            let mut bytes = vec![0; t.serialized_size()];
+            t.serialize(&mut bytes[..]).expect("Failed to serialize");
+            bytes.to_vec()
+        }
+
+        fn verify_deposit(
+            &self,
+            token_id: TokenId,
+            value: TokenAmount,
+            note: Note,
+            proof: Vec<u8>,
+        ) -> Result<()> {
+            let serialized_input = [
+                Self::serialize(&token_id),
+                Self::serialize(&value),
+                Self::serialize(note.as_ref()),
+            ]
+            .concat();
+
+            self.env()
+                .extension()
+                .verify(DEPOSIT_VK_IDENTIFIER, proof, serialized_input, SYSTEM)
+                .map_err(Error::ChainExtensionError)
+        }
+
         #[ink(message, selector = 8)]
         pub fn register_vk(&mut self, relation: Relation, vk: Vec<u8>) -> Result<()> {
             self.ensure_mr_boss()?;
@@ -121,7 +151,7 @@ mod blender {
             self.env()
                 .extension()
                 .store_key(identifier, vk)
-                .map_err(ChainExtensionError)
+                .map_err(Error::ChainExtensionError)
         }
 
         #[ink(message, selector = 9)]
