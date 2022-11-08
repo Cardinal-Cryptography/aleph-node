@@ -4,6 +4,8 @@ use aleph_primitives::AuthorityId;
 
 use crate::validator_network::Data;
 
+/// Data about peers we know and whether we should connect to them or they to us. For the former
+/// case also keeps the peers' addresses.
 pub struct DirectedPeers<A: Data> {
     own_id: AuthorityId,
     outgoing: HashMap<AuthorityId, Vec<A>>,
@@ -18,10 +20,10 @@ fn bit_xor_sum_parity((a, b): (u8, u8)) -> u8 {
     result % 2
 }
 
-// Whether we shold call the remote or the other way around. We xor the peer ids and based on the
-// parity of the sum of bits of the result decide whether the caller should be the smaller or
-// greated lexicographically. They are never equal, because cryptography.
-fn should_call(own_id: &[u8], remote_id: &[u8]) -> bool {
+/// Whether we should call the remote or the other way around. We xor the peer ids and based on the
+/// parity of the sum of bits of the result decide whether the caller should be the smaller or
+/// greated lexicographically. They are never equal, because cryptography.
+fn should_we_call(own_id: &[u8], remote_id: &[u8]) -> bool {
     let xor_sum_parity: u8 = own_id
         .iter()
         .cloned()
@@ -46,11 +48,11 @@ impl<A: Data> DirectedPeers<A> {
 
     /// Add a peer to the list of peers we want to stay connected to, or
     /// update the list of addresses if the peer was already added.
-    /// Returns whether we should start attampts at connecting with the peer, which is the case
+    /// Returns whether we should start attempts at connecting with the peer, which is the case
     /// exactly when the peer is one with which we should attempt connections AND it was added for
     /// the first time.
     pub fn add_peer(&mut self, peer_id: AuthorityId, addresses: Vec<A>) -> bool {
-        match should_call(self.own_id.as_ref(), peer_id.as_ref()) {
+        match should_we_call(self.own_id.as_ref(), peer_id.as_ref()) {
             true => self.outgoing.insert(peer_id, addresses).is_none(),
             false => {
                 // We discard the addresses here, as we will never want to call this peer anyway,
@@ -104,15 +106,19 @@ mod tests {
         (own_container, own_id)
     }
 
+    fn some_addresses() -> Vec<Address> {
+        vec![
+            String::from(""),
+            String::from("a/b/c"),
+            String::from("43.43.43.43:43000"),
+        ]
+    }
+
     #[tokio::test]
     async fn exactly_one_direction_attempts_connections() {
         let (mut own_container, own_id) = container_with_id().await;
         let (mut remote_container, remote_id) = container_with_id().await;
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+        let addresses = some_addresses();
         assert!(
             own_container.add_peer(remote_id, addresses.clone())
                 != remote_container.add_peer(own_id, addresses.clone())
@@ -122,11 +128,7 @@ mod tests {
     async fn container_with_added_connecting_peer() -> (DirectedPeers<Address>, AuthorityId) {
         let (mut own_container, own_id) = container_with_id().await;
         let (mut remote_container, remote_id) = container_with_id().await;
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+        let addresses = some_addresses();
         match own_container.add_peer(remote_id.clone(), addresses.clone()) {
             true => (own_container, remote_id),
             false => {
@@ -139,11 +141,7 @@ mod tests {
     async fn container_with_added_nonconnecting_peer() -> (DirectedPeers<Address>, AuthorityId) {
         let (mut own_container, own_id) = container_with_id().await;
         let (mut remote_container, remote_id) = container_with_id().await;
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+        let addresses = some_addresses();
         match own_container.add_peer(remote_id.clone(), addresses.clone()) {
             false => (own_container, remote_id),
             true => {
@@ -156,11 +154,7 @@ mod tests {
     #[tokio::test]
     async fn no_connecting_on_readd() {
         let (mut own_container, remote_id) = container_with_added_connecting_peer().await;
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+        let addresses = some_addresses();
         assert!(!own_container.add_peer(remote_id, addresses));
     }
 
