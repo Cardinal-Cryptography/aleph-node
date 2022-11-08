@@ -20,5 +20,6 @@ exclude = [
   "bin/cliain",
   "bin/runtime/src/chain_extension/snarcos-extension",
   "contracts/blender",
+  "contracts/public_token",
   "contracts/snarcos-contract",
 ]
