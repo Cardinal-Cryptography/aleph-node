@@ -33,11 +33,11 @@ function initialize {
 }
 
 function wait_for_finalized_block() {
-    local init_block=$1
+    local block_to_be_finalized=$1
     local node=$2
     local port=$3
 
-    while [[ $(get_best_finalized $node $port) -le $init_block ]]; do
+    while [[ $(get_best_finalized $node $port) -le $block_to_be_finalized ]]; do
         sleep 3
     done
 }
