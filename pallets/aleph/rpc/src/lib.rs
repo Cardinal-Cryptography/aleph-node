@@ -47,7 +47,7 @@ where
         let runtime_api_result = api.next_session_finality_version(&at);
         runtime_api_result.map_err(|e| {
             Error::Call(CallError::Custom(ErrorObject::owned(
-                1001, //TODO: which code to use?
+                1001, // arbitrary value
                 "Unable to obtain finality version for the next session!",
                 Some(format!("{:?}", e)),
             )))
