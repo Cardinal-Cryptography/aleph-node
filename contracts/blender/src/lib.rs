@@ -5,6 +5,7 @@ use ink_lang as ink;
 mod merkle_tree;
 
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
+#[allow(clippy::let_unit_value)]
 mod blender {
     use core::ops::Not;
 
@@ -36,10 +37,8 @@ mod blender {
 
     type Set<T> = Mapping<T, ()>;
 
-    const DEPOSIT_VK_IDENTIFIER: VerificationKeyIdentifier =
-        ['d' as u8, 'p' as u8, 's' as u8, 't' as u8];
-    const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier =
-        ['w' as u8, 't' as u8, 'h' as u8, 'd' as u8];
+    const DEPOSIT_VK_IDENTIFIER: VerificationKeyIdentifier = [b'd', b'p', b's', b't'];
+    const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier = [b'w', b't', b'h', b'd'];
     const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
     pub const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
@@ -57,10 +56,10 @@ mod blender {
         InsufficientPermission,
         TooMuchNotes,
 
-        ChainExtensionError(SnarcosError),
+        ChainExtension(SnarcosError),
 
-        Psp22Error(PSP22Error),
-        InkEnvError(String),
+        Psp22(PSP22Error),
+        InkEnv(String),
 
         TokenIdAlreadyRegistered,
         TokenIdNotRegistered,
@@ -96,6 +95,12 @@ mod blender {
 
         registered_tokens: Mapping<TokenId, AccountId>,
         boss: AccountId,
+    }
+
+    impl Default for Blender {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl Blender {
@@ -138,8 +143,8 @@ mod blender {
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<core::result::Result<(), PSP22Error>>()
                 .fire()
-                .map_err(|e| Error::InkEnvError(format!("{:?}", e)))?
-                .map_err(Error::Psp22Error)
+                .map_err(|e| Error::InkEnv(format!("{:?}", e)))?
+                .map_err(Error::Psp22)
         }
 
         pub fn serialize<T: CanonicalSerialize + ?Sized>(t: &T) -> Vec<u8> {
@@ -165,7 +170,7 @@ mod blender {
             self.env()
                 .extension()
                 .verify(DEPOSIT_VK_IDENTIFIER, proof, serialized_input, SYSTEM)
-                .map_err(Error::ChainExtensionError)
+                .map_err(Error::ChainExtension)
         }
 
         #[ink(message, selector = 8)]
@@ -178,7 +183,7 @@ mod blender {
             self.env()
                 .extension()
                 .store_key(identifier, vk)
-                .map_err(Error::ChainExtensionError)
+                .map_err(Error::ChainExtension)
         }
 
         #[ink(message, selector = 9)]
