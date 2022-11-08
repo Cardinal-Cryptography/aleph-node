@@ -1,6 +1,6 @@
+use ink_prelude::vec::Vec;
 use ink_storage::traits::{PackedAllocate, PackedLayout, SpreadAllocate, SpreadLayout};
 use scale::{Decode, Encode};
-use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
 pub trait TreeElement: PackedLayout + PackedAllocate + scale_info::TypeInfo + 'static {}

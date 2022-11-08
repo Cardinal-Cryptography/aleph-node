@@ -8,12 +8,14 @@ mod binary_tree;
 mod blender {
     use core::ops::Not;
 
+    use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
+    use ink_prelude::{format, string::String, vec, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
+    use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
     use snarcos_extension::{SnarcosError, VerificationKeyIdentifier};
-    use sp_std::vec::Vec;
 
     use crate::{binary_tree::BinaryTree, blender::Error::ChainExtensionError};
 
@@ -24,7 +26,6 @@ mod blender {
     type MerkleRoot = Hash;
 
     type TokenId = u16;
-    type Balance = u128;
 
     type Set<T> = Mapping<T, ()>;
 
@@ -32,6 +33,8 @@ mod blender {
         ['d' as u8, 'p' as u8, 's' as u8, 't' as u8];
     const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier =
         ['w' as u8, 't' as u8, 'h' as u8, 'd' as u8];
+
+    pub const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -44,8 +47,14 @@ mod blender {
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
         InsufficientPermission,
+
         ChainExtensionError(SnarcosError),
+
+        Psp22Error(PSP22Error),
+        InkEnvError(String),
+
         TokenIdAlreadyRegistered,
+        TokenIdNotRegistered,
     }
 
     type Result<T> = core::result::Result<T, Error>;
@@ -77,7 +86,29 @@ mod blender {
             note: Note,
             proof: Vec<u8>,
         ) -> Result<()> {
+            self.acquire_deposit(token_id, value)?;
             Ok(())
+        }
+
+        fn acquire_deposit(&self, token_id: TokenId, deposit: Balance) -> Result<()> {
+            let token_contract = self
+                .accepted_token(token_id)
+                .ok_or(Error::TokenIdNotRegistered)?;
+
+            build_call::<super::blender::Environment>()
+                .call_type(Call::new().callee(token_contract))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(PSP22_TRANSFER_FROM_SELECTOR))
+                        .push_arg(self.env().caller())
+                        .push_arg(self.env().account_id())
+                        .push_arg(deposit)
+                        .push_arg::<Vec<u8>>(vec![]),
+                )
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .returns::<core::result::Result<(), PSP22Error>>()
+                .fire()
+                .map_err(|e| Error::InkEnvError(format!("{:?}", e)))?
+                .map_err(Error::Psp22Error)
         }
 
         #[ink(message, selector = 8)]
@@ -94,7 +125,7 @@ mod blender {
         }
 
         #[ink(message, selector = 9)]
-        pub fn accepted_token(&self, token_id: TokenId) -> Option<AccountId> {
+        pub fn accepted_token_address(&self, token_id: TokenId) -> Option<AccountId> {
             self.accepted_tokens.get(token_id)
         }
 
