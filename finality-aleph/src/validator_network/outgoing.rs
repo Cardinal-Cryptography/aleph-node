@@ -27,12 +27,12 @@ impl<A: Data, ND: Dialer<A>> Display for OutgoingError<A, ND> {
             Dial(e) => write!(f, "dial error: {}", e),
             ProtocolNegotiation(addr, e) => write!(
                 f,
-                "Outgoing connection to {} failed, protocol negotiation error: {}.",
+                "communication with {} failed, protocol negotiation error: {}",
                 addr, e
             ),
             Protocol(addr, e) => write!(
                 f,
-                "Outgoing connection to {} failed, protocol error: {}.",
+                "communication with {} failed, protocol error: {}",
                 addr, e
             ),
         }
