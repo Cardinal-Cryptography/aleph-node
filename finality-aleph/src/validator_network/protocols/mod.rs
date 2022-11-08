@@ -34,11 +34,11 @@ pub enum ConnectionType {
 /// of the remote node, followed by a channel for sending data to that node, with None if the
 /// connection was unsuccessful and should be reestablished. Finally a marker for legacy
 /// compatibility.
-pub type ResultForService<D> = mpsc::UnboundedSender<(
+pub type ResultForService<D> = (
     AuthorityId,
     Option<mpsc::UnboundedSender<D>>,
     ConnectionType,
-)>;
+);
 
 /// Defines the protocol for communication.
 #[derive(Debug, PartialEq, Eq)]
@@ -111,7 +111,7 @@ impl Protocol {
         &self,
         stream: S,
         authority_pen: AuthorityPen,
-        result_for_service: ResultForService<D>,
+        result_for_service: mpsc::UnboundedSender<ResultForService<D>>,
         data_for_user: mpsc::UnboundedSender<D>,
     ) -> Result<(), ProtocolError> {
         use Protocol::*;
@@ -127,7 +127,7 @@ impl Protocol {
         stream: S,
         authority_pen: AuthorityPen,
         peer_id: AuthorityId,
-        result_for_service: ResultForService<D>,
+        result_for_service: mpsc::UnboundedSender<ResultForService<D>>,
         data_for_user: mpsc::UnboundedSender<D>,
     ) -> Result<(), ProtocolError> {
         use Protocol::*;
