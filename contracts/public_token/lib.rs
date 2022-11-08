@@ -3,6 +3,7 @@
 
 /// Most basic PSP22 token.
 #[openbrush::contract]
+#[allow(clippy::let_unit_value)] // Clippy shouts about returning anything from messages.
 pub mod my_psp22 {
     use ink_storage::traits::SpreadAllocate;
     use openbrush::{contracts::psp22::*, traits::Storage};
