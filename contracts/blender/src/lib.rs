@@ -137,7 +137,7 @@ mod blender {
                     ExecutionInput::new(Selector::new(PSP22_TRANSFER_FROM_SELECTOR))
                         .push_arg(self.env().caller())
                         .push_arg(self.env().account_id())
-                        .push_arg(deposit)
+                        .push_arg(deposit as Balance)
                         .push_arg::<Vec<u8>>(vec![]),
                 )
                 .call_flags(CallFlags::default().set_allow_reentry(true))
