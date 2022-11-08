@@ -1,4 +1,4 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use aleph_primitives::AuthorityId;
 use futures::channel::mpsc;
@@ -68,7 +68,7 @@ const RETRY_DELAY: Duration = Duration::from_secs(10);
 /// Establish an outgoing connection to the provided peer using the dialer and then manage it.
 /// While this works it will send any data from the user to the peer. Any failures will be reported
 /// to the parent, so that connections can be reestablished if necessary.
-pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
+pub async fn outgoing<D: Data, A: Data + Debug, ND: Dialer<A>>(
     authority_pen: AuthorityPen,
     peer_id: AuthorityId,
     dialer: ND,
@@ -79,12 +79,12 @@ pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
         authority_pen,
         peer_id.clone(),
         dialer,
-        addresses,
+        addresses.clone(),
         result_for_parent.clone(),
     )
     .await
     {
-        info!(target: "validator-network", "Outgoing connection to {} failed: {}, will retry after {}s.", peer_id, e, RETRY_DELAY.as_secs());
+        info!(target: "validator-network", "Outgoing connection to {} {:?} failed: {}, will retry after {}s.", peer_id, addresses, e, RETRY_DELAY.as_secs());
         sleep(RETRY_DELAY).await;
         if result_for_parent.unbounded_send((peer_id, None)).is_err() {
             debug!(target: "validator-network", "Could not send the closing message, we've probably been terminated by the parent service.");
