@@ -14,7 +14,7 @@
 //! cargo run --release -p aleph-node --features runtime-benchmarks -- benchmark pallet \
 //!     --chain=chainspec.json \
 //!     --pallet=pallet_snarcos \
-//!     --extrinsic=* \
+//!     --extrinsic='*' \
 //!     --steps=20 \
 //!     --repeat=50 \
 //!     --template=.maintain/pallet-weight-template.hbs \
