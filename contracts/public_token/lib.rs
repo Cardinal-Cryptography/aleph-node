@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 
+/// Most basic PSP22 token.
 #[openbrush::contract]
 pub mod my_psp22 {
     use ink_storage::traits::SpreadAllocate;
@@ -16,6 +17,9 @@ pub mod my_psp22 {
     impl PSP22 for Contract {}
 
     impl Contract {
+        /// Instantiate the contract with `total_supply` tokens of supply.
+        ///
+        /// All the created tokens will be minted to the caller.
         #[ink(constructor)]
         pub fn new(total_supply: Balance) -> Self {
             ink_lang::codegen::initialize_contract(|instance: &mut Contract| {
