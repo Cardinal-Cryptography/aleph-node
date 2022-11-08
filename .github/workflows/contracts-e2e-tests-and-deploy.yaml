@@ -2,13 +2,10 @@ name: contracts-e2e-tests-and-deploy
 
 on:
   pull_request:
-    paths:
-      - 'contracts/**'
-      - '.github/**'
     types:
       - labeled
       - opened
-      - synchronize
+      - created
   push:
     paths:
       - 'contracts/**'
@@ -140,7 +137,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: (github.event_name == 'push' && github.ref_name == 'add-labels-for-deploying-contracts') || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && github.head_ref == 'refs/heads/benjamin') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    if: (github.event_name == 'push' && github.ref_name == 'add-labels-for-deploying-contracts') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
