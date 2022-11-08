@@ -370,18 +370,20 @@ mod tests {
     use super::{ConnectionCommand, DataCommand, Service};
     use crate::{
         network::{
-            manager::DataInSession,
+            manager::{DataInSession, SessionHandler, VersionedAuthentication},
             mock::{
-                MockData, MockEvent, MockIO, MockMultiaddress as LegacyMockMultiaddress,
-                MockNetwork, MockNetworkIdentity, MockPeerId, MockSenderError,
+                crypto_basics, MockData, MockEvent, MockIO,
+                MockMultiaddress as MockAuthMultiaddress, MockNetwork,
+                MockPeerId as MockAuthPeerId, MockSenderError,
             },
-            testing::NetworkData,
+            testing::{DiscoveryMessage, NetworkData},
             NetworkIdentity, Protocol,
         },
-        session::SessionId,
+        // session::SessionId,
         testing::mocks::validator_network::{
-            MockMultiaddress, MockNetwork as MockValidatorNetwork,
+            random_authority_id, MockMultiaddress, MockNetwork as MockValidatorNetwork,
         },
+        SessionId,
     };
 
     pub struct TestData {
@@ -389,7 +391,7 @@ mod tests {
         pub exit_tx: oneshot::Sender<()>,
         pub network: MockNetwork,
         pub validator_network: MockValidatorNetwork<DataInSession<MockData>>,
-        pub mock_io: MockIO<MockMultiaddress, LegacyMockMultiaddress>,
+        pub mock_io: MockIO<MockMultiaddress>,
         // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
         _task_manager: TaskManager,
     }
@@ -399,7 +401,7 @@ mod tests {
             let task_manager = TaskManager::new(Handle::current(), None).unwrap();
 
             // Prepare communication with service
-            let (mock_io, io, legacy_io) = MockIO::new();
+            let (mock_io, io) = MockIO::new();
             // Prepare service
             let (event_stream_oneshot_tx, event_stream_oneshot_rx) = oneshot::channel();
             let network = MockNetwork::new(event_stream_oneshot_tx);
@@ -409,7 +411,6 @@ mod tests {
                 validator_network.clone(),
                 task_manager.spawn_handle(),
                 io,
-                legacy_io,
             );
             let (exit_tx, exit_rx) = oneshot::channel();
             let task_handle = async move {
@@ -437,11 +438,12 @@ mod tests {
             self.exit_tx.send(()).unwrap();
             self.service_handle.await.unwrap();
             self.network.close_channels().await;
+            self.validator_network.close_channels().await;
         }
 
         // We do this only to make sure that NotificationStreamOpened/NotificationStreamClosed events are handled
         async fn wait_for_events_handled(&mut self) {
-            let address = LegacyMockMultiaddress::random_with_id(MockPeerId::random());
+            let address = MockAuthMultiaddress::random_with_id(MockAuthPeerId::random());
             self.network
                 .emit_event(MockEvent::Connected(address.clone()));
             assert_eq!(
@@ -450,25 +452,43 @@ mod tests {
                     .next()
                     .await
                     .expect("Should receive message"),
-                (iter::once(address).collect(), Protocol::Generic,)
+                (iter::once(address).collect(), Protocol::Authentication,)
             );
         }
     }
 
-    fn message(i: u8) -> NetworkData<MockData, LegacyMockMultiaddress> {
-        NetworkData::Data(vec![i, i + 1, i + 2], SessionId(1))
+    fn message(i: u8) -> DataInSession<MockData> {
+        DataInSession {
+            data: vec![i, i + 1, i + 2],
+            session_id: SessionId(1),
+        }
+    }
+
+    async fn authentication(
+        multiaddresses: Vec<MockMultiaddress>,
+    ) -> DiscoveryMessage<MockMultiaddress> {
+        let crypto_basics = crypto_basics(1).await;
+        let handler = SessionHandler::new(
+            Some(crypto_basics.0[0].clone()),
+            crypto_basics.1.clone(),
+            SessionId(43),
+            multiaddresses,
+        )
+        .await
+        .unwrap();
+        DiscoveryMessage::AuthenticationBroadcast(handler.authentication().unwrap())
     }
 
     #[tokio::test]
     async fn test_sync_connected() {
         let mut test_data = TestData::prepare().await;
 
-        let address = LegacyMockMultiaddress::random_with_id(MockPeerId::random());
+        let address = MockAuthMultiaddress::random_with_id(MockAuthPeerId::random());
         test_data
             .network
             .emit_event(MockEvent::Connected(address.clone()));
 
-        let expected = (iter::once(address).collect(), Protocol::Generic);
+        let expected = (iter::once(address).collect(), Protocol::Authentication);
 
         assert_eq!(
             test_data
@@ -487,13 +507,13 @@ mod tests {
     async fn test_sync_disconnected() {
         let mut test_data = TestData::prepare().await;
 
-        let peer_id = MockPeerId::random();
+        let peer_id = MockAuthPeerId::random();
 
         test_data
             .network
             .emit_event(MockEvent::Disconnected(peer_id));
 
-        let expected = (iter::once(peer_id).collect(), Protocol::Generic);
+        let expected = (iter::once(peer_id).collect(), Protocol::Authentication);
 
         assert_eq!(
             test_data
@@ -512,43 +532,40 @@ mod tests {
     async fn test_notification_stream_opened() {
         let mut test_data = TestData::prepare().await;
 
-        let peer_ids: Vec<_> = (0..3).map(|_| MockPeerId::random()).collect();
+        let peer_ids: Vec<_> = (0..3).map(|_| MockAuthPeerId::random()).collect();
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Generic));
+                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Authentication));
         });
 
         // We do this only to make sure that NotificationStreamOpened events are handled
         test_data.wait_for_events_handled().await;
 
-        let message = message(1);
+        let message = authentication(test_data.validator_network.identity().0).await;
         test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((message.clone(), DataCommand::Broadcast))
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message.clone()), DataCommand::Broadcast))
             .unwrap();
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
                 .network
                 .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
                 .take(peer_ids.len())
-                .collect::<Vec<_>>()
                 .await
                 .into_iter(),
         );
 
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
-        );
+        let expected_messages = HashSet::from_iter(peer_ids.into_iter().map(|peer_id| {
+            (
+                VersionedAuthentication::V1(message.clone()).encode(),
+                peer_id,
+                Protocol::Authentication,
+            )
+        }));
 
         assert_eq!(broadcasted_messages, expected_messages);
 
@@ -559,13 +576,13 @@ mod tests {
     async fn test_notification_stream_closed() {
         let mut test_data = TestData::prepare().await;
 
-        let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
+        let peer_ids: Vec<_> = (0..3).map(|_| MockAuthPeerId::random()).collect();
         let opened_authorities_n = 2;
 
         peer_ids.iter().for_each(|peer_id| {
             test_data
                 .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Generic));
+                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Authentication));
         });
 
         peer_ids
@@ -574,43 +591,40 @@ mod tests {
             .for_each(|peer_id| {
                 test_data
                     .network
-                    .emit_event(MockEvent::StreamClosed(*peer_id, Protocol::Generic));
+                    .emit_event(MockEvent::StreamClosed(*peer_id, Protocol::Authentication));
             });
 
         // We do this only to make sure that NotificationStreamClosed events are handled
         test_data.wait_for_events_handled().await;
 
-        let messages: Vec<_> = vec![message(1), message(2)];
-        messages.iter().for_each(|m| {
-            test_data
-                .mock_io
-                .legacy_messages_for_user
-                .unbounded_send((m.clone(), DataCommand::Broadcast))
-                .unwrap();
-        });
+        let message = authentication(test_data.validator_network.identity().0).await;
+        test_data
+            .mock_io
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message.clone()), DataCommand::Broadcast))
+            .unwrap();
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
                 .network
                 .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
-                .take(opened_authorities_n * messages.len())
-                .collect::<Vec<_>>()
+                .take(opened_authorities_n)
                 .await
                 .into_iter(),
         );
 
-        let expected_messages =
-            HashSet::from_iter(peer_ids.into_iter().take(opened_authorities_n).flat_map(
-                |peer_id| {
-                    messages
-                        .iter()
-                        .map(move |m| (m.encode(), peer_id, Protocol::Generic))
-                },
-            ));
+        let expected_messages = HashSet::from_iter(
+            peer_ids
+                .into_iter()
+                .take(opened_authorities_n)
+                .map(|peer_id| {
+                    (
+                        VersionedAuthentication::V1(message.clone()).encode(),
+                        peer_id,
+                        Protocol::Authentication,
+                    )
+                }),
+        );
 
         assert_eq!(broadcasted_messages, expected_messages);
 
@@ -621,32 +635,22 @@ mod tests {
     async fn test_validator_data_command_send_to() {
         let mut test_data = TestData::prepare().await;
 
-        let peer_id = MockPeerId::random();
+        let peer_id = random_authority_id().await;
 
         let message = message(1);
 
         test_data
-            .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Validator));
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Validator),
-            ))
+            .messages_for_user
+            .unbounded_send((message.clone().into(), DataCommand::SendTo(peer_id.clone())))
             .unwrap();
 
-        let expected = (message.encode(), peer_id, Protocol::Validator);
+        let expected = (message, peer_id);
 
         assert_eq!(
             test_data
-                .network
-                .send_message
+                .validator_network
+                .send
                 .next()
                 .await
                 .expect("Should receive message"),
@@ -657,7 +661,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_validator_create_sender_error_one_peer() {
+    async fn test_receives_validator_data() {
+        let mut test_data = TestData::prepare().await;
+
+        let message = message(1);
+
+        test_data.validator_network.next.send(message.clone());
+
+        let expected: NetworkData<_, _> = message.into();
+
+        assert_eq!(
+            test_data
+                .mock_io
+                .messages_from_user
+                .next()
+                .await
+                .expect("Should receive message"),
+            expected,
+        );
+
+        test_data.cleanup().await
+    }
+
+    #[tokio::test]
+    async fn test_create_sender_error() {
         let mut test_data = TestData::prepare().await;
 
         test_data
@@ -666,37 +693,37 @@ mod tests {
             .lock()
             .push_back(MockSenderError::SomeError);
 
-        let peer_id = MockPeerId::random();
+        let peer_id = MockAuthPeerId::random();
 
-        let message_1 = message(1);
-        let message_2 = message(2);
+        let message_1 =
+            authentication(vec![(random_authority_id().await, String::from("other_1"))]).await;
+        let message_2 =
+            authentication(vec![(random_authority_id().await, String::from("other_2"))]).await;
 
         test_data
             .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Validator));
+            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Authentication));
 
         // We do this only to make sure that NotificationStreamOpened events are handled
         test_data.wait_for_events_handled().await;
 
         test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_1.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Validator),
-            ))
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message_1), DataCommand::Broadcast))
             .unwrap();
 
         test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_2.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Validator),
-            ))
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message_2.clone()), DataCommand::Broadcast))
             .unwrap();
 
-        let expected = (message_2.encode(), peer_id, Protocol::Validator);
+        let expected = (
+            VersionedAuthentication::V1(message_2).encode(),
+            peer_id,
+            Protocol::Authentication,
+        );
 
         assert_eq!(
             test_data
@@ -712,70 +739,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_validator_create_sender_error_many_peers() {
-        let mut test_data = TestData::prepare().await;
-
-        let all_authorities_n = 4;
-        let closed_authorities_n = 2;
-        for _ in 0..closed_authorities_n {
-            test_data
-                .network
-                .create_sender_errors
-                .lock()
-                .push_back(MockSenderError::SomeError);
-        }
-
-        let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message = message(1);
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Validator));
-        });
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .mock_io
-                .legacy_messages_for_user
-                .unbounded_send((
-                    message.clone(),
-                    DataCommand::SendTo(*peer_id, Protocol::Validator),
-                ))
-                .unwrap();
-        });
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
-                .take(all_authorities_n - closed_authorities_n)
-                .collect::<Vec<_>>()
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .skip(closed_authorities_n)
-                .map(|peer_id| (message.encode(), peer_id, Protocol::Validator)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_validator_data_command_send_to_error_one_peer() {
+    async fn test_send_error() {
         let mut test_data = TestData::prepare().await;
 
         test_data
@@ -784,37 +748,37 @@ mod tests {
             .lock()
             .push_back(MockSenderError::SomeError);
 
-        let peer_id = MockPeerId::random();
+        let peer_id = MockAuthPeerId::random();
 
-        let message_1 = message(1);
-        let message_2 = message(2);
+        let message_1 =
+            authentication(vec![(random_authority_id().await, String::from("other_1"))]).await;
+        let message_2 =
+            authentication(vec![(random_authority_id().await, String::from("other_2"))]).await;
 
         test_data
             .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Validator));
+            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Authentication));
 
         // We do this only to make sure that NotificationStreamOpened events are handled
         test_data.wait_for_events_handled().await;
 
         test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_1.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Validator),
-            ))
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message_1), DataCommand::Broadcast))
             .unwrap();
 
         test_data
             .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_2.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Validator),
-            ))
+            .messages_for_user
+            .unbounded_send((NetworkData::Meta(message_2.clone()), DataCommand::Broadcast))
             .unwrap();
 
-        let expected = (message_2.encode(), peer_id, Protocol::Validator);
+        let expected = (
+            VersionedAuthentication::V1(message_2).encode(),
+            peer_id,
+            Protocol::Authentication,
+        );
 
         assert_eq!(
             test_data
@@ -825,344 +789,6 @@ mod tests {
                 .expect("Should receive message"),
             expected,
         );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_validator_data_command_send_to_error_many_peers() {
-        let mut test_data = TestData::prepare().await;
-
-        let all_authorities_n = 4;
-        let closed_authorities_n = 2;
-        for _ in 0..closed_authorities_n {
-            test_data
-                .network
-                .send_errors
-                .lock()
-                .push_back(MockSenderError::SomeError);
-        }
-
-        let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message = message(1);
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Validator));
-        });
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .mock_io
-                .legacy_messages_for_user
-                .unbounded_send((
-                    message.clone(),
-                    DataCommand::SendTo(*peer_id, Protocol::Validator),
-                ))
-                .unwrap();
-        });
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
-                .take(all_authorities_n - closed_authorities_n)
-                .collect::<Vec<_>>()
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .skip(closed_authorities_n)
-                .map(|peer_id| (message.encode(), peer_id, Protocol::Validator)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_generic_data_command_send_to() {
-        let mut test_data = TestData::prepare().await;
-
-        let peer_id = MockPeerId::random();
-
-        let message = message(1);
-
-        test_data
-            .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Generic));
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        test_data
-            .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ))
-            .unwrap();
-
-        let expected = (message.encode(), peer_id, Protocol::Generic);
-
-        assert_eq!(
-            test_data
-                .network
-                .send_message
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected,
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_generic_create_sender_error_one_peer() {
-        let mut test_data = TestData::prepare().await;
-
-        test_data
-            .network
-            .create_sender_errors
-            .lock()
-            .push_back(MockSenderError::SomeError);
-
-        let peer_id = MockPeerId::random();
-
-        let message_1 = message(1);
-        let message_2 = message(2);
-
-        test_data
-            .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Generic));
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        test_data
-            .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_1.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ))
-            .unwrap();
-
-        test_data
-            .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_2.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ))
-            .unwrap();
-
-        let expected = (message_2.encode(), peer_id, Protocol::Generic);
-
-        assert_eq!(
-            test_data
-                .network
-                .send_message
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected,
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_generic_create_sender_error_many_peers() {
-        let mut test_data = TestData::prepare().await;
-
-        let all_authorities_n = 4;
-        let closed_authorities_n = 2;
-        for _ in 0..closed_authorities_n {
-            test_data
-                .network
-                .create_sender_errors
-                .lock()
-                .push_back(MockSenderError::SomeError);
-        }
-
-        let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message = message(1);
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Generic));
-        });
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .mock_io
-                .legacy_messages_for_user
-                .unbounded_send((
-                    message.clone(),
-                    DataCommand::SendTo(*peer_id, Protocol::Generic),
-                ))
-                .unwrap();
-        });
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
-                .take(all_authorities_n - closed_authorities_n)
-                .collect::<Vec<_>>()
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .skip(closed_authorities_n)
-                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_generic_data_command_send_to_error_one_peer() {
-        let mut test_data = TestData::prepare().await;
-
-        test_data
-            .network
-            .send_errors
-            .lock()
-            .push_back(MockSenderError::SomeError);
-
-        let peer_id = MockPeerId::random();
-
-        let message_1 = message(1);
-        let message_2 = message(2);
-
-        test_data
-            .network
-            .emit_event(MockEvent::StreamOpened(peer_id, Protocol::Generic));
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        test_data
-            .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_1.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ))
-            .unwrap();
-
-        test_data
-            .mock_io
-            .legacy_messages_for_user
-            .unbounded_send((
-                message_2.clone(),
-                DataCommand::SendTo(peer_id, Protocol::Generic),
-            ))
-            .unwrap();
-
-        let expected = (message_2.encode(), peer_id, Protocol::Generic);
-
-        assert_eq!(
-            test_data
-                .network
-                .send_message
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected,
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_generic_data_command_send_to_error_many_peers() {
-        let mut test_data = TestData::prepare().await;
-
-        let all_authorities_n = 4;
-        let closed_authorities_n = 2;
-        for _ in 0..closed_authorities_n {
-            test_data
-                .network
-                .send_errors
-                .lock()
-                .push_back(MockSenderError::SomeError);
-        }
-
-        let peer_ids: Vec<_> = (0..4).map(|_| MockPeerId::random()).collect();
-        let message = message(1);
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .network
-                .emit_event(MockEvent::StreamOpened(*peer_id, Protocol::Generic));
-        });
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data
-                .mock_io
-                .legacy_messages_for_user
-                .unbounded_send((
-                    message.clone(),
-                    DataCommand::SendTo(*peer_id, Protocol::Generic),
-                ))
-                .unwrap();
-        });
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .1
-                .lock()
-                .await
-                .by_ref()
-                .take(all_authorities_n - closed_authorities_n)
-                .collect::<Vec<_>>()
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .skip(closed_authorities_n)
-                .map(|peer_id| (message.encode(), peer_id, Protocol::Generic)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
 
         test_data.cleanup().await
     }
@@ -1171,21 +797,27 @@ mod tests {
     async fn test_notification_received() {
         let mut test_data = TestData::prepare().await;
 
-        let message = message(1);
+        let message = authentication(vec![(
+            random_authority_id().await,
+            String::from("other_addr"),
+        )])
+        .await;
 
         test_data.network.emit_event(MockEvent::Messages(vec![(
-            Protocol::Validator,
-            NetworkData::encode(&message).into(),
+            Protocol::Authentication,
+            VersionedAuthentication::V1(message.clone()).encode().into(),
         )]));
+
+        let expected = NetworkData::Meta(message);
 
         assert_eq!(
             test_data
                 .mock_io
-                .legacy_messages_from_user
+                .messages_from_user
                 .next()
                 .await
                 .expect("Should receive message"),
-            message
+            expected
         );
 
         test_data.cleanup().await
@@ -1195,22 +827,23 @@ mod tests {
     async fn test_command_add_reserved() {
         let mut test_data = TestData::prepare().await;
 
-        let (addresses, _) = MockNetworkIdentity::new().identity();
+        let multiaddress: MockMultiaddress =
+            (random_authority_id().await, String::from("other_addr"));
 
         test_data
             .mock_io
-            .legacy_commands_for_manager
+            .commands_for_manager
             .unbounded_send(ConnectionCommand::AddReserved(
-                addresses.clone().into_iter().collect(),
+                iter::once(multiaddress.clone()).collect(),
             ))
             .unwrap();
 
-        let expected = (addresses.into_iter().collect(), Protocol::Validator);
+        let expected = (multiaddress.0.clone(), vec![multiaddress]);
 
         assert_eq!(
             test_data
-                .network
-                .add_reserved
+                .validator_network
+                .add_connection
                 .next()
                 .await
                 .expect("Should receive message"),
@@ -1224,26 +857,24 @@ mod tests {
     async fn test_command_remove_reserved() {
         let mut test_data = TestData::prepare().await;
 
-        let peer_id = MockPeerId::random();
+        let peer_id = random_authority_id().await;
 
         test_data
             .mock_io
-            .legacy_commands_for_manager
+            .commands_for_manager
             .unbounded_send(ConnectionCommand::DelReserved(
-                iter::once(peer_id).collect(),
+                iter::once(peer_id.clone()).collect(),
             ))
             .unwrap();
 
-        let expected = (iter::once(peer_id).collect(), Protocol::Validator);
-
         assert_eq!(
             test_data
-                .network
-                .remove_reserved
+                .validator_network
+                .remove_connection
                 .next()
                 .await
                 .expect("Should receive message"),
-            expected
+            peer_id
         );
 
         test_data.cleanup().await
