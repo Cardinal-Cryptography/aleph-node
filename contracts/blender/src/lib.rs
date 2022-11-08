@@ -12,8 +12,10 @@ mod blender {
     use ink_env::*;
     use ink_storage::{traits::SpreadAllocate, Mapping};
     use scale::{Decode, Encode};
+    use snarcos_extension::{SnarcosError, VerificationKeyIdentifier};
+    use sp_std::vec::Vec;
 
-    use crate::binary_tree::BinaryTree;
+    use crate::{binary_tree::BinaryTree, blender::Error::ChainExtensionError};
 
     type Scalar = u64;
     type Nullifier = Scalar;
@@ -25,10 +27,23 @@ mod blender {
 
     type Set<T> = Mapping<T, ()>;
 
+    const DEPOSIT_VK_IDENTIFIER: VerificationKeyIdentifier =
+        ['d' as u8, 'p' as u8, 's' as u8, 't' as u8];
+    const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier =
+        ['w' as u8, 't' as u8, 'h' as u8, 'd' as u8];
+
+    #[derive(Eq, PartialEq, Debug, Decode, Encode)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum Relation {
+        Deposit,
+        Withdraw,
+    }
+
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
         InsufficientPermission,
+        ChainExtensionError(SnarcosError),
         TokenIdAlreadyRegistered,
     }
 
@@ -51,6 +66,19 @@ mod blender {
             ink_lang::utils::initialize_contract(|blender: &mut Self| {
                 blender.boss = Self::env().caller();
             })
+        }
+
+        #[ink(message, selector = 8)]
+        pub fn register_vk(&mut self, relation: Relation, vk: Vec<u8>) -> Result<()> {
+            self.ensure_mr_boss()?;
+            let identifier = match relation {
+                Relation::Deposit => DEPOSIT_VK_IDENTIFIER,
+                Relation::Withdraw => WITHDRAW_VK_IDENTIFIER,
+            };
+            self.env()
+                .extension()
+                .store_key(identifier, vk)
+                .map_err(ChainExtensionError)
         }
 
         #[ink(message, selector = 9)]
