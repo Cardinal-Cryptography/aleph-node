@@ -16,7 +16,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CHECKOUT_BRANCH: benjamin
