@@ -2,7 +2,7 @@
 
 use ink_lang as ink;
 
-mod binary_tree;
+mod merkle_tree;
 
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
 mod blender {
@@ -13,12 +13,17 @@ mod blender {
     #[allow(unused_imports)]
     use ink_env::*;
     use ink_prelude::{format, string::String, vec, vec::Vec};
-    use ink_storage::{traits::SpreadAllocate, Mapping};
+    use ink_storage::{
+        traits::{PackedLayout, SpreadAllocate, SpreadLayout},
+        Mapping,
+    };
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
+    #[cfg(feature = "std")]
+    use scale_info::TypeInfo;
     use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
-    use crate::binary_tree::BinaryTree;
+    use crate::merkle_tree::{KinderBlender, MerkleTree};
 
     type Scalar = u64;
     type Nullifier = Scalar;
@@ -40,16 +45,17 @@ mod blender {
     pub const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(TypeInfo))]
     pub enum Relation {
         Deposit,
         Withdraw,
     }
 
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(TypeInfo))]
     pub enum Error {
         InsufficientPermission,
+        TooMuchNotes,
 
         ChainExtensionError(SnarcosError),
 
@@ -62,10 +68,29 @@ mod blender {
 
     type Result<T> = core::result::Result<T, Error>;
 
+    #[derive(
+        Clone, Eq, PartialEq, Default, Decode, Encode, PackedLayout, SpreadLayout, SpreadAllocate,
+    )]
+    #[cfg_attr(feature = "std", derive(TypeInfo, ink_storage::traits::StorageLayout))]
+    struct MerkleHasher;
+    impl KinderBlender<Hash> for MerkleHasher {
+        fn blend_kinder(left: &Hash, right: &Hash) -> Hash {
+            left.as_ref()
+                .iter()
+                .cloned()
+                .zip(right.as_ref().iter().cloned())
+                .map(|(l, r)| l ^ r)
+                .collect::<Vec<_>>()
+                .as_slice()
+                .try_into()
+                .unwrap()
+        }
+    }
+
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct Blender {
-        notes: BinaryTree<Note, 1024>,
+        notes: MerkleTree<Note, MerkleHasher, 1024>,
         merkle_roots: Set<MerkleRoot>,
         nullifiers: Set<Nullifier>,
 
@@ -91,6 +116,8 @@ mod blender {
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
             self.verify_deposit(token_id, value, note, proof)?;
+            self.notes.add(note).map_err(|_| Error::TooMuchNotes)?;
+            self.merkle_roots.insert(self.notes.root(), &());
             Ok(())
         }
 
