@@ -5,12 +5,12 @@ use std::{
 };
 
 use codec::{Decode, Encode};
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 
 use crate::{
     network::{
         manager::{Authentication, SessionHandler},
-        DataCommand, Multiaddress, Protocol,
+        DataCommand, Multiaddress,
     },
     NodeIndex, SessionId,
 };
@@ -51,16 +51,6 @@ fn authentication_broadcast<M: Multiaddress>(
     (
         DiscoveryMessage::AuthenticationBroadcast(authentication),
         DataCommand::Broadcast,
-    )
-}
-
-fn response<M: Multiaddress>(
-    authentication: Authentication<M>,
-    peer_id: M::PeerId,
-) -> DiscoveryCommand<M> {
-    (
-        DiscoveryMessage::Authentication(authentication),
-        DataCommand::SendTo(peer_id, Protocol::Generic),
     )
 }
 
@@ -110,6 +100,9 @@ impl<M: Multiaddress> Discovery<M> {
         }
     }
 
+    // Responding to authentication broadcasts will be brought back here in A0-1471.
+    // Because of that we leave `Vec<DiscoveryCommand<M>>` even though right now it contains
+    // at max 1 message.
     fn handle_broadcast(
         &mut self,
         authentication: Authentication<M>,
@@ -122,16 +115,6 @@ impl<M: Multiaddress> Discovery<M> {
         }
         let node_id = authentication.0.creator();
         let mut messages = Vec::new();
-        match handler.peer_id(&node_id) {
-            Some(peer_id) => {
-                if let Some(handler_authentication) = handler.authentication() {
-                    messages.push(response(handler_authentication, peer_id));
-                }
-            }
-            None => {
-                warn!(target: "aleph-network", "Id of correctly authenticated peer not present.")
-            }
-        }
         if self.should_rebroadcast(&node_id) {
             trace!(target: "aleph-network", "Rebroadcasting {:?}.", authentication);
             self.last_broadcast.insert(node_id, Instant::now());
@@ -265,15 +248,11 @@ mod tests {
             handler,
         );
         assert_eq!(addresses, authentication.0.addresses());
-        assert_eq!(commands.len(), 2);
+        assert_eq!(commands.len(), 1);
         assert!(commands.iter().any(|command| matches!(command, (
                 DiscoveryMessage::AuthenticationBroadcast(rebroadcast_authentication),
                 DataCommand::Broadcast,
             ) if rebroadcast_authentication == &authentication)));
-        assert!(commands.iter().any(|command| matches!(command, (
-                DiscoveryMessage::Authentication(authentication),
-                DataCommand::SendTo(_, _),
-            ) if *authentication == handler.authentication().unwrap())));
     }
 
     #[tokio::test]
@@ -305,31 +284,6 @@ mod tests {
         );
         assert!(addresses.is_empty());
         assert!(commands.is_empty());
-    }
-
-    #[tokio::test]
-    async fn does_not_rebroadcast_quickly_but_still_responds() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let authentication = handlers[1].authentication().unwrap();
-        let handler = &mut handlers[0];
-        discovery.handle_message(
-            DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
-            handler,
-        );
-        let (addresses, commands) = discovery.handle_message(
-            DiscoveryMessage::AuthenticationBroadcast(authentication.clone()),
-            handler,
-        );
-        assert_eq!(addresses.len(), authentication.0.addresses().len());
-        assert_eq!(
-            addresses[0].encode(),
-            authentication.0.addresses()[0].encode()
-        );
-        assert_eq!(commands.len(), 1);
-        assert!(matches!(&commands[0], (
-                DiscoveryMessage::Authentication(authentication),
-                DataCommand::SendTo(_, _),
-            ) if *authentication == handler.authentication().unwrap()));
     }
 
     #[tokio::test]
