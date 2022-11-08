@@ -16,6 +16,11 @@ const SESSION_WITH_FINALITY_VERSION_CHANGE: SessionIndex = 4;
 const SCHEDULING_OFFSET_SESSIONS: f64 = -2.5;
 const CHECK_START_BLOCK: BlockNumber = 0;
 
+/// Sets up the test. Waits for block 2.5 sessions ahead of `SESSION_WITH_FINALITY_VERSION_CHANGE`.
+/// Schedules a finality version change. Waits for all blocks of session
+/// `SESSION_WITH_FINALITY_VERSION_CHANGE` to be finalized. Checks the finality version and the
+/// finality version for the next session for all the blocks from block `CHECK_START_BLOCK`
+/// until the end of session `SESSION_WITH_FINALITY_VERSION_CHANGE`.
 pub fn finality_version(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection();
     let session_period = get_session_period(&root_connection);
