@@ -100,9 +100,6 @@ impl<M: Multiaddress> Discovery<M> {
         }
     }
 
-    // Responding to authentication broadcasts will be brought back here in A0-1471.
-    // Because of that we leave `Vec<DiscoveryCommand<M>>` even though right now it contains
-    // at max 1 message.
     fn handle_broadcast(
         &mut self,
         authentication: Authentication<M>,
