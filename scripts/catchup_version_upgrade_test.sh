@@ -163,6 +163,7 @@ ALL_NODES_PORTS=(${result[@]})
 
 log "initializing nodes..."
 DOCKER_COMPOSE=./docker/docker-compose.bridged.yml ./.github/scripts/run_consensus.sh 1>&2
+sleep 300
 log "awaiting finalization of $INIT_BLOCK blocks..."
 initialize $INIT_BLOCK "Node0" 9933
 log "nodes initialized"
