@@ -1,3 +1,4 @@
+pub use ban::{ban_automatic, ban_manual, clearing_session_count};
 pub use button_game::{
     back_to_the_future, button_game_reset, early_bird_special, marketplace, the_pressiah_cometh,
 };
@@ -15,7 +16,11 @@ pub use treasury::{channeling_fee_and_tip, treasury_access};
 pub use utility::batch_transactions;
 pub use validators_change::change_validators;
 pub use validators_rotate::validators_rotate;
+pub use version_upgrade::{
+    schedule_doomed_version_change_and_verify_finalization_stopped, schedule_version_change,
+};
 
+mod ban;
 mod button_game;
 mod electing_validators;
 mod era_payout;
@@ -29,3 +34,4 @@ mod treasury;
 mod utility;
 mod validators_change;
 mod validators_rotate;
+mod version_upgrade;

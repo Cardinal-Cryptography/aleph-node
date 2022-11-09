@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CHECKOUT_BRANCH: benjamin
@@ -136,7 +136,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: github.event_name == 'push' && github.ref_name == 'benjamin'
+    if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
@@ -299,4 +299,3 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
-

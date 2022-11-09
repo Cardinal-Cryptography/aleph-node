@@ -35,7 +35,7 @@ jobs:
         uses: ./.github/actions/restore-cache
         with:
           target-key: release
-          cache-version: v1
+          cache-version: v2
 
       - name: Build binary and runtime
         run: cargo build --profile production -p aleph-node
@@ -57,7 +57,7 @@ jobs:
           retention-days: 7
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
+        run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals only_legacy"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2
