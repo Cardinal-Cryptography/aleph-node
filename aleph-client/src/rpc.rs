@@ -31,6 +31,7 @@ fn emergency_finalize_json(signature: Vec<u8>, hash: BlockHash, number: BlockNum
     )
 }
 
+/// Gets the finality version for the next session relative to the block whose hash has been given.
 pub fn next_session_finality_version(hash: Option<BlockHash>) -> Value {
     json_req(
         "finalityVersion_nextSessionFinalityVersion",
