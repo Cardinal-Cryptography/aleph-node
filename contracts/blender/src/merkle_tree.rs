@@ -83,6 +83,8 @@ impl<TE: TreeElement, KB: KinderBlender<TE>, const LEAVES: usize> MerkleTree<TE,
             parent /= 2;
         }
 
+        self.next_free_leaf += 1;
+
         Ok(())
     }
 }
