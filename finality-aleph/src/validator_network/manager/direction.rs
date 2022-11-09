@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::BitXor,
+};
 
 use aleph_primitives::AuthorityId;
 
@@ -12,24 +15,14 @@ pub struct DirectedPeers<A: Data> {
     incoming: HashSet<AuthorityId>,
 }
 
-fn bit_xor_sum_parity((a, b): (u8, u8)) -> u8 {
-    let mut result = 0;
-    for i in 0..8 {
-        result += ((a >> i) ^ (b >> i)) % 2;
-    }
-    result % 2
-}
-
 /// Whether we should call the remote or the other way around. We xor the peer ids and based on the
 /// parity of the sum of bits of the result decide whether the caller should be the smaller or
 /// greated lexicographically. They are never equal, because cryptography.
 fn should_we_call(own_id: &[u8], remote_id: &[u8]) -> bool {
-    let xor_sum_parity: u8 = own_id
-        .iter()
-        .cloned()
-        .zip(remote_id.iter().cloned())
-        .map(bit_xor_sum_parity)
-        .fold(0u8, |a, b| (a + b) % 2);
+    let xor_sum_parity = (own_id.iter().fold(0u8, BitXor::bitxor)
+        ^ remote_id.iter().fold(0u8, BitXor::bitxor))
+    .count_ones()
+        % 2;
     match xor_sum_parity == 0 {
         true => own_id < remote_id,
         false => own_id > remote_id,

@@ -103,7 +103,8 @@ pub async fn outgoing<D: Data, S: Splittable>(
 }
 
 /// Performs the incoming handshake, and then manages a connection sending and receiving data.
-/// Exits on parent request, or in case of broken or dead network connection.
+/// Exits on parent request (when the data source is dropped), or in case of broken or dead
+/// network connection.
 pub async fn incoming<D: Data, S: Splittable>(
     stream: S,
     authority_pen: AuthorityPen,
