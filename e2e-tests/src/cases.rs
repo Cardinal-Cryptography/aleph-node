@@ -12,7 +12,7 @@ use crate::{
         fee_calculation as test_fee_calculation, finalization as test_finalization,
         force_new_era as test_force_new_era, marketplace as test_marketplace,
         points_basic as test_points_basic, points_stake_change as test_points_stake_change,
-        staking_era_payouts as test_staking_era_payouts,
+        simple_dex as test_simple_dex, staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator,
         the_pressiah_cometh as test_the_pressiah_cometh, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
@@ -63,5 +63,6 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("back_to_the_future", test_back_to_the_future as TestCase),
         ("the_pressiah_cometh", test_the_pressiah_cometh as TestCase),
         ("marketplace", test_marketplace as TestCase),
+        ("simple_dex", test_simple_dex as TestCase),
     ]
 }

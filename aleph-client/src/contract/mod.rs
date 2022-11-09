@@ -98,15 +98,15 @@ impl ContractInstance {
         conn: &C,
         message: &str,
     ) -> Result<ConvertibleValue> {
-        self.contract_read(conn, message, &[])
+        self.contract_read::<C, String>(conn, message, &[])
     }
 
     /// Reads the value of a read-only call via RPC.
-    pub fn contract_read<C: AnyConnection>(
+    pub fn contract_read<C: AnyConnection, S: AsRef<str> + Debug>(
         &self,
         conn: &C,
         message: &str,
-        args: &[&str],
+        args: &[S],
     ) -> Result<ConvertibleValue> {
         let payload = self.encode(message, args)?;
         let request = self.contract_read_request(&payload);
@@ -123,15 +123,15 @@ impl ContractInstance {
 
     /// Executes a 0-argument contract call.
     pub fn contract_exec0(&self, conn: &SignedConnection, message: &str) -> Result<()> {
-        self.contract_exec(conn, message, &[])
+        self.contract_exec::<String>(conn, message, &[])
     }
 
     /// Executes a contract call.
-    pub fn contract_exec(
+    pub fn contract_exec<S: AsRef<str> + Debug>(
         &self,
         conn: &SignedConnection,
         message: &str,
-        args: &[&str],
+        args: &[S],
     ) -> Result<()> {
         let data = self.encode(message, args)?;
         let xt = compose_extrinsic!(
@@ -166,7 +166,7 @@ impl ContractInstance {
         })
     }
 
-    fn encode(&self, message: &str, args: &[&str]) -> Result<Vec<u8>> {
+    fn encode<S: AsRef<str> + Debug>(&self, message: &str, args: &[S]) -> Result<Vec<u8>> {
         ContractMessageTranscoder::new(&self.ink_project).encode(message, args)
     }
 

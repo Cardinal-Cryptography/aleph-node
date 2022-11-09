@@ -521,6 +521,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "obce"
+version = "0.1.0"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+dependencies = [
+ "ink_engine",
+ "ink_env",
+ "ink_lang",
+ "ink_metadata",
+ "ink_prelude",
+ "ink_primitives",
+ "ink_storage",
+ "obce-macro",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
+name = "obce-codegen"
+version = "0.1.0"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+dependencies = [
+ "blake2 0.10.4",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "obce-macro"
+version = "0.1.0"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+dependencies = [
+ "obce-codegen",
+ "proc-macro2",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -534,8 +573,8 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "openbrush"
-version = "2.1.0"
-source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a20f95#8a20f951feaf8c6ea72c4bf113bf115bad9f158f"
+version = "2.2.0"
+source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=15e6366#15e63664d87124f4cc0e7ba55b21a71222983677"
 dependencies = [
  "ink_env",
  "ink_lang",
@@ -551,8 +590,8 @@ dependencies = [
 
 [[package]]
 name = "openbrush_contracts"
-version = "2.1.0"
-source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a20f95#8a20f951feaf8c6ea72c4bf113bf115bad9f158f"
+version = "2.2.0"
+source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=15e6366#15e63664d87124f4cc0e7ba55b21a71222983677"
 dependencies = [
  "ink_env",
  "ink_lang",
@@ -561,19 +600,21 @@ dependencies = [
  "ink_primitives",
  "ink_storage",
  "openbrush_lang",
+ "pallet-assets-chain-extension",
  "parity-scale-codec",
  "scale-info",
 ]
 
 [[package]]
 name = "openbrush_lang"
-version = "2.1.0"
-source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a20f95#8a20f951feaf8c6ea72c4bf113bf115bad9f158f"
+version = "2.2.0"
+source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=15e6366#15e63664d87124f4cc0e7ba55b21a71222983677"
 dependencies = [
  "const_format",
  "ink_env",
  "ink_lang",
  "ink_metadata",
+ "ink_prelude",
  "ink_primitives",
  "ink_storage",
  "openbrush_lang_macro",
@@ -584,8 +625,8 @@ dependencies = [
 
 [[package]]
 name = "openbrush_lang_codegen"
-version = "2.1.0"
-source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a20f95#8a20f951feaf8c6ea72c4bf113bf115bad9f158f"
+version = "2.2.0"
+source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=15e6366#15e63664d87124f4cc0e7ba55b21a71222983677"
 dependencies = [
  "blake2 0.9.2",
  "cargo_metadata",
@@ -603,13 +644,26 @@ dependencies = [
 
 [[package]]
 name = "openbrush_lang_macro"
-version = "2.1.0"
-source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=8a20f95#8a20f951feaf8c6ea72c4bf113bf115bad9f158f"
+version = "2.2.0"
+source = "git+https://github.com/Supercolony-net/openbrush-contracts.git?rev=15e6366#15e63664d87124f4cc0e7ba55b21a71222983677"
 dependencies = [
  "openbrush_lang_codegen",
  "proc-macro2",
  "syn",
  "synstructure",
+]
+
+[[package]]
+name = "pallet-assets-chain-extension"
+version = "0.1.1"
+source = "git+https://github.com/Supercolony-net/pallet-assets-chain-extension#83ff37cb0d19d15a881ecab2c922596039c8358d"
+dependencies = [
+ "ink_metadata",
+ "ink_primitives",
+ "ink_storage",
+ "obce",
+ "parity-scale-codec",
+ "scale-info",
 ]
 
 [[package]]

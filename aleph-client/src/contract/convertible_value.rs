@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use contract_transcode::Value;
 use sp_core::crypto::Ss58Codec;
 
@@ -69,5 +69,39 @@ impl TryFrom<ConvertibleValue> for AccountId {
             Value::Literal(value) => Ok(AccountId::from_ss58check(&value)?),
             _ => bail!("Expected {:?} to be a string", value),
         }
+    }
+}
+
+impl<T> TryFrom<ConvertibleValue> for Result<T>
+where
+    ConvertibleValue: TryInto<T, Error = anyhow::Error>,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> Result<Result<T>, Self::Error> {
+        match &value.0 {
+            Value::Tuple(tuple) => match tuple.ident() {
+                Some(x) if x == "Ok" => {
+                    if tuple.values().count() == 1 {
+                        let item =
+                            ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
+                        return Ok(Ok(item));
+                    } else {
+                        bail!("Unexpected number of elements in Ok variant: {:?}", &value)
+                    }
+                }
+                Some(x) if x == "Err" => {
+                    if tuple.values().count() == 1 {
+                        return Ok(Err(anyhow!(value.to_string())));
+                    } else {
+                        bail!("Unexpected number of elements in Err variant: {:?}", &value)
+                    }
+                }
+                _ => (),
+            },
+            _ => (),
+        };
+
+        bail!("Expected {:?} to be an Ok(_) or Err(_) tuple.", value)
     }
 }

@@ -1,5 +1,6 @@
 pub use button_game::{
-    back_to_the_future, button_game_reset, early_bird_special, marketplace, the_pressiah_cometh,
+    back_to_the_future, button_game_reset, early_bird_special, marketplace, simple_dex,
+    the_pressiah_cometh,
 };
 pub use electing_validators::authorities_are_staking;
 pub use era_payout::era_payouts_calculated_correctly;

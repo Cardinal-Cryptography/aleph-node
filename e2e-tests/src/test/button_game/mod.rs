@@ -5,17 +5,120 @@ use anyhow::Result;
 use assert2::{assert, let_assert};
 use helpers::sign;
 use log::info;
+use sp_core::Pair;
 
 use crate::{
     test::button_game::helpers::{
-        assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
-        ButtonTestContext,
+        assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test, setup_dex_test,
+        wait_for_death, ButtonTestContext, DexTestContext,
     },
     Config,
 };
 
 mod contracts;
 mod helpers;
+
+/// Test trading on simple_dex.
+///
+/// The scenario does the following (given 3 tokens A, B, C):
+///
+/// 1. Enables A <-> B, and A -> C swaps.
+/// 2. Adds (A, 2000M), (B, 5000M), (C, 10000M) of liquidity.
+/// 3. Makes a swap A -> B and then B -> A for the amount of B received in the first swap.
+/// 4. Checks that the price after the two swaps is the same as before (with a dust allowance of 1 for rounding).
+/// 5. Checks that it's possible to make an A -> C swap, but impossible to make a C -> A swap.
+pub fn simple_dex(config: &Config) -> Result<()> {
+    let DexTestContext {
+        conn,
+        authority,
+        account,
+        dex,
+        token1,
+        token2,
+        token3,
+        mut events,
+    } = setup_dex_test(config)?;
+    let authority_conn = &sign(&conn, &authority);
+    let account_conn = &sign(&conn, &account);
+    let token1 = token1.as_ref();
+    let token2 = token2.as_ref();
+    let token3 = token3.as_ref();
+    let dex = dex.as_ref();
+
+    dex.add_swap_pair(authority_conn, token1.into(), token2.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    dex.add_swap_pair(authority_conn, token2.into(), token1.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    dex.add_swap_pair(authority_conn, token1.into(), token3.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    token1.mint(authority_conn, &authority.public().into(), mega(3000))?;
+    token2.mint(authority_conn, &authority.public().into(), mega(5000))?;
+    token3.mint(authority_conn, &authority.public().into(), mega(10000))?;
+
+    token1.approve(authority_conn, &dex.into(), mega(3000))?;
+    token2.approve(authority_conn, &dex.into(), mega(5000))?;
+    token3.approve(authority_conn, &dex.into(), mega(10000))?;
+    dex.deposit(
+        authority_conn,
+        &[
+            (token1, mega(3000)),
+            (token2, mega(5000)),
+            (token3, mega(10000)),
+        ],
+    )?;
+
+    let more_than_liquidity = mega(1_000_000);
+    assert!(dex
+        .out_given_in(
+            account_conn,
+            &token1,
+            &token2,
+            100,
+            Some(more_than_liquidity)
+        )
+        .is_err());
+
+    let initial_amount = mega(100);
+    token1.mint(authority_conn, &account.public().into(), initial_amount)?;
+    let expected_output = dex.out_given_in(account_conn, &token1, &token2, initial_amount, None)?;
+    assert!(expected_output > 0);
+
+    token1.approve(account_conn, &dex.into(), initial_amount)?;
+    dex.swap(
+        account_conn,
+        &token1,
+        initial_amount,
+        &token2,
+        expected_output * 9 / 10,
+    )?;
+    assert_recv_id(&mut events, "Swapped");
+    assert!(token2.balance_of(&conn, &account.public().into())? == expected_output);
+
+    token2.approve(account_conn, &dex.into(), expected_output)?;
+    dex.swap(account_conn, &token2, expected_output, &token1, mega(90))?;
+    assert_recv_id(&mut events, "Swapped");
+
+    let balance_after = token1.balance_of(&conn, &account.public().into())?;
+    assert!(initial_amount.abs_diff(balance_after) <= 1);
+    assert!(
+        dex.out_given_in(account_conn, &token1, &token2, initial_amount, None)?
+            .abs_diff(expected_output)
+            <= 1
+    );
+
+    token1.approve(account_conn, &dex.into(), balance_after)?;
+    dex.swap(account_conn, &token1, balance_after, &token3, mega(90))?;
+    assert_recv_id(&mut events, "Swapped");
+    let balance_token3 = token3.balance_of(&conn, &account.public().into())?;
+    token3.approve(account_conn, &dex.into(), balance_token3)?;
+    dex.swap(account_conn, &token3, balance_token3, &token1, mega(90))?;
+    refute_recv_id(&mut events, "Swapped");
+
+    Ok(())
+}
 
 /// Tests trading on the marketplace.
 ///
