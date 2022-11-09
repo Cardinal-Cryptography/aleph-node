@@ -67,7 +67,7 @@ mod blender {
         /// Caller is missing some permission.
         InsufficientPermission,
         /// Merkle tree is full - no new notes can be created.
-        TooMuchNotes,
+        TooManyNotes,
 
         /// Pallet returned an error (through chain extension).
         ChainExtension(SnarcosError),
@@ -148,7 +148,7 @@ mod blender {
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
             self.verify_deposit(token_id, value, note, proof)?;
-            self.notes.add(note).map_err(|_| Error::TooMuchNotes)?;
+            self.notes.add(note).map_err(|_| Error::TooManyNotes)?;
             self.merkle_roots.insert(self.notes.root(), &());
             Ok(())
         }
