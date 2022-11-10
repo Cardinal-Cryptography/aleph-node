@@ -5,6 +5,12 @@ use ink_env::{
 
 use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
 
+/// Convenience trait for contracts that have methods that need to be under access control
+///
+/// Such contracts should implement this trait and pass their error enum as associated type:
+/// impl AccessControlled for MyContract {
+///     type ContractError = MyContractError;
+/// }
 pub trait AccessControlled {
     type ContractError;
 

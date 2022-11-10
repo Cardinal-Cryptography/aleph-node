@@ -1,5 +1,6 @@
 use aleph_client::{RootConnection, SignedConnection};
 use clap::{Args, Parser};
+use primitives::SessionIndex;
 
 use crate::accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, NodeKeys};
 
@@ -103,4 +104,16 @@ pub struct TestCaseParams {
     /// Path to the simple_dex metadata file. Only used by button tests.
     #[clap(long)]
     pub simple_dex_metadata: Option<String>,
+
+    /// Version for the VersionUpgrade test.
+    #[clap(long)]
+    pub upgrade_to_version: Option<u32>,
+
+    /// Session in which we should schedule an upgrade in VersionUpgrade test.
+    #[clap(long)]
+    pub upgrade_session: Option<SessionIndex>,
+
+    /// How many sessions we should wait after upgrade in VersionUpgrade test.
+    #[clap(long)]
+    pub upgrade_finalization_wait_sessions: Option<u32>,
 }
