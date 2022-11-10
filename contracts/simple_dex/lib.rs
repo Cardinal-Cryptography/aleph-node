@@ -372,14 +372,27 @@ mod simple_dex {
             let this = self.env().account_id();
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
-
             if min_amount_token_out.map_or(false, |x| balance_token_out < x) {
                 // throw early if we cannot support this swap anyway due to liquidity being too low
                 return Err(DexError::NotEnoughLiquidityOf(token_out));
             }
 
+            Self::_out_given_in(
+                amount_token_in,
+                balance_token_in,
+                balance_token_out,
+                self.swap_fee_percentage,
+            )
+        }
+
+        fn _out_given_in(
+            amount_token_in: Balance,
+            balance_token_in: Balance,
+            balance_token_out: Balance,
+            swap_fee_percentage: Balance,
+        ) -> Result<Balance, DexError> {
             let op0 = amount_token_in
-                .checked_mul(self.swap_fee_percentage)
+                .checked_mul(swap_fee_percentage)
                 .ok_or(DexError::Arithmethic)?;
 
             let op1 = balance_token_in
@@ -398,6 +411,8 @@ mod simple_dex {
 
             balance_token_out
                 .checked_sub(op4)
+                // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
+                .and_then(|result| result.checked_sub(if op3 % op2 > 0 { 1 } else { 0 }))
                 .ok_or(DexError::Arithmethic)
         }
 
@@ -504,6 +519,31 @@ mod simple_dex {
             EE: EmitEvent<SimpleDex>,
         {
             emitter.emit_event(event);
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use proptest::prelude::*;
+
+        use super::*;
+
+        proptest! {
+            #[test]
+            fn rounding_benefits_dex(
+                balance_token_a in 1..1000u128,
+                balance_token_b in 1..1000u128,
+                pay_token_a in 1..1000u128
+            ) {
+                let get_token_b =
+                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, 0).unwrap();
+                let balance_token_a = balance_token_a + pay_token_a;
+                let balance_token_b = balance_token_b - get_token_b;
+                let get_token_a =
+                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, 0).unwrap();
+
+                assert!(get_token_a <= pay_token_a);
+            }
         }
     }
 }
