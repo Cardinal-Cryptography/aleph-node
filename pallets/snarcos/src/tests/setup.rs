@@ -9,22 +9,23 @@ use frame_support::{
     traits::Everything,
 };
 use frame_system::mocking::{MockBlock, MockUncheckedExtrinsic};
+use sp_io::TestExternalities;
 use sp_runtime::traits::BlakeTwo256;
 
 use crate as pallet_snarcos;
 
 construct_runtime!(
-    pub enum Test where
-        Block = MockBlock<Test>,
-        NodeBlock = MockBlock<Test>,
-        UncheckedExtrinsic = MockUncheckedExtrinsic<Test>,
+    pub enum TestRuntime where
+        Block = MockBlock<TestRuntime>,
+        NodeBlock = MockBlock<TestRuntime>,
+        UncheckedExtrinsic = MockUncheckedExtrinsic<TestRuntime>,
     {
         System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
         Snarcos: pallet_snarcos::{Pallet, Call, Storage, Event<T>},
     }
 );
 
-impl frame_system::Config for Test {
+impl frame_system::Config for TestRuntime {
     type BaseCallFilter = Everything;
     type BlockWeights = ();
     type BlockLength = ();
@@ -51,8 +52,16 @@ impl frame_system::Config for Test {
     type MaxConsumers = ConstU32<16>;
 }
 
-impl pallet_snarcos::Config for Test {
+impl pallet_snarcos::Config for TestRuntime {
     type Event = Event;
     type WeightInfo = ();
     type MaximumVerificationKeyLength = ConstU32<10_000>;
+}
+
+pub(super) fn new_test_ext() -> TestExternalities {
+    let t = frame_system::GenesisConfig::default()
+        .build_storage::<TestRuntime>()
+        .unwrap();
+
+    TestExternalities::new(t)
 }
