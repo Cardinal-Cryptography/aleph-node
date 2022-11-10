@@ -169,9 +169,48 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
     ) -> AddResult {
         use ConnectionType::*;
         match connection_type {
-            New => self.manager.add_connection(peer_id, data_for_network),
+            New => {
+                // If we are adding a non-legacy connection we want to ensure it's not marked as
+                // such. This should only matter if a peer initially used the legacy protocol but
+                // now upgraded, otherwise this is unnecessary busywork, but what can you do.
+                self.unmark_legacy(&peer_id);
+                self.manager.add_connection(peer_id, data_for_network)
+            }
             LegacyIncoming => self.legacy_manager.add_incoming(peer_id, data_for_network),
             LegacyOutgoing => self.legacy_manager.add_outgoing(peer_id, data_for_network),
+        }
+    }
+
+    // Mark a peer as legacy and return whether it is the first time we do so.
+    fn mark_legacy(&mut self, peer_id: &AuthorityId) -> bool {
+        self.manager.remove_peer(&peer_id);
+        self.legacy_connected.insert(peer_id.clone())
+    }
+
+    // Unmark a peer as legacy, putting it back in the normal set.
+    fn unmark_legacy(&mut self, peer_id: &AuthorityId) {
+        self.legacy_connected.remove(peer_id);
+        // Put it back if we still want to be connected.
+        if let Some(addresses) = self.legacy_manager.peer_addresses(peer_id) {
+            self.manager.add_peer(peer_id.clone(), addresses);
+        }
+    }
+
+    // Checks whether this peer should now be marked as one using the legacy protocol and handled
+    // accordingly. Returns whether we should spawn a new connection worker because of that.
+    fn check_for_legacy(&mut self, peer_id: &AuthorityId, connection_type: ConnectionType) -> bool {
+        use ConnectionType::*;
+        match connection_type {
+            LegacyIncoming => self.mark_legacy(&peer_id),
+            LegacyOutgoing => {
+                self.mark_legacy(&peer_id);
+                false
+            }
+            // We don't unmark here, because we always return New when a connection
+            // fails early, and in such cases we want to keep the previous guess as to
+            // how we want to connect. We unmark once we successfully negotiate and add
+            // a connection.
+            New => false,
         }
     }
 
@@ -225,31 +264,12 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
                 // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
                 Some((peer_id, maybe_data_for_network, connection_type)) = worker_results.next() => {
-                    use ConnectionType::*;
-                    let spawn_new_legacy_connection = match connection_type {
-                        LegacyIncoming => {
-                            self.manager.remove_peer(&peer_id);
-                            self.legacy_connected.insert(peer_id.clone())
-                        },
-                        LegacyOutgoing => {
-                            self.manager.remove_peer(&peer_id);
-                            self.legacy_connected.insert(peer_id.clone());
-                            false
-                        }
-                        New => {
-                            // We always return New if connecting fails, so only New+Some means we
-                            // actually negotiated the new protocol, otherwise we should stay
-                            // with our previous guess.
-                            if maybe_data_for_network.is_some() {
-                                self.legacy_connected.remove(&peer_id);
-                            }
-                            false
-                        },
-                    };
-                    if spawn_new_legacy_connection {
+                    if self.check_for_legacy(&peer_id, connection_type) {
                         match self.legacy_manager.peer_addresses(&peer_id) {
                             Some(addresses) => self.spawn_new_outgoing(peer_id.clone(), addresses, result_for_parent.clone()),
                             None => {
+                                // We received a result from a worker we are no longer interested
+                                // in.
                                 self.legacy_connected.remove(&peer_id);
                             },
                         }
