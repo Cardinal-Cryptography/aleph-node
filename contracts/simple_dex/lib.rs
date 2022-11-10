@@ -162,19 +162,11 @@ mod simple_dex {
                 return Err(DexError::InsufficientAllowanceOf(token_in));
             }
 
-            let balance_token_in = self.balance_of(token_in, this)?;
-            let balance_token_out = self.balance_of(token_out, this)?;
-
-            if balance_token_out < min_amount_token_out {
-                // throw early if we cannot support this swap anyway due to liquidity being too low
-                return Err(DexError::NotEnoughLiquidityOf(token_out));
-            }
-
-            let amount_token_out = Self::out_given_in(
+            let amount_token_out = self.out_given_in(
+                token_in,
+                token_out,
                 amount_token_in,
-                balance_token_in,
-                balance_token_out,
-                self.swap_fee_percentage,
+                Some(min_amount_token_out),
             )?;
 
             if amount_token_out < min_amount_token_out {
@@ -283,7 +275,7 @@ mod simple_dex {
 
         /// Returns current value of the swap_fee_percentage parameter
         #[ink(message)]
-        pub fn swap_fee_percentage(&mut self) -> Balance {
+        pub fn swap_fee_percentage(&self) -> Balance {
             self.swap_fee_percentage
         }
 
@@ -365,6 +357,50 @@ mod simple_dex {
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
 
+        /// Swap trade output given a curve with equal token weights
+        ///
+        /// swap_fee_percentage (integer) is a percentage of the trade that goes towards the pool
+        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) -A_i * fee)
+        #[ink(message)]
+        pub fn out_given_in(
+            &self,
+            token_in: AccountId,
+            token_out: AccountId,
+            amount_token_in: Balance,
+            min_amount_token_out: Option<Balance>,
+        ) -> Result<Balance, DexError> {
+            let this = self.env().account_id();
+            let balance_token_in = self.balance_of(token_in, this)?;
+            let balance_token_out = self.balance_of(token_out, this)?;
+
+            if min_amount_token_out.map_or(false, |x| balance_token_out < x) {
+                // throw early if we cannot support this swap anyway due to liquidity being too low
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
+
+            let op0 = amount_token_in
+                .checked_mul(self.swap_fee_percentage)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op1 = balance_token_in
+                .checked_add(amount_token_in)
+                .and_then(|result| result.checked_mul(100))
+                .ok_or(DexError::Arithmethic)?;
+
+            let op2 = op1.checked_sub(op0).ok_or(DexError::Arithmethic)?;
+
+            let op3 = balance_token_in
+                .checked_mul(balance_token_out)
+                .and_then(|result| result.checked_mul(100))
+                .ok_or(DexError::Arithmethic)?;
+
+            let op4 = op3.checked_div(op2).ok_or(DexError::Arithmethic)?;
+
+            balance_token_out
+                .checked_sub(op4)
+                .ok_or(DexError::Arithmethic)
+        }
+
         fn new_init(&mut self) {
             self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             self.swap_fee_percentage = 0;
@@ -440,39 +476,6 @@ mod simple_dex {
                 )
                 .returns::<Balance>()
                 .fire()
-        }
-
-        /// Swap trade output given a curve with equal token weights
-        ///
-        /// swap_fee_percentage (integer) is a percentage of the trade that goes towards the pool
-        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) -A_i * fee)
-        fn out_given_in(
-            amount_token_in: Balance,
-            balance_token_in: Balance,
-            balance_token_out: Balance,
-            swap_fee_percentage: u128,
-        ) -> Result<Balance, DexError> {
-            let op0 = amount_token_in
-                .checked_mul(swap_fee_percentage)
-                .ok_or(DexError::Arithmethic)?;
-
-            let op1 = balance_token_in
-                .checked_add(amount_token_in)
-                .and_then(|result| result.checked_mul(100))
-                .ok_or(DexError::Arithmethic)?;
-
-            let op2 = op1.checked_sub(op0).ok_or(DexError::Arithmethic)?;
-
-            let op3 = balance_token_in
-                .checked_mul(balance_token_out)
-                .and_then(|result| result.checked_mul(100))
-                .ok_or(DexError::Arithmethic)?;
-
-            let op4 = op3.checked_div(op2).ok_or(DexError::Arithmethic)?;
-
-            balance_token_out
-                .checked_sub(op4)
-                .ok_or(DexError::Arithmethic)
         }
 
         fn access_control_error_handler(role: Role) -> DexError {
