@@ -183,7 +183,7 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
 
     // Mark a peer as legacy and return whether it is the first time we do so.
     fn mark_legacy(&mut self, peer_id: &AuthorityId) -> bool {
-        self.manager.remove_peer(&peer_id);
+        self.manager.remove_peer(peer_id);
         self.legacy_connected.insert(peer_id.clone())
     }
 
@@ -201,9 +201,9 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
     fn check_for_legacy(&mut self, peer_id: &AuthorityId, connection_type: ConnectionType) -> bool {
         use ConnectionType::*;
         match connection_type {
-            LegacyIncoming => self.mark_legacy(&peer_id),
+            LegacyIncoming => self.mark_legacy(peer_id),
             LegacyOutgoing => {
-                self.mark_legacy(&peer_id);
+                self.mark_legacy(peer_id);
                 false
             }
             // We don't unmark here, because we always return New when a connection
