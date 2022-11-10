@@ -33,7 +33,7 @@ impl<M: Multiaddress> DiscoveryMessage<M> {
     }
 }
 
-/// Handles creating and responding to discovery messages.
+/// Handles creating discovery messages.
 pub struct Discovery<M: Multiaddress> {
     cooldown: Duration,
     last_broadcast: HashMap<NodeIndex, Instant>,
@@ -236,7 +236,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rebroadcasts_responds_and_accepts_addresses() {
+    async fn rebroadcasts_and_accepts_addresses() {
         let (mut discovery, mut handlers, _) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let handler = &mut handlers[0];
@@ -253,7 +253,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn non_validators_rebroadcasts_responds() {
+    async fn non_validators_rebroadcasts() {
         let (mut discovery, handlers, mut non_validator) = build().await;
         let authentication = handlers[1].authentication().unwrap();
         let (addresses, commands) = discovery.handle_message(
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn does_not_rebroadcast_nor_respond_to_wrong_authentications() {
+    async fn does_not_rebroadcast_wrong_authentications() {
         let (mut discovery, mut handlers, _) = build().await;
         let (auth_data, _) = handlers[1].authentication().unwrap();
         let (_, signature) = handlers[2].authentication().unwrap();
