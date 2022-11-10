@@ -79,29 +79,28 @@ where
     type Error = anyhow::Error;
 
     fn try_from(value: ConvertibleValue) -> Result<Result<T>, Self::Error> {
-        match &value.0 {
-            Value::Tuple(tuple) => match tuple.ident() {
+        if let Value::Tuple(tuple) = &value.0 {
+            match tuple.ident() {
                 Some(x) if x == "Ok" => {
                     if tuple.values().count() == 1 {
                         let item =
                             ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
                         return Ok(Ok(item));
                     } else {
-                        bail!("Unexpected number of elements in Ok variant: {:?}", &value)
+                        bail!("Unexpected number of elements in Ok variant: {:?}", &value);
                     }
                 }
                 Some(x) if x == "Err" => {
                     if tuple.values().count() == 1 {
                         return Ok(Err(anyhow!(value.to_string())));
                     } else {
-                        bail!("Unexpected number of elements in Err variant: {:?}", &value)
+                        bail!("Unexpected number of elements in Err variant: {:?}", &value);
                     }
                 }
                 _ => (),
-            },
-            _ => (),
-        };
+            }
+        }
 
-        bail!("Expected {:?} to be an Ok(_) or Err(_) tuple.", value)
+        bail!("Expected {:?} to be an Ok(_) or Err(_) tuple.", value);
     }
 }

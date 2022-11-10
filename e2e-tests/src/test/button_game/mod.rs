@@ -72,49 +72,43 @@ pub fn simple_dex(config: &Config) -> Result<()> {
 
     let more_than_liquidity = mega(1_000_000);
     assert!(dex
-        .out_given_in(
-            account_conn,
-            &token1,
-            &token2,
-            100,
-            Some(more_than_liquidity)
-        )
+        .out_given_in(account_conn, token1, token2, 100, Some(more_than_liquidity))
         .is_err());
 
     let initial_amount = mega(100);
     token1.mint(authority_conn, &account.public().into(), initial_amount)?;
-    let expected_output = dex.out_given_in(account_conn, &token1, &token2, initial_amount, None)?;
+    let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount, None)?;
     assert!(expected_output > 0);
 
     token1.approve(account_conn, &dex.into(), initial_amount)?;
     dex.swap(
         account_conn,
-        &token1,
+        token1,
         initial_amount,
-        &token2,
+        token2,
         expected_output * 9 / 10,
     )?;
     assert_recv_id(&mut events, "Swapped");
     assert!(token2.balance_of(&conn, &account.public().into())? == expected_output);
 
     token2.approve(account_conn, &dex.into(), expected_output)?;
-    dex.swap(account_conn, &token2, expected_output, &token1, mega(90))?;
+    dex.swap(account_conn, token2, expected_output, token1, mega(90))?;
     assert_recv_id(&mut events, "Swapped");
 
     let balance_after = token1.balance_of(&conn, &account.public().into())?;
     assert!(initial_amount.abs_diff(balance_after) <= 1);
     assert!(
-        dex.out_given_in(account_conn, &token1, &token2, initial_amount, None)?
+        dex.out_given_in(account_conn, token1, token2, initial_amount, None)?
             .abs_diff(expected_output)
             <= 1
     );
 
     token1.approve(account_conn, &dex.into(), balance_after)?;
-    dex.swap(account_conn, &token1, balance_after, &token3, mega(90))?;
+    dex.swap(account_conn, token1, balance_after, token3, mega(90))?;
     assert_recv_id(&mut events, "Swapped");
     let balance_token3 = token3.balance_of(&conn, &account.public().into())?;
     token3.approve(account_conn, &dex.into(), balance_token3)?;
-    dex.swap(account_conn, &token3, balance_token3, &token1, mega(90))?;
+    dex.swap(account_conn, token3, balance_token3, token1, mega(90))?;
     refute_recv_id(&mut events, "Swapped");
 
     Ok(())
