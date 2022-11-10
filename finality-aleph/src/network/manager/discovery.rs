@@ -33,7 +33,7 @@ impl<M: Multiaddress> DiscoveryMessage<M> {
     }
 }
 
-/// Handles creating discovery messages.
+/// Handles creating and rebroadcasting discovery messages.
 pub struct Discovery<M: Multiaddress> {
     cooldown: Duration,
     last_broadcast: HashMap<NodeIndex, Instant>,
