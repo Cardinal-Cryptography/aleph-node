@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
+#![allow(clippy::let_unit_value)]
 
 pub use crate::game_token::{
     ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, BURN_SELECTOR, MINT_SELECTOR, TRANSFER_FROM_SELECTOR,
