@@ -18,7 +18,13 @@ exclude = [
   "fork-off",
   "benches/payout-stakers",
   "bin/cliain",
-  "contracts",
+  "contracts/access_control",
+  "contracts/button",
+  "contracts/game_token",
+  "contracts/marketplace",
+  "contracts/simple_dex",
+  "contracts/ticket_token",
+  "contracts/wrapped_azero"
 ]
 
 [profile.release]

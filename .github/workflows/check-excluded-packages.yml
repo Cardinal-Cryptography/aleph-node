@@ -72,6 +72,7 @@ jobs:
             pushd "$p"
             cargo fmt --all --check
             cargo clippy --all-features -- --no-deps -D warnings
+            cargo test
             popd
           done
 
