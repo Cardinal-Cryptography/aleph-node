@@ -7,7 +7,7 @@ use log::error;
 use sc_consensus::JustificationSyncLink;
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
-    NetworkService, NetworkStateInfo, NetworkSyncForkRequest, PeerId as SubstratePeerId,
+    NetworkService, NetworkSyncForkRequest, PeerId as SubstratePeerId,
 };
 use sc_network_common::service::{
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender,
@@ -17,7 +17,7 @@ use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
 
 use crate::network::{
-    Event, EventStream, Multiaddress as MultiaddressT, Network, NetworkIdentity, NetworkSender,
+    Event, EventStream, Multiaddress as MultiaddressT, Network, NetworkSender,
     PeerId as PeerIdT, Protocol, RequestBlocks,
 };
 
@@ -356,21 +356,6 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     fn remove_reserved(&self, peers: HashSet<Self::PeerId>, protocol: Protocol) {
         let addresses = peers.into_iter().map(|peer_id| peer_id.0).collect();
         self.remove_peers_from_reserved_set(protocol_name(&protocol), addresses);
-    }
-}
-
-impl<B: Block, H: ExHashT> NetworkIdentity for Arc<NetworkService<B, H>> {
-    type PeerId = PeerId;
-    type Multiaddress = Multiaddress;
-
-    fn identity(&self) -> (Vec<Self::Multiaddress>, Self::PeerId) {
-        (
-            self.external_addresses()
-                .into_iter()
-                .map(|address| address.into())
-                .collect(),
-            self.local_peer_id().into(),
-        )
     }
 }
 
