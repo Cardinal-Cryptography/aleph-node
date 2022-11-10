@@ -250,10 +250,6 @@ mod tests {
         manager.remove_peer(&peer_id);
         // try to get address of removed peer
         assert_eq!(manager.peer_addresses(&peer_id), None);
-        // remove again
-        manager.remove_peer(&peer_id);
-        // remove unknown peer
-        manager.remove_peer(&peer_id_b);
     }
 
     #[tokio::test]

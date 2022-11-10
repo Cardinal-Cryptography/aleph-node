@@ -14,14 +14,6 @@ mod legacy;
 use direction::DirectedPeers;
 pub use legacy::Manager as LegacyManager;
 
-/// Network component responsible for holding the list of peers that we
-/// want to connect to or let them connect to us, and managing the established
-/// connections.
-pub struct Manager<A: Data, D: Data> {
-    wanted: DirectedPeers<A>,
-    have: HashMap<AuthorityId, mpsc::UnboundedSender<D>>,
-}
-
 /// Error during sending data through the Manager
 #[derive(Debug, PartialEq, Eq)]
 pub enum SendError {
@@ -39,6 +31,17 @@ impl Display for SendError {
             PeerNotFound => write!(f, "peer not found"),
         }
     }
+}
+
+/// Possible results of adding connections.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddResult {
+    /// We do not want to maintain a connection with this peer.
+    Uninterested,
+    /// Connection added.
+    Added,
+    /// Old connection replaced with new one.
+    Replaced,
 }
 
 struct ManagerStatus {
@@ -104,7 +107,9 @@ impl Display for ManagerStatus {
             _ => {
                 write!(f, "expecting {:?} incoming connections; ", wanted_incoming)?;
                 match self.incoming_peers.is_empty() {
-                    true => write!(f, "WARNING! No incoming peers even though we expected tham, maybe connecting to us is impossible; ")?,
+                    // We warn about the lack of incoming connections, because this is relatively
+                    // likely to be a common misconfiguration; much less the case for outgoing.
+                    true => write!(f, "WARNING! No incoming peers even though we expected them, maybe connecting to us is impossible; ")?,
                     false => write!(
                             f,
                             "have - {:?} [{}]; ",
@@ -150,15 +155,14 @@ impl Display for ManagerStatus {
     }
 }
 
-/// Possible results of adding connections.
-#[derive(Debug, PartialEq, Eq)]
-pub enum AddResult {
-    /// We do not want to maintain a connection with this peer.
-    Uninterested,
-    /// Connection added.
-    Added,
-    /// Old connection replaced with new one.
-    Replaced,
+/// Network component responsible for holding the list of peers that we
+/// want to connect to or let them connect to us, and managing the established
+/// connections.
+pub struct Manager<A: Data, D: Data> {
+    // Which peers we want to be connected with, and which way.
+    wanted: DirectedPeers<A>,
+    // This peers we are connected with. We ensure that this is always a subset of what we want.
+    have: HashMap<AuthorityId, mpsc::UnboundedSender<D>>,
 }
 
 impl<A: Data, D: Data> Manager<A, D> {
@@ -179,7 +183,9 @@ impl<A: Data, D: Data> Manager<A, D> {
 
     /// Add a peer to the list of peers we want to stay connected to, or
     /// update the list of addresses if the peer was already added.
-    /// Returns whether we should start attempts at connecting with the peer.
+    /// Returns whether we should start attempts at connecting with the peer, which depends on the
+    /// coorddinated pseudorandom decision on the direction of the connection and whether this was
+    /// added for the first time.
     pub fn add_peer(&mut self, peer_id: AuthorityId, addresses: Vec<A>) -> bool {
         self.wanted.add_peer(peer_id, addresses)
     }
