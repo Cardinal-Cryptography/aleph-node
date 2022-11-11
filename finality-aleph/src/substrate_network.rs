@@ -1,13 +1,12 @@
 use std::{borrow::Cow, collections::HashSet, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use codec::{Decode, Encode};
 use futures::stream::{Stream, StreamExt};
 use log::error;
 use sc_consensus::JustificationSyncLink;
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
-    NetworkService, NetworkSyncForkRequest, PeerId as SubstratePeerId,
+    NetworkService, NetworkSyncForkRequest, PeerId,
 };
 use sc_network_common::service::{
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender,
@@ -16,9 +15,7 @@ use sp_api::NumberFor;
 use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
 
-use crate::network::{
-    Event, EventStream, Network, NetworkSender, Protocol, RequestBlocks,
-};
+use crate::network::{Event, EventStream, Network, NetworkSender, Protocol, RequestBlocks};
 
 impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
     fn request_justification(&self, hash: &B::Hash, number: NumberFor<B>) {
@@ -40,73 +37,6 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
 
     fn is_major_syncing(&self) -> bool {
         NetworkService::is_major_syncing(self)
-    }
-}
-
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
-pub struct PeerId(SubstratePeerId);
-
-impl From<PeerId> for SubstratePeerId {
-    fn from(wrapper: PeerId) -> Self {
-        wrapper.0
-    }
-}
-
-impl From<SubstratePeerId> for PeerId {
-    fn from(id: SubstratePeerId) -> Self {
-        PeerId(id)
-    }
-}
-
-impl Encode for PeerId {
-    fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        self.0.to_bytes().using_encoded(f)
-    }
-}
-
-impl Decode for PeerId {
-    fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
-        let bytes = Vec::<u8>::decode(value)?;
-        SubstratePeerId::from_bytes(&bytes)
-            .map_err(|_| "PeerId not encoded with to_bytes".into())
-            .map(|pid| pid.into())
-    }
-}
-
-impl fmt::Display for PeerId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// A wrapper for the Substrate multiaddress to allow encoding & decoding.
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Multiaddress(Multiaddr);
-
-impl From<Multiaddr> for Multiaddress {
-    fn from(addr: Multiaddr) -> Self {
-        Multiaddress(addr)
-    }
-}
-
-impl From<Multiaddress> for Multiaddr {
-    fn from(addr: Multiaddress) -> Self {
-        addr.0
-    }
-}
-
-impl Encode for Multiaddress {
-    fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        self.0.to_vec().using_encoded(f)
-    }
-}
-
-impl Decode for Multiaddress {
-    fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
-        let bytes = Vec::<u8>::decode(value)?;
-        Multiaddr::try_from(bytes)
-            .map_err(|_| "Multiaddr not encoded as bytes".into())
-            .map(|multiaddr| multiaddr.into())
     }
 }
 
@@ -193,28 +123,28 @@ impl NetworkSender for SubstrateNetworkSender {
 type NetworkEventStream = Pin<Box<dyn Stream<Item = SubstrateEvent> + Send>>;
 
 #[async_trait]
-impl EventStream<Multiaddress, PeerId> for NetworkEventStream {
-    async fn next_event(&mut self) -> Option<Event<Multiaddress, PeerId>> {
+impl EventStream<Multiaddr, PeerId> for NetworkEventStream {
+    async fn next_event(&mut self) -> Option<Event<Multiaddr, PeerId>> {
         use Event::*;
         use SubstrateEvent::*;
         loop {
             match self.next().await {
                 Some(event) => match event {
                     SyncConnected { remote } => {
-                        return Some(Connected(Multiaddress(
+                        return Some(Connected(
                             iter::once(MultiaddressProtocol::P2p(remote.into())).collect(),
-                        )))
+                        ))
                     }
-                    SyncDisconnected { remote } => return Some(Disconnected(remote.into())),
+                    SyncDisconnected { remote } => return Some(Disconnected(remote)),
                     NotificationStreamOpened {
                         remote, protocol, ..
                     } => match to_protocol(protocol.as_ref()) {
-                        Ok(protocol) => return Some(StreamOpened(remote.into(), protocol)),
+                        Ok(protocol) => return Some(StreamOpened(remote, protocol)),
                         Err(_) => continue,
                     },
                     NotificationStreamClosed { remote, protocol } => {
                         match to_protocol(protocol.as_ref()) {
-                            Ok(protocol) => return Some(StreamClosed(remote.into(), protocol)),
+                            Ok(protocol) => return Some(StreamClosed(remote, protocol)),
                             Err(_) => continue,
                         }
                     }
@@ -245,7 +175,7 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     type SenderError = SenderError;
     type NetworkSender = SubstrateNetworkSender;
     type PeerId = PeerId;
-    type Multiaddress = Multiaddress;
+    type Multiaddress = Multiaddr;
     type EventStream = NetworkEventStream;
 
     fn event_stream(&self) -> Self::EventStream {
@@ -261,48 +191,22 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
             // Currently method `notification_sender` does not distinguish whether we are not connected to the peer
             // or there is no such protocol so we need to have this worthless `SenderError::CannotCreateSender` error here
             notification_sender: self
-                .notification_sender(peer_id.into(), protocol_name(&protocol))
+                .notification_sender(peer_id, protocol_name(&protocol))
                 .map_err(|_| SenderError::CannotCreateSender(peer_id, protocol))?,
             peer_id,
         })
     }
 
     fn add_reserved(&self, addresses: HashSet<Self::Multiaddress>, protocol: Protocol) {
-        if let Err(e) = self.add_peers_to_reserved_set(
-            protocol_name(&protocol),
-            addresses
-                .into_iter()
-                .map(|address| address.into())
-                .collect(),
-        ) {
+        if let Err(e) = self
+            .add_peers_to_reserved_set(protocol_name(&protocol), addresses.into_iter().collect())
+        {
             error!(target: "aleph-network", "add_reserved failed: {}", e);
         }
     }
 
     fn remove_reserved(&self, peers: HashSet<Self::PeerId>, protocol: Protocol) {
-        let addresses = peers.into_iter().map(|peer_id| peer_id.0).collect();
+        let addresses = peers.into_iter().collect();
         self.remove_peers_from_reserved_set(protocol_name(&protocol), addresses);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use codec::{Decode, Encode};
-
-    use super::Multiaddress;
-
-    fn address(text: &str) -> Multiaddress {
-        Multiaddress(text.parse().unwrap())
-    }
-
-    #[test]
-    fn multiaddr_encode_decode() {
-        let multiaddr: Multiaddress = address(
-            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L",
-        );
-        assert_eq!(
-            Multiaddress::decode(&mut &multiaddr.encode()[..]).unwrap(),
-            multiaddr,
-        );
     }
 }
