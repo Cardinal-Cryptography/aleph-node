@@ -17,8 +17,7 @@ use sp_consensus::SyncOracle;
 use sp_runtime::traits::Block;
 
 use crate::network::{
-    Event, EventStream, Multiaddress as MultiaddressT, Network, NetworkSender,
-    PeerId as PeerIdT, Protocol, RequestBlocks,
+    Event, EventStream, Network, NetworkSender, Protocol, RequestBlocks,
 };
 
 impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
@@ -80,19 +79,6 @@ impl fmt::Display for PeerId {
     }
 }
 
-impl PeerIdT for PeerId {}
-
-fn peer_id(protocol: &MultiaddressProtocol<'_>) -> Option<PeerId> {
-    match protocol {
-        MultiaddressProtocol::P2p(hashed_peer_id) => {
-            SubstratePeerId::from_multihash(*hashed_peer_id)
-                .ok()
-                .map(PeerId)
-        }
-        _ => None,
-    }
-}
-
 /// A wrapper for the Substrate multiaddress to allow encoding & decoding.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Multiaddress(Multiaddr);
@@ -121,66 +107,6 @@ impl Decode for Multiaddress {
         Multiaddr::try_from(bytes)
             .map_err(|_| "Multiaddr not encoded as bytes".into())
             .map(|multiaddr| multiaddr.into())
-    }
-}
-
-enum CommonPeerId {
-    Unknown,
-    Unique(PeerId),
-    NotUnique,
-}
-
-impl From<CommonPeerId> for Option<PeerId> {
-    fn from(cpi: CommonPeerId) -> Self {
-        use CommonPeerId::*;
-        match cpi {
-            Unique(peer_id) => Some(peer_id),
-            Unknown | NotUnique => None,
-        }
-    }
-}
-
-impl CommonPeerId {
-    fn aggregate(self, peer_id: PeerId) -> Self {
-        use CommonPeerId::*;
-        match self {
-            Unknown => Unique(peer_id),
-            Unique(current_peer_id) => match peer_id == current_peer_id {
-                true => Unique(current_peer_id),
-                false => NotUnique,
-            },
-            NotUnique => NotUnique,
-        }
-    }
-}
-
-impl MultiaddressT for Multiaddress {
-    type PeerId = PeerId;
-
-    fn get_peer_id(&self) -> Option<Self::PeerId> {
-        self.0
-            .iter()
-            .fold(
-                CommonPeerId::Unknown,
-                |common_peer_id, protocol| match peer_id(&protocol) {
-                    Some(peer_id) => common_peer_id.aggregate(peer_id),
-                    None => common_peer_id,
-                },
-            )
-            .into()
-    }
-
-    fn add_matching_peer_id(mut self, peer_id: Self::PeerId) -> Option<Self> {
-        match self.get_peer_id() {
-            Some(peer) => match peer == peer_id {
-                true => Some(self),
-                false => None,
-            },
-            None => {
-                self.0.push(MultiaddressProtocol::P2p(peer_id.0.into()));
-                Some(self)
-            }
-        }
     }
 }
 
@@ -267,8 +193,8 @@ impl NetworkSender for SubstrateNetworkSender {
 type NetworkEventStream = Pin<Box<dyn Stream<Item = SubstrateEvent> + Send>>;
 
 #[async_trait]
-impl EventStream<Multiaddress> for NetworkEventStream {
-    async fn next_event(&mut self) -> Option<Event<Multiaddress>> {
+impl EventStream<Multiaddress, PeerId> for NetworkEventStream {
+    async fn next_event(&mut self) -> Option<Event<Multiaddress, PeerId>> {
         use Event::*;
         use SubstrateEvent::*;
         loop {
@@ -364,64 +290,9 @@ mod tests {
     use codec::{Decode, Encode};
 
     use super::Multiaddress;
-    use crate::network::Multiaddress as _;
 
     fn address(text: &str) -> Multiaddress {
         Multiaddress(text.parse().unwrap())
-    }
-
-    #[test]
-    fn non_p2p_addresses_are_not_p2p() {
-        assert!(address("/dns4/example.com/udt/sctp/5678")
-            .get_peer_id()
-            .is_none());
-    }
-
-    #[test]
-    fn p2p_addresses_are_p2p() {
-        assert!(address(
-            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L"
-        )
-        .get_peer_id()
-        .is_some());
-    }
-
-    #[test]
-    fn non_p2p_address_matches_peer_id() {
-        let address = address(
-            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L",
-        );
-        let peer_id = address.get_peer_id().unwrap();
-        let mut peerless_address = address.clone().0;
-        peerless_address.pop();
-        let peerless_address = Multiaddress(peerless_address);
-        assert!(peerless_address.get_peer_id().is_none());
-        assert_eq!(
-            peerless_address.add_matching_peer_id(peer_id),
-            Some(address),
-        );
-    }
-
-    #[test]
-    fn p2p_address_matches_own_peer_id() {
-        let address = address(
-            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L",
-        );
-        let peer_id = address.get_peer_id().unwrap();
-        let expected_address = address.clone();
-        assert_eq!(
-            address.add_matching_peer_id(peer_id),
-            Some(expected_address),
-        );
-    }
-
-    #[test]
-    fn p2p_address_does_not_match_other_peer_id() {
-        let nonmatching_address = address(
-            "/dns4/example.com/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L",
-        );
-        let peer_id = address("/dns4/peer.example.com/tcp/30333/p2p/12D3KooWFVXnvJdPuGnGYMPn5qLQAQYwmRBgo6SmEQsKZSrDoo2k").get_peer_id().unwrap();
-        assert!(nonmatching_address.add_matching_peer_id(peer_id).is_none());
     }
 
     #[test]
