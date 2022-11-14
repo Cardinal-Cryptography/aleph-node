@@ -10,13 +10,11 @@ pub(super) struct Artifacts {
 /// arguments.
 ///
 /// Example of usage:
-/// ```rust
+/// ```rust,ignore
 /// # use pallet_snarcos::get_artifacts;
 ///
-/// let Artifacts { key, proof, input } = get_artifacts!(Groth16, LinearEquation);
+/// let artifacts = get_artifacts!(Groth16, LinearEquation);
 /// ```
-///
-///
 #[macro_export]
 macro_rules! get_artifacts {
     ($system:tt, $relation:tt $(,)?) => {{
