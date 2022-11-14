@@ -10,7 +10,7 @@ pub(super) struct Artifacts {
 /// arguments.
 ///
 /// Example of usage:
-/// ```rust,ignore
+/// ```rust
 /// # use pallet_snarcos::get_artifacts;
 ///
 /// let Artifacts { key, proof, input } = get_artifacts!(Groth16, LinearEquation);
