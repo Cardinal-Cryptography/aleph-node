@@ -18,6 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
+#![allow(clippy::let_unit_value)]
 
 use ink_lang as ink;
 
@@ -198,7 +199,7 @@ pub mod marketplace {
         /// current price is greater than that.
         #[ink(message)]
         pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
-            if self.ticket_balance()? <= 0 {
+            if self.ticket_balance()? == 0 {
                 return Err(Error::MarketplaceEmpty);
             }
 
@@ -250,7 +251,7 @@ pub mod marketplace {
 
         fn current_price(&self) -> Balance {
             let block = self.env().block_number();
-            let elapsed = block.saturating_sub(self.current_start_block.into());
+            let elapsed = block.saturating_sub(self.current_start_block);
             self.average_price()
                 .saturating_mul(self.sale_multiplier)
                 .saturating_sub(self.per_block_reduction().saturating_mul(elapsed.into()))
@@ -312,7 +313,7 @@ pub mod marketplace {
                 Self::env().caller(),
                 role,
                 |reason| reason.into(),
-                |role| Error::MissingRole(role),
+                Error::MissingRole,
             )
         }
 

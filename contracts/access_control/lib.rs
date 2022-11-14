@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::let_unit_value)]
 
 pub use crate::access_control::{
     AccessControlError, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
@@ -68,7 +69,7 @@ mod access_control {
         pub fn new() -> Self {
             // This call is required in order to correctly initialize the
             // `Mapping`s of our contract.
-            ink_lang::utils::initialize_contract(|contract| Self::new_init(contract))
+            ink_lang::utils::initialize_contract(Self::new_init)
         }
 
         /// Initializes the contract.
@@ -154,6 +155,12 @@ mod access_control {
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
+        }
+    }
+
+    impl Default for AccessControl {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
