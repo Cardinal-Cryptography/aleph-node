@@ -580,7 +580,7 @@ dependencies = [
 [[package]]
 name = "obce"
 version = "0.1.0"
-source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.32#163c456e79d2ed084b29e47637f0ec9fd9ac4376"
 dependencies = [
  "ink_engine",
  "ink_env",
@@ -597,7 +597,7 @@ dependencies = [
 [[package]]
 name = "obce-codegen"
 version = "0.1.0"
-source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.32#163c456e79d2ed084b29e47637f0ec9fd9ac4376"
 dependencies = [
  "blake2 0.10.4",
  "proc-macro2",
@@ -608,7 +608,7 @@ dependencies = [
 [[package]]
 name = "obce-macro"
 version = "0.1.0"
-source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.29#9843e2a3e91e7c29a9b21dde7ead3299e9d3c0fb"
+source = "git+https://github.com/Supercolony-net/obce?branch=polkadot-v0.9.32#163c456e79d2ed084b29e47637f0ec9fd9ac4376"
 dependencies = [
  "obce-codegen",
  "proc-macro2",
@@ -713,7 +713,7 @@ dependencies = [
 [[package]]
 name = "pallet-assets-chain-extension"
 version = "0.1.1"
-source = "git+https://github.com/Supercolony-net/pallet-assets-chain-extension#83ff37cb0d19d15a881ecab2c922596039c8358d"
+source = "git+https://github.com/Supercolony-net/pallet-assets-chain-extension#a5a99eca8a37c295b8170321605c8f06906f6aff"
 dependencies = [
  "ink_metadata",
  "ink_primitives",
