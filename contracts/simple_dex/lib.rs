@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::let_unit_value)]
 
 use ink_lang as ink;
 
@@ -133,7 +134,7 @@ mod simple_dex {
             );
 
             match role_check {
-                Ok(_) => initialize_contract(|contract| Self::new_init(contract)),
+                Ok(_) => initialize_contract(Self::new_init),
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
@@ -504,6 +505,12 @@ mod simple_dex {
             EE: EmitEvent<SimpleDex>,
         {
             emitter.emit_event(event);
+        }
+    }
+
+    impl Default for SimpleDex {
+        fn default() -> Self {
+            SimpleDex::new()
         }
     }
 }
