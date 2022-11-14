@@ -7,45 +7,18 @@ mod blender {
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
-    use ink_prelude::{format, string::String, vec, vec::Vec};
-    use ink_storage::{
-        traits::{PackedLayout, SpreadAllocate, SpreadLayout},
-        Mapping,
-    };
+    use ink_prelude::{format, vec, vec::Vec};
+    use ink_storage::{traits::SpreadAllocate, Mapping};
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
     #[cfg(feature = "std")]
     use scale_info::TypeInfo;
-    use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
-    use crate::merkle_tree::{KinderBlender, MerkleTree};
-
-    type Scalar = u64;
-    type Nullifier = Scalar;
-
-    /// Type of the value in the Merkle tree leaf.
-    type Note = Hash;
-    /// Type of the value in the Merkle tree root.
-    type MerkleRoot = Hash;
-
-    /// Short identifier of a registered token contract.
-    type TokenId = u16;
-    /// `arkworks` does not support serializing `u128` and thus we have to operate on `u64` amounts.
-    type TokenAmount = u64;
-
-    type Set<T> = Mapping<T, ()>;
-
-    /// Verification key identifier for the `deposit` relation (to be registered in
-    /// `pallet_snarcos`).
-    const DEPOSIT_VK_IDENTIFIER: VerificationKeyIdentifier = [b'd', b'p', b's', b't'];
-    /// Verification key identifier for the `withdraw` relation (to be registered in
-    /// `pallet_snarcos`).
-    const WITHDRAW_VK_IDENTIFIER: VerificationKeyIdentifier = [b'w', b't', b'h', b'd'];
-    /// The only supported proving system for now.
-    const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
-
-    /// PSP22 standard selector for transferring on behalf.
-    pub const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
+    use crate::{
+        merkle_tree::MerkleTree, BlenderError, MerkleHasher, MerkleRoot, Note, Nullifier, Set,
+        TokenAmount, TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
+        WITHDRAW_VK_IDENTIFIER,
+    };
 
     /// Supported relations - used for registering verifying keys.
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
@@ -55,49 +28,7 @@ mod blender {
         Withdraw,
     }
 
-    #[derive(Eq, PartialEq, Debug, Decode, Encode)]
-    #[cfg_attr(feature = "std", derive(TypeInfo))]
-    pub enum Error {
-        /// Caller is missing some permission.
-        InsufficientPermission,
-        /// Merkle tree is full - no new notes can be created.
-        TooManyNotes,
-
-        /// Pallet returned an error (through chain extension).
-        ChainExtension(SnarcosError),
-
-        /// PSP22 related error (e.g. insufficient allowance).
-        Psp22(PSP22Error),
-        /// Environment error (e.g. non-existing token contract).
-        InkEnv(String),
-
-        /// This token id is already taken.
-        TokenIdAlreadyRegistered,
-        /// There is no registered token under this token id.
-        TokenIdNotRegistered,
-    }
-
-    type Result<T> = core::result::Result<T, Error>;
-
-    /// Temporary implementation of two-to-one hashing function.
-    #[derive(
-        Clone, Eq, PartialEq, Default, Decode, Encode, PackedLayout, SpreadLayout, SpreadAllocate,
-    )]
-    #[cfg_attr(feature = "std", derive(TypeInfo, ink_storage::traits::StorageLayout))]
-    struct MerkleHasher;
-    impl KinderBlender<Hash> for MerkleHasher {
-        fn blend_kinder(left: &Hash, right: &Hash) -> Hash {
-            left.as_ref()
-                .iter()
-                .cloned()
-                .zip(right.as_ref().iter().cloned())
-                .map(|(l, r)| l ^ r)
-                .collect::<Vec<_>>()
-                .as_slice()
-                .try_into()
-                .unwrap()
-        }
-    }
+    type Result<T> = core::result::Result<T, BlenderError>;
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -142,7 +73,9 @@ mod blender {
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
             self.verify_deposit(token_id, value, note, proof)?;
-            self.notes.add(note).map_err(|_| Error::TooManyNotes)?;
+            self.notes
+                .add(note)
+                .map_err(|_| BlenderError::TooManyNotes)?;
             self.merkle_roots.insert(self.notes.root(), &());
             Ok(())
         }
@@ -151,7 +84,7 @@ mod blender {
         fn acquire_deposit(&self, token_id: TokenId, deposit: TokenAmount) -> Result<()> {
             let token_contract = self
                 .registered_token_address(token_id)
-                .ok_or(Error::TokenIdNotRegistered)?;
+                .ok_or(BlenderError::TokenIdNotRegistered)?;
 
             build_call::<super::blender::Environment>()
                 .call_type(Call::new().callee(token_contract))
@@ -165,8 +98,8 @@ mod blender {
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<core::result::Result<(), PSP22Error>>()
                 .fire()
-                .map_err(|e| Error::InkEnv(format!("{:?}", e)))?
-                .map_err(Error::Psp22)
+                .map_err(|e| BlenderError::InkEnv(format!("{:?}", e)))?
+                .map_err(BlenderError::Psp22)
         }
 
         /// Serialize with `ark-serialize::CanonicalSerialize`.
@@ -196,7 +129,7 @@ mod blender {
             self.env()
                 .extension()
                 .verify(DEPOSIT_VK_IDENTIFIER, proof, serialized_input, SYSTEM)
-                .map_err(Error::ChainExtension)
+                .map_err(BlenderError::ChainExtension)
         }
 
         /// Register a verifying key for one of the `Relation`.
@@ -212,7 +145,7 @@ mod blender {
             self.env()
                 .extension()
                 .store_key(identifier, vk)
-                .map_err(Error::ChainExtension)
+                .map_err(BlenderError::ChainExtension)
         }
 
         /// Check if there is a token address registered at `token_id`.
@@ -235,14 +168,14 @@ mod blender {
                 .contains(token_id)
                 .not()
                 .then(|| self.registered_tokens.insert(token_id, &token_address))
-                .ok_or(Error::TokenIdAlreadyRegistered)
+                .ok_or(BlenderError::TokenIdAlreadyRegistered)
         }
 
         /// Check if the caller is the blendermaster.
         fn ensure_mr_blendermaster(&self) -> Result<()> {
             (self.env().caller() == self.blendermaster)
                 .then_some(())
-                .ok_or(Error::InsufficientPermission)
+                .ok_or(BlenderError::InsufficientPermission)
         }
     }
 }
