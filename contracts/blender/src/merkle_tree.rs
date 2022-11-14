@@ -49,8 +49,8 @@ impl<const LEAVES: u32> MerkleTree<LEAVES> {
     /// Get the value from the root node.
     ///
     /// Returns `None` if the tree is empty (`Self::add` has not been called yet).
-    pub fn root(&self) -> Option<Hash> {
-        self.nodes.get(1)
+    pub fn root(&self) -> Hash {
+        self.nodes.get(1).unwrap_or_else(Hash::clear)
     }
 
     /// Add `value` to the first 'non-occupied' leaf.
@@ -74,6 +74,6 @@ impl<const LEAVES: u32> MerkleTree<LEAVES> {
 
         self.next_free_leaf += 1;
 
-        Ok((self.next_free_leaf - 1))
+        Ok(self.next_free_leaf - 1)
     }
 }

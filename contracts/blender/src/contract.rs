@@ -86,7 +86,7 @@ mod blender {
                 .notes
                 .add(note)
                 .map_err(|_| BlenderError::TooManyNotes)?;
-            self.merkle_roots.insert(self.notes.root().unwrap(), &());
+            self.merkle_roots.insert(self.notes.root(), &());
 
             self.env().emit_event(Deposited {
                 token_id,
