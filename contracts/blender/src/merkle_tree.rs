@@ -53,8 +53,10 @@ impl<const LEAVES: u32> MerkleTree<LEAVES> {
         self.nodes.get(1)
     }
 
-    /// Add `value` to the first 'non-occupied' leaf. Returns `Err(())` iff there are no free leafs.
-    pub fn add(&mut self, value: Hash) -> Result<(), ()> {
+    /// Add `value` to the first 'non-occupied' leaf.
+    ///
+    /// Returns `Err(())` iff there are no free leafs. Otherwise, returns the leaf index.
+    pub fn add(&mut self, value: Hash) -> Result<u32, ()> {
         if self.next_free_leaf == 2 * LEAVES {
             return Err(());
         }
@@ -72,6 +74,6 @@ impl<const LEAVES: u32> MerkleTree<LEAVES> {
 
         self.next_free_leaf += 1;
 
-        Ok(())
+        Ok((self.next_free_leaf - 1))
     }
 }

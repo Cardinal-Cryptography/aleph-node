@@ -28,6 +28,15 @@ mod blender {
         Withdraw,
     }
 
+    #[ink(event)]
+    pub struct Deposited {
+        #[ink(topic)]
+        token_id: TokenId,
+        value: TokenAmount,
+        note: Note,
+        leaf_idx: u32,
+    }
+
     type Result<T> = core::result::Result<T, BlenderError>;
 
     #[ink(storage)]
@@ -73,10 +82,19 @@ mod blender {
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
             self.verify_deposit(token_id, value, note, proof)?;
-            self.notes
+            let leaf_idx = self
+                .notes
                 .add(note)
                 .map_err(|_| BlenderError::TooManyNotes)?;
             self.merkle_roots.insert(self.notes.root().unwrap(), &());
+
+            self.env().emit_event(Deposited {
+                token_id,
+                value,
+                note,
+                leaf_idx,
+            });
+
             Ok(())
         }
 
