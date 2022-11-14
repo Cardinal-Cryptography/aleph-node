@@ -1,13 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ink_env::Hash;
-use ink_prelude::string::String;
 use ink_storage::Mapping;
-use openbrush::contracts::psp22::PSP22Error;
-use scale::{Decode, Encode};
-use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
+use snarcos_extension::{ProvingSystem, VerificationKeyIdentifier};
 
 mod contract;
+mod error;
 mod merkle_tree;
 
 type Scalar = u64;
@@ -34,25 +32,3 @@ const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
 /// PSP22 standard selector for transferring on behalf.
 const PSP22_TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
-
-#[derive(Eq, PartialEq, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum BlenderError {
-    /// Caller is missing some permission.
-    InsufficientPermission,
-    /// Merkle tree is full - no new notes can be created.
-    TooManyNotes,
-
-    /// Pallet returned an error (through chain extension).
-    ChainExtension(SnarcosError),
-
-    /// PSP22 related error (e.g. insufficient allowance).
-    Psp22(PSP22Error),
-    /// Environment error (e.g. non-existing token contract).
-    InkEnv(String),
-
-    /// This token id is already taken.
-    TokenIdAlreadyRegistered,
-    /// There is no registered token under this token id.
-    TokenIdNotRegistered,
-}

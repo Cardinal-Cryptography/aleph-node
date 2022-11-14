@@ -7,7 +7,7 @@ mod blender {
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
-    use ink_prelude::{format, vec, vec::Vec};
+    use ink_prelude::{vec, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
@@ -15,8 +15,8 @@ mod blender {
     use scale_info::TypeInfo;
 
     use crate::{
-        merkle_tree::MerkleTree, BlenderError, MerkleRoot, Note, Nullifier, Set, TokenAmount,
-        TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
+        error::BlenderError, merkle_tree::MerkleTree, MerkleRoot, Note, Nullifier, Set,
+        TokenAmount, TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
         WITHDRAW_VK_IDENTIFIER,
     };
 
@@ -115,9 +115,8 @@ mod blender {
                 )
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .returns::<core::result::Result<(), PSP22Error>>()
-                .fire()
-                .map_err(|e| BlenderError::InkEnv(format!("{:?}", e)))?
-                .map_err(BlenderError::Psp22)
+                .fire()??;
+            Ok(())
         }
 
         /// Serialize with `ark-serialize::CanonicalSerialize`.
@@ -144,10 +143,14 @@ mod blender {
             ]
             .concat();
 
-            self.env()
-                .extension()
-                .verify(DEPOSIT_VK_IDENTIFIER, proof, serialized_input, SYSTEM)
-                .map_err(BlenderError::ChainExtension)
+            self.env().extension().verify(
+                DEPOSIT_VK_IDENTIFIER,
+                proof,
+                serialized_input,
+                SYSTEM,
+            )?;
+
+            Ok(())
         }
 
         /// Register a verifying key for one of the `Relation`.
@@ -160,10 +163,8 @@ mod blender {
                 Relation::Deposit => DEPOSIT_VK_IDENTIFIER,
                 Relation::Withdraw => WITHDRAW_VK_IDENTIFIER,
             };
-            self.env()
-                .extension()
-                .store_key(identifier, vk)
-                .map_err(BlenderError::ChainExtension)
+            self.env().extension().store_key(identifier, vk)?;
+            Ok(())
         }
 
         /// Check if there is a token address registered at `token_id`.
