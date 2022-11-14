@@ -15,8 +15,8 @@ mod blender {
     use scale_info::TypeInfo;
 
     use crate::{
-        merkle_tree::MerkleTree, BlenderError, MerkleHasher, MerkleRoot, Note, Nullifier, Set,
-        TokenAmount, TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
+        merkle_tree::MerkleTree, BlenderError, MerkleRoot, Note, Nullifier, Set, TokenAmount,
+        TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
         WITHDRAW_VK_IDENTIFIER,
     };
 
@@ -34,7 +34,7 @@ mod blender {
     #[derive(SpreadAllocate)]
     pub struct Blender {
         /// Merkle tree holding all the notes.
-        notes: MerkleTree<Note, MerkleHasher, 1024>,
+        notes: MerkleTree<1024>,
         /// All the seen Merkle roots (including the current).
         merkle_roots: Set<MerkleRoot>,
         /// Set of presented nullifiers.
@@ -76,7 +76,7 @@ mod blender {
             self.notes
                 .add(note)
                 .map_err(|_| BlenderError::TooManyNotes)?;
-            self.merkle_roots.insert(self.notes.root(), &());
+            self.merkle_roots.insert(self.notes.root().unwrap(), &());
             Ok(())
         }
 

@@ -1,16 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ink_env::Hash;
-use ink_prelude::{string::String, vec::Vec};
-use ink_storage::{
-    traits::{PackedLayout, SpreadAllocate, SpreadLayout},
-    Mapping,
-};
+use ink_prelude::string::String;
+use ink_storage::Mapping;
 use openbrush::contracts::psp22::PSP22Error;
 use scale::{Decode, Encode};
 use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
-
-use crate::merkle_tree::KinderBlender;
 
 mod contract;
 mod merkle_tree;
@@ -60,27 +55,4 @@ pub enum BlenderError {
     TokenIdAlreadyRegistered,
     /// There is no registered token under this token id.
     TokenIdNotRegistered,
-}
-
-/// Temporary implementation of two-to-one hashing function.
-#[derive(
-    Clone, Eq, PartialEq, Default, Decode, Encode, PackedLayout, SpreadLayout, SpreadAllocate,
-)]
-#[cfg_attr(
-    feature = "std",
-    derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-)]
-struct MerkleHasher;
-impl KinderBlender<Hash> for MerkleHasher {
-    fn blend_kinder(left: &Hash, right: &Hash) -> Hash {
-        left.as_ref()
-            .iter()
-            .cloned()
-            .zip(right.as_ref().iter().cloned())
-            .map(|(l, r)| l ^ r)
-            .collect::<Vec<_>>()
-            .as_slice()
-            .try_into()
-            .unwrap()
-    }
 }
