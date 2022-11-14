@@ -25,8 +25,9 @@ mod helpers;
 /// 1. Enables A <-> B, and A -> C swaps.
 /// 2. Adds (A, 2000M), (B, 5000M), (C, 10000M) of liquidity.
 /// 3. Makes a swap A -> B and then B -> A for the amount of B received in the first swap.
-/// 4. Checks that the price after the two swaps is the same as before (with a dust allowance of 1 for rounding).
-/// 5. Checks that it's possible to make an A -> C swap, but impossible to make a C -> A swap.
+/// 4. Makes a swap A -> B expecting negative slippage (this should fail).
+/// 5. Checks that the price after the two swaps is the same as before (with a dust allowance of 1 for rounding).
+/// 6. Checks that it's possible to make an A -> C swap, but impossible to make a C -> A swap.
 pub fn simple_dex(config: &Config) -> Result<()> {
     let DexTestContext {
         conn,
@@ -80,13 +81,14 @@ pub fn simple_dex(config: &Config) -> Result<()> {
     let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount, None)?;
     assert!(expected_output > 0);
 
+    let at_most_10_percent_slippage = expected_output * 9 / 10;
     token1.approve(account_conn, &dex.into(), initial_amount)?;
     dex.swap(
         account_conn,
         token1,
         initial_amount,
         token2,
-        expected_output * 9 / 10,
+        at_most_10_percent_slippage,
     )?;
     assert_recv_id(&mut events, "Swapped");
     assert!(token2.balance_of(&conn, &account.public().into())? == expected_output);
@@ -104,6 +106,16 @@ pub fn simple_dex(config: &Config) -> Result<()> {
     );
 
     token1.approve(account_conn, &dex.into(), balance_after)?;
+    let unreasonable_slippage = expected_output * 11 / 10;
+    dex.swap(
+        account_conn,
+        token1,
+        balance_after,
+        token2,
+        unreasonable_slippage,
+    )?;
+    refute_recv_id(&mut events, "Swapped");
+
     dex.swap(account_conn, token1, balance_after, token3, mega(90))?;
     assert_recv_id(&mut events, "Swapped");
     let balance_token3 = token3.balance_of(&conn, &account.public().into())?;
