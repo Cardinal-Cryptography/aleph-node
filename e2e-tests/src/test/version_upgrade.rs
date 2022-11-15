@@ -1,6 +1,8 @@
 use aleph_client::{
-    get_current_session, get_session_period, schedule_upgrade, wait_for_at_least_session,
-    wait_for_finalized_block,
+    pallets::{aleph::AlephSudoApi, session::SessionApi},
+    utility::BlocksApi,
+    waiting::{AlephWaiting, BlockStatus},
+    TxStatus,
 };
 use primitives::SessionIndex;
 
@@ -13,11 +15,11 @@ const UPGRADE_SESSION: SessionIndex = 3;
 const UPGRADE_FINALIZATION_WAIT_SESSIONS: u32 = 3;
 
 // Simple test that schedules a version upgrade, awaits it, and checks if node is still finalizing after planned upgrade session.
-pub fn schedule_version_change(config: &Config) -> anyhow::Result<()> {
-    let connection = config.create_root_connection();
+pub async fn schedule_version_change(config: &Config) -> anyhow::Result<()> {
+    let connection = config.create_root_connection().await;
     let test_case_params = config.test_case_params.clone();
 
-    let current_session = get_current_session(&connection);
+    let current_session = connection.connection.get_session(None).await;
     let version_for_upgrade = test_case_params
         .upgrade_to_version
         .unwrap_or(UPGRADE_TO_VERSION);
@@ -28,11 +30,23 @@ pub fn schedule_version_change(config: &Config) -> anyhow::Result<()> {
         .unwrap_or(UPGRADE_FINALIZATION_WAIT_SESSIONS);
     let session_after_upgrade = session_for_upgrade + wait_sessions_after_upgrade;
 
-    schedule_upgrade(&connection, version_for_upgrade, session_for_upgrade)?;
+    connection
+        .schedule_finality_version_change(
+            version_for_upgrade,
+            session_for_upgrade,
+            TxStatus::Finalized,
+        )
+        .await?;
+    connection
+        .connection
+        .wait_for_session(session_after_upgrade + 1, BlockStatus::Finalized)
+        .await;
 
-    wait_for_at_least_session(&connection, session_after_upgrade)?;
-    let block_number = session_after_upgrade * get_session_period(&connection);
-    wait_for_finalized_block(&connection, block_number)?;
+    let block_number = connection.connection.get_best_block().await;
+    connection
+        .connection
+        .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)
+        .await;
 
     Ok(())
 }

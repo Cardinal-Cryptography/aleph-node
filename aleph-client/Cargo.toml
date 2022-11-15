@@ -1,10 +1,11 @@
 [package]
 name = "aleph_client"
-version = "1.11.0"
+version = "2.0.0"
 edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
+async-trait = "0.1.58"
 anyhow = "1.0"
 codec = { package = 'parity-scale-codec', version = "3.0.0", features = ['derive'] }
 hex = { version = "0.4.3", features = ["alloc"] }
@@ -15,20 +16,11 @@ thiserror = "1.0"
 contract-metadata = "1.5"
 contract-transcode = "0.1"
 ink_metadata = "3.3"
-
-ac-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.28" }
-substrate-api-client = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.28", features = ["staking-xt"] }
-ac-node-api = { git = "https://github.com/Cardinal-Cryptography/substrate-api-client.git", branch = "aleph-v0.9.28" }
+subxt = "0.24.0"
+futures = "0.3.25"
+serde = { version = "1.0", features = ["derive"] }
 
 frame-support = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28", features = ["full_crypto"] }
 sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-multisig = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-treasury = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-vesting = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-
-pallet-aleph = { path = "../pallets/aleph" }
-pallet-elections = { path = "../pallets/elections" }
 primitives = { path = "../primitives" }

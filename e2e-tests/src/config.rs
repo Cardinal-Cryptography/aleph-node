@@ -44,17 +44,19 @@ impl Config {
         NodeKeys::from(validator_seed)
     }
 
-    pub fn create_root_connection(&self) -> RootConnection {
+    pub async fn create_root_connection(&self) -> RootConnection {
         let sudo_keypair = get_sudo_key(self);
-        RootConnection::new(&self.node, sudo_keypair)
+        RootConnection::new(self.node.clone(), sudo_keypair)
+            .await
+            .unwrap()
     }
 
     /// Get a `SignedConnection` where the signer is the first validator.
-    pub fn get_first_signed_connection(&self) -> SignedConnection {
+    pub async fn get_first_signed_connection(&self) -> SignedConnection {
         let node = &self.node;
-        let accounts = get_validators_keys(self);
-        let sender = accounts.first().expect("Using default accounts").to_owned();
-        SignedConnection::new(node, sender)
+        let mut accounts = get_validators_keys(self);
+        let sender = accounts.remove(0);
+        SignedConnection::new(node.clone(), sender).await
     }
 }
 

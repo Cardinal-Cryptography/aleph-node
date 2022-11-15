@@ -3,12 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aleph_client::BlockNumber;
+use aleph_client::AccountId;
 use clap::{Args, Subcommand};
-use primitives::{Balance, CommitteeSeats};
+use primitives::{Balance, BlockNumber, CommitteeSeats};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
-use substrate_api_client::AccountId;
 
 #[derive(Debug, Clone, Args)]
 pub struct ContractOptions {
@@ -303,9 +302,6 @@ pub enum Command {
         #[clap(long)]
         starting_block: BlockNumber,
     },
-
-    /// Print debug info of storage
-    DebugStorage,
 
     /// Deploys a new contract, returns its code hash and the AccountId of the instance.
     ///
