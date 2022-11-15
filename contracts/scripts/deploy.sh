@@ -159,6 +159,30 @@ function deploy_marketplace {
   eval "$__resultvar='$contract_address'"
 }
 
+function deploy_simple_dex {
+  local  __resultvar=$1
+
+  # --- CREATE AN INSTANCE OF THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/simple_dex
+
+  local contract_address
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm)
+  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 14-)
+
+  echo "Simple dex contract instance address: $contract_address"
+
+  # --- GRANT PRIVILEGES ON THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'LiquidityProvider('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+
+  eval "$__resultvar='$contract_address'"
+}
+
 function link_bytecode() {
   local contract=$1
   local placeholder=$2
@@ -190,6 +214,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/marketplace
 cargo contract build --release
 
+cd "$CONTRACTS_PATH"/simple_dex
+cargo contract build --release
+
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
@@ -209,6 +236,7 @@ upload_contract TICKET_TOKEN_CODE_HASH ticket_token
 upload_contract GAME_TOKEN_CODE_HASH game_token
 upload_contract BUTTON_CODE_HASH button
 upload_contract MARKETPLACE_CODE_HASH marketplace
+upload_contract SIMPLE_DEX_CODE_HASH simple_dex
 
 start=$(date +%s.%N)
 
@@ -245,6 +273,9 @@ deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
 deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
+echo "Simple Dex"
+deploy_simple_dex SIMPLE_DEX
+
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
 
@@ -266,24 +297,30 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
    --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
    --arg access_control "$ACCESS_CONTROL" \
    --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
-   '{early_bird_special: $early_bird_special,
-     early_bird_special_marketplace: $early_bird_special_marketplace,
-     early_bird_special_ticket: $early_bird_special_ticket,
-     early_bird_special_token: $early_bird_special_token,
-     back_to_the_future: $back_to_the_future,
-     back_to_the_future_ticket: $back_to_the_future_ticket,
-     back_to_the_future_token: $back_to_the_future_token,
-     back_to_the_future_marketplace: $back_to_the_future_marketplace,
-     the_pressiah_cometh: $the_pressiah_cometh,
-     the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
-     the_pressiah_cometh_token: $the_pressiah_cometh_token,
-     the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
-     access_control: $access_control,
-     button_code_hash: $button_code_hash,
-     ticket_token_code_hash: $ticket_token_code_hash,
-     game_token_code_hash: $game_token_code_hash,
-     marketplace_code_hash: $marketplace_code_hash,
-     access_control_code_hash: $access_control_code_hash}' > addresses.json
+   --arg simple_dex "$SIMPLE_DEX" \
+   --arg simple_dex_code_hash "$SIMPLE_DEX_CODE_HASH" \
+   '{
+      early_bird_special: $early_bird_special,
+      early_bird_special_marketplace: $early_bird_special_marketplace,
+      early_bird_special_ticket: $early_bird_special_ticket,
+      early_bird_special_token: $early_bird_special_token,
+      back_to_the_future: $back_to_the_future,
+      back_to_the_future_ticket: $back_to_the_future_ticket,
+      back_to_the_future_token: $back_to_the_future_token,
+      back_to_the_future_marketplace: $back_to_the_future_marketplace,
+      the_pressiah_cometh: $the_pressiah_cometh,
+      the_pressiah_cometh_ticket: $the_pressiah_cometh_ticket,
+      the_pressiah_cometh_token: $the_pressiah_cometh_token,
+      the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
+      access_control: $access_control,
+      simple_dex: $simple_dex,
+      button_code_hash: $button_code_hash,
+      ticket_token_code_hash: $ticket_token_code_hash,
+      game_token_code_hash: $game_token_code_hash,
+      marketplace_code_hash: $marketplace_code_hash,
+      access_control_code_hash: $access_control_code_hash,
+      simple_dex_code_hash: $simple_dex_code_hash
+    }' > addresses.json
 
 end=`date +%s.%N`
 echo "Time elapsed: $( echo "$end - $start" | bc -l )"
