@@ -7,7 +7,7 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
-    pallet_elections::pallet::Call::change_validators,
+    pallet_elections::pallet::Call::{ban_from_committee, change_validators},
     primitives::{BanConfig, BanInfo},
     AccountId,
     Call::Elections,
@@ -61,6 +61,12 @@ pub trait ElectionsSudoApi {
         new_reserved_validators: Option<Vec<AccountId>>,
         new_non_reserved_validators: Option<Vec<AccountId>>,
         committee_size: Option<CommitteeSeats>,
+        status: TxStatus,
+    ) -> anyhow::Result<H256>;
+    async fn ban_from_committee(
+        &self,
+        account: AccountId,
+        ban_reason: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<H256>;
 }
@@ -192,6 +198,19 @@ impl ElectionsSudoApi for RootConnection {
             committee_size,
         });
 
+        self.sudo_unchecked(call, status).await
+    }
+
+    async fn ban_from_committee(
+        &self,
+        account: AccountId,
+        ban_reason: Vec<u8>,
+        status: TxStatus,
+    ) -> anyhow::Result<H256> {
+        let call = Elections(ban_from_committee {
+            banned: account,
+            ban_reason,
+        });
         self.sudo_unchecked(call, status).await
     }
 }

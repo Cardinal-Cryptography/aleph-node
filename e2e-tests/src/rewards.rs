@@ -182,17 +182,17 @@ pub async fn check_points(
 
     info!("Era: {} | session: {}.", era, session);
 
-    let beggining_of_session_block = session * session_period;
-    let end_of_session_block = beggining_of_session_block + session_period;
+    let beginning_of_session_block = session * session_period;
+    let end_of_session_block = beginning_of_session_block + session_period;
     info!("Waiting for block: {}.", end_of_session_block);
     connection
         .connection
         .wait_for_block(|n| n >= end_of_session_block, BlockStatus::Finalized)
         .await;
 
-    let beggining_of_session_block_hash = connection
+    let beginning_of_session_block_hash = connection
         .connection
-        .get_block_hash(beggining_of_session_block)
+        .get_block_hash(beginning_of_session_block)
         .await;
     let end_of_session_block_hash = connection
         .connection
@@ -226,7 +226,7 @@ pub async fn check_points(
     let validator_reward_points_previous_session = HashMap::<AccountId, u32>::from_iter(
         connection
             .connection
-            .get_era_reward_points(era, beggining_of_session_block_hash)
+            .get_era_reward_points(era, beginning_of_session_block_hash)
             .await
             .unwrap_or_default()
             .individual,
@@ -278,7 +278,7 @@ pub async fn check_points(
             connection,
             era,
             account_id,
-            beggining_of_session_block_hash.unwrap(),
+            beginning_of_session_block_hash.unwrap(),
         )
         .await;
         *reward_points *= exposure as f64 / members_count;

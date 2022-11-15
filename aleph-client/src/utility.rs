@@ -12,6 +12,8 @@ pub trait BlocksApi {
     async fn first_block_of_session(&self, session: SessionIndex) -> Option<H256>;
     async fn get_block_hash(&self, block: BlockNumber) -> Option<H256>;
     async fn get_best_block(&self) -> BlockNumber;
+    async fn get_finalized_block_hash(&self) -> H256;
+    async fn get_block_number(&self, block: H256) -> Option<BlockNumber>;
 }
 
 #[async_trait::async_trait]
@@ -45,6 +47,19 @@ impl BlocksApi for Connection {
             .unwrap()
             .unwrap()
             .number
+    }
+
+    async fn get_finalized_block_hash(&self) -> H256 {
+        self.client.rpc().finalized_head().await.unwrap()
+    }
+
+    async fn get_block_number(&self, block: H256) -> Option<BlockNumber> {
+        self.client
+            .rpc()
+            .header(Some(block))
+            .await
+            .unwrap()
+            .map(|h| h.number)
     }
 }
 

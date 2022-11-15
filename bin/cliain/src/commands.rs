@@ -3,9 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aleph_client::AccountId;
-use clap::{Args, Subcommand};
-use primitives::{Balance, BlockNumber, CommitteeSeats};
+use aleph_client::{AccountId, TxStatus};
+use clap::{clap_derive::ValueEnum, Args, Subcommand};
+use primitives::{Balance, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 
@@ -110,6 +110,8 @@ pub struct ChangeValidatorArgs {
     pub committee_size: Option<CommitteeSeats>,
 }
 
+pub type Version = u32;
+
 impl std::str::FromStr for ChangeValidatorArgs {
     type Err = serde_json::Error;
 
@@ -120,6 +122,21 @@ impl std::str::FromStr for ChangeValidatorArgs {
             return serde_json::from_reader(file);
         }
         serde_json::from_str(change_validator_args)
+    }
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum ExtrinsicState {
+    InBlock,
+    Finalized,
+}
+
+impl From<ExtrinsicState> for TxStatus {
+    fn from(state: ExtrinsicState) -> Self {
+        match state {
+            ExtrinsicState::InBlock => TxStatus::InBlock,
+            ExtrinsicState::Finalized => TxStatus::Finalized,
+        }
     }
 }
 
@@ -332,4 +349,16 @@ pub enum Command {
     /// Code can only be removed by its original uploader (its owner) and only if it is not used by any contract.
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#removecodecode_hash-h256
     ContractRemoveCode(ContractRemoveCode),
+
+    /// Schedules a version upgrade of the network.
+    VersionUpgradeSchedule {
+        #[clap(long)]
+        version: Version,
+
+        #[clap(long)]
+        session: SessionIndex,
+
+        #[clap(long, value_enum, default_value_t=ExtrinsicState::Finalized)]
+        expected_state: ExtrinsicState,
+    },
 }
