@@ -196,18 +196,15 @@ impl<NI: NetworkIdentity, D: Data> Service<NI, D> {
         &mut self,
         session_id: &SessionId,
     ) -> Option<MessageForNetwork<D, NI::Multiaddress>> {
-        self.sessions
-            .get_mut(session_id)
-            .map(
-                |Session {
-                     handler, discovery, ..
-                 }| {
-                    discovery
-                        .discover_authorities(handler)
-                        .map(Self::network_message)
-                },
-            )
-            .flatten()
+        self.sessions.get_mut(session_id).and_then(
+            |Session {
+                 handler, discovery, ..
+             }| {
+                discovery
+                    .discover_authorities(handler)
+                    .map(Self::network_message)
+            },
+        )
     }
 
     /// Returns all the network messages that should be sent as part of discovery at this moment.
