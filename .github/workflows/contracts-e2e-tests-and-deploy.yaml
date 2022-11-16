@@ -222,7 +222,7 @@ jobs:
         shell: bash
         run: |
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
-          for i in ticket_token marketplace button game_token access_control; do \
+          for i in ticket_token marketplace button game_token simple_dex access_control; do \
             mkdir -p contracts/"$i"/target/ink
             aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
           done
@@ -244,7 +244,7 @@ jobs:
         shell: bash
         run: |
           aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
-          for i in ticket_token marketplace button game_token access_control; do \
+          for i in ticket_token marketplace button game_token simple_dex access_control; do \
             aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
@@ -283,6 +283,7 @@ jobs:
             contracts/marketplace/target \
             contracts/button/target \
             contracts/game_token/target \
+            contracts/simple_dex/target \
             contracts/access_control/target
           aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
