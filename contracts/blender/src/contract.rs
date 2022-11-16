@@ -7,6 +7,7 @@ mod blender {
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
+    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{vec, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
     use openbrush::contracts::psp22::PSP22Error;
@@ -33,11 +34,21 @@ mod blender {
         #[ink(topic)]
         token_id: TokenId,
         value: TokenAmount,
-        note: Note,
+        leaf_idx: u32,
+    }
+
+    #[ink(event)]
+    pub struct Withdrawn {
+        #[ink(topic)]
+        token_id: TokenId,
+        value: TokenAmount,
+        #[ink(topic)]
+        recipient: AccountId,
         leaf_idx: u32,
     }
 
     type Result<T> = core::result::Result<T, BlenderError>;
+    type Event = <Blender as ContractEventBase>::Type;
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -92,12 +103,14 @@ mod blender {
             self.create_new_leaf(note)?;
             self.merkle_roots.insert(self.current_root(), &());
 
-            self.env().emit_event(Deposited {
-                token_id,
-                value,
-                note,
-                leaf_idx: self.next_free_leaf - 1,
-            });
+            Self::emit_event(
+                self.env(),
+                Event::Deposited(Deposited {
+                    token_id,
+                    value,
+                    leaf_idx: self.next_free_leaf - 1,
+                }),
+            );
 
             Ok(())
         }
@@ -227,6 +240,10 @@ mod blender {
             (self.env().caller() == self.blendermaster)
                 .then_some(())
                 .ok_or(BlenderError::InsufficientPermission)
+        }
+
+        fn emit_event<EE: EmitEvent<Blender>>(emitter: EE, event: Event) {
+            emitter.emit_event(event);
         }
     }
 }
