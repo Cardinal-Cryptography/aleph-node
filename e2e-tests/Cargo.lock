@@ -57,6 +57,7 @@ dependencies = [
  "env_logger 0.8.4",
  "frame-support",
  "frame-system",
+ "futures",
  "hex",
  "log",
  "pallet-balances",

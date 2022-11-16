@@ -79,7 +79,7 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped(
         .await?;
     connection
         .connection
-        .wait_for_session(session_after_upgrade + 1, BlockStatus::Finalized)
+        .wait_for_session(session_after_upgrade + 1, BlockStatus::Best)
         .await;
 
     let last_finalized_block =

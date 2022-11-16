@@ -6,6 +6,7 @@ use aleph_client::{
     rpc::Rpc,
     AccountId, KeyPair, RawKeyPair, SignedConnection, TxStatus,
 };
+use futures::future::join_all;
 use primitives::{staking::MIN_VALIDATOR_BOND, TOKEN};
 
 use crate::{accounts::get_validators_raw_keys, Config};
@@ -115,26 +116,34 @@ pub async fn prepare_validators(connection: &SignedConnection, node: &str, accou
         .await
         .unwrap();
 
+    let mut handles = vec![];
     for (stash, controller) in accounts
         .stash_raw_keys
         .iter()
         .zip(accounts.get_controller_accounts().iter())
     {
         let connection = SignedConnection::new(node.to_string(), KeyPair::new(stash.clone())).await;
-        connection
-            .bond(MIN_VALIDATOR_BOND, controller.clone(), TxStatus::Finalized)
-            .await
-            .unwrap();
+        let contr = controller.clone();
+        handles.push(tokio::spawn(async move {
+            connection
+                .bond(MIN_VALIDATOR_BOND, contr, TxStatus::Finalized)
+                .await
+                .unwrap();
+        }));
     }
 
     for controller in accounts.controller_raw_keys.iter() {
         let keys = connection.author_rotate_keys().await;
         let connection =
             SignedConnection::new(node.to_string(), KeyPair::new(controller.clone())).await;
-        connection
-            .set_keys(keys, TxStatus::Finalized)
-            .await
-            .unwrap();
-        connection.validate(10, TxStatus::Finalized).await.unwrap();
+        handles.push(tokio::spawn(async move {
+            connection
+                .set_keys(keys, TxStatus::Finalized)
+                .await
+                .unwrap();
+            connection.validate(10, TxStatus::Finalized).await.unwrap();
+        }));
     }
+
+    join_all(handles).await;
 }

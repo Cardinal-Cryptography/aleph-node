@@ -224,14 +224,14 @@ pub async fn check_underperformed_count_for_sessions(
             let session_underperformed_count = connection
                 .get_underperformed_validator_session_count(val.clone(), session_end_block_hash)
                 .await
-                .unwrap();
+                .unwrap_or_default();
             let previous_session_underperformed_count = connection
                 .get_underperformed_validator_session_count(
                     val.clone(),
                     previous_session_end_block_hash,
                 )
                 .await
-                .unwrap();
+                .unwrap_or_default();
 
             let underperformed_diff =
                 session_underperformed_count.abs_diff(previous_session_underperformed_count);
