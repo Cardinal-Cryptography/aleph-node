@@ -9,7 +9,7 @@ on:
   push:
     paths:
       - 'contracts/**'
-      - '.github/**'
+      - '.github/workflows/contracts-e2e-tests-and-deploy.yaml'
 
 concurrency:
   group: ${{ github.workflow }}
