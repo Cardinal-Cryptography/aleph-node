@@ -189,7 +189,15 @@ jobs:
         with:
           target-key: ${{ env.CACHE_KEY }}
           cargo-key: ${{ env.CACHE_KEY }}
-          cache-version: v1
+          cache-version: v3
+          cargo-targets: |
+            contracts/access_control/target/
+            contracts/button/target/
+            contracts/game_token/target/
+            contracts/marketplace/target/
+            contracts/simple_dex/target/
+            contracts/ticket_token/target/
+            contracts/wrapped_azero/target/
 
       - name: Install cargo additional libs
         run: |
@@ -211,13 +219,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get contracts' target directories cache from S3 bucket
-        shell: bash
-        continue-on-error: true
-        run: |
-          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
-          tar -xzf targets.tgz
 
       - name: Copy addresses.json file from S3 bucket
         shell: bash
@@ -287,13 +288,6 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Cache contracts' target directories in S3 bucket
-        shell: bash
-        run: |
-          find contracts -type d -name 'target' > dirs_to_targz.txt
-          tar -czvf targets.tgz --files-from=dirs_to_targz.txt
-          aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
-  
       - name: Remove deploy label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         if: github.event_name == 'pull_request' && contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
