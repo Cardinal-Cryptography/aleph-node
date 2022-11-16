@@ -35,7 +35,7 @@ impl SystemSudoApi for RootConnection {
             ratio: Perbill(SPerbill::from_percent(target_ratio_percent as u32).deconstruct()),
         });
 
-        self.sudo_unchecked(call, status).await
+        self.sudo(call, status).await
     }
 }
 

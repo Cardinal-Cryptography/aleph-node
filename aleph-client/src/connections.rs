@@ -29,27 +29,23 @@ pub struct RootConnection {
 #[async_trait::async_trait]
 pub trait SudoCall {
     async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<H256>;
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<H256>;
 }
 
 #[async_trait::async_trait]
 impl SudoCall for RootConnection {
     async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<H256> {
-        info!(target: "aleph-client", "sending call as sudo {:?}", call);
+        info!(target: "aleph-client", "sending call as sudo_unchecked {:?}", call);
         let sudo = api::tx().sudo().sudo_unchecked_weight(call, 0);
 
-        let progress = self
-            .connection
-            .client
-            .tx()
-            .sign_and_submit_then_watch_default(&sudo, &self.root)
-            .await?;
+        self.as_signed().send_tx(sudo, status).await
+    }
 
-        let hash = match status {
-            TxStatus::InBlock => progress.wait_for_in_block().await?.block_hash(),
-            TxStatus::Finalized => progress.wait_for_finalized_success().await?.block_hash(),
-        };
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<H256> {
+        info!(target: "aleph-client", "sending call as sudo {:?}", call);
+        let sudo = api::tx().sudo().sudo(call);
 
-        Ok(hash)
+        self.as_signed().send_tx(sudo, status).await
     }
 }
 
