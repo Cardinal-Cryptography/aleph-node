@@ -323,4 +323,4 @@ jobs:
         run: |
           aws eks --region eu-central-1 update-kubeconfig --name alephzero-devnet-eu-central-1-eks
           kubectl rollout restart deployment the-button -n the-button
-          kubectl status --watch --timeout=600s -n the-button deploy/the-button
+          kubectl rollout status --watch --timeout=600s -n the-button deploy/the-button
