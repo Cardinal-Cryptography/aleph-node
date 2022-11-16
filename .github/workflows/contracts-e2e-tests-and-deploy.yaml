@@ -1,10 +1,11 @@
 name: contracts-e2e-tests-and-deploy
 
 on:
-  pull_request:
-    paths:
-      - 'contracts/**'
-      - '.github/**'
+  # TODO : temporary, uncomment before merging
+  # pull_request:
+  #   paths:
+  #     - 'contracts/**'
+  #     - '.github/**'
   push:
     paths:
       - 'contracts/**'
@@ -15,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CHECKOUT_BRANCH: benjamin
+  # CHECKOUT_BRANCH: benjamin
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
@@ -70,11 +71,12 @@ jobs:
             contracts/ticket_token/target/
             contracts/wrapped_azero/target/
 
+      # TODO : this should NOT be built every time
       - name: Install cargo-contract
         run: |
               cargo install cargo-dylint dylint-link --force
               # revision merging Hans's PR changes [fix for node URL parsing ]
-              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 2b1758756de59bd81e7bed5f8429d364f281cb9a --force
+              cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -136,14 +138,15 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
+    # TODO : temporary, uncomment before merging
+    # if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
-        with:
-          ref: ${{ env.CHECKOUT_BRANCH }}
+        # with:
+        #   ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Check if environment is reachable
         shell: bash
@@ -188,13 +191,22 @@ jobs:
         with:
           target-key: ${{ env.CACHE_KEY }}
           cargo-key: ${{ env.CACHE_KEY }}
-          cache-version: v1
+          cache-version: v2
+          cargo-targets: |
+            contracts/access_control/target/
+            contracts/button/target/
+            contracts/game_token/target/
+            contracts/marketplace/target/
+            contracts/simple_dex/target/
+            contracts/ticket_token/target/
+            contracts/wrapped_azero/target/
 
       - name: Install cargo additional libs
         run: |
           . "$HOME/.cargo/env"
           cargo install dylint-link cargo-dylint
 
+      # TODO : this should NOT be built every time
       - name: Install cargo-contract with bug fixes around URL parsing
         run: |
           . "$HOME/.cargo/env"
@@ -211,20 +223,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get contracts' target directories cache from S3 bucket
-        shell: bash
-        continue-on-error: true
-        run: |
-          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
-          tar -xzf targets.tgz
+      # - name: Get contracts' target directories cache from S3 bucket
+      #   shell: bash
+      #   continue-on-error: true
+      #   run: |
+      #     aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
+      #     tar -xzf targets.tgz
 
       - name: Copy metadata.json and addresses.json files from S3 bucket
         shell: bash
         run: |
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
-          for i in ticket_token marketplace button game_token simple_dex access_control; do \
+          for i in ticket_token marketplace button game_token simple_dex wrapped_azero access_control; do \
             mkdir -p contracts/"$i"/target/ink
-            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \ || true
           done
 
       - name: Run clean.sh script
@@ -244,11 +256,14 @@ jobs:
         shell: bash
         run: |
           aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
-          for i in ticket_token marketplace button game_token simple_dex access_control; do \
+          for i in ticket_token marketplace button game_token simple_dex wrapped_azero access_control; do \
             aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
+
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+
           aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
           aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
 
@@ -256,7 +271,7 @@ jobs:
         shell: bash
         run: |
           cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
-          for i in ticket_token marketplace button game_token access_control; do \
+          for i in ticket_token marketplace button game_token wrapped_azero access_control; do \
             cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
           done
 
@@ -276,16 +291,16 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Cache contracts' target directories in S3 bucket
-        shell: bash
-        run: |
-          tar -czf targets.tgz contracts/ticket_token/target \
-            contracts/marketplace/target \
-            contracts/button/target \
-            contracts/game_token/target \
-            contracts/simple_dex/target \
-            contracts/access_control/target
-          aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
+      # - name: Cache contracts' target directories in S3 bucket
+      #   shell: bash
+      #   run: |
+      #     tar -czf targets.tgz contracts/ticket_token/target \
+      #       contracts/marketplace/target \
+      #       contracts/button/target \
+      #       contracts/game_token/target \
+      #       contracts/simple_dex/target \
+      #       contracts/access_control/target
+      #     aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
       - name: Trigger Indexer deployment workflow
         run: |
