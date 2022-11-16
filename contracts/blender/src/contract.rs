@@ -7,13 +7,14 @@ mod blender {
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
+    use ink_lang::{
+        codegen::{EmitEvent, Env},
+        reflect::ContractEventBase,
+    };
     use ink_prelude::{vec, vec::Vec};
     use ink_storage::{traits::SpreadAllocate, Mapping};
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
-    #[cfg(feature = "std")]
-    use scale_info::TypeInfo;
 
     use crate::{
         error::BlenderError, kinder_blender, MerkleRoot, Note, Nullifier, Set, TokenAmount,
@@ -23,7 +24,7 @@ mod blender {
 
     /// Supported relations - used for registering verifying keys.
     #[derive(Eq, PartialEq, Debug, Decode, Encode)]
-    #[cfg_attr(feature = "std", derive(TypeInfo))]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Relation {
         Deposit,
         Withdraw,
@@ -115,9 +116,53 @@ mod blender {
             Ok(())
         }
 
+        /// Register a verifying key for one of the `Relation`.
+        ///
+        /// For blendermaster use only.
+        #[ink(message, selector = 8)]
+        pub fn register_vk(&mut self, relation: Relation, vk: Vec<u8>) -> Result<()> {
+            self.ensure_mr_blendermaster()?;
+            let identifier = match relation {
+                Relation::Deposit => DEPOSIT_VK_IDENTIFIER,
+                Relation::Withdraw => WITHDRAW_VK_IDENTIFIER,
+            };
+            self.env().extension().store_key(identifier, vk)?;
+            Ok(())
+        }
+
+        /// Check if there is a token address registered at `token_id`.
+        #[ink(message, selector = 9)]
+        pub fn registered_token_address(&self, token_id: TokenId) -> Option<AccountId> {
+            self.registered_tokens.get(token_id)
+        }
+
+        /// Register a token contract (`token_address`) at `token_id`.
+        ///
+        /// For blendermaster use only.
+        #[ink(message, selector = 10)]
+        pub fn register_new_token(
+            &mut self,
+            token_id: TokenId,
+            token_address: AccountId,
+        ) -> Result<()> {
+            self.ensure_mr_blendermaster()?;
+            self.registered_tokens
+                .contains(token_id)
+                .not()
+                .then(|| self.registered_tokens.insert(token_id, &token_address))
+                .ok_or(BlenderError::TokenIdAlreadyRegistered)
+        }
+    }
+
+    /// Auxiliary contract methods.
+    impl Blender {
+        fn tree_value(&self, idx: u32) -> Hash {
+            self.notes.get(idx).unwrap_or_else(Hash::clear)
+        }
+
         /// Get the value from the root node.
         fn current_root(&self) -> Hash {
-            self.notes.get(1).unwrap_or_else(Hash::clear)
+            self.tree_value(1)
         }
 
         /// Add `value` to the first 'non-occupied' leaf.
@@ -132,10 +177,10 @@ mod blender {
 
             let mut parent = self.next_free_leaf / 2;
             while parent > 0 {
-                let left_child = &self.notes.get(2 * parent).unwrap_or_else(Hash::clear);
-                let right_child = &self.notes.get(2 * parent + 1).unwrap_or_else(Hash::clear);
+                let left_child = self.tree_value(2 * parent);
+                let right_child = self.tree_value(2 * parent + 1);
                 self.notes
-                    .insert(parent, &kinder_blender(left_child, right_child));
+                    .insert(parent, &kinder_blender(&left_child, &right_child));
                 parent /= 2;
             }
 
@@ -198,43 +243,6 @@ mod blender {
             Ok(())
         }
 
-        /// Register a verifying key for one of the `Relation`.
-        ///
-        /// For blendermaster use only.
-        #[ink(message, selector = 8)]
-        pub fn register_vk(&mut self, relation: Relation, vk: Vec<u8>) -> Result<()> {
-            self.ensure_mr_blendermaster()?;
-            let identifier = match relation {
-                Relation::Deposit => DEPOSIT_VK_IDENTIFIER,
-                Relation::Withdraw => WITHDRAW_VK_IDENTIFIER,
-            };
-            self.env().extension().store_key(identifier, vk)?;
-            Ok(())
-        }
-
-        /// Check if there is a token address registered at `token_id`.
-        #[ink(message, selector = 9)]
-        pub fn registered_token_address(&self, token_id: TokenId) -> Option<AccountId> {
-            self.registered_tokens.get(token_id)
-        }
-
-        /// Register a token contract (`token_address`) at `token_id`.
-        ///
-        /// For blendermaster use only.
-        #[ink(message, selector = 10)]
-        pub fn register_new_token(
-            &mut self,
-            token_id: TokenId,
-            token_address: AccountId,
-        ) -> Result<()> {
-            self.ensure_mr_blendermaster()?;
-            self.registered_tokens
-                .contains(token_id)
-                .not()
-                .then(|| self.registered_tokens.insert(token_id, &token_address))
-                .ok_or(BlenderError::TokenIdAlreadyRegistered)
-        }
-
         /// Check if the caller is the blendermaster.
         fn ensure_mr_blendermaster(&self) -> Result<()> {
             (self.env().caller() == self.blendermaster)
@@ -242,6 +250,7 @@ mod blender {
                 .ok_or(BlenderError::InsufficientPermission)
         }
 
+        /// Emit event with correct type boundaries.
         fn emit_event<EE: EmitEvent<Blender>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
         }
