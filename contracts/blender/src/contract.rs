@@ -18,8 +18,8 @@ mod blender {
 
     use crate::{
         error::BlenderError, kinder_blender, MerkleRoot, Note, Nullifier, Set, TokenAmount,
-        TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, SYSTEM,
-        WITHDRAW_VK_IDENTIFIER,
+        TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR, PSP22_TRANSFER_SELECTOR,
+        SYSTEM, WITHDRAW_VK_IDENTIFIER,
     };
 
     /// Supported relations - used for registering verifying keys.
@@ -101,6 +101,7 @@ mod blender {
         ) -> Result<()> {
             self.acquire_deposit(token_id, value)?;
             self.verify_deposit(token_id, value, note, proof)?;
+
             self.create_new_leaf(note)?;
             self.merkle_roots.insert(self.current_root(), &());
 
@@ -109,6 +110,43 @@ mod blender {
                 Event::Deposited(Deposited {
                     token_id,
                     value,
+                    leaf_idx: self.next_free_leaf - 1,
+                }),
+            );
+
+            Ok(())
+        }
+
+        /// Trigger withdraw action (see ADR for detailed description).
+        #[allow(clippy::too_many_arguments)]
+        #[ink(message, selector = 2)]
+        pub fn withdraw(
+            &mut self,
+            token_id: TokenId,
+            value: TokenAmount,
+            recipient: AccountId,
+            fee_for_caller: Option<TokenAmount>,
+            merkle_root: MerkleRoot,
+            nullifier: Nullifier,
+            new_note: Note,
+            proof: Vec<u8>,
+        ) -> Result<()> {
+            self.verify_fee(fee_for_caller, value)?;
+            self.verify_merkle_root(merkle_root)?;
+            self.verify_nullifier(nullifier)?;
+            self.verify_withdrawal(token_id, value, merkle_root, nullifier, new_note, proof)?;
+
+            self.create_new_leaf(new_note)?;
+            self.nullifiers.insert(nullifier, &());
+
+            self.withdraw_funds(token_id, value, fee_for_caller, recipient)?;
+
+            Self::emit_event(
+                self.env(),
+                Event::Withdrawn(Withdrawn {
+                    token_id,
+                    value,
+                    recipient,
                     leaf_idx: self.next_free_leaf - 1,
                 }),
             );
@@ -188,6 +226,13 @@ mod blender {
             Ok(())
         }
 
+        /// Serialize with `ark-serialize::CanonicalSerialize`.
+        pub fn serialize<T: CanonicalSerialize + ?Sized>(t: &T) -> Vec<u8> {
+            let mut bytes = vec![0; t.serialized_size()];
+            t.serialize(&mut bytes[..]).expect("Failed to serialize");
+            bytes.to_vec()
+        }
+
         /// Transfer `deposit` tokens of type `token_id` from the caller to this contract.
         fn acquire_deposit(&self, token_id: TokenId, deposit: TokenAmount) -> Result<()> {
             let token_contract = self
@@ -207,13 +252,6 @@ mod blender {
                 .returns::<core::result::Result<(), PSP22Error>>()
                 .fire()??;
             Ok(())
-        }
-
-        /// Serialize with `ark-serialize::CanonicalSerialize`.
-        pub fn serialize<T: CanonicalSerialize + ?Sized>(t: &T) -> Vec<u8> {
-            let mut bytes = vec![0; t.serialized_size()];
-            t.serialize(&mut bytes[..]).expect("Failed to serialize");
-            bytes.to_vec()
         }
 
         /// Call `pallet_snarcos::verify` for the `deposit` relation with `(token_id, value, note)`
@@ -240,6 +278,100 @@ mod blender {
                 SYSTEM,
             )?;
 
+            Ok(())
+        }
+
+        fn verify_fee(
+            &self,
+            fee_for_caller: Option<TokenAmount>,
+            value_to_withdraw: TokenAmount,
+        ) -> Result<()> {
+            match fee_for_caller {
+                Some(fee) if fee > value_to_withdraw => Err(BlenderError::TooHighFee),
+                _ => Ok(()),
+            }
+        }
+
+        fn verify_merkle_root(&self, merkle_root: MerkleRoot) -> Result<()> {
+            self.merkle_roots
+                .contains(merkle_root)
+                .then_some(())
+                .ok_or(BlenderError::UnknownMerkleRoot)
+        }
+
+        fn verify_nullifier(&self, nullifier: Nullifier) -> Result<()> {
+            self.nullifiers
+                .contains(nullifier)
+                .not()
+                .then_some(())
+                .ok_or(BlenderError::NullifierAlreadyUsed)
+        }
+
+        fn verify_withdrawal(
+            &self,
+            token_id: TokenId,
+            value_out: TokenAmount,
+            merkle_root: MerkleRoot,
+            nullifier: Nullifier,
+            new_note: Note,
+            proof: Vec<u8>,
+        ) -> Result<()> {
+            // For now we assume naive input encoding (from typed arguments).
+            let serialized_input = [
+                Self::serialize(&token_id),
+                Self::serialize(&value_out),
+                Self::serialize(merkle_root.as_ref()),
+                Self::serialize(&nullifier),
+                Self::serialize(new_note.as_ref()),
+            ]
+            .concat();
+
+            self.env().extension().verify(
+                WITHDRAW_VK_IDENTIFIER,
+                proof,
+                serialized_input,
+                SYSTEM,
+            )?;
+
+            Ok(())
+        }
+
+        fn withdraw_funds(
+            &self,
+            token_id: TokenId,
+            value: TokenAmount,
+            fee_for_caller: Option<TokenAmount>,
+            recipient: AccountId,
+        ) -> Result<()> {
+            let token_contract = self
+                .registered_token_address(token_id)
+                .ok_or(BlenderError::TokenIdNotRegistered)?;
+
+            match fee_for_caller {
+                Some(fee) => {
+                    self.transfer(token_contract, fee, self.env().caller())?;
+                    self.transfer(token_contract, value - fee, recipient)
+                }
+                None => self.transfer(token_contract, value, recipient),
+            }
+        }
+
+        fn transfer(
+            &self,
+            token_contract: AccountId,
+            value: TokenAmount,
+            recipient: AccountId,
+        ) -> Result<()> {
+            build_call::<super::blender::Environment>()
+                .call_type(Call::new().callee(token_contract))
+                .exec_input(
+                    ExecutionInput::new(Selector::new(PSP22_TRANSFER_SELECTOR))
+                        .push_arg(recipient)
+                        .push_arg(value as Balance)
+                        .push_arg::<Vec<u8>>(vec![]),
+                )
+                .returns::<core::result::Result<(), PSP22Error>>()
+                .fire()??;
             Ok(())
         }
 
