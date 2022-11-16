@@ -140,7 +140,7 @@ jobs:
     name: Deploy contracts on feature environment
     # TODO : temporary, uncomment before merging
     # if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
-    needs: [run-tests]
+    # needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
