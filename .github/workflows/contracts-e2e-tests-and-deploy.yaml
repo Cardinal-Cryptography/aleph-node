@@ -231,12 +231,13 @@ jobs:
       #     tar -xzf targets.tgz
 
       - name: Copy metadata.json and addresses.json files from S3 bucket
+        continue-on-error: true
         shell: bash
         run: |
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
           for i in ticket_token marketplace button game_token simple_dex wrapped_azero access_control; do \
             mkdir -p contracts/"$i"/target/ink
-            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \ || true
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json contracts/"$i"/target/ink/metadata.json; \
           done
 
       - name: Run clean.sh script
