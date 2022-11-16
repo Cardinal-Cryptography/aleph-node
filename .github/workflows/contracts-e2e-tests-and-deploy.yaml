@@ -137,7 +137,7 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: (github.event_name == 'push' && github.ref_name == 'benjamin') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    if: (github.event_name == 'push' && github.ref_name == 'add-labels-for-deploying-contracts') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
@@ -237,77 +237,81 @@ jobs:
             cp $DOWNLOAD_TMP_DIR/$i/metadata.json contracts/$i/target/ink/metadata.json; \
           done
 
-      - name: Run clean.sh script
-        continue-on-error: true
-        shell: bash
-        run: |
-          . "$HOME/.cargo/env"
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
+          find contracts
+          echo "----"
+          find contracts -name "metadata.json" | awk -F/ '{print $2}'
 
-      - name: Run deploy.sh script
-        shell: bash
-        run: |
-          . "$HOME/.cargo/env"
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
+      #- name: Run clean.sh script
+      #  continue-on-error: true
+      #  shell: bash
+      #  run: |
+      #    . "$HOME/.cargo/env"
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
-      - name: Copy metadata.json and addresses.json files onto S3 bucket
-        shell: bash
-        run: |
-          aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+      #- name: Run deploy.sh script
+      #  shell: bash
+      #  run: |
+      #    . "$HOME/.cargo/env"
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-          for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
-          done
+      #- name: Copy metadata.json and addresses.json files onto S3 bucket
+      #  shell: bash
+      #  run: |
+      #    aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+      #
+      #    for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
+      #      aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+      #    done
+      #
+      #    echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+      #    aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+      #    source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
+      #    aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
 
-          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
-          aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
-          aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
+      #- name: Rename metadata and addresses JSON files to artifact upload
+      #  shell: bash
+      #  run: |
+      #    cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
+      #    for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
+      #      cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
+      #    done
 
-      - name: Rename metadata and addresses JSON files to artifact upload
-        shell: bash
-        run: |
-          cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
-          for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
-          done
+      #- name: Upload artifact with contract addresses
+      #  uses: actions/upload-artifact@v3
+      #  with:
+      #    name: contracts-addresses
+      #    path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
+      #    if-no-files-found: error
+      #    retention-days: 90
 
-      - name: Upload artifact with contract addresses
-        uses: actions/upload-artifact@v3
-        with:
-          name: contracts-addresses
-          path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
-          if-no-files-found: error
-          retention-days: 90
+      #- name: Upload artifact with contract metadata
+      #  uses: actions/upload-artifact@v3
+      #  with:
+      #    name: contracts-metadata
+      #    path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
+      #    if-no-files-found: error
+      #    retention-days: 90
 
-      - name: Upload artifact with contract metadata
-        uses: actions/upload-artifact@v3
-        with:
-          name: contracts-metadata
-          path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
-          if-no-files-found: error
-          retention-days: 90
+      #- name: Remove deploy label if present
+      #  uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #  if: github.event_name == 'pull_request' && contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
+      #  with:
+      #    labels: '[AZERO] DEPLOY-CONTRACTS'
+      #    github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Remove deploy label if present
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        if: github.event_name == 'pull_request' && contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
-        with:
-          labels: '[AZERO] DEPLOY-CONTRACTS'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      #- name: Add label to mark that contracts have been deployed
+      #  if: github.event_name == 'pull_request'
+      #  uses: actions-ecosystem/action-add-labels@v1.1.0
+      #  with:
+      #    labels: 'DEPLOYED-CONTRACTS'
+      #    github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Add label to mark that contracts have been deployed
-        if: github.event_name == 'pull_request'
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: 'DEPLOYED-CONTRACTS'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
-      - name: Trigger Indexer deployment workflow
-        run: |
-          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
-          -H "Accept: application/vnd.github+json" \
-          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"master" }'
+      #- name: Trigger Indexer deployment workflow
+      #  run: |
+      #    curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
+      #    -H "Accept: application/vnd.github+json" \
+      #    -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
+      #    -d '{ "ref":"master" }'
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v2.0
