@@ -154,6 +154,12 @@ mod blender {
             Ok(())
         }
 
+        /// Read the current root of the Merkle tree with notes.
+        #[ink(message, selector = 3)]
+        pub fn current_merkle_root(&self) -> Hash {
+            self.current_root()
+        }
+
         /// Register a verifying key for one of the `Relation`.
         ///
         /// For blendermaster use only.
