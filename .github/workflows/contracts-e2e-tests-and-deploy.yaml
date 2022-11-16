@@ -309,9 +309,14 @@ jobs:
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"master" }'
 
-      - name: Trigger The Button deployment workflow
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v2.0
+        with:
+          version: 'v1.23.6'
+
+      - name: Restart the-button deployment
+        shell: bash
         run: |
-          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/the-button/actions/workflows/main.yaml/dispatches' \
-          -H "Accept: application/vnd.github+json" \
-          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
+          aws eks --region eu-central-1 update-kubeconfig --name alephzero-devnet-eu-central-1-eks
+          kubectl rollout restart deployment the-button -n the-button
+          kubectl status --watch --timeout=600s -n the-button deploy/the-button
