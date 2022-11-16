@@ -226,7 +226,6 @@ jobs:
 
       - name: Copy metadata.json files from S3 bucket
         shell: bash
-        continue-on-error: true
         env:
           DOWNLOAD_TMP_DIR: downloaded_metadata
         run: |
