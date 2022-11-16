@@ -1,11 +1,10 @@
 name: contracts-e2e-tests-and-deploy
 
 on:
-  # TODO : temporary, uncomment before merging
-  # pull_request:
-  #   paths:
-  #     - 'contracts/**'
-  #     - '.github/**'
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/**'
   push:
     paths:
       - 'contracts/**'
@@ -16,7 +15,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # CHECKOUT_BRANCH: benjamin
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
@@ -138,15 +136,12 @@ jobs:
 
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    # TODO : temporary, uncomment before merging
-    # if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
-    # needs: [run-tests]
+    if: ${{ (github.event_name == 'push') && (github.ref == 'refs/heads/benjamin') }}
+    needs: [run-tests]
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
-        # with:
-        #   ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Check if environment is reachable
         shell: bash
@@ -223,13 +218,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # - name: Get contracts' target directories cache from S3 bucket
-      #   shell: bash
-      #   continue-on-error: true
-      #   run: |
-      #     aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz targets.tgz
-      #     tar -xzf targets.tgz
-
       - name: Copy metadata.json and addresses.json files from S3 bucket
         continue-on-error: true
         shell: bash
@@ -241,7 +229,6 @@ jobs:
           done
 
       - name: Run clean.sh script
-        continue-on-error: true
         shell: bash
         run: |
           . "$HOME/.cargo/env"
@@ -292,17 +279,6 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      # - name: Cache contracts' target directories in S3 bucket
-      #   shell: bash
-      #   run: |
-      #     tar -czf targets.tgz contracts/ticket_token/target \
-      #       contracts/marketplace/target \
-      #       contracts/button/target \
-      #       contracts/game_token/target \
-      #       contracts/simple_dex/target \
-      #       contracts/access_control/target
-      #     aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
-
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
 
@@ -319,3 +295,5 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
           -d '{ "ref":"main", "inputs": { "buildImage": "false", "deployImage": "true" }}'
+
+      # TODO : Here the workflow should wait for a hook that notifies this workflow when the two prior steps have been finished succesfully
