@@ -12,7 +12,7 @@ on:
       - '.github/workflows/contracts-e2e-tests-and-deploy.yaml'
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: false
 
 env:
