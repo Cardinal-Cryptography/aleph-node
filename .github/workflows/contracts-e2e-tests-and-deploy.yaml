@@ -302,6 +302,9 @@ jobs:
       #       contracts/access_control/target
       #     aws s3 cp targets.tgz s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/targets.tgz
 
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
       - name: Trigger Indexer deployment workflow
         run: |
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
