@@ -361,8 +361,9 @@ mod simple_dex {
 
         /// Swap trade output given a curve with equal token weights
         ///
-        /// swap_fee_percentage (integer) is a percentage of the trade that goes towards the pool
-        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) -A_i * fee)
+        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
+        /// where swap_fee (integer) is a percentage of the trade that goes towards the pool
+        /// and is used to pay the liquidity providers
         #[ink(message)]
         pub fn out_given_in(
             &self,

@@ -78,7 +78,6 @@ impl SimpleDexInstance {
         token_in: &PSP22TokenInstance,
         token_out: &PSP22TokenInstance,
         amount_token_in: Balance,
-        min_amount_token_out: Option<Balance>,
     ) -> Result<Balance> {
         let token_in: AccountId = token_in.into();
         let token_out: AccountId = token_out.into();
@@ -91,7 +90,6 @@ impl SimpleDexInstance {
                     token_in.to_string(),
                     token_out.to_string(),
                     amount_token_in.to_string(),
-                    min_amount_token_out.map_or("None".to_string(), |x| format!("Some({:})", x)),
                 ],
             )?
             .try_into()?
