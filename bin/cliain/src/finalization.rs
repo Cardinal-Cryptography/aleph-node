@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use aleph_client::{pallets::aleph::{AlephRpc, AlephSudoApi}, AccountId, AlephKeyPair, SignedConnection, TxStatus, Connection};
+use aleph_client::{
+    pallets::aleph::{AlephRpc, AlephSudoApi},
+    AccountId, AlephKeyPair, Connection, SignedConnection, TxStatus,
+};
 use primitives::{BlockHash, BlockNumber};
 
 use crate::RootConnection;
@@ -21,7 +24,7 @@ pub async fn finalize(
     key_pair: AlephKeyPair,
 ) {
     let hash = BlockHash::from_str(&hash).expect("Hash is properly hex encoded");
-   connection
+    connection
         .emergency_finalize(number, hash, key_pair)
         .await
         .unwrap();
