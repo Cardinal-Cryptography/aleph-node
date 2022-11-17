@@ -16,7 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CHECKOUT_BRANCH: benjamin
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
   CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
@@ -71,11 +70,12 @@ jobs:
             contracts/ticket_token/target/
             contracts/wrapped_azero/target/
 
+      # TODO : this should NOT be built every time
       - name: Install cargo-contract
         run: |
               cargo install cargo-dylint dylint-link --force
               # revision merging Hans's PR changes [fix for node URL parsing ]
-              cargo install --git https://github.com/paritytech/cargo-contract.git --rev 2b1758756de59bd81e7bed5f8429d364f281cb9a --force
+              cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -143,8 +143,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2.3.4
-        with:
-          ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Check if environment is reachable
         shell: bash
@@ -204,6 +202,7 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install dylint-link cargo-dylint
 
+      # TODO : this should NOT be built every time
       - name: Install cargo-contract with bug fixes around URL parsing
         run: |
           . "$HOME/.cargo/env"
@@ -238,7 +237,6 @@ jobs:
           done
 
       - name: Run clean.sh script
-        continue-on-error: true
         shell: bash
         run: |
           . "$HOME/.cargo/env"
@@ -254,13 +252,15 @@ jobs:
         shell: bash
         run: |
           aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
-      
+          
           for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
             aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
-      
+          
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+          
           aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+          
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
           aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
 
@@ -302,6 +302,9 @@ jobs:
           labels: 'DEPLOYED-CONTRACTS'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
       - name: Trigger Indexer deployment workflow
         run: |
           curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
@@ -320,3 +323,5 @@ jobs:
           aws eks --region eu-central-1 update-kubeconfig --name alephzero-devnet-eu-central-1-eks
           kubectl rollout restart deployment the-button -n the-button
           kubectl rollout status --watch --timeout=600s -n the-button deploy/the-button
+
+      # TODO : Here the workflow should wait for a hook that notifies this workflow when the two prior steps have been finished succesfully

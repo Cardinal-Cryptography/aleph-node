@@ -54,7 +54,6 @@ function remove_contract_code {
     rm -f $tmp_output_file
     set -e
 
-
   fi
 }
 
@@ -92,6 +91,10 @@ echo "succesfully removed code hashes"
 terminate_contract simple_dex simple_dex
 remove_contract_code simple_dex_code_hash
 echo "succesfully terminated and removed simple_dex"
+
+terminate_contract wrapped_azero wrapped_azero
+remove_contract_code wrapped_azero_code_hash
+echo "succesfully terminated and removed wrapped_azero"
 
 # remove access control as last
 terminate_contract access_control access_control
