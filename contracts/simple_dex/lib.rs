@@ -153,6 +153,12 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
+            let balance_token_out = self.balance_of(token_out, this)?;
+            if balance_token_out < min_amount_token_out {
+                // throw early if we cannot support this swap anyway due to liquidity being too low
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
+
             let swap_pair = SwapPair::new(token_in, token_out);
             if !self.swap_pairs.contains(&swap_pair) {
                 return Err(DexError::UnsupportedSwapPair(swap_pair));
@@ -163,12 +169,7 @@ mod simple_dex {
                 return Err(DexError::InsufficientAllowanceOf(token_in));
             }
 
-            let amount_token_out = self.out_given_in(
-                token_in,
-                token_out,
-                amount_token_in,
-                Some(min_amount_token_out),
-            )?;
+            let amount_token_out = self.out_given_in(token_in, token_out, amount_token_in)?;
 
             if amount_token_out < min_amount_token_out {
                 // thrown if too much slippage occured before this tx gets executed
@@ -368,16 +369,10 @@ mod simple_dex {
             token_in: AccountId,
             token_out: AccountId,
             amount_token_in: Balance,
-            min_amount_token_out: Option<Balance>,
         ) -> Result<Balance, DexError> {
             let this = self.env().account_id();
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
-
-            if min_amount_token_out.map_or(false, |x| balance_token_out < x) {
-                // throw early if we cannot support this swap anyway due to liquidity being too low
-                return Err(DexError::NotEnoughLiquidityOf(token_out));
-            }
 
             let op0 = amount_token_in
                 .checked_mul(self.swap_fee_percentage)
