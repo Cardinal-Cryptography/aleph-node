@@ -71,7 +71,6 @@ pub fn simple_dex(config: &Config) -> Result<()> {
         ],
     )?;
 
-
     let more_than_liquidity = mega(1_000_000);
     dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
     refute_recv_id(&mut events, "Swapped");
