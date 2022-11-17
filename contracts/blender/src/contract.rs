@@ -53,11 +53,15 @@ mod blender {
 
     /// Describes a path from a leaf to the root.
     ///
-    /// It is represented as sibling hashes list (bottom to top). The pairs are always of form
-    /// `(left hash, right hash)` with the exception of the last pair, which is just
-    /// `(root hash, root hash)`. The requested leaf is put in the first pair (check index parity
-    /// to find out the coordinate).
-    pub type MerklePath = Vec<(Hash, Hash)>;
+    /// It is represented as a hash sequence from bottom to top:
+    /// - the first will be the 'lefter' of our leaf and its sibling
+    /// - the second element will be righter of our leaf and its sibling
+    /// - the third element will be lefter of their parent and its sibling
+    /// - the fourth element will be righter of their parent and its sibling
+    /// - ...
+    ///
+    /// Path does not contain the root.
+    pub type MerklePath = Vec<Hash>;
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -179,14 +183,11 @@ mod blender {
             let mut path: MerklePath = vec![];
             while current_idx > 1 {
                 let (left_sibling_idx, right_sibling_idx) = Self::get_sibling_indices(current_idx);
-                let left_hash = self.tree_value(left_sibling_idx);
-                let right_hash = self.tree_value(right_sibling_idx);
-                path.push((left_hash, right_hash));
+                path.push(self.tree_value(left_sibling_idx));
+                path.push(self.tree_value(right_sibling_idx));
                 current_idx /= 2;
             }
 
-            let root_hash = self.current_root();
-            path.push((root_hash, root_hash));
             Some(path)
         }
 
