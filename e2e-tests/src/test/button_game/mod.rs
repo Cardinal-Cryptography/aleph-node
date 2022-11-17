@@ -71,10 +71,6 @@ pub fn simple_dex(config: &Config) -> Result<()> {
         ],
     )?;
 
-    assert!(
-        dex.out_given_in(account_conn, token1, token2, 100).is_ok(),
-        "out_given_in should always return"
-    );
 
     let more_than_liquidity = mega(1_000_000);
     dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
