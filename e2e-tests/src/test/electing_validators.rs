@@ -226,7 +226,7 @@ pub async fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
     let connection = root_connection.as_signed();
     connection
         .connection
-        .wait_for_n_eras(1, BlockStatus::Best)
+        .wait_for_n_eras(2, BlockStatus::Best)
         .await;
     let current_era = connection.connection.get_current_era(None).await;
     info!("New validators are in force (era: {})", current_era);
@@ -262,7 +262,7 @@ pub async fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
 
     connection
         .connection
-        .wait_for_n_eras(1, BlockStatus::Best)
+        .wait_for_n_eras(2, BlockStatus::Best)
         .await;
     let current_era = connection.connection.get_current_era(None).await;
     info!(
