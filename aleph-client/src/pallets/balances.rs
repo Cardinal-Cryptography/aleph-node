@@ -1,14 +1,11 @@
 use primitives::Balance;
-use subxt::{
-    ext::{sp_core::H256, sp_runtime::MultiAddress},
-    tx::PolkadotExtrinsicParamsBuilder,
-};
+use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
-    AccountId,
+    AccountId, BlockHash,
     Call::Balances,
     Connection, SignedConnection, TxStatus,
 };
@@ -18,14 +15,14 @@ pub trait BalanceApi {
     async fn locks_for_account(
         &self,
         account: AccountId,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Vec<BalanceLock<Balance>>;
     async fn locks(
         &self,
         accounts: &[AccountId],
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Vec<Vec<BalanceLock<Balance>>>;
-    async fn total_issuance(&self, at: Option<H256>) -> Balance;
+    async fn total_issuance(&self, at: Option<BlockHash>) -> Balance;
 }
 
 #[async_trait::async_trait]
@@ -35,14 +32,14 @@ pub trait BalanceUserApi {
         dest: AccountId,
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn transfer_with_tip(
         &self,
         dest: AccountId,
         amount: Balance,
         tip: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -52,7 +49,7 @@ pub trait BalanceUserBatchExtApi {
         dest: &[AccountId],
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -60,7 +57,7 @@ impl BalanceApi for Connection {
     async fn locks_for_account(
         &self,
         account: AccountId,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Vec<BalanceLock<Balance>> {
         let address = aleph_zero::api::storage().balances().locks(&account);
 
@@ -70,7 +67,7 @@ impl BalanceApi for Connection {
     async fn locks(
         &self,
         accounts: &[AccountId],
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Vec<Vec<BalanceLock<Balance>>> {
         let mut locks = vec![];
 
@@ -81,7 +78,7 @@ impl BalanceApi for Connection {
         locks
     }
 
-    async fn total_issuance(&self, at: Option<H256>) -> Balance {
+    async fn total_issuance(&self, at: Option<BlockHash>) -> Balance {
         let address = api::storage().balances().total_issuance();
 
         self.get_storage_entry(&address, at).await
@@ -95,7 +92,7 @@ impl BalanceUserApi for SignedConnection {
         dest: AccountId,
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx()
             .balances()
             .transfer(MultiAddress::Id(dest), amount);
@@ -108,7 +105,7 @@ impl BalanceUserApi for SignedConnection {
         amount: Balance,
         tip: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx()
             .balances()
             .transfer(MultiAddress::Id(dest), amount);
@@ -125,7 +122,7 @@ impl BalanceUserBatchExtApi for SignedConnection {
         dests: &[AccountId],
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let calls = dests
             .iter()
             .map(|dest| {

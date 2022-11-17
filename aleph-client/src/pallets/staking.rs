@@ -1,5 +1,4 @@
 use primitives::{Balance, EraIndex};
-use sp_core::H256;
 use subxt::{
     ext::{
         sp_core::storage::StorageKey,
@@ -21,30 +20,30 @@ use crate::{
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
     sp_arithmetic::per_things::Perbill,
-    AccountId,
+    AccountId, BlockHash,
     Call::{Staking, Sudo},
     Connection, RootConnection, SignedConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
 pub trait StakingApi {
-    async fn get_active_era(&self, at: Option<H256>) -> EraIndex;
-    async fn get_current_era(&self, at: Option<H256>) -> EraIndex;
-    async fn get_bonded(&self, stash: AccountId, at: Option<H256>) -> Option<AccountId>;
-    async fn get_ledger(&self, controller: AccountId, at: Option<H256>) -> StakingLedger;
-    async fn get_payout_for_era(&self, era: EraIndex, at: Option<H256>) -> u128;
+    async fn get_active_era(&self, at: Option<BlockHash>) -> EraIndex;
+    async fn get_current_era(&self, at: Option<BlockHash>) -> EraIndex;
+    async fn get_bonded(&self, stash: AccountId, at: Option<BlockHash>) -> Option<AccountId>;
+    async fn get_ledger(&self, controller: AccountId, at: Option<BlockHash>) -> StakingLedger;
+    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> u128;
     async fn get_exposure(
         &self,
         era: EraIndex,
         account_id: &AccountId,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Exposure<AccountId, u128>;
     async fn get_era_reward_points(
         &self,
         era: EraIndex,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Option<EraRewardPoints<AccountId>>;
-    async fn get_minimum_validator_count(&self, at: Option<H256>) -> u32;
+    async fn get_minimum_validator_count(&self, at: Option<BlockHash>) -> u32;
     async fn get_session_per_era(&self) -> u32;
 }
 
@@ -55,29 +54,29 @@ pub trait StakingUserApi {
         initial_stake: Balance,
         controller_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn validate(
         &self,
         validator_commission_percentage: u8,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn payout_stakers(
         &self,
         stash_account: AccountId,
         era: EraIndex,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn nominate(
         &self,
         nominee_account_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
-    async fn chill(&self, status: TxStatus) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
+    async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash>;
     async fn bond_extra_stake(
         &self,
         extra_stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -87,17 +86,17 @@ pub trait StakingApiExt {
         accounts: &[(AccountId, AccountId)],
         stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn batch_nominate(
         &self,
         nominator_nominee_pairs: &[(AccountId, AccountId)],
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
 pub trait StakingSudoApi {
-    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<H256>;
+    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<BlockHash>;
     async fn set_staking_config(
         &self,
         minimal_nominator_bond: u128,
@@ -105,47 +104,51 @@ pub trait StakingSudoApi {
         max_nominators_count: Option<u32>,
         max_validators_count: Option<u32>,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
 pub trait StakingRawApi {
-    async fn get_stakers_storage_keys(&self, era: EraIndex, at: Option<H256>) -> Vec<StorageKey>;
+    async fn get_stakers_storage_keys(
+        &self,
+        era: EraIndex,
+        at: Option<BlockHash>,
+    ) -> Vec<StorageKey>;
     async fn get_stakers_storage_keys_from_accounts(
         &self,
         era: EraIndex,
         accounts: &[AccountId],
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Vec<StorageKey>;
 }
 
 #[async_trait::async_trait]
 impl StakingApi for Connection {
-    async fn get_active_era(&self, at: Option<H256>) -> EraIndex {
+    async fn get_active_era(&self, at: Option<BlockHash>) -> EraIndex {
         let addrs = api::storage().staking().active_era();
 
         self.get_storage_entry(&addrs, at).await.index
     }
 
-    async fn get_current_era(&self, at: Option<H256>) -> EraIndex {
+    async fn get_current_era(&self, at: Option<BlockHash>) -> EraIndex {
         let addrs = api::storage().staking().current_era();
 
         self.get_storage_entry(&addrs, at).await
     }
 
-    async fn get_bonded(&self, stash: AccountId, at: Option<H256>) -> Option<AccountId> {
+    async fn get_bonded(&self, stash: AccountId, at: Option<BlockHash>) -> Option<AccountId> {
         let addrs = api::storage().staking().bonded(stash);
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
-    async fn get_ledger(&self, controller: AccountId, at: Option<H256>) -> StakingLedger {
+    async fn get_ledger(&self, controller: AccountId, at: Option<BlockHash>) -> StakingLedger {
         let addrs = api::storage().staking().ledger(controller);
 
         self.get_storage_entry(&addrs, at).await
     }
 
-    async fn get_payout_for_era(&self, era: EraIndex, at: Option<H256>) -> u128 {
+    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> u128 {
         let addrs = api::storage().staking().eras_validator_reward(era);
 
         self.get_storage_entry(&addrs, at).await
@@ -155,7 +158,7 @@ impl StakingApi for Connection {
         &self,
         era: EraIndex,
         account_id: &AccountId,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Exposure<AccountId, u128> {
         let addrs = api::storage().staking().eras_stakers(era, account_id);
 
@@ -165,14 +168,14 @@ impl StakingApi for Connection {
     async fn get_era_reward_points(
         &self,
         era: EraIndex,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Option<EraRewardPoints<AccountId>> {
         let addrs = api::storage().staking().eras_reward_points(era);
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
-    async fn get_minimum_validator_count(&self, at: Option<H256>) -> u32 {
+    async fn get_minimum_validator_count(&self, at: Option<BlockHash>) -> u32 {
         let addrs = api::storage().staking().minimum_validator_count();
 
         self.get_storage_entry(&addrs, at).await
@@ -192,7 +195,7 @@ impl StakingUserApi for SignedConnection {
         initial_stake: Balance,
         controller_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().bond(
             MultiAddress::<AccountId, ()>::Id(controller_id),
             initial_stake,
@@ -206,7 +209,7 @@ impl StakingUserApi for SignedConnection {
         &self,
         validator_commission_percentage: u8,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().validate(ValidatorPrefs {
             commission: Perbill(
                 SPerbill::from_percent(validator_commission_percentage as u32).deconstruct(),
@@ -222,7 +225,7 @@ impl StakingUserApi for SignedConnection {
         stash_account: AccountId,
         era: EraIndex,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().payout_stakers(stash_account, era);
 
         self.send_tx(tx, status).await
@@ -232,7 +235,7 @@ impl StakingUserApi for SignedConnection {
         &self,
         nominee_account_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx()
             .staking()
             .nominate(vec![MultiAddress::Id(nominee_account_id)]);
@@ -240,7 +243,7 @@ impl StakingUserApi for SignedConnection {
         self.send_tx(tx, status).await
     }
 
-    async fn chill(&self, status: TxStatus) -> anyhow::Result<H256> {
+    async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().chill();
 
         self.send_tx(tx, status).await
@@ -250,7 +253,7 @@ impl StakingUserApi for SignedConnection {
         &self,
         extra_stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().bond_extra(extra_stake);
 
         self.send_tx(tx, status).await
@@ -259,7 +262,7 @@ impl StakingUserApi for SignedConnection {
 
 #[async_trait::async_trait]
 impl StakingSudoApi for RootConnection {
-    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<H256> {
+    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
         let call = Staking(force_new_era);
 
         self.sudo_unchecked(call, status).await
@@ -272,7 +275,7 @@ impl StakingSudoApi for RootConnection {
         max_nominator_count: Option<u32>,
         max_validator_count: Option<u32>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let call = Staking(set_staking_configs {
             min_nominator_bond: Set(min_nominator_bond),
             min_validator_bond: Set(min_validator_bond),
@@ -293,7 +296,11 @@ impl StakingSudoApi for RootConnection {
 
 #[async_trait::async_trait]
 impl StakingRawApi for Connection {
-    async fn get_stakers_storage_keys(&self, era: EraIndex, at: Option<H256>) -> Vec<StorageKey> {
+    async fn get_stakers_storage_keys(
+        &self,
+        era: EraIndex,
+        at: Option<BlockHash>,
+    ) -> Vec<StorageKey> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
         StorageMapKey::new(&era, StorageHasher::Twox64Concat).to_bytes(&mut key);
@@ -308,7 +315,7 @@ impl StakingRawApi for Connection {
         &self,
         era: EraIndex,
         accounts: &[AccountId],
-        _: Option<H256>,
+        _: Option<BlockHash>,
     ) -> Vec<StorageKey> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
@@ -332,7 +339,7 @@ impl StakingApiExt for RootConnection {
         accounts: &[(AccountId, AccountId)],
         stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let calls = accounts
             .iter()
             .map(|(c, s)| {
@@ -356,7 +363,7 @@ impl StakingApiExt for RootConnection {
         &self,
         nominator_nominee_pairs: &[(AccountId, AccountId)],
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let calls = nominator_nominee_pairs
             .iter()
             .map(|(nominator, nominee)| {

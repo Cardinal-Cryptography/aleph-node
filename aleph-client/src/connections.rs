@@ -1,7 +1,7 @@
 use codec::Decode;
 use log::info;
 use subxt::{
-    ext::sp_core::{Bytes, H256},
+    ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
@@ -9,7 +9,7 @@ use subxt::{
     SubstrateConfig,
 };
 
-use crate::{api, Call, Client, KeyPair, TxStatus};
+use crate::{api, BlockHash, Call, Client, KeyPair, TxStatus};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -28,20 +28,20 @@ pub struct RootConnection {
 
 #[async_trait::async_trait]
 pub trait SudoCall {
-    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<H256>;
-    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<H256>;
+    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
 impl SudoCall for RootConnection {
-    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<H256> {
+    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash> {
         info!(target: "aleph-client", "sending call as sudo_unchecked {:?}", call);
         let sudo = api::tx().sudo().sudo_unchecked_weight(call, 0);
 
         self.as_signed().send_tx(sudo, status).await
     }
 
-    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<H256> {
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash> {
         info!(target: "aleph-client", "sending call as sudo {:?}", call);
         let sudo = api::tx().sudo().sudo(call);
 
@@ -61,7 +61,7 @@ impl Connection {
     pub async fn get_storage_entry<T: DecodeWithMetadata, _0, _1>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, _0, _1>,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> T::Target {
         self.get_storage_entry_maybe(addrs, at)
             .await
@@ -71,7 +71,7 @@ impl Connection {
     pub async fn get_storage_entry_maybe<T: DecodeWithMetadata, _0, _1>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, _0, _1>,
-        at: Option<H256>,
+        at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
         self.client
@@ -106,7 +106,7 @@ impl SignedConnection {
         &self,
         tx: Call,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         self.send_tx_with_params(tx, Default::default(), status)
             .await
     }
@@ -116,7 +116,7 @@ impl SignedConnection {
         tx: Call,
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         if let Some(details) = tx.validation_details() {
             info!(target:"aleph-client", "Sending extrinsic {}.{} with params: {:?}", details.pallet_name, details.call_name, params);
         }
@@ -131,7 +131,7 @@ impl SignedConnection {
         let hash = match status {
             TxStatus::InBlock => progress.wait_for_in_block().await?.block_hash(),
             TxStatus::Finalized => progress.wait_for_finalized_success().await?.block_hash(),
-            TxStatus::Submitted => H256::random(),
+            TxStatus::Submitted => return Ok(BlockHash::from_low_u64_be(0)),
         };
         info!(target: "aleph-client", "tx included in block {:?}", hash);
 

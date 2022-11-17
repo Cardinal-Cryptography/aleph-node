@@ -1,6 +1,6 @@
 use codec::Encode;
 use primitives::{BlockNumber, SessionIndex};
-use subxt::{ext::sp_core::H256, rpc_params};
+use subxt::rpc_params;
 
 use crate::{
     api::runtime_types::{
@@ -8,7 +8,7 @@ use crate::{
         sp_core::ed25519::Public as EdPublic,
     },
     pallet_aleph::pallet::Call::schedule_finality_version_change,
-    AccountId, AlephKeyPair,
+    AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
     Connection, Pair, RootConnection, SudoCall, TxStatus,
 };
@@ -19,14 +19,14 @@ pub trait AlephSudoApi {
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 
     async fn schedule_finality_version_change(
         &self,
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -34,7 +34,7 @@ pub trait AlephRpc {
     async fn emergency_finalize(
         &self,
         number: BlockNumber,
-        hash: H256,
+        hash: BlockHash,
         key_pair: AlephKeyPair,
     ) -> anyhow::Result<()>;
 }
@@ -45,7 +45,7 @@ impl AlephSudoApi for RootConnection {
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let call = Aleph(set_emergency_finalizer {
             emergency_finalizer: Public(EdPublic(finalizer.into())),
         });
@@ -57,7 +57,7 @@ impl AlephSudoApi for RootConnection {
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let call = Aleph(schedule_finality_version_change {
             version_incoming: version,
             session,
@@ -72,7 +72,7 @@ impl AlephRpc for Connection {
     async fn emergency_finalize(
         &self,
         number: BlockNumber,
-        hash: H256,
+        hash: BlockHash,
         key_pair: AlephKeyPair,
     ) -> anyhow::Result<()> {
         let method = "alephNode_emergencyFinalize";

@@ -1,13 +1,11 @@
 use codec::{Compact, Decode};
 use primitives::Balance;
 use serde::Serialize;
-use subxt::{
-    ext::{sp_core::H256, sp_runtime::MultiAddress},
-    rpc_params,
-};
+use subxt::{ext::sp_runtime::MultiAddress, rpc_params};
 
 use crate::{
-    api, pallet_contracts::wasm::OwnerInfo, AccountId, Connection, SignedConnection, TxStatus,
+    api, pallet_contracts::wasm::OwnerInfo, AccountId, BlockHash, Connection, SignedConnection,
+    TxStatus,
 };
 
 #[derive(Serialize)]
@@ -21,7 +19,11 @@ pub struct ContractCallArgs {
 
 #[async_trait::async_trait]
 pub trait ContractsApi {
-    async fn get_owner_info(&self, code_hash: H256, at: Option<H256>) -> Option<OwnerInfo>;
+    async fn get_owner_info(
+        &self,
+        code_hash: BlockHash,
+        at: Option<BlockHash>,
+    ) -> Option<OwnerInfo>;
 }
 
 #[async_trait::async_trait]
@@ -31,18 +33,18 @@ pub trait ContractsUserApi {
         code: Vec<u8>,
         storage_limit: Option<Compact<u128>>,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     #[allow(clippy::too_many_arguments)]
     async fn instantiate(
         &self,
-        code_hash: H256,
+        code_hash: BlockHash,
         balance: Balance,
         gas_limit: u64,
         storage_limit: Option<Compact<u128>>,
         data: Vec<u8>,
         salt: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     #[allow(clippy::too_many_arguments)]
     async fn instantiate_with_code(
         &self,
@@ -53,7 +55,7 @@ pub trait ContractsUserApi {
         data: Vec<u8>,
         salt: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
     async fn call(
         &self,
         destination: AccountId,
@@ -62,8 +64,12 @@ pub trait ContractsUserApi {
         storage_limit: Option<Compact<u128>>,
         data: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256>;
-    async fn remove_code(&self, code_hash: H256, status: TxStatus) -> anyhow::Result<H256>;
+    ) -> anyhow::Result<BlockHash>;
+    async fn remove_code(
+        &self,
+        code_hash: BlockHash,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -73,7 +79,11 @@ pub trait ContractRpc {
 
 #[async_trait::async_trait]
 impl ContractsApi for Connection {
-    async fn get_owner_info(&self, code_hash: H256, at: Option<H256>) -> Option<OwnerInfo> {
+    async fn get_owner_info(
+        &self,
+        code_hash: BlockHash,
+        at: Option<BlockHash>,
+    ) -> Option<OwnerInfo> {
         let addrs = api::storage().contracts().owner_info_of(code_hash);
 
         self.get_storage_entry_maybe(&addrs, at).await
@@ -87,7 +97,7 @@ impl ContractsUserApi for SignedConnection {
         code: Vec<u8>,
         storage_limit: Option<Compact<u128>>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().upload_code(code, storage_limit);
 
         self.send_tx(tx, status).await
@@ -95,14 +105,14 @@ impl ContractsUserApi for SignedConnection {
 
     async fn instantiate(
         &self,
-        code_hash: H256,
+        code_hash: BlockHash,
         balance: Balance,
         gas_limit: u64,
         storage_limit: Option<Compact<u128>>,
         data: Vec<u8>,
         salt: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().instantiate(
             balance,
             gas_limit,
@@ -124,7 +134,7 @@ impl ContractsUserApi for SignedConnection {
         data: Vec<u8>,
         salt: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().instantiate_with_code(
             balance,
             gas_limit,
@@ -145,7 +155,7 @@ impl ContractsUserApi for SignedConnection {
         storage_limit: Option<Compact<u128>>,
         data: Vec<u8>,
         status: TxStatus,
-    ) -> anyhow::Result<H256> {
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().call(
             MultiAddress::Id(destination),
             balance,
@@ -156,7 +166,11 @@ impl ContractsUserApi for SignedConnection {
         self.send_tx(tx, status).await
     }
 
-    async fn remove_code(&self, code_hash: H256, status: TxStatus) -> anyhow::Result<H256> {
+    async fn remove_code(
+        &self,
+        code_hash: BlockHash,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().remove_code(code_hash);
 
         self.send_tx(tx, status).await

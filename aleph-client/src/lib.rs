@@ -2,7 +2,7 @@ extern crate core;
 
 pub use subxt::ext::sp_core::Pair;
 use subxt::{
-    ext::sp_core::{ed25519, sr25519},
+    ext::sp_core::{ed25519, sr25519, H256},
     tx::PairSigner,
     OnlineClient, PolkadotConfig,
 };
@@ -28,6 +28,7 @@ pub type RawKeyPair = sr25519::Pair;
 pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type Client = OnlineClient<AlephConfig>;
+pub type BlockHash = H256;
 
 pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
 

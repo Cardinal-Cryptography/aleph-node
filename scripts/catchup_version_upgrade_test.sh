@@ -46,7 +46,7 @@ function get_best_finalized {
     local validator=$1
     local rpc_port=$2
 
-    local best_finalized=$(VALIDATOR=$validator RPC_HOST="ws://127.0.0.1" RPC_PORT=$rpc_port ./.github/scripts/check_finalization.sh | sed 's/Last finalized block number: "\(.*\)"/\1/')
+    local best_finalized=$(VALIDATOR=$validator RPC_HOST="127.0.0.1" RPC_PORT=$rpc_port ./.github/scripts/check_finalization.sh | sed 's/Last finalized block number: "\(.*\)"/\1/')
     printf "%d" $best_finalized
 }
 
