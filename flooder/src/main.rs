@@ -25,9 +25,8 @@ async fn flood(
         .into_iter()
         .map(|conn| {
             let dest = dest.clone();
-            let rl = rate_limiting.clone();
             tokio::spawn(async move {
-                let (time, (tx_count, round_count)) = match rl {
+                let (time, (tx_count, round_count)) = match rate_limiting {
                     Some((tx_in_interval, interval_secs)) => (
                         interval_secs,
                         (tx_in_interval, (tx_count + tx_in_interval) / tx_in_interval),
