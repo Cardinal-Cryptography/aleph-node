@@ -16,7 +16,7 @@ pub async fn finalization(config: &Config) -> anyhow::Result<()> {
         .unwrap();
     connection
         .connection
-        .wait_for_block(|n| n >= finalized_number + 1, BlockStatus::Finalized)
+        .wait_for_block(|n| n > finalized_number, BlockStatus::Finalized)
         .await;
     Ok(())
 }
