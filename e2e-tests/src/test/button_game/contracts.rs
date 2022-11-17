@@ -303,3 +303,55 @@ impl From<&MarketplaceInstance> for AccountId {
         marketplace.contract.address().clone()
     }
 }
+
+#[derive(Debug)]
+pub struct WAzeroInstance {
+    contract: ContractInstance,
+}
+
+impl WAzeroInstance {
+    pub fn new(config: &Config) -> Result<Self> {
+        let wazero_address = config
+            .test_case_params
+            .wrapped_azero
+            .clone()
+            .context("Wrapped AZERO address not set.")?;
+        let wazero_address = AccountId::from_string(&wazero_address)?;
+        let metadata_path = config
+            .test_case_params
+            .wrapped_azero_metadata
+            .clone()
+            .context("Wrapped AZERO metadata path not set.")?;
+
+        Ok(Self {
+            contract: ContractInstance::new(wazero_address, &metadata_path)?,
+        })
+    }
+
+    pub fn wrap(&self, conn: &SignedConnection, value: Balance) -> Result<()> {
+        self.contract.contract_exec_value0(conn, "wrap", value)
+    }
+
+    pub fn unwrap(&self, conn: &SignedConnection, amount: Balance) -> Result<()> {
+        self.contract
+            .contract_exec(conn, "unwrap", &[amount.to_string()])
+    }
+
+    pub fn balance_of<C: AnyConnection>(&self, conn: &C, account: AccountId) -> Result<Balance> {
+        self.contract
+            .contract_read(conn, "PSP22::balance_of", &[account.to_string()])?
+            .try_into()
+    }
+}
+
+impl<'a> From<&'a WAzeroInstance> for &'a ContractInstance {
+    fn from(dex: &'a WAzeroInstance) -> Self {
+        &dex.contract
+    }
+}
+
+impl<'a> From<&'a WAzeroInstance> for AccountId {
+    fn from(dex: &'a WAzeroInstance) -> Self {
+        dex.contract.address().clone()
+    }
+}
