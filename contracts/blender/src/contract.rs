@@ -36,6 +36,7 @@ mod blender {
         token_id: TokenId,
         value: TokenAmount,
         leaf_idx: u32,
+        note: Note,
     }
 
     #[ink(event)]
@@ -46,6 +47,7 @@ mod blender {
         #[ink(topic)]
         recipient: AccountId,
         leaf_idx: u32,
+        new_note: Note,
     }
 
     type Result<T> = core::result::Result<T, BlenderError>;
@@ -123,6 +125,7 @@ mod blender {
                     token_id,
                     value,
                     leaf_idx: self.next_free_leaf - 1,
+                    note,
                 }),
             );
 
@@ -160,6 +163,7 @@ mod blender {
                     value,
                     recipient,
                     leaf_idx: self.next_free_leaf - 1,
+                    new_note,
                 }),
             );
 
