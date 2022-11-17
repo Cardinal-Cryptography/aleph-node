@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use aleph_client::{
     pallets::aleph::{AlephRpc, AlephSudoApi},
-    AccountId, AlephKeyPair, Connection, SignedConnection, TxStatus,
+    AccountId, AlephKeyPair, Connection, TxStatus,
 };
 use primitives::{BlockHash, BlockNumber};
 
