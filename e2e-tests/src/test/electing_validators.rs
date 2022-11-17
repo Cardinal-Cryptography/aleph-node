@@ -238,7 +238,7 @@ pub async fn authorities_are_staking(config: &Config) -> anyhow::Result<()> {
             .connection
             .get_stakers_storage_keys_from_accounts(
                 current_era,
-                &accounts.get_stash_accounts(),
+                accounts.get_stash_accounts(),
                 None,
             )
             .await

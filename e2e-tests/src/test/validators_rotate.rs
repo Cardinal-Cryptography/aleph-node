@@ -56,7 +56,7 @@ pub async fn validators_rotate(config: &Config) -> anyhow::Result<()> {
             .await;
 
         let non_reserved = get_members_subset_for_session(
-            seats.non_reserved_seats.clone(),
+            seats.non_reserved_seats,
             &non_reserved_validators,
             session,
         );
