@@ -76,6 +76,10 @@ pub fn simple_dex(config: &Config) -> Result<()> {
         "out_given_in should always return"
     );
 
+    let more_than_liquidity = mega(1_000_000);
+    dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
+    refute_recv_id(&mut events, "Swapped");
+
     let initial_amount = mega(100);
     token1.mint(authority_conn, &account.public().into(), initial_amount)?;
     let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount)?;
