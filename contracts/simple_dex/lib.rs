@@ -540,14 +540,15 @@ mod simple_dex {
             fn rounding_benefits_dex(
                 balance_token_a in 1..1000u128,
                 balance_token_b in 1..1000u128,
-                pay_token_a in 1..1000u128
+                pay_token_a in 1..1000u128,
+                fee_percentage in 0..10u128
             ) {
                 let get_token_b =
-                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, 0).unwrap();
+                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, fee_percentage).unwrap();
                 let balance_token_a = balance_token_a + pay_token_a;
                 let balance_token_b = balance_token_b - get_token_b;
                 let get_token_a =
-                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, 0).unwrap();
+                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, fee_percentage).unwrap();
 
                 assert!(get_token_a <= pay_token_a);
             }
