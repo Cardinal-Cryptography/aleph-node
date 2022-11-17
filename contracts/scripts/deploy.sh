@@ -63,7 +63,6 @@ function deploy_ticket_token {
   eval $__resultvar="'$contract_address'"
 }
 
-
 function deploy_game_token {
 
   local  __resultvar=$1
@@ -89,7 +88,6 @@ function deploy_game_token {
 
   eval "$__resultvar='$contract_address'"
 }
-
 
 function deploy_button_game {
 
@@ -183,6 +181,28 @@ function deploy_simple_dex {
   eval "$__resultvar='$contract_address'"
 }
 
+function deploy_wrapped_azero {
+  local  __resultvar=$1
+
+  # --- CREATE AN INSTANCE OF THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/wrapped_azero
+
+  local contract_address
+  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm)
+  contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 14-)
+
+  echo "wrapped Azero contract instance address: $contract_address"
+
+  # --- GRANT PRIVILEGES ON THE CONTRACT
+
+  cd "$CONTRACTS_PATH"/access_control
+
+  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+
+  eval "$__resultvar='$contract_address'"
+}
+
 function link_bytecode() {
   local contract=$1
   local placeholder=$2
@@ -217,6 +237,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/simple_dex
 cargo contract build --release
 
+cd "$CONTRACTS_PATH"/wrapped_azero
+cargo contract build --release
+
 # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
@@ -237,6 +260,7 @@ upload_contract GAME_TOKEN_CODE_HASH game_token
 upload_contract BUTTON_CODE_HASH button
 upload_contract MARKETPLACE_CODE_HASH marketplace
 upload_contract SIMPLE_DEX_CODE_HASH simple_dex
+upload_contract WRAPPED_AZERO_CODE_HASH wrapped_azero
 
 start=$(date +%s.%N)
 
@@ -273,8 +297,15 @@ deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
 deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
+# --- DEPLOY DEX CONTRACT
+
 echo "Simple Dex"
 deploy_simple_dex SIMPLE_DEX
+
+# --- DEPLOY WRAPPED AZERO CONTRACT
+
+echo "Wrapped Azero"
+deploy_wrapped_azero WRAPPED_AZERO
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
@@ -299,6 +330,8 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
    --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
    --arg simple_dex "$SIMPLE_DEX" \
    --arg simple_dex_code_hash "$SIMPLE_DEX_CODE_HASH" \
+   --arg wrapped_azero "$WRAPPED_AZERO" \
+   --arg wrapped_azero_code_hash "$WRAPPED_AZERO_CODE_HASH" \
    '{
       early_bird_special: $early_bird_special,
       early_bird_special_marketplace: $early_bird_special_marketplace,
@@ -319,7 +352,9 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
       game_token_code_hash: $game_token_code_hash,
       marketplace_code_hash: $marketplace_code_hash,
       access_control_code_hash: $access_control_code_hash,
-      simple_dex_code_hash: $simple_dex_code_hash
+      simple_dex_code_hash: $simple_dex_code_hash,
+      wrapped_azero: $wrapped_azero,
+      wrapped_azero_code_hash: $wrapped_azero_code_hash
     }' > addresses.json
 
 end=`date +%s.%N`

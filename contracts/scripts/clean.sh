@@ -54,7 +54,6 @@ function remove_contract_code {
     rm -f $tmp_output_file
     set -e
 
-
   fi
 }
 
@@ -69,34 +68,37 @@ terminate_contract early_bird_special button
 terminate_contract early_bird_special_marketplace marketplace
 terminate_contract early_bird_special_ticket ticket_token
 terminate_contract early_bird_special_token game_token
-
 echo "succesfully terminated early_bird_special"
 
 terminate_contract back_to_the_future button
 terminate_contract back_to_the_future_ticket ticket_token
 terminate_contract back_to_the_future_token game_token
 terminate_contract back_to_the_future_marketplace marketplace
-
 echo "succesfully terminated back_to_the_future"
 
 terminate_contract the_pressiah_cometh button
 terminate_contract the_pressiah_cometh_ticket ticket_token
 terminate_contract the_pressiah_cometh_token game_token
 terminate_contract the_pressiah_cometh_marketplace marketplace
-
 echo "succesfully terminated the_pressiah_cometh"
 
 remove_contract_code button_code_hash
 remove_contract_code ticket_token_code_hash
 remove_contract_code game_token_code_hash
 remove_contract_code marketplace_code_hash
-
 echo "succesfully removed code hashes"
+
+terminate_contract simple_dex simple_dex
+remove_contract_code simple_dex_code_hash
+echo "succesfully terminated and removed simple_dex"
+
+terminate_contract wrapped_azero wrapped_azero
+remove_contract_code wrapped_azero_code_hash
+echo "succesfully terminated and removed wrapped_azero"
 
 # remove access control as last
 terminate_contract access_control access_control
 remove_contract_code access_control_code_hash
-
 echo "succesfully terminated and removed AccessControl"
 
 exit $?
