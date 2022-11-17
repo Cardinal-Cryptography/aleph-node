@@ -32,6 +32,7 @@ pub trait ContractsUserApi {
         storage_limit: Option<Compact<u128>>,
         status: TxStatus,
     ) -> anyhow::Result<H256>;
+    #[allow(clippy::too_many_arguments)]
     async fn instantiate(
         &self,
         code_hash: H256,
@@ -42,6 +43,7 @@ pub trait ContractsUserApi {
         salt: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<H256>;
+    #[allow(clippy::too_many_arguments)]
     async fn instantiate_with_code(
         &self,
         code: Vec<u8>,
