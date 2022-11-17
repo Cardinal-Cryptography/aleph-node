@@ -203,8 +203,8 @@ mod blender {
             Some(MerklePath {
                 leaf_is_right_child: leaf_idx & 1 == 1,
                 leaf_sibling: self.tree_value(leaf_idx ^ 1),
-                auth_path: vec![],
-                path: vec![],
+                auth_path,
+                path,
             })
         }
 
