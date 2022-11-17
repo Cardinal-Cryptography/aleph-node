@@ -72,13 +72,12 @@ pub fn simple_dex(config: &Config) -> Result<()> {
     )?;
 
     let more_than_liquidity = mega(1_000_000);
-    assert!(dex
-        .out_given_in(account_conn, token1, token2, 100, Some(more_than_liquidity))
-        .is_err());
+    dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
+    refute_recv_id(&mut events, "Swapped");
 
     let initial_amount = mega(100);
     token1.mint(authority_conn, &account.public().into(), initial_amount)?;
-    let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount, None)?;
+    let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount)?;
     assert!(expected_output > 0);
 
     let at_most_10_percent_slippage = expected_output * 9 / 10;
@@ -100,7 +99,7 @@ pub fn simple_dex(config: &Config) -> Result<()> {
     let balance_after = token1.balance_of(&conn, &account.public().into())?;
     assert!(initial_amount.abs_diff(balance_after) <= 1);
     assert!(
-        dex.out_given_in(account_conn, token1, token2, initial_amount, None)?
+        dex.out_given_in(account_conn, token1, token2, initial_amount)?
             .abs_diff(expected_output)
             <= 1
     );
