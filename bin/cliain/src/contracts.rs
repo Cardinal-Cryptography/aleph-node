@@ -45,6 +45,19 @@ pub async fn upload_code(
     let wasm = fs::read(wasm_path).expect("WASM artifact not found");
     debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
 
+    let connection = signed_connection.connection.clone();
+    let event_handler = tokio::spawn(async move {
+        connection
+            .wait_for_event(
+                |e: &CodeStored| {
+                    info!(target : "contracts", "Received CodeStored event {:?}", e);
+                    true
+                },
+                BlockStatus::Finalized,
+            )
+            .await
+    });
+
     let _block_hash = signed_connection
         .upload_code(
             wasm,
@@ -52,16 +65,7 @@ pub async fn upload_code(
             TxStatus::InBlock,
         )
         .await?;
-    let code_stored_event = signed_connection
-        .connection
-        .wait_for_event(
-            |e: &CodeStored| {
-                info!(target : "contracts", "Received CodeStored event {:?}", e);
-                true
-            },
-            BlockStatus::Finalized,
-        )
-        .await;
+    let code_stored_event = event_handler.await?;
 
     Ok(code_stored_event)
 }
@@ -90,6 +94,21 @@ pub async fn instantiate(
 
     debug!("Encoded constructor data {:?}", data);
 
+    let connection = signed_connection.connection.clone();
+    let signer_id = signed_connection.signer.account_id().clone();
+
+    let event_handler = tokio::spawn(async move {
+        connection
+            .wait_for_event(
+                |e: &Instantiated| {
+                    info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
+                    signer_id.eq(&e.deployer)
+                },
+                BlockStatus::Finalized,
+            )
+            .await
+    });
+
     let _block_hash = signed_connection
         .instantiate(
             code_hash,
@@ -102,17 +121,7 @@ pub async fn instantiate(
         )
         .await?;
 
-    let signer_id = signed_connection.signer.account_id().clone();
-    let contract_instantiated_event = signed_connection
-        .connection
-        .wait_for_event(
-            |e: &Instantiated| {
-                info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
-                signer_id.eq(&e.deployer)
-            },
-            BlockStatus::Finalized,
-        )
-        .await;
+    let contract_instantiated_event = event_handler.await?;
 
     Ok(contract_instantiated_event)
 }
@@ -144,6 +153,35 @@ pub async fn instantiate_with_code(
 
     debug!("Encoded constructor data {:?}", data);
 
+    let signer_id = signed_connection.signer.account_id().clone();
+    let connection_0 = signed_connection.connection.clone();
+    let connection_1 = signed_connection.connection.clone();
+
+    let event_handler_0 = tokio::spawn(async move {
+        connection_0
+            .wait_for_event(
+                |e: &CodeStored| {
+                    info!(target : "contracts", "Received CodeStored event {:?}", e);
+                    // TODO : can we pre-calculate what the code hash will be?
+                    true
+                },
+                BlockStatus::Finalized,
+            )
+            .await
+    });
+
+    let event_handler_1 = tokio::spawn(async move {
+        connection_1
+            .wait_for_event(
+                |e: &Instantiated| {
+                    info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
+                    signer_id.eq(&e.deployer)
+                },
+                BlockStatus::Finalized,
+            )
+            .await
+    });
+
     let _block_hash = signed_connection
         .instantiate_with_code(
             wasm,
@@ -156,30 +194,8 @@ pub async fn instantiate_with_code(
         )
         .await?;
 
-    let code_stored_event = signed_connection
-        .connection
-        .wait_for_event(
-            |e: &CodeStored| {
-                info!(target : "contracts", "Received CodeStored event {:?}", e);
-                // TODO : can we pre-calculate what the code hash will be?
-                true
-            },
-            BlockStatus::Finalized,
-        )
-        .await;
-
-    let signer_id = signed_connection.signer.account_id().clone();
-
-    let contract_instantiated_event = signed_connection
-        .connection
-        .wait_for_event(
-            |e: &Instantiated| {
-                info!(target : "contracts", "Received ContractInstantiated event {:?}", e);
-                signer_id.eq(&e.deployer)
-            },
-            BlockStatus::Finalized,
-        )
-        .await;
+    let code_stored_event = event_handler_0.await?;
+    let contract_instantiated_event = event_handler_1.await?;
 
     Ok(InstantiateWithCodeReturnValue {
         contract: contract_instantiated_event.contract,
@@ -237,20 +253,25 @@ pub async fn remove_code(
 ) -> anyhow::Result<CodeRemoved> {
     let ContractRemoveCode { code_hash } = command;
 
+    let connection = signed_connection.connection.clone();
+
+    let event_handler = tokio::spawn(async move {
+        connection
+            .wait_for_event(
+                |e: &CodeRemoved| {
+                    info!(target : "contracts", "Received ContractCodeRemoved event {:?}", e);
+                    e.code_hash.eq(&code_hash)
+                },
+                BlockStatus::Finalized,
+            )
+            .await
+    });
+
     let _block_hash = signed_connection
         .remove_code(code_hash, TxStatus::InBlock)
         .await?;
 
-    let contract_removed_event = signed_connection
-        .connection
-        .wait_for_event(
-            |e: &CodeRemoved| {
-                info!(target : "contracts", "Received ContractCodeRemoved event {:?}", e);
-                e.code_hash.eq(&code_hash)
-            },
-            BlockStatus::Finalized,
-        )
-        .await;
+    let contract_removed_event = event_handler.await?;
 
     Ok(contract_removed_event)
 }

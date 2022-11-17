@@ -5,13 +5,13 @@ use aleph_client::{
     aleph_runtime::SessionKeys,
     api::runtime_types,
     pallets::{
+        author::AuthorRpc,
         balances::{BalanceUserApi, BalanceUserBatchExtApi},
         elections::{ElectionsApi, ElectionsSudoApi},
         session::{SessionApi, SessionUserApi},
         staking::{StakingApi, StakingUserApi},
     },
     primitives::{CommitteeSeats, EraValidators},
-    rpc::Rpc,
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, SignedConnection, TxStatus,
@@ -62,7 +62,7 @@ pub async fn set_invalid_keys_for_validator(
 
 /// Rotates session_keys of a given `controller`, making it able to rejoin the `consensus`.
 pub async fn reset_validator_keys(controller_connection: &SignedConnection) -> anyhow::Result<()> {
-    let validator_keys = controller_connection.author_rotate_keys().await;
+    let validator_keys = controller_connection.connection.author_rotate_keys().await;
     controller_connection
         .set_keys(validator_keys, TxStatus::InBlock)
         .await

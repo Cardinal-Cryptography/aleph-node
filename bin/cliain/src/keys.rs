@@ -1,10 +1,10 @@
 use aleph_client::{
     aleph_runtime::SessionKeys,
     pallets::{
+        author::AuthorRpc,
         session::{SessionApi, SessionUserApi},
         staking::StakingUserApi,
     },
-    rpc::Rpc,
     AccountId, Connection, RootConnection, SignedConnection, TxStatus,
 };
 use hex::ToHex;
@@ -23,7 +23,7 @@ pub async fn prepare_keys(connection: RootConnection, controller_account_id: Acc
         )
         .await
         .unwrap();
-    let new_keys = connection.as_signed().author_rotate_keys().await;
+    let new_keys = connection.connection.author_rotate_keys().await;
     connection
         .as_signed()
         .set_keys(new_keys, TxStatus::Finalized)
@@ -38,7 +38,7 @@ pub async fn set_keys(connection: SignedConnection, new_keys: String) {
         .unwrap();
 }
 
-pub async fn rotate_keys(connection: SignedConnection) {
+pub async fn rotate_keys(connection: Connection) {
     let new_keys = connection.author_rotate_keys().await;
 
     info!("Rotated keys: {:?}", new_keys);

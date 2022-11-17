@@ -2,13 +2,13 @@ use aleph_client::{
     account_from_keypair, keypair_from_string,
     pallet_staking::StakingLedger,
     pallets::{
+        author::AuthorRpc,
         balances::{BalanceApi, BalanceUserApi, BalanceUserBatchExtApi},
         elections::ElectionsSudoApi,
         session::SessionUserApi,
         staking::{StakingApi, StakingUserApi},
     },
     primitives::CommitteeSeats,
-    rpc::Rpc,
     sp_runtime::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
     AccountId, KeyPair, Pair, SignedConnection, TxStatus,
@@ -174,7 +174,7 @@ pub async fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = root_connection.as_signed().author_rotate_keys().await;
+    let validator_keys = root_connection.connection.author_rotate_keys().await;
     let controller_connection =
         SignedConnection::new(node.to_string(), KeyPair::new(controller.signer().clone())).await;
     controller_connection

@@ -1,4 +1,5 @@
 pub mod aleph;
+pub mod author;
 pub mod balances;
 pub mod contract;
 pub mod elections;

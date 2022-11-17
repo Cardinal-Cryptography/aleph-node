@@ -1,10 +1,11 @@
 use aleph_client::{
     account_from_keypair, keypair_from_string,
-    pallets::{balances::BalanceUserBatchExtApi, session::SessionUserApi, staking::StakingUserApi},
+    pallets::{
+        author::AuthorRpc, balances::BalanceUserBatchExtApi, session::SessionUserApi,
+        staking::StakingUserApi,
+    },
     primitives::EraValidators,
-    raw_keypair_from_string,
-    rpc::Rpc,
-    AccountId, KeyPair, RawKeyPair, SignedConnection, TxStatus,
+    raw_keypair_from_string, AccountId, KeyPair, RawKeyPair, SignedConnection, TxStatus,
 };
 use futures::future::join_all;
 use primitives::{staking::MIN_VALIDATOR_BOND, TOKEN};
@@ -133,7 +134,7 @@ pub async fn prepare_validators(connection: &SignedConnection, node: &str, accou
     }
 
     for controller in accounts.controller_raw_keys.iter() {
-        let keys = connection.author_rotate_keys().await;
+        let keys = connection.connection.author_rotate_keys().await;
         let connection =
             SignedConnection::new(node.to_string(), KeyPair::new(controller.clone())).await;
         handles.push(tokio::spawn(async move {

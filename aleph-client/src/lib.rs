@@ -14,7 +14,6 @@ mod aleph_zero;
 mod connections;
 pub mod contract;
 pub mod pallets;
-pub mod rpc;
 mod runtime_types;
 pub mod utility;
 pub mod waiting;

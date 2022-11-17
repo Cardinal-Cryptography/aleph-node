@@ -96,7 +96,7 @@ async fn main() {
         } => {
             let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
             let finalizer = aleph_keypair_from_string(&finalizer_seed);
-            finalize(cfg.get_singed_connection().await, block, hash, finalizer).await;
+            finalize(cfg.get_connection().await, block, hash, finalizer).await;
         }
         Command::SetEmergencyFinalizer { finalizer_seed } => {
             let finalizer_seed = read_secret(finalizer_seed, "Provide finalizer seed:");
@@ -138,7 +138,7 @@ async fn main() {
         Command::TreasuryReject { proposal_id } => {
             treasury_reject(cfg.get_root_connection().await, proposal_id).await
         }
-        Command::RotateKeys => rotate_keys(cfg.get_singed_connection().await).await,
+        Command::RotateKeys => rotate_keys(cfg.get_connection().await).await,
         Command::NextSessionKeys { account_id } => {
             next_session_keys(cfg.get_connection().await, account_id).await
         }
