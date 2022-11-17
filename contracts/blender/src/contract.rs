@@ -168,7 +168,7 @@ mod blender {
             self.current_root()
         }
 
-        /// Retrieves the path from the leaf to the root. `None` if the leaf does not exist.
+        /// Retrieve the path from the leaf to the root. `None` if the leaf does not exist.
         #[ink(message, selector = 4)]
         pub fn merkle_path(&self, leaf_idx: u32) -> Option<MerklePath> {
             if self.max_leaves > leaf_idx || leaf_idx >= self.next_free_leaf {
@@ -188,6 +188,12 @@ mod blender {
             let root_hash = self.current_root();
             path.push((root_hash, root_hash));
             Some(path)
+        }
+
+        /// Check whether `nullifier` has been already used.
+        #[ink(message, selector = 5)]
+        pub fn observed_nullifier(&self, nullifier: Nullifier) -> bool {
+            self.nullifiers.contains(nullifier)
         }
 
         /// Register a verifying key for one of the `Relation`.
