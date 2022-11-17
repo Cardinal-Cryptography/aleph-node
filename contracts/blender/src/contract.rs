@@ -51,6 +51,14 @@ mod blender {
     type Result<T> = core::result::Result<T, BlenderError>;
     type Event = <Blender as ContractEventBase>::Type;
 
+    /// Describes a path from a leaf to the root.
+    ///
+    /// It is represented as sibling hashes list (bottom to top). The pairs are always of form
+    /// `(left hash, right hash)` with the exception of the last pair, which is just
+    /// `(root hash, root hash)`. The requested leaf is put in the first pair (check index parity
+    /// to find out the coordinate).
+    pub type MerklePath = Vec<(Hash, Hash)>;
+
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct Blender {
@@ -160,6 +168,28 @@ mod blender {
             self.current_root()
         }
 
+        /// Retrieves the path from the leaf to the root. `None` if the leaf does not exist.
+        #[ink(message, selector = 4)]
+        pub fn merkle_path(&self, leaf_idx: u32) -> Option<MerklePath> {
+            if self.max_leaves > leaf_idx || leaf_idx >= self.next_free_leaf {
+                return None;
+            }
+
+            let mut current_idx = leaf_idx;
+            let mut path: MerklePath = vec![];
+            while current_idx > 1 {
+                let (left_sibling_idx, right_sibling_idx) = Self::get_sibling_indices(current_idx);
+                let left_hash = self.tree_value(left_sibling_idx);
+                let right_hash = self.tree_value(right_sibling_idx);
+                path.push((left_hash, right_hash));
+                current_idx /= 2;
+            }
+
+            let root_hash = self.current_root();
+            path.push((root_hash, root_hash));
+            Some(path)
+        }
+
         /// Register a verifying key for one of the `Relation`.
         ///
         /// For blendermaster use only.
@@ -200,6 +230,16 @@ mod blender {
 
     /// Auxiliary contract methods.
     impl Blender {
+        /// Given index of some node, return a pair of indices - for this node and its sibling,
+        /// ordered.
+        fn get_sibling_indices(idx: u32) -> (u32, u32) {
+            match idx & 1 {
+                0 => (idx, idx + 1),
+                _ => (idx - 1, idx),
+            }
+        }
+
+        /// Get the value at this node idx or the clean hash (`[0u8; 32]`).
         fn tree_value(&self, idx: u32) -> Hash {
             self.notes.get(idx).unwrap_or_else(Hash::clear)
         }
