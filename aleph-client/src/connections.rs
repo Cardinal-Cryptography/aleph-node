@@ -127,9 +127,11 @@ impl SignedConnection {
             .sign_and_submit_then_watch(&tx, &self.signer, params)
             .await?;
 
+        // In case of Submitted hash does not mean anything
         let hash = match status {
             TxStatus::InBlock => progress.wait_for_in_block().await?.block_hash(),
             TxStatus::Finalized => progress.wait_for_finalized_success().await?.block_hash(),
+            TxStatus::Submitted => H256::random(),
         };
         info!(target: "aleph-client", "tx included in block {:?}", hash);
 

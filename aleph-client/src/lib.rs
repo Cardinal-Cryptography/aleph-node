@@ -34,6 +34,7 @@ pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
 pub enum TxStatus {
     InBlock,
     Finalized,
+    Submitted,
 }
 
 pub fn keypair_from_string(seed: &str) -> KeyPair {
