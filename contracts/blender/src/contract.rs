@@ -55,15 +55,21 @@ mod blender {
 
     /// Describes a path from a leaf to the root.
     ///
-    /// It is represented as a hash sequence from bottom to top:
-    /// - the first will be the 'lefter' of our leaf and its sibling
-    /// - the second element will be righter of our leaf and its sibling
-    /// - the third element will be lefter of their parent and its sibling
-    /// - the fourth element will be righter of their parent and its sibling
-    /// - ...
-    ///
-    /// Path does not contain the root.
-    pub type MerklePath = Vec<Hash>;
+    /// The path is given in a ~optimized way:
+    ///  - it does not contain leaf (it is the note that you have submitted)
+    ///  - it does not contain parents (i.e. results of hashing intermediate children)
+    #[derive(Clone, Eq, PartialEq, Debug, Decode, Encode)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub struct MerklePath {
+        /// Whether the leaf was the right child.
+        leaf_is_right_child: bool,
+        /// The second base-level hash.
+        leaf_sibling: Note,
+        /// Uncles, from bottom to top.
+        auth_path: Vec<Hash>,
+        /// Indicators whether the corresponding uncle was right.
+        path: Vec<bool>,
+    }
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -183,21 +189,28 @@ mod blender {
                 return None;
             }
 
-            let mut current_idx = leaf_idx;
-            let mut path: MerklePath = vec![];
+            let mut current_idx = leaf_idx / 2;
+            let mut auth_path = vec![];
+            let mut path = vec![];
             while current_idx > 1 {
-                let (left_sibling_idx, right_sibling_idx) = Self::get_sibling_indices(current_idx);
-                path.push(self.tree_value(left_sibling_idx));
-                path.push(self.tree_value(right_sibling_idx));
+                // We push our sibling.
+                auth_path.push(self.tree_value(current_idx ^ 1));
+                // Sibling is right if we are even.
+                path.push(current_idx & 1 == 0);
                 current_idx /= 2;
             }
 
-            Some(path)
+            Some(MerklePath {
+                leaf_is_right_child: leaf_idx & 1 == 1,
+                leaf_sibling: self.tree_value(leaf_idx ^ 1),
+                auth_path: vec![],
+                path: vec![],
+            })
         }
 
         /// Check whether `nullifier` has been already used.
         #[ink(message, selector = 5)]
-        pub fn observed_nullifier(&self, nullifier: Nullifier) -> bool {
+        pub fn contains_nullifier(&self, nullifier: Nullifier) -> bool {
             self.nullifiers.contains(nullifier)
         }
 
@@ -241,15 +254,6 @@ mod blender {
 
     /// Auxiliary contract methods.
     impl Blender {
-        /// Given index of some node, return a pair of indices - for this node and its sibling,
-        /// ordered.
-        fn get_sibling_indices(idx: u32) -> (u32, u32) {
-            match idx & 1 {
-                0 => (idx, idx + 1),
-                _ => (idx - 1, idx),
-            }
-        }
-
         /// Get the value at this node idx or the clean hash (`[0u8; 32]`).
         fn tree_value(&self, idx: u32) -> Hash {
             self.notes.get(idx).unwrap_or_else(Hash::clear)
