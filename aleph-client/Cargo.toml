@@ -10,7 +10,6 @@ anyhow = "1.0"
 codec = { package = 'parity-scale-codec', version = "3.0.0", features = ['derive'] }
 hex = { version = "0.4.3", features = ["alloc"] }
 log = "0.4"
-rayon = "1.5"
 serde_json = { version = "1.0" }
 thiserror = "1.0"
 contract-metadata = "1.5"

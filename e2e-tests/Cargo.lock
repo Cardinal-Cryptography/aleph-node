@@ -87,7 +87,6 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "primitives",
- "rayon",
  "serde",
  "serde_json",
  "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",

@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use anyhow::anyhow;
 use codec::Decode;
 use log::info;
@@ -51,12 +53,25 @@ impl SudoCall for RootConnection {
 }
 
 impl Connection {
-    pub async fn new(address: String) -> Self {
-        let client = Client::from_url(address)
-            .await
-            .expect("Should connect to the chain");
+    const DEFAULT_RETRIES: u32 = 10;
+    const RETRY_WAIT_SECS: u64 = 1;
 
-        Self { client }
+    pub async fn new(address: String) -> Self {
+        Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
+    }
+
+    pub async fn new_with_retries(address: String, mut retries: u32) -> Self {
+        loop {
+            let client = Client::from_url(&address).await;
+            match (retries, client) {
+                (_, Ok(client)) => return Self { client },
+                (0, Err(e)) => panic!("{:?}", e),
+                _ => {
+                    sleep(Duration::from_secs(Self::RETRY_WAIT_SECS));
+                    retries -= 1;
+                }
+            }
+        }
     }
 
     pub async fn get_storage_entry<T: DecodeWithMetadata, Defaultable, Iterable>(
