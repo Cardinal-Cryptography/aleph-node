@@ -34,6 +34,8 @@ pub mod marketplace {
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
+    use ink_env::set_code_hash;
+    use ink_storage::traits::SpreadAllocate;
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
         BALANCE_OF_SELECTOR as TICKET_BALANCE_SELECTOR,
@@ -44,8 +46,10 @@ pub mod marketplace {
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
-    #[ink(storage)]
-    pub struct Marketplace {
+    const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
+    #[derive(Default, Debug)]
+    #[openbrush::upgradeable_storage(STORAGE_KEY)]
+    pub struct MarketplaceDataV1 {
         total_proceeds: Balance,
         tickets_sold: Balance,
         min_price: Balance,
@@ -56,6 +60,12 @@ pub mod marketplace {
         reward_token: AccountId,
     }
 
+    #[ink(storage)]
+    #[derive(SpreadAllocate)]
+    pub struct Marketplace {
+        data: MarketplaceDataV1,
+    }
+
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
@@ -64,6 +74,7 @@ pub mod marketplace {
         PSP22TokenCall(PSP22Error),
         MaxPriceExceeded,
         MarketplaceEmpty,
+        UpgradeFailed,
     }
 
     #[ink(event)]
@@ -108,14 +119,16 @@ pub mod marketplace {
                 .unwrap_or_else(|e| panic!("Failed to initialize the contract {:?}", e));
 
             Marketplace {
-                ticket_token,
-                reward_token,
-                min_price,
-                sale_multiplier,
-                auction_length,
-                current_start_block: Self::env().block_number(),
-                total_proceeds: starting_price.saturating_div(sale_multiplier),
-                tickets_sold: 1,
+                data: MarketplaceDataV1 {
+                    ticket_token,
+                    reward_token,
+                    min_price,
+                    sale_multiplier,
+                    auction_length,
+                    current_start_block: Self::env().block_number(),
+                    total_proceeds: starting_price.saturating_div(sale_multiplier),
+                    tickets_sold: 1,
+                }
             }
         }
 
@@ -126,13 +139,13 @@ pub mod marketplace {
         /// the ticket remains available for purchase at `min_price()`.
         #[ink(message)]
         pub fn auction_length(&self) -> BlockNumber {
-            self.auction_length
+            self.data.auction_length
         }
 
         /// The block at which the auction of the current ticket started.
         #[ink(message)]
         pub fn current_start_block(&self) -> BlockNumber {
-            self.current_start_block
+            self.data.current_start_block
         }
 
         /// The price the contract would charge when buying at the current block.
@@ -144,7 +157,7 @@ pub mod marketplace {
         /// The average price over all sales the contract made.
         #[ink(message)]
         pub fn average_price(&self) -> Balance {
-            self.total_proceeds.saturating_div(self.tickets_sold)
+            self.data.total_proceeds.saturating_div(self.data.tickets_sold)
         }
 
         /// The multiplier applied to the average price after each sale.
@@ -153,7 +166,7 @@ pub mod marketplace {
         /// auction at `price() = average_price() * sale_multiplier()`.
         #[ink(message)]
         pub fn sale_multiplier(&self) -> Balance {
-            self.sale_multiplier
+            self.data.sale_multiplier
         }
 
         /// Number of tickets available for sale.
@@ -167,7 +180,7 @@ pub mod marketplace {
         /// The minimal price the contract allows.
         #[ink(message)]
         pub fn min_price(&self) -> Balance {
-            self.min_price
+            self.data.min_price
         }
 
         /// Update the minimal price.
@@ -175,7 +188,7 @@ pub mod marketplace {
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
             Self::ensure_role(self.admin())?;
 
-            self.min_price = value;
+            self.data.min_price = value;
 
             Ok(())
         }
@@ -183,13 +196,13 @@ pub mod marketplace {
         /// Address of the reward token contract this contract will accept as payment.
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.reward_token
+            self.data.reward_token
         }
 
         /// Address of the ticket token contract this contract will auction off.
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.ticket_token
+            self.data.ticket_token
         }
 
         /// Buy one ticket at the current_price.
@@ -215,9 +228,9 @@ pub mod marketplace {
             self.take_payment(account_id, price)?;
             self.give_ticket(account_id)?;
 
-            self.total_proceeds = self.total_proceeds.saturating_add(price);
-            self.tickets_sold = self.tickets_sold.saturating_add(1);
-            self.current_start_block = self.env().block_number();
+            self.data.total_proceeds = self.data.total_proceeds.saturating_add(price);
+            self.data.tickets_sold = self.data.tickets_sold.saturating_add(1);
+            self.data.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Bought(Bought { price, account_id }));
 
             Ok(())
@@ -232,7 +245,7 @@ pub mod marketplace {
         pub fn reset(&mut self) -> Result<(), Error> {
             Self::ensure_role(self.admin())?;
 
-            self.current_start_block = self.env().block_number();
+            self.data.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
 
             Ok(())
@@ -249,24 +262,37 @@ pub mod marketplace {
             self.env().terminate_contract(caller)
         }
 
+        /// Sets new code hash, updates contract code
+        #[ink(message)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), Error> {
+            let this = self.env().account_id();
+            Self::ensure_role(Role::Owner(this))?;
+
+            if set_code_hash(&code_hash).is_err() {
+                return Err(Error::UpgradeFailed);
+            };
+
+            Ok(())
+        }
+
         fn current_price(&self) -> Balance {
             let block = self.env().block_number();
-            let elapsed = block.saturating_sub(self.current_start_block);
+            let elapsed = block.saturating_sub(self.data.current_start_block);
             self.average_price()
-                .saturating_mul(self.sale_multiplier)
+                .saturating_mul(self.data.sale_multiplier)
                 .saturating_sub(self.per_block_reduction().saturating_mul(elapsed.into()))
-                .max(self.min_price)
+                .max(self.data.min_price)
         }
 
         fn per_block_reduction(&self) -> Balance {
             self.average_price()
-                .saturating_div(self.auction_length.into())
+                .saturating_div(self.data.auction_length.into())
                 .max(1u128)
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
             build_call::<Environment>()
-                .call_type(Call::new().callee(self.reward_token))
+                .call_type(Call::new().callee(self.data.reward_token))
                 .exec_input(
                     ExecutionInput::new(Selector::new(REWARD_BURN_SELECTOR))
                         .push_arg(from)
@@ -281,7 +307,7 @@ pub mod marketplace {
 
         fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
             build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
+                .call_type(Call::new().callee(self.data.ticket_token))
                 .exec_input(
                     ExecutionInput::new(Selector::new(TRANSFER_TICKET_SELECTOR))
                         .push_arg(to)
@@ -296,7 +322,7 @@ pub mod marketplace {
 
         fn ticket_balance(&self) -> Result<Balance, Error> {
             let balance = build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
+                .call_type(Call::new().callee(self.data.ticket_token))
                 .exec_input(
                     ExecutionInput::new(Selector::new(TICKET_BALANCE_SELECTOR))
                         .push_arg(self.env().account_id()),
