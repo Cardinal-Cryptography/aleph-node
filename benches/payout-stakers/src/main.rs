@@ -237,9 +237,9 @@ async fn nominate_validator(
         .chunks(BOND_CALL_BATCH_LIMIT)
         .map(|c| c.to_vec())
     {
-
         let stake = (rng.gen::<u128>() % 100) * TOKEN + MIN_NOMINATOR_BOND;
-        connection.batch_bond(&chunk, stake, TxStatus::Submitted)
+        connection
+            .batch_bond(&chunk, stake, TxStatus::Submitted)
             .await
             .unwrap();
     }
@@ -282,7 +282,7 @@ async fn bond_validators_funds_and_choose_controllers(
 
 /// Submits candidate validators via controller accounts.
 /// We assume stash == validator != controller.
-async fn    send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
+async fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
     let mut handles = vec![];
     for controller in controllers {
         let node_address = address.to_string();
