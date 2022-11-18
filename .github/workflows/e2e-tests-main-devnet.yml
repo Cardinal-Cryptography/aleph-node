@@ -810,6 +810,7 @@ jobs:
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
+    if: ${{ false }}
     runs-on: ubuntu-20.04
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
