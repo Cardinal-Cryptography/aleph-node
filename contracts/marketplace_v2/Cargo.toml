@@ -1,5 +1,5 @@
 [package]
-name = "marketplace"
+name = "marketplace_v2"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -23,7 +23,7 @@ game_token = { path = "../game_token", default-features = false, features = ["in
 ticket_token = { path = "../ticket_token", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
-name = "marketplace"
+name = "marketplace_v2"
 path = "lib.rs"
 crate-type = [
     # Used for normal contract Wasm blobs.

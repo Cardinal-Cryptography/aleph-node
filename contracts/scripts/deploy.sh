@@ -214,6 +214,9 @@ cargo contract build --release
 cd "$CONTRACTS_PATH"/marketplace
 cargo contract build --release
 
+cd "$CONTRACTS_PATH"/marketplace_v2
+cargo contract build --release
+
 cd "$CONTRACTS_PATH"/simple_dex
 cargo contract build --release
 
@@ -236,6 +239,7 @@ upload_contract TICKET_TOKEN_CODE_HASH ticket_token
 upload_contract GAME_TOKEN_CODE_HASH game_token
 upload_contract BUTTON_CODE_HASH button
 upload_contract MARKETPLACE_CODE_HASH marketplace
+upload_contract MARKETPLACE_V2_CODE_HASH marketplace_v2
 upload_contract SIMPLE_DEX_CODE_HASH simple_dex
 
 start=$(date +%s.%N)
@@ -295,6 +299,7 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
    --arg ticket_token_code_hash "$TICKET_TOKEN_CODE_HASH" \
    --arg game_token_code_hash "$GAME_TOKEN_CODE_HASH" \
    --arg marketplace_code_hash "$MARKETPLACE_CODE_HASH" \
+   --arg marketplace_v2_code_hash "$MARKETPLACE_V2_CODE_HASH" \
    --arg access_control "$ACCESS_CONTROL" \
    --arg access_control_code_hash "$ACCESS_CONTROL_CODE_HASH" \
    --arg simple_dex "$SIMPLE_DEX" \
@@ -318,6 +323,7 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
       ticket_token_code_hash: $ticket_token_code_hash,
       game_token_code_hash: $game_token_code_hash,
       marketplace_code_hash: $marketplace_code_hash,
+      marketplace_v2_code_hash: $marketplace_v2_code_hash,
       access_control_code_hash: $access_control_code_hash,
       simple_dex_code_hash: $simple_dex_code_hash
     }' > addresses.json

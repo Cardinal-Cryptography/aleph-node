@@ -25,7 +25,7 @@ exclude = [
   "contracts/simple_dex",
   "contracts/ticket_token",
   "contracts/wrapped_azero",
-  "contracts/marketplaceV2",
+  "contracts/marketplace_v2"
 ]
 
 [profile.release]
