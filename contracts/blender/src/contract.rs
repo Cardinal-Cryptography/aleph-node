@@ -36,6 +36,7 @@ mod blender {
         token_id: TokenId,
         value: TokenAmount,
         leaf_idx: u32,
+        note: Note,
     }
 
     #[ink(event)]
@@ -46,10 +47,22 @@ mod blender {
         #[ink(topic)]
         recipient: AccountId,
         leaf_idx: u32,
+        new_note: Note,
     }
 
     type Result<T> = core::result::Result<T, BlenderError>;
     type Event = <Blender as ContractEventBase>::Type;
+
+    /// Describes a path from a leaf to the root.
+    ///
+    /// The path is given in a ~optimized way:
+    ///  - it does not contain leaf (it is the note that you have submitted)
+    ///  - it does not contain parents (i.e. results of hashing intermediate children)
+    ///
+    /// So effectively it is just siblings, from bottom to top - the first one is the leaf sibling,
+    /// the next one is their uncle and so forth. You can recreate shape of this path knowing leaf
+    /// index.
+    pub type MerklePath = Vec<Hash>;
 
     #[ink(storage)]
     #[derive(SpreadAllocate)]
@@ -111,6 +124,7 @@ mod blender {
                     token_id,
                     value,
                     leaf_idx: self.next_free_leaf - 1,
+                    note,
                 }),
             );
 
@@ -148,6 +162,7 @@ mod blender {
                     value,
                     recipient,
                     leaf_idx: self.next_free_leaf - 1,
+                    new_note,
                 }),
             );
 
@@ -158,6 +173,30 @@ mod blender {
         #[ink(message, selector = 3)]
         pub fn current_merkle_root(&self) -> Hash {
             self.current_root()
+        }
+
+        /// Retrieve the path from the leaf to the root. `None` if the leaf does not exist.
+        #[ink(message, selector = 4)]
+        pub fn merkle_path(&self, leaf_idx: u32) -> Option<MerklePath> {
+            if self.max_leaves > leaf_idx || leaf_idx >= self.next_free_leaf {
+                return None;
+            }
+
+            let mut auth_path = vec![self.tree_value(leaf_idx ^ 1)];
+
+            let mut current_idx = leaf_idx / 2;
+            while current_idx > 1 {
+                auth_path.push(self.tree_value(current_idx ^ 1));
+                current_idx /= 2;
+            }
+
+            Some(auth_path)
+        }
+
+        /// Check whether `nullifier` has been already used.
+        #[ink(message, selector = 5)]
+        pub fn contains_nullifier(&self, nullifier: Nullifier) -> bool {
+            self.nullifiers.contains(nullifier)
         }
 
         /// Register a verifying key for one of the `Relation`.
@@ -200,6 +239,7 @@ mod blender {
 
     /// Auxiliary contract methods.
     impl Blender {
+        /// Get the value at this node idx or the clean hash (`[0u8; 32]`).
         fn tree_value(&self, idx: u32) -> Hash {
             self.notes.get(idx).unwrap_or_else(Hash::clear)
         }
