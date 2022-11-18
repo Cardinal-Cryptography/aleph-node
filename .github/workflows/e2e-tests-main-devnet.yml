@@ -808,6 +808,39 @@ jobs:
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
 
+  test-runtime-update:
+    name: Test runtime update with try-runtime tool
+    runs-on: ubuntu-20.04
+    needs: [ build-new-runtime-and-try_runtime ]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Test update
+        timeout-minutes: 20
+        env:
+          NEW_RUNTIME: aleph-runtime-try_runtime/aleph_runtime.compact.wasm
+          TRY_RUNTIME: try_runtime/aleph-node
+        working-directory: local-tests/
+        run: |
+          chmod +x ${{ env.TRY_RUNTIME }}
+          pip install -r requirements.txt
+          ./test_runtime_update.py \
+              wss://ws.test.azero.dev:443 \
+              ../bin/node/src/resources/testnet_chainspec.json \
+              ${{ env.NEW_RUNTIME }} \
+              ${{ env.TRY_RUNTIME }}
+
   slack:
     name: Slack notification
     runs-on: ubuntu-20.04
