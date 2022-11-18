@@ -4,15 +4,6 @@ use ark_serialize::CanonicalDeserialize;
 use ark_snark::SNARK;
 use ark_std::rand::{prelude::StdRng, SeedableRng};
 use blake2::Blake2s;
-use codec::{Decode, Encode};
-use scale_info::TypeInfo;
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
-pub enum ProvingSystem {
-    Groth16,
-    Gm17,
-    Marlin,
-}
 
 pub(super) trait VerifyingSystem {
     type CircuitField: CanonicalDeserialize;

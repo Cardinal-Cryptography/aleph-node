@@ -1,4 +1,5 @@
-use pallet_snarcos::{Error, Pallet as Snarcos, ProvingSystem, VerificationKeyIdentifier};
+use pallet_snarcos::Pallet as Snarcos;
+use primitives::snarcos::{ProvingSystem, SnarcosError as Error, VerificationKeyIdentifier};
 use sp_std::vec::Vec;
 
 use crate::Runtime;

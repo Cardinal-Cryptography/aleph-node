@@ -5,7 +5,8 @@ use frame_support::{log::error, weights::Weight};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState, RetVal, SysConfig,
 };
-use pallet_snarcos::{Config, Error, ProvingSystem, VerificationKeyIdentifier, WeightInfo};
+use pallet_snarcos::{Config, WeightInfo};
+use primitives::snarcos::{ProvingSystem, SnarcosError as Error, VerificationKeyIdentifier};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};

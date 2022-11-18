@@ -9,20 +9,18 @@ mod weights;
 
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
-pub use systems::ProvingSystem;
+use primitives::snarcos::{ProvingSystem, VerificationKeyIdentifier};
 pub use weights::{AlephWeight, WeightInfo};
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
-
-/// We store verification keys under short identifiers.
-pub type VerificationKeyIdentifier = [u8; 4];
 
 #[frame_support::pallet]
 pub mod pallet {
     use ark_serialize::CanonicalDeserialize;
     use frame_support::{log, pallet_prelude::*};
     use frame_system::pallet_prelude::OriginFor;
+    use primitives::snarcos::SnarcosError as Error;
     use sp_std::prelude::Vec;
 
     use super::*;
@@ -35,27 +33,6 @@ pub mod pallet {
 
         #[pallet::constant]
         type MaximumVerificationKeyLength: Get<u32>;
-    }
-
-    #[pallet::error]
-    #[derive(Clone, Eq, PartialEq)]
-    pub enum Error<T> {
-        /// This verification key identifier is already taken.
-        IdentifierAlreadyInUse,
-        /// There is no verification key available under this identifier.
-        UnknownVerificationKeyIdentifier,
-        /// Provided verification key is longer than `MaximumVerificationKeyLength` limit.
-        VerificationKeyTooLong,
-        /// Couldn't deserialize proof.
-        DeserializingProofFailed,
-        /// Couldn't deserialize public input.
-        DeserializingPublicInputFailed,
-        /// Couldn't deserialize verification key from storage.
-        DeserializingVerificationKeyFailed,
-        /// Verification procedure has failed. Proof still can be correct.
-        VerificationFailed,
-        /// Proof has been found as incorrect.
-        IncorrectProof,
     }
 
     #[pallet::event]

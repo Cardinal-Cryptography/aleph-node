@@ -7,30 +7,7 @@ use scale::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
-/// Gathers all the possible errors that might occur while calling `pallet_snarcos::store_key` or
-/// `pallet_snarcos::verify`.
-///
-/// Every variant is already documented in `pallet_snarcos`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(TypeInfo))]
-pub enum SnarcosError {
-    // `pallet_snarcos::store_key` errors
-    IdentifierAlreadyInUse,
-    VerificationKeyTooLong,
-
-    // `pallet_snarcos::verify` errors
-    UnknownVerificationKeyIdentifier,
-    DeserializingProofFailed,
-    DeserializingPublicInputFailed,
-    DeserializingVerificationKeyFailed,
-    VerificationFailed,
-    IncorrectProof,
-
-    /// Unknown status code has been returned.
-    ///
-    /// This is to avoid panicking from status code mismatch.
-    UnknownError,
-}
+use primitives::snarcos::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
 impl ink_env::chain_extension::FromStatusCode for SnarcosError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
@@ -53,18 +30,6 @@ impl ink_env::chain_extension::FromStatusCode for SnarcosError {
             _ => Err(Self::UnknownError),
         }
     }
-}
-
-/// Copied from `pallet_snarcos`.
-pub type VerificationKeyIdentifier = [u8; 4];
-
-/// Copied from `pallet_snarcos`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode)]
-#[cfg_attr(feature = "std", derive(TypeInfo))]
-pub enum ProvingSystem {
-    Groth16,
-    Gm17,
-    Marlin,
 }
 
 #[ink::chain_extension]
