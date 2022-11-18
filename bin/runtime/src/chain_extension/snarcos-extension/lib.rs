@@ -2,7 +2,6 @@
 
 use ink_env::Environment;
 use ink_lang as ink;
-use scale::{Decode, Encode};
 #[cfg(feature = "std")]
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
@@ -55,7 +54,7 @@ pub trait SnarcosExtension {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(feature = "std", derive(TypeInfo))]
 /// All default, except `ChainExtension`, which is set to `SnarcosExtension`.
 pub enum DefaultEnvironment {}
 

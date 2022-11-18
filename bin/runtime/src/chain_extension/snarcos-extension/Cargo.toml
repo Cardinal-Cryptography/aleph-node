@@ -25,6 +25,8 @@ scale-info = { version = "2", default-features = false, features = ["derive"], o
 
 sp-std = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "liminal", default-features = false }
 
+primitives = { path = "../../../../../primitives", default-features = false }
+
 [features]
 default = ["std"]
 std = [

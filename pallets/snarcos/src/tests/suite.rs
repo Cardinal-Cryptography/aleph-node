@@ -1,10 +1,10 @@
 use frame_support::{assert_err, assert_ok, sp_runtime, BoundedVec};
 use frame_system::{pallet_prelude::OriginFor, Config};
-use primitives::snarcos::{ProvingSystem, VerificationKeyIdentifier};
+use primitives::snarcos::{ProvingSystem, SnarcosError as Error, VerificationKeyIdentifier};
 use sp_runtime::traits::Get;
 
 use super::setup::*;
-use crate::{Error, VerificationKeys};
+use crate::VerificationKeys;
 
 type Snarcos = crate::Pallet<TestRuntime>;
 
