@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use subxt::{
@@ -58,9 +59,9 @@ impl Connection {
         Self { client }
     }
 
-    pub async fn get_storage_entry<T: DecodeWithMetadata, _0, _1>(
+    pub async fn get_storage_entry<T: DecodeWithMetadata, Defaultable, Iterable>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, _0, _1>,
+        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
     ) -> T::Target {
         self.get_storage_entry_maybe(addrs, at)
@@ -68,9 +69,9 @@ impl Connection {
             .expect("There should be a value")
     }
 
-    pub async fn get_storage_entry_maybe<T: DecodeWithMetadata, _0, _1>(
+    pub async fn get_storage_entry_maybe<T: DecodeWithMetadata, Defaultable, Iterable>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, _0, _1>,
+        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
@@ -140,20 +141,27 @@ impl SignedConnection {
 }
 
 impl RootConnection {
-    pub async fn new(address: String, root: KeyPair) -> Result<Self, ()> {
+    pub async fn new(address: String, root: KeyPair) -> anyhow::Result<Self> {
         RootConnection::try_from_connection(Connection::new(address).await, root).await
     }
 
-    pub async fn try_from_connection(connection: Connection, signer: KeyPair) -> Result<Self, ()> {
+    pub async fn try_from_connection(
+        connection: Connection,
+        signer: KeyPair,
+    ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
         let root = match connection.client.storage().fetch(&root_address, None).await {
             Ok(Some(account)) => account,
-            _ => return Err(()),
+            _ => return Err(anyhow!("Could not read sudo key from chain")),
         };
 
         if root != *signer.account_id() {
-            return Err(());
+            return Err(anyhow!(
+                "Provided account is not a sudo on chain. sudo key - {}, provided: {}",
+                root,
+                signer.account_id()
+            ));
         }
 
         Ok(Self {

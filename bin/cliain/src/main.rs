@@ -83,7 +83,7 @@ async fn main() {
             initial_stake_tokens,
         } => {
             bond(
-                cfg.get_singed_connection().await,
+                cfg.get_signed_connection().await,
                 initial_stake_tokens,
                 controller_account,
             )
@@ -105,17 +105,17 @@ async fn main() {
             set_emergency_finalizer(cfg.get_root_connection().await, finalizer).await;
         }
         Command::SetKeys { new_keys } => {
-            set_keys(cfg.get_singed_connection().await, new_keys).await
+            set_keys(cfg.get_signed_connection().await, new_keys).await
         }
         Command::Validate {
             commission_percentage,
-        } => validate(cfg.get_singed_connection().await, commission_percentage).await,
+        } => validate(cfg.get_signed_connection().await, commission_percentage).await,
         Command::Transfer {
             amount_in_tokens,
             to_account,
         } => {
             transfer(
-                cfg.get_singed_connection().await,
+                cfg.get_signed_connection().await,
                 amount_in_tokens,
                 to_account,
             )
@@ -126,7 +126,7 @@ async fn main() {
             beneficiary,
         } => {
             treasury_propose(
-                cfg.get_singed_connection().await,
+                cfg.get_signed_connection().await,
                 amount_in_tokens,
                 beneficiary,
             )
@@ -170,9 +170,9 @@ async fn main() {
         Command::UpdateRuntime { runtime } => {
             update_runtime(cfg.get_root_connection().await, runtime).await
         }
-        Command::Vest => vest(cfg.get_singed_connection().await).await,
+        Command::Vest => vest(cfg.get_signed_connection().await).await,
         Command::VestOther { vesting_account } => {
-            vest_other(cfg.get_singed_connection().await, vesting_account).await
+            vest_other(cfg.get_signed_connection().await, vesting_account).await
         }
         Command::VestedTransfer {
             to_account,
@@ -181,7 +181,7 @@ async fn main() {
             starting_block,
         } => {
             vested_transfer(
-                cfg.get_singed_connection().await,
+                cfg.get_signed_connection().await,
                 to_account,
                 amount_in_tokens,
                 per_block,
@@ -189,9 +189,9 @@ async fn main() {
             )
             .await
         }
-        Command::Nominate { nominee } => nominate(cfg.get_singed_connection().await, nominee).await,
+        Command::Nominate { nominee } => nominate(cfg.get_signed_connection().await, nominee).await,
         Command::ContractInstantiateWithCode(command) => {
-            match instantiate_with_code(cfg.get_singed_connection().await, command).await {
+            match instantiate_with_code(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!(
                     "{}",
                     serde_json::to_string(&result).expect("Can't encode the result as JSON")
@@ -200,19 +200,19 @@ async fn main() {
             };
         }
         Command::ContractUploadCode(command) => {
-            match upload_code(cfg.get_singed_connection().await, command).await {
+            match upload_code(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{:?}", result),
                 Err(why) => error!("Contract upload failed {:?}", why),
             }
         }
         Command::ContractCall(command) => {
-            match call(cfg.get_singed_connection().await, command).await {
+            match call(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{:?}", result),
                 Err(why) => error!("Contract call failed {:?}", why),
             }
         }
         Command::ContractInstantiate(command) => {
-            match instantiate(cfg.get_singed_connection().await, command).await {
+            match instantiate(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{:?}", result),
                 Err(why) => error!("Contract instantiate failed {:?}", why),
             }
@@ -224,7 +224,7 @@ async fn main() {
             )
         }
         Command::ContractRemoveCode(command) => {
-            match remove_code(cfg.get_singed_connection().await, command).await {
+            match remove_code(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{:?}", result),
                 Err(why) => error!("Contract remove code failed {:?}", why),
             }

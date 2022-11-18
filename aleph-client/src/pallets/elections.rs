@@ -46,7 +46,7 @@ pub trait ElectionsApi {
 
 #[async_trait::async_trait]
 pub trait ElectionsSudoApi {
-    async fn change_ban_config(
+    async fn set_ban_config(
         &self,
         minimal_expected_performance: Option<u8>,
         underperformed_session_count_threshold: Option<u32>,
@@ -166,7 +166,7 @@ impl ElectionsApi for Connection {
 
 #[async_trait::async_trait]
 impl ElectionsSudoApi for RootConnection {
-    async fn change_ban_config(
+    async fn set_ban_config(
         &self,
         minimal_expected_performance: Option<u8>,
         underperformed_session_count_threshold: Option<u32>,

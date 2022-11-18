@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use aleph_client::{
     account_from_keypair,
-    aleph_runtime::SessionKeys,
-    api::runtime_types,
     pallets::{
         author::AuthorRpc,
         balances::{BalanceUserApi, BalanceUserBatchExtApi},
@@ -37,19 +35,11 @@ type RewardPoint = u32;
 pub async fn set_invalid_keys_for_validator(
     controller_connection: &SignedConnection,
 ) -> anyhow::Result<()> {
-    const ZERO_SESSION_KEYS: SessionKeys = SessionKeys {
-        // todo: clean this
-        aura: runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public(
-            runtime_types::sp_core::sr25519::Public([0; 32]),
-        ),
-        aleph: runtime_types::primitives::app::Public(runtime_types::sp_core::ed25519::Public(
-            [0; 32],
-        )),
-    };
+    let zero_session_keys = [0; 64].to_vec().into();
 
     // wait until our node is forced to use new keys, i.e. current session + 2
     controller_connection
-        .set_keys(ZERO_SESSION_KEYS, TxStatus::InBlock)
+        .set_keys(zero_session_keys, TxStatus::InBlock)
         .await
         .unwrap();
     controller_connection

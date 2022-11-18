@@ -17,7 +17,7 @@ pub trait BlocksApi {
 
 #[async_trait::async_trait]
 pub trait SessionEraApi {
-    async fn get_era_for_session(&self, session: SessionIndex) -> EraIndex;
+    async fn get_active_era_for_session(&self, session: SessionIndex) -> EraIndex;
 }
 
 #[async_trait::async_trait]
@@ -64,7 +64,7 @@ impl BlocksApi for Connection {
 
 #[async_trait::async_trait]
 impl SessionEraApi for Connection {
-    async fn get_era_for_session(&self, session: SessionIndex) -> EraIndex {
+    async fn get_active_era_for_session(&self, session: SessionIndex) -> EraIndex {
         let block = self.first_block_of_session(session).await;
         self.get_active_era(block).await
     }

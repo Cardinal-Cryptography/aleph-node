@@ -48,7 +48,7 @@ impl ConnectionConfig {
         Connection::new(self.node_endpoint.clone()).await
     }
 
-    pub async fn get_singed_connection(&self) -> SignedConnection {
+    pub async fn get_signed_connection(&self) -> SignedConnection {
         SignedConnection::new(
             self.node_endpoint.clone(),
             keypair_from_string(&self.signer_seed),

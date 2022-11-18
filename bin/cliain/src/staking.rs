@@ -44,8 +44,8 @@ pub async fn set_staking_limits(
 ) {
     root_connection
         .set_staking_config(
-            minimal_nominator_stake_tokens as u128 * TOKEN,
-            minimal_validator_stake_tokens as u128 * TOKEN,
+            Some(minimal_nominator_stake_tokens as u128 * TOKEN),
+            Some(minimal_validator_stake_tokens as u128 * TOKEN),
             max_nominators_count,
             max_validators_count,
             TxStatus::Finalized,

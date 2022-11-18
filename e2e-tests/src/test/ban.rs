@@ -226,10 +226,8 @@ pub async fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
-    info!(target: "aleph-client", "changing ban config");
-
     root_connection
-        .change_ban_config(None, Some(3), Some(2), None, TxStatus::InBlock)
+        .set_ban_config(None, Some(3), Some(2), None, TxStatus::InBlock)
         .await?;
 
     let validator_to_disable =
@@ -294,7 +292,7 @@ pub async fn ban_threshold(config: &Config) -> anyhow::Result<()> {
 
     // Change ban config to require prohibitively high performance from all validators.
     root_connection
-        .change_ban_config(
+        .set_ban_config(
             Some(MIN_EXPECTED_PERFORMANCE),
             None,
             None,

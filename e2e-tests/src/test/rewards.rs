@@ -43,7 +43,10 @@ pub async fn points_basic(config: &Config) -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let era = connection.connection.get_era_for_session(session).await;
+        let era = connection
+            .connection
+            .get_active_era_for_session(session)
+            .await;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection.connection,
             committee_size.clone(),
@@ -99,7 +102,10 @@ pub async fn points_stake_change(config: &Config) -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let era = connection.connection.get_era_for_session(session).await;
+        let era = connection
+            .connection
+            .get_active_era_for_session(session)
+            .await;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection.connection,
             committee_size.clone(),
@@ -152,7 +158,7 @@ pub async fn disable_node(config: &Config) -> anyhow::Result<()> {
     for session in start_session..end_session {
         let era = root_connection
             .connection
-            .get_era_for_session(session)
+            .get_active_era_for_session(session)
             .await;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &controller_connection.connection,
@@ -188,7 +194,7 @@ pub async fn force_new_era(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection().await;
     let start_era = connection
         .connection
-        .get_era_for_session(start_session)
+        .get_active_era_for_session(start_session)
         .await;
 
     info!("Start | era: {}, session: {}", start_era, start_session);
@@ -231,7 +237,7 @@ pub async fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<(
 
     let start_era = connection
         .connection
-        .get_era_for_session(start_session)
+        .get_active_era_for_session(start_session)
         .await;
     info!("Start | era: {}, session: {}", start_era, start_session);
 

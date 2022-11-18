@@ -13,7 +13,7 @@ use crate::{
         pallet::pallet::{
             Call::{bond, force_new_era, nominate, set_staking_configs},
             ConfigOp,
-            ConfigOp::Set,
+            ConfigOp::{Noop, Set},
         },
         EraRewardPoints, Exposure, RewardDestination, StakingLedger, ValidatorPrefs,
     },
@@ -99,8 +99,8 @@ pub trait StakingSudoApi {
     async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<BlockHash>;
     async fn set_staking_config(
         &self,
-        minimal_nominator_bond: u128,
-        minimal_validator_bond: u128,
+        minimal_nominator_bond: Option<u128>,
+        minimal_validator_bond: Option<u128>,
         max_nominators_count: Option<u32>,
         max_validators_count: Option<u32>,
         status: TxStatus,
@@ -270,23 +270,23 @@ impl StakingSudoApi for RootConnection {
 
     async fn set_staking_config(
         &self,
-        min_nominator_bond: u128,
-        min_validator_bond: u128,
+        min_nominator_bond: Option<u128>,
+        min_validator_bond: Option<u128>,
         max_nominator_count: Option<u32>,
         max_validator_count: Option<u32>,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash> {
+        fn convert<T>(arg: Option<T>) -> ConfigOp<T> {
+            match arg {
+                Some(v) => Set(v),
+                None => Noop,
+            }
+        }
         let call = Staking(set_staking_configs {
-            min_nominator_bond: Set(min_nominator_bond),
-            min_validator_bond: Set(min_validator_bond),
-            max_nominator_count: match max_nominator_count {
-                None => ConfigOp::Noop,
-                Some(m) => Set(m),
-            },
-            max_validator_count: match max_validator_count {
-                None => ConfigOp::Noop,
-                Some(m) => Set(m),
-            },
+            min_nominator_bond: convert(min_nominator_bond),
+            min_validator_bond: convert(min_validator_bond),
+            max_nominator_count: convert(max_nominator_count),
+            max_validator_count: convert(max_validator_count),
             chill_threshold: ConfigOp::Noop,
             min_commission: ConfigOp::Noop,
         });

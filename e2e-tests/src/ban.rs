@@ -122,20 +122,8 @@ pub async fn check_underperformed_validator_reason(
         .get_ban_info_for_validator(validator.clone(), None)
         .await;
 
-    match (validator_ban_info.as_ref(), expected_info) {
-        (Some(info), Some(expected_info)) => {
-            // terrible hack for now :(
-            assert_eq!(info.reason.encode(), expected_info.reason.encode());
-            assert_eq!(info.start, expected_info.start);
-
-            validator_ban_info
-        }
-        (None, None) => None,
-        _ => panic!(
-            "expected infos to be equal: expected {:?}, got {:?}",
-            expected_info, validator_ban_info
-        ),
-    }
+    assert_eq!(validator_ban_info.as_ref(), expected_info);
+    validator_ban_info
 }
 
 pub async fn check_ban_info_for_validator(
