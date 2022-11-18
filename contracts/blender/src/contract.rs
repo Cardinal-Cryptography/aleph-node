@@ -93,6 +93,8 @@ mod blender {
         ownable: ownable::Data,
     }
 
+    impl Ownable for Blender {}
+
     impl Blender {
         /// Instantiate the contract. Set the caller as the owner.
         #[ink(constructor)]
