@@ -342,7 +342,7 @@ impl StakingApiExt for RootConnection {
     ) -> anyhow::Result<BlockHash> {
         let calls = accounts
             .iter()
-            .map(|(c, s)| {
+            .map(|(s, c)| {
                 let b = Staking(bond {
                     controller: MultiAddress::Id(c.clone()),
                     value: stake,

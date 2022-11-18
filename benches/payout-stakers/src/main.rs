@@ -232,28 +232,18 @@ async fn nominate_validator(
         .zip(nominator_controller_accounts.iter().cloned())
         .collect::<Vec<_>>();
 
-    let mut handles = vec![];
+    let mut rng = thread_rng();
     for chunk in stash_controller_accounts
         .chunks(BOND_CALL_BATCH_LIMIT)
         .map(|c| c.to_vec())
     {
-        let root = RootConnection::try_from_connection(
-            connection.connection.clone(),
-            KeyPair::new(connection.root.signer().clone()),
-        )
-        .await
-        .unwrap();
 
-        let mut rng = thread_rng();
         let stake = (rng.gen::<u128>() % 100) * TOKEN + MIN_NOMINATOR_BOND;
-        handles.push(tokio::spawn(async move {
-            root.batch_bond(&chunk, stake, TxStatus::InBlock)
-                .await
-                .unwrap();
-        }));
+        connection.batch_bond(&chunk, stake, TxStatus::Submitted)
+            .await
+            .unwrap();
     }
 
-    join_all(handles).await;
     let nominator_nominee_accounts = nominator_controller_accounts
         .iter()
         .cloned()
@@ -292,7 +282,7 @@ async fn bond_validators_funds_and_choose_controllers(
 
 /// Submits candidate validators via controller accounts.
 /// We assume stash == validator != controller.
-async fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
+async fn    send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
     let mut handles = vec![];
     for controller in controllers {
         let node_address = address.to_string();
