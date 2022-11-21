@@ -95,10 +95,10 @@ register_token() {
   $CALL_CMD --contract ${BLENDER_ADDRESS} --message "register_new_token" --args 0 ${TOKEN_ADDRESS} | grep "Success"
 }
 
-# if [ $RUN_CHAIN = true ]; then
-#   log_progress "Launching local chain..."
-#   run_chain || error "Failed to launch chain"
-# fi
+if [ $RUN_CHAIN = true ]; then
+  log_progress "Launching local chain..."
+  run_chain || error "Failed to launch chain"
+fi
 
 log_progress "Building token contract..."
 build_token_contract || error "Failed to build token contract"
