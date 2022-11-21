@@ -12,7 +12,7 @@ DAMIAN_ACCOUNT=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
 HANS_ACCOUNT=5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
 
 # Token economics
-TOTAL_TOKEN_ISSUANCE_PER_CONTRACT=2000
+TOTAL_TOKEN_ISSUANCE_PER_CONTRACT=4000
 TOKEN_PER_PERSON=1000
 TOKEN_ALLOWANCE=500
 
@@ -112,6 +112,9 @@ distribute_tokens() {
 
 set_allowances() {
   cd "${ROOT_DIR}"/public_token/
+  $CALL_CMD --contract "${TOKEN_A_ADDRESS}" --message "PSP22::approve" --args "${BLENDER_ADDRESS}" "${TOKEN_ALLOWANCE}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
+  $CALL_CMD --contract "${TOKEN_B_ADDRESS}" --message "PSP22::approve" --args "${BLENDER_ADDRESS}" "${TOKEN_ALLOWANCE}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
+
   $CALL_CMD --contract "${TOKEN_A_ADDRESS}" --message "PSP22::approve" --args "${BLENDER_ADDRESS}" "${TOKEN_ALLOWANCE}" --suri "${DAMIAN}" | grep "Success"
   $CALL_CMD --contract "${TOKEN_B_ADDRESS}" --message "PSP22::approve" --args "${BLENDER_ADDRESS}" "${TOKEN_ALLOWANCE}" --suri "${DAMIAN}" | grep "Success"
 
