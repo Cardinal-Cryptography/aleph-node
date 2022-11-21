@@ -77,6 +77,10 @@ short_session = [
     "aleph-runtime/short_session",
     "aleph-primitives/short_session"
 ]
+even_shorter_session = [
+    "aleph-runtime/even_shorter_session",
+    "aleph-primitives/even_shorter_session"
+]
 try-runtime = [
     "aleph-runtime/try-runtime",
     "try-runtime-cli",

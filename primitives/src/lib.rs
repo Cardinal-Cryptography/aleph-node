@@ -40,6 +40,13 @@ pub type BlockCount = u32;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
+
+// Quick sessions with shorter amount of sessions in era for testing purposes
+#[cfg(all(feature = "even_shorter_session", not(feature = "short_session")))]
+pub const DEFAULT_SESSION_PERIOD: u32 = 30;
+#[cfg(all(feature = "even_shorter_session", not(feature = "short_session")))]
+pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 3;
+
 // Quick sessions for testing purposes
 #[cfg(feature = "short_session")]
 pub const DEFAULT_SESSION_PERIOD: u32 = 30;
@@ -47,9 +54,9 @@ pub const DEFAULT_SESSION_PERIOD: u32 = 30;
 pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 5;
 
 // Default values outside testing
-#[cfg(not(feature = "short_session"))]
+#[cfg(all(not(feature = "short_session"), not(feature = "even_shorter_session")))]
 pub const DEFAULT_SESSION_PERIOD: u32 = 900;
-#[cfg(not(feature = "short_session"))]
+#[cfg(all(not(feature = "short_session"), not(feature = "even_shorter_session")))]
 pub const DEFAULT_SESSIONS_PER_ERA: SessionIndex = 96;
 
 pub const TOKEN_DECIMALS: u32 = 12;

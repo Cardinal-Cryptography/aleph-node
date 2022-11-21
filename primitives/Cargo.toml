@@ -30,3 +30,4 @@ std = [
     "sp-staking/std",
 ]
 short_session = []
+even_shorter_session = []

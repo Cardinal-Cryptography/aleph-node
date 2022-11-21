@@ -111,6 +111,7 @@ std = [
     "pallet-nomination-pools/std",
 ]
 short_session = ["primitives/short_session"]
+even_shorter_session = ["primitives/even_shorter_session"]
 try-runtime = [
     "frame-executive/try-runtime",
     "frame-try-runtime",
