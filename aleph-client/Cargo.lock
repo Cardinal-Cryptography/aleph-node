@@ -60,6 +60,7 @@ dependencies = [
  "hex",
  "ink_metadata",
  "log",
+ "pallet-contracts-primitives",
  "parity-scale-codec",
  "primitives",
  "serde",
@@ -1776,6 +1777,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "pallet-contracts-primitives"
+version = "6.0.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "bitflags",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-rpc",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+]
+
+[[package]]
 name = "parity-scale-codec"
 version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2984,6 +3000,16 @@ dependencies = [
  "backtrace",
  "lazy_static",
  "regex",
+]
+
+[[package]]
+name = "sp-rpc"
+version = "6.0.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "rustc-hash",
+ "serde",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
 ]
 
 [[package]]

@@ -1,19 +1,23 @@
-use codec::{Compact, Decode};
+use codec::{Compact, Decode, Encode};
+use pallet_contracts_primitives::ContractExecResult;
 use primitives::Balance;
-use serde::Serialize;
-use subxt::{ext::sp_runtime::MultiAddress, rpc_params};
+use subxt::{
+    ext::{sp_core::Bytes, sp_runtime::MultiAddress},
+    rpc_params,
+};
 
 use crate::{
     api, pallet_contracts::wasm::OwnerInfo, AccountId, BlockHash, Connection, SignedConnection,
     TxStatus,
 };
 
-#[derive(Serialize)]
+#[derive(Encode)]
 pub struct ContractCallArgs {
     pub origin: AccountId,
     pub dest: AccountId,
     pub value: Balance,
     pub gas_limit: u64,
+    pub storage_deposit_limit: Option<Balance>,
     pub input_data: Vec<u8>,
 }
 
@@ -180,8 +184,12 @@ impl ContractsUserApi for SignedConnection {
 #[async_trait::async_trait]
 impl ContractRpc for Connection {
     async fn call_and_get<T: Decode>(&self, args: ContractCallArgs) -> anyhow::Result<T> {
-        let params = rpc_params![args];
+        let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
 
-        self.rpc_call("contracts_call".to_string(), params).await
+        let res: ContractExecResult<Balance> =
+            self.rpc_call("state_call".to_string(), params).await?;
+        let res = T::decode(&mut (res.result.unwrap().data.0.as_slice()))?;
+
+        Ok(res)
     }
 }

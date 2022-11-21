@@ -111,6 +111,7 @@ impl ContractInstance {
             value: 0,
             gas_limit: Self::MAX_READ_GAS,
             input_data: payload,
+            storage_deposit_limit: None,
         };
         conn.call_and_get(args)
             .await
