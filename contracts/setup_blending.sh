@@ -12,7 +12,7 @@ DAMIAN_ACCOUNT=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH
 HANS_ACCOUNT=5GBNeWRhZc2jXu7D55rBimKYDk8PGk8itRYFTPfC8RJLKG5o
 
 # Token economics
-TOTAL_TOKEN_ISSUANCE=2000
+TOTAL_TOKEN_ISSUANCE_PER_CONTRACT=2000
 TOKEN_PER_PERSON=1000
 TOKEN_ALLOWANCE=500
 
@@ -71,11 +71,11 @@ build_token_contract() {
 
 deploy_token_contracts() {
   cd "${ROOT_DIR}"/public_token/
-  result=$($INSTANTIATE_CMD --args "${TOTAL_TOKEN_ISSUANCE}" --salt "0x1111")
+  result=$($INSTANTIATE_CMD --args "${TOTAL_TOKEN_ISSUANCE_PER_CONTRACT}" --salt "0x1111")
   TOKEN_A_ADDRESS=$(echo "$result" | grep Contract | tail -1 | cut -c 14-)
   echo "Token A address: ${TOKEN_A_ADDRESS}"
 
-  result=$($INSTANTIATE_CMD --args "${TOTAL_TOKEN_ISSUANCE}" --salt "0x2222")
+  result=$($INSTANTIATE_CMD --args "${TOTAL_TOKEN_ISSUANCE_PER_CONTRACT}" --salt "0x2222")
   TOKEN_B_ADDRESS=$(echo "$result" | grep Contract | tail -1 | cut -c 14-)
   echo "Token B address: ${TOKEN_B_ADDRESS}"
 }
