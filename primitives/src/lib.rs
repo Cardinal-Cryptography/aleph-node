@@ -40,7 +40,6 @@ pub type BlockCount = u32;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 
-
 // Quick sessions with shorter amount of sessions in era for testing purposes
 #[cfg(all(feature = "even_shorter_session", not(feature = "short_session")))]
 pub const DEFAULT_SESSION_PERIOD: u32 = 30;

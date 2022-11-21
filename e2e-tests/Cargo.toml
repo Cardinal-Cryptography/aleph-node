@@ -24,7 +24,7 @@ pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git
 pallet-balances = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28", default-features = false }
 
 aleph_client = { path = "../aleph-client" }
-primitives = { path = "../primitives", features = ["short_session"], default-features = false }
+primitives = { path = "../primitives", features = ["even_shorter_session"], default-features = false }
 pallet-elections = { path = "../pallets/elections" }
 
 [features]
