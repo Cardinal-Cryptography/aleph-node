@@ -1,6 +1,5 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use aleph_primitives::AuthorityId;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
@@ -9,32 +8,32 @@ use log::{debug, info, trace, warn};
 use tokio::time;
 
 use crate::{
-    crypto::AuthorityPen,
+    network::PeerId,
     validator_network::{
         incoming::incoming,
         manager::{AddResult, LegacyManager, Manager},
         outgoing::outgoing,
         protocols::{ConnectionType, ResultForService},
-        Data, Dialer, Listener, Network,
+        Data, Dialer, Listener, Network, PrivateKey, PublicKey,
     },
     SpawnTaskHandle, STATUS_REPORT_INTERVAL,
 };
 
-enum ServiceCommand<D: Data, A: Data> {
-    AddConnection(AuthorityId, Vec<A>),
-    DelConnection(AuthorityId),
-    SendData(D, AuthorityId),
+enum ServiceCommand<PK: PublicKey, D: Data, A: Data> {
+    AddConnection(PK, Vec<A>),
+    DelConnection(PK),
+    SendData(D, PK),
 }
 
-struct ServiceInterface<D: Data, A: Data> {
-    commands_for_service: mpsc::UnboundedSender<ServiceCommand<D, A>>,
+struct ServiceInterface<PK: PublicKey, D: Data, A: Data> {
+    commands_for_service: mpsc::UnboundedSender<ServiceCommand<PK, D, A>>,
     next_from_service: mpsc::UnboundedReceiver<D>,
 }
 
 #[async_trait::async_trait]
-impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
+impl<PK: PublicKey, D: Data, A: Data> Network<PK, A, D> for ServiceInterface<PK, D, A> {
     /// Add the peer to the set of connected peers.
-    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>) {
+    fn add_connection(&mut self, peer: PK, addresses: Vec<A>) {
         if self
             .commands_for_service
             .unbounded_send(ServiceCommand::AddConnection(peer, addresses))
@@ -45,7 +44,7 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
     }
 
     /// Remove the peer from the set of connected peers and close the connection.
-    fn remove_connection(&mut self, peer: AuthorityId) {
+    fn remove_connection(&mut self, peer: PK) {
         if self
             .commands_for_service
             .unbounded_send(ServiceCommand::DelConnection(peer))
@@ -57,7 +56,7 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
 
     /// Send a message to a single peer.
     /// This function should be implemented in a non-blocking manner.
-    fn send(&self, data: D, recipient: AuthorityId) {
+    fn send(&self, data: D, recipient: PK) {
         if self
             .commands_for_service
             .unbounded_send(ServiceCommand::SendData(data, recipient))
@@ -74,27 +73,34 @@ impl<D: Data, A: Data> Network<A, D> for ServiceInterface<D, A> {
 }
 
 /// A service that has to be run for the validator network to work.
-pub struct Service<D: Data, A: Data, ND: Dialer<A>, NL: Listener> {
-    commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<D, A>>,
+pub struct Service<PK: PrivateKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener>
+where
+    PK::PublicKey: PeerId,
+{
+    commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<PK::PublicKey, D, A>>,
     next_to_interface: mpsc::UnboundedSender<D>,
-    manager: Manager<A, D>,
+    manager: Manager<PK::PublicKey, A, D>,
     dialer: ND,
     listener: NL,
     spawn_handle: SpawnTaskHandle,
-    authority_pen: AuthorityPen,
+    private_key: PK,
     // Backwards compatibility with the one-sided connections, remove when no longer needed.
-    legacy_connected: HashSet<AuthorityId>,
-    legacy_manager: LegacyManager<A, D>,
+    legacy_connected: HashSet<PK::PublicKey>,
+    legacy_manager: LegacyManager<PK::PublicKey, A, D>,
 }
 
-impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL> {
+impl<PK: PrivateKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener>
+    Service<PK, D, A, ND, NL>
+where
+    PK::PublicKey: PeerId,
+{
     /// Create a new validator network service plus an interface for interacting with it.
     pub fn new(
         dialer: ND,
         listener: NL,
-        authority_pen: AuthorityPen,
+        private_key: PK,
         spawn_handle: SpawnTaskHandle,
-    ) -> (Self, impl Network<A, D>) {
+    ) -> (Self, impl Network<PK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
@@ -103,11 +109,11 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(authority_pen.authority_id()),
+                manager: Manager::new(private_key.public_key()),
                 dialer,
                 listener,
                 spawn_handle,
-                authority_pen,
+                private_key,
                 legacy_connected: HashSet::new(),
                 legacy_manager: LegacyManager::new(),
             },
@@ -120,17 +126,17 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
 
     fn spawn_new_outgoing(
         &self,
-        peer_id: AuthorityId,
+        peer_id: PK::PublicKey,
         addresses: Vec<A>,
-        result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
     ) {
-        let authority_pen = self.authority_pen.clone();
+        let private_key = self.private_key.clone();
         let dialer = self.dialer.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_outgoing", None, async move {
                 outgoing(
-                    authority_pen,
+                    private_key,
                     peer_id,
                     dialer,
                     addresses,
@@ -144,17 +150,17 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
     fn spawn_new_incoming(
         &self,
         stream: NL::Connection,
-        result_for_parent: mpsc::UnboundedSender<ResultForService<D>>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
     ) {
-        let authority_pen = self.authority_pen.clone();
+        let private_key = self.private_key.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_incoming", None, async move {
-                incoming(authority_pen, stream, result_for_parent, next_to_interface).await;
+                incoming(private_key, stream, result_for_parent, next_to_interface).await;
             });
     }
 
-    fn peer_addresses(&self, peer_id: &AuthorityId) -> Option<Vec<A>> {
+    fn peer_addresses(&self, peer_id: &PK::PublicKey) -> Option<Vec<A>> {
         match self.legacy_connected.contains(peer_id) {
             true => self.legacy_manager.peer_addresses(peer_id),
             false => self.manager.peer_addresses(peer_id),
@@ -163,7 +169,7 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
 
     fn add_connection(
         &mut self,
-        peer_id: AuthorityId,
+        peer_id: PK::PublicKey,
         data_for_network: mpsc::UnboundedSender<D>,
         connection_type: ConnectionType,
     ) -> AddResult {
@@ -182,13 +188,13 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
     }
 
     // Mark a peer as legacy and return whether it is the first time we do so.
-    fn mark_legacy(&mut self, peer_id: &AuthorityId) -> bool {
+    fn mark_legacy(&mut self, peer_id: &PK::PublicKey) -> bool {
         self.manager.remove_peer(peer_id);
         self.legacy_connected.insert(peer_id.clone())
     }
 
     // Unmark a peer as legacy, putting it back in the normal set.
-    fn unmark_legacy(&mut self, peer_id: &AuthorityId) {
+    fn unmark_legacy(&mut self, peer_id: &PK::PublicKey) {
         self.legacy_connected.remove(peer_id);
         // Put it back if we still want to be connected.
         if let Some(addresses) = self.legacy_manager.peer_addresses(peer_id) {
@@ -198,7 +204,11 @@ impl<D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<D, A, ND, NL
 
     // Checks whether this peer should now be marked as one using the legacy protocol and handled
     // accordingly. Returns whether we should spawn a new connection worker because of that.
-    fn check_for_legacy(&mut self, peer_id: &AuthorityId, connection_type: ConnectionType) -> bool {
+    fn check_for_legacy(
+        &mut self,
+        peer_id: &PK::PublicKey,
+        connection_type: ConnectionType,
+    ) -> bool {
         use ConnectionType::*;
         match connection_type {
             LegacyIncoming => self.mark_legacy(peer_id),
