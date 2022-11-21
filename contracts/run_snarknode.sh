@@ -14,7 +14,7 @@ mkdir -p docker/data/
 
 # generate chainspec
 docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${NODE_IMAGE}" -c \
-       "aleph-node bootstrap-chain --base-path /data --account-ids $NODE_ID --faucet-account-id $ALICE --sudo-account-id $NODE_ID --chain-id a0smnet --token-symbol SZERO --chain-name 'Aleph Zero Smarknet' > /data/chainspec.smarknet.json"
+       "aleph-node bootstrap-chain --base-path /data --account-ids $NODE_ID --faucet-account-id $ALICE --sudo-account-id $NODE_ID --chain-id a0smnet --token-symbol SNZERO --chain-name 'Aleph Zero Snarknet' > /data/chainspec.snarknet.json"
 
 # Get bootnode peer id
 export BOOTNODE_PEER_ID=$(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=info "${NODE_IMAGE}" -c "aleph-node key inspect-node-key --file /data/$NODE_ID/p2p_secret")
