@@ -596,7 +596,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_validator_data_command_send_to() {
+    async fn test_send_validator_data() {
         let mut test_data = TestData::prepare().await;
 
         let peer_id = random_authority_id().await;
