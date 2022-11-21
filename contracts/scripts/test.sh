@@ -7,6 +7,7 @@ CONTRACTS_PATH=$(pwd)/contracts
 EARLY_BIRD_SPECIAL=$(jq --raw-output ".early_bird_special" < "$CONTRACTS_PATH"/addresses.json)
 THE_PRESSIAH_COMETH=$(jq --raw-output ".the_pressiah_cometh" < "$CONTRACTS_PATH"/addresses.json)
 BACK_TO_THE_FUTURE=$(jq --raw-output ".back_to_the_future" < "$CONTRACTS_PATH"/addresses.json)
+MARKETPLACE_V2_CODE_HASH=$(jq --raw-output ".marketplace_v2_code_hash" < "$CONTRACTS_PATH"/addresses.json)
 
 pushd "$E2E_PATH"
 
@@ -22,6 +23,8 @@ RUST_LOG="aleph_e2e_client=info" cargo run --release -- \
   --button-game-metadata ../contracts/button/target/ink/metadata.json \
   --ticket-token-metadata ../contracts/ticket_token/target/ink/metadata.json \
   --reward-token-metadata ../contracts/game_token/target/ink/metadata.json \
-  --marketplace-metadata ../contracts/marketplace/target/ink/metadata.json
+  --marketplace-metadata ../contracts/marketplace/target/ink/metadata.json \
+  --marketplace-v2-metadata ../contracts/marketplace_v2/target/ink/metadata.json \
+  --marketplace-v2-code_hash "$MARKETPLACE_V2_CODE_HASH" 
 
 exit $?

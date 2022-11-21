@@ -97,6 +97,14 @@ pub struct TestCaseParams {
     #[clap(long)]
     pub marketplace_metadata: Option<String>,
 
+    /// Path to the marketplace_v2 metadata file. Only used by button tests.
+    #[clap(long)]
+    pub marketplace_v2_metadata: Option<String>,
+
+    /// Code hash of uploaded marketplace_v2 code. Only used by button tests.
+    #[clap(long)]
+    pub marketplace_v2_code_hash: Option<String>,
+
     /// Version for the VersionUpgrade test.
     #[clap(long)]
     pub upgrade_to_version: Option<u32>,
