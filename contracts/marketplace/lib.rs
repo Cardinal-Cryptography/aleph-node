@@ -46,7 +46,8 @@ pub mod marketplace {
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
-    const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
+    //const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
+    const STORAGE_KEY: u32 = 101;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(STORAGE_KEY)]
     pub struct MarketplaceDataV1 {

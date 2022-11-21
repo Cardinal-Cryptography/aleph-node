@@ -33,7 +33,8 @@ pub mod marketplace_v2 {
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
-    const OLD_STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
+    //const OLD_STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
+    const OLD_STORAGE_KEY: u32 = 101;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(OLD_STORAGE_KEY)]
     pub struct MarketplaceDataV1 {
@@ -49,7 +50,8 @@ pub mod marketplace_v2 {
 
     // Storage struct with different order of fields - for upgrade testing 
     // Also there is new field (migration_performed) added
-    const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV2);
+    //const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV2);
+    const STORAGE_KEY: u32 = 201;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(STORAGE_KEY)]
     pub struct MarketplaceDataV2 {
@@ -271,6 +273,7 @@ pub mod marketplace_v2 {
         }
 
         /// Performs a migration from old contract code
+        #[ink(message)]
         pub fn migrate(&mut self) -> Result<(), Error> {
             // This should work - if migration was not performed, then
             // `migration_performed` will be initialised to default, so to `false`

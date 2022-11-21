@@ -12,7 +12,7 @@ MARKETPLACE_V2_CODE_HASH=$(jq --raw-output ".marketplace_v2_code_hash" < "$CONTR
 pushd "$E2E_PATH"
 
 RUST_LOG="aleph_e2e_client=info" cargo run --release -- \
-  --test-cases marketplace \
+  --test-cases marketplace_update \
   --test-cases button_game_reset \
   --test-cases early_bird_special \
   --test-cases the_pressiah_cometh \
@@ -25,6 +25,6 @@ RUST_LOG="aleph_e2e_client=info" cargo run --release -- \
   --reward-token-metadata ../contracts/game_token/target/ink/metadata.json \
   --marketplace-metadata ../contracts/marketplace/target/ink/metadata.json \
   --marketplace-v2-metadata ../contracts/marketplace_v2/target/ink/metadata.json \
-  --marketplace-v2-code_hash "$MARKETPLACE_V2_CODE_HASH" 
+  --marketplace-v2-code-hash "$MARKETPLACE_V2_CODE_HASH" 
 
 exit $?

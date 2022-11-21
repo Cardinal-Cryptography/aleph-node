@@ -1,4 +1,4 @@
-use std::{thread, time::Duration};
+use std::{thread, time::Duration, sync::Arc};
 
 use aleph_client::{contract_transcode::Value, AccountId};
 use anyhow::Result;
@@ -11,25 +11,28 @@ use crate::{
         assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
         ButtonTestContext,
     },
+    test::button_game::contracts::MarketplaceInstance,
     Config,
 };
 
 mod contracts;
 mod helpers;
 
-/// Tests trading on the marketplace.
+/// Tests trading on the marketplace (with update).
 ///
 /// The scenario:
 ///
 /// 1. Buys a ticket without setting the max price (this should succeed).
 /// 2. Tries to buy a ticket with setting the max price too low (this should fail).
 /// 3. Tries to buy a ticket with setting the max price appropriately (this should succeed).
-pub fn marketplace(config: &Config) -> Result<()> {
+/// 
+/// Additionally there is an update performed amidst contract's operation.
+pub fn marketplace_with_update(config: &Config) -> Result<()> {
     let ButtonTestContext {
         conn,
         authority,
         player,
-        marketplace,
+        mut marketplace,
         ticket_token,
         reward_token,
         mut events,
@@ -54,6 +57,29 @@ pub fn marketplace(config: &Config) -> Result<()> {
         later_price,
     )?;
     marketplace.buy(&sign(&conn, player), None)?;
+
+
+    // Upgrade begins
+   
+    // As for now, it will work even if we do not set_code here, which is pretty sad for testing
+    // (Old code can still access it's memory)
+    let set_code_result = marketplace.set_code(&sign(&conn, &authority), &config.test_case_params.marketplace_v2_code_hash.as_ref().expect("New code's code_hash must be specified."));
+    info!("Trying to set code actual hash_code: {:?}", set_code_result);
+    assert!(set_code_result.is_ok());
+
+    // Change the metadata (keeping the old address)
+    marketplace = Arc::from(
+        MarketplaceInstance::new(
+            marketplace.contract().address().clone(), 
+            &Some(config.test_case_params.marketplace_v2_metadata.clone().expect("New code's metadata path must be specified.")))
+            .expect("Adding existing contract should succeed.")
+        );
+
+    let migration_result = marketplace.migrate(&sign(&conn, &authority));
+    info!("Trying to perform migration after changing the metadata: {:?}", migration_result);
+    assert!(migration_result.is_ok());
+
+    // Upgrade ends
 
     let event = assert_recv_id(&mut events, "Bought");
     let player_account: AccountId = player.into();

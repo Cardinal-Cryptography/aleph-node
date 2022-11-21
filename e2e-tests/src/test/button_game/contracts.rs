@@ -167,6 +167,15 @@ impl MarketplaceInstance {
         self.contract.contract_exec0(conn, "reset")
     }
 
+    pub fn set_code(&self, conn: &SignedConnection, code_hash: &String) -> Result<()> {
+        self.contract.contract_exec(conn, "set_code", &[code_hash])
+    }
+
+    // Only to be used after the upgrade
+    pub fn migrate(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "migrate")
+    }
+
     pub fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
         let max_price = max_price.map_or_else(|| "None".to_string(), |x| format!("Some({})", x));
 
@@ -177,6 +186,11 @@ impl MarketplaceInstance {
     pub fn price<C: AnyConnection>(&self, conn: &C) -> Result<Balance> {
         self.contract.contract_read0(conn, "price")?.try_into()
     }
+
+    // Access inner ContractInstance
+    pub fn contract(&self) -> &ContractInstance {
+        &self.contract
+    } 
 }
 
 impl<'a> From<&'a MarketplaceInstance> for &'a ContractInstance {
