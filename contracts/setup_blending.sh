@@ -9,8 +9,28 @@ TOKENS=1000
 VK_BYTES=0x00000000
 MERKLE_LEAVES=65536
 
-INSTANTIATE_CMD="cargo contract instantiate --skip-confirm --suri ${SURI}"
-CALL_CMD="cargo contract call --quiet --skip-confirm --suri ${SURI}"
+# cli flags
+
+while getopts r:n: flag
+do
+  case "${flag}" in
+    r) RUN_CHAIN=${OPTARG};;
+    n) NODE=${OPTARG};;
+  esac
+done
+
+# defaults
+
+if [ -z ${RUN_CHAIN+x} ]; then
+  RUN_CHAIN=true
+fi
+
+if [ -z ${NODE+x} ]; then
+  NODE=ws://127.0.0.1:9944
+fi
+
+INSTANTIATE_CMD="cargo contract instantiate --skip-confirm --suri ${SURI} --url ${NODE}"
+CALL_CMD="cargo contract call --quiet --skip-confirm --suri ${SURI} --url ${NODE}"
 
 TOKEN_ADDRESS=""
 BLENDER_ADDRESS=""
@@ -75,8 +95,10 @@ register_token() {
   $CALL_CMD --contract ${BLENDER_ADDRESS} --message "register_new_token" --args 0 ${TOKEN_ADDRESS} | grep "Success"
 }
 
-log_progress "Launching local chain..."
-run_chain || error "Failed to launch chain"
+# if [ $RUN_CHAIN = true ]; then
+#   log_progress "Launching local chain..."
+#   run_chain || error "Failed to launch chain"
+# fi
 
 log_progress "Building token contract..."
 build_token_contract || error "Failed to build token contract"
