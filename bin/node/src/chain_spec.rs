@@ -333,13 +333,10 @@ fn generate_genesis_config(
     controller_accounts: Vec<AccountId>,
     min_validator_count: u32,
 ) -> GenesisConfig {
-    let special_accounts = match rich_accounts {
-        Some(ids) => {
-            let mut all = ids;
-            all.push(sudo_account.clone());
-            all
-        }
-        None => vec![sudo_account.clone()],
+    let special_accounts = {
+        let mut all = rich_accounts.unwrap_or_default();
+        all.push(sudo_account.clone());
+        all
     };
 
     // NOTE: some combinations of bootstrap chain arguments can potentially
