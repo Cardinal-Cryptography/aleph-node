@@ -16,8 +16,10 @@ TOTAL_TOKEN_ISSUANCE_PER_CONTRACT=4000
 TOKEN_PER_PERSON=1000
 TOKEN_ALLOWANCE=500
 
+# TODO : slurp bytes from disk
 # Hardcoded auxiliary data
-# VK_BYTES=0x00000000
+VK_BYTES=0x00000000
+
 MERKLE_LEAVES=65536
 
 usage() {
@@ -48,13 +50,8 @@ done
 
 # defaults
 
-if [ -z ${RUN_CHAIN+x} ]; then
-  RUN_CHAIN=true
-fi
-
-if [ -z ${NODE+x} ]; then
-  NODE=ws://127.0.0.1:9944
-fi
+RUN_CHAIN="${RUN_CHAIN:-true}"
+NODE="${NODE:-ws://127.0.0.1:9944}"
 
 # Command shortcuts
 INSTANTIATE_CMD="cargo contract instantiate --skip-confirm --url ${NODE} --suri ${CONTRACTS_ADMIN}"
@@ -134,11 +131,11 @@ deploy_blender_contract() {
   echo "Blender address: ${BLENDER_ADDRESS}"
 }
 
-# register_vk() {
-#   cd "${ROOT_DIR}"/blender/
-#   $CALL_CMD --contract "${BLENDER_ADDRESS}" --message "register_vk" --args Deposit "${VK_BYTES}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
-#   $CALL_CMD --contract "${BLENDER_ADDRESS}" --message "register_vk" --args Withdraw "${VK_BYTES}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
-# }
+register_vk() {
+  cd "${ROOT_DIR}"/blender/
+  $CALL_CMD --contract "${BLENDER_ADDRESS}" --message "register_vk" --args Deposit "${VK_BYTES}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
+  $CALL_CMD --contract "${BLENDER_ADDRESS}" --message "register_vk" --args Withdraw "${VK_BYTES}" --suri "${CONTRACTS_ADMIN}" | grep "Success"
+}
 
 register_tokens() {
   cd "${ROOT_DIR}"/blender/
@@ -171,8 +168,8 @@ set_up_blending() {
   log_progress "Setting allowances for Blender..."
   set_allowances || error "Failed to set allowances"
 
-  # log_progress "Registering verifying keys..."
-  # register_vk || error "Failed to register verifying keys"
+  log_progress "Registering verifying keys..."
+  register_vk || error "Failed to register verifying keys"
 
   log_progress "Registering token contracts..."
   register_tokens || error "Failed to register token contracts"
