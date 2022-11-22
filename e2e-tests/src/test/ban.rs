@@ -308,6 +308,10 @@ pub async fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     root_connection
         .ban_from_committee(validator_to_ban.clone(), vec![], TxStatus::InBlock)
         .await?;
+    root_connection
+        .connection
+        .wait_for_n_eras(2, BlockStatus::Finalized)
+        .await;
 
     let without_banned = HashSet::<_>::from_iter(non_reserved_without_banned);
     let non_reserved = HashSet::<_>::from_iter(
