@@ -8,6 +8,7 @@ use frame_support::{
 #[cfg(feature = "try-runtime")]
 use pallets_support::ensure_storage_version;
 use pallets_support::StorageMigration;
+#[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
 
 use crate::{migrations::Validators, Config, EraValidators};

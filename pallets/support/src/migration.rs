@@ -3,11 +3,11 @@ use frame_support::{
     codec::{Decode, Encode},
     sp_io,
     storage::storage_prefix,
+    sp_std::vec::Vec
 };
 use frame_support::{
     pallet_prelude::{PalletInfoAccess, StorageVersion, Weight},
     traits::OnRuntimeUpgrade,
-    sp_std::vec::Vec
 };
 
 /// In order to run both pre- and post- checks around every migration, we entangle methods of

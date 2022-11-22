@@ -20,16 +20,13 @@ pub use frame_support::{
 };
 use frame_support::{
     sp_runtime::Perquintill,
-    traits::{ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote},
+    traits::{ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote, WithdrawReasons},
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::weights::WeightInfo;
-use pallet_contracts_primitives::{
-    CodeUploadResult, ContractExecResult, ContractInstantiateResult, GetStorageResult,
-};
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 pub use primitives::Balance;
@@ -48,7 +45,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, One,
-        OpaqueKeys, Verify,
+        OpaqueKeys, Verify, Bounded
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, MultiSignature, RuntimeAppPublic,
@@ -274,6 +271,7 @@ parameter_types! {
     pub FeeVariability: Multiplier = Multiplier::saturating_from_rational(67, 1000);
     // Fee should never be lower than the computational cost.
     pub MinimumMultiplier: Multiplier = Multiplier::one();
+    pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -282,7 +280,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type LengthToFee = IdentityFee<Balance>;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier>;
+        TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier,MaximumMultiplier>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
@@ -301,8 +299,7 @@ impl pallet_scheduler::Config for Runtime {
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = ();
-    type NoPreimagePostponement = ();
+    type Preimages = ();
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -549,6 +546,7 @@ where
 
 parameter_types! {
     pub const MinVestedTransfer: Balance = MICRO_AZERO;
+        pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =          WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -557,6 +555,7 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
     // Maximum number of vesting schedules an account may have at a given moment
     // follows polkadot https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L980
     const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -637,9 +636,6 @@ impl pallet_utility::Config for Runtime {
     type PalletsOrigin = OriginCaller;
 }
 
-// Prints debug output of the `contracts` pallet to stdout if the node is started with `-lruntime::contracts=debug`.
-const CONTRACTS_DEBUG_OUTPUT: bool = true;
-
 parameter_types! {
     // Refundable deposit per storage item
     pub const DepositPerItem: Balance = 32 * DEPOSIT_PER_BYTE;
@@ -675,7 +671,6 @@ impl pallet_contracts::Config for Runtime {
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
-    type ContractAccessWeight = pallet_contracts::DefaultContractAccessWeight<BlockWeights>;
     type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
 }
