@@ -7,6 +7,7 @@ use frame_support::{
 use frame_support::{
     pallet_prelude::{PalletInfoAccess, StorageVersion, Weight},
     traits::OnRuntimeUpgrade,
+    sp_std::vec::Vec
 };
 
 /// In order to run both pre- and post- checks around every migration, we entangle methods of
@@ -25,7 +26,7 @@ pub trait StorageMigration: OnRuntimeUpgrade {
         let weight = Self::on_runtime_upgrade();
 
         #[cfg(feature = "try-runtime")]
-        Self::post_upgrade().expect("Post upgrade should succeed");
+        Self::post_upgrade(Vec::new()).expect("Post upgrade should succeed");
 
         weight
     }

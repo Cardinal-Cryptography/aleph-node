@@ -653,7 +653,7 @@ parameter_types! {
     pub DeletionQueueDepth: u32 = DeletionWeightLimit::get().saturating_div((
             <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
             <Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
-        ).ref_time()) * 10).ref_time() as u32; // 2228
+        ).ref_time() * 10).ref_time() as u32; // 2228
     pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
 }
 
