@@ -156,16 +156,16 @@ mod blender {
             self.verify_fee(fee_for_caller, value)?;
             self.verify_merkle_root(merkle_root)?;
             self.verify_nullifier(nullifier)?;
-            self.verify_withdrawal(
-                token_id,
-                value,
-                merkle_root,
-                nullifier,
-                new_note,
-                proof,
-                fee_for_caller.unwrap_or_default(),
-                recipient,
-            )?;
+            //self.verify_withdrawal(
+            //    token_id,
+            //    value,
+            //    merkle_root,
+            //    nullifier,
+            //    new_note,
+            //    proof,
+            //    fee_for_caller.unwrap_or_default(),
+            //    recipient,
+            //)?;
 
             self.create_new_leaf(new_note)?;
             self.nullifiers.insert(nullifier, &());
