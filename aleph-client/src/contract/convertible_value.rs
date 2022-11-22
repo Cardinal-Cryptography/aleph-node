@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use anyhow::{anyhow, bail, Context, Result};
 use contract_transcode::Value;
@@ -128,16 +128,21 @@ impl TryFrom<ConvertibleValue> for String {
     }
 }
 
-// The below gives an error about conflicting implementations. No idea why...
-// impl<T> TryFrom<ConvertibleValue> for Option<T>
-//     where
-//         ConvertibleValue: TryInto<T>,
-// {
+auto trait NotEq {}
+// We're basically telling the compiler that there is no instance of NotEq for `(X,X)` tuple.
+// Or put differently - that you can't implement `NotEq` for `(X,X)`.
+impl<X> !NotEq for (X, X) {}
 
-impl TryFrom<ConvertibleValue> for Option<String> {
+impl<T> TryFrom<ConvertibleValue> for Option<T>
+where
+    T: TryFrom<ConvertibleValue, Error = anyhow::Error> + Debug,
+    // We will derive this impl only when `T != ConvertibleValue`.
+    // Otherwise we will get a conflict with generic impl in the rust `core` crate.
+    (ConvertibleValue, T): NotEq,
+{
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> Result<Option<String>, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> std::result::Result<Option<T>, Self::Error> {
         if let Value::Tuple(tuple) = &value.0 {
             match tuple.ident() {
                 Some(x) if x == "Some" => {
@@ -166,6 +171,6 @@ impl TryFrom<ConvertibleValue> for Option<String> {
             }
         }
 
-        bail!("Expected {:?} to be an Some(_) or None tuple.", value);
+        bail!("Expected {:?} to be a Some(_) or None tuple.", &value);
     }
 }

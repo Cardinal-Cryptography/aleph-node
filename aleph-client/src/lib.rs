@@ -1,3 +1,7 @@
+// Needed for the generic `impl TryFrom<ConvertibleValue> for Option<T>`.
+#![feature(auto_traits)]
+#![feature(negative_impls)]
+
 use std::{default::Default, error::Error as StdError, fmt::Debug, thread::sleep, time::Duration};
 
 use ac_primitives::{PlainTip, PlainTipExtrinsicParamsBuilder, SubstrateDefaultSignedExtra};
