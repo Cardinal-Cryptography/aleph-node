@@ -67,7 +67,7 @@ impl SubstrateCli for Cli {
 #[derive(Debug, ClapSubcommand)]
 pub enum Subcommand {
     /// Key management cli utilities
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Key(sc_cli::KeySubcommand),
 
     /// Populate authorities keystore and generate chainspec in JSON format (printed to stdout)
