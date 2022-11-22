@@ -50,7 +50,7 @@ const AUTHENTICATION_PROTOCOL_NAME: &str = "/aleph/1";
 pub fn protocol_name(protocol: &Protocol) -> ProtocolName {
     use Protocol::*;
     match protocol {
-        Authentication => ProtocolName::Static(AUTHENTICATION_PROTOCOL_NAME),
+        Authentication => AUTHENTICATION_PROTOCOL_NAME.into(),
     }
 }
 
