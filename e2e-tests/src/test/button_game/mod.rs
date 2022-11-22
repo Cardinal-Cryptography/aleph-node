@@ -25,7 +25,7 @@ mod helpers;
 ///
 /// 1. Wraps some azero and checks that the PSP22 balance increased accordingly.
 /// 2. Unwraps half of the amount, checks that some wrapped funds remained while the rest has been returned to azero,
-///    less fees.
+///    minus fees.
 pub fn wrapped_azero(config: &Config) -> Result<()> {
     let WAzeroTestContext {
         conn,

@@ -345,13 +345,13 @@ impl WAzeroInstance {
 }
 
 impl<'a> From<&'a WAzeroInstance> for &'a ContractInstance {
-    fn from(dex: &'a WAzeroInstance) -> Self {
-        &dex.contract
+    fn from(wazero: &'a WAzeroInstance) -> Self {
+        &wazero.contract
     }
 }
 
 impl<'a> From<&'a WAzeroInstance> for AccountId {
-    fn from(dex: &'a WAzeroInstance) -> Self {
-        dex.contract.address().clone()
+    fn from(wazero: &'a WAzeroInstance) -> Self {
+        wazero.contract.address().clone()
     }
 }
