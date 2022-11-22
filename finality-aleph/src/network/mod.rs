@@ -37,8 +37,7 @@ pub use split::{split, Split};
 #[cfg(test)]
 pub mod testing {
     pub use super::manager::{
-        Authentication, DataInSession, DiscoveryMessage, NetworkData, SessionHandler,
-        VersionedAuthentication,
+        Authentication, DataInSession, DiscoveryMessage, SessionHandler, VersionedAuthentication,
     };
 }
 
@@ -70,13 +69,9 @@ pub trait Multiaddress: Debug + Hash + Codec + Clone + Eq + Send + Sync {
     fn add_matching_peer_id(self, peer_id: Self::PeerId) -> Option<Self>;
 }
 
-/// The Generic protocol is used for validator discovery.
-/// The Validator protocol is used for validator-specific messages, i.e. ones needed for
-/// finalization.
+/// The Authentication protocol is used for validator discovery.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Protocol {
-    Generic,
-    Validator,
     Authentication,
 }
 
@@ -93,26 +88,26 @@ pub trait NetworkSender: Send + Sync + 'static {
 }
 
 #[derive(Clone)]
-pub enum Event<M: Multiaddress> {
+pub enum Event<M, P> {
     Connected(M),
-    Disconnected(M::PeerId),
-    StreamOpened(M::PeerId, Protocol),
-    StreamClosed(M::PeerId, Protocol),
+    Disconnected(P),
+    StreamOpened(P, Protocol),
+    StreamClosed(P, Protocol),
     Messages(Vec<(Protocol, Bytes)>),
 }
 
 #[async_trait]
-pub trait EventStream<M: Multiaddress> {
-    async fn next_event(&mut self) -> Option<Event<M>>;
+pub trait EventStream<M, P> {
+    async fn next_event(&mut self) -> Option<Event<M, P>>;
 }
 
 /// Abstraction over a network.
 pub trait Network: Clone + Send + Sync + 'static {
     type SenderError: std::error::Error;
     type NetworkSender: NetworkSender;
-    type PeerId: PeerId;
-    type Multiaddress: Multiaddress<PeerId = Self::PeerId>;
-    type EventStream: EventStream<Self::Multiaddress>;
+    type PeerId: Clone + Debug + Eq + Hash + Send;
+    type Multiaddress: Debug + Eq + Hash;
+    type EventStream: EventStream<Self::Multiaddress, Self::PeerId>;
 
     /// Returns a stream of events representing what happens on the network.
     fn event_stream(&self) -> Self::EventStream;
@@ -160,14 +155,6 @@ pub trait RequestBlocks<B: Block>: Clone + Send + Sync + 'static {
     fn is_major_syncing(&self) -> bool;
 }
 
-/// What do do with a specific piece of data.
-/// Note that broadcast does not specify the protocol, as we only broadcast Generic messages in this sense.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum DataCommand<PID: PeerId> {
-    Broadcast,
-    SendTo(PID, Protocol),
-}
-
 /// Commands for manipulating the reserved peers set.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ConnectionCommand<M: Multiaddress> {
@@ -185,6 +172,9 @@ pub enum SendError {
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
 impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
+
+// In practice D: Data and P: PeerId, but we cannot require that in type aliases.
+type AddressedData<D, P> = (D, P);
 
 /// A generic interface for sending and receiving data.
 #[async_trait::async_trait]

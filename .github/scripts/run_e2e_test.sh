@@ -59,7 +59,7 @@ function set_randomized_test_params {
 
 ARGS=(
   --network "container:Node0"
-  -e NODE_URL="127.0.0.1:9943"
+  -e NODE_URL="ws://127.0.0.1:9943"
   -e RUST_LOG=info
 )
 
@@ -101,10 +101,14 @@ fi
 
 if [[ -n "${UPGRADE_VERSION:-}" && -n "${UPGRADE_SESSION:-}" && -n "${UPGRADE_FINALIZATION_WAIT_SESSIONS:-}" ]]; then
     ARGS+=(
-        -e "${UPGRADE_VERSION}"
-        -e "${UPGRADE_SESSION}"
-        -e "${UPGRADE_FINALIZATION_WAIT_SESSIONS}"
+        -e UPGRADE_VERSION
+        -e UPGRADE_SESSION
+        -e UPGRADE_FINALIZATION_WAIT_SESSIONS
     )
+fi
+
+if [[ -n "${ONLY_LEGACY:-}" ]]; then
+    ARGS+=(-e ONLY_LEGACY)
 fi
 
 docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest

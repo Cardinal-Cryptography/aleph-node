@@ -52,7 +52,7 @@ pub type Authentication<M> = (AuthData<M>, Signature);
 /// The order of the data and session_id is fixed in encode and the decode expects it to be data, session_id.
 /// Since data is versioned, i.e. it's encoding starts with a version number in the standardized way,
 /// this will allow us to retrofit versioning here if we ever need to change this structure.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DataInSession<D: Data> {
     pub data: D,
     pub session_id: SessionId,
@@ -76,17 +76,4 @@ impl<D: Data> Encode for DataInSession<D> {
         self.data.encode_to(dest);
         self.session_id.encode_to(dest);
     }
-}
-
-impl<D: Data, M: Multiaddress> From<DataInSession<D>> for NetworkData<D, M> {
-    fn from(data: DataInSession<D>) -> Self {
-        NetworkData::Data(data.data, data.session_id)
-    }
-}
-
-/// The data that should be sent to the network service.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
-pub enum NetworkData<D: Data, M: Multiaddress> {
-    Meta(DiscoveryMessage<M>),
-    Data(D, SessionId),
 }
