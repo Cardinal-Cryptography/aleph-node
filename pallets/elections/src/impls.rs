@@ -12,7 +12,7 @@ use sp_std::{
 };
 
 use crate::{
-    traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
+    traits::{EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler},
     BanConfig, Banned, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
     NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
     UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
@@ -352,6 +352,7 @@ where
         let start: EraIndex = T::EraInfoProvider::current_era()
             .unwrap_or(0)
             .saturating_add(1);
+        T::ValidatorExtractor::remove_validator(validator);
         Banned::<T>::insert(validator, BanInfo { reason, start });
     }
 
