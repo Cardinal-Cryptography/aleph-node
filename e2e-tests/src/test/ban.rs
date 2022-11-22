@@ -292,18 +292,18 @@ pub async fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
     let ban_period = 2;
     let test_non_reserved_validators = vec![];
     root_connection
-        .set_election_openness(ElectionOpenness::Permissionless, TxStatus::InBlock)
-        .await?;
-    root_connection
-        .set_ban_config(None, None, None, Some(ban_period), TxStatus::InBlock)
-        .await?;
-    root_connection
         .change_validators(
             Some(reserved_validators),
             Some(test_non_reserved_validators),
             Some(seats),
             TxStatus::InBlock,
         )
+        .await?;
+    root_connection
+        .set_election_openness(ElectionOpenness::Permissionless, TxStatus::InBlock)
+        .await?;
+    root_connection
+        .set_ban_config(None, None, None, Some(ban_period), TxStatus::InBlock)
         .await?;
     root_connection
         .ban_from_committee(validator_to_ban.clone(), vec![], TxStatus::InBlock)
