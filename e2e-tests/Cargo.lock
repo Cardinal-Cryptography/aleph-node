@@ -60,6 +60,7 @@ dependencies = [
  "futures",
  "hex",
  "log",
+ "once_cell",
  "pallet-balances",
  "pallet-elections",
  "pallet-staking",
@@ -85,6 +86,7 @@ dependencies = [
  "hex",
  "ink_metadata",
  "log",
+ "pallet-contracts-primitives",
  "parity-scale-codec",
  "primitives",
  "serde",
@@ -2056,9 +2058,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "os_str_bytes"
-version = "6.4.0"
+version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5bf27447411e9ee3ff51186bf7a08e16c341efdde93f4d823e8844429bed7e"
+checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 
 [[package]]
 name = "pallet-authorship"
@@ -2086,6 +2088,21 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+]
+
+[[package]]
+name = "pallet-contracts-primitives"
+version = "6.0.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "bitflags",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
+ "sp-rpc",
  "sp-runtime 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
  "sp-std 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
 ]
@@ -3474,6 +3491,16 @@ dependencies = [
  "backtrace",
  "lazy_static",
  "regex",
+]
+
+[[package]]
+name = "sp-rpc"
+version = "6.0.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28#5e8b6fa2130236497878e53c169e41f1f7871e6b"
+dependencies = [
+ "rustc-hash",
+ "serde",
+ "sp-core 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.28)",
 ]
 
 [[package]]

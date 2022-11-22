@@ -3,9 +3,11 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus},
 };
 
-use crate::config::Config;
+use crate::config::config;
 
-pub async fn finalization(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn finalization() -> anyhow::Result<()> {
+    let config = config();
     let connection = config.create_root_connection().await;
 
     let finalized = connection.connection.get_finalized_block_hash().await;
@@ -18,5 +20,6 @@ pub async fn finalization(config: &Config) -> anyhow::Result<()> {
         .connection
         .wait_for_block(|n| n > finalized_number, BlockStatus::Finalized)
         .await;
+
     Ok(())
 }
