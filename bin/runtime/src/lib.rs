@@ -955,19 +955,6 @@ impl_runtime_apis! {
         }
 
     }
-
-    #[cfg(feature = "try-runtime")]
-    impl frame_try_runtime::TryRuntime<Block> for Runtime {
-        fn on_runtime_upgrade() -> (frame_support::weights::Weight, frame_support::weights::Weight) {
-            log::info!(target: "aleph-runtime", "try-runtime::on_runtime_upgrade");
-            let weight = Executive::try_runtime_upgrade().unwrap();
-            (weight, BlockWeights::get().max_block)
-        }
-
-        fn execute_block_no_check(block: Block) -> frame_support::weights::Weight {
-            Executive::execute_block_no_check(block)
-        }
-    }
 }
 
 #[cfg(test)]
