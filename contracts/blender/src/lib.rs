@@ -5,7 +5,6 @@ use ink_storage::Mapping;
 use snarcos_extension::{ProvingSystem, VerificationKeyIdentifier};
 
 mod contract;
-mod crypto;
 mod error;
 
 type Scalar = u64;
