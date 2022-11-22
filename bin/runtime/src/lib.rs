@@ -337,6 +337,7 @@ impl pallet_elections::Config for Runtime {
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
     type ValidatorRewardsHandler = Staking;
+    type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
 }
 
