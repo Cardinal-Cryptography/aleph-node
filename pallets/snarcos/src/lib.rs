@@ -142,10 +142,11 @@ pub mod pallet {
                 key.len() <= T::MaximumVerificationKeyLength::get() as usize,
                 Error::<T>::VerificationKeyTooLong
             );
-            ensure!(
-                !VerificationKeys::<T>::contains_key(identifier),
-                Error::<T>::IdentifierAlreadyInUse
-            );
+            // NOTE: disabled for hackathon
+            // ensure!(
+            //     !VerificationKeys::<T>::contains_key(identifier),
+            //     Error::<T>::IdentifierAlreadyInUse
+            // );
 
             VerificationKeys::<T>::insert(
                 identifier,
