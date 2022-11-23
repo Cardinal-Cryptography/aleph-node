@@ -1,8 +1,8 @@
-use std::{fmt, marker::PhantomData, time::Instant};
+use std::{sync::Arc, fmt, marker::PhantomData, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::{backend::Backend, HeaderBackend};
+use sc_client_api::{backend::Backend, blockchain::Backend as _, HeaderBackend};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
 
@@ -72,7 +72,7 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, BB>
+pub struct BlockRequester<B, RB, S, F, V, BE>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
@@ -81,7 +81,7 @@ where
     V: Verifier<B>,
 {
     block_requester: RB,
-    backend: BB,
+    backend: Arc<BE>,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -90,18 +90,18 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
+impl<B, RB, S, F, V, BE> BlockRequester<B, RB, S, F, V, BE>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BB: Backend<B>,
+    BE: Backend<B>,
 {
     pub fn new(
         block_requester: RB,
-        backend: BB,
+        backend: Arc<BE>,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -171,33 +171,9 @@ where
     pub fn request_justification(&mut self, num: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                let finalized_hash = self.backend.blockchain().info().finalized_hash;
-
-                let best_number = self.backend.blockchain().info().best_number;
-                let finalized_number = self.backend.blockchain().info().finalized_number;
-                let delay = if self.min_allowed_delay < (best_number - finalized_number) {
-                    self.min_allowed_delay
-                } else {
-                    best_number - finalized_number
-                };
-                let num = if num > best_number && best_number > self.min_allowed_delay {
-                    best_number - delay
-                } else {
-                    num
-                };
-
-                debug!(target: "aleph-justification", "Trying to request block {:?}", num);
-                self.request_status.save_block_number(num);
-
-                if let Ok(Some(header)) = self.backend.blockchain().header(BlockId::Number(num)) {
-                    self.request_status.insert_hash(header.hash());
-                    debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
-                    self.justification_request_scheduler.on_request_sent();
-                    self.block_requester
-                        .request_justification(&header.hash(), *header.number());
-                } else {
-                    debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", num);
-                }
+                self.leaves(num)
+                    .into_iter()
+                    .for_each(|hash| self.request(hash));
             }
             SchedulerActions::ClearQueue => {
                 debug!(target: "aleph-justification", "Clearing justification request queue");
@@ -209,5 +185,70 @@ where
 
     pub fn finalized_number(&self) -> NumberFor<B> {
         self.backend.blockchain().info().finalized_number
+    }
+
+    fn request(&mut self, header: <B as BlockT>::Header) {
+        let number = *header.number();
+        let hash = header.hash();
+
+        debug!(target: "aleph-justification", "Trying to request block {:?} {:?}", number, hash);
+        self.request_status.save_block_number(number);
+
+        self.request_status.insert_hash(hash);
+        debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", number, hash);
+        self.justification_request_scheduler.on_request_sent();
+        self.block_requester.request_justification(&hash, number);
+    }
+
+    fn leaves(&self, limit: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
+        let blockchain_backend = self.backend.blockchain();
+        let finalized_hash = blockchain_backend.info().finalized_hash;
+        let finalized_number = blockchain_backend.info().finalized_number;
+
+        let ancestor = |hash: <B as BlockT>::Hash| {
+            blockchain_backend
+                .header(BlockId::Hash(hash))
+                .ok()
+                .flatten()
+                .map(|header| {
+                    let number = *header.number();
+                    let mut ancestor = header;
+                    let mut delay = if self.min_allowed_delay < (number - finalized_number) {
+                        self.min_allowed_delay
+                    } else {
+                        number - finalized_number
+                    };
+                    while delay > 0u32.into() {
+                        let ancestor_hash = *ancestor.parent_hash();
+                        if let Ok(Some(header)) =
+                            blockchain_backend.header(BlockId::Hash(ancestor_hash))
+                        {
+                            ancestor = header;
+                            delay -= 1u32.into();
+                        } else {
+                            break;
+                        }
+                    }
+                    ancestor
+                })
+        };
+
+        let leaves = {
+            let lock = self.backend.get_import_lock();
+            blockchain_backend
+                .children(finalized_hash)
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|hash| {
+                    blockchain_backend
+                        .best_containing(*hash, Some(limit), lock)
+                        .ok()
+                        .flatten()
+                        .and_then(ancestor)
+                })
+                .collect()
+        };
+
+        leaves
     }
 }
