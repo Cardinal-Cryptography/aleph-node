@@ -50,11 +50,11 @@ pub mod marketplace_v2 {
 
     // Storage struct with different order of fields - for upgrade testing 
     // Also there is new field (migration_performed) added
-    //const STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV2);
     const STORAGE_KEY: u32 = 201;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(STORAGE_KEY)]
     pub struct MarketplaceDataV2 {
+        migration_performed: bool,
         sale_multiplier: Balance,
         min_price: Balance,
         current_start_block: BlockNumber,
@@ -64,7 +64,6 @@ pub mod marketplace_v2 {
         ticket_token: AccountId,
         total_proceeds: Balance,
         new_field: AccountId,
-        migration_performed: bool,
     }
 
     #[ink(storage)]
@@ -115,9 +114,8 @@ pub mod marketplace_v2 {
     }
 
     impl Marketplace {
-
         /// This should never be called, as only code hash of this contract is required
-        /// to perform an upgrade (???)
+        /// to perform an upgrade
         #[ink(constructor)]
         pub fn new() -> Self {
             Self::ensure_role(Self::initializer())
@@ -303,6 +301,12 @@ pub mod marketplace_v2 {
             self.data.migration_performed = true;
 
             Ok(())
+        }
+
+        /// Checks if migration was already performed
+        #[ink(message)]
+        pub fn migration_performed(&self) -> bool {
+            return self.data.migration_performed
         }
 
         fn current_price(&self) -> Balance {

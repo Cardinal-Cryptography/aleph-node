@@ -63,6 +63,7 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
    
     // As for now, it will work even if we do not set_code here, which is pretty sad for testing
     // (Old code can still access it's memory)
+    
     let set_code_result = marketplace.set_code(&sign(&conn, &authority), &config.test_case_params.marketplace_v2_code_hash.as_ref().expect("New code's code_hash must be specified."));
     info!("Trying to set code actual hash_code: {:?}", set_code_result);
     assert!(set_code_result.is_ok());
@@ -78,6 +79,13 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
     let migration_result = marketplace.migrate(&sign(&conn, &authority));
     info!("Trying to perform migration after changing the metadata: {:?}", migration_result);
     assert!(migration_result.is_ok());
+
+    // Check if migration was actually performed
+    // 
+    // Will fail when:
+    // - Upgrade was not successful/not performed, or
+    // - Migration was not successful/not performed
+    assert!(matches!(marketplace.migration_performed(&sign(&conn, &authority)), Ok(true)));
 
     // Upgrade ends
 

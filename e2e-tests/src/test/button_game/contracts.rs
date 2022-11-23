@@ -171,9 +171,14 @@ impl MarketplaceInstance {
         self.contract.contract_exec(conn, "set_code", &[code_hash])
     }
 
-    // Only to be used after the upgrade
     pub fn migrate(&self, conn: &SignedConnection) -> Result<()> {
         self.contract.contract_exec0(conn, "migrate")
+    }
+
+    pub fn migration_performed(&self, conn: &SignedConnection) -> Result<bool> {
+        self.contract
+            .contract_read0(conn, "migration_performed")?
+            .try_into()
     }
 
     pub fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
