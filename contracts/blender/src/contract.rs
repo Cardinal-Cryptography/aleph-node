@@ -240,7 +240,6 @@ mod blender {
         ///
         /// For owner use only.
         #[ink(message, selector = 10)]
-        #[modifiers(only_owner)]
         pub fn register_new_token(
             &mut self,
             token_id: TokenId,
