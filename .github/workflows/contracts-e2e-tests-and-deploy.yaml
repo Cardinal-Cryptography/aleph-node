@@ -7,9 +7,6 @@ on:
       - opened
       - created
   push:
-    paths:
-      - 'contracts/**'
-      - '.github/workflows/contracts-e2e-tests-and-deploy.yaml'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
