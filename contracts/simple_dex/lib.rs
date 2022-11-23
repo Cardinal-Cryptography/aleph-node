@@ -11,7 +11,7 @@ use ink_lang as ink;
 /// Swaps can be performed between all pairs in the pool whitelisted for trading
 /// Liquidity provisioning is limited to designated accounts only and works as deposits / withdrawals of arbitrary composition.
 
-#[openbrush::contract]
+#[ink::contract]
 mod simple_dex {
 
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
@@ -21,7 +21,6 @@ mod simple_dex {
     use ink_env::{
         call::{build_call, Call, ExecutionInput, Selector},
         CallFlags, DefaultEnvironment, Error as InkEnvError,
-        set_code_hash,
     };
     use ink_lang::{
         codegen::{initialize_contract, EmitEvent},
@@ -104,9 +103,6 @@ mod simple_dex {
         swap_fee_percentage: u128,
     }
 
-    /*const STORAGE_KEY: u32 = openbrush::storage_unique_key!(SimpleDex);
-    #[derive(Debug)]
-    #[openbrush::upgradeable_storage(STORAGE_KEY)]*/
     #[ink(storage)]
     #[derive(SpreadAllocate)]
     pub struct SimpleDex {
@@ -362,20 +358,6 @@ mod simple_dex {
                 .own_code_hash()
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
-
-        /// Sets new code hash, updates contract code
-        /*#[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), DexError> {
-            let this = self.env().account_id();
-            let caller = self.env().caller();
-            self.check_role(caller, Role::Owner(this))?;
-
-            if set_code_hash(&code_hash).is_err() {
-                return Err(DexError::UpgradeFailed);
-            };
-
-            Ok(())
-        }*/
 
         /// Swap trade output given a curve with equal token weights
         ///
