@@ -252,7 +252,8 @@ mod blender {
             token_id: TokenId,
             token_address: AccountId,
         ) -> Result<()> {
-            let _ = self.registered_tokens
+            let _ = self
+                .registered_tokens
                 .contains(token_id)
                 .not()
                 .then(|| self.registered_tokens.insert(token_id, &token_address))
