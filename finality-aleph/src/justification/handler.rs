@@ -1,12 +1,9 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error};
-use sc_client_api::HeaderBackend;
+use sc_client_api::backend::Backend;
 use sp_api::BlockT;
 use sp_runtime::traits::Header;
 use tokio::time::timeout;
@@ -20,36 +17,36 @@ use crate::{
     network, Metrics, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, C, S, SI, F>
+pub struct JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     V: Verifier<B>,
     RB: network::RequestBlocks<B> + 'static,
-    C: HeaderBackend<B> + Send + Sync + 'static,
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
+    BB: Backend<B> + Send + Sync + 'static,
 {
     session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, C, S, F, V>,
+    block_requester: BlockRequester<B, RB, S, F, V, BB>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, C, S, SI, F> JustificationHandler<B, V, RB, C, S, SI, F>
+impl<B, V, RB, S, SI, F, BB> JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     V: Verifier<B>,
     RB: network::RequestBlocks<B> + 'static,
-    C: HeaderBackend<B> + Send + Sync + 'static,
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
+    BB: Backend<B> + Send + Sync + 'static,
 {
     pub fn new(
         session_info_provider: SI,
         block_requester: RB,
-        client: Arc<C>,
+        backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -59,7 +56,7 @@ where
             session_info_provider,
             block_requester: BlockRequester::new(
                 block_requester,
-                client,
+                backend,
                 finalizer,
                 justification_request_scheduler,
                 metrics,

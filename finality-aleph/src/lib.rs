@@ -242,9 +242,10 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
+    pub backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,

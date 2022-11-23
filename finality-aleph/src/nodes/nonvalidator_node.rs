@@ -1,5 +1,5 @@
 use log::{debug, error};
-use sc_client_api::Backend;
+use sc_client_api::backend::Backend;
 use sc_network::ExHashT;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
@@ -10,7 +10,7 @@ use crate::{
     AlephConfig,
 };
 
-pub async fn run_nonvalidator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
+pub async fn run_nonvalidator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BE>)
 where
     B: Block,
     H: ExHashT,
@@ -22,6 +22,7 @@ where
     let AlephConfig {
         network,
         client,
+        backend,
         metrics,
         session_period,
         millisecs_per_block,
@@ -42,6 +43,7 @@ where
         justification_rx,
         network,
         client,
+        backend,
         metrics,
         session_period,
         millisecs_per_block,

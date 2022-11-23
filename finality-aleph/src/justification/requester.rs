@@ -1,8 +1,8 @@
-use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::HeaderBackend;
+use sc_client_api::{backend::Backend, HeaderBackend};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::Header;
 
@@ -72,17 +72,16 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, C, S, F, V>
+pub struct BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
-    C: HeaderBackend<B> + Send + Sync + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
 {
     block_requester: RB,
-    client: Arc<C>,
+    backend: BB,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -91,18 +90,18 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, C, S, F, V> BlockRequester<B, RB, C, S, F, V>
+impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
-    C: HeaderBackend<B> + Send + Sync + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
+    BB: Backend<B>,
 {
     pub fn new(
         block_requester: RB,
-        client: Arc<C>,
+        backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -110,7 +109,7 @@ where
     ) -> Self {
         BlockRequester {
             block_requester,
-            client,
+            backend,
             finalizer,
             justification_request_scheduler,
             metrics,
@@ -172,10 +171,17 @@ where
     pub fn request_justification(&mut self, num: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                let num = if num > self.client.info().best_number
-                    && self.client.info().best_number > self.min_allowed_delay
-                {
-                    self.client.info().best_number - self.min_allowed_delay
+                let finalized_hash = self.backend.blockchain().info().finalized_hash;
+
+                let best_number = self.backend.blockchain().info().best_number;
+                let finalized_number = self.backend.blockchain().info().finalized_number;
+                let delay = if self.min_allowed_delay < (best_number - finalized_number) {
+                    self.min_allowed_delay
+                } else {
+                    best_number - finalized_number
+                };
+                let num = if num > best_number && best_number > self.min_allowed_delay {
+                    best_number - delay
                 } else {
                     num
                 };
@@ -183,7 +189,7 @@ where
                 debug!(target: "aleph-justification", "Trying to request block {:?}", num);
                 self.request_status.save_block_number(num);
 
-                if let Ok(Some(header)) = self.client.header(BlockId::Number(num)) {
+                if let Ok(Some(header)) = self.backend.blockchain().header(BlockId::Number(num)) {
                     self.request_status.insert_hash(header.hash());
                     debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", num, header.hash());
                     self.justification_request_scheduler.on_request_sent();
@@ -202,6 +208,6 @@ where
     }
 
     pub fn finalized_number(&self) -> NumberFor<B> {
-        self.client.info().finalized_number
+        self.backend.blockchain().info().finalized_number
     }
 }

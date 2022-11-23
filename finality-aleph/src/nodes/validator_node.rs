@@ -3,7 +3,7 @@ use std::{marker::PhantomData, sync::Arc};
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
-use sc_client_api::Backend;
+use sc_client_api::backend::Backend;
 use sc_network::ExHashT;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
@@ -37,7 +37,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
+pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BE>)
 where
     B: Block,
     H: ExHashT,
@@ -49,6 +49,7 @@ where
     let AlephConfig {
         network,
         client,
+        backend,
         select_chain,
         spawn_handle,
         keystore,
@@ -106,6 +107,7 @@ where
             justification_rx,
             network: network.clone(),
             client: client.clone(),
+            backend,
             metrics: metrics.clone(),
             session_period,
             millisecs_per_block,
