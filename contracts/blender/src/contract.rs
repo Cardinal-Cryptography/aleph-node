@@ -55,6 +55,13 @@ mod blender {
         new_note: Note,
     }
 
+    #[ink(event)]
+    pub struct TokenRegistered {
+        #[ink(topic)]
+        token_id: TokenId,
+        token_address: AccountId,
+    }
+
     type Result<T> = core::result::Result<T, BlenderError>;
     type Event = <Blender as ContractEventBase>::Type;
 
@@ -245,11 +252,19 @@ mod blender {
             token_id: TokenId,
             token_address: AccountId,
         ) -> Result<()> {
-            self.registered_tokens
+            let _ = self.registered_tokens
                 .contains(token_id)
                 .not()
                 .then(|| self.registered_tokens.insert(token_id, &token_address))
-                .ok_or(BlenderError::TokenIdAlreadyRegistered)
+                .ok_or(BlenderError::TokenIdAlreadyRegistered)?;
+            Self::emit_event(
+                self.env(),
+                Event::TokenRegistered(TokenRegistered {
+                    token_id,
+                    token_address,
+                }),
+            );
+            Ok(())
         }
     }
 
