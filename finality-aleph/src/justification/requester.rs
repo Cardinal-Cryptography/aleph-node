@@ -249,7 +249,7 @@ where
         // We know that top_wanted >= finalized_number, so
         // - if top_wanted == finalized_number, then we don't want to request it
         // - if top_wanted == finalized_number + 1, then we already requested it
-        if top_wanted > finalized_number + NumberFor::<B>::one() {
+        if top_wanted <= finalized_number + NumberFor::<B>::one() {
             return;
         }
         match self
