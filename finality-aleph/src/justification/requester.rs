@@ -1,4 +1,4 @@
-use std::{fmt, iter, marker::PhantomData, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
@@ -206,11 +206,11 @@ where
         self.backend.blockchain().info().finalized_number
     }
 
-    fn do_request(&mut self, hn: &BlockHashNum<B>) {
+    fn do_request(&mut self, hash: &<B as BlockT>::Hash, num: NumberFor<B>) {
         debug!(target: "aleph-justification",
-               "We have block {:?} with hash {:?}. Requesting justification.", hn.num, hn.hash);
+               "We have block {:?} with hash {:?}. Requesting justification.", num, hash);
         self.justification_request_scheduler.on_request_sent();
-        self.block_requester.request_justification(&hn.hash, hn.num);
+        self.block_requester.request_justification(hash, num);
     }
 
     // We request justifications for all the children of last finalized block.
@@ -222,7 +222,9 @@ where
         let finalized_hash = info.finalized_hash;
         let finalized_number = info.finalized_number;
 
-        let children = self.backend.blockchain()
+        let children = self
+            .backend
+            .blockchain()
             .children(finalized_hash)
             .unwrap_or_default();
 
@@ -231,11 +233,9 @@ where
                 .save_children(finalized_hash, children.len());
         }
 
-        children
-            .into_iter()
-            .zip(iter::once(finalized_number))
-            .map(Into::into)
-            .for_each(|hn| self.do_request(&hn));
+        for child in &children {
+            self.do_request(child, finalized_number);
+        }
     }
 
     // This request is important in the case when we are far behind and want to catch up.
@@ -252,11 +252,16 @@ where
         if top_wanted > finalized_number + NumberFor::<B>::one() {
             return;
         }
-        match self.backend.blockchain().header(BlockId::Number(top_wanted)) {
+        match self
+            .backend
+            .blockchain()
+            .header(BlockId::Number(top_wanted))
+        {
             Ok(Some(header)) => {
-                let hn: BlockHashNum<B> = (header.hash(), *header.number()).into();
-                self.do_request(&hn);
-                self.request_status.save_block(hn);
+                let hash = header.hash();
+                let num = *header.number();
+                self.do_request(&hash, num);
+                self.request_status.save_block((hash, num).into());
             }
             Ok(None) => {
                 warn!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
