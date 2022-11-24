@@ -14,6 +14,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
 });
 
 pub fn config() -> &'static Config {
+    let _ = env_logger::builder().is_test(true).try_init();
     &GLOBAL_CONFIG
 }
 
