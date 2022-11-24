@@ -206,7 +206,7 @@ where
         self.backend.blockchain().info().finalized_number
     }
 
-    fn do_request(&mut self, hn: BlockHashNum<B>) {
+    fn do_request(&mut self, hn: &BlockHashNum<B>) {
         debug!(target: "aleph-justification",
                "We have block {:?} with hash {:?}. Requesting justification.", hn.num, hn.hash);
         self.justification_request_scheduler.on_request_sent();
@@ -222,9 +222,7 @@ where
         let finalized_hash = info.finalized_hash;
         let finalized_number = info.finalized_number;
 
-        let children = self
-            .backend
-            .blockchain()
+        let children = self.backend.blockchain()
             .children(finalized_hash)
             .unwrap_or_default();
 
@@ -237,7 +235,7 @@ where
             .into_iter()
             .zip(iter::once(finalized_number))
             .map(Into::into)
-            .for_each(|hn| self.do_request(hn));
+            .for_each(|hn| self.do_request(&hn));
     }
 
     // This request is important in the case when we are far behind and want to catch up.
@@ -254,14 +252,11 @@ where
         if top_wanted > finalized_number + NumberFor::<B>::one() {
             return;
         }
-        match self
-            .backend
-            .blockchain()
-            .header(BlockId::Number(top_wanted))
-        {
+        match self.backend.blockchain().header(BlockId::Number(top_wanted)) {
             Ok(Some(header)) => {
-                self.request_status
-                    .save_block((header.hash(), *header.number()).into());
+                let hn: BlockHashNum<B> = (header.hash(), *header.number()).into();
+                self.do_request(&hn);
+                self.request_status.save_block(hn);
             }
             Ok(None) => {
                 warn!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
