@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::{backend::Backend, blockchain::Backend as _, HeaderBackend};
+use sc_client_api::{blockchain::Backend as BlockchainBackend, HeaderBackend};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::{Header, One};
 
@@ -72,17 +72,17 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, BE>
+pub struct BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BE: Backend<B>,
+    BB: BlockchainBackend<B>,
 {
     block_requester: RB,
-    backend: Arc<BE>,
+    backend: Arc<BB>,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -90,18 +90,18 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, BE> BlockRequester<B, RB, S, F, V, BE>
+impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BE: Backend<B>,
+    BB: BlockchainBackend<B>,
 {
     pub fn new(
         block_requester: RB,
-        backend: Arc<BE>,
+        backend: Arc<BB>,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -182,11 +182,11 @@ where
     }
 
     pub fn finalized_number(&self) -> NumberFor<B> {
-        self.backend.blockchain().info().finalized_number
+        self.backend.info().finalized_number
     }
 
     fn request(&mut self, hash: <B as BlockT>::Hash) {
-        if let Ok(Some(header)) = self.backend.blockchain().header(BlockId::Hash(hash)) {
+        if let Ok(Some(header)) = self.backend.header(BlockId::Hash(hash)) {
             let number = *header.number();
             debug!(target: "aleph-justification", "Trying to request block {:?}", number);
             self.request_status.save_block_number(number);
@@ -207,19 +207,16 @@ where
     // We don't remove the child that it's on the same branch as best since a fork may happen
     // somewhere in between them.
     fn request_targets(&self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Hash> {
-        let blockchain_backend = self.backend.blockchain();
-        let blockchain_info = blockchain_backend.info();
+        let blockchain_info = self.backend.info();
         let finalized_hash = blockchain_info.finalized_hash;
 
-        let mut targets = blockchain_backend
-            .children(finalized_hash)
-            .unwrap_or_default();
+        let mut targets = self.backend.children(finalized_hash).unwrap_or_default();
         let best_number = blockchain_info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
             top_wanted = best_number - NumberFor::<B>::one();
         }
-        match blockchain_backend.hash(top_wanted) {
+        match self.backend.hash(top_wanted) {
             Ok(Some(hash)) => {
                 if !targets.contains(&hash) {
                     targets.push(hash);

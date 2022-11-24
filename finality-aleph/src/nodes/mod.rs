@@ -7,6 +7,7 @@ use aleph_primitives::{AuthorityId, SessionAuthorityData};
 use codec::Encode;
 use log::warn;
 pub use nonvalidator_node::run_nonvalidator_node;
+use sc_client_api::blockchain::Backend as BlockchainBackend;
 use sc_client_api::Backend;
 use sc_network::{ExHashT, NetworkService};
 use sp_runtime::{
@@ -83,10 +84,10 @@ impl<B: Block> Verifier<B> for JustificationVerifier {
     }
 }
 
-struct JustificationParams<B: Block, H: ExHashT, C, BE> {
+struct JustificationParams<B: Block, H: ExHashT, C, BB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
-    pub backend: Arc<BE>,
+    pub backend: Arc<BB>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
@@ -127,8 +128,8 @@ impl<B: Block> SessionInfoProvider<B, JustificationVerifier> for SessionInfoProv
     }
 }
 
-fn setup_justification_handler<B, H, C, BE>(
-    just_params: JustificationParams<B, H, C, BE>,
+fn setup_justification_handler<B, H, C, BB, BE>(
+    just_params: JustificationParams<B, H, C, BB>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,
     impl Future<Output = ()>,
@@ -138,6 +139,7 @@ where
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
+    BB: BlockchainBackend<B> + 'static,
     BE: Backend<B> + 'static,
 {
     let JustificationParams {
