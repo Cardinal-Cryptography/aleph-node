@@ -35,16 +35,16 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
 pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
     secret_key: SK,
-    peer_id: SK::PublicKey,
+    public_key: SK::PublicKey,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
-    trace!(target: "validator-network", "Extending hand to {}.", peer_id);
-    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, peer_id.clone()).await?;
-    info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
+    trace!(target: "validator-network", "Extending hand to {}.", public_key);
+    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, public_key.clone()).await?;
+    info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", public_key);
     let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
         .unbounded_send((
-            peer_id.clone(),
+            public_key.clone(),
             Some(data_for_network),
             ConnectionType::LegacyOutgoing,
         ))
@@ -53,7 +53,7 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     let sending = sending(sender, data_from_user);
     let heartbeat = heartbeat_receiver(receiver);
 
-    debug!(target: "validator-network", "Starting worker for sending to {}.", peer_id);
+    debug!(target: "validator-network", "Starting worker for sending to {}.", public_key);
     loop {
         tokio::select! {
             _ = heartbeat => return Err(ProtocolError::CardiacArrest),
@@ -86,13 +86,13 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: "validator-network", "Waiting for extended hand...");
-    let (sender, receiver, peer_id) = v0_handshake_incoming(stream, secret_key).await?;
-    info!(target: "validator-network", "Incoming handshake with {} finished successfully.", peer_id);
+    let (sender, receiver, public_key) = v0_handshake_incoming(stream, secret_key).await?;
+    info!(target: "validator-network", "Incoming handshake with {} finished successfully.", public_key);
 
     let (tx_exit, mut exit) = mpsc::unbounded();
     result_for_parent
         .unbounded_send((
-            peer_id.clone(),
+            public_key.clone(),
             Some(tx_exit),
             ConnectionType::LegacyIncoming,
         ))
@@ -101,7 +101,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     let receiving = receiving(receiver, data_for_user);
     let heartbeat = heartbeat_sender(sender);
 
-    debug!(target: "validator-network", "Starting worker for receiving from {}.", peer_id);
+    debug!(target: "validator-network", "Starting worker for receiving from {}.", public_key);
     loop {
         tokio::select! {
             _ = heartbeat => return Err(ProtocolError::CardiacArrest),

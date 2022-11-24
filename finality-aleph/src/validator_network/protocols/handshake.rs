@@ -58,15 +58,15 @@ impl<PK: PublicKey> From<ReceiveError> for HandshakeError<PK> {
 /// Handshake challenge. Contains public key of the creator, and a random nonce.
 #[derive(Debug, Clone, Encode, Decode)]
 struct Challenge<PK: PublicKey> {
-    id: PK,
+    public_key: PK,
     nonce: [u8; 32],
 }
 
 impl<PK: PublicKey> Challenge<PK> {
     /// Prepare new challenge that contains ID of the creator.
-    fn new(id: PK) -> Self {
+    fn new(public_key: PK) -> Self {
         let nonce = rand::thread_rng().gen::<[u8; 32]>();
-        Self { id, nonce }
+        Self { public_key, nonce }
     }
 }
 
@@ -74,7 +74,7 @@ impl<PK: PublicKey> Challenge<PK> {
 /// related to the received challenge.
 #[derive(Debug, Clone, Encode, Decode)]
 struct Response<PK: PublicKey> {
-    id: PK,
+    public_key: PK,
     signature: PK::Signature,
 }
 
@@ -87,14 +87,14 @@ impl<PK: PublicKey> Response<PK> {
         challenge: &Challenge<PK>,
     ) -> Self {
         Self {
-            id: secret_key.public_key(),
+            public_key: secret_key.public_key(),
             signature: secret_key.sign(&challenge.encode()).await,
         }
     }
 
     /// Verify the Response sent by the peer.
     fn verify(&self, challenge: &Challenge<PK>) -> bool {
-        self.id.verify(&challenge.encode(), &self.signature)
+        self.public_key.verify(&challenge.encode(), &self.signature)
     }
 }
 
@@ -120,8 +120,8 @@ pub async fn execute_v0_handshake_incoming<SK: SecretKey, S: Splittable>(
         return Err(HandshakeError::SignatureError);
     }
     let (sender, receiver) = stream.split();
-    let peer_id = peer_response.id;
-    Ok((sender, receiver, peer_id))
+    let public_key = peer_response.public_key;
+    Ok((sender, receiver, public_key))
 }
 
 /// Performs the handshake with a peer that we called. We assume that their
@@ -136,12 +136,15 @@ pub async fn execute_v0_handshake_incoming<SK: SecretKey, S: Splittable>(
 pub async fn execute_v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
     stream: S,
     secret_key: SK,
-    peer_id: SK::PublicKey,
+    public_key: SK::PublicKey,
 ) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>> {
     // receive challenge
     let (stream, peer_challenge) = receive_data::<_, Challenge<SK::PublicKey>>(stream).await?;
-    if peer_id != peer_challenge.id {
-        return Err(HandshakeError::ChallengeError(peer_id, peer_challenge.id));
+    if public_key != peer_challenge.public_key {
+        return Err(HandshakeError::ChallengeError(
+            public_key,
+            peer_challenge.public_key,
+        ));
     }
     // send response
     let our_response = Response::new(&secret_key, &peer_challenge).await;
@@ -167,11 +170,11 @@ pub async fn v0_handshake_incoming<SK: SecretKey, S: Splittable>(
 pub async fn v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
     stream: S,
     secret_key: SK,
-    peer_id: SK::PublicKey,
+    public_key: SK::PublicKey,
 ) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>> {
     timeout(
         HANDSHAKE_TIMEOUT,
-        execute_v0_handshake_outgoing(stream, secret_key, peer_id),
+        execute_v0_handshake_outgoing(stream, secret_key, public_key),
     )
     .await
     .map_err(|_| HandshakeError::TimedOut)?
@@ -313,7 +316,7 @@ mod tests {
             let (fake_id, _) = key().await;
             // send response with substituted id
             let mut our_response = Response::new(&authority_pen, &challenge).await;
-            our_response.id = fake_id;
+            our_response.public_key = fake_id;
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;
         }

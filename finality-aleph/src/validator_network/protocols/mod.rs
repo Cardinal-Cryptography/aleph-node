@@ -26,8 +26,8 @@ pub enum ConnectionType {
     LegacyOutgoing,
 }
 
-/// What connections send back to the service after they become established. Starts with a peer id
-/// of the remote node, followed by a channel for sending data to that node, with None if the
+/// What connections send back to the service after they become established. Starts with a public
+/// key of the remote node, followed by a channel for sending data to that node, with None if the
 /// connection was unsuccessful and should be reestablished. Finally a marker for legacy
 /// compatibility.
 pub type ResultForService<PK, D> = (PK, Option<mpsc::UnboundedSender<D>>, ConnectionType);
@@ -118,18 +118,18 @@ impl Protocol {
         &self,
         stream: S,
         secret_key: SK,
-        peer_id: SK::PublicKey,
+        public_key: SK::PublicKey,
         result_for_service: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::outgoing(stream, secret_key, peer_id, result_for_service).await,
+            V0 => v0::outgoing(stream, secret_key, public_key, result_for_service).await,
             V1 => {
                 v1::outgoing(
                     stream,
                     secret_key,
-                    peer_id,
+                    public_key,
                     result_for_service,
                     data_for_user,
                 )

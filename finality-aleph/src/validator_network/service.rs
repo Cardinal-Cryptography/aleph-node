@@ -125,7 +125,7 @@ where
 
     fn spawn_new_outgoing(
         &self,
-        peer_id: SK::PublicKey,
+        public_key: SK::PublicKey,
         addresses: Vec<A>,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     ) {
@@ -136,7 +136,7 @@ where
             .spawn("aleph/validator_network_outgoing", None, async move {
                 outgoing(
                     secret_key,
-                    peer_id,
+                    public_key,
                     dialer,
                     addresses,
                     result_for_parent,
@@ -159,16 +159,16 @@ where
             });
     }
 
-    fn peer_addresses(&self, peer_id: &SK::PublicKey) -> Option<Vec<A>> {
-        match self.legacy_connected.contains(peer_id) {
-            true => self.legacy_manager.peer_addresses(peer_id),
-            false => self.manager.peer_addresses(peer_id),
+    fn peer_addresses(&self, public_key: &SK::PublicKey) -> Option<Vec<A>> {
+        match self.legacy_connected.contains(public_key) {
+            true => self.legacy_manager.peer_addresses(public_key),
+            false => self.manager.peer_addresses(public_key),
         }
     }
 
     fn add_connection(
         &mut self,
-        peer_id: SK::PublicKey,
+        public_key: SK::PublicKey,
         data_for_network: mpsc::UnboundedSender<D>,
         connection_type: ConnectionType,
     ) -> AddResult {
@@ -178,26 +178,30 @@ where
                 // If we are adding a non-legacy connection we want to ensure it's not marked as
                 // such. This should only matter if a peer initially used the legacy protocol but
                 // now upgraded, otherwise this is unnecessary busywork, but what can you do.
-                self.unmark_legacy(&peer_id);
-                self.manager.add_connection(peer_id, data_for_network)
+                self.unmark_legacy(&public_key);
+                self.manager.add_connection(public_key, data_for_network)
             }
-            LegacyIncoming => self.legacy_manager.add_incoming(peer_id, data_for_network),
-            LegacyOutgoing => self.legacy_manager.add_outgoing(peer_id, data_for_network),
+            LegacyIncoming => self
+                .legacy_manager
+                .add_incoming(public_key, data_for_network),
+            LegacyOutgoing => self
+                .legacy_manager
+                .add_outgoing(public_key, data_for_network),
         }
     }
 
     // Mark a peer as legacy and return whether it is the first time we do so.
-    fn mark_legacy(&mut self, peer_id: &SK::PublicKey) -> bool {
-        self.manager.remove_peer(peer_id);
-        self.legacy_connected.insert(peer_id.clone())
+    fn mark_legacy(&mut self, public_key: &SK::PublicKey) -> bool {
+        self.manager.remove_peer(public_key);
+        self.legacy_connected.insert(public_key.clone())
     }
 
     // Unmark a peer as legacy, putting it back in the normal set.
-    fn unmark_legacy(&mut self, peer_id: &SK::PublicKey) {
-        self.legacy_connected.remove(peer_id);
+    fn unmark_legacy(&mut self, public_key: &SK::PublicKey) {
+        self.legacy_connected.remove(public_key);
         // Put it back if we still want to be connected.
-        if let Some(addresses) = self.legacy_manager.peer_addresses(peer_id) {
-            self.manager.add_peer(peer_id.clone(), addresses);
+        if let Some(addresses) = self.legacy_manager.peer_addresses(public_key) {
+            self.manager.add_peer(public_key.clone(), addresses);
         }
     }
 
@@ -205,14 +209,14 @@ where
     // accordingly. Returns whether we should spawn a new connection worker because of that.
     fn check_for_legacy(
         &mut self,
-        peer_id: &SK::PublicKey,
+        public_key: &SK::PublicKey,
         connection_type: ConnectionType,
     ) -> bool {
         use ConnectionType::*;
         match connection_type {
-            LegacyIncoming => self.mark_legacy(peer_id),
+            LegacyIncoming => self.mark_legacy(public_key),
             LegacyOutgoing => {
-                self.mark_legacy(peer_id);
+                self.mark_legacy(public_key);
                 false
             }
             // We don't unmark here, because we always return New when a connection
@@ -239,59 +243,59 @@ where
                 Some(command) = self.commands_from_interface.next() => match command {
                     // register new peer in manager or update its list of addresses if already there
                     // spawn a worker managing outgoing connection if the peer was not known
-                    AddConnection(peer_id, addresses) => {
+                    AddConnection(public_key, addresses) => {
                         // we add all the peers to the legacy manager so we don't lose the
                         // addresses, but only care about its opinion when it turns out we have to
                         // in particular the first time we add a peer we never know whether it
                         // requires legacy connecting, so we only attempt to connect to it if the
                         // new criterion is satisfied, otherwise we wait for it to connect to us
-                        self.legacy_manager.add_peer(peer_id.clone(), addresses.clone());
-                        if self.manager.add_peer(peer_id.clone(), addresses.clone()) {
-                            self.spawn_new_outgoing(peer_id, addresses, result_for_parent.clone());
+                        self.legacy_manager.add_peer(public_key.clone(), addresses.clone());
+                        if self.manager.add_peer(public_key.clone(), addresses.clone()) {
+                            self.spawn_new_outgoing(public_key, addresses, result_for_parent.clone());
                         };
                     },
                     // remove the peer from the manager all workers will be killed automatically, due to closed channels
-                    DelConnection(peer_id) => {
-                        self.manager.remove_peer(&peer_id);
-                        self.legacy_manager.remove_peer(&peer_id);
-                        self.legacy_connected.remove(&peer_id);
+                    DelConnection(public_key) => {
+                        self.manager.remove_peer(&public_key);
+                        self.legacy_manager.remove_peer(&public_key);
+                        self.legacy_connected.remove(&public_key);
                     },
                     // pass the data to the manager
-                    SendData(data, peer_id) => {
-                        match self.legacy_connected.contains(&peer_id) {
-                            true => match self.legacy_manager.send_to(&peer_id, data) {
-                                Ok(_) => trace!(target: "validator-network", "Sending data to {} through legacy.", peer_id),
-                                Err(e) => trace!(target: "validator-network", "Failed sending to {} through legacy: {}", peer_id, e),
+                    SendData(data, public_key) => {
+                        match self.legacy_connected.contains(&public_key) {
+                            true => match self.legacy_manager.send_to(&public_key, data) {
+                                Ok(_) => trace!(target: "validator-network", "Sending data to {} through legacy.", public_key),
+                                Err(e) => trace!(target: "validator-network", "Failed sending to {} through legacy: {}", public_key, e),
                             },
-                            false => match self.manager.send_to(&peer_id, data) {
-                                Ok(_) => trace!(target: "validator-network", "Sending data to {}.", peer_id),
-                                Err(e) => trace!(target: "validator-network", "Failed sending to {}: {}", peer_id, e),
+                            false => match self.manager.send_to(&public_key, data) {
+                                Ok(_) => trace!(target: "validator-network", "Sending data to {}.", public_key),
+                                Err(e) => trace!(target: "validator-network", "Failed sending to {}: {}", public_key, e),
                             },
                         }
                     },
                 },
                 // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
-                Some((peer_id, maybe_data_for_network, connection_type)) = worker_results.next() => {
-                    if self.check_for_legacy(&peer_id, connection_type) {
-                        match self.legacy_manager.peer_addresses(&peer_id) {
-                            Some(addresses) => self.spawn_new_outgoing(peer_id.clone(), addresses, result_for_parent.clone()),
+                Some((public_key, maybe_data_for_network, connection_type)) = worker_results.next() => {
+                    if self.check_for_legacy(&public_key, connection_type) {
+                        match self.legacy_manager.peer_addresses(&public_key) {
+                            Some(addresses) => self.spawn_new_outgoing(public_key.clone(), addresses, result_for_parent.clone()),
                             None => {
                                 // We received a result from a worker we are no longer interested
                                 // in.
-                                self.legacy_connected.remove(&peer_id);
+                                self.legacy_connected.remove(&public_key);
                             },
                         }
                     }
                     use AddResult::*;
                     match maybe_data_for_network {
-                        Some(data_for_network) => match self.add_connection(peer_id.clone(), data_for_network, connection_type) {
-                            Uninterested => warn!(target: "validator-network", "Established connection with peer {} for unknown reasons.", peer_id),
-                            Added => info!(target: "validator-network", "New connection with peer {}.", peer_id),
-                            Replaced => info!(target: "validator-network", "Replaced connection with peer {}.", peer_id),
+                        Some(data_for_network) => match self.add_connection(public_key.clone(), data_for_network, connection_type) {
+                            Uninterested => warn!(target: "validator-network", "Established connection with peer {} for unknown reasons.", public_key),
+                            Added => info!(target: "validator-network", "New connection with peer {}.", public_key),
+                            Replaced => info!(target: "validator-network", "Replaced connection with peer {}.", public_key),
                         },
-                        None => if let Some(addresses) = self.peer_addresses(&peer_id) {
-                            self.spawn_new_outgoing(peer_id, addresses, result_for_parent.clone());
+                        None => if let Some(addresses) = self.peer_addresses(&public_key) {
+                            self.spawn_new_outgoing(public_key, addresses, result_for_parent.clone());
                         }
                     }
                 },

@@ -80,7 +80,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
             let peers = self
                 .both_ways_peers
                 .iter()
-                .map(|authority_id| authority_id.to_short_string())
+                .map(|peer_id| peer_id.to_short_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             write!(
@@ -95,7 +95,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
             let peers = self
                 .incoming_peers
                 .iter()
-                .map(|authority_id| authority_id.to_short_string())
+                .map(|peer_id| peer_id.to_short_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             write!(
@@ -110,7 +110,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
             let peers = self
                 .outgoing_peers
                 .iter()
-                .map(|authority_id| authority_id.to_short_string())
+                .map(|peer_id| peer_id.to_short_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             write!(
@@ -125,7 +125,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
             let peers = self
                 .missing_peers
                 .iter()
-                .map(|authority_id| authority_id.to_short_string())
+                .map(|peer_id| peer_id.to_short_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             write!(f, "missing - {:?} [{}];", self.missing_peers.len(), peers)?;

@@ -89,9 +89,9 @@ impl<PK: PublicKey + PeerId> ManagerStatus<PK> {
     }
 }
 
-fn pretty_authority_id_set<PK: PublicKey + PeerId>(set: &HashSet<PK>) -> String {
+fn pretty_peer_id_set<PK: PublicKey + PeerId>(set: &HashSet<PK>) -> String {
     set.iter()
-        .map(|authority_id| authority_id.to_short_string())
+        .map(|peer_id| peer_id.to_short_string())
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -116,7 +116,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                             f,
                             "have - {:?} [{}]; ",
                             self.incoming_peers.len(),
-                            pretty_authority_id_set(&self.incoming_peers),
+                            pretty_peer_id_set(&self.incoming_peers),
                     )?,
                 }
                 if !self.missing_incoming.is_empty() {
@@ -124,7 +124,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                         f,
                         "missing - {:?} [{}]; ",
                         self.missing_incoming.len(),
-                        pretty_authority_id_set(&self.missing_incoming),
+                        pretty_peer_id_set(&self.missing_incoming),
                     )?;
                 }
             }
@@ -139,7 +139,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                         f,
                         "have - {:?} [{}]; ",
                         self.incoming_peers.len(),
-                        pretty_authority_id_set(&self.outgoing_peers),
+                        pretty_peer_id_set(&self.outgoing_peers),
                     )?;
                 }
                 if !self.missing_outgoing.is_empty() {
@@ -147,7 +147,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                         f,
                         "missing - {:?} [{}]; ",
                         self.missing_incoming.len(),
-                        pretty_authority_id_set(&self.missing_outgoing),
+                        pretty_peer_id_set(&self.missing_outgoing),
                     )?;
                 }
             }
