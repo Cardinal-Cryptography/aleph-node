@@ -179,7 +179,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: finalization
+          test-case: finalization::finalization
         timeout-minutes: 2
 
 
