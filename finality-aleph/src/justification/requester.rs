@@ -232,14 +232,27 @@ where
     // if we are behind.
     // We don't remove the child that it's on the same branch as best since a fork may happen
     // somewhere in between them.
-    fn request_targets(&self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
+    fn request_targets(&mut self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
         let blockchain_backend = self.backend.blockchain();
         let blockchain_info = blockchain_backend.info();
         let finalized_hash = blockchain_info.finalized_hash;
 
         let mut targets = blockchain_backend
             .children(finalized_hash)
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|hash| {
+                if let Ok(Some(header)) = blockchain_backend.header(BlockId::Hash(hash)) {
+                    Some(header)
+                } else {
+                    debug!(target: "aleph-justification",
+                      "Cancelling request for child {:?} of {:?}: no block.", hash, finalized_hash);
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        self.request_status
+            .save_children(finalized_hash, targets.len());
         let best_number = blockchain_info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
