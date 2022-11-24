@@ -1,4 +1,7 @@
-use std::{sync::Arc,time::{Duration, Instant}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
@@ -50,7 +53,7 @@ where
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
-        justification_handler_config: JustificationHandlerConfig<B>,
+        justification_handler_config: JustificationHandlerConfig,
     ) -> Self {
         Self {
             session_info_provider,
@@ -60,7 +63,6 @@ where
                 finalizer,
                 justification_request_scheduler,
                 metrics,
-                justification_handler_config.min_allowed_delay,
             ),
             verifier_timeout: justification_handler_config.verifier_timeout,
             notification_timeout: justification_handler_config.notification_timeout,

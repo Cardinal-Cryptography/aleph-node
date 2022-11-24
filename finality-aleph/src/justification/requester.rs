@@ -1,4 +1,4 @@
-use std::{sync::Arc, fmt, marker::PhantomData, time::Instant};
+use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
@@ -79,13 +79,13 @@ where
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
+    BE: Backend<B>,
 {
     block_requester: RB,
     backend: Arc<BE>,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
-    min_allowed_delay: NumberFor<B>,
     request_status: JustificationRequestStatus<B>,
     _phantom: PhantomData<V>,
 }
@@ -105,7 +105,6 @@ where
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
-        min_allowed_delay: NumberFor<B>,
     ) -> Self {
         BlockRequester {
             block_requester,
@@ -113,7 +112,6 @@ where
             finalizer,
             justification_request_scheduler,
             metrics,
-            min_allowed_delay,
             request_status: JustificationRequestStatus::new(),
             _phantom: PhantomData,
         }
@@ -171,7 +169,7 @@ where
     pub fn request_justification(&mut self, num: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                self.leaves(num)
+                self.request_targets(num)
                     .into_iter()
                     .for_each(|hash| self.request(hash));
             }
@@ -187,68 +185,51 @@ where
         self.backend.blockchain().info().finalized_number
     }
 
-    fn request(&mut self, header: <B as BlockT>::Header) {
-        let number = *header.number();
-        let hash = header.hash();
-
-        debug!(target: "aleph-justification", "Trying to request block {:?} {:?}", number, hash);
-        self.request_status.save_block_number(number);
-
-        self.request_status.insert_hash(hash);
-        debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", number, hash);
-        self.justification_request_scheduler.on_request_sent();
-        self.block_requester.request_justification(&hash, number);
+    fn request(&mut self, hash: <B as BlockT>::Hash) {
+        if let Ok(Some(header)) = self.backend.blockchain().header(BlockId::Hash(hash)) {
+            let number = *header.number();
+            debug!(target: "aleph-justification", "Trying to request block {:?}", number);
+            self.request_status.save_block_number(number);
+            self.request_status.insert_hash(hash);
+            debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", number, header.hash());
+            self.justification_request_scheduler.on_request_sent();
+            self.block_requester.request_justification(&hash, number);
+        } else {
+            debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", hash);
+        }
     }
 
-    fn leaves(&self, limit: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
+    // We request justifications for all the children of last finalized block and a justification
+    // for a block of number num on longest branch.
+    // Assuming that we request at the same pace that finalization is progressing, the former ensures
+    // that we are up to date with finalization. On the other hand, the former enables fast catch up
+    // if we are behind.
+    // We don't remove the child that it's on the same branch as best since a fork may happen
+    // somewhere in between them.
+    fn request_targets(&self, mut num: NumberFor<B>) -> Vec<<B as BlockT>::Hash> {
         let blockchain_backend = self.backend.blockchain();
-        let finalized_hash = blockchain_backend.info().finalized_hash;
-        let finalized_number = blockchain_backend.info().finalized_number;
+        let blockchain_info = blockchain_backend.info();
+        let finalized_hash = blockchain_info.finalized_hash;
 
-        let ancestor = |hash: <B as BlockT>::Hash| {
-            blockchain_backend
-                .header(BlockId::Hash(hash))
-                .ok()
-                .flatten()
-                .map(|header| {
-                    let number = *header.number();
-                    let mut ancestor = header;
-                    let mut delay = if self.min_allowed_delay < (number - finalized_number) {
-                        self.min_allowed_delay
-                    } else {
-                        number - finalized_number
-                    };
-                    while delay > 0u32.into() {
-                        let ancestor_hash = *ancestor.parent_hash();
-                        if let Ok(Some(header)) =
-                            blockchain_backend.header(BlockId::Hash(ancestor_hash))
-                        {
-                            ancestor = header;
-                            delay -= 1u32.into();
-                        } else {
-                            break;
-                        }
-                    }
-                    ancestor
-                })
-        };
+        let mut targets = blockchain_backend
+            .children(finalized_hash)
+            .unwrap_or_default();
+        let best_number = blockchain_info.best_number;
+        if best_number < num {
+            num = best_number;
+        }
+        match blockchain_backend.hash(num) {
+            Ok(Some(hash)) => {
+                targets.push(hash);
+            }
+            Ok(None) => {
+                debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", num);
+            }
+            Err(err) => {
+                debug!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", num, err);
+            }
+        }
 
-        let leaves = {
-            let lock = self.backend.get_import_lock();
-            blockchain_backend
-                .children(finalized_hash)
-                .unwrap_or_default()
-                .iter()
-                .filter_map(|hash| {
-                    blockchain_backend
-                        .best_containing(*hash, Some(limit), lock)
-                        .ok()
-                        .flatten()
-                        .and_then(ancestor)
-                })
-                .collect()
-        };
-
-        leaves
+        targets
     }
 }
