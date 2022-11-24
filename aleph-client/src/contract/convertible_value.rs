@@ -109,22 +109,23 @@ impl TryFrom<ConvertibleValue> for String {
     type Error = anyhow::Error;
 
     fn try_from(value: ConvertibleValue) -> std::result::Result<String, Self::Error> {
-        if let Value::Seq(seq) = value.0 {
-            let mut bytes: Vec<u8> = Vec::with_capacity(seq.len());
-            for el in seq.elems() {
-                if let Value::UInt(byte) = *el {
-                    if byte > u8::MAX as u128 {
-                        bail!("Expected number <= u8::MAX but instead got: {:?}", byte)
-                    }
-                    bytes.push(byte as u8);
-                } else {
-                    bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Value::UInt` but instead got: {:?}", el);
+        let seq = match value.0 {
+            Value::Seq(seq) => seq,
+            _ =>  bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Seq(Value::UInt)` but instead got: {:?}", value),
+        };
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(seq.len());
+        for el in seq.elems() {
+            if let Value::UInt(byte) = *el {
+                if byte > u8::MAX as u128 {
+                    bail!("Expected number <= u8::MAX but instead got: {:?}", byte)
                 }
+                bytes.push(byte as u8);
+            } else {
+                bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Value::UInt` but instead got: {:?}", el);
             }
-            String::from_utf8(bytes).context("Failed parsing bytes to UTF-8 String.")
-        } else {
-            bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Seq(Value::UInt)` but instead got: {:?}", value);
         }
+        String::from_utf8(bytes).context("Failed parsing bytes to UTF-8 String.")
     }
 }
 
@@ -143,34 +144,38 @@ where
     type Error = anyhow::Error;
 
     fn try_from(value: ConvertibleValue) -> std::result::Result<Option<T>, Self::Error> {
-        if let Value::Tuple(tuple) = &value.0 {
-            match tuple.ident() {
-                Some(x) if x == "Some" => {
-                    if tuple.values().count() == 1 {
-                        let item =
-                            ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
-                        return Ok(Some(item));
-                    } else {
-                        bail!(
-                            "Unexpected number of elements in Some(_) variant: {:?}. Expected one.",
-                            &value
-                        );
-                    }
-                }
-                Some(x) if x == "None" => {
-                    if tuple.values().count() == 0 {
-                        return Ok(None);
-                    } else {
-                        bail!(
-                            "Unexpected number of elements in None variant: {:?}. Expected zero.",
-                            &value
-                        );
-                    }
-                }
-                _ => (),
-            }
-        }
+        let tuple = match &value.0 {
+            Value::Tuple(tuple) => tuple,
+            _ => bail!("Expected {:?} to be a Some(_) or None Tuple.", &value),
+        };
 
-        bail!("Expected {:?} to be a Some(_) or None tuple.", &value);
+        match tuple.ident() {
+            Some(x) if x == "Some" => {
+                if tuple.values().count() == 1 {
+                    let item =
+                        ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
+                    Ok(Some(item))
+                } else {
+                    bail!(
+                        "Unexpected number of elements in Some(_) variant: {:?}. Expected one.",
+                        &value
+                    );
+                }
+            }
+            Some(x) if x == "None" => {
+                if tuple.values().count() == 0 {
+                    Ok(None)
+                } else {
+                    bail!(
+                        "Unexpected number of elements in None variant: {:?}. Expected zero.",
+                        &value
+                    );
+                }
+            }
+            _ => bail!(
+                "Expected `.ident()` to be `Some` or `None`, got: {:?}",
+                &tuple
+            ),
+        }
     }
 }
