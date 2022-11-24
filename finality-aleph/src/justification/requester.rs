@@ -228,9 +228,9 @@ where
     // We request justifications for all the children of last finalized block and a justification
     // for a block of number num on longest branch.
     // Assuming that we request at the same pace that finalization is progressing, the former ensures
-    // that we are up to date with finalization. On the other hand, the former enables fast catch up
+    // that we are up to date with finalization. On the other hand, the latter enables fast catch up
     // if we are behind.
-    // We don't remove the child that it's on the same branch as best since a fork may happen
+    // We also request the child that it's on the same branch as top_wanted since a fork may happen
     // somewhere in between them.
     fn request_targets(&mut self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
         let blockchain_backend = self.backend.blockchain();
