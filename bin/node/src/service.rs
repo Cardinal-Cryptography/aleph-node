@@ -283,10 +283,9 @@ pub fn new_authority(
     let backoff_authoring_blocks: Option<()> = None;
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let blockchain_backed = backend.blockchain();
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -349,7 +348,7 @@ pub fn new_authority(
     let aleph_config = AlephConfig {
         network,
         client,
-        blockchain_backend,
+        backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -396,10 +395,9 @@ pub fn new_full(
             .path(),
     );
 
-    let blockchain_backed = backend.blockchain();
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool,
@@ -426,7 +424,7 @@ pub fn new_full(
     let aleph_config = AlephConfig {
         network,
         client,
-        blockchain_backend,
+        backend,
         select_chain,
         session_period,
         millisecs_per_block,
