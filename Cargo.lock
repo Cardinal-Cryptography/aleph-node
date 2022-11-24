@@ -5319,6 +5319,7 @@ name = "pallets-support"
 version = "0.1.2"
 dependencies = [
  "frame-support",
+ "sp-core",
 ]
 
 [[package]]
