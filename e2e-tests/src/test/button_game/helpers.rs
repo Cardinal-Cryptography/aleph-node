@@ -20,7 +20,7 @@ use rand::Rng;
 use sp_core::Pair;
 
 use super::contracts::{
-    ButtonInstance, MarketplaceInstance, PSP22TokenInstance, SimpleDexInstance,
+    ButtonInstance, MarketplaceInstance, PSP22TokenInstance, SimpleDexInstance, WAzeroInstance,
 };
 use crate::Config;
 
@@ -139,10 +139,43 @@ pub(super) struct DexTestContext {
     pub events: BufferedReceiver<Result<ContractEvent>>,
 }
 
+pub(super) struct WAzeroTestContext {
+    pub conn: Connection,
+    /// A random account with some money for fees.
+    pub account: KeyPairWrapper,
+    pub wazero: Arc<WAzeroInstance>,
+    /// A [BufferedReceiver] preconfigured to listen for events of `wazero`.
+    pub events: BufferedReceiver<Result<ContractEvent>>,
+}
+
+pub(super) fn setup_wrapped_azero_test(config: &Config) -> Result<WAzeroTestContext> {
+    let (conn, _authority, account) = basic_test_context(config);
+    let wazero = Arc::new(WAzeroInstance::new(config)?);
+
+    let contract = wazero.clone();
+    let subscription = subscribe_events(&conn)?;
+    let (events_tx, events_rx) = channel();
+
+    thread::spawn(move || {
+        let contract_metadata = vec![contract.as_ref().into()];
+
+        listen_contract_events(subscription, &contract_metadata, None, |event| {
+            let _ = events_tx.send(event);
+        });
+    });
+
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+
+    Ok(WAzeroTestContext {
+        conn,
+        account,
+        wazero,
+        events,
+    })
+}
+
 pub(super) fn setup_dex_test(config: &Config) -> Result<DexTestContext> {
-    let conn = config.get_first_signed_connection().as_connection();
-    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
-    let account = random_account();
+    let (conn, authority, account) = basic_test_context(config);
 
     let dex = Arc::new(SimpleDexInstance::new(config)?);
     let token1 =
@@ -174,7 +207,6 @@ pub(super) fn setup_dex_test(config: &Config) -> Result<DexTestContext> {
     });
 
     let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
-    transfer(&conn, &authority, &account, alephs(100));
 
     Ok(DexTestContext {
         conn,
@@ -202,10 +234,7 @@ pub(super) fn setup_button_test(
     config: &Config,
     button_contract_address: &Option<String>,
 ) -> Result<ButtonTestContext> {
-    let conn = config.get_first_signed_connection().as_connection();
-
-    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
-    let player = random_account();
+    let (conn, authority, player) = basic_test_context(config);
 
     let button = Arc::new(ButtonInstance::new(config, button_contract_address)?);
     let ticket_token = Arc::new(ticket_token(&conn, &button, config)?);
@@ -235,8 +264,6 @@ pub(super) fn setup_button_test(
 
     let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
 
-    transfer(&conn, &authority, &player, alephs(100));
-
     Ok(ButtonTestContext {
         button,
         ticket_token,
@@ -247,6 +274,17 @@ pub(super) fn setup_button_test(
         authority,
         player,
     })
+}
+
+/// Prepares a `(conn, authority, account)` triple with some money in `account` for fees.
+fn basic_test_context(config: &Config) -> (Connection, KeyPairWrapper, KeyPairWrapper) {
+    let conn = config.get_first_signed_connection().as_connection();
+    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
+    let account = random_account();
+
+    transfer(&conn, &authority, &account, alephs(100));
+
+    (conn, authority, account)
 }
 
 /// A receiver where it's possible to wait for messages out of order.

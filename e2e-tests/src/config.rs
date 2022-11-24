@@ -81,9 +81,13 @@ pub struct TestCaseParams {
     #[clap(long)]
     pub the_pressiah_cometh: Option<String>,
 
-    /// Address of the simple dex contract.
+    /// Address of the simple dex contract. Only used by button tests.
     #[clap(long)]
     pub simple_dex: Option<String>,
+
+    /// Address of the wrapped azero contract. Only used by button tests.
+    #[clap(long)]
+    pub wrapped_azero: Option<String>,
 
     /// Path to the button game metadata file. Only used by button tests.
     #[clap(long)]
@@ -104,6 +108,10 @@ pub struct TestCaseParams {
     /// Path to the simple_dex metadata file. Only used by button tests.
     #[clap(long)]
     pub simple_dex_metadata: Option<String>,
+
+    /// Path to wrapped_azero metadata file. Only used by button tests.
+    #[clap(long)]
+    pub wrapped_azero_metadata: Option<String>,
 
     /// Version for the VersionUpgrade test.
     #[clap(long)]
