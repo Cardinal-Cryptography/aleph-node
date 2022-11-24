@@ -5,7 +5,7 @@ use log::{debug, info};
 
 use crate::validator_network::{
     protocols::{protocol, ProtocolError, ProtocolNegotiationError, ResultForService},
-    Data, PrivateKey, PublicKey, Splittable,
+    Data, PublicKey, SecretKey, Splittable,
 };
 
 enum IncomingError<PK: PublicKey> {
@@ -35,17 +35,17 @@ impl<PK: PublicKey> From<ProtocolError<PK>> for IncomingError<PK> {
     }
 }
 
-async fn manage_incoming<PK: PrivateKey, D: Data, S: Splittable>(
-    private_key: PK,
+async fn manage_incoming<SK: SecretKey, D: Data, S: Splittable>(
+    secret_key: SK,
     stream: S,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
-) -> Result<(), IncomingError<PK::PublicKey>> {
+) -> Result<(), IncomingError<SK::PublicKey>> {
     debug!(target: "validator-network", "Performing incoming protocol negotiation.");
     let (stream, protocol) = protocol(stream).await?;
     debug!(target: "validator-network", "Negotiated protocol, running.");
     Ok(protocol
-        .manage_incoming(stream, private_key, result_for_parent, data_for_user)
+        .manage_incoming(stream, secret_key, result_for_parent, data_for_user)
         .await?)
 }
 
@@ -54,14 +54,14 @@ async fn manage_incoming<PK: PrivateKey, D: Data, S: Splittable>(
 /// process ends. Whenever data arrives on this connection it will be passed to the user. Any
 /// failures in receiving data result in the process stopping, we assume the other side will
 /// reestablish it if necessary.
-pub async fn incoming<PK: PrivateKey, D: Data, S: Splittable>(
-    private_key: PK,
+pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
+    secret_key: SK,
     stream: S,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
     let addr = stream.peer_address_info();
-    if let Err(e) = manage_incoming(private_key, stream, result_for_parent, data_for_user).await {
+    if let Err(e) = manage_incoming(secret_key, stream, result_for_parent, data_for_user).await {
         info!(target: "validator-network", "Incoming connection from {} failed: {}.", addr, e);
     }
 }

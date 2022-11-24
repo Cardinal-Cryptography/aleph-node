@@ -12,7 +12,7 @@ use tokio::net::{
 use crate::{
     crypto::{verify, AuthorityPen, Signature},
     network::{Multiaddress, NetworkIdentity, PeerId},
-    validator_network::{ConnectionInfo, Dialer, Listener, PrivateKey, PublicKey, Splittable},
+    validator_network::{ConnectionInfo, Dialer, Listener, PublicKey, SecretKey, Splittable},
 };
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"a0vn");
@@ -79,7 +79,7 @@ impl PublicKey for AuthorityId {
 }
 
 #[async_trait::async_trait]
-impl PrivateKey for AuthorityPen {
+impl SecretKey for AuthorityPen {
     type Signature = Signature;
     type PublicKey = AuthorityId;
 

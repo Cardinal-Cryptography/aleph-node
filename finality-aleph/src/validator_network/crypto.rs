@@ -12,9 +12,9 @@ pub trait PublicKey:
     fn verify(&self, message: &[u8], signature: &Self::Signature) -> bool;
 }
 
-/// Private key for signing messages, with an associated public key.
+/// Secret key for signing messages, with an associated public key.
 #[async_trait::async_trait]
-pub trait PrivateKey: Clone + Send + Sync + 'static {
+pub trait SecretKey: Clone + Send + Sync + 'static {
     type Signature: Send + Sync + Clone + Codec;
     type PublicKey: PublicKey<Signature = Self::Signature>;
 

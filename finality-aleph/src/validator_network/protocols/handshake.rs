@@ -6,7 +6,7 @@ use tokio::time::{timeout, Duration};
 
 use crate::validator_network::{
     io::{receive_data, send_data, ReceiveError, SendError},
-    PrivateKey, PublicKey, Splittable,
+    PublicKey, SecretKey, Splittable,
 };
 
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -82,13 +82,13 @@ impl<PK: PublicKey> Response<PK> {
     // Amusingly the `Signature = PK::Signature` is necessary, the compiler cannot even do this
     // simple reasoning. :/
     /// Create a new response by signing the challenge.
-    async fn new<P: PrivateKey<PublicKey = PK, Signature = PK::Signature>>(
-        private_key: &P,
+    async fn new<SK: SecretKey<PublicKey = PK, Signature = PK::Signature>>(
+        secret_key: &SK,
         challenge: &Challenge<PK>,
     ) -> Self {
         Self {
-            id: private_key.public_key(),
-            signature: private_key.sign(&challenge.encode()).await,
+            id: secret_key.public_key(),
+            signature: secret_key.sign(&challenge.encode()).await,
         }
     }
 
@@ -106,15 +106,15 @@ impl<PK: PublicKey> Response<PK> {
 /// will NOT be secured in any way. We assume that if the channel is
 /// compromised after the handshake, the peer will establish another connection,
 /// which will replace the current one.
-pub async fn execute_v0_handshake_incoming<PK: PrivateKey, S: Splittable>(
+pub async fn execute_v0_handshake_incoming<SK: SecretKey, S: Splittable>(
     stream: S,
-    private_key: PK,
-) -> Result<(S::Sender, S::Receiver, PK::PublicKey), HandshakeError<PK::PublicKey>> {
+    secret_key: SK,
+) -> Result<(S::Sender, S::Receiver, SK::PublicKey), HandshakeError<SK::PublicKey>> {
     // send challenge
-    let our_challenge = Challenge::new(private_key.public_key());
+    let our_challenge = Challenge::new(secret_key.public_key());
     let stream = send_data(stream, our_challenge.clone()).await?;
     // receive response
-    let (stream, peer_response) = receive_data::<_, Response<PK::PublicKey>>(stream).await?;
+    let (stream, peer_response) = receive_data::<_, Response<SK::PublicKey>>(stream).await?;
     // validate response
     if !peer_response.verify(&our_challenge) {
         return Err(HandshakeError::SignatureError);
@@ -133,45 +133,45 @@ pub async fn execute_v0_handshake_incoming<PK: PrivateKey, S: Splittable>(
 /// will NOT be secured in any way. We assume that if the channel is
 /// compromised after the handshake, we will establish another connection,
 /// which will replace the current one.
-pub async fn execute_v0_handshake_outgoing<PK: PrivateKey, S: Splittable>(
+pub async fn execute_v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
     stream: S,
-    private_key: PK,
-    peer_id: PK::PublicKey,
-) -> Result<(S::Sender, S::Receiver), HandshakeError<PK::PublicKey>> {
+    secret_key: SK,
+    peer_id: SK::PublicKey,
+) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>> {
     // receive challenge
-    let (stream, peer_challenge) = receive_data::<_, Challenge<PK::PublicKey>>(stream).await?;
+    let (stream, peer_challenge) = receive_data::<_, Challenge<SK::PublicKey>>(stream).await?;
     if peer_id != peer_challenge.id {
         return Err(HandshakeError::ChallengeError(peer_id, peer_challenge.id));
     }
     // send response
-    let our_response = Response::new(&private_key, &peer_challenge).await;
+    let our_response = Response::new(&secret_key, &peer_challenge).await;
     let stream = send_data(stream, our_response).await?;
     let (sender, receiver) = stream.split();
     Ok((sender, receiver))
 }
 
 /// Wrapper that adds timeout to the function performing handshake.
-pub async fn v0_handshake_incoming<PK: PrivateKey, S: Splittable>(
+pub async fn v0_handshake_incoming<SK: SecretKey, S: Splittable>(
     stream: S,
-    private_key: PK,
-) -> Result<(S::Sender, S::Receiver, PK::PublicKey), HandshakeError<PK::PublicKey>> {
+    secret_key: SK,
+) -> Result<(S::Sender, S::Receiver, SK::PublicKey), HandshakeError<SK::PublicKey>> {
     timeout(
         HANDSHAKE_TIMEOUT,
-        execute_v0_handshake_incoming(stream, private_key),
+        execute_v0_handshake_incoming(stream, secret_key),
     )
     .await
     .map_err(|_| HandshakeError::TimedOut)?
 }
 
 /// Wrapper that adds timeout to the function performing handshake.
-pub async fn v0_handshake_outgoing<PK: PrivateKey, S: Splittable>(
+pub async fn v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
     stream: S,
-    private_key: PK,
-    peer_id: PK::PublicKey,
-) -> Result<(S::Sender, S::Receiver), HandshakeError<PK::PublicKey>> {
+    secret_key: SK,
+    peer_id: SK::PublicKey,
+) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>> {
     timeout(
         HANDSHAKE_TIMEOUT,
-        execute_v0_handshake_outgoing(stream, private_key, peer_id),
+        execute_v0_handshake_outgoing(stream, secret_key, peer_id),
     )
     .await
     .map_err(|_| HandshakeError::TimedOut)?

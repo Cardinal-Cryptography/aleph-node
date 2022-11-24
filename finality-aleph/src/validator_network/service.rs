@@ -14,7 +14,7 @@ use crate::{
         manager::{AddResult, LegacyManager, Manager},
         outgoing::outgoing,
         protocols::{ConnectionType, ResultForService},
-        Data, Dialer, Listener, Network, PrivateKey, PublicKey,
+        Data, Dialer, Listener, Network, PublicKey, SecretKey,
     },
     SpawnTaskHandle, STATUS_REPORT_INTERVAL,
 };
@@ -73,34 +73,33 @@ impl<PK: PublicKey, D: Data, A: Data> Network<PK, A, D> for ServiceInterface<PK,
 }
 
 /// A service that has to be run for the validator network to work.
-pub struct Service<PK: PrivateKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener>
+pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener>
 where
-    PK::PublicKey: PeerId,
+    SK::PublicKey: PeerId,
 {
-    commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<PK::PublicKey, D, A>>,
+    commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<SK::PublicKey, D, A>>,
     next_to_interface: mpsc::UnboundedSender<D>,
-    manager: Manager<PK::PublicKey, A, D>,
+    manager: Manager<SK::PublicKey, A, D>,
     dialer: ND,
     listener: NL,
     spawn_handle: SpawnTaskHandle,
-    private_key: PK,
+    secret_key: SK,
     // Backwards compatibility with the one-sided connections, remove when no longer needed.
-    legacy_connected: HashSet<PK::PublicKey>,
-    legacy_manager: LegacyManager<PK::PublicKey, A, D>,
+    legacy_connected: HashSet<SK::PublicKey>,
+    legacy_manager: LegacyManager<SK::PublicKey, A, D>,
 }
 
-impl<PK: PrivateKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener>
-    Service<PK, D, A, ND, NL>
+impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<SK, D, A, ND, NL>
 where
-    PK::PublicKey: PeerId,
+    SK::PublicKey: PeerId,
 {
     /// Create a new validator network service plus an interface for interacting with it.
     pub fn new(
         dialer: ND,
         listener: NL,
-        private_key: PK,
+        secret_key: SK,
         spawn_handle: SpawnTaskHandle,
-    ) -> (Self, impl Network<PK::PublicKey, A, D>) {
+    ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
@@ -109,11 +108,11 @@ where
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(private_key.public_key()),
+                manager: Manager::new(secret_key.public_key()),
                 dialer,
                 listener,
                 spawn_handle,
-                private_key,
+                secret_key,
                 legacy_connected: HashSet::new(),
                 legacy_manager: LegacyManager::new(),
             },
@@ -126,17 +125,17 @@ where
 
     fn spawn_new_outgoing(
         &self,
-        peer_id: PK::PublicKey,
+        peer_id: SK::PublicKey,
         addresses: Vec<A>,
-        result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     ) {
-        let private_key = self.private_key.clone();
+        let secret_key = self.secret_key.clone();
         let dialer = self.dialer.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_outgoing", None, async move {
                 outgoing(
-                    private_key,
+                    secret_key,
                     peer_id,
                     dialer,
                     addresses,
@@ -150,17 +149,17 @@ where
     fn spawn_new_incoming(
         &self,
         stream: NL::Connection,
-        result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     ) {
-        let private_key = self.private_key.clone();
+        let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/validator_network_incoming", None, async move {
-                incoming(private_key, stream, result_for_parent, next_to_interface).await;
+                incoming(secret_key, stream, result_for_parent, next_to_interface).await;
             });
     }
 
-    fn peer_addresses(&self, peer_id: &PK::PublicKey) -> Option<Vec<A>> {
+    fn peer_addresses(&self, peer_id: &SK::PublicKey) -> Option<Vec<A>> {
         match self.legacy_connected.contains(peer_id) {
             true => self.legacy_manager.peer_addresses(peer_id),
             false => self.manager.peer_addresses(peer_id),
@@ -169,7 +168,7 @@ where
 
     fn add_connection(
         &mut self,
-        peer_id: PK::PublicKey,
+        peer_id: SK::PublicKey,
         data_for_network: mpsc::UnboundedSender<D>,
         connection_type: ConnectionType,
     ) -> AddResult {
@@ -188,13 +187,13 @@ where
     }
 
     // Mark a peer as legacy and return whether it is the first time we do so.
-    fn mark_legacy(&mut self, peer_id: &PK::PublicKey) -> bool {
+    fn mark_legacy(&mut self, peer_id: &SK::PublicKey) -> bool {
         self.manager.remove_peer(peer_id);
         self.legacy_connected.insert(peer_id.clone())
     }
 
     // Unmark a peer as legacy, putting it back in the normal set.
-    fn unmark_legacy(&mut self, peer_id: &PK::PublicKey) {
+    fn unmark_legacy(&mut self, peer_id: &SK::PublicKey) {
         self.legacy_connected.remove(peer_id);
         // Put it back if we still want to be connected.
         if let Some(addresses) = self.legacy_manager.peer_addresses(peer_id) {
@@ -206,7 +205,7 @@ where
     // accordingly. Returns whether we should spawn a new connection worker because of that.
     fn check_for_legacy(
         &mut self,
-        peer_id: &PK::PublicKey,
+        peer_id: &SK::PublicKey,
         connection_type: ConnectionType,
     ) -> bool {
         use ConnectionType::*;

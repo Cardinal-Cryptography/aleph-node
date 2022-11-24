@@ -8,7 +8,7 @@ use crate::validator_network::{
         handshake::{v0_handshake_incoming, v0_handshake_outgoing},
         ConnectionType, ProtocolError, ResultForService,
     },
-    Data, PrivateKey, PublicKey, Splittable,
+    Data, PublicKey, SecretKey, Splittable,
 };
 
 mod heartbeat;
@@ -32,14 +32,14 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
 
 /// Performs the handshake, and then keeps sending data received from the parent service.
 /// Exits on parent request, or in case of broken or dead network connection.
-pub async fn outgoing<PK: PrivateKey, D: Data, S: Splittable>(
+pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
-    private_key: PK,
-    peer_id: PK::PublicKey,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
-) -> Result<(), ProtocolError<PK::PublicKey>> {
+    secret_key: SK,
+    peer_id: SK::PublicKey,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: "validator-network", "Extending hand to {}.", peer_id);
-    let (sender, receiver) = v0_handshake_outgoing(stream, private_key, peer_id.clone()).await?;
+    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, peer_id.clone()).await?;
     info!(target: "validator-network", "Outgoing handshake with {} finished successfully.", peer_id);
     let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
@@ -79,14 +79,14 @@ async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(
 
 /// Performs the handshake, and then keeps sending data received from the network to the parent service.
 /// Exits on parent request, or in case of broken or dead network connection.
-pub async fn incoming<PK: PrivateKey, D: Data, S: Splittable>(
+pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
-    private_key: PK,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+    secret_key: SK,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
-) -> Result<(), ProtocolError<PK::PublicKey>> {
+) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: "validator-network", "Waiting for extended hand...");
-    let (sender, receiver, peer_id) = v0_handshake_incoming(stream, private_key).await?;
+    let (sender, receiver, peer_id) = v0_handshake_incoming(stream, secret_key).await?;
     info!(target: "validator-network", "Incoming handshake with {} finished successfully.", peer_id);
 
     let (tx_exit, mut exit) = mpsc::unbounded();

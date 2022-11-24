@@ -13,7 +13,7 @@ mod outgoing;
 mod protocols;
 mod service;
 
-pub use crypto::{PrivateKey, PublicKey};
+pub use crypto::{PublicKey, SecretKey};
 pub use service::Service;
 
 /// What the data sent using the network has to satisfy.

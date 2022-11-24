@@ -8,7 +8,7 @@ use crate::validator_network::{
     protocols::{
         protocol, ConnectionType, ProtocolError, ProtocolNegotiationError, ResultForService,
     },
-    ConnectionInfo, Data, Dialer, PeerAddressInfo, PrivateKey, PublicKey,
+    ConnectionInfo, Data, Dialer, PeerAddressInfo, PublicKey, SecretKey,
 };
 
 enum OutgoingError<PK: PublicKey, A: Data, ND: Dialer<A>> {
@@ -36,14 +36,14 @@ impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND>
     }
 }
 
-async fn manage_outgoing<PK: PrivateKey, D: Data, A: Data, ND: Dialer<A>>(
-    private_key: PK,
-    peer_id: PK::PublicKey,
+async fn manage_outgoing<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>>(
+    secret_key: SK,
+    peer_id: SK::PublicKey,
     mut dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
-) -> Result<(), OutgoingError<PK::PublicKey, A, ND>> {
+) -> Result<(), OutgoingError<SK::PublicKey, A, ND>> {
     debug!(target: "validator-network", "Trying to connect to {}.", peer_id);
     let stream = dialer
         .connect(addresses)
@@ -58,7 +58,7 @@ async fn manage_outgoing<PK: PrivateKey, D: Data, A: Data, ND: Dialer<A>>(
     protocol
         .manage_outgoing(
             stream,
-            private_key,
+            secret_key,
             peer_id,
             result_for_parent,
             data_for_user,
@@ -72,16 +72,16 @@ const RETRY_DELAY: Duration = Duration::from_secs(10);
 /// Establish an outgoing connection to the provided peer using the dialer and then manage it.
 /// While this works it will send any data from the user to the peer. Any failures will be reported
 /// to the parent, so that connections can be reestablished if necessary.
-pub async fn outgoing<PK: PrivateKey, D: Data, A: Data + Debug, ND: Dialer<A>>(
-    private_key: PK,
-    peer_id: PK::PublicKey,
+pub async fn outgoing<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>>(
+    secret_key: SK,
+    peer_id: SK::PublicKey,
     dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_outgoing(
-        private_key,
+        secret_key,
         peer_id.clone(),
         dialer,
         addresses.clone(),

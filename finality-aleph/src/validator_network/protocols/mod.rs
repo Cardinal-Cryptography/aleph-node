@@ -4,7 +4,7 @@ use futures::channel::mpsc;
 
 use crate::validator_network::{
     io::{ReceiveError, SendError},
-    Data, PrivateKey, PublicKey, Splittable,
+    Data, PublicKey, SecretKey, Splittable,
 };
 
 mod handshake;
@@ -99,36 +99,36 @@ impl Protocol {
     const MAX_VERSION: Version = 1;
 
     /// Launches the proper variant of the protocol (receiver half).
-    pub async fn manage_incoming<PK: PrivateKey, D: Data, S: Splittable>(
+    pub async fn manage_incoming<SK: SecretKey, D: Data, S: Splittable>(
         &self,
         stream: S,
-        private_key: PK,
-        result_for_service: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+        secret_key: SK,
+        result_for_service: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
-    ) -> Result<(), ProtocolError<PK::PublicKey>> {
+    ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::incoming(stream, private_key, result_for_service, data_for_user).await,
-            V1 => v1::incoming(stream, private_key, result_for_service, data_for_user).await,
+            V0 => v0::incoming(stream, secret_key, result_for_service, data_for_user).await,
+            V1 => v1::incoming(stream, secret_key, result_for_service, data_for_user).await,
         }
     }
 
     /// Launches the proper variant of the protocol (sender half).
-    pub async fn manage_outgoing<PK: PrivateKey, D: Data, S: Splittable>(
+    pub async fn manage_outgoing<SK: SecretKey, D: Data, S: Splittable>(
         &self,
         stream: S,
-        private_key: PK,
-        peer_id: PK::PublicKey,
-        result_for_service: mpsc::UnboundedSender<ResultForService<PK::PublicKey, D>>,
+        secret_key: SK,
+        peer_id: SK::PublicKey,
+        result_for_service: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
-    ) -> Result<(), ProtocolError<PK::PublicKey>> {
+    ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::outgoing(stream, private_key, peer_id, result_for_service).await,
+            V0 => v0::outgoing(stream, secret_key, peer_id, result_for_service).await,
             V1 => {
                 v1::outgoing(
                     stream,
-                    private_key,
+                    secret_key,
                     peer_id,
                     result_for_service,
                     data_for_user,
