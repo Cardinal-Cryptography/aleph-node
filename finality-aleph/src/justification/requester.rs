@@ -24,7 +24,7 @@ pub struct JustificationRequestStatus<B: BlockT> {
     block_hash_number: Option<BlockHashNum<B>>,
     block_tries: u32,
     parent: Option<B::Hash>,
-    n_childred: usize,
+    n_children: usize,
     children_tries: u32,
     report_threshold: u32,
 }
@@ -35,18 +35,18 @@ impl<B: BlockT> JustificationRequestStatus<B> {
             block_hash_number: None,
             block_tries: 0,
             parent: None,
-            n_childred: 0,
+            n_children: 0,
             children_tries: 0,
             report_threshold: REPORT_THRESHOLD,
         }
     }
 
-    fn save_children(&mut self, hash: B::Hash, n_childred: usize) {
-        if self.parent == Some(hash) {
+    fn save_children(&mut self, hash: B::Hash, n_children: usize) {
+        if self.parent == Some(hash) && self.n_children >= n_children {
             self.children_tries += 1;
         } else {
             self.parent = Some(hash);
-            self.n_childred = n_childred;
+            self.n_children = n_children;
             self.children_tries = 1;
         }
     }
@@ -81,7 +81,7 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
                 write!(
                     f,
                     "tries - {}; requested {} children of finalized block {}; ",
-                    self.children_tries, self.n_childred, parent
+                    self.children_tries, self.n_children, parent
                 )?;
             }
         }
@@ -231,16 +231,17 @@ where
             .collect::<Vec<_>>();
         self.request_status
             .save_children(finalized_hash, targets.len());
+
         let best_number = blockchain_info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
             top_wanted = best_number - NumberFor::<B>::one();
         }
-
         match blockchain_backend.header(BlockId::Number(top_wanted)) {
             Ok(Some(header)) => {
-                // We know that top_wanted >= finalized_number, and if top_wanted == finalized_number + 1,
-                // then hash(top_wanted) is among targets already.
+                // We know that top_wanted >= finalized_number, so
+                // - if top_wanted == finalized_number, then we don't want to request it
+                // - if top_wanted == finalized_number + 1, then hash(top_wanted) is among targets already.
                 if top_wanted > finalized_number + NumberFor::<B>::one() {
                     let hn: BlockHashNum<B> = (header.hash(), *header.number()).into();
                     targets.push(hn.clone());
