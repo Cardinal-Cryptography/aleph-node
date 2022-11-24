@@ -515,7 +515,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: version_upgrade
+          test-case: version_upgrade::schedule_version_change
         env:
           UPGRADE_VERSION: 1
           UPGRADE_SESSION: 3
@@ -533,7 +533,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: doomed_version_upgrade
+          test-case: version_upgrade::schedule_doomed_version_change
         env:
           OVERRIDE_DOCKER_COMPOSE: ./.github/scripts/docker-compose.no_quorum_without_old.override.yml
           UPGRADE_VERSION: 1
