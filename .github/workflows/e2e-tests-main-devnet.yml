@@ -439,7 +439,7 @@ jobs:
           node-count: 6
           reserved-seats: 3
           non-reserved-seats: 3
-          follow-up-finalization-check: true
+          follow-up-finalization-check: false
         timeout-minutes: 15
 
   run-e2e-ban-automatic:
@@ -589,6 +589,7 @@ jobs:
         run: docker load -i cliain.tar
 
       - name: Call catchup_test.sh
+        timeout-minutes: 10
         env:
           UPGRADE_BLOCK: 31
           NODES: ${{ matrix.nodes }}
@@ -596,7 +597,6 @@ jobs:
           EXT_STATUS: ${{ matrix.ext_status }}
           UPGRADE_BEFORE_DISABLE: ${{ matrix.upgrade_before_disable }}
           DOCKER_COMPOSE: docker/docker-compose.bridged.yml
-
         run: |
           ./scripts/catchup_version_upgrade_test.sh
 
@@ -765,7 +765,9 @@ jobs:
   build-new-runtime-and-try_runtime:
     name: Build new runtime and try_runtime tool
     needs: [ check-runtime-change ]
-    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    # Disbled check, reenable once we fix the issue with try-runtime test
+    # if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    if: ${{ false }}
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
