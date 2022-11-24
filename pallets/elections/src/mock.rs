@@ -170,8 +170,7 @@ impl EraInfoProvider for MockProvider {
 
 impl Config for Test {
     type EraInfoProvider = MockProvider;
-    type RuntimeEvent = RuntimeEvent
-    ;
+    type RuntimeEvent = RuntimeEvent;
     type DataProvider = StakingMock;
     type SessionPeriod = SessionPeriod;
     type SessionManager = ();
