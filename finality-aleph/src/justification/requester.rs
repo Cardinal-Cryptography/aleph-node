@@ -4,7 +4,7 @@ use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
 use sc_client_api::{backend::Backend, blockchain::Backend as _, HeaderBackend};
 use sp_api::{BlockId, BlockT, NumberFor};
-use sp_runtime::traits::Header;
+use sp_runtime::traits::{Header, One};
 
 use crate::{
     finalization::BlockFinalizer,
@@ -206,7 +206,7 @@ where
     // if we are behind.
     // We don't remove the child that it's on the same branch as best since a fork may happen
     // somewhere in between them.
-    fn request_targets(&self, mut num: NumberFor<B>) -> Vec<<B as BlockT>::Hash> {
+    fn request_targets(&self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Hash> {
         let blockchain_backend = self.backend.blockchain();
         let blockchain_info = blockchain_backend.info();
         let finalized_hash = blockchain_info.finalized_hash;
@@ -215,13 +215,15 @@ where
             .children(finalized_hash)
             .unwrap_or_default();
         let best_number = blockchain_info.best_number;
-        if best_number < num {
+        if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
-            num = best_number - 1;
+            top_wanted = best_number - NumberFor::<B>::one();
         }
-        match blockchain_backend.hash(num) {
+        match blockchain_backend.hash(top_wanted) {
             Ok(Some(hash)) => {
-                targets.push(hash);
+                if !targets.contains(&hash) {
+                    targets.push(hash);
+                }
             }
             Ok(None) => {
                 debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", num);

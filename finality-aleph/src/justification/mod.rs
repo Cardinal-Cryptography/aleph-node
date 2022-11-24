@@ -66,6 +66,7 @@ impl Default for JustificationHandlerConfig {
     fn default() -> Self {
         Self {
             verifier_timeout: Duration::from_millis(500),
+            // request justifications slightly more frequently than they're created
             notification_timeout: Duration::from_millis(800),
         }
     }
