@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::blockchain::Backend as BlockchainBackend;
+use sc_client_api::{backend::Backend, blockchain::Backend as _, HeaderBackend};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::{Header, One};
 
@@ -103,17 +103,17 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, BB>
+pub struct BlockRequester<B, RB, S, F, V, BE>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BB: BlockchainBackend<B>,
+    BE: Backend<B>,
 {
     block_requester: RB,
-    backend: Arc<BB>,
+    backend: Arc<BE>,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -121,18 +121,18 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
+impl<B, RB, S, F, V, BE> BlockRequester<B, RB, S, F, V, BE>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BB: BlockchainBackend<B>,
+    BE: Backend<B>,
 {
     pub fn new(
         block_requester: RB,
-        backend: Arc<BB>,
+        backend: Arc<BE>,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -202,7 +202,7 @@ where
             SchedulerActions::Request => {
                 self.request_targets(num)
                     .into_iter()
-                    .for_each(|hash| self.request(hash));
+                    .for_each(|header| self.request(header));
             }
             SchedulerActions::ClearQueue => {
                 debug!(target: "aleph-justification", "Clearing justification request queue");
@@ -213,7 +213,7 @@ where
     }
 
     pub fn finalized_number(&self) -> NumberFor<B> {
-        self.backend.info().finalized_number
+        self.backend.blockchain().info().finalized_number
     }
 
     fn request(&mut self, header: <B as BlockT>::Header) {
@@ -232,34 +232,20 @@ where
     // if we are behind.
     // We don't remove the child that it's on the same branch as best since a fork may happen
     // somewhere in between them.
-    fn request_targets(&mut self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
-        let blockchain_info = self.backend.info();
+    fn request_targets(&self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
+        let blockchain_backend = self.backend.blockchain();
+        let blockchain_info = blockchain_backend.info();
         let finalized_hash = blockchain_info.finalized_hash;
 
-        let mut targets = self
-            .backend
+        let mut targets = blockchain_backend
             .children(finalized_hash)
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|hash| {
-                if let Ok(Some(header)) = self.backend.header(BlockId::Hash(hash)) {
-                    Some(header)
-                } else {
-                    debug!(target: "aleph-justification",
-                           "Cancelling request for child {:?} of {:?}: no block.", hash, finalized_hash);
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        self.request_status
-            .save_children(finalized_hash, targets.len());
-
+            .unwrap_or_default();
         let best_number = blockchain_info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
             top_wanted = best_number - NumberFor::<B>::one();
         }
-        match self.backend.header(BlockId::Number(top_wanted)) {
+        match blockchain_backend.header(BlockId::Number(top_wanted)) {
             Ok(Some(header)) => {
                 if !targets.contains(&header) {
                     self.request_status

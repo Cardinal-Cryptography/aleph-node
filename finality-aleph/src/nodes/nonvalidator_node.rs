@@ -1,5 +1,5 @@
 use log::{debug, error};
-use sc_client_api::{blockchain::Backend as BlockchainBackend, Backend};
+use sc_client_api::Backend;
 use sc_network::ExHashT;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::Block;
@@ -10,13 +10,12 @@ use crate::{
     AlephConfig,
 };
 
-pub async fn run_nonvalidator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
+pub async fn run_nonvalidator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BE>)
 where
     B: Block,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
-    BB: BlockchainBackend<B> + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {

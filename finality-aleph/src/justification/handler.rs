@@ -6,7 +6,7 @@ use std::{
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error};
-use sc_client_api::blockchain::Backend as BlockchainBackend;
+use sc_client_api::backend::Backend;
 use sp_api::BlockT;
 use sp_runtime::traits::Header;
 use tokio::time::timeout;
@@ -20,7 +20,7 @@ use crate::{
     network, Metrics, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, S, SI, F, BB>
+pub struct JustificationHandler<B, V, RB, S, SI, F, BE>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -28,15 +28,15 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    BB: BlockchainBackend<B> + Send + Sync + 'static,
+    BE: Backend<B> + Send + Sync + 'static,
 {
     session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, S, F, V, BB>,
+    block_requester: BlockRequester<B, RB, S, F, V, BE>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, S, SI, F, BB> JustificationHandler<B, V, RB, S, SI, F, BB>
+impl<B, V, RB, S, SI, F, BE> JustificationHandler<B, V, RB, S, SI, F, BE>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -44,12 +44,12 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    BB: BlockchainBackend<B> + Send + Sync + 'static,
+    BE: Backend<B> + Send + Sync + 'static,
 {
     pub fn new(
         session_info_provider: SI,
         block_requester: RB,
-        backend: Arc<BB>,
+        backend: Arc<BE>,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
