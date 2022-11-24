@@ -13,7 +13,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::{ExecutorProvider};
+use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_network::NetworkService;
 use sc_service::{
@@ -283,9 +283,10 @@ pub fn new_authority(
     let backoff_authoring_blocks: Option<()> = None;
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let blockchain_backed = backend.blockchain();
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend.clone(),
+        backend,
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -348,7 +349,7 @@ pub fn new_authority(
     let aleph_config = AlephConfig {
         network,
         client,
-        backend,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -395,9 +396,10 @@ pub fn new_full(
             .path(),
     );
 
+    let blockchain_backed = backend.blockchain();
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend.clone(),
+        backend,
         &keystore_container,
         import_queue,
         transaction_pool,
@@ -424,7 +426,7 @@ pub fn new_full(
     let aleph_config = AlephConfig {
         network,
         client,
-        backend,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,

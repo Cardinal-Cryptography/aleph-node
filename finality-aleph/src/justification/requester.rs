@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::{blockchain::Backend as BlockchainBackend, HeaderBackend};
+use sc_client_api::blockchain::Backend as BlockchainBackend;
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::{Header, One};
 
@@ -23,7 +23,10 @@ const REPORT_THRESHOLD: u32 = 2;
 pub struct JustificationRequestStatus<B: BlockT> {
     block_number: Option<NumberFor<B>>,
     block_hash: Option<B::Hash>,
-    tries: u32,
+    block_tries: u32,
+    parent: Option<B::Hash>,
+    n_childred: Option<usize>,
+    children_tries: u32,
     report_threshold: u32,
 }
 
@@ -32,41 +35,69 @@ impl<B: BlockT> JustificationRequestStatus<B> {
         Self {
             block_number: None,
             block_hash: None,
-            tries: 0,
+            block_tries: 0,
+            parent: None,
+            n_childred: None,
+            children_tries: 0,
             report_threshold: REPORT_THRESHOLD,
         }
     }
 
-    fn save_block_number(&mut self, num: NumberFor<B>) {
-        if Some(num) == self.block_number {
-            self.tries += 1;
+    fn save_children(&mut self, hash: B::Hash, n_childred: usize) {
+        if self.parent == Some(hash) {
+            self.children_tries += 1;
         } else {
-            self.block_number = Some(num);
-            self.block_hash = None;
-            self.tries = 1;
+            self.parent = Some(hash);
+            self.n_childred = Some(n_childred);
+            self.children_tries = 1;
         }
     }
 
-    fn insert_hash(&mut self, hash: B::Hash) {
-        self.block_hash = Some(hash);
+    fn save_block(&mut self, num: NumberFor<B>, hash: B::Hash) {
+        if self.block_number == Some(num) {
+            self.block_tries += 1;
+        } else {
+            self.block_hash = Some(hash);
+            self.block_number = Some(num);
+            self.block_hash = None;
+            self.block_tries = 1;
+        }
     }
 
     fn should_report(&self) -> bool {
-        self.tries >= self.report_threshold
+        self.block_tries >= self.report_threshold || self.children_tries >= self.report_threshold
     }
 }
 
 impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(n) = self.block_number {
-            let mut status = format!("tries - {}; requested block number - {}; ", self.tries, n);
-            if let Some(header) = self.block_hash {
-                status.push_str(&format!("hash - {}; ", header));
-            } else {
-                status.push_str("hash - unknown; ");
-            }
+        if self.block_tries >= self.report_threshold {
+            if let Some(n) = self.block_number {
+                let mut status = format!(
+                    "tries - {}; requested block number - {}; ",
+                    self.block_tries, n
+                );
+                if let Some(header) = self.block_hash {
+                    status.push_str(&format!("hash - {}; ", header));
+                } else {
+                    status.push_str("hash - unknown; ");
+                }
 
-            write!(f, "{}", status)?;
+                write!(f, "{}", status)?;
+            }
+        }
+        if self.children_tries >= self.report_threshold {
+            if let Some(parent) = self.parent {
+                let n = self
+                    .n_childred
+                    .expect("Children number is saved with parent.");
+
+                write!(
+                    f,
+                    "tries - {}; requested {} children of finalized block {}; ",
+                    self.children_tries, n, parent
+                )?;
+            }
         }
         Ok(())
     }
@@ -185,18 +216,13 @@ where
         self.backend.info().finalized_number
     }
 
-    fn request(&mut self, hash: <B as BlockT>::Hash) {
-        if let Ok(Some(header)) = self.backend.header(BlockId::Hash(hash)) {
-            let number = *header.number();
-            debug!(target: "aleph-justification", "Trying to request block {:?}", number);
-            self.request_status.save_block_number(number);
-            self.request_status.insert_hash(hash);
-            debug!(target: "aleph-justification", "We have block {:?} with hash {:?}. Requesting justification.", number, header.hash());
-            self.justification_request_scheduler.on_request_sent();
-            self.block_requester.request_justification(&hash, number);
-        } else {
-            debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", hash);
-        }
+    fn request(&mut self, header: <B as BlockT>::Header) {
+        let number = *header.number();
+        let hash = header.hash();
+        debug!(target: "aleph-justification",
+               "We have block {:?} with hash {:?}. Requesting justification.", number, hash);
+        self.justification_request_scheduler.on_request_sent();
+        self.block_requester.request_justification(&hash, number);
     }
 
     // We request justifications for all the children of last finalized block and a justification
@@ -206,20 +232,39 @@ where
     // if we are behind.
     // We don't remove the child that it's on the same branch as best since a fork may happen
     // somewhere in between them.
-    fn request_targets(&self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Hash> {
+    fn request_targets(&mut self, mut top_wanted: NumberFor<B>) -> Vec<<B as BlockT>::Header> {
         let blockchain_info = self.backend.info();
         let finalized_hash = blockchain_info.finalized_hash;
 
-        let mut targets = self.backend.children(finalized_hash).unwrap_or_default();
+        let mut targets = self
+            .backend
+            .children(finalized_hash)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|hash| {
+                if let Ok(Some(header)) = self.backend.header(BlockId::Hash(hash)) {
+                    Some(header)
+                } else {
+                    debug!(target: "aleph-justification",
+                           "Cancelling request for child {:?} of {:?}: no block.", hash, finalized_hash);
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        self.request_status
+            .save_children(finalized_hash, targets.len());
+
         let best_number = blockchain_info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
             top_wanted = best_number - NumberFor::<B>::one();
         }
-        match self.backend.hash(top_wanted) {
-            Ok(Some(hash)) => {
-                if !targets.contains(&hash) {
-                    targets.push(hash);
+        match self.backend.header(BlockId::Number(top_wanted)) {
+            Ok(Some(header)) => {
+                if !targets.contains(&header) {
+                    self.request_status
+                        .save_block(*header.number(), header.hash());
+                    targets.push(header);
                 }
             }
             Ok(None) => {
