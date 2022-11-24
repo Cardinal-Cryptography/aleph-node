@@ -194,7 +194,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_disable_node
+          test-case: rewards::disable_node
           follow-up-finalization-check: true
         timeout-minutes: 15
 
@@ -347,7 +347,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: era_payout
+          test-case: era_payout::era_payout
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -377,7 +377,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_force_new_era
+          test-case: rewards::force_new_era
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -392,7 +392,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_stake_change
+          test-case: rewards::points_stake_change
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -407,7 +407,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_change_stake_and_force_new_era
+          test-case: rewards::change_stake_and_force_new_era
           follow-up-finalization-check: true
         timeout-minutes: 10
 
