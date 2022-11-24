@@ -2,7 +2,11 @@ use std::{fmt, iter, marker::PhantomData, sync::Arc, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::{backend::Backend, blockchain::Backend as _, HeaderBackend};
+use sc_client_api::{
+    backend::Backend,
+    blockchain::{Backend as _, Info},
+    HeaderBackend,
+};
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::{Header, One};
 
@@ -183,12 +187,12 @@ where
         }
     }
 
-    pub fn request_justification(&mut self, num: NumberFor<B>) {
+    pub fn request_justification(&mut self, wanted: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                self.request_targets(num)
-                    .into_iter()
-                    .for_each(|header| self.request(header));
+                let info = self.backend.blockchain().info();
+                self.request_children(&info);
+                self.request_wanted(wanted, &info);
             }
             SchedulerActions::ClearQueue => {
                 debug!(target: "aleph-justification", "Clearing justification request queue");
@@ -202,51 +206,62 @@ where
         self.backend.blockchain().info().finalized_number
     }
 
-    fn request(&mut self, hn: BlockHashNum<B>) {
+    fn do_request(&mut self, hn: BlockHashNum<B>) {
         debug!(target: "aleph-justification",
                "We have block {:?} with hash {:?}. Requesting justification.", hn.num, hn.hash);
         self.justification_request_scheduler.on_request_sent();
         self.block_requester.request_justification(&hn.hash, hn.num);
     }
 
-    // We request justifications for all the children of last finalized block and a justification
-    // for a block of number num on longest branch.
-    // Assuming that we request at the same pace that finalization is progressing, the former ensures
-    // that we are up to date with finalization. On the other hand, the latter enables fast catch up
-    // if we are behind.
+    // We request justifications for all the children of last finalized block.
+    // Assuming that we request at the same pace that finalization is progressing, it ensures
+    // that we are up to date with finalization.
     // We also request the child that it's on the same branch as top_wanted since a fork may happen
     // somewhere in between them.
-    fn request_targets(&mut self, mut top_wanted: NumberFor<B>) -> Vec<BlockHashNum<B>> {
-        let blockchain_backend = self.backend.blockchain();
-        let blockchain_info = blockchain_backend.info();
-        let finalized_hash = blockchain_info.finalized_hash;
-        let finalized_number = blockchain_info.finalized_number;
+    fn request_children(&mut self, info: &Info<B>) {
+        let finalized_hash = info.finalized_hash;
+        let finalized_number = info.finalized_number;
 
-        let mut targets = blockchain_backend
+        let children = self
+            .backend
+            .blockchain()
             .children(finalized_hash)
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        if !children.is_empty() {
+            self.request_status
+                .save_children(finalized_hash, children.len());
+        }
+
+        children
             .into_iter()
             .zip(iter::once(finalized_number))
             .map(Into::into)
-            .collect::<Vec<_>>();
-        self.request_status
-            .save_children(finalized_hash, targets.len());
+            .for_each(|hn| self.do_request(hn));
+    }
 
-        let best_number = blockchain_info.best_number;
+    // This request is important in the case when we are far behind and want to catch up.
+    fn request_wanted(&mut self, mut top_wanted: NumberFor<B>, info: &Info<B>) {
+        let best_number = info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
             top_wanted = best_number - NumberFor::<B>::one();
         }
-        match blockchain_backend.header(BlockId::Number(top_wanted)) {
+        let finalized_number = info.finalized_number;
+        // We know that top_wanted >= finalized_number, so
+        // - if top_wanted == finalized_number, then we don't want to request it
+        // - if top_wanted == finalized_number + 1, then we already requested it
+        if top_wanted > finalized_number + NumberFor::<B>::one() {
+            return;
+        }
+        match self
+            .backend
+            .blockchain()
+            .header(BlockId::Number(top_wanted))
+        {
             Ok(Some(header)) => {
-                // We know that top_wanted >= finalized_number, so
-                // - if top_wanted == finalized_number, then we don't want to request it
-                // - if top_wanted == finalized_number + 1, then hash(top_wanted) is among targets already.
-                if top_wanted > finalized_number + NumberFor::<B>::one() {
-                    let hn: BlockHashNum<B> = (header.hash(), *header.number()).into();
-                    targets.push(hn.clone());
-                    self.request_status.save_block(hn);
-                }
+                self.request_status
+                    .save_block((header.hash(), *header.number()).into());
             }
             Ok(None) => {
                 warn!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
@@ -255,7 +270,5 @@ where
                 warn!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", top_wanted, err);
             }
         }
-
-        targets
     }
 }
