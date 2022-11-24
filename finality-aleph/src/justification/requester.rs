@@ -226,10 +226,10 @@ where
                 }
             }
             Ok(None) => {
-                debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", num);
+                debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
             }
             Err(err) => {
-                debug!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", num, err);
+                debug!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", top_wanted, err);
             }
         }
 
