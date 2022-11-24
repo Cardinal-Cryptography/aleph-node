@@ -216,7 +216,8 @@ where
             .unwrap_or_default();
         let best_number = blockchain_info.best_number;
         if best_number < num {
-            num = best_number;
+            // most probably block best_number is not yet finalized
+            num = best_number - 1;
         }
         match blockchain_backend.hash(num) {
             Ok(Some(hash)) => {
