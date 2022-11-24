@@ -9,7 +9,6 @@ use frame_support::{
 use pallets_support::ensure_storage_version;
 use pallets_support::StorageMigration;
 use primitives::CommitteeSeats;
-use sp_std::vec::Vec;
 
 use crate::{migrations::Validators, Config, EraValidators};
 

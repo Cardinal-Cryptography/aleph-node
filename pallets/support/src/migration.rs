@@ -7,7 +7,6 @@ use frame_support::{
 use frame_support::{
     pallet_prelude::{PalletInfoAccess, StorageVersion, Weight},
     traits::OnRuntimeUpgrade,
-    sp_std::vec::Vec
 };
 
 /// In order to run both pre- and post- checks around every migration, we entangle methods of

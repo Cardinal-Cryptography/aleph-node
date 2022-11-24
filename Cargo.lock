@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-node"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "aleph-runtime",
  "clap",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-runtime"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "frame-executive",
  "frame-support",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "finality-aleph"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "aggregator 0.1.0",
  "aggregator 0.2.0",
@@ -4339,9 +4339,9 @@ checksum = "d4d2456c373231a208ad294c33dc5bff30051eafd954cd4caae83a712b12854d"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb68f22743a3fb35785f1e7f844ca5a3de2dde5bd0c0ef5b372065814699b121"
+checksum = "8f9f08d8963a6c613f4b1a78f4f4a4dbfadf8e6545b2d72861731e4858b8b47f"
 
 [[package]]
 name = "lock_api"
@@ -4880,7 +4880,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-aleph"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5052,7 +5052,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-elections"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "frame-election-provider-support",
  "frame-support",
@@ -5316,7 +5316,7 @@ dependencies = [
 
 [[package]]
 name = "pallets-support"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "frame-support",
 ]
@@ -5676,7 +5676,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -6364,7 +6364,7 @@ dependencies = [
  "errno",
  "io-lifetimes 1.0.1",
  "libc",
- "linux-raw-sys 0.1.2",
+ "linux-raw-sys 0.1.3",
  "windows-sys 0.42.0",
 ]
 
@@ -9989,9 +9989,9 @@ dependencies = [
 
 [[package]]
 name = "zstd-sys"
-version = "2.0.1+zstd.1.5.2"
+version = "2.0.2+zstd.1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fd07cbbc53846d9145dbffdf6dd09a7a0aa52be46741825f5c97bdd4f73f12b"
+checksum = "24faa29d97c8ddca9b37b680e3bd2d5439d864a9cac3a0640d086b71c908bb83"
 dependencies = [
  "cc",
  "libc",
