@@ -245,7 +245,7 @@ where
                 if let Ok(Some(header)) = blockchain_backend.header(BlockId::Hash(hash)) {
                     Some(header)
                 } else {
-                    debug!(target: "aleph-justification",
+                    warn!(target: "aleph-justification",
                       "Cancelling request for child {:?} of {:?}: no block.", hash, finalized_hash);
                     None
                 }
@@ -267,10 +267,10 @@ where
                 }
             }
             Ok(None) => {
-                debug!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
+                warn!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);
             }
             Err(err) => {
-                debug!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", top_wanted, err);
+                warn!(target: "aleph-justification", "Cancelling request, because fetching block {:?} failed {:?}.", top_wanted, err);
             }
         }
 
