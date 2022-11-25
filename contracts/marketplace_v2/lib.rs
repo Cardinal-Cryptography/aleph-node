@@ -21,7 +21,7 @@ pub mod marketplace_v2 {
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
-    use ink_env::{set_code_hash, clear_contract_storage};
+    use ink_env::{set_code_hash, clear_contract_storage, contract_storage_contains};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
@@ -310,10 +310,18 @@ pub mod marketplace_v2 {
             self.data.reward_token = self._old_data.reward_token;
             self.data.ticket_token = self._old_data.ticket_token;
             self.data.total_proceeds = self._old_data.total_proceeds;
-            
-            // Should check if cast works well (so if it clears anything)
-            // For now not sure how to perform that conversion
-            // clear_contract_storage(&ink_primitives::Key::from(OLD_STORAGE_KEY.into()));
+
+            // Change key format
+            let key_bytes_pref = OLD_STORAGE_KEY.to_le_bytes();
+            let mut key_bytes: [u8; 32] = [0; 32];
+            for i in 0..4 {
+                key_bytes[i] = key_bytes_pref[i];
+            }
+
+            // Assert that there is something to clear
+            assert!(matches!(contract_storage_contains(&ink_primitives::Key::from(key_bytes)), Some(_)));
+            // Clear storage under that key
+            clear_contract_storage(&ink_primitives::Key::from(key_bytes));
             
             self.data.migration_performed = true;
 
