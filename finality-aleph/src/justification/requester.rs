@@ -46,13 +46,13 @@ impl<B: BlockT> JustificationRequestStatus<B> {
     }
 
     fn save_children(&mut self, hash: B::Hash, n_children: usize) {
-        if self.parent == Some(hash) && self.n_children >= n_children {
+        if self.parent == Some(hash) {
             self.children_tries += 1;
         } else {
             self.parent = Some(hash);
-            self.n_children = n_children;
             self.children_tries = 1;
         }
+        self.n_children = n_children;
     }
 
     fn save_block(&mut self, hn: BlockHashNum<B>) {
