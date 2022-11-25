@@ -55,6 +55,7 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
 /// producing blocks. Verifies that the offending validator has in fact been banned out for the
 /// appropriate reason.
 #[tokio::test]
+#[ignore]
 pub async fn ban_automatic() -> anyhow::Result<()> {
     let config = config();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
