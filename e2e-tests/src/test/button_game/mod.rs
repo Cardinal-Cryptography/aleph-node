@@ -1,4 +1,4 @@
-use std::{thread, time::Duration, sync::Arc};
+use std::{sync::Arc, thread, time::Duration};
 
 use aleph_client::{contract_transcode::Value, AccountId};
 use anyhow::Result;
@@ -7,11 +7,13 @@ use helpers::sign;
 use log::info;
 
 use crate::{
-    test::button_game::helpers::{
-        assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
-        ButtonTestContext,
+    test::button_game::{
+        contracts::MarketplaceInstance,
+        helpers::{
+            assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
+            ButtonTestContext,
+        },
     },
-    test::button_game::contracts::MarketplaceInstance,
     Config,
 };
 
@@ -25,7 +27,7 @@ mod helpers;
 /// 1. Buys a ticket without setting the max price (this should succeed).
 /// 2. Tries to buy a ticket with setting the max price too low (this should fail).
 /// 3. Tries to buy a ticket with setting the max price appropriately (this should succeed).
-/// 
+///
 /// Additionally there is an update performed amidst contract's operation.
 pub fn marketplace_with_update(config: &Config) -> Result<()> {
     let ButtonTestContext {
@@ -58,34 +60,53 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
     )?;
     marketplace.buy(&sign(&conn, player), None)?;
 
-
     // Upgrade begins
-   
-    // As for now, it will work even if we do not set_code here, which is pretty sad for testing
-    // (Old code can still access it's memory)
-    
-    let set_code_result = marketplace.set_code(&sign(&conn, &authority), &config.test_case_params.marketplace_v2_code_hash.as_ref().expect("New code's code_hash must be specified."));
+
+    // Performing code upgrade
+    let set_code_result = marketplace.set_code(
+        &sign(&conn, &authority),
+        config
+            .test_case_params
+            .marketplace_v2_code_hash
+            .as_ref()
+            .expect("New code's code_hash must be specified."),
+        None, // Alternative for performing "atomic" upgrade + migration (make sure that selector to migrate method is correct)
+              // Some("0x060d3f50".to_string())
+    );
     info!("Trying to set code actual hash_code: {:?}", set_code_result);
     assert!(set_code_result.is_ok());
 
     // Change the metadata (keeping the old address)
     marketplace = Arc::from(
         MarketplaceInstance::new(
-            marketplace.contract().address().clone(), 
-            &Some(config.test_case_params.marketplace_v2_metadata.clone().expect("New code's metadata path must be specified.")))
-            .expect("Adding existing contract should succeed.")
-        );
+            marketplace.contract().address().clone(),
+            &Some(
+                config
+                    .test_case_params
+                    .marketplace_v2_metadata
+                    .clone()
+                    .expect("New code's metadata path must be specified."),
+            ),
+        )
+        .expect("Adding existing contract should succeed."),
+    );
 
     let migration_result = marketplace.migrate(&sign(&conn, &authority));
-    info!("Trying to perform migration after changing the metadata: {:?}", migration_result);
+    info!(
+        "Trying to perform migration after changing the metadata: {:?}",
+        migration_result
+    );
     assert!(migration_result.is_ok());
 
     // Check if migration was actually performed
-    // 
+    //
     // Will fail when:
     // - Upgrade was not successful/not performed, or
     // - Migration was not successful/not performed
-    assert!(matches!(marketplace.migration_performed(&sign(&conn, &authority)), Ok(true)));
+    assert!(matches!(
+        marketplace.migration_performed(&sign(&conn, &authority)),
+        Ok(true)
+    ));
 
     // Upgrade ends
 

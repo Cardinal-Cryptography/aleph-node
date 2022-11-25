@@ -16,7 +16,7 @@ pub mod marketplace_v2 {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
+        call::{build_call, Call, DelegateCall, ExecutionInput, Selector},
         CallFlags,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
@@ -30,6 +30,7 @@ pub mod marketplace_v2 {
     };
 
     type Event = <Marketplace as ContractEventBase>::Type;
+    type SelectorData = [u8; 4];
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
@@ -258,14 +259,30 @@ pub mod marketplace_v2 {
         }
 
         /// Sets new code hash, updates contract code
+        /// 
+        /// Option: you can pass a selector of the function that
+        /// performs a migration to the new storage struct.
+        /// This allows for 'atomic' upgrade + migration
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), Error> {
+        pub fn set_code(&mut self, code_hash: [u8; 32], migration_selector: Option<SelectorData>) -> Result<(), Error> {
             let this = self.env().account_id();
             Self::ensure_role(Role::Owner(this))?;
 
             if set_code_hash(&code_hash).is_err() {
                 return Err(Error::UpgradeFailed);
             };
+
+            if let Some(selector_bytes) = migration_selector {
+                let selector = Selector::from(selector_bytes);
+                let code_hash = Hash::from(code_hash);
+                build_call::<Environment>()
+                    .call_type(DelegateCall::new().code_hash(code_hash))
+                    .exec_input(ExecutionInput::new(selector))
+                    .call_flags(CallFlags::default().set_tail_call(true))
+                    // placeholder, it's a tail call anyway
+                    .returns::<()>()
+                    .fire()?;
+            }
 
             Ok(())
         }
@@ -276,10 +293,10 @@ pub mod marketplace_v2 {
             // This should work - if migration was not performed, then
             // `migration_performed` will be initialised to default, so to `false`
             if self.data.migration_performed {
-                    return Err(Error::MigrationAlreadyPerformed);
+                return Err(Error::MigrationAlreadyPerformed);
             }
 
-            // Only owner can perform migration (???)
+            // Only owner can perform migration (?)
             let this = self.env().account_id();
             Self::ensure_role(Role::Owner(this))?;
 
