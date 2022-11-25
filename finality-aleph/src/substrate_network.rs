@@ -1,15 +1,17 @@
-use std::{borrow::Cow, collections::HashSet, fmt, iter, pin::Pin, sync::Arc};
+use std::{collections::HashSet, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::stream::{Stream, StreamExt};
 use log::error;
 use sc_consensus::JustificationSyncLink;
 use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, ExHashT, Multiaddr,
+    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
     NetworkService, NetworkSyncForkRequest, PeerId,
 };
-use sc_network_common::service::{
-    NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender,
+use sc_network_common::{
+    protocol::ProtocolName,
+    service::{NetworkEventStream as _, NetworkNotification, NetworkPeers, NotificationSender},
+    ExHashT,
 };
 use sp_api::NumberFor;
 use sp_consensus::SyncOracle;
@@ -46,10 +48,10 @@ impl<B: Block, H: ExHashT> RequestBlocks<B> for Arc<NetworkService<B, H>> {
 const AUTHENTICATION_PROTOCOL_NAME: &str = "/aleph/1";
 
 /// Returns the canonical name of the protocol.
-pub fn protocol_name(protocol: &Protocol) -> Cow<'static, str> {
+pub fn protocol_name(protocol: &Protocol) -> ProtocolName {
     use Protocol::*;
     match protocol {
-        Authentication => Cow::Borrowed(AUTHENTICATION_PROTOCOL_NAME),
+        Authentication => AUTHENTICATION_PROTOCOL_NAME.into(),
     }
 }
 

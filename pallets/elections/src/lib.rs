@@ -85,7 +85,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// Something that provides information about ongoing eras.
         type EraInfoProvider: EraInfoProvider<AccountId = Self::AccountId>;
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Something that provides data for elections.
         type DataProvider: ElectionDataProvider<
             AccountId = Self::AccountId,
@@ -130,7 +130,7 @@ pub mod pallet {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
             T::DbWeight::get().reads(1)
                 + match on_chain {
-                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == STORAGE_VERSION => Weight::zero(),
                     _ if on_chain == StorageVersion::new(0) => {
                         migrations::v0_to_v1::Migration::<T, Self>::migrate()
                             + migrations::v1_to_v2::Migration::<T, Self>::migrate()
@@ -149,7 +149,7 @@ pub mod pallet {
                             "On chain storage version of pallet elections is {:?} but it should not be bigger than 2",
                             on_chain
                         );
-                        0
+                        Weight::zero()
                     }
                 }
         }
@@ -540,6 +540,10 @@ pub mod pallet {
             }
 
             Ok(supports.into_iter().collect())
+        }
+
+        fn ongoing() -> bool {
+            false
         }
     }
 }

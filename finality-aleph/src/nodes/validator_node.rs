@@ -4,7 +4,7 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
 use sc_client_api::Backend;
-use sc_network::ExHashT;
+use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::Block;
@@ -22,8 +22,8 @@ use crate::{
         ConsensusParty, ConsensusPartyParams,
     },
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
-    tcp_network::new_tcp_network,
-    validator_network::{Service, KEY_TYPE},
+    tcp_network::{new_tcp_network, KEY_TYPE},
+    validator_network::Service,
     AlephConfig, GetBlockchainBackend,
 };
 

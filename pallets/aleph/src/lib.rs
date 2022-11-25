@@ -55,7 +55,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type SessionInfoProvider: SessionInfoProvider<Self>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
     }
@@ -79,7 +79,7 @@ pub mod pallet {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
             T::DbWeight::get().reads(1)
                 + match on_chain {
-                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == STORAGE_VERSION => Weight::zero(),
                     _ if on_chain == StorageVersion::new(1) => {
                         migrations::v1_to_v2::Migration::<T, Self>::migrate()
                     }
@@ -93,7 +93,7 @@ pub mod pallet {
                             "On chain storage version of pallet aleph is {:?} but it should not be bigger than 2",
                             on_chain
                         );
-                        0
+                        Weight::zero()
                     }
                 }
         }
