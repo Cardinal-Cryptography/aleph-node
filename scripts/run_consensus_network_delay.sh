@@ -8,14 +8,12 @@ function usage(){
     cat << EOF
 Usage:
   $0
-     --network-delay DELAYms
-        simulated network delay in ms; default=500ms
+     --network-delays "500:300"
+        list of delays for each node in ms; default="500:500:500:500:500"
     --no-build-image
         skip docker image build
-    --nodes "Node0:Node1"
-        list of nodes (Node0..Node4) for this script to handle; default="Node0:Node1:Node2:Node3:Node4"
-    --node-ports "9934:9935"
-        list of rpc ports for --nodes; default="9933:9934:9935:9936:9937"
+    --nodes "Node0:9933:Node1:9934"
+        list of pairs node:rpc_port; default="Node0:9933:Node1:9934:Node2:9935:Node3:9936:Node4:9937"
     --check-block number
         check finalization for a given block number, 0 means no-check; default=42
 EOF
@@ -36,8 +34,8 @@ function set_network_delay() {
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --network-delay)
-            NETWORK_DELAY="$2"
+        --network-delays)
+            NETWORK_DELAYS="$2"
             shift;shift
             ;;
         --no-build-image)
@@ -46,10 +44,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --nodes)
             NODES="$2"
-            shift;shift
-            ;;
-        --node-ports)
-            NODES_PORTS="$2"
             shift;shift
             ;;
         --check-block)
@@ -66,17 +60,27 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-NETWORK_DELAY=${NETWORK_DELAY:-500}
+NETWORK_DELAYS=${NETWORK_DELAYS:-"500:500:500:500:500"}
 BUILD_IMAGE=${BUILD_IMAGE:-true}
-NODES=${NODES:-"Node0:Node1:Node2:Node3:Node4"}
+NODE_PAIRS=${NODES:-"Node0:9933:Node1:9934:Node2:9935:Node3:9936:Node4:9937"}
 NODES_PORTS=${NODES_PORTS:-"9933:9934:9935:9936:9937"}
-CHECK_BLOCK_FINALIZATION=${CHECK_BLOCK_FINALIZATION:-42}
+CHECK_BLOCK_FINALIZATION=${CHECK_BLOCK_FINALIZATION:-44}
 
-into_array $NODES
-NODES=(${result[@]})
+into_array $NETWORK_DELAYS
+NETWORK_DELAYS=(${result[@]})
 
-into_array $NODES_PORTS
-NODES_PORTS=(${result[@]})
+into_array $NODE_PAIRS
+NODE_PAIRS=(${result[@]})
+NODES=()
+NODES_PORTS=()
+for ((i=0; i<${#NODE_PAIRS[@]}; i+=2)); do
+    node=${NODE_PAIRS[$i]}
+    port=${NODE_PAIRS[(($i + 1))]}
+
+    NODES+=($node)
+    NODES_PORTS+=($port)
+done
+
 
 if [[ "$BUILD_IMAGE" = true ]]; then
     log "building custom docker image for network tests"
@@ -87,9 +91,12 @@ log "starting network"
 OVERRIDE_DOCKER_COMPOSE=./docker/docker-compose.network_tests.yml DOCKER_COMPOSE=./docker/docker-compose.bridged.yml ./.github/scripts/run_consensus.sh 1>&2
 log "network started"
 
-log "setting network delay"
-for node in ${NODES[@]}; do
-    set_network_delay $node $NETWORK_DELAY
+for i in "${!NODES[@]}"; do
+    node=${NODES[$i]}
+    delay=${NETWORK_DELAYS[$i]}
+    log "setting network delay for node $node to ${delay}ms"
+
+    set_network_delay $node $delay
 done
 
 if [[ $CHECK_BLOCK_FINALIZATION -gt 0 ]]; then
