@@ -9,14 +9,56 @@ use sp_core::Pair;
 
 use crate::{
     test::button_game::helpers::{
-        assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test, setup_dex_test,
-        wait_for_death, ButtonTestContext, DexTestContext,
+        alephs, assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test,
+        setup_dex_test, setup_wrapped_azero_test, wait_for_death, ButtonTestContext,
+        DexTestContext, WAzeroTestContext,
     },
     Config,
 };
 
 mod contracts;
 mod helpers;
+
+/// Test wrapped azero
+///
+/// The scenario:
+///
+/// 1. Wraps some azero and checks that the PSP22 balance increased accordingly.
+/// 2. Unwraps half of the amount, checks that some wrapped funds remained while the rest has been returned to azero,
+///    minus fees.
+pub fn wrapped_azero(config: &Config) -> Result<()> {
+    let WAzeroTestContext {
+        conn,
+        account,
+        wazero,
+        mut events,
+        ..
+    } = setup_wrapped_azero_test(config)?;
+    let account_conn = &sign(&conn, &account);
+    let account_id: AccountId = account.public().into();
+
+    wazero.wrap(account_conn, alephs(2))?;
+
+    let event = assert_recv_id(&mut events, "Wrapped");
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("caller"));
+    assert!(*acc_id == account_id.to_string());
+    assert!(event.data.get("amount") == Some(&Value::UInt(alephs(2))));
+    assert!(wazero.balance_of(account_conn, account.public().into())? == alephs(2));
+
+    let balance_before = aleph_client::get_free_balance(&conn, &account_id);
+    wazero.unwrap(account_conn, alephs(1))?;
+
+    let event = assert_recv_id(&mut events, "UnWrapped");
+    let balance_after = aleph_client::get_free_balance(&conn, &account_id);
+    let max_fee = alephs(1) / 100;
+    assert!(balance_after - balance_before > alephs(1) - max_fee);
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("caller"));
+    assert!(*acc_id == account_id.to_string());
+    assert!(event.data.get("amount") == Some(&Value::UInt(alephs(1))));
+    assert!(wazero.balance_of(account_conn, account.public().into())? == alephs(1));
+
+    Ok(())
+}
 
 /// Test trading on simple_dex.
 ///

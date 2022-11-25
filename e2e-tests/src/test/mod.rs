@@ -1,7 +1,7 @@
 pub use ban::{ban_automatic, ban_manual, clearing_session_count};
 pub use button_game::{
     back_to_the_future, button_game_reset, early_bird_special, marketplace, simple_dex,
-    the_pressiah_cometh,
+    the_pressiah_cometh, wrapped_azero,
 };
 pub use electing_validators::authorities_are_staking;
 pub use era_payout::era_payouts_calculated_correctly;

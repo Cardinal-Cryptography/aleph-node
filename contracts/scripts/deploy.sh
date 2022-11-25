@@ -347,13 +347,13 @@ jq -n --arg early_bird_special "$EARLY_BIRD_SPECIAL" \
       the_pressiah_cometh_marketplace: $the_pressiah_cometh_marketplace,
       access_control: $access_control,
       simple_dex: $simple_dex,
+      wrapped_azero: $wrapped_azero,
       button_code_hash: $button_code_hash,
       ticket_token_code_hash: $ticket_token_code_hash,
       game_token_code_hash: $game_token_code_hash,
       marketplace_code_hash: $marketplace_code_hash,
       access_control_code_hash: $access_control_code_hash,
       simple_dex_code_hash: $simple_dex_code_hash,
-      wrapped_azero: $wrapped_azero,
       wrapped_azero_code_hash: $wrapped_azero_code_hash
     }' > addresses.json
 
