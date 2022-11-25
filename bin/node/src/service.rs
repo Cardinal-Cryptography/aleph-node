@@ -6,7 +6,11 @@ use std::{
 };
 
 use aleph_primitives::AlephSessionApi;
-use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
+use aleph_runtime::{
+    self,
+    opaque::{Block, Header},
+    Hash, RuntimeApi, MAX_BLOCK_SIZE,
+};
 use finality_aleph::{
     run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
     JustificationNotification, Metrics, MillisecsPerBlock, Protocol, SessionPeriod,
@@ -21,7 +25,7 @@ use sc_service::{
     TFullClient, TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_api::ProvideRuntimeApi;
+use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_runtime::{
     generic::BlockId,
@@ -447,3 +451,116 @@ pub fn new_full(
     network_starter.start_network();
     Ok(task_manager)
 }
+
+struct BlockchainBackend {
+    backend: FullBackend,
+}
+
+use sc_client_api::Backend as _;
+use sp_blockchain::CachedHeaderMetadata;
+
+impl sp_blockchain::HeaderBackend<Block> for BlockchainBackend {
+    fn header(&self, id: BlockId<Block>) -> sp_blockchain::Result<Option<Header>> {
+        self.backend.blockchain().header(id)
+    }
+    fn info(&self) -> sp_blockchain::Info<Block> {
+        self.backend.blockchain().info()
+    }
+    fn status(&self, id: BlockId<Block>) -> sp_blockchain::Result<sp_blockchain::BlockStatus> {
+        self.backend.blockchain().status(id)
+    }
+    fn number(
+        &self,
+        hash: Hash,
+    ) -> sp_blockchain::Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>> {
+        self.backend.blockchain().number(hash)
+    }
+    fn hash(&self, number: NumberFor<Block>) -> sp_blockchain::Result<Option<Hash>> {
+        self.backend.blockchain().hash(number)
+    }
+    fn block_hash_from_id(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Hash>> {
+        self.backend.blockchain().block_hash_from_id(id)
+    }
+    fn block_number_from_id(
+        &self,
+        id: &BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<NumberFor<Block>>> {
+        self.backend.blockchain().block_number_from_id(id)
+    }
+    fn expect_header(&self, id: BlockId<Block>) -> sp_blockchain::Result<Header> {
+        self.backend.blockchain().expect_header(id)
+    }
+    fn expect_block_number_from_id(
+        &self,
+        id: &BlockId<Block>,
+    ) -> sp_blockchain::Result<NumberFor<Block>> {
+        self.backend.blockchain().expect_block_number_from_id(id)
+    }
+    fn expect_block_hash_from_id(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Hash> {
+        self.backend.blockchain().expect_block_hash_from_id(id)
+    }
+}
+
+impl sp_blockchain::HeaderMetadata<Block> for BlockchainBackend {
+    type Error = sp_blockchain::Error;
+
+    fn header_metadata(&self, hash: Hash) -> sp_blockchain::Result<CachedHeaderMetadata<Block>> {
+        self.backend.blockchain().header_metadata(hash)
+    }
+    fn insert_header_metadata(&self, hash: Hash, header_metadata: CachedHeaderMetadata<Block>) {
+        self.backend
+            .blockchain()
+            .insert_header_metadata(hash, header_metadata)
+    }
+    fn remove_header_metadata(&self, hash: Hash) {
+        self.backend.blockchain().remove_header_metadata(hash)
+    }
+}
+
+impl sp_blockchain::Backend<Block> for BlockchainBackend {
+    fn body(
+        &self,
+        id: BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
+        self.backend.blockchain().body(id)
+    }
+    fn justifications(
+        &self,
+        id: BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<sp_runtime::Justifications>> {
+        self.backend.blockchain().justifications(id)
+    }
+    fn last_finalized(&self) -> sp_blockchain::Result<Hash> {
+        self.backend.blockchain().last_finalized()
+    }
+    fn leaves(&self) -> sp_blockchain::Result<Vec<Hash>> {
+        self.backend.blockchain().leaves()
+    }
+    fn displaced_leaves_after_finalizing(
+        &self,
+        block_number: NumberFor<Block>,
+    ) -> sp_blockchain::Result<Vec<Hash>> {
+        self.backend
+            .blockchain()
+            .displaced_leaves_after_finalizing(block_number)
+    }
+    fn children(&self, parent_hash: Hash) -> sp_blockchain::Result<Vec<Hash>> {
+        self.backend.blockchain().children(parent_hash)
+    }
+    fn indexed_transaction(&self, hash: &Hash) -> sp_blockchain::Result<Option<Vec<u8>>> {
+        self.backend.blockchain().indexed_transaction(hash)
+    }
+    fn has_indexed_transaction(&self, hash: &Hash) -> sp_blockchain::Result<bool> {
+        self.backend.blockchain().has_indexed_transaction(hash)
+    }
+    fn block_indexed_body(
+        &self,
+        id: BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<Vec<Vec<u8>>>> {
+        self.backend.blockchain().block_indexed_body(id)
+    }
+}
+
+unsafe impl Send for BlockchainBackend {}
+
+unsafe impl Sync for BlockchainBackend {}
