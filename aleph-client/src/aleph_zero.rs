@@ -19438,9 +19438,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                243u8, 4u8, 194u8, 236u8, 110u8, 103u8, 34u8, 147u8, 254u8, 117u8, 205u8, 237u8,
-                68u8, 20u8, 176u8, 209u8, 157u8, 106u8, 80u8, 136u8, 50u8, 186u8, 119u8, 248u8,
-                34u8, 65u8, 187u8, 187u8, 110u8, 81u8, 88u8, 22u8,
+                248u8, 246u8, 131u8, 72u8, 246u8, 127u8, 112u8, 242u8, 195u8, 249u8, 99u8, 217u8,
+                184u8, 235u8, 164u8, 100u8, 197u8, 133u8, 225u8, 3u8, 228u8, 60u8, 163u8, 20u8,
+                13u8, 159u8, 133u8, 146u8, 64u8, 89u8, 20u8, 39u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
