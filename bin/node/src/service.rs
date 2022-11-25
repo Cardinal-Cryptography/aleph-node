@@ -1,7 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use std::{
-    ops::Sub,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -23,6 +22,7 @@ use sc_service::{
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
+use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
@@ -37,7 +37,7 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
 struct LimitNonfinalized(u32);
 
-impl<N: TryInto<u32> + Sub<Output = N>> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized {
+impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized {
     fn should_backoff(
         &self,
         chain_head_number: N,
@@ -46,9 +46,9 @@ impl<N: TryInto<u32> + Sub<Output = N>> BackoffAuthoringBlocksStrategy<N> for Li
         _slow_now: Slot,
         _logging_target: &str,
     ) -> bool {
-        let nonfinalized_blocks = (chain_head_number - finalized_number)
-            .try_into()
-            .unwrap_or(u32::MAX);
+        let nonfinalized_blocks: u32 = chain_head_number
+            .saturating_sub(finalized_number)
+            .unique_saturated_into();
         nonfinalized_blocks >= self.0
     }
 }
