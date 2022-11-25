@@ -41,7 +41,7 @@ if [[ "$BUILD_IMAGE" = true ]]; then
 fi
 
 log "starting network"
-OVERRIDE_DOCKER_COMPOSE=./docker/docker-compose.network_test.yml DOCKER_COMPOSE=./docker/docker-compose.bridged.yml ./.github/scripts/run_consensus.sh 1>&2
+OVERRIDE_DOCKER_COMPOSE=./docker/docker-compose.network_tests.yml DOCKER_COMPOSE=./docker/docker-compose.bridged.yml ./.github/scripts/run_consensus.sh 1>&2
 log "network started"
 
 log "setting network delay"
