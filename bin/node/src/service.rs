@@ -1,6 +1,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use std::{
+    ops::Sub,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -14,6 +15,7 @@ use finality_aleph::{
 use futures::channel::mpsc;
 use log::warn;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
 use sc_service::{
     error::Error as ServiceError, Configuration, KeystoreContainer, NetworkStarter, RpcHandlers,
@@ -21,7 +23,7 @@ use sc_service::{
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
+use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
     traits::{Block as BlockT, Header as HeaderT, Zero},
@@ -32,6 +34,24 @@ use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::Al
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+
+struct LimitNonfinalized(u32);
+
+impl<N: TryInto<u32> + Sub<Output = N>> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized {
+    fn should_backoff(
+        &self,
+        chain_head_number: N,
+        _chain_head_slot: Slot,
+        finalized_number: N,
+        _slow_now: Slot,
+        _logging_target: &str,
+    ) -> bool {
+        let nonfinalized_blocks = (chain_head_number - finalized_number)
+            .try_into()
+            .unwrap_or(u32::MAX);
+        nonfinalized_blocks >= self.0
+    }
+}
 
 fn get_backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
     if aleph_config.no_backup() {
@@ -277,7 +297,7 @@ pub fn new_authority(
     );
 
     let force_authoring = config.force_authoring;
-    let backoff_authoring_blocks: Option<()> = None;
+    let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
     let (_rpc_handlers, network, network_starter) = setup(
