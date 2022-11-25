@@ -6429,6 +6429,26 @@ pub mod api {
                         ],
                     )
                 }
+                #[doc = " Next session finality version."]
+                pub fn next_session_finality_version(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u32>,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Aleph",
+                        "NextSessionFinalityVersion",
+                        vec![],
+                        [
+                            160u8, 211u8, 96u8, 130u8, 62u8, 24u8, 39u8, 81u8, 35u8, 251u8, 54u8,
+                            64u8, 148u8, 207u8, 140u8, 56u8, 1u8, 57u8, 20u8, 148u8, 54u8, 152u8,
+                            137u8, 146u8, 207u8, 116u8, 160u8, 50u8, 178u8, 126u8, 207u8, 117u8,
+                        ],
+                    )
+                }
                 #[doc = " Scheduled finality version change."]
                 pub fn finality_scheduled_version_change(
                     &self,
@@ -19468,9 +19488,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                133u8, 98u8, 249u8, 41u8, 126u8, 95u8, 67u8, 30u8, 158u8, 209u8, 205u8, 127u8,
-                176u8, 103u8, 177u8, 238u8, 23u8, 88u8, 154u8, 1u8, 118u8, 141u8, 62u8, 141u8,
-                76u8, 64u8, 77u8, 253u8, 74u8, 128u8, 136u8, 70u8,
+                142u8, 137u8, 232u8, 253u8, 121u8, 5u8, 1u8, 73u8, 145u8, 187u8, 70u8, 244u8,
+                169u8, 184u8, 6u8, 43u8, 232u8, 205u8, 73u8, 237u8, 160u8, 180u8, 149u8, 53u8, 4u8,
+                52u8, 162u8, 20u8, 18u8, 201u8, 23u8, 57u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)

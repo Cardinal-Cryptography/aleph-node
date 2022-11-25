@@ -1,11 +1,9 @@
-use aleph_client::{
-    get_block_hash, get_next_session_finality_version, get_session_finality_version, ReadStorage,
-};
+use aleph_client::{pallets::aleph::AlephApi, utility::BlocksApi, Connection};
 use log::info;
 use primitives::{BlockNumber, Version};
 
-pub fn check_finality_version_at_block<C: ReadStorage>(
-    connection: &C,
+pub async fn check_finality_version_at_block(
+    connection: &Connection,
     block_number: BlockNumber,
     expected_version: Version,
 ) {
@@ -13,13 +11,13 @@ pub fn check_finality_version_at_block<C: ReadStorage>(
         "Checking current session finality version for block {}",
         block_number
     );
-    let block_hash = get_block_hash(connection, block_number);
-    let finality_version = get_session_finality_version(connection, Some(block_hash));
+    let block_hash = connection.get_block_hash(block_number).await;
+    let finality_version = connection.finality_version(block_hash).await;
     assert_eq!(finality_version, expected_version);
 }
 
-pub fn check_next_session_finality_version_at_block<C: ReadStorage>(
-    connection: &C,
+pub async fn check_next_session_finality_version_at_block(
+    connection: &Connection,
     block_number: BlockNumber,
     expected_version: Version,
 ) {
@@ -27,7 +25,7 @@ pub fn check_next_session_finality_version_at_block<C: ReadStorage>(
         "Checking next session finality version for block {}",
         block_number
     );
-    let block_hash = get_block_hash(connection, block_number);
-    let next_finality_version = get_next_session_finality_version(connection, Some(block_hash));
+    let block_hash = connection.get_block_hash(block_number).await;
+    let next_finality_version = connection.next_session_finality_version(block_hash).await;
     assert_eq!(next_finality_version, expected_version);
 }

@@ -1,8 +1,9 @@
 use codec::Encode;
-use primitives::{BlockNumber, SessionIndex};
+use primitives::{BlockNumber, SessionIndex, Version};
 use subxt::rpc_params;
 
 use crate::{
+    api,
     api::runtime_types::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
@@ -12,6 +13,13 @@ use crate::{
     Call::Aleph,
     Connection, Pair, RootConnection, SudoCall, TxStatus,
 };
+
+#[async_trait::async_trait]
+pub trait AlephApi {
+    async fn finality_version(&self, at: Option<BlockHash>) -> Version;
+
+    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
+}
 
 #[async_trait::async_trait]
 pub trait AlephSudoApi {
@@ -37,6 +45,21 @@ pub trait AlephRpc {
         hash: BlockHash,
         key_pair: AlephKeyPair,
     ) -> anyhow::Result<()>;
+}
+
+#[async_trait::async_trait]
+impl AlephApi for Connection {
+    async fn finality_version(&self, at: Option<BlockHash>) -> Version {
+        let addrs = api::storage().aleph().finality_version();
+
+        self.get_storage_entry(&addrs, at).await
+    }
+
+    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version {
+        let addrs = api::storage().aleph().next_session_finality_version();
+
+        self.get_storage_entry(&addrs, at).await
+    }
 }
 
 #[async_trait::async_trait]

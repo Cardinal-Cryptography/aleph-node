@@ -9,9 +9,10 @@ use crate::{
         channeling_fee_and_tip as test_channeling_fee_and_tip,
         clearing_session_count as test_clearing_session_count, disable_node as test_disable_node,
         era_payouts_calculated_correctly as test_era_payout, era_validators as test_era_validators,
-        fee_calculation as test_fee_calculation, finality_version as test_finality_version,
-        finalization as test_finalization, force_new_era as test_force_new_era,
-        points_basic as test_points_basic, points_stake_change as test_points_stake_change,
+        fee_calculation as test_fee_calculation,
+        finality_version_change as test_finality_version_change, finalization as test_finalization,
+        force_new_era as test_force_new_era, points_basic as test_points_basic,
+        points_stake_change as test_points_stake_change,
         schedule_doomed_version_change_and_verify_finalization_stopped as test_schedule_doomed_version_change_and_verify_finalization_stopped,
         schedule_version_change as test_schedule_version_change,
         staking_era_payouts as test_staking_era_payouts,
@@ -51,7 +52,7 @@ pub async fn run_testcase(id: &str, config: &Config) -> anyhow::Result<()> {
         "doomed_version_upgrade" => {
             test_schedule_doomed_version_change_and_verify_finalization_stopped(config).await
         }
-        "finality_version" => test_finality_version(config).await,
+        "finality_version_change" => test_finality_version_change(config).await,
         _ => panic!("unknown testcase"),
     }
 }
@@ -82,7 +83,7 @@ pub async fn run_all_testcases(config: &Config) -> anyhow::Result<()> {
         "ban_manual",
         "ban_threshold",
         "doomed_version_upgrade",
-        "finality_version",
+        "finality_version_change",
     ];
 
     for testcase in all {
