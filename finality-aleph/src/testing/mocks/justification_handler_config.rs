@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     justification::{JustificationHandlerConfig, JustificationRequestScheduler, SchedulerActions},
-    testing::mocks::{single_action_mock::SingleActionMock, AcceptancePolicy, TBlock},
+    testing::mocks::{single_action_mock::SingleActionMock, AcceptancePolicy},
 };
 
 #[derive(Clone)]
