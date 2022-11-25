@@ -1,14 +1,13 @@
-use std::{fmt, marker::PhantomData, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
 use sc_client_api::{
-    backend::Backend,
-    blockchain::{Backend as _, Info},
+    blockchain::{Backend, Info},
     HeaderBackend,
 };
 use sp_api::{BlockId, BlockT, NumberFor};
-use sp_runtime::traits::{Header, One};
+use sp_runtime::traits::{Header, One, Saturating};
 
 use crate::{
     finalization::BlockFinalizer,
@@ -17,7 +16,7 @@ use crate::{
         JustificationRequestScheduler, Verifier,
     },
     metrics::Checkpoint,
-    network, BlockHashNum, Metrics,
+    network, BlockHashNum, GetBlockchainBackend, Metrics,
 };
 
 /// Threshold for how many tries are needed so that JustificationRequestStatus is logged
@@ -93,17 +92,17 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, BE>
+pub struct BlockRequester<B, RB, S, F, V, GBB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BE: Backend<B>,
+    GBB: GetBlockchainBackend<B> + 'static,
 {
     block_requester: RB,
-    backend: Arc<BE>,
+    get_blockchain_backend: GBB,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -111,25 +110,25 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, BE> BlockRequester<B, RB, S, F, V, BE>
+impl<B, RB, S, F, V, GBB> BlockRequester<B, RB, S, F, V, GBB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    BE: Backend<B>,
+    GBB: GetBlockchainBackend<B> + 'static,
 {
     pub fn new(
         block_requester: RB,
-        backend: Arc<BE>,
+        get_blockchain_backend: GBB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     ) -> Self {
         BlockRequester {
             block_requester,
-            backend,
+            get_blockchain_backend,
             finalizer,
             justification_request_scheduler,
             metrics,
@@ -190,7 +189,7 @@ where
     pub fn request_justification(&mut self, wanted: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                let info = self.backend.blockchain().info();
+                let info = self.get_blockchain_backend.blockchain().info();
                 self.request_children(&info);
                 self.request_wanted(wanted, &info);
             }
@@ -203,7 +202,10 @@ where
     }
 
     pub fn finalized_number(&self) -> NumberFor<B> {
-        self.backend.blockchain().info().finalized_number
+        self.get_blockchain_backend
+            .blockchain()
+            .info()
+            .finalized_number
     }
 
     fn do_request(&mut self, hash: &<B as BlockT>::Hash, num: NumberFor<B>) {
@@ -223,7 +225,7 @@ where
         let finalized_number = info.finalized_number;
 
         let children = self
-            .backend
+            .get_blockchain_backend
             .blockchain()
             .children(finalized_hash)
             .unwrap_or_default();
@@ -234,7 +236,7 @@ where
         }
 
         for child in &children {
-            self.do_request(child, finalized_number);
+            self.do_request(child, finalized_number + NumberFor::<B>::one());
         }
     }
 
@@ -243,7 +245,7 @@ where
         let best_number = info.best_number;
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
-            top_wanted = best_number - NumberFor::<B>::one();
+            top_wanted = best_number.saturating_sub(NumberFor::<B>::one());
         }
         let finalized_number = info.finalized_number;
         // We know that top_wanted >= finalized_number, so
@@ -253,7 +255,7 @@ where
             return;
         }
         match self
-            .backend
+            .get_blockchain_backend
             .blockchain()
             .header(BlockId::Number(top_wanted))
         {

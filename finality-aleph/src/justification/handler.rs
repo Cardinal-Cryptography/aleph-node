@@ -1,12 +1,8 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error};
-use sc_client_api::backend::Backend;
 use sp_api::BlockT;
 use sp_runtime::traits::Header;
 use tokio::time::timeout;
@@ -17,10 +13,10 @@ use crate::{
         requester::BlockRequester, JustificationHandlerConfig, JustificationNotification,
         JustificationRequestScheduler, SessionInfo, SessionInfoProvider, Verifier,
     },
-    network, Metrics, STATUS_REPORT_INTERVAL,
+    network, GetBlockchainBackend, Metrics, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, S, SI, F, BE>
+pub struct JustificationHandler<B, V, RB, S, SI, F, GBB>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -28,15 +24,15 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    BE: Backend<B> + Send + Sync + 'static,
+    GBB: GetBlockchainBackend<B> + 'static,
 {
     session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, S, F, V, BE>,
+    block_requester: BlockRequester<B, RB, S, F, V, GBB>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, S, SI, F, BE> JustificationHandler<B, V, RB, S, SI, F, BE>
+impl<B, V, RB, S, SI, F, GBB> JustificationHandler<B, V, RB, S, SI, F, GBB>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -44,12 +40,12 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    BE: Backend<B> + Send + Sync + 'static,
+    GBB: GetBlockchainBackend<B> + 'static,
 {
     pub fn new(
         session_info_provider: SI,
         block_requester: RB,
-        backend: Arc<BE>,
+        get_blockchain_backend: GBB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -59,7 +55,7 @@ where
             session_info_provider,
             block_requester: BlockRequester::new(
                 block_requester,
-                backend,
+                get_blockchain_backend,
                 finalizer,
                 justification_request_scheduler,
                 metrics,

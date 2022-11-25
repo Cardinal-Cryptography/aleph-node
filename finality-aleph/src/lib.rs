@@ -242,10 +242,10 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BE> {
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, GBB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
-    pub backend: Arc<BE>,
+    pub get_blockchain_backend: GBB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
@@ -257,4 +257,9 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BE> {
     pub backup_saving_path: Option<PathBuf>,
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
+}
+
+pub trait GetBlockchainBackend<B: Block> {
+    type BlockchainBackend: sp_blockchain::Backend<B>;
+    fn blockchain(&self) -> &Self::BlockchainBackend;
 }

@@ -26,7 +26,7 @@ use crate::{
     mpsc::UnboundedSender,
     session_id_from_block_num,
     session_map::ReadOnlySessionMap,
-    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
+    GetBlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 
 #[cfg(test)]
@@ -83,10 +83,10 @@ impl<B: Block> Verifier<B> for JustificationVerifier {
     }
 }
 
-struct JustificationParams<B: Block, H: ExHashT, C, BE> {
+struct JustificationParams<B: Block, H: ExHashT, C, GBB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
-    pub backend: Arc<BE>,
+    pub get_blockchain_backend: GBB,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
@@ -127,8 +127,8 @@ impl<B: Block> SessionInfoProvider<B, JustificationVerifier> for SessionInfoProv
     }
 }
 
-fn setup_justification_handler<B, H, C, BE>(
-    just_params: JustificationParams<B, H, C, BE>,
+fn setup_justification_handler<B, H, C, GBB, BE>(
+    just_params: JustificationParams<B, H, C, GBB>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,
     impl Future<Output = ()>,
@@ -139,11 +139,12 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
+    GBB: GetBlockchainBackend<B> + 'static + Send,
 {
     let JustificationParams {
         network,
         client,
-        backend,
+        get_blockchain_backend,
         justification_rx,
         metrics,
         session_period,
@@ -154,7 +155,7 @@ where
     let handler = JustificationHandler::new(
         SessionInfoProviderImpl::new(session_map, session_period),
         network,
-        backend,
+        get_blockchain_backend,
         AlephFinalizer::new(client),
         JustificationRequestSchedulerImpl::new(&session_period, &millisecs_per_block, MAX_ATTEMPTS),
         metrics,
