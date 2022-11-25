@@ -275,9 +275,10 @@ mod tests {
     use super::{get_common_peer_id, Handler, HandlerError};
     use crate::{
         network::{
-            mock::{crypto_basics, MockMultiaddress, MockNetworkIdentity, MockPeerId},
+            mock::{crypto_basics, MockNetworkIdentity},
             NetworkIdentity,
         },
+        testing::mocks::validator_network::{random_identity, MockMultiaddress},
         NodeIndex, SessionId,
     };
 
@@ -379,8 +380,8 @@ mod tests {
     async fn fails_to_create_with_non_unique_peer_id() {
         let mut crypto_basics = crypto_basics(NUM_NODES).await;
         let addresses = vec![
-            MockMultiaddress::random_with_id(MockPeerId::random()),
-            MockMultiaddress::random_with_id(MockPeerId::random()),
+            random_identity().0[0].clone(),
+            random_identity().0[0].clone(),
         ];
         assert!(matches!(
             Handler::new(

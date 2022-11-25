@@ -136,10 +136,8 @@ mod tests {
 
     use super::{Discovery, DiscoveryMessage};
     use crate::{
-        network::{
-            manager::SessionHandler,
-            mock::{crypto_basics, MockMultiaddress, MockPeerId},
-        },
+        network::{manager::SessionHandler, mock::crypto_basics},
+        testing::mocks::validator_network::{random_identity, MockMultiaddress},
         SessionId,
     };
 
@@ -148,7 +146,7 @@ mod tests {
 
     fn addresses() -> Vec<MockMultiaddress> {
         (0..NUM_NODES)
-            .map(|_| MockMultiaddress::random_with_id(MockPeerId::random()))
+            .map(|_| random_identity().0[0].clone())
             .collect()
     }
 
@@ -177,7 +175,7 @@ mod tests {
             None,
             crypto_basics.1.clone(),
             SessionId(43),
-            vec![MockMultiaddress::random_with_id(MockPeerId::random())],
+            random_identity().0,
         )
         .await
         .unwrap();
