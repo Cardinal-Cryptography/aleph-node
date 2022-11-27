@@ -1,9 +1,10 @@
+use std::sync::Arc;
+
 use sp_api::BlockId;
 use sp_blockchain::{
     Backend as BlockchainBackend, BlockStatus, HeaderBackend, HeaderMetadata, Info,
 };
 use sp_runtime::traits::Block;
-use std::sync::Arc;
 
 use crate::{
     testing::mocks::{TBlock, THash, THeader, TNumber},
