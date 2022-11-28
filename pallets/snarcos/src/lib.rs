@@ -100,10 +100,10 @@ pub mod pallet {
             Self::bare_store_key(identifier, key).map_err(|e| e.into())
         }
 
-        // TODO
-        // - weights
-        // - test
-        #[pallet::weight(100_000)]
+        /// Deletes a key stored under `identifier` in `VerificationKeys` map.
+        ///
+        /// Can only be called by a root account.
+        #[pallet::weight(T::DbWeight::get().writes(1))]
         pub fn delete_key(
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
@@ -113,10 +113,11 @@ pub mod pallet {
             Ok(())
         }
 
-        // TODO
-        // - weights
-        // - test
-        #[pallet::weight(100_000)]
+        /// Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`
+        ///
+        /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
+        /// Can only be called by a root account.
+        #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
         pub fn overwrite_key(
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
