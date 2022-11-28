@@ -59,6 +59,7 @@ use serde_json::{from_reader, from_value};
 
 use crate::{
     pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi},
+    sp_weights::weight_v2::Weight,
     AccountId, Connection, SignedConnection, TxStatus,
 };
 
@@ -109,7 +110,9 @@ impl ContractInstance {
             origin: self.address.clone(),
             dest: self.address.clone(),
             value: 0,
-            gas_limit: Self::MAX_READ_GAS,
+            gas_limit: Weight {
+                ref_time: Self::MAX_READ_GAS,
+            },
             input_data: payload,
             storage_deposit_limit: None,
         };
@@ -134,7 +137,9 @@ impl ContractInstance {
         conn.call(
             self.address.clone(),
             Self::PAYABLE_VALUE as u128,
-            Self::MAX_GAS,
+            Weight {
+                ref_time: Self::MAX_GAS,
+            },
             Self::STORAGE_FEE_LIMIT,
             data,
             TxStatus::InBlock,

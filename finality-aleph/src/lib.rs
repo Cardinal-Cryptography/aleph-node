@@ -8,9 +8,10 @@ use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use sc_client_api::{backend::Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
+use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
-use sc_network::{ExHashT, NetworkService};
+use sc_network::NetworkService;
+use sc_network_common::ExHashT;
 use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
@@ -70,10 +71,10 @@ enum Error {
 }
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
-pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSetConfig {
+pub fn peers_set_config(protocol: Protocol) -> sc_network_common::config::NonDefaultSetConfig {
     let name = protocol_name(&protocol);
 
-    let mut config = sc_network::config::NonDefaultSetConfig::new(
+    let mut config = sc_network_common::config::NonDefaultSetConfig::new(
         name,
         // max_notification_size should be larger than the maximum possible honest message size (in bytes).
         // Max size of alert is UNIT_SIZE * MAX_UNITS_IN_ALERT ~ 100 * 5000 = 50000 bytes
@@ -83,7 +84,7 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network::config::NonDefaultSet
     );
 
     config.set_config = match protocol {
-        Protocol::Authentication => sc_network::config::SetConfig::default(),
+        Protocol::Authentication => sc_network_common::config::SetConfig::default(),
     };
     config
 }
@@ -242,9 +243,10 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
+    pub blockchain_backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
@@ -256,4 +258,13 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC> {
     pub backup_saving_path: Option<PathBuf>,
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
+}
+
+pub trait BlockchainBackend<B: Block> {
+    fn children(&self, parent_hash: <B as Block>::Hash) -> Vec<<B as Block>::Hash>;
+    fn info(&self) -> sp_blockchain::Info<B>;
+    fn header(
+        &self,
+        block_id: sp_api::BlockId<B>,
+    ) -> sp_blockchain::Result<Option<<B as Block>::Header>>;
 }
