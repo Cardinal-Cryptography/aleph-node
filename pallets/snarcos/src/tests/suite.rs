@@ -1,5 +1,5 @@
-use frame_support::{assert_err, assert_ok, sp_runtime, BoundedVec};
-use frame_system::{pallet_prelude::OriginFor, Config};
+use frame_support::{assert_err, assert_ok, error::BadOrigin, sp_runtime, BoundedVec};
+use frame_system::{pallet_prelude::OriginFor, Config, RawOrigin};
 use sp_runtime::traits::Get;
 
 use super::setup::*;
@@ -26,6 +26,10 @@ fn caller() -> OriginFor<TestRuntime> {
     <TestRuntime as Config>::Origin::signed(0)
 }
 
+fn root() -> OriginFor<TestRuntime> {
+    <TestRuntime as Config>::Origin::root()
+}
+
 fn put_key() {
     VerificationKeys::<TestRuntime>::insert(IDENTIFIER, BoundedVec::try_from(vk()).unwrap());
 }
@@ -41,18 +45,52 @@ fn stores_vk_with_fresh_identifier() {
     });
 }
 
-// NOTE: disabled for hackathon
-// #[test]
-// fn does_not_overwrite_registered_key() {
-//     new_test_ext().execute_with(|| {
-//         put_key();
+#[test]
+fn does_not_overwrite_registered_key() {
+    new_test_ext().execute_with(|| {
+        put_key();
 
-//         assert_err!(
-//             Snarcos::store_key(caller(), IDENTIFIER, vk()),
-//             Error::<TestRuntime>::IdentifierAlreadyInUse
-//         );
-//     });
-// }
+        assert_err!(
+            Snarcos::store_key(caller(), IDENTIFIER, vk()),
+            Error::<TestRuntime>::IdentifierAlreadyInUse
+        );
+    });
+}
+
+#[test]
+fn caller_cannot_delete_key() {
+    new_test_ext().execute_with(|| {
+        put_key();
+        assert_err!(Snarcos::delete_key(caller(), IDENTIFIER), BadOrigin);
+    });
+}
+
+#[test]
+fn sudo_can_delete_key() {
+    new_test_ext().execute_with(|| {
+        put_key();
+        assert_ok!(Snarcos::delete_key(root(), IDENTIFIER));
+    });
+}
+
+#[test]
+fn caller_cannot_overwrite_key() {
+    new_test_ext().execute_with(|| {
+        put_key();
+        assert_err!(
+            Snarcos::overwrite_key(caller(), IDENTIFIER, vk()),
+            BadOrigin
+        );
+    });
+}
+
+#[test]
+fn sudo_can_overwrite_key() {
+    new_test_ext().execute_with(|| {
+        put_key();
+        assert_ok!(Snarcos::overwrite_key(root(), IDENTIFIER, vk()));
+    });
+}
 
 #[test]
 fn does_not_store_too_long_key() {
