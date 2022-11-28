@@ -5,12 +5,10 @@ set -euo pipefail
 # default node count
 # change when increasing the number of node containers
 NODE_COUNT=5
+# default minimum validator count
 MIN_VALIDATOR_COUNT=4
 DOCKER_COMPOSE=${DOCKER_COMPOSE:-"docker/docker-compose.yml"}
 OVERRIDE_DOCKER_COMPOSE=${OVERRIDE_DOCKER_COMPOSE:-""}
-
-# default minimum validator count
-MIN_VALIDATOR_COUNT=4
 
 export NODE_IMAGE=aleph-node:latest
 
