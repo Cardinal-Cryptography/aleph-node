@@ -12,11 +12,11 @@ use AcceptancePolicy::*;
 use crate::{
     justification::{AlephJustification, JustificationHandler, JustificationHandlerConfig},
     testing::mocks::{
-        create_block, AcceptancePolicy, Backend,
-        JustificationRequestSchedulerImpl, MockedBlockFinalizer, MockedBlockRequester,
-        SessionInfoProviderImpl, TBlock, VerifierWrapper,
+        create_block, AcceptancePolicy, Backend, JustificationRequestSchedulerImpl,
+        MockedBlockFinalizer, MockedBlockRequester, SessionInfoProviderImpl, TBlock,
+        VerifierWrapper,
     },
-    JustificationNotification, SessionPeriod, SignatureSet
+    JustificationNotification, SessionPeriod, SignatureSet,
 };
 
 const SESSION_PERIOD: SessionPeriod = SessionPeriod(5u32);
