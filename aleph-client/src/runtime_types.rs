@@ -8,6 +8,7 @@ use crate::{
     },
     frame_support::weights::weight_v2::Weight,
     pallet_staking::EraRewardPoints,
+    sp_weights::weight_v2::Weight,
 };
 
 impl<AccountId> Default for EraRewardPoints<AccountId> {

@@ -1,6 +1,6 @@
 [package]
 name = "payout-stakers"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 

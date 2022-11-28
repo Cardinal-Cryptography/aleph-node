@@ -30,6 +30,11 @@ use crate::{
     JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 
+#[cfg(test)]
+pub mod testing {
+    pub use super::validator_node::new_pen;
+}
+
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
 
