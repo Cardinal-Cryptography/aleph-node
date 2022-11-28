@@ -70,14 +70,9 @@ runs:
           -m "${{ inputs.min-validator-count }}"
         )
 
-        NODE_COUNT="${{ inputs.node-count }}"
         RESERVED_SEATS="${{ inputs.reserved-seats }}"
         NON_RESERVED_SEATS="${{ inputs.non-reserved-seats }}"
         
-        if [[ -n "${NODE_COUNT}" ]]; then
-          ARGS+=(-v "${NODE_COUNT}")
-        fi
-
         if [[ -n "${RANDOMIZED}" ]]; then
           ARGS+=(-r "${RANDOMIZED}")
         fi
