@@ -101,7 +101,7 @@ done
 
 if [[ $CHECK_BLOCK_FINALIZATION -gt 0 ]]; then
     log "checking finalization"
-    check_finalization $CHECK_BLOCK_FINALIZATION NODES NODES_PORTS
+    check_relative_finalization $CHECK_BLOCK_FINALIZATION NODES NODES_PORTS
     log "finalization checked"
 fi
 

@@ -14,7 +14,7 @@ function into_array() {
     IFS=$tmp
 }
 
-function check_finalization {
+function check_finalization() {
     local block_to_check=$1
     local -n nodes=$2
     local -n ports=$3
@@ -30,7 +30,36 @@ function check_finalization {
     done
 }
 
-function get_best_finalized {
+function check_relative_finalization_at_node() {
+    local node=$1
+    local rpc_port=$2
+    local awaited_blocks=$3
+
+    local last_block=$(get_last_block $node $rpc_port)
+    local awaited_finalized=$(($last_block+$awaited_blocks))
+
+    log "Last block seen at node $node was $last_block, awaiting block $awaited_finalized to be finalized"
+
+    wait_for_finalized_block $awaited_finalized $node $rpc_port
+}
+
+function check_relative_finalization() {
+    local awaited_blocks=$1
+    local -n nodes=$2
+    local -n ports=$3
+
+    log "checking finalization for $awaited_blocks block(s) in the future"
+
+    for i in "${!nodes[@]}"; do
+        local node=${nodes[$i]}
+        local rpc_port=${ports[$i]}
+
+        log "checking finalization at node $node (${node}:$rpc_port)"
+        check_relative_finalization_at_node $node $rpc_port $awaited_blocks
+    done
+}
+
+function get_best_finalized() {
     local validator=$1
     local rpc_port=$2
 
@@ -48,7 +77,7 @@ function wait_for_finalized_block() {
     done
 }
 
-function wait_for_block {
+function wait_for_block() {
     local block=$1
     local validator=$2
     local rpc_port=$3
@@ -61,12 +90,23 @@ function wait_for_block {
     done
 }
 
-function get_last_block {
+function retrieve_last_block() {
     local validator=$1
     local rpc_port=$2
 
-    local last_block_number=$(docker run --rm --network container:$validator appropriate/curl:latest \
-                                     -H "Content-Type: application/json" \
-                                     -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getBlock"}' http://127.0.0.1:$rpc_port | jq '.result.block.header.number')
-    printf "%d" $last_block_number
+    docker run --rm --network container:$validator appropriate/curl:latest \
+           -H "Content-Type: application/json" \
+           -d '{"id":1, "jsonrpc":"2.0", "method": "chain_getBlock"}' http://127.0.0.1:$rpc_port | jq '.result.block.header.number'
+}
+
+function get_last_block() {
+    local validator=$1
+    local rpc_port=$2
+
+    local last_block=0
+    while [[ -z "$last_block" ]]; do
+        last_block=$(retrieve_last_block $validator $rpc_port)
+        sleep 1
+    done
+    printf "%d" $last_block
 }
