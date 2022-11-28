@@ -13,6 +13,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
+use sc_client_api::{Backend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
@@ -23,6 +24,7 @@ use sc_service::{
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
+use sp_blockchain::Backend as _;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
@@ -59,7 +61,7 @@ impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized 
     }
 }
 
-fn get_backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
+fn backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
     if aleph_config.no_backup() {
         return None;
     }
@@ -279,7 +281,7 @@ pub fn new_authority(
         other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = get_backup_path(
+    let backup_path = backup_path(
         &aleph_config,
         config
             .base_path
@@ -308,7 +310,7 @@ pub fn new_authority(
 
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -365,9 +367,11 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
+    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -405,7 +409,7 @@ pub fn new_full(
         other: (_, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = get_backup_path(
+    let backup_path = backup_path(
         &aleph_config,
         config
             .base_path
@@ -416,7 +420,7 @@ pub fn new_full(
 
     let (_rpc_handlers, network, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool,
@@ -440,9 +444,11 @@ pub fn new_full(
             .unwrap(),
     );
 
+    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -464,4 +470,25 @@ pub fn new_full(
 
     network_starter.start_network();
     Ok(task_manager)
+}
+
+struct BlockchainBackendImpl {
+    backend: Arc<FullBackend>,
+}
+impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
+    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
+        self.backend
+            .blockchain()
+            .children(parent_hash)
+            .unwrap_or_default()
+    }
+    fn info(&self) -> sp_blockchain::Info<Block> {
+        self.backend.blockchain().info()
+    }
+    fn header(
+        &self,
+        block_id: sp_api::BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
+        self.backend.blockchain().header(block_id)
+    }
 }
