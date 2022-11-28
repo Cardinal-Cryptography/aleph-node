@@ -110,10 +110,7 @@ mod tests {
         let (mut container0, id0) = container_with_id().await;
         let (mut container1, id1) = container_with_id().await;
         let addresses = some_addresses();
-        assert!(
-            container0.add_peer(id1, addresses.clone())
-                != container1.add_peer(id0, addresses.clone())
-        );
+        assert!(container0.add_peer(id1, addresses.clone()) != container1.add_peer(id0, addresses));
     }
 
     async fn container_with_added_connecting_peer(

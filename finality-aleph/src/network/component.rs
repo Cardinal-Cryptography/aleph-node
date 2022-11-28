@@ -221,8 +221,8 @@ mod tests {
         }
     }
 
-    impl Into<FromType> for IntoType {
-        fn into(self) -> FromType {
+    impl From<IntoType> for FromType {
+        fn from(_value: IntoType) -> Self {
             FromType::A
         }
     }

@@ -133,7 +133,7 @@ impl<T> Channel<T> {
             self.1.lock().await.by_ref().take(n).collect::<Vec<_>>(),
         )
         .await
-        .unwrap_or(Vec::new())
+        .unwrap_or_default()
     }
 
     pub async fn try_next(&self) -> Option<T> {
