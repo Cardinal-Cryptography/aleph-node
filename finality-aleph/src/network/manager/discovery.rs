@@ -137,7 +137,9 @@ mod tests {
     use super::{Discovery, DiscoveryMessage};
     use crate::{
         network::{manager::SessionHandler, mock::crypto_basics},
-        testing::mocks::validator_network::{random_identity, MockMultiaddress},
+        testing::mocks::validator_network::{
+            random_identity, random_multiaddress, MockMultiaddress,
+        },
         SessionId,
     };
 
@@ -145,9 +147,7 @@ mod tests {
     const MS_COOLDOWN: u64 = 200;
 
     fn addresses() -> Vec<MockMultiaddress> {
-        (0..NUM_NODES)
-            .map(|_| random_identity().0[0].clone())
-            .collect()
+        (0..NUM_NODES).map(|_| random_multiaddress()).collect()
     }
 
     async fn build_number(

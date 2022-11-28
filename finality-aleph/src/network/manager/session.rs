@@ -278,7 +278,7 @@ mod tests {
             mock::{crypto_basics, MockNetworkIdentity},
             NetworkIdentity,
         },
-        testing::mocks::validator_network::{random_identity, MockMultiaddress},
+        testing::mocks::validator_network::{random_multiaddress, MockMultiaddress},
         NodeIndex, SessionId,
     };
 
@@ -379,10 +379,7 @@ mod tests {
     #[tokio::test]
     async fn fails_to_create_with_non_unique_peer_id() {
         let mut crypto_basics = crypto_basics(NUM_NODES).await;
-        let addresses = vec![
-            random_identity().0[0].clone(),
-            random_identity().0[0].clone(),
-        ];
+        let addresses = vec![random_multiaddress(), random_multiaddress()];
         assert!(matches!(
             Handler::new(
                 Some(crypto_basics.0.pop().unwrap()),

@@ -102,6 +102,10 @@ pub fn random_identity() -> (Vec<MockMultiaddress>, MockPublicKey) {
     )
 }
 
+pub fn random_multiaddress() -> MockMultiaddress {
+    random_identity().0.pop().expect("we created an address")
+}
+
 impl<D: Data> MockNetwork<D> {
     pub async fn new(address: &str) -> Self {
         let id = random_peer_id();

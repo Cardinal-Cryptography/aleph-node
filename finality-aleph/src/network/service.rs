@@ -353,7 +353,8 @@ mod tests {
             NetworkIdentity, Protocol,
         },
         testing::mocks::validator_network::{
-            random_identity, random_peer_id, MockMultiaddress, MockNetwork as MockValidatorNetwork,
+            random_multiaddress, random_peer_id, MockMultiaddress,
+            MockNetwork as MockValidatorNetwork,
         },
         SessionId,
     };
@@ -415,7 +416,7 @@ mod tests {
 
         // We do this only to make sure that NotificationStreamOpened/NotificationStreamClosed events are handled
         async fn wait_for_events_handled(&mut self) {
-            let address = random_identity().0[0].clone();
+            let address = random_multiaddress();
             self.network
                 .emit_event(MockEvent::Connected(address.clone()));
             assert_eq!(
@@ -454,7 +455,7 @@ mod tests {
     async fn test_sync_connected() {
         let mut test_data = TestData::prepare().await;
 
-        let address = random_identity().0[0].clone();
+        let address = random_multiaddress();
         test_data
             .network
             .emit_event(MockEvent::Connected(address.clone()));
