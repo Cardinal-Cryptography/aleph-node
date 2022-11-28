@@ -328,7 +328,7 @@ pub mod marketplace_v2 {
             key_bytes[..4].copy_from_slice(&key_bytes_pref[..4]);
 
             // Assert that there is something to clear
-            if let Some(_) = contract_storage_contains(&ink_primitives::Key::from(key_bytes)) {
+            if contract_storage_contains(&ink_primitives::Key::from(key_bytes)).is_some() {
                 // Clear storage under that key
                 clear_contract_storage(&ink_primitives::Key::from(key_bytes));
             } else {
