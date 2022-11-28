@@ -33,7 +33,6 @@ pub mod marketplace_v2 {
 
     const DUMMY_DATA: &[u8] = &[0x0];
 
-    //const OLD_STORAGE_KEY: u32 = openbrush::storage_unique_key!(MarketplaceDataV1);
     const OLD_STORAGE_KEY: u32 = 101;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(OLD_STORAGE_KEY)]
@@ -83,6 +82,7 @@ pub mod marketplace_v2 {
         MarketplaceEmpty,
         UpgradeFailed,
         MigrationAlreadyPerformed,
+        OldKeyInvalid,
     }
 
     #[ink(event)]
@@ -328,13 +328,13 @@ pub mod marketplace_v2 {
             key_bytes[..4].copy_from_slice(&key_bytes_pref[..4]);
 
             // Assert that there is something to clear
-            assert!(matches!(
-                contract_storage_contains(&ink_primitives::Key::from(key_bytes)),
-                Some(_)
-            ));
-            // Clear storage under that key
-            clear_contract_storage(&ink_primitives::Key::from(key_bytes));
-
+            if let Some(_) = contract_storage_contains(&ink_primitives::Key::from(key_bytes)) {
+                // Clear storage under that key
+                clear_contract_storage(&ink_primitives::Key::from(key_bytes));
+            } else {
+                return Err(Error::OldKeyInvalid);
+            }
+            
             self.data.migration_performed = true;
 
             Ok(())
