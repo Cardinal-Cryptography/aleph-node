@@ -310,12 +310,8 @@ mod tests {
         } else {
             // We need to switch the names around, because the connection was randomly the
             // other way around.
-            let temp_id = connecting_id;
-            connecting_id = listening_id;
-            listening_id = temp_id;
-            let temp_manager = connecting_manager;
-            connecting_manager = listening_manager;
-            listening_manager = temp_manager;
+            std::mem::swap(&mut connecting_id, &mut listening_id);
+            std::mem::swap(&mut connecting_manager, &mut listening_manager);
             assert!(connecting_manager.add_peer(listening_id.clone(), addresses.clone()));
         }
         // add outgoing to connecting

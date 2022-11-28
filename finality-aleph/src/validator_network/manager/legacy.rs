@@ -293,7 +293,7 @@ mod tests {
         // rx should fail
         assert!(rx.try_next().expect("channel should be closed").is_none());
         // add peer, this time for real
-        assert!(manager.add_peer(peer_id.clone(), addresses.clone()));
+        assert!(manager.add_peer(peer_id.clone(), addresses));
         let (tx, mut rx) = mpsc::unbounded();
         // should just add
         assert_eq!(manager.add_incoming(peer_id.clone(), tx), Added);

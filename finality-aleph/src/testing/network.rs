@@ -275,7 +275,7 @@ impl TestData {
         self.network_service_exit_tx.send(()).unwrap();
         self.network_manager_handle.await.unwrap();
         self.network_service_handle.await.unwrap();
-        while let Some(_) = self.network.send_message.try_next().await {}
+        while self.network.send_message.try_next().await.is_some() {}
         self.network.close_channels().await;
         self.validator_network.close_channels().await;
     }
