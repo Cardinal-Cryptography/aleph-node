@@ -347,6 +347,10 @@ where
     }
 
     pub fn ban_validator(validator: &T::AccountId, reason: BanReason) {
+        // we do not ban reserved validators
+        if NextEraReservedValidators::<T>::get().contains(validator) {
+            return
+        }
         // current era is the latest planned era for which validators are already chosen
         // so we ban from the next era
         let start: EraIndex = T::EraInfoProvider::current_era()
