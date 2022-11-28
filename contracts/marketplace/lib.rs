@@ -30,11 +30,10 @@ pub mod marketplace {
     use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink_env::{
         call::{build_call, Call, DelegateCall, ExecutionInput, Selector},
-        CallFlags,
+        set_code_hash, CallFlags,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
-    use ink_env::set_code_hash;
     use ink_storage::traits::SpreadAllocate;
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
@@ -129,7 +128,7 @@ pub mod marketplace {
                     current_start_block: Self::env().block_number(),
                     total_proceeds: starting_price.saturating_div(sale_multiplier),
                     tickets_sold: 1,
-                }
+                },
             }
         }
 
@@ -158,7 +157,9 @@ pub mod marketplace {
         /// The average price over all sales the contract made.
         #[ink(message)]
         pub fn average_price(&self) -> Balance {
-            self.data.total_proceeds.saturating_div(self.data.tickets_sold)
+            self.data
+                .total_proceeds
+                .saturating_div(self.data.tickets_sold)
         }
 
         /// The multiplier applied to the average price after each sale.
@@ -264,12 +265,16 @@ pub mod marketplace {
         }
 
         /// Sets new code hash, updates contract code
-        /// 
+        ///
         /// Option: you can pass a selector of the function that
         /// performs a migration to the new storage struct.
         /// This allows for 'atomic' upgrade + migration
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32], migration_selector: Option<SelectorData>) -> Result<(), Error> {
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            migration_selector: Option<SelectorData>,
+        ) -> Result<(), Error> {
             let this = self.env().account_id();
             Self::ensure_role(Role::Owner(this))?;
 

@@ -1,5 +1,5 @@
 //! Implement a Dutch auction of one token for another.
-//! 
+//!
 //! This is almost a clone of Marketplace - purpose of this contract is
 //! to test Marketplace's upgradability capabilities.
 
@@ -17,11 +17,10 @@ pub mod marketplace_v2 {
     use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink_env::{
         call::{build_call, Call, DelegateCall, ExecutionInput, Selector},
-        CallFlags,
+        clear_contract_storage, contract_storage_contains, set_code_hash, CallFlags,
     };
     use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
     use ink_prelude::{format, string::String};
-    use ink_env::{set_code_hash, clear_contract_storage, contract_storage_contains};
     use ink_storage::traits::SpreadAllocate;
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
@@ -49,7 +48,7 @@ pub mod marketplace_v2 {
         reward_token: AccountId,
     }
 
-    // Storage struct with different order of fields - for upgrade testing 
+    // Storage struct with different order of fields - for upgrade testing
     // Also there is new field (migration_performed) added
     const STORAGE_KEY: u32 = 201;
     #[derive(Default, Debug)]
@@ -114,6 +113,12 @@ pub mod marketplace_v2 {
         type ContractError = Error;
     }
 
+    impl Default for Marketplace {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl Marketplace {
         /// This should never be called, as only code hash of this contract is required
         /// to perform an upgrade
@@ -153,7 +158,9 @@ pub mod marketplace_v2 {
         /// The average price over all sales the contract made.
         #[ink(message)]
         pub fn average_price(&self) -> Balance {
-            self.data.total_proceeds.saturating_div(self.data.tickets_sold)
+            self.data
+                .total_proceeds
+                .saturating_div(self.data.tickets_sold)
         }
 
         /// The multiplier applied to the average price after each sale.
@@ -259,12 +266,16 @@ pub mod marketplace_v2 {
         }
 
         /// Sets new code hash, updates contract code
-        /// 
+        ///
         /// Option: you can pass a selector of the function that
         /// performs a migration to the new storage struct.
         /// This allows for 'atomic' upgrade + migration
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32], migration_selector: Option<SelectorData>) -> Result<(), Error> {
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            migration_selector: Option<SelectorData>,
+        ) -> Result<(), Error> {
             let this = self.env().account_id();
             Self::ensure_role(Role::Owner(this))?;
 
@@ -314,15 +325,16 @@ pub mod marketplace_v2 {
             // Change key format
             let key_bytes_pref = OLD_STORAGE_KEY.to_le_bytes();
             let mut key_bytes: [u8; 32] = [0; 32];
-            for i in 0..4 {
-                key_bytes[i] = key_bytes_pref[i];
-            }
+            key_bytes[..4].copy_from_slice(&key_bytes_pref[..4]);
 
             // Assert that there is something to clear
-            assert!(matches!(contract_storage_contains(&ink_primitives::Key::from(key_bytes)), Some(_)));
+            assert!(matches!(
+                contract_storage_contains(&ink_primitives::Key::from(key_bytes)),
+                Some(_)
+            ));
             // Clear storage under that key
             clear_contract_storage(&ink_primitives::Key::from(key_bytes));
-            
+
             self.data.migration_performed = true;
 
             Ok(())
@@ -331,7 +343,7 @@ pub mod marketplace_v2 {
         /// Checks if migration was already performed
         #[ink(message)]
         pub fn migration_performed(&self) -> bool {
-            return self.data.migration_performed
+            self.data.migration_performed
         }
 
         fn current_price(&self) -> Balance {
