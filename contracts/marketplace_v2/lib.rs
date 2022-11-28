@@ -334,7 +334,7 @@ pub mod marketplace_v2 {
             } else {
                 return Err(Error::OldKeyInvalid);
             }
-            
+
             self.data.migration_performed = true;
 
             Ok(())
