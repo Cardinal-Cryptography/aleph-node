@@ -49,7 +49,13 @@ impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized 
         let nonfinalized_blocks: u32 = chain_head_number
             .saturating_sub(finalized_number)
             .unique_saturated_into();
-        nonfinalized_blocks >= self.0
+        match nonfinalized_blocks >= self.0 {
+            true => {
+                warn!("We have {} nonfinalized blocks, with the limit being {}, delaying block production.", nonfinalized_blocks, self.0);
+                true
+            }
+            false => false,
+        }
     }
 }
 
