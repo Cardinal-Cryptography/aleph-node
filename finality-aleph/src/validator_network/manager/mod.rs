@@ -239,21 +239,20 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
 
 #[cfg(test)]
 mod tests {
-    use aleph_primitives::AuthorityId;
     use futures::{channel::mpsc, StreamExt};
 
     use super::{AddResult::*, Manager, SendError};
-    use crate::validator_network::mock::key;
+    use crate::validator_network::mock::{key, MockPublicKey};
 
     type Data = String;
     type Address = String;
 
-    #[tokio::test]
-    async fn add_remove() {
-        let (own_id, _) = key().await;
-        let mut manager = Manager::<AuthorityId, Address, Data>::new(own_id);
-        let (peer_id, _) = key().await;
-        let (peer_id_b, _) = key().await;
+    #[test]
+    fn add_remove() {
+        let (own_id, _) = key();
+        let mut manager = Manager::<MockPublicKey, Address, Data>::new(own_id);
+        let (peer_id, _) = key();
+        let (peer_id_b, _) = key();
         let addresses = vec![
             String::from(""),
             String::from("a/b/c"),
@@ -282,12 +281,12 @@ mod tests {
 
     #[tokio::test]
     async fn send_receive() {
-        let (mut connecting_id, _) = key().await;
+        let (mut connecting_id, _) = key();
         let mut connecting_manager =
-            Manager::<AuthorityId, Address, Data>::new(connecting_id.clone());
-        let (mut listening_id, _) = key().await;
+            Manager::<MockPublicKey, Address, Data>::new(connecting_id.clone());
+        let (mut listening_id, _) = key();
         let mut listening_manager =
-            Manager::<AuthorityId, Address, Data>::new(listening_id.clone());
+            Manager::<MockPublicKey, Address, Data>::new(listening_id.clone());
         let data = String::from("DATA");
         let addresses = vec![
             String::from(""),
