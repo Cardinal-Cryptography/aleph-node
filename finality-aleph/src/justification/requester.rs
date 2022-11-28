@@ -2,10 +2,7 @@ use std::{fmt, marker::PhantomData, time::Instant};
 
 use aleph_primitives::ALEPH_ENGINE_ID;
 use log::{debug, error, info, warn};
-use sc_client_api::{
-    blockchain::{Backend, Info},
-    HeaderBackend,
-};
+use sc_client_api::blockchain::Info;
 use sp_api::{BlockId, BlockT, NumberFor};
 use sp_runtime::traits::{Header, One, Saturating};
 
@@ -16,7 +13,7 @@ use crate::{
         JustificationRequestScheduler, Verifier,
     },
     metrics::Checkpoint,
-    network, BlockHashNum, GetBlockchainBackend, Metrics,
+    network, BlockHashNum, BlockchainBackend, Metrics,
 };
 
 /// Threshold for how many tries are needed so that JustificationRequestStatus is logged
@@ -92,17 +89,17 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, GBB>
+pub struct BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    GBB: GetBlockchainBackend<B> + 'static,
+    BB: BlockchainBackend<B> + 'static,
 {
     block_requester: RB,
-    get_blockchain_backend: GBB,
+    blockchain_backend: BB,
     finalizer: F,
     justification_request_scheduler: S,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -110,25 +107,25 @@ where
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, GBB> BlockRequester<B, RB, S, F, V, GBB>
+impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<B>,
     V: Verifier<B>,
-    GBB: GetBlockchainBackend<B> + 'static,
+    BB: BlockchainBackend<B> + 'static,
 {
     pub fn new(
         block_requester: RB,
-        get_blockchain_backend: GBB,
+        blockchain_backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     ) -> Self {
         BlockRequester {
             block_requester,
-            get_blockchain_backend,
+            blockchain_backend,
             finalizer,
             justification_request_scheduler,
             metrics,
@@ -189,7 +186,7 @@ where
     pub fn request_justification(&mut self, wanted: NumberFor<B>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
-                let info = self.get_blockchain_backend.blockchain().info();
+                let info = self.blockchain_backend.info();
                 self.request_children(&info);
                 self.request_wanted(wanted, &info);
             }
@@ -202,10 +199,7 @@ where
     }
 
     pub fn finalized_number(&self) -> NumberFor<B> {
-        self.get_blockchain_backend
-            .blockchain()
-            .info()
-            .finalized_number
+        self.blockchain_backend.info().finalized_number
     }
 
     fn do_request(&mut self, hash: &<B as BlockT>::Hash, num: NumberFor<B>) {
@@ -224,11 +218,7 @@ where
         let finalized_hash = info.finalized_hash;
         let finalized_number = info.finalized_number;
 
-        let children = self
-            .get_blockchain_backend
-            .blockchain()
-            .children(finalized_hash)
-            .unwrap_or_default();
+        let children = self.blockchain_backend.children(finalized_hash);
 
         if !children.is_empty() {
             self.request_status
@@ -254,11 +244,7 @@ where
         if top_wanted <= finalized_number + NumberFor::<B>::one() {
             return;
         }
-        match self
-            .get_blockchain_backend
-            .blockchain()
-            .header(BlockId::Number(top_wanted))
-        {
+        match self.blockchain_backend.header(BlockId::Number(top_wanted)) {
             Ok(Some(header)) => {
                 let hash = header.hash();
                 let num = *header.number();

@@ -7,24 +7,23 @@ use sp_runtime::traits::Block;
 use crate::{
     nodes::{setup_justification_handler, JustificationParams},
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
-    AlephConfig, GetBlockchainBackend,
+    AlephConfig, BlockchainBackend,
 };
 
-pub async fn run_nonvalidator_node<B, H, C, GBB, BE, SC>(
-    aleph_config: AlephConfig<B, H, C, SC, GBB>,
-) where
+pub async fn run_nonvalidator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
+where
     B: Block,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    GBB: GetBlockchainBackend<B> + Send + 'static,
+    BB: BlockchainBackend<B> + Send + 'static,
     SC: SelectChain<B> + 'static,
 {
     let AlephConfig {
         network,
         client,
-        get_blockchain_backend,
+        blockchain_backend,
         metrics,
         session_period,
         millisecs_per_block,
@@ -45,7 +44,7 @@ pub async fn run_nonvalidator_node<B, H, C, GBB, BE, SC>(
         justification_rx,
         network,
         client,
-        get_blockchain_backend,
+        blockchain_backend,
         metrics,
         session_period,
         millisecs_per_block,

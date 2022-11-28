@@ -13,10 +13,10 @@ use crate::{
         requester::BlockRequester, JustificationHandlerConfig, JustificationNotification,
         JustificationRequestScheduler, SessionInfo, SessionInfoProvider, Verifier,
     },
-    network, GetBlockchainBackend, Metrics, STATUS_REPORT_INTERVAL,
+    network, BlockchainBackend, Metrics, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, S, SI, F, GBB>
+pub struct JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -24,15 +24,15 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    GBB: GetBlockchainBackend<B> + 'static,
+    BB: BlockchainBackend<B> + 'static,
 {
     session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, S, F, V, GBB>,
+    block_requester: BlockRequester<B, RB, S, F, V, BB>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, S, SI, F, GBB> JustificationHandler<B, V, RB, S, SI, F, GBB>
+impl<B, V, RB, S, SI, F, BB> JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     V: Verifier<B>,
@@ -40,12 +40,12 @@ where
     S: JustificationRequestScheduler,
     SI: SessionInfoProvider<B, V>,
     F: BlockFinalizer<B>,
-    GBB: GetBlockchainBackend<B> + 'static,
+    BB: BlockchainBackend<B> + 'static,
 {
     pub fn new(
         session_info_provider: SI,
         block_requester: RB,
-        get_blockchain_backend: GBB,
+        blockchain_backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -55,7 +55,7 @@ where
             session_info_provider,
             block_requester: BlockRequester::new(
                 block_requester,
-                get_blockchain_backend,
+                blockchain_backend,
                 finalizer,
                 justification_request_scheduler,
                 metrics,

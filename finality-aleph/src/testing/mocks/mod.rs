@@ -1,5 +1,5 @@
 pub(crate) use acceptance_policy::AcceptancePolicy;
-pub(crate) use backend::{create_block, Backend, GetBlockchainBackendMock};
+pub(crate) use backend::{create_block, Backend};
 pub(crate) use block_finalizer::MockedBlockFinalizer;
 pub(crate) use block_request::MockedBlockRequester;
 pub(crate) use justification_handler_config::JustificationRequestSchedulerImpl;

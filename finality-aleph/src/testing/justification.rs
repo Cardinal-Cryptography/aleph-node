@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::VecDeque, sync::Arc, time::Duration};
+use std::{cell::RefCell, collections::VecDeque, time::Duration};
 
 use futures::{
     channel::mpsc::{unbounded, UnboundedSender},
@@ -12,11 +12,11 @@ use AcceptancePolicy::*;
 use crate::{
     justification::{AlephJustification, JustificationHandler, JustificationHandlerConfig},
     testing::mocks::{
-        create_block, AcceptancePolicy, Backend, GetBlockchainBackendMock,
+        create_block, AcceptancePolicy, Backend,
         JustificationRequestSchedulerImpl, MockedBlockFinalizer, MockedBlockRequester,
         SessionInfoProviderImpl, TBlock, VerifierWrapper,
     },
-    JustificationNotification, SessionPeriod, SignatureSet,
+    JustificationNotification, SessionPeriod, SignatureSet
 };
 
 const SESSION_PERIOD: SessionPeriod = SessionPeriod(5u32);
@@ -29,12 +29,12 @@ type TJustHandler = JustificationHandler<
     JustificationRequestSchedulerImpl,
     SessionInfoProviderImpl,
     MockedBlockFinalizer,
-    GetBlockchainBackendMock,
+    Backend,
 >;
 type Sender = UnboundedSender<JustificationNotification<TBlock>>;
 type Environment = (
     TJustHandler,
-    Arc<Backend>,
+    Backend,
     MockedBlockRequester,
     MockedBlockFinalizer,
     JustificationRequestSchedulerImpl,
@@ -67,10 +67,7 @@ fn prepare_env(
     verification_policy: AcceptancePolicy,
     request_policy: AcceptancePolicy,
 ) -> Environment {
-    let backend = Arc::new(Backend::new(finalization_height));
-    let get_blockchain_backend = GetBlockchainBackendMock {
-        backend: backend.clone(),
-    };
+    let backend = Backend::new(finalization_height);
     let info_provider = SessionInfoProviderImpl::new(SESSION_PERIOD, verification_policy);
     let finalizer = MockedBlockFinalizer::new();
     let requester = MockedBlockRequester::new();
@@ -80,7 +77,7 @@ fn prepare_env(
     let justification_handler = JustificationHandler::new(
         info_provider,
         requester.clone(),
-        get_blockchain_backend,
+        backend.clone(),
         finalizer.clone(),
         justification_request_scheduler.clone(),
         None,
@@ -128,7 +125,7 @@ where
     S: FnOnce(
         Sender,
         Sender,
-        Arc<Backend>,
+        Backend,
         MockedBlockRequester,
         MockedBlockFinalizer,
         JustificationRequestSchedulerImpl,
