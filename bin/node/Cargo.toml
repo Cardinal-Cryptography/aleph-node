@@ -16,7 +16,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 name = "aleph-node"
 
 [dependencies]
-clap = { version = "3.0", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 log = "0.4"
 serde = "1.0"
