@@ -371,8 +371,8 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <CommitteeSize<T>>::put(&self.committee_seats);
-            <NextEraCommitteeSize<T>>::put(&self.committee_seats);
+            <CommitteeSize<T>>::put(self.committee_seats);
+            <NextEraCommitteeSize<T>>::put(self.committee_seats);
             <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
             <NextEraReservedValidators<T>>::put(&self.reserved_validators);
             <CurrentEraValidators<T>>::put(&EraValidators {
