@@ -303,7 +303,7 @@ pub struct PurgeChainCmd {
 impl PurgeChainCmd {
     pub fn run(&self, database_config: DatabaseSource) -> Result<(), Error> {
         self.purge_chain.run(database_config)?;
-        self.purge_backup.run()
+        self.purge_backup.run(self.purge_chain.yes)
     }
 }
 
@@ -319,21 +319,18 @@ impl CliConfiguration for PurgeChainCmd {
 
 #[derive(Debug, Parser)]
 pub struct PurgeBackupCmd {
-    /// Skip interactive prompt by answering yes automatically.
-    #[arg(short = 'y')]
-    pub yes: bool,
     #[clap(flatten)]
     pub node_params: NodeParams,
 }
 
 impl PurgeBackupCmd {
-    pub fn run(&self) -> Result<(), Error> {
+    pub fn run(&self, skip_prompt: bool) -> Result<(), Error> {
         let backup_path = backup_path(
             self.node_params.base_path().path(),
             self.node_params.backup_dir(),
         );
 
-        if !self.yes {
+        if !skip_prompt {
             print!(
                 "Are you sure you want to remove {:?}? [y/N]: ",
                 &backup_path
