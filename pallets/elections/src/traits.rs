@@ -90,7 +90,7 @@ where
 pub trait ValidatorExtractor {
     type AccountId;
 
-    /// Removes given validator from pallet's staking valiators list
+    /// Removes given validator from pallet's staking validators list
     fn remove_validator(who: &Self::AccountId);
 }
 
