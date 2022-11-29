@@ -38,12 +38,7 @@ impl AlephWaiting for Connection {
     async fn wait_for_block<P: Fn(u32) -> bool + Send>(&self, predicate: P, status: BlockStatus) {
         let mut block_sub = match status {
             BlockStatus::Best => self.client.blocks().subscribe_best().await.unwrap(),
-            BlockStatus::Finalized => self
-                .client
-                .blocks()
-                .subscribe_finalized()
-                .await
-                .unwrap(),
+            BlockStatus::Finalized => self.client.blocks().subscribe_finalized().await.unwrap(),
         };
 
         while let Some(Ok(block)) = block_sub.next().await {
@@ -60,12 +55,7 @@ impl AlephWaiting for Connection {
     ) -> T {
         let mut block_sub = match status {
             BlockStatus::Best => self.client.blocks().subscribe_best().await.unwrap(),
-            BlockStatus::Finalized => self
-                .client
-                .blocks()
-                .subscribe_finalized()
-                .await
-                .unwrap(),
+            BlockStatus::Finalized => self.client.blocks().subscribe_finalized().await.unwrap(),
         };
 
         info!(target: "aleph-client", "waiting for event {}.{}", T::PALLET, T::EVENT);
