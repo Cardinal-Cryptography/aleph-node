@@ -5,14 +5,12 @@ use std::{
 
 use aleph_client::{
     api::contracts::events::{CodeRemoved, CodeStored, Instantiated},
-    frame_support::weights::weight_v2::Weight,
     pallet_contracts::wasm::OwnerInfo,
     pallets::contract::{ContractsApi, ContractsUserApi},
     sp_weights::weight_v2::Weight,
     waiting::{AlephWaiting, BlockStatus},
     AccountId, Connection, SignedConnection, TxStatus,
 };
-use anyhow::anyhow;
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
 use contract_transcode::ContractMessageTranscoder;
@@ -91,7 +89,7 @@ pub async fn instantiate(
     } = options;
 
     let metadata = load_metadata(&metadata_path)?;
-    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let transcoder = ContractMessageTranscoder::new(metadata);
     let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
 
     debug!("Encoded constructor data {:?}", data);
@@ -115,7 +113,7 @@ pub async fn instantiate(
         .instantiate(
             code_hash,
             balance,
-            Weight::new(gas_limit),
+            Weight::new(gas_limit, u64::MAX),
             storage_deposit(storage_deposit_limit),
             data,
             vec![],
@@ -150,7 +148,7 @@ pub async fn instantiate_with_code(
     debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
 
     let metadata = load_metadata(&metadata_path)?;
-    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let transcoder = ContractMessageTranscoder::new(metadata);
     let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
 
     debug!("Encoded constructor data {:?}", data);
@@ -188,7 +186,7 @@ pub async fn instantiate_with_code(
         .instantiate_with_code(
             wasm,
             balance,
-            Weight::new(gas_limit),
+            Weight::new(gas_limit, u64::MAX),
             storage_deposit(storage_deposit_limit),
             data,
             vec![],
@@ -224,7 +222,7 @@ pub async fn call(
     } = options;
 
     let metadata = load_metadata(&metadata_path)?;
-    let transcoder = ContractMessageTranscoder::new(&metadata);
+    let transcoder = ContractMessageTranscoder::new(metadata);
     let data = transcoder.encode(&message, &args.unwrap_or_default())?;
 
     debug!("Encoded call data {:?}", data);
@@ -233,7 +231,7 @@ pub async fn call(
         .call(
             destination,
             balance,
-            Weight::new(gas_limit),
+            Weight::new(gas_limit, u64::MAX),
             storage_deposit(storage_deposit_limit),
             data,
             TxStatus::InBlock,
@@ -285,9 +283,5 @@ fn load_metadata(path: &Path) -> anyhow::Result<ink_metadata::InkProject> {
     let ink_metadata = serde_json::from_value(serde_json::Value::Object(metadata.abi))
         .expect("Failed to deserialize ink project metadata");
 
-    if let ink_metadata::MetadataVersioned::V3(ink_project) = ink_metadata {
-        Ok(ink_project)
-    } else {
-        Err(anyhow!("Unsupported ink metadata version. Expected V3"))
-    }
+    Ok(ink_metadata)
 }
