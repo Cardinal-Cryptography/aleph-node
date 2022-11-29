@@ -455,7 +455,7 @@ jobs:
           reserved-seats: 3
           non-reserved-seats: 3
           follow-up-finalization-check: true
-        timeout-minutes: 15
+        timeout-minutes: 20
 
   run-e2e-ban-automatic:
     needs: [build-test-docker, build-test-client]
