@@ -3,16 +3,14 @@ use std::{
     ops::BitXor,
 };
 
-use aleph_primitives::AuthorityId;
-
-use crate::validator_network::Data;
+use crate::validator_network::{Data, PublicKey};
 
 /// Data about peers we know and whether we should connect to them or they to us. For the former
 /// case also keeps the peers' addresses.
-pub struct DirectedPeers<A: Data> {
-    own_id: AuthorityId,
-    outgoing: HashMap<AuthorityId, Vec<A>>,
-    incoming: HashSet<AuthorityId>,
+pub struct DirectedPeers<PK: PublicKey, A: Data> {
+    own_id: PK,
+    outgoing: HashMap<PK, Vec<A>>,
+    incoming: HashSet<PK>,
 }
 
 /// Whether we should call the remote or the other way around. We xor the peer ids and based on the
@@ -29,9 +27,9 @@ fn should_we_call(own_id: &[u8], remote_id: &[u8]) -> bool {
     }
 }
 
-impl<A: Data> DirectedPeers<A> {
+impl<PK: PublicKey, A: Data> DirectedPeers<PK, A> {
     /// Create a new set of peers directed using our own peer id.
-    pub fn new(own_id: AuthorityId) -> Self {
+    pub fn new(own_id: PK) -> Self {
         DirectedPeers {
             own_id,
             outgoing: HashMap::new(),
@@ -44,7 +42,7 @@ impl<A: Data> DirectedPeers<A> {
     /// Returns whether we should start attempts at connecting with the peer, which is the case
     /// exactly when the peer is one with which we should attempt connections AND it was added for
     /// the first time.
-    pub fn add_peer(&mut self, peer_id: AuthorityId, addresses: Vec<A>) -> bool {
+    pub fn add_peer(&mut self, peer_id: PK, addresses: Vec<A>) -> bool {
         match should_we_call(self.own_id.as_ref(), peer_id.as_ref()) {
             true => self.outgoing.insert(peer_id, addresses).is_none(),
             false => {
@@ -57,28 +55,28 @@ impl<A: Data> DirectedPeers<A> {
     }
 
     /// Return the addresses of the given peer, or None if we shouldn't attempt connecting with the peer.
-    pub fn peer_addresses(&self, peer_id: &AuthorityId) -> Option<Vec<A>> {
+    pub fn peer_addresses(&self, peer_id: &PK) -> Option<Vec<A>> {
         self.outgoing.get(peer_id).cloned()
     }
 
     /// Whether we should be maintaining a connection with this peer.
-    pub fn interested(&self, peer_id: &AuthorityId) -> bool {
+    pub fn interested(&self, peer_id: &PK) -> bool {
         self.incoming.contains(peer_id) || self.outgoing.contains_key(peer_id)
     }
 
     /// Iterator over the peers we want connections from.
-    pub fn incoming_peers(&self) -> impl Iterator<Item = &AuthorityId> {
+    pub fn incoming_peers(&self) -> impl Iterator<Item = &PK> {
         self.incoming.iter()
     }
 
     /// Iterator over the peers we want to connect to.
-    pub fn outgoing_peers(&self) -> impl Iterator<Item = &AuthorityId> {
+    pub fn outgoing_peers(&self) -> impl Iterator<Item = &PK> {
         self.outgoing.keys()
     }
 
     /// Remove a peer from the list of peers that we want to stay connected with, whether the
     /// connection was supposed to be incoming or outgoing.
-    pub fn remove_peer(&mut self, peer_id: &AuthorityId) {
+    pub fn remove_peer(&mut self, peer_id: &PK) {
         self.incoming.remove(peer_id);
         self.outgoing.remove(peer_id);
     }
@@ -86,15 +84,13 @@ impl<A: Data> DirectedPeers<A> {
 
 #[cfg(test)]
 mod tests {
-    use aleph_primitives::AuthorityId;
-
     use super::DirectedPeers;
-    use crate::validator_network::mock::key;
+    use crate::validator_network::mock::{key, MockPublicKey};
 
     type Address = String;
 
-    async fn container_with_id() -> (DirectedPeers<Address>, AuthorityId) {
-        let (id, _) = key().await;
+    fn container_with_id() -> (DirectedPeers<MockPublicKey, Address>, MockPublicKey) {
+        let (id, _) = key();
         let container = DirectedPeers::new(id.clone());
         (container, id)
     }
@@ -107,20 +103,18 @@ mod tests {
         ]
     }
 
-    #[tokio::test]
-    async fn exactly_one_direction_attempts_connections() {
-        let (mut container0, id0) = container_with_id().await;
-        let (mut container1, id1) = container_with_id().await;
+    #[test]
+    fn exactly_one_direction_attempts_connections() {
+        let (mut container0, id0) = container_with_id();
+        let (mut container1, id1) = container_with_id();
         let addresses = some_addresses();
-        assert!(
-            container0.add_peer(id1, addresses.clone())
-                != container1.add_peer(id0, addresses.clone())
-        );
+        assert!(container0.add_peer(id1, addresses.clone()) != container1.add_peer(id0, addresses));
     }
 
-    async fn container_with_added_connecting_peer() -> (DirectedPeers<Address>, AuthorityId) {
-        let (mut container0, id0) = container_with_id().await;
-        let (mut container1, id1) = container_with_id().await;
+    fn container_with_added_connecting_peer(
+    ) -> (DirectedPeers<MockPublicKey, Address>, MockPublicKey) {
+        let (mut container0, id0) = container_with_id();
+        let (mut container1, id1) = container_with_id();
         let addresses = some_addresses();
         match container0.add_peer(id1.clone(), addresses.clone()) {
             true => (container0, id1),
@@ -131,9 +125,10 @@ mod tests {
         }
     }
 
-    async fn container_with_added_nonconnecting_peer() -> (DirectedPeers<Address>, AuthorityId) {
-        let (mut container0, id0) = container_with_id().await;
-        let (mut container1, id1) = container_with_id().await;
+    fn container_with_added_nonconnecting_peer(
+    ) -> (DirectedPeers<MockPublicKey, Address>, MockPublicKey) {
+        let (mut container0, id0) = container_with_id();
+        let (mut container1, id1) = container_with_id();
         let addresses = some_addresses();
         match container0.add_peer(id1.clone(), addresses.clone()) {
             false => (container0, id1),
@@ -144,61 +139,61 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn no_connecting_on_subsequent_add() {
-        let (mut container0, id1) = container_with_added_connecting_peer().await;
+    #[test]
+    fn no_connecting_on_subsequent_add() {
+        let (mut container0, id1) = container_with_added_connecting_peer();
         let addresses = some_addresses();
         assert!(!container0.add_peer(id1, addresses));
     }
 
-    #[tokio::test]
-    async fn peer_addresses_when_connecting() {
-        let (container0, id1) = container_with_added_connecting_peer().await;
+    #[test]
+    fn peer_addresses_when_connecting() {
+        let (container0, id1) = container_with_added_connecting_peer();
         assert!(container0.peer_addresses(&id1).is_some());
     }
 
-    #[tokio::test]
-    async fn no_peer_addresses_when_nonconnecting() {
-        let (container0, id1) = container_with_added_nonconnecting_peer().await;
+    #[test]
+    fn no_peer_addresses_when_nonconnecting() {
+        let (container0, id1) = container_with_added_nonconnecting_peer();
         assert!(container0.peer_addresses(&id1).is_none());
     }
 
-    #[tokio::test]
-    async fn interested_in_connecting() {
-        let (container0, id1) = container_with_added_connecting_peer().await;
+    #[test]
+    fn interested_in_connecting() {
+        let (container0, id1) = container_with_added_connecting_peer();
         assert!(container0.interested(&id1));
     }
 
-    #[tokio::test]
-    async fn interested_in_nonconnecting() {
-        let (container0, id1) = container_with_added_nonconnecting_peer().await;
+    #[test]
+    fn interested_in_nonconnecting() {
+        let (container0, id1) = container_with_added_nonconnecting_peer();
         assert!(container0.interested(&id1));
     }
 
-    #[tokio::test]
-    async fn uninterested_in_unknown() {
-        let (container0, _) = container_with_id().await;
-        let (_, id1) = container_with_id().await;
+    #[test]
+    fn uninterested_in_unknown() {
+        let (container0, _) = container_with_id();
+        let (_, id1) = container_with_id();
         assert!(!container0.interested(&id1));
     }
 
-    #[tokio::test]
-    async fn connecting_are_outgoing() {
-        let (container0, id1) = container_with_added_connecting_peer().await;
+    #[test]
+    fn connecting_are_outgoing() {
+        let (container0, id1) = container_with_added_connecting_peer();
         assert_eq!(container0.outgoing_peers().collect::<Vec<_>>(), vec![&id1]);
         assert_eq!(container0.incoming_peers().next(), None);
     }
 
-    #[tokio::test]
-    async fn nonconnecting_are_incoming() {
-        let (container0, id1) = container_with_added_nonconnecting_peer().await;
+    #[test]
+    fn nonconnecting_are_incoming() {
+        let (container0, id1) = container_with_added_nonconnecting_peer();
         assert_eq!(container0.incoming_peers().collect::<Vec<_>>(), vec![&id1]);
         assert_eq!(container0.outgoing_peers().next(), None);
     }
 
-    #[tokio::test]
-    async fn uninterested_in_removed() {
-        let (mut container0, id1) = container_with_added_connecting_peer().await;
+    #[test]
+    fn uninterested_in_removed() {
+        let (mut container0, id1) = container_with_added_connecting_peer();
         assert!(container0.interested(&id1));
         container0.remove_peer(&id1);
         assert!(!container0.interested(&id1));
