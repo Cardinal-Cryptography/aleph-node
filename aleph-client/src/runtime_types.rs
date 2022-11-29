@@ -6,7 +6,6 @@ use crate::{
         sp_consensus_aura::sr25519::app_sr25519::Public as AuraPublic,
         sp_core::{ed25519::Public as EdPublic, sr25519::Public as SrPublic},
     },
-    frame_support::weights::weight_v2::Weight,
     pallet_staking::EraRewardPoints,
     sp_weights::weight_v2::Weight,
 };
@@ -44,7 +43,7 @@ impl TryFrom<String> for SessionKeys {
 }
 
 impl Weight {
-    pub fn new(ref_time: u64) -> Self {
-        Self { ref_time }
+    pub fn new(ref_time: u64, proof_size: u64) -> Self {
+        Self { ref_time, proof_size }
     }
 }
