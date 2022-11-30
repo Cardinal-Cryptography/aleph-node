@@ -467,11 +467,11 @@ fn spawn_peer(
                     counter += 1;
                     // generate random message
                     let filler_size = match large_message_interval {
-                        Some(lmi) | counter % lmi == 0 => TWICE_MAX_DATA_SIZE,
+                        Some(lmi) if counter % lmi == 0 => TWICE_MAX_DATA_SIZE,
                         _ => 0,
                     };
                     let decodes = match corrupted_message_interval {
-                        Some(cmi) | counter % cmi == 0 => false,
+                        Some(cmi) if counter % cmi == 0 => false,
                         _ => true,
                     };
                     let data: MockData = MockData::new(thread_rng().gen_range(0..n_msg) as u32, filler_size, decodes);
