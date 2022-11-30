@@ -90,7 +90,7 @@ pub async fn instantiate(
 
     let metadata = load_metadata(&metadata_path)?;
     let transcoder = ContractMessageTranscoder::new(metadata);
-    let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
+    let data = transcoder.encode(&constructor, args.unwrap_or_default())?;
 
     debug!("Encoded constructor data {:?}", data);
 
@@ -149,7 +149,7 @@ pub async fn instantiate_with_code(
 
     let metadata = load_metadata(&metadata_path)?;
     let transcoder = ContractMessageTranscoder::new(metadata);
-    let data = transcoder.encode(&constructor, &args.unwrap_or_default())?;
+    let data = transcoder.encode(&constructor, args.unwrap_or_default())?;
 
     debug!("Encoded constructor data {:?}", data);
 
@@ -223,7 +223,7 @@ pub async fn call(
 
     let metadata = load_metadata(&metadata_path)?;
     let transcoder = ContractMessageTranscoder::new(metadata);
-    let data = transcoder.encode(&message, &args.unwrap_or_default())?;
+    let data = transcoder.encode(&message, args.unwrap_or_default())?;
 
     debug!("Encoded call data {:?}", data);
 
@@ -277,7 +277,7 @@ pub async fn remove_code(
 }
 
 fn load_metadata(path: &Path) -> anyhow::Result<ink_metadata::InkProject> {
-    let file = File::open(&path).expect("Failed to open metadata file");
+    let file = File::open(path).expect("Failed to open metadata file");
     let metadata: ContractMetadata =
         serde_json::from_reader(file).expect("Failed to deserialize metadata file");
     let ink_metadata = serde_json::from_value(serde_json::Value::Object(metadata.abi))
