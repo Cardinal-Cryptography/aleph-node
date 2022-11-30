@@ -218,7 +218,7 @@ pub struct BootstrapNodeCmd {
     account_id: Option<String>,
 
     /// Pass seed used to generate the account private key (sr2559) and the corresponding AccountId
-    #[arg(long, required_unless_present = "account-id")]
+    #[arg(long, required_unless_present = "account_id")]
     pub account_seed: Option<String>,
 
     #[clap(flatten)]
