@@ -1,14 +1,13 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use aleph_client::{contract_transcode::Value, AccountId};
 use anyhow::Result;
 use assert2::{assert, let_assert};
-use helpers::sign;
+use helpers::{sign, update_marketplace_metadata_to_v2};
 use log::info;
 
 use crate::{
     test::button_game::{
-        contracts::MarketplaceInstance,
         helpers::{
             assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
             ButtonTestContext,
@@ -77,19 +76,7 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
     assert!(set_code_result.is_ok());
 
     // Change the metadata (keeping the old address)
-    marketplace = Arc::from(
-        MarketplaceInstance::new(
-            marketplace.contract().address().clone(),
-            &Some(
-                config
-                    .test_case_params
-                    .marketplace_v2_metadata
-                    .clone()
-                    .expect("New code's metadata path must be specified."),
-            ),
-        )
-        .expect("Adding existing contract should succeed."),
-    );
+    marketplace = update_marketplace_metadata_to_v2(marketplace, &config);
 
     let migration_result = marketplace.migrate(&sign(&conn, &authority));
     info!(

@@ -290,7 +290,6 @@ pub mod marketplace_v2 {
                     .call_type(DelegateCall::new().code_hash(code_hash))
                     .exec_input(ExecutionInput::new(selector))
                     .call_flags(CallFlags::default().set_tail_call(true))
-                    // placeholder, it's a tail call anyway
                     .returns::<()>()
                     .fire()?;
             }

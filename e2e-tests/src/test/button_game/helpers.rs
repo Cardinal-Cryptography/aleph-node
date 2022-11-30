@@ -80,6 +80,27 @@ pub(super) fn marketplace<C: AnyConnection>(
     )
 }
 
+/// Returns a marketplace with metadata of upgraded version of the contract.
+/// To be used after marketpalce's code has been upgraded.
+pub(super) fn update_marketplace_metadata_to_v2(
+    marketplace: Arc<MarketplaceInstance>,
+    config: &Config,
+) -> Arc<MarketplaceInstance> {
+    Arc::from(
+        MarketplaceInstance::new(
+            marketplace.contract().address().clone(),
+            &Some(
+                config
+                    .test_case_params
+                    .marketplace_v2_metadata
+                    .clone()
+                    .expect("New code's metadata path must be specified."),
+            ),
+        )
+        .expect("Adding existing contract should succeed."),
+    )
+}
+
 /// Derives a test account based on a randomized string
 pub fn random_account() -> KeyPairWrapper {
     KeyPairWrapper(aleph_client::keypair_from_string(&format!(
