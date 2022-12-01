@@ -24,9 +24,6 @@ frame-try-runtime = { default-features = false, git = "https://github.com/Cardin
 pallet-aura = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
 pallet-authorship = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
 pallet-balances = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
-pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/substrate", default-features = false, branch = "aleph-v0.9.28" }
-pallet-contracts-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate", default-features = false, branch = "aleph-v0.9.28" }
-pallet-contracts-rpc-runtime-api = { git = "https://github.com/Cardinal-Cryptography/substrate", default-features = false, branch = "aleph-v0.9.28" }
 pallet-identity = { git = "https://github.com/Cardinal-Cryptography/substrate", default-features = false, branch = "aleph-v0.9.28" }
 pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
 pallet-session = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
@@ -105,9 +102,6 @@ std = [
     "pallet-transaction-payment-rpc-runtime-api/std",
     "frame-system-rpc-runtime-api/std",
     "primitives/std",
-    "pallet-contracts-primitives/std",
-    "pallet-contracts-rpc-runtime-api/std",
-    "pallet-contracts/std",
     "pallet-nomination-pools/std",
 ]
 short_session = ["primitives/short_session"]
@@ -115,7 +109,6 @@ try-runtime = [
     "frame-executive/try-runtime",
     "frame-try-runtime",
     "frame-system/try-runtime",
-    "pallet-contracts/try-runtime",
     "pallet-nomination-pools/try-runtime",
     "pallet-aleph/try-runtime",
     "pallet-aura/try-runtime",
