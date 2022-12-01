@@ -1,6 +1,6 @@
 [package]
 name = "aleph-node"
-version = "0.8.2"
+version = "0.8.2+mainnet"
 authors = ["Cardinal Cryptography"]
 description = "Aleph node binary"
 edition = "2021"
