@@ -13,7 +13,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
     Config::parse_from(unparsed.split_whitespace())
 });
 
-pub fn config() -> &'static Config {
+pub fn setup_test() -> &'static Config {
     let _ = env_logger::builder().is_test(true).try_init();
     &GLOBAL_CONFIG
 }

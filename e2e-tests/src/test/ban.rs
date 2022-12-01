@@ -22,7 +22,7 @@ use crate::{
         check_underperformed_count_for_sessions, check_underperformed_validator_reason,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
-    config::config,
+    config,
     rewards::set_invalid_keys_for_validator,
 };
 
@@ -57,7 +57,7 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
 #[tokio::test]
 #[ignore]
 pub async fn ban_automatic() -> anyhow::Result<()> {
-    let config = config();
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -144,7 +144,7 @@ pub async fn ban_automatic() -> anyhow::Result<()> {
 /// fact been banned for the given reason.
 #[tokio::test]
 pub async fn ban_manual() -> anyhow::Result<()> {
-    let config = config();
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -229,7 +229,7 @@ pub async fn ban_manual() -> anyhow::Result<()> {
 /// and his underperformed session count is less or equal to 2.
 #[tokio::test]
 pub async fn clearing_session_count() -> anyhow::Result<()> {
-    let config = config();
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -277,7 +277,7 @@ pub async fn clearing_session_count() -> anyhow::Result<()> {
 /// committee marked as ones in which they underperformed.
 #[tokio::test]
 pub async fn ban_threshold() -> anyhow::Result<()> {
-    let config = config();
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, seats) =
         setup_test(config).await?;
 

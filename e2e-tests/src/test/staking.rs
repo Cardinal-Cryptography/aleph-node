@@ -21,7 +21,7 @@ use primitives::{
 
 use crate::{
     accounts::{account_ids_from_keys, accounts_seeds_to_keys, get_validators_seeds},
-    config::{config, Config},
+    config::{setup_test, Config},
 };
 
 fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPair>) {
@@ -43,7 +43,7 @@ fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPai
 // 5. send payout stakers tx
 #[tokio::test]
 pub async fn staking_era_payouts() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (stashes_accounts_key_pairs, validator_accounts) = get_validator_stashes_key_pairs(config);
 
     let node = &config.node;
@@ -110,7 +110,7 @@ pub async fn staking_era_payouts() -> anyhow::Result<()> {
 // 9. claim rewards for the stash account
 #[tokio::test]
 pub async fn staking_new_validator() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let controller_seed = "//Controller";
     let controller = keypair_from_string(controller_seed);
     let controller_account = AccountId::from(controller.signer().public());

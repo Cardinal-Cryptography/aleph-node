@@ -8,11 +8,11 @@ use primitives::{
     MILLISECS_PER_BLOCK,
 };
 
-use crate::config::{config, Config};
+use crate::config::{setup_test, Config};
 
 #[tokio::test]
 pub async fn era_payouts_calculated_correctly() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     normal_era_payout(config).await?;
     force_era_payout(config).await?;
 

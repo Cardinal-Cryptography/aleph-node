@@ -4,11 +4,11 @@ use aleph_client::{
 };
 use log::info;
 
-use crate::{config::config, transfer::setup_for_transfer};
+use crate::{config::setup_test, transfer::setup_for_transfer};
 
 #[tokio::test]
 pub async fn token_transfer() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (connection, to) = setup_for_transfer(config).await;
 
     let balance_before = connection

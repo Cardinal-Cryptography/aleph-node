@@ -3,11 +3,11 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus},
 };
 
-use crate::config::config;
+use crate::config::setup_test;
 
 #[tokio::test]
 pub async fn finalization() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let connection = config.create_root_connection().await;
 
     let finalized = connection.connection.get_finalized_block_hash().await;

@@ -14,7 +14,7 @@ use log::info;
 use primitives::EraIndex;
 
 use crate::{
-    config::config,
+    config::setup_test,
     validators::{prepare_validators, setup_accounts},
 };
 
@@ -149,7 +149,7 @@ async fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
 /// satisfies the outlined conditions.
 #[tokio::test]
 pub async fn authorities_are_staking() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
 
     let node = &config.node;
     let root_connection = config.create_root_connection().await;

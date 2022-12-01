@@ -12,7 +12,7 @@ use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
 
 use crate::{
-    config::config,
+    config::setup_test,
     elections::get_and_test_members_for_session,
     rewards::{
         check_points, reset_validator_keys, set_invalid_keys_for_validator, setup_validators,
@@ -27,7 +27,7 @@ const MAX_DIFFERENCE: f64 = 0.07;
 
 #[tokio::test]
 pub async fn points_basic() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -76,7 +76,7 @@ pub async fn points_basic() -> anyhow::Result<()> {
 /// are calculated correctly afterward.
 #[tokio::test]
 pub async fn points_stake_change() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (era_validators, committee_size, _) = setup_validators(config).await?;
 
     validators_bond_extra_stakes(
@@ -137,7 +137,7 @@ pub async fn points_stake_change() -> anyhow::Result<()> {
 /// and checks that reward points are calculated correctly afterward.
 #[tokio::test]
 pub async fn disable_node() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let root_connection = config.create_root_connection().await;
@@ -195,7 +195,7 @@ pub async fn disable_node() -> anyhow::Result<()> {
 /// the call, when the new era has already begun.
 #[tokio::test]
 pub async fn force_new_era() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -239,7 +239,7 @@ pub async fn force_new_era() -> anyhow::Result<()> {
 /// stakes.
 #[tokio::test]
 pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;

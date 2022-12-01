@@ -9,7 +9,7 @@ use aleph_client::{
 };
 
 use crate::{
-    accounts::account_ids_from_keys, config::config, elections::get_members_subset_for_session,
+    accounts::account_ids_from_keys, config::setup_test, elections::get_members_subset_for_session,
     validators::get_test_validators,
 };
 
@@ -17,7 +17,7 @@ const TEST_LENGTH: u32 = 5;
 
 #[tokio::test]
 pub async fn validators_rotate() -> anyhow::Result<()> {
-    let config = config();
+    let config = setup_test();
     let connection = config.get_first_signed_connection().await;
     let root_connection = config.create_root_connection().await;
 
