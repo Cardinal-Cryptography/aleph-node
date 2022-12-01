@@ -250,6 +250,7 @@ dependencies = [
  "sc-client-api",
  "sc-consensus",
  "sc-consensus-aura",
+ "sc-consensus-slots",
  "sc-executor",
  "sc-keystore",
  "sc-network",
@@ -263,6 +264,7 @@ dependencies = [
  "serde_json",
  "sp-api",
  "sp-application-crypto",
+ "sp-arithmetic",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
@@ -1943,7 +1945,7 @@ dependencies = [
 
 [[package]]
 name = "finality-aleph"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "aggregator 0.1.0",
  "aggregator 0.2.0",
