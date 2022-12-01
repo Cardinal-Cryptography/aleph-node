@@ -551,7 +551,7 @@ where
 
 parameter_types! {
     pub const MinVestedTransfer: Balance = MICRO_AZERO;
-        pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =          WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+    pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons = WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 impl pallet_vesting::Config for Runtime {
