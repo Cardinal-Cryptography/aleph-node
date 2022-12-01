@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-runtime"
-version = "0.8.1"
+version = "0.8.0+mainnet"
 dependencies = [
  "frame-executive",
  "frame-support",
