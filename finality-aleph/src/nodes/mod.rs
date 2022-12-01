@@ -26,7 +26,7 @@ use crate::{
     mpsc::UnboundedSender,
     session_id_from_block_num,
     session_map::ReadOnlySessionMap,
-    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
+    BlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
@@ -78,9 +78,10 @@ impl<B: Block> Verifier<B> for JustificationVerifier {
     }
 }
 
-struct JustificationParams<B: Block, H: ExHashT, C> {
+struct JustificationParams<B: Block, H: ExHashT, C, BB> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
+    pub blockchain_backend: BB,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
@@ -121,8 +122,8 @@ impl<B: Block> SessionInfoProvider<B, JustificationVerifier> for SessionInfoProv
     }
 }
 
-fn setup_justification_handler<B, H, C, BE>(
-    just_params: JustificationParams<B, H, C>,
+fn setup_justification_handler<B, H, C, BB, BE>(
+    just_params: JustificationParams<B, H, C, BB>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,
     impl Future<Output = ()>,
@@ -133,10 +134,12 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
+    BB: BlockchainBackend<B> + 'static + Send,
 {
     let JustificationParams {
         network,
         client,
+        blockchain_backend,
         justification_rx,
         metrics,
         session_period,
@@ -147,7 +150,7 @@ where
     let handler = JustificationHandler::new(
         SessionInfoProviderImpl::new(session_map, session_period),
         network,
-        client.clone(),
+        blockchain_backend,
         AlephFinalizer::new(client),
         JustificationRequestSchedulerImpl::new(&session_period, &millisecs_per_block, MAX_ATTEMPTS),
         metrics,

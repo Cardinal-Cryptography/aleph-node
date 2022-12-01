@@ -23,21 +23,23 @@ use crate::{
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
     tcp_network::new_tcp_network,
     validator_network::{Service, KEY_TYPE},
-    AlephConfig,
+    AlephConfig, BlockchainBackend,
 };
 
-pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC>)
+pub async fn run_validator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
 where
     B: Block,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
+    BB: BlockchainBackend<B> + Send + 'static,
     SC: SelectChain<B> + 'static,
 {
     let AlephConfig {
         network,
         client,
+        blockchain_backend,
         select_chain,
         spawn_handle,
         keystore,
@@ -101,6 +103,7 @@ where
             justification_rx,
             network: network.clone(),
             client: client.clone(),
+            blockchain_backend,
             metrics: metrics.clone(),
             session_period,
             millisecs_per_block,
