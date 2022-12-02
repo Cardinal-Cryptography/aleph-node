@@ -1,6 +1,6 @@
-use ink_env::{
+use ink::env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Error as InkEnvError,
+    Environment, Error as InkEnvError,
 };
 
 use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
@@ -11,22 +11,22 @@ use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
 /// impl AccessControlled for MyContract {
 ///     type ContractError = MyContractError;
 /// }
-pub trait AccessControlled {
+pub trait AccessControlled<E: Environment> {
     type ContractError;
 
     fn check_role<ContractError>(
-        access_control: AccountId,
-        account: AccountId,
-        role: Role,
+        access_control: E::AccountId,
+        account: E::AccountId,
+        role: Role<E>,
         contract_call_error_handler: fn(why: InkEnvError) -> ContractError,
-        access_control_error_handler: fn(role: Role) -> ContractError,
+        access_control_error_handler: fn(role: Role<E>) -> ContractError,
     ) -> Result<(), ContractError> {
-        match build_call::<DefaultEnvironment>()
+        match build_call::<E>()
             .call_type(Call::new().callee(access_control))
             .exec_input(
                 ExecutionInput::new(Selector::new(HAS_ROLE_SELECTOR))
                     .push_arg(account)
-                    .push_arg(role),
+                    .push_arg(&role),
             )
             .returns::<bool>()
             .fire()
