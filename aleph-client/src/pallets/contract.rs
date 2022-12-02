@@ -7,8 +7,8 @@ use subxt::{
 };
 
 use crate::{
-    api, frame_support::weights::weight_v2::Weight, pallet_contracts::wasm::OwnerInfo, AccountId,
-    BlockHash, Connection, SignedConnection, TxStatus,
+    api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
+    Connection, SignedConnection, TxStatus,
 };
 
 #[derive(Encode)]
@@ -188,7 +188,7 @@ impl ContractRpc for Connection {
 
         let res: ContractExecResult<Balance> =
             self.rpc_call("state_call".to_string(), params).await?;
-        let res = T::decode(&mut (res.result.unwrap().data.0.as_slice()))?;
+        let res = T::decode(&mut (res.result.unwrap().data.as_slice()))?;
 
         Ok(res)
     }

@@ -1,6 +1,6 @@
 [package]
 name = "aleph-runtime"
-version = "0.8.1"
+version = "0.8.4"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 homepage = "https://alephzero.org"
@@ -82,6 +82,7 @@ std = [
     "pallet-sudo/std",
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
+    "pallet-transaction-payment-rpc-runtime-api/std",
     "pallet-treasury/std",
     "pallet-vesting/std",
     "pallet-multisig/std",
@@ -101,7 +102,6 @@ std = [
     "sp-version/std",
     "frame-system/std",
     "sp-offchain/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
     "frame-system-rpc-runtime-api/std",
     "primitives/std",
     "pallet-contracts-primitives/std",
@@ -111,6 +111,7 @@ std = [
 short_session = ["primitives/short_session"]
 try-runtime = [
     "frame-executive/try-runtime",
+    "frame-support/try-runtime",
     "frame-try-runtime",
     "frame-system/try-runtime",
     "pallet-contracts/try-runtime",
@@ -126,6 +127,7 @@ try-runtime = [
     "pallet-staking/try-runtime",
     "pallet-sudo/try-runtime",
     "pallet-timestamp/try-runtime",
+    "pallet-scheduler/try-runtime",
     "pallet-transaction-payment/try-runtime",
     "pallet-treasury/try-runtime",
     "pallet-vesting/try-runtime",

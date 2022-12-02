@@ -1,6 +1,6 @@
 [package]
 name = "cliain"
-version = "0.7.0"
+version = "0.10.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
@@ -14,7 +14,7 @@ contract-transcode = { version = "2.0.0-beta" }
 dialoguer = "0.10.0"
 env_logger = "0.8"
 hex = "0.4.3"
-ink_metadata = { version = "3.0", features = ["derive"] }
+ink_metadata = { version = "4.0.0-beta", features = ["derive"] }
 log = "0.4"
 pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.32" }
 primitives = { path = "../../primitives" }

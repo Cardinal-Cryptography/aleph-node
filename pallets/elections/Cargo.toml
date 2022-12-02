@@ -1,6 +1,6 @@
 [package]
 name = "pallet-elections"
-version = "0.5.1"
+version = "0.5.4"
 edition = "2021"
 license = "Apache 2.0"
 

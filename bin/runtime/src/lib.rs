@@ -44,8 +44,8 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, One,
-        OpaqueKeys, Verify, Bounded
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, IdentifyAccount, One,
+        OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, MultiSignature, RuntimeAppPublic,
@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 38,
+    spec_version: 42,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 13,
@@ -143,7 +143,7 @@ parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
     pub BlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-        ::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
+        ::with_sensible_defaults(MAX_BLOCK_WEIGHT.set_proof_size(u64::MAX), NORMAL_DISPATCH_RATIO);
     pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
         ::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
     pub const SS58Prefix: u8 = ADDRESSES_ENCODING;
@@ -279,8 +279,13 @@ impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
     type LengthToFee = IdentityFee<Balance>;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetSaturationLevel, FeeVariability, MinimumMultiplier,MaximumMultiplier>;
+    type FeeMultiplierUpdate = TargetedFeeAdjustment<
+        Self,
+        TargetSaturationLevel,
+        FeeVariability,
+        MinimumMultiplier,
+        MaximumMultiplier,
+    >;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
@@ -334,6 +339,7 @@ impl pallet_elections::Config for Runtime {
     type SessionPeriod = SessionPeriod;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
     type ValidatorRewardsHandler = Staking;
+    type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
 }
 
@@ -546,7 +552,7 @@ where
 
 parameter_types! {
     pub const MinVestedTransfer: Balance = MICRO_AZERO;
-        pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =          WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+    pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons = WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -908,6 +914,22 @@ impl_runtime_apis! {
             Aleph::next_session_finality_version()
         }
     }
+
+    #[cfg(feature = "try-runtime")]
+     impl frame_try_runtime::TryRuntime<Block> for Runtime {
+          fn on_runtime_upgrade() -> (Weight, Weight) {
+               let weight = Executive::try_runtime_upgrade().unwrap();
+               (weight, BlockWeights::get().max_block)
+          }
+
+          fn execute_block(
+               block: Block,
+               state_root_check: bool,
+               select: frame_try_runtime::TryStateSelect
+          ) -> Weight {
+            Executive::try_execute_block(block, state_root_check, select).unwrap()
+        }
+     }
 }
 
 #[cfg(test)]
