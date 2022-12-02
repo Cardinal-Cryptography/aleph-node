@@ -5,6 +5,7 @@ mod shielder {
 
     use ark_ff::BigInteger256;
     use ark_serialize::CanonicalSerialize;
+    use house_snark::relations::shielder::compute_parent_hash;
     use ink_env::call::{build_call, Call, ExecutionInput, Selector};
     #[allow(unused_imports)]
     use ink_env::*;
@@ -22,9 +23,9 @@ mod shielder {
     use scale::{Decode, Encode};
 
     use crate::{
-        crypto::compute_parent_hash, error::ShielderError, CircuitField, MerkleHash, MerkleRoot,
-        Note, Nullifier, Set, TokenAmount, TokenId, DEPOSIT_VK_IDENTIFIER,
-        PSP22_TRANSFER_FROM_SELECTOR, PSP22_TRANSFER_SELECTOR, SYSTEM, WITHDRAW_VK_IDENTIFIER,
+        error::ShielderError, CircuitField, MerkleHash, MerkleRoot, Note, Nullifier, Set,
+        TokenAmount, TokenId, DEPOSIT_VK_IDENTIFIER, PSP22_TRANSFER_FROM_SELECTOR,
+        PSP22_TRANSFER_SELECTOR, SYSTEM, WITHDRAW_VK_IDENTIFIER,
     };
 
     /// Supported relations - used for registering verifying keys.
