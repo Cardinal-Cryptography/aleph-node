@@ -7,11 +7,9 @@ use helpers::{sign, update_marketplace_metadata_to_v2};
 use log::info;
 
 use crate::{
-    test::button_game::{
-        helpers::{
-            assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
-            ButtonTestContext,
-        },
+    test::button_game::helpers::{
+        assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
+        ButtonTestContext,
     },
     Config,
 };
@@ -83,7 +81,6 @@ pub fn marketplace(config: &Config) -> Result<()> {
     Ok(())
 }
 
-
 /// Test of marketplace upgradability
 pub fn marketplace_update(config: &Config) -> Result<()> {
     let ButtonTestContext {
@@ -111,7 +108,7 @@ pub fn marketplace_update(config: &Config) -> Result<()> {
     assert!(set_code_result.is_ok());
 
     // Change the metadata (keeping the old address)
-    marketplace = update_marketplace_metadata_to_v2(marketplace, &config);
+    marketplace = update_marketplace_metadata_to_v2(marketplace, config);
 
     let migration_result = marketplace.migrate(&sign(&conn, &authority));
     info!(
