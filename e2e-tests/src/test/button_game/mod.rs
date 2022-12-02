@@ -3,7 +3,7 @@ use std::{thread, time::Duration};
 use aleph_client::{contract_transcode::Value, AccountId};
 use anyhow::Result;
 use assert2::{assert, let_assert};
-use helpers::{sign, update_marketplace_metadata_to_v2};
+use helpers::{sign, update_marketplace_metadata_to_v2, update_marketplace_to_v2};
 use log::info;
 
 use crate::{
@@ -94,17 +94,8 @@ pub fn marketplace_update(config: &Config) -> Result<()> {
     marketplace.reset(&sign(&conn, &authority))?;
 
     // Performing code upgrade
-    let set_code_result = marketplace.set_code(
-        &sign(&conn, &authority),
-        config
-            .test_case_params
-            .marketplace_v2_code_hash
-            .as_ref()
-            .expect("New code's code_hash must be specified."),
-        None, // Alternative for performing "atomic" upgrade + migration (make sure that selector to migrate method is correct)
-              // Some("0x060d3f50".to_string())
-    );
-    info!("Trying to set code actual hash_code: {:?}", set_code_result);
+    let set_code_result = update_marketplace_to_v2(&conn, &mut marketplace, config, &authority);
+    info!("Setting new code hash: {:?}", set_code_result);
     assert!(set_code_result.is_ok());
 
     // Change the metadata (keeping the old address)

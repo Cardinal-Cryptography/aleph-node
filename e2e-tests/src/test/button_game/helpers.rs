@@ -101,6 +101,28 @@ pub(super) fn update_marketplace_metadata_to_v2(
     )
 }
 
+/// Performs update to new code version
+/// 
+/// Optionally you could pass selector to migration method
+/// in the new code, this way upgrade + migration will be performed
+/// "atomically" (change `None` to `Some("0x060d3f50".to_string())`)
+pub(super) fn update_marketplace_to_v2<C: AnyConnection>(
+    conn: &C,
+    marketplace: &mut Arc<MarketplaceInstance>,
+    config: &Config,
+    signer: &KeyPairWrapper,
+) -> Result<()> {
+    marketplace.set_code(
+        &sign(conn, signer),
+        config
+            .test_case_params
+            .marketplace_v2_code_hash
+            .as_ref()
+            .expect("New code's code_hash must be specified."),
+        None,
+    )
+}
+
 /// Derives a test account based on a randomized string
 pub fn random_account() -> KeyPairWrapper {
     KeyPairWrapper(aleph_client::keypair_from_string(&format!(
