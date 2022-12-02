@@ -3,20 +3,13 @@
 set -e
 
 # `packages` should reflect `exclude` section from root `Cargo.toml`.
-packages=("flooder"
+packages=(
+  "flooder"
   "e2e-tests"
   "aleph-client"
   "fork-off"
   "benches/payout-stakers"
   "bin/cliain"
-  "contracts/access_control"
-  "contracts/button"
-  "contracts/game_token"
-  "contracts/marketplace"
-  "contracts/simple_dex"
-  "contracts/ticket_token"
-  "contracts/wrapped_azero"
-  "contracts/marketplace_v2"
 )
 
 for p in ${packages[@]}

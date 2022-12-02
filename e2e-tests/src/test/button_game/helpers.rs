@@ -102,7 +102,7 @@ pub(super) fn update_marketplace_metadata_to_v2(
 }
 
 /// Performs update to new code version
-/// 
+///
 /// Optionally you could pass selector to migration method
 /// in the new code, this way upgrade + migration will be performed
 /// "atomically" (change `None` to `Some("0x060d3f50".to_string())`)
