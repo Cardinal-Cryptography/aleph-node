@@ -3,7 +3,6 @@ use frame_support::{
     codec::{Decode, Encode},
     sp_io,
     sp_std::vec::Vec,
-    sp_std::vec::Vec,
     storage::storage_prefix,
 };
 use frame_support::{
