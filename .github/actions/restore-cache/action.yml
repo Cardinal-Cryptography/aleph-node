@@ -99,7 +99,6 @@ runs:
         echo "RUSTC_WRAPPER=$HOME/.local/bin/sccache" >> $GITHUB_ENV
 
     - name: Install cargo-cache
-      uses: actions-rs/cargo@v1
+      uses: baptiste0928/cargo-install@v1
       with:
-        command: install
-        args: cargo-cache
+        crate: cargo-cache
