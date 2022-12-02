@@ -26,14 +26,12 @@ mod helpers;
 /// 1. Buys a ticket without setting the max price (this should succeed).
 /// 2. Tries to buy a ticket with setting the max price too low (this should fail).
 /// 3. Tries to buy a ticket with setting the max price appropriately (this should succeed).
-///
-/// Additionally there is an update performed amidst contract's operation.
-pub fn marketplace_with_update(config: &Config) -> Result<()> {
+pub fn marketplace(config: &Config) -> Result<()> {
     let ButtonTestContext {
         conn,
         authority,
         player,
-        mut marketplace,
+        marketplace,
         ticket_token,
         reward_token,
         mut events,
@@ -59,7 +57,44 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
     )?;
     marketplace.buy(&sign(&conn, player), None)?;
 
-    // Upgrade begins
+    let event = assert_recv_id(&mut events, "Bought");
+    let player_account: AccountId = player.into();
+    assert!(event.contract == marketplace.as_ref().into());
+    let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
+    assert!(price <= later_price);
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("account_id"));
+    assert!(acc_id == &player_account.to_string());
+    assert!(ticket_token.balance_of(&conn, &player.into())? == 1);
+    assert!(reward_token.balance_of(&conn, &player.into())? <= player_balance - price);
+    assert!(marketplace.price(&conn)? > price);
+
+    let latest_price = marketplace.price(&conn)?;
+
+    info!("Setting max price too low");
+    marketplace.buy(&sign(&conn, player), Some(latest_price / 2))?;
+    refute_recv_id(&mut events, "Bought");
+    assert!(ticket_token.balance_of(&conn, &player.into())? == 1);
+
+    info!("Setting max price high enough");
+    marketplace.buy(&sign(&conn, player), Some(latest_price * 2))?;
+    assert_recv_id(&mut events, "Bought");
+    assert!(ticket_token.balance_of(&conn, &player.into())? == 2);
+
+    Ok(())
+}
+
+
+/// Test of marketplace upgradability
+pub fn marketplace_update(config: &Config) -> Result<()> {
+    let ButtonTestContext {
+        conn,
+        authority,
+        player: _,
+        mut marketplace,
+        ..
+    } = setup_button_test(config, &config.test_case_params.early_bird_special)?;
+
+    marketplace.reset(&sign(&conn, &authority))?;
 
     // Performing code upgrade
     let set_code_result = marketplace.set_code(
@@ -85,40 +120,10 @@ pub fn marketplace_with_update(config: &Config) -> Result<()> {
     );
     assert!(migration_result.is_ok());
 
-    // Check if migration was actually performed
-    //
-    // Will fail when:
-    // - Upgrade was not successful/not performed, or
-    // - Migration was not successful/not performed
     assert!(matches!(
         marketplace.migration_performed(&sign(&conn, &authority)),
         Ok(true)
     ));
-
-    // Upgrade ends
-
-    let event = assert_recv_id(&mut events, "Bought");
-    let player_account: AccountId = player.into();
-    assert!(event.contract == marketplace.as_ref().into());
-    let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
-    assert!(price <= later_price);
-    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("account_id"));
-    assert!(acc_id == &player_account.to_string());
-    assert!(ticket_token.balance_of(&conn, &player.into())? == 1);
-    assert!(reward_token.balance_of(&conn, &player.into())? <= player_balance - price);
-    assert!(marketplace.price(&conn)? > price);
-
-    let latest_price = marketplace.price(&conn)?;
-
-    info!("Setting max price too low");
-    marketplace.buy(&sign(&conn, player), Some(latest_price / 2))?;
-    refute_recv_id(&mut events, "Bought");
-    assert!(ticket_token.balance_of(&conn, &player.into())? == 1);
-
-    info!("Setting max price high enough");
-    marketplace.buy(&sign(&conn, player), Some(latest_price * 2))?;
-    assert_recv_id(&mut events, "Bought");
-    assert!(ticket_token.balance_of(&conn, &player.into())? == 2);
 
     Ok(())
 }

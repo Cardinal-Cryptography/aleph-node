@@ -167,6 +167,7 @@ impl MarketplaceInstance {
         self.contract.contract_exec0(conn, "reset")
     }
 
+    /// Changes contract code to one with specified code hash
     pub fn set_code(
         &self,
         conn: &SignedConnection,
@@ -183,6 +184,11 @@ impl MarketplaceInstance {
         self.contract.contract_exec0(conn, "migrate")
     }
 
+    /// Check if migration was performed
+    ///
+    /// Will fail when:
+    /// - Upgrade was not successful/not performed, or
+    /// - Migration was not successful/not performed
     pub fn migration_performed(&self, conn: &SignedConnection) -> Result<bool> {
         self.contract
             .contract_read0(conn, "migration_performed")?

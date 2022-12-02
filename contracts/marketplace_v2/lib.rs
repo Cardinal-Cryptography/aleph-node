@@ -47,22 +47,20 @@ pub mod marketplace_v2 {
         reward_token: AccountId,
     }
 
-    // Storage struct with different order of fields - for upgrade testing
-    // Also there is new field (migration_performed) added
+    // There is new field (migration_performed) added
     const STORAGE_KEY: u32 = 201;
     #[derive(Default, Debug)]
     #[openbrush::upgradeable_storage(STORAGE_KEY)]
     pub struct MarketplaceDataV2 {
         migration_performed: bool,
-        sale_multiplier: Balance,
+        total_proceeds: Balance,
+        tickets_sold: Balance,
         min_price: Balance,
         current_start_block: BlockNumber,
-        tickets_sold: Balance,
         auction_length: BlockNumber,
-        reward_token: AccountId,
+        sale_multiplier: Balance,
         ticket_token: AccountId,
-        total_proceeds: Balance,
-        new_field: AccountId,
+        reward_token: AccountId,
     }
 
     #[ink(storage)]

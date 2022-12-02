@@ -12,6 +12,7 @@ MARKETPLACE_V2_CODE_HASH=$(jq --raw-output ".marketplace_v2_code_hash" < "$CONTR
 pushd "$E2E_PATH"
 
 RUST_LOG="aleph_e2e_client=info" cargo run --release -- \
+  --test-cases marketplace \
   --test-cases marketplace_update \
   --test-cases button_game_reset \
   --test-cases early_bird_special \

@@ -58,7 +58,6 @@ mod simple_dex {
         TooMuchSlippage,
         NotEnoughLiquidityOf(AccountId),
         UnsupportedSwapPair(SwapPair),
-        //UpgradeFailed,
     }
 
     impl From<PSP22Error> for DexError {
