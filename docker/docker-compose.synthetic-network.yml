@@ -1,0 +1,72 @@
+services:
+  Node0:
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - SYNTHETIC_NETWORK=10.77.0.0/16
+    ports:
+      - 3000:80
+
+  Node1:
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - SYNTHETIC_NETWORK=10.77.0.0/16
+    ports:
+      - 3001:80
+
+  Node2:
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - SYNTHETIC_NETWORK=10.77.0.0/16
+    ports:
+      - 3002:80
+
+  Node3:
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - SYNTHETIC_NETWORK=10.77.0.0/16
+    ports:
+      - 3003:80
+
+  Node4:
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - SYNTHETIC_NETWORK=10.77.0.0/16
+    ports:
+      - 3004:80
+
+networks:
+  synthetic-network:
+    ipam:
+      config:
+        - subnet: 10.77.0.0/16
+
