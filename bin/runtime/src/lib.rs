@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 38,
+    spec_version: 44,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 13,
@@ -954,6 +954,12 @@ impl_runtime_apis! {
             Contracts::get_storage(address, key)
         }
 
+    }
+
+     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
+        fn pending_rewards(member_account: AccountId) -> Balance {
+            NominationPools::pending_rewards(member_account)
+        }
     }
 
     #[cfg(feature = "try-runtime")]
