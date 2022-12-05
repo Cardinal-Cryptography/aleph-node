@@ -40,6 +40,10 @@ pub struct AlephCli {
     /// BEHAVIOUR AND PUNISHED ACCORDINGLY!
     #[clap(long, default_value_t = 20)]
     max_nonfinalized_blocks: u32,
+
+    /// Experimental flag, allow pruning
+    #[clap(long)]
+    experimental_pruning: bool,
 }
 
 impl AlephCli {
@@ -68,5 +72,9 @@ impl AlephCli {
             warn!("Running block production with a value of max-nonfinalized-blocks {}, which is not the default of 20. THIS MIGHT BE CONSIDERED MALICIOUS BEHAVIOUR AND RESULT IN PENALTIES!", self.max_nonfinalized_blocks);
         }
         self.max_nonfinalized_blocks
+    }
+
+    pub fn experimental_pruning(&self) -> bool {
+        self.experimental_pruning
     }
 }
