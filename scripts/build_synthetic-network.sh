@@ -21,6 +21,10 @@ log "building base docker image for synthetic-network with support for synthetic
 docker build -t syntheticnet .
 
 popd
+log "removing temporary folder $TMPDIR"
+rm -rf $TMPDIR
 
-log "building docker image for aleph-node with support for synthetic-network"
+log "building docker image for aleph-node that supports synthetic-network"
 docker build -t aleph-node:syntheticnet -f docker/Dockerfile.synthetic_network .
+
+exit 0
