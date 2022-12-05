@@ -8,6 +8,10 @@ function usage(){
     cat << EOF
 Usage:
   $0
+  This script allows you to run aleph-node within docker and simulate some custom network conditions, e.g. delays, rate limit,
+  package loss. Additionally, each node is preinstalled with the 'stress' tool, that allows to simulate high occupancy of nodes
+  cpu and io. It should allow us test more realistic high volume network conditions without the need to spawn hundreds of
+  aws instances. For more details on networking part of this solution, visit https://github.com/daily-co/synthetic-network .
     --no-build-image
         skip docker image build
     --commit 72bbb4fde915e4132c19cd7ce3605364abac58a5
