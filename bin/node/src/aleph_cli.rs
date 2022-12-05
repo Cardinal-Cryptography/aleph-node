@@ -42,7 +42,7 @@ pub struct AlephCli {
     max_nonfinalized_blocks: u32,
 
     /// Experimental flag, allows pruning
-    /// 
+    ///
     /// TURNING THIS FLAG ON, CAN LEAD TO MALICIOUS BEHAVIOUR AND CAN BE PUNISHED ACCORDINGLY!
     #[clap(long, default_value_t = false)]
     experimental_pruning: bool,

@@ -26,7 +26,6 @@ fn main() -> sc_cli::Result<()> {
     } else {
         warn!("Pruning not supported, but flag experimental_pruning was turned on. Usage of this flag can lead to misbehaviour, which can be punished.");
     }
-    
 
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
