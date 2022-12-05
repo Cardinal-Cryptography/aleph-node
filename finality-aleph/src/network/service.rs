@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     future::Future,
-    iter,
 };
 
 use futures::{channel::mpsc, StreamExt};
@@ -193,20 +192,10 @@ where
 
     fn handle_network_event(
         &mut self,
-        event: Event<N::Multiaddress, N::PeerId>,
+        event: Event<N::PeerId>,
     ) -> Result<(), mpsc::TrySendError<D>> {
         use Event::*;
         match event {
-            Connected(multiaddress) => {
-                trace!(target: "aleph-network", "Connected event from address {:?}", multiaddress);
-                self.network
-                    .add_reserved(iter::once(multiaddress).collect(), Protocol::Authentication);
-            }
-            Disconnected(peer) => {
-                trace!(target: "aleph-network", "Disconnected event for peer {:?}", peer);
-                self.network
-                    .remove_reserved(iter::once(peer).collect(), Protocol::Authentication);
-            }
             StreamOpened(peer, protocol) => {
                 trace!(target: "aleph-network", "StreamOpened event for peer {:?} and the protocol {:?}.", peer, protocol);
                 let rx = match &protocol {
@@ -353,7 +342,7 @@ mod tests {
             NetworkIdentity, Protocol,
         },
         testing::mocks::validator_network::{
-            random_multiaddress, random_peer_id, MockMultiaddress,
+            random_peer_id, MockMultiaddress,
             MockNetwork as MockValidatorNetwork,
         },
         SessionId,
@@ -413,21 +402,6 @@ mod tests {
             self.network.close_channels().await;
             self.validator_network.close_channels().await;
         }
-
-        // We do this only to make sure that NotificationStreamOpened/NotificationStreamClosed events are handled
-        async fn wait_for_events_handled(&mut self) {
-            let address = random_multiaddress();
-            self.network
-                .emit_event(MockEvent::Connected(address.clone()));
-            assert_eq!(
-                self.network
-                    .add_reserved
-                    .next()
-                    .await
-                    .expect("Should receive message"),
-                (iter::once(address).collect(), Protocol::Authentication,)
-            );
-        }
     }
 
     fn message(i: u8) -> MockData {
@@ -452,55 +426,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sync_connected() {
-        let mut test_data = TestData::prepare().await;
-
-        let address = random_multiaddress();
-        test_data
-            .network
-            .emit_event(MockEvent::Connected(address.clone()));
-
-        let expected = (iter::once(address).collect(), Protocol::Authentication);
-
-        assert_eq!(
-            test_data
-                .network
-                .add_reserved
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_sync_disconnected() {
-        let mut test_data = TestData::prepare().await;
-
-        let peer_id = random_peer_id();
-
-        test_data
-            .network
-            .emit_event(MockEvent::Disconnected(peer_id.clone()));
-
-        let expected = (iter::once(peer_id).collect(), Protocol::Authentication);
-
-        assert_eq!(
-            test_data
-                .network
-                .remove_reserved
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
     async fn test_notification_stream_opened() {
         let mut test_data = TestData::prepare().await;
 
@@ -512,9 +437,6 @@ mod tests {
                 Protocol::Authentication,
             ));
         });
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
 
         let message = authentication(test_data.validator_network.identity().0).await;
         test_data
@@ -566,9 +488,6 @@ mod tests {
                     Protocol::Authentication,
                 ));
             });
-
-        // We do this only to make sure that NotificationStreamClosed events are handled
-        test_data.wait_for_events_handled().await;
 
         let message = authentication(test_data.validator_network.identity().0).await;
         test_data
@@ -668,9 +587,6 @@ mod tests {
             Protocol::Authentication,
         ));
 
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
-
         test_data
             .mock_io
             .messages_for_network
@@ -717,9 +633,6 @@ mod tests {
             peer_id.clone(),
             Protocol::Authentication,
         ));
-
-        // We do this only to make sure that NotificationStreamOpened events are handled
-        test_data.wait_for_events_handled().await;
 
         test_data
             .mock_io

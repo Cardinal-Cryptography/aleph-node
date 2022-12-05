@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     fmt,
     sync::Arc,
     time::Duration,
@@ -97,7 +97,7 @@ impl<T> Default for Channel<T> {
     }
 }
 
-pub type MockEvent = Event<MockMultiaddress, MockPublicKey>;
+pub type MockEvent = Event<MockPublicKey>;
 
 pub type MockData = Vec<u8>;
 
@@ -141,7 +141,7 @@ impl<M: Multiaddress + 'static> MockIO<M> {
 pub struct MockEventStream(mpsc::UnboundedReceiver<MockEvent>);
 
 #[async_trait]
-impl EventStream<MockMultiaddress, MockPublicKey> for MockEventStream {
+impl EventStream<MockPublicKey> for MockEventStream {
     async fn next_event(&mut self) -> Option<MockEvent> {
         self.0.next().await
     }
@@ -172,8 +172,6 @@ impl NetworkSender for MockNetworkSender {
 
 #[derive(Clone)]
 pub struct MockNetwork {
-    pub add_reserved: Channel<(HashSet<MockMultiaddress>, Protocol)>,
-    pub remove_reserved: Channel<(HashSet<MockPublicKey>, Protocol)>,
     pub send_message: Channel<(Vec<u8>, MockPublicKey, Protocol)>,
     pub event_sinks: Arc<Mutex<Vec<mpsc::UnboundedSender<MockEvent>>>>,
     event_stream_taken_oneshot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
@@ -232,21 +230,11 @@ impl Network for MockNetwork {
             error,
         })
     }
-
-    fn add_reserved(&self, addresses: HashSet<Self::Multiaddress>, protocol: Protocol) {
-        self.add_reserved.send((addresses, protocol));
-    }
-
-    fn remove_reserved(&self, peers: HashSet<Self::PeerId>, protocol: Protocol) {
-        self.remove_reserved.send((peers, protocol));
-    }
 }
 
 impl MockNetwork {
     pub fn new(oneshot_sender: oneshot::Sender<()>) -> Self {
         MockNetwork {
-            add_reserved: Channel::new(),
-            remove_reserved: Channel::new(),
             send_message: Channel::new(),
             event_sinks: Arc::new(Mutex::new(vec![])),
             event_stream_taken_oneshot: Arc::new(Mutex::new(Some(oneshot_sender))),
