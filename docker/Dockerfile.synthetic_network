@@ -1,0 +1,11 @@
+FROM aleph-node:latest as binary-image
+
+FROM syntheticnet:latest
+
+RUN apt update && \
+        apt install curl iproute2 iputils-ping net-tools netwox tcpdump gdb gdbserver -y
+
+COPY --from=binary-image /usr/local/bin/aleph-node /usr/local/bin/
+COPY --from=binary-image /node/docker_entrypoint.sh /node/
+
+ENV ENTRY="/node/docker_entrypoint.sh"
