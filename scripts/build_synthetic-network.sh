@@ -22,6 +22,8 @@ git fetch origin
 git checkout $GIT_COMMIT
 
 log "building base docker image for synthetic-network with support for synthetic-network"
+log "patching synthetic network"
+# aleph-node crashes since it uses newer glibc than this image
 sed -i 's/FROM node:12.20.2/FROM node:19.2/' Dockerfile
 docker build -t syntheticnet .
 
