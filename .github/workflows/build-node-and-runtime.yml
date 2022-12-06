@@ -64,8 +64,8 @@ jobs:
         env:
           AWS_REGION: us-east-1
         with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: S3 CI | Copy release binary to S3 bucket
@@ -73,7 +73,7 @@ jobs:
         env:
           BINARY_DIR: target/production
           BINARY_FILE: aleph-node
-          S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-node
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-node
           S3BUCKET_FILE: aleph-node-${{ steps.get_branch.outputs.sha_short }}.tar.gz
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
@@ -84,7 +84,7 @@ jobs:
         env:
           BINARY_DIR: target/production/wbuild/aleph-runtime
           BINARY_FILE: aleph_runtime.compact.wasm
-          S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-runtime
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-runtime
           S3BUCKET_FILE: aleph-runtime-${{ steps.get_branch.outputs.sha_short }}.tar.gz
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
@@ -114,7 +114,7 @@ jobs:
         env:
           BINARY_DIR: target/release
           BINARY_FILE: aleph-node
-          S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-test-node
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-test-node
           S3BUCKET_FILE: aleph-test-node-${{ steps.get_branch.outputs.sha_short }}.tar.gz
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
@@ -125,7 +125,7 @@ jobs:
         env:
           BINARY_DIR: target/release/wbuild/aleph-runtime
           BINARY_FILE: aleph_runtime.compact.wasm
-          S3BUCKET_URL: s3://${{ secrets.CI_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-test-runtime
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-test-runtime
           S3BUCKET_FILE: aleph-test-runtime-${{ steps.get_branch.outputs.sha_short }}.tar.gz
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
