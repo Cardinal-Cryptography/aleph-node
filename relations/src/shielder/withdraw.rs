@@ -17,7 +17,7 @@ use super::{
         FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     },
 };
-use crate::{environment::CircuitField, GetPublicInput};
+use crate::{environment::CircuitField, relation::GetPublicInput};
 
 /// 'Withdraw' relation for the Shielder application.
 ///
@@ -221,10 +221,7 @@ mod tests {
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::{
-        shielder::note::{compute_note, compute_parent_hash},
-        types::CircuitField,
-    };
+    use crate::shielder::note::{compute_note, compute_parent_hash};
 
     fn get_circuit_and_input() -> (WithdrawRelation, [CircuitField; 7]) {
         let token_id: FrontendTokenId = 1;

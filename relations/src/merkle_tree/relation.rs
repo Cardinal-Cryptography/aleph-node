@@ -13,7 +13,8 @@ use crate::{
         hash_functions::{LeafHash, TwoToOneHash},
         tree::{new_tree, MerkleConfig, Root, SimplePath},
     },
-    string_to_padded_bytes, GetPublicInput,
+    relation::GetPublicInput,
+    string_to_padded_bytes,
 };
 
 /// The R1CS equivalent of the the Merkle tree root.

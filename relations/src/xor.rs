@@ -1,9 +1,8 @@
 use ark_ff::PrimeField;
 use ark_r1cs_std::prelude::{AllocVar, EqGadget, UInt8};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use ark_serialize::CanonicalSerialize;
 
-use crate::{byte_to_bits, GetPublicInput};
+use crate::{byte_to_bits, relation::GetPublicInput, CircuitField};
 
 /// XOR relation: a ⊕ b = c
 ///
@@ -46,7 +45,7 @@ impl<Field: PrimeField> ConstraintSynthesizer<Field> for XorRelation {
     }
 }
 
-impl<CircuitField: PrimeField + CanonicalSerialize> GetPublicInput<CircuitField> for XorRelation {
+impl GetPublicInput<CircuitField> for XorRelation {
     fn public_input(&self) -> Vec<CircuitField> {
         byte_to_bits(self.public_xoree).to_vec()
     }

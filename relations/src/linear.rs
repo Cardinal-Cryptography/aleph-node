@@ -6,7 +6,7 @@ use ark_r1cs_std::{
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_serialize::CanonicalSerialize;
 
-use crate::{byte_to_bits, GetPublicInput};
+use crate::{byte_to_bits, relation::GetPublicInput, CircuitField};
 
 /// Linear equation relation: a*x + b = y
 ///
@@ -48,9 +48,7 @@ impl<Field: PrimeField> ConstraintSynthesizer<Field> for LinearEquationRelation 
     }
 }
 
-impl<CircuitField: PrimeField + CanonicalSerialize> GetPublicInput<CircuitField>
-    for LinearEquationRelation
-{
+impl GetPublicInput<CircuitField> for LinearEquationRelation {
     fn public_input(&self) -> Vec<CircuitField> {
         todo!()
     }

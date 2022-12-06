@@ -12,7 +12,7 @@ use super::{
         FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     },
 };
-use crate::{environment::CircuitField, GetPublicInput};
+use crate::{environment::CircuitField, relation::GetPublicInput};
 
 /// 'Deposit' relation for the Shielder application.
 ///

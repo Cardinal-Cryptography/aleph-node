@@ -1,21 +1,19 @@
 mod environment;
 mod linear;
 mod merkle_tree;
+mod relation;
 mod serialization;
 mod shielder;
-// mod types;
 mod utils;
 mod xor;
 
-use ark_ff::{One, PrimeField, Zero};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef};
-use ark_serialize::CanonicalSerialize;
+pub use environment::CircuitField;
 pub use linear::LinearEquationRelation;
 pub use merkle_tree::MerkleTreeRelation;
+pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{note_from_bytes, types::*, DepositRelation, WithdrawRelation};
 pub use utils::*;
-// use types::CircuitField;
 pub use xor::XorRelation;
 
 // All implemented relations.
@@ -69,12 +67,6 @@ pub use xor::XorRelation;
 //         }
 //     }
 // }
-
-pub trait GetPublicInput<CircuitField: PrimeField + CanonicalSerialize> {
-    fn public_input(&self) -> Vec<CircuitField> {
-        vec![]
-    }
-}
 
 // impl GetPublicInput<CircuitField> for Relation {
 //     fn public_input(&self) -> Vec<CircuitField> {
