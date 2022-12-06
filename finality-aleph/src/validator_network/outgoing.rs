@@ -38,7 +38,8 @@ impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND>
     }
 }
 
-const DIAL_TIMEOUT: Duration = Duration::from_secs(43);
+/// Arbitrarily chosen timeout, should be more than enough.
+const DIAL_TIMEOUT: Duration = Duration::from_secs(60);
 
 async fn manage_outgoing<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>>(
     secret_key: SK,
