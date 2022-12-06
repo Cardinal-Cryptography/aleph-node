@@ -12,6 +12,7 @@ Usage:
   package loss. Additionally, each node is preinstalled with the 'stress' tool, that allows to simulate high occupancy of nodes
   cpu and io. It should allow us test more realistic high volume network conditions without the need to spawn hundreds of
   aws instances. For more details on networking part of this solution, visit https://github.com/daily-co/synthetic-network .
+  IMPORTANT: this script requires aleph-node:latest docker image.
     --no-build-image
         skip docker image build
     --commit 72bbb4fde915e4132c19cd7ce3605364abac58a5
