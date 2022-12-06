@@ -50,7 +50,7 @@ done
 
 export NODE_COUNT
 
-if [[${NODE_COUNT} -gt ${MAX_NODE_COUNT}]]; then
+if [[ ${NODE_COUNT} -gt ${MAX_NODE_COUNT} ]]; then
   echo "Tried to run ${NODE_COUNT} nodes. Max node count allowed: ${MAX_NODE_COUNT}."
   exit 1
 fi
