@@ -14,7 +14,7 @@ pushd .
 
 log "cloning synthetic-network's git repo"
 cd $TMPDIR
-if [[ -f ./synthetic-network ]]; then
+if [[ ! -d ./synthetic-network ]]; then
     git clone https://github.com/daily-co/synthetic-network.git
 fi
 cd synthetic-network
