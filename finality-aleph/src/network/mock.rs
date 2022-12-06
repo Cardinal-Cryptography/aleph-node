@@ -175,7 +175,7 @@ pub struct MockNetwork {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct MockSenderError();
+pub struct MockSenderError;
 
 impl fmt::Display for MockSenderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
