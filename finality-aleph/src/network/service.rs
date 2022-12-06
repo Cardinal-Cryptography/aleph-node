@@ -11,11 +11,7 @@ use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnbound
 use tokio::time;
 
 use crate::{
-    network::{
-        AddressedData, ConnectionCommand, Data, Event, EventStream, Multiaddress, Network,
-        NetworkSender, Protocol,
-    },
-    validator_network::{Network as ValidatorNetwork, PublicKey},
+    network::{Data, Event, EventStream, Network, NetworkSender, Protocol},
     STATUS_REPORT_INTERVAL,
 };
 
@@ -24,54 +20,30 @@ use crate::{
 /// 1. Incoming network events
 ///   1. Messages are forwarded to the user.
 ///   2. Various forms of (dis)connecting, keeping track of all currently connected nodes.
-/// 2. Commands from the network manager, modifying the reserved peer set.
 /// 3. Outgoing messages, sending them out, using 1.2. to broadcast.
-/// Currently this also handles the validator network for sending in-session data, but this is
-/// likely to change in the future.
-pub struct Service<
-    N: Network,
-    D: Data,
-    VD: Data,
-    A: Data + Multiaddress,
-    VN: ValidatorNetwork<A::PeerId, A, VD>,
-> where
-    A::PeerId: PublicKey,
-{
+pub struct Service<N: Network, D: Data> {
     network: N,
-    validator_network: VN,
-    data_from_user: mpsc::UnboundedReceiver<AddressedData<VD, A::PeerId>>,
     messages_from_user: mpsc::UnboundedReceiver<D>,
-    data_for_user: mpsc::UnboundedSender<VD>,
     messages_for_user: mpsc::UnboundedSender<D>,
-    commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<A>>,
     authentication_connected_peers: HashSet<N::PeerId>,
     authentication_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<D>>,
     spawn_handle: SpawnTaskHandle,
 }
 
 /// Input/output channels for the network service.
-pub struct IO<D: Data, VD: Data, M: Multiaddress> {
-    pub data_from_user: mpsc::UnboundedReceiver<AddressedData<VD, M::PeerId>>,
+pub struct IO<D: Data> {
     pub messages_from_user: mpsc::UnboundedReceiver<D>,
-    pub data_for_user: mpsc::UnboundedSender<VD>,
     pub messages_for_user: mpsc::UnboundedSender<D>,
-    pub commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<M>>,
 }
 
-impl<D: Data, VD: Data, M: Multiaddress> IO<D, VD, M> {
+impl<D: Data> IO<D> {
     pub fn new(
-        data_from_user: mpsc::UnboundedReceiver<AddressedData<VD, M::PeerId>>,
         messages_from_user: mpsc::UnboundedReceiver<D>,
-        data_for_user: mpsc::UnboundedSender<VD>,
         messages_for_user: mpsc::UnboundedSender<D>,
-        commands_from_manager: mpsc::UnboundedReceiver<ConnectionCommand<M>>,
-    ) -> IO<D, VD, M> {
+    ) -> IO<D> {
         IO {
-            data_from_user,
             messages_from_user,
-            data_for_user,
             messages_for_user,
-            commands_from_manager,
         }
     }
 }
@@ -82,30 +54,12 @@ enum SendError {
     SendingFailed,
 }
 
-impl<
-        N: Network,
-        D: Data,
-        VD: Data,
-        A: Data + Multiaddress,
-        VN: ValidatorNetwork<A::PeerId, A, VD>,
-    > Service<N, D, VD, A, VN>
-where
-    A::PeerId: PublicKey,
-{
-    pub fn new(
-        network: N,
-        validator_network: VN,
-        spawn_handle: SpawnTaskHandle,
-        io: IO<D, VD, A>,
-    ) -> Service<N, D, VD, A, VN> {
+impl<N: Network, D: Data> Service<N, D> {
+    pub fn new(network: N, spawn_handle: SpawnTaskHandle, io: IO<D>) -> Service<N, D> {
         Service {
             network,
-            validator_network,
-            data_from_user: io.data_from_user,
             messages_from_user: io.messages_from_user,
-            data_for_user: io.data_for_user,
             messages_for_user: io.messages_for_user,
-            commands_from_manager: io.commands_from_manager,
             spawn_handle,
             authentication_connected_peers: HashSet::new(),
             authentication_peer_senders: HashMap::new(),
@@ -248,28 +202,6 @@ where
         Ok(())
     }
 
-    fn handle_validator_network_data(&mut self, data: VD) -> Result<(), mpsc::TrySendError<VD>> {
-        self.data_for_user.unbounded_send(data)
-    }
-
-    fn on_manager_command(&mut self, command: ConnectionCommand<A>) {
-        use ConnectionCommand::*;
-        match command {
-            AddReserved(addresses) => {
-                for multi in addresses {
-                    if let Some(peer_id) = multi.get_peer_id() {
-                        self.validator_network.add_connection(peer_id, vec![multi]);
-                    }
-                }
-            }
-            DelReserved(peers) => {
-                for peer in peers {
-                    self.validator_network.remove_connection(peer);
-                }
-            }
-        }
-    }
-
     fn status_report(&self) {
         let mut status = String::from("Network status report: ");
 
@@ -297,33 +229,10 @@ where
                         return;
                     }
                 },
-                maybe_data = self.validator_network.next() => match maybe_data {
-                    Some(data) => if let Err(e) = self.handle_validator_network_data(data) {
-                        error!(target: "aleph-network", "Cannot forward messages to user: {:?}", e);
-                        return;
-                    },
-                    None => {
-                        error!(target: "aleph-network", "Validator network event stream ended.");
-                    }
-                },
-                maybe_data = self.data_from_user.next() => match maybe_data {
-                    Some((data, peer_id)) => self.validator_network.send(data, peer_id),
-                    None => {
-                        error!(target: "aleph-network", "User data stream ended.");
-                        return;
-                    }
-                },
                 maybe_message = self.messages_from_user.next() => match maybe_message {
                     Some(message) => self.broadcast(message, Protocol::Authentication),
                     None => {
                         error!(target: "aleph-network", "User message stream ended.");
-                        return;
-                    }
-                },
-                maybe_command = self.commands_from_manager.next() => match maybe_command {
-                    Some(command) => self.on_manager_command(command),
-                    None => {
-                        error!(target: "aleph-network", "Manager command stream ended.");
                         return;
                     }
                 },
