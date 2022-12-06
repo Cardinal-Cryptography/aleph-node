@@ -5,8 +5,8 @@ use futures::stream::{Stream, StreamExt};
 use log::{error, trace};
 use sc_consensus::JustificationSyncLink;
 use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent,
-    NetworkService, NetworkSyncForkRequest, PeerId,
+    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, NetworkService,
+    NetworkSyncForkRequest, PeerId,
 };
 use sc_network_common::{
     protocol::ProtocolName,
