@@ -175,17 +175,11 @@ pub struct MockNetwork {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum MockSenderError {
-    SomeError,
-}
+pub struct MockSenderError();
 
 impl fmt::Display for MockSenderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MockSenderError::SomeError => {
-                write!(f, "Some error message")
-            }
-        }
+        write!(f, "Some error message")
     }
 }
 
@@ -195,7 +189,6 @@ impl Network for MockNetwork {
     type SenderError = MockSenderError;
     type NetworkSender = MockNetworkSender;
     type PeerId = MockPublicKey;
-    type Multiaddress = MockMultiaddress;
     type EventStream = MockEventStream;
 
     fn event_stream(&self) -> Self::EventStream {

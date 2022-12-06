@@ -5,7 +5,7 @@ use futures::stream::{Stream, StreamExt};
 use log::{error, trace};
 use sc_consensus::JustificationSyncLink;
 use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
+    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent,
     NetworkService, NetworkSyncForkRequest, PeerId,
 };
 use sc_network_common::{
@@ -195,7 +195,6 @@ impl<B: Block, H: ExHashT> Network for Arc<NetworkService<B, H>> {
     type SenderError = SenderError;
     type NetworkSender = SubstrateNetworkSender;
     type PeerId = PeerId;
-    type Multiaddress = Multiaddr;
     type EventStream = NetworkEventStream<B, H>;
 
     fn event_stream(&self) -> Self::EventStream {

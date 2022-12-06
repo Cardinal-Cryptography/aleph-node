@@ -104,7 +104,6 @@ pub trait Network: Clone + Send + Sync + 'static {
     type SenderError: std::error::Error;
     type NetworkSender: NetworkSender;
     type PeerId: Clone + Debug + Eq + Hash + Send;
-    type Multiaddress: Debug + Eq + Hash;
     type EventStream: EventStream<Self::PeerId>;
 
     /// Returns a stream of events representing what happens on the network.
