@@ -326,7 +326,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, iter, iter::FromIterator};
+    use std::iter;
 
     use codec::Encode;
     use futures::{channel::oneshot, StreamExt};
@@ -337,13 +337,12 @@ mod tests {
     use crate::{
         network::{
             manager::{SessionHandler, VersionedAuthentication},
-            mock::{crypto_basics, MockData, MockEvent, MockIO, MockNetwork, MockSenderError},
+            mock::{crypto_basics, MockData, MockEvent, MockIO, MockNetwork},
             testing::DiscoveryMessage,
-            NetworkIdentity, Protocol,
+            Protocol,
         },
         testing::mocks::validator_network::{
-            random_peer_id, MockMultiaddress,
-            MockNetwork as MockValidatorNetwork,
+            random_peer_id, MockMultiaddress, MockNetwork as MockValidatorNetwork,
         },
         SessionId,
     };
@@ -426,98 +425,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_notification_stream_opened() {
-        let mut test_data = TestData::prepare().await;
-
-        let peer_ids: Vec<_> = (0..3).map(|_| random_peer_id()).collect();
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data.network.emit_event(MockEvent::StreamOpened(
-                peer_id.clone(),
-                Protocol::Authentication,
-            ));
-        });
-
-        let message = authentication(test_data.validator_network.identity().0).await;
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message.clone())
-            .unwrap();
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .take(peer_ids.len())
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .map(|peer_id| (message.clone().encode(), peer_id, Protocol::Authentication)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_notification_stream_closed() {
-        let mut test_data = TestData::prepare().await;
-
-        let peer_ids: Vec<_> = (0..3).map(|_| random_peer_id()).collect();
-        let opened_authorities_n = 2;
-
-        peer_ids.iter().for_each(|peer_id| {
-            test_data.network.emit_event(MockEvent::StreamOpened(
-                peer_id.clone(),
-                Protocol::Authentication,
-            ));
-        });
-
-        peer_ids
-            .iter()
-            .skip(opened_authorities_n)
-            .for_each(|peer_id| {
-                test_data.network.emit_event(MockEvent::StreamClosed(
-                    peer_id.clone(),
-                    Protocol::Authentication,
-                ));
-            });
-
-        let message = authentication(test_data.validator_network.identity().0).await;
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message.clone())
-            .unwrap();
-
-        let broadcasted_messages = HashSet::<_>::from_iter(
-            test_data
-                .network
-                .send_message
-                .take(opened_authorities_n)
-                .await
-                .into_iter(),
-        );
-
-        let expected_messages = HashSet::from_iter(
-            peer_ids
-                .into_iter()
-                .take(opened_authorities_n)
-                .map(|peer_id| (message.clone().encode(), peer_id, Protocol::Authentication)),
-        );
-
-        assert_eq!(broadcasted_messages, expected_messages);
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
     async fn test_send_validator_data() {
         let mut test_data = TestData::prepare().await;
 
@@ -562,100 +469,6 @@ mod tests {
                 .await
                 .expect("Should receive message"),
             message,
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_create_sender_error() {
-        let mut test_data = TestData::prepare().await;
-
-        test_data
-            .network
-            .create_sender_errors
-            .lock()
-            .push_back(MockSenderError::SomeError);
-
-        let peer_id = random_peer_id();
-
-        let message_1 = authentication(vec![(random_peer_id(), String::from("other_1"))]).await;
-        let message_2 = authentication(vec![(random_peer_id(), String::from("other_2"))]).await;
-
-        test_data.network.emit_event(MockEvent::StreamOpened(
-            peer_id.clone(),
-            Protocol::Authentication,
-        ));
-
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message_1)
-            .unwrap();
-
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message_2.clone())
-            .unwrap();
-
-        let expected = (message_2.encode(), peer_id, Protocol::Authentication);
-
-        assert_eq!(
-            test_data
-                .network
-                .send_message
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected,
-        );
-
-        test_data.cleanup().await
-    }
-
-    #[tokio::test]
-    async fn test_send_error() {
-        let mut test_data = TestData::prepare().await;
-
-        test_data
-            .network
-            .send_errors
-            .lock()
-            .push_back(MockSenderError::SomeError);
-
-        let peer_id = random_peer_id();
-
-        let message_1 = authentication(vec![(random_peer_id(), String::from("other_1"))]).await;
-        let message_2 = authentication(vec![(random_peer_id(), String::from("other_2"))]).await;
-
-        test_data.network.emit_event(MockEvent::StreamOpened(
-            peer_id.clone(),
-            Protocol::Authentication,
-        ));
-
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message_1)
-            .unwrap();
-
-        test_data
-            .mock_io
-            .messages_for_network
-            .unbounded_send(message_2.clone())
-            .unwrap();
-
-        let expected = (message_2.encode(), peer_id, Protocol::Authentication);
-
-        assert_eq!(
-            test_data
-                .network
-                .send_message
-                .next()
-                .await
-                .expect("Should receive message"),
-            expected,
         );
 
         test_data.cleanup().await

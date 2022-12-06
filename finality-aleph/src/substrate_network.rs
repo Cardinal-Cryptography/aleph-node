@@ -136,21 +136,26 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
             match self.stream.next().await {
                 Some(event) => match event {
                     SyncConnected { remote } => {
-                        let multiaddress = iter::once(MultiaddressProtocol::P2p(remote.into())).collect();
+                        let multiaddress =
+                            iter::once(MultiaddressProtocol::P2p(remote.into())).collect();
                         trace!(target: "aleph-network", "Connected event from address {:?}", multiaddress);
-                        if let Err(e) = self.network
-                            .add_peers_to_reserved_set(protocol_name(&Protocol::Authentication), iter::once(multiaddress).collect())
-                        {
+                        if let Err(e) = self.network.add_peers_to_reserved_set(
+                            protocol_name(&Protocol::Authentication),
+                            iter::once(multiaddress).collect(),
+                        ) {
                             error!(target: "aleph-network", "add_reserved failed: {}", e);
                         }
                         continue;
-                    },
+                    }
                     SyncDisconnected { remote } => {
                         trace!(target: "aleph-network", "Disconnected event for peer {:?}", remote);
                         let addresses = iter::once(remote).collect();
-                        self.network.remove_peers_from_reserved_set(protocol_name(&Protocol::Authentication), addresses);
+                        self.network.remove_peers_from_reserved_set(
+                            protocol_name(&Protocol::Authentication),
+                            addresses,
+                        );
                         continue;
-                    },
+                    }
                     NotificationStreamOpened {
                         remote, protocol, ..
                     } => match to_protocol(protocol.as_ref()) {

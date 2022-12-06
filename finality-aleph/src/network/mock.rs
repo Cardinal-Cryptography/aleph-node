@@ -1,9 +1,4 @@
-use std::{
-    collections::VecDeque,
-    fmt,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::VecDeque, fmt, sync::Arc, time::Duration};
 
 use aleph_primitives::KEY_TYPE;
 use async_trait::async_trait;
