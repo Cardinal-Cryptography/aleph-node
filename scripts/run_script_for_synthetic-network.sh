@@ -5,7 +5,7 @@ set -euo pipefail
 source ./scripts/common.sh
 
 GIT_COMMIT=${GIT_COMMIT:-72bbb4fde915e4132c19cd7ce3605364abac58a5}
-SCRIPT_PATH=${SCRIPT_PATH:-scripts/synthetic-network.js}
+SCRIPT_PATH=${SCRIPT_PATH:-scripts/vendor/synthetic-network/frontend/udp_rate_sine_demo.js}
 SCRIPT_PATH=$(realpath $SCRIPT_PATH)
 
 TMPDIR="$(dirname $0)/vendor"
@@ -23,7 +23,7 @@ git checkout $GIT_COMMIT
 cd frontend
 
 log "running .js script"
-cp $SCRIPT_PATH ./
-node $(basename $SCRIPT_PATH)
+cp $SCRIPT_PATH ./script.js
+node script.js
 
 exit 0
