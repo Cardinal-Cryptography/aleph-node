@@ -17,9 +17,8 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         manager::{
-            compatibility::{LegacyDiscoveryMessage, PeerAuthentications},
-            Connections, DataInSession, Discovery, DiscoveryMessage, SessionHandler,
-            SessionHandlerError, VersionedAuthentication,
+            compatibility::PeerAuthentications, Connections, DataInSession, Discovery,
+            DiscoveryMessage, SessionHandler, SessionHandlerError, VersionedAuthentication,
         },
         AddressedData, AddressingInformation, ConnectionCommand, Data, NetworkIdentity, PeerId,
     },
@@ -354,7 +353,8 @@ where
         let session = match self.sessions.get_mut(&pre_session.session_id) {
             Some(session) => session,
             None => {
-                return Ok(self.start_nonvalidator_session(pre_session, address).await);
+                self.start_nonvalidator_session(pre_session, address).await;
+                return Ok(());
             }
         };
         session
@@ -655,30 +655,16 @@ where
         self.validator_network.send(to_send.0, to_send.1)
     }
 
-    fn send_authentication(&self, to_send: PeerAuthentications<M, A>) -> Result<(), Error> {
-        use PeerAuthentications::*;
-        match to_send {
-            NewOnly(authentication) => self
-                .authentications_for_network
-                .unbounded_send(VersionedAuthentication::V2(authentication))
-                .map_err(|_| Error::NetworkSend),
-            LegacyOnly(legacy_authentication) => self
-                .authentications_for_network
-                .unbounded_send(VersionedAuthentication::V1(
-                    LegacyDiscoveryMessage::AuthenticationBroadcast(legacy_authentication),
-                ))
-                .map_err(|_| Error::NetworkSend),
-            Both(authentication, legacy_authentication) => {
-                self.authentications_for_network
-                    .unbounded_send(VersionedAuthentication::V2(authentication))
-                    .map_err(|_| Error::NetworkSend)?;
-                self.authentications_for_network
-                    .unbounded_send(VersionedAuthentication::V1(
-                        LegacyDiscoveryMessage::AuthenticationBroadcast(legacy_authentication),
-                    ))
-                    .map_err(|_| Error::NetworkSend)
-            }
+    fn send_authentications(
+        &self,
+        to_send: Vec<VersionedAuthentication<M, A>>,
+    ) -> Result<(), Error> {
+        for auth in to_send {
+            self.authentications_for_network
+                .unbounded_send(auth)
+                .map_err(|_| Error::NetworkSend)?;
         }
+        Ok(())
     }
 
     fn handle_connection_command(&mut self, connection_command: ConnectionCommand<A>) {
@@ -708,7 +694,7 @@ where
             self.handle_connection_command(command);
         }
         if let Some(message) = maybe_message {
-            self.send_authentication(message)?;
+            self.send_authentications(message.into())?;
         }
         Ok(())
     }
@@ -778,7 +764,7 @@ where
                         Err(e) => warn!(target: "aleph-network", "Retry failed to update handler: {:?}", e),
                     }
                     for to_send in service.discovery() {
-                        self.send_authentication(to_send.into())?;
+                        self.send_authentications(to_send.into())?;
                     }
                 },
                 _ = status_ticker.tick() => {

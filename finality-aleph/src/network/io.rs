@@ -13,6 +13,12 @@ use crate::{
 
 type AuthenticationNetworkIO<M, A> = NetworkIO<VersionedAuthentication<M, A>>;
 
+type FullIO<D, M, A, VN> = (
+    ConnectionManagerIO<D, M, A, VN>,
+    AuthenticationNetworkIO<M, A>,
+    SessionManagerIO<D>,
+);
+
 pub fn setup<
     D: Data,
     M: Data + Debug,
@@ -20,11 +26,7 @@ pub fn setup<
     VN: ValidatorNetwork<A::PeerId, A, DataInSession<D>>,
 >(
     validator_network: VN,
-) -> (
-    ConnectionManagerIO<D, M, A, VN>,
-    AuthenticationNetworkIO<M, A>,
-    SessionManagerIO<D>,
-)
+) -> FullIO<D, M, A, VN>
 where
     A::PeerId: PublicKey,
 {
