@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            error "Unrecognized argument $1!"
+            break
             ;;
     esac
 done
@@ -60,6 +60,6 @@ git checkout $GIT_COMMIT
 cd frontend
 
 log "running .js script"
-node $SCRIPT_PATH
+node $SCRIPT_PATH ${@:1}
 
 exit 0
