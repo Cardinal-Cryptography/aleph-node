@@ -7,7 +7,11 @@ mod shielder;
 mod utils;
 mod xor;
 
-pub use environment::CircuitField;
+pub use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+pub use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+pub use environment::{
+    CircuitField, Groth16, Marlin, MarlinPolynomialCommitment, ProvingSystem, RawKeys, GM17,
+};
 pub use linear::LinearEquationRelation;
 pub use merkle_tree::MerkleTreeRelation;
 pub use relation::GetPublicInput;
