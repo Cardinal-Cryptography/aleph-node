@@ -23,8 +23,9 @@ EOF
 
 function build_test_image() {
     local commit=$1
+    local path=$2
 
-    GIT_COMMIT=$commit ./scripts/build_synthetic-network.sh
+    GIT_COMMIT=$commit ${path}/build_synthetic-network.sh
 }
 
 while [[ $# -gt 0 ]]; do
@@ -52,7 +53,8 @@ GIT_COMMIT=${GIT_COMMIT:-72bbb4fde915e4132c19cd7ce3605364abac58a5}
 
 if [[ "$BUILD_IMAGE" = true ]]; then
     log "building custom docker image for synthetic-network tests"
-    build_test_image $GIT_COMMIT
+    path=$(dirname $0)
+    build_test_image $GIT_COMMIT $path
 fi
 
 log "running synthetic-network"
