@@ -1,5 +1,4 @@
-use ark_ff::{One, PrimeField, Zero};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef};
+use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
 
 pub trait GetPublicInput<CircuitField: PrimeField + CanonicalSerialize> {

@@ -1,6 +1,4 @@
-use ark_ff::{One, PrimeField, Zero};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef};
-use ark_serialize::CanonicalSerialize;
+use ark_ff::{One, Zero};
 
 /// Convert `u8` into an 8-tuple of bits over `F` (little endian).
 pub fn byte_to_bits<F: Zero + One + Copy>(byte: u8) -> [F; 8] {

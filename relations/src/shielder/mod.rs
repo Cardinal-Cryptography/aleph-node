@@ -11,7 +11,7 @@ pub mod types;
 mod withdraw;
 
 pub use deposit::DepositRelation;
-pub use note::{bytes_from_note, compute_note, note_from_bytes};
+pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,

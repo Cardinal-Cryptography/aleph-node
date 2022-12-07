@@ -4,9 +4,8 @@ use ark_r1cs_std::{
     uint32::UInt32,
 };
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use ark_serialize::CanonicalSerialize;
 
-use crate::{byte_to_bits, relation::GetPublicInput, CircuitField};
+use crate::{relation::GetPublicInput, CircuitField};
 
 /// Linear equation relation: a*x + b = y
 ///
