@@ -307,9 +307,8 @@ impl PurgeChainCmd {
             self.purge_chain.yes,
             self.purge_chain
                 .shared_params
-                .base_path()
-                .expect("need base-path to be provided")
-                .expect("need base-path to be provided"),
+                .base_path()?
+                .ok_or_else(|| Error::Input("need base-path to be provided".to_string()))?,
         )
     }
 }
