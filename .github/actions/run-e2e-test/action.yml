@@ -43,7 +43,7 @@ runs:
     - name: Run consensus party
       shell: bash
       run: ./.github/scripts/run_consensus.sh -m ${{ inputs.min-validator-count }} -n ${{ inputs.node-count }}
-    
+
     - name: Sleep
       shell: bash
       run: sleep 60
@@ -89,11 +89,4 @@ runs:
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
       shell: bash
-      run: ./.github/scripts/run_e2e_test.sh -t finalization -m "${{ inputs.min-validator-count }}"
-
-    - name: Print debug if failed
-      if: ${{ failure() }}
-      shell: bash
-      run: |
-        cd bin/cliain
-        cargo run -- --seed //Alice debug-storage
+      run: ./.github/scripts/run_e2e_test.sh -t finalization::finalization -m "${{ inputs.min-validator-count }}"

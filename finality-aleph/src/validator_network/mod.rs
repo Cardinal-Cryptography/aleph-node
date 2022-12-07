@@ -1,25 +1,20 @@
 use std::fmt::Display;
 
-use aleph_primitives::AuthorityId;
 use codec::Codec;
-use sp_core::crypto::KeyTypeId;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-mod handshake;
-mod heartbeat;
+mod crypto;
 mod incoming;
 mod io;
 mod manager;
 #[cfg(test)]
 pub mod mock;
 mod outgoing;
-mod protocol_negotiation;
 mod protocols;
 mod service;
 
+pub use crypto::{PublicKey, SecretKey};
 pub use service::Service;
-
-pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"a0vn");
 
 /// What the data sent using the network has to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
@@ -34,25 +29,33 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 /// implementation might fail to deliver any specific message, so messages have to be resent while
 /// they still should be delivered.
 #[async_trait::async_trait]
-pub trait Network<A: Data, D: Data>: Send + 'static {
+pub trait Network<PK: PublicKey, A: Data, D: Data>: Send + 'static {
     /// Add the peer to the set of connected peers.
-    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<A>);
+    fn add_connection(&mut self, peer: PK, addresses: Vec<A>);
 
     /// Remove the peer from the set of connected peers and close the connection.
-    fn remove_connection(&mut self, peer: AuthorityId);
+    fn remove_connection(&mut self, peer: PK);
 
     /// Send a message to a single peer.
     /// This function should be implemented in a non-blocking manner.
-    fn send(&self, data: D, recipient: AuthorityId);
+    fn send(&self, data: D, recipient: PK);
 
     /// Receive a message from the network.
     async fn next(&mut self) -> Option<D>;
 }
 
+pub type PeerAddressInfo = String;
+
+/// Reports address of the peer that we are connected to.
+pub trait ConnectionInfo {
+    /// Return the address of the peer that we are connected to.
+    fn peer_address_info(&self) -> PeerAddressInfo;
+}
+
 /// A stream that can be split into a sending and receiving part.
-pub trait Splittable: AsyncWrite + AsyncRead + Unpin + Send {
-    type Sender: AsyncWrite + Unpin + Send;
-    type Receiver: AsyncRead + Unpin + Send;
+pub trait Splittable: AsyncWrite + AsyncRead + ConnectionInfo + Unpin + Send {
+    type Sender: AsyncWrite + ConnectionInfo + Unpin + Send;
+    type Receiver: AsyncRead + ConnectionInfo + Unpin + Send;
 
     /// Split into the sending and receiving part.
     fn split(self) -> (Self::Sender, Self::Receiver);

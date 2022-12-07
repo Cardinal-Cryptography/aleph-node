@@ -31,6 +31,11 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
@@ -91,7 +96,7 @@ jobs:
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: Build test binary
-        run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
+        run: cargo build --release -p aleph-node --features "short_session enable_treasury_proposals only_legacy"
 
       - name: Upload test binary
         uses: actions/upload-artifact@v2

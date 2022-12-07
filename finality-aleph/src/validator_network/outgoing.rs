@@ -1,66 +1,70 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
-use aleph_primitives::AuthorityId;
 use futures::channel::mpsc;
 use log::{debug, info};
 use tokio::time::{sleep, Duration};
 
-use crate::{
-    crypto::AuthorityPen,
-    validator_network::{
-        protocol_negotiation::{protocol, ProtocolNegotiationError},
-        protocols::ProtocolError,
-        Data, Dialer,
+use crate::validator_network::{
+    protocols::{
+        protocol, ConnectionType, ProtocolError, ProtocolNegotiationError, ResultForService,
     },
+    ConnectionInfo, Data, Dialer, PeerAddressInfo, PublicKey, SecretKey,
 };
 
-enum OutgoingError<A: Data, ND: Dialer<A>> {
+enum OutgoingError<PK: PublicKey, A: Data, ND: Dialer<A>> {
     Dial(ND::Error),
-    ProtocolNegotiation(ProtocolNegotiationError),
-    Protocol(ProtocolError),
+    ProtocolNegotiation(PeerAddressInfo, ProtocolNegotiationError),
+    Protocol(PeerAddressInfo, ProtocolError<PK>),
 }
 
-impl<A: Data, ND: Dialer<A>> Display for OutgoingError<A, ND> {
+impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use OutgoingError::*;
         match self {
             Dial(e) => write!(f, "dial error: {}", e),
-            ProtocolNegotiation(e) => write!(f, "protocol negotiation error: {}", e),
-            Protocol(e) => write!(f, "protocol error: {}", e),
+            ProtocolNegotiation(addr, e) => write!(
+                f,
+                "communication with {} failed, protocol negotiation error: {}",
+                addr, e
+            ),
+            Protocol(addr, e) => write!(
+                f,
+                "communication with {} failed, protocol error: {}",
+                addr, e
+            ),
         }
     }
 }
 
-impl<A: Data, ND: Dialer<A>> From<ProtocolNegotiationError> for OutgoingError<A, ND> {
-    fn from(e: ProtocolNegotiationError) -> Self {
-        OutgoingError::ProtocolNegotiation(e)
-    }
-}
-
-impl<A: Data, ND: Dialer<A>> From<ProtocolError> for OutgoingError<A, ND> {
-    fn from(e: ProtocolError) -> Self {
-        OutgoingError::Protocol(e)
-    }
-}
-
-async fn manage_outgoing<D: Data, A: Data, ND: Dialer<A>>(
-    authority_pen: AuthorityPen,
-    peer_id: AuthorityId,
+async fn manage_outgoing<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>>(
+    secret_key: SK,
+    public_key: SK::PublicKey,
     mut dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
-) -> Result<(), OutgoingError<A, ND>> {
-    debug!(target: "validator-network", "Trying to connect to {}.", peer_id);
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+    data_for_user: mpsc::UnboundedSender<D>,
+) -> Result<(), OutgoingError<SK::PublicKey, A, ND>> {
+    debug!(target: "validator-network", "Trying to connect to {}.", public_key);
     let stream = dialer
         .connect(addresses)
         .await
         .map_err(OutgoingError::Dial)?;
+    let peer_address_info = stream.peer_address_info();
     debug!(target: "validator-network", "Performing outgoing protocol negotiation.");
-    let (stream, protocol) = protocol(stream).await?;
+    let (stream, protocol) = protocol(stream)
+        .await
+        .map_err(|e| OutgoingError::ProtocolNegotiation(peer_address_info.clone(), e))?;
     debug!(target: "validator-network", "Negotiated protocol, running.");
-    Ok(protocol
-        .manage_outgoing(stream, authority_pen, peer_id, result_for_parent)
-        .await?)
+    protocol
+        .manage_outgoing(
+            stream,
+            secret_key,
+            public_key,
+            result_for_parent,
+            data_for_user,
+        )
+        .await
+        .map_err(|e| OutgoingError::Protocol(peer_address_info.clone(), e))
 }
 
 const RETRY_DELAY: Duration = Duration::from_secs(10);
@@ -68,25 +72,32 @@ const RETRY_DELAY: Duration = Duration::from_secs(10);
 /// Establish an outgoing connection to the provided peer using the dialer and then manage it.
 /// While this works it will send any data from the user to the peer. Any failures will be reported
 /// to the parent, so that connections can be reestablished if necessary.
-pub async fn outgoing<D: Data, A: Data, ND: Dialer<A>>(
-    authority_pen: AuthorityPen,
-    peer_id: AuthorityId,
+pub async fn outgoing<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>>(
+    secret_key: SK,
+    public_key: SK::PublicKey,
     dialer: ND,
     addresses: Vec<A>,
-    result_for_parent: mpsc::UnboundedSender<(AuthorityId, Option<mpsc::UnboundedSender<D>>)>,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+    data_for_user: mpsc::UnboundedSender<D>,
 ) {
     if let Err(e) = manage_outgoing(
-        authority_pen,
-        peer_id.clone(),
+        secret_key,
+        public_key.clone(),
         dialer,
-        addresses,
+        addresses.clone(),
         result_for_parent.clone(),
+        data_for_user,
     )
     .await
     {
-        info!(target: "validator-network", "Outgoing connection to {} failed: {}, will retry after {}s.", peer_id, e, RETRY_DELAY.as_secs());
+        info!(target: "validator-network", "Outgoing connection to {} {:?} failed: {}, will retry after {}s.", public_key, addresses, e, RETRY_DELAY.as_secs());
         sleep(RETRY_DELAY).await;
-        if result_for_parent.unbounded_send((peer_id, None)).is_err() {
+        // we send the "new" connection type, because we always assume it's new until proven
+        // otherwise, and here we did not even get the chance to attempt negotiating a protocol
+        if result_for_parent
+            .unbounded_send((public_key, None, ConnectionType::New))
+            .is_err()
+        {
             debug!(target: "validator-network", "Could not send the closing message, we've probably been terminated by the parent service.");
         }
     }

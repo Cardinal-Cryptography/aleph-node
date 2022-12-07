@@ -2,11 +2,9 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     io::Result as IoResult,
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll},
 };
 
-use aleph_primitives::{AuthorityId, KEY_TYPE};
 use codec::{Decode, Encode, Output};
 use futures::{
     channel::{mpsc, oneshot},
@@ -15,7 +13,6 @@ use futures::{
 use log::info;
 use rand::{thread_rng, Rng};
 use sc_service::{SpawnTaskHandle, TaskManager};
-use sp_keystore::{testing::KeyStore, CryptoStore};
 use tokio::{
     io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf},
     runtime::Handle,
@@ -23,17 +20,18 @@ use tokio::{
 };
 
 use crate::{
-    crypto::AuthorityPen,
     network::{mock::Channel, Data, Multiaddress, NetworkIdentity},
     validator_network::{
-        mock::random_keys, Dialer as DialerT, Listener as ListenerT, Network, Service, Splittable,
+        mock::{key, random_keys, MockPublicKey, MockSecretKey},
+        ConnectionInfo, Dialer as DialerT, Listener as ListenerT, Network, PeerAddressInfo,
+        SecretKey, Service, Splittable,
     },
 };
 
-pub type MockMultiaddress = (AuthorityId, String);
+pub type MockMultiaddress = (MockPublicKey, String);
 
 impl Multiaddress for MockMultiaddress {
-    type PeerId = AuthorityId;
+    type PeerId = MockPublicKey;
 
     fn get_peer_id(&self) -> Option<Self::PeerId> {
         Some(self.0.clone())
@@ -49,25 +47,25 @@ impl Multiaddress for MockMultiaddress {
 
 #[derive(Clone)]
 pub struct MockNetwork<D: Data> {
-    pub add_connection: Channel<(AuthorityId, Vec<MockMultiaddress>)>,
-    pub remove_connection: Channel<AuthorityId>,
-    pub send: Channel<(D, AuthorityId)>,
+    pub add_connection: Channel<(MockPublicKey, Vec<MockMultiaddress>)>,
+    pub remove_connection: Channel<MockPublicKey>,
+    pub send: Channel<(D, MockPublicKey)>,
     pub next: Channel<D>,
-    id: AuthorityId,
+    id: MockPublicKey,
     addresses: Vec<MockMultiaddress>,
 }
 
 #[async_trait::async_trait]
-impl<D: Data> Network<MockMultiaddress, D> for MockNetwork<D> {
-    fn add_connection(&mut self, peer: AuthorityId, addresses: Vec<MockMultiaddress>) {
+impl<D: Data> Network<MockPublicKey, MockMultiaddress, D> for MockNetwork<D> {
+    fn add_connection(&mut self, peer: MockPublicKey, addresses: Vec<MockMultiaddress>) {
         self.add_connection.send((peer, addresses));
     }
 
-    fn remove_connection(&mut self, peer: AuthorityId) {
+    fn remove_connection(&mut self, peer: MockPublicKey) {
         self.remove_connection.send(peer);
     }
 
-    fn send(&self, data: D, recipient: AuthorityId) {
+    fn send(&self, data: D, recipient: MockPublicKey) {
         self.send.send((data, recipient));
     }
 
@@ -77,7 +75,7 @@ impl<D: Data> Network<MockMultiaddress, D> for MockNetwork<D> {
 }
 
 impl<D: Data> NetworkIdentity for MockNetwork<D> {
-    type PeerId = AuthorityId;
+    type PeerId = MockPublicKey;
     type Multiaddress = MockMultiaddress;
 
     fn identity(&self) -> (Vec<Self::Multiaddress>, Self::PeerId) {
@@ -85,14 +83,32 @@ impl<D: Data> NetworkIdentity for MockNetwork<D> {
     }
 }
 
+pub fn random_peer_id() -> MockPublicKey {
+    key().0
+}
+
+pub fn random_identity_with_address(address: String) -> (Vec<MockMultiaddress>, MockPublicKey) {
+    let id = random_peer_id();
+    (vec![(id.clone(), address)], id)
+}
+
+pub fn random_identity() -> (Vec<MockMultiaddress>, MockPublicKey) {
+    random_identity_with_address(
+        rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .map(char::from)
+            .take(43)
+            .collect(),
+    )
+}
+
+pub fn random_multiaddress() -> MockMultiaddress {
+    random_identity().0.pop().expect("we created an address")
+}
+
 impl<D: Data> MockNetwork<D> {
     pub async fn new(address: &str) -> Self {
-        let key_store = Arc::new(KeyStore::new());
-        let id: AuthorityId = key_store
-            .ed25519_generate_new(KEY_TYPE, None)
-            .await
-            .unwrap()
-            .into();
+        let id = random_peer_id();
         let addresses = vec![(id.clone(), String::from(address))];
         MockNetwork {
             add_connection: Channel::new(),
@@ -104,8 +120,19 @@ impl<D: Data> MockNetwork<D> {
         }
     }
 
+    pub fn from(addresses: Vec<MockMultiaddress>, id: MockPublicKey) -> Self {
+        MockNetwork {
+            add_connection: Channel::new(),
+            remove_connection: Channel::new(),
+            send: Channel::new(),
+            next: Channel::new(),
+            addresses,
+            id,
+        }
+    }
+
     // Consumes the network asserting there are no unreceived messages in the channels.
-    pub async fn _close_channels(self) {
+    pub async fn close_channels(self) {
         assert!(self.add_connection.close().await.is_none());
         assert!(self.remove_connection.close().await.is_none());
         assert!(self.send.close().await.is_none());
@@ -119,6 +146,7 @@ impl<D: Data> MockNetwork<D> {
 pub struct UnreliableDuplexStream {
     stream: DuplexStream,
     counter: Option<usize>,
+    peer_address: Address,
 }
 
 impl AsyncWrite for UnreliableDuplexStream {
@@ -160,33 +188,45 @@ impl AsyncRead for UnreliableDuplexStream {
 pub struct UnreliableSplittable {
     incoming_data: UnreliableDuplexStream,
     outgoing_data: UnreliableDuplexStream,
+    peer_address: Address,
 }
 
 impl UnreliableSplittable {
     /// Create a pair of mock splittables connected to each other.
-    pub fn new(max_buf_size: usize, ends_after: Option<usize>) -> (Self, Self) {
-        let (in_a, out_b) = duplex(max_buf_size);
-        let (in_b, out_a) = duplex(max_buf_size);
+    pub fn new(
+        max_buf_size: usize,
+        ends_after: Option<usize>,
+        l_address: Address,
+        r_address: Address,
+    ) -> (Self, Self) {
+        let (l_in, r_out) = duplex(max_buf_size);
+        let (r_in, l_out) = duplex(max_buf_size);
         (
             UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
-                    stream: in_a,
+                    stream: l_in,
                     counter: ends_after,
+                    peer_address: r_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
-                    stream: out_a,
+                    stream: l_out,
                     counter: ends_after,
+                    peer_address: r_address,
                 },
+                peer_address: r_address,
             },
             UnreliableSplittable {
                 incoming_data: UnreliableDuplexStream {
-                    stream: in_b,
+                    stream: r_in,
                     counter: ends_after,
+                    peer_address: l_address,
                 },
                 outgoing_data: UnreliableDuplexStream {
-                    stream: out_b,
+                    stream: r_out,
                     counter: ends_after,
+                    peer_address: l_address,
                 },
+                peer_address: l_address,
             },
         )
     }
@@ -216,6 +256,18 @@ impl AsyncWrite for UnreliableSplittable {
     }
 }
 
+impl ConnectionInfo for UnreliableSplittable {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.peer_address.to_string()
+    }
+}
+
+impl ConnectionInfo for UnreliableDuplexStream {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.peer_address.to_string()
+    }
+}
+
 impl Splittable for UnreliableSplittable {
     type Sender = UnreliableDuplexStream;
     type Receiver = UnreliableDuplexStream;
@@ -226,15 +278,17 @@ impl Splittable for UnreliableSplittable {
 }
 
 type Address = u32;
-type Addresses = HashMap<AuthorityId, Vec<Address>>;
-type Callers = HashMap<AuthorityId, (MockDialer, MockListener)>;
+type Addresses = HashMap<MockPublicKey, Vec<Address>>;
+type Callers = HashMap<MockPublicKey, (MockDialer, MockListener)>;
 type Connection = UnreliableSplittable;
 
 const TWICE_MAX_DATA_SIZE: usize = 32 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct MockDialer {
-    channel_connect: mpsc::UnboundedSender<(Address, oneshot::Sender<Connection>)>,
+    // used for logging
+    own_address: Address,
+    channel_connect: mpsc::UnboundedSender<(Address, Address, oneshot::Sender<Connection>)>,
 }
 
 #[async_trait::async_trait]
@@ -245,7 +299,7 @@ impl DialerT<Address> for MockDialer {
     async fn connect(&mut self, addresses: Vec<Address>) -> Result<Self::Connection, Self::Error> {
         let (tx, rx) = oneshot::channel();
         self.channel_connect
-            .unbounded_send((addresses[0], tx))
+            .unbounded_send((self.own_address, addresses[0], tx))
             .expect("should send");
         Ok(rx.await.expect("should receive"))
     }
@@ -266,12 +320,12 @@ impl ListenerT for MockListener {
 }
 
 pub struct UnreliableConnectionMaker {
-    dialers: mpsc::UnboundedReceiver<(Address, oneshot::Sender<Connection>)>,
+    dialers: mpsc::UnboundedReceiver<(Address, Address, oneshot::Sender<Connection>)>,
     listeners: Vec<mpsc::UnboundedSender<Connection>>,
 }
 
 impl UnreliableConnectionMaker {
-    pub fn new(ids: Vec<AuthorityId>) -> (Self, Callers, Addresses) {
+    pub fn new(ids: Vec<MockPublicKey>) -> (Self, Callers, Addresses) {
         let mut listeners = Vec::with_capacity(ids.len());
         let mut callers = HashMap::with_capacity(ids.len());
         let (tx_dialer, dialers) = mpsc::unbounded();
@@ -288,6 +342,7 @@ impl UnreliableConnectionMaker {
         for id in ids.into_iter() {
             let (tx_listener, rx_listener) = mpsc::unbounded();
             let dialer = MockDialer {
+                own_address: addr.get(&id).expect("should be there")[0],
                 channel_connect: tx_dialer.clone(),
             };
             let listener = MockListener {
@@ -306,13 +361,19 @@ impl UnreliableConnectionMaker {
     pub async fn run(&mut self, connections_end_after: Option<usize>) {
         loop {
             info!(target: "validator-network", "UnreliableConnectionMaker: waiting for new request...");
-            let (addr, c) = self.dialers.next().await.expect("should receive");
+            let (dialer_address, listener_address, c) =
+                self.dialers.next().await.expect("should receive");
             info!(target: "validator-network", "UnreliableConnectionMaker: received request");
-            let (l_stream, r_stream) = Connection::new(4096, connections_end_after);
+            let (dialer_stream, listener_stream) = Connection::new(
+                4096,
+                connections_end_after,
+                dialer_address,
+                listener_address,
+            );
             info!(target: "validator-network", "UnreliableConnectionMaker: sending stream");
-            c.send(l_stream).expect("should send");
-            self.listeners[addr as usize]
-                .unbounded_send(r_stream)
+            c.send(dialer_stream).expect("should send");
+            self.listeners[listener_address as usize]
+                .unbounded_send(listener_stream)
                 .expect("should send");
         }
     }
@@ -367,18 +428,18 @@ impl Decode for MockData {
 
 #[allow(clippy::too_many_arguments)]
 fn spawn_peer(
-    pen: AuthorityPen,
+    secret_key: MockSecretKey,
     addr: Addresses,
     n_msg: usize,
     large_message_interval: Option<usize>,
     corrupted_message_interval: Option<usize>,
     dialer: MockDialer,
     listener: MockListener,
-    report: mpsc::UnboundedSender<(AuthorityId, usize)>,
+    report: mpsc::UnboundedSender<(MockPublicKey, usize)>,
     spawn_handle: SpawnTaskHandle,
 ) {
-    let our_id = pen.authority_id();
-    let (service, mut interface) = Service::new(dialer, listener, pen, spawn_handle);
+    let our_id = secret_key.public_key();
+    let (service, mut interface) = Service::new(dialer, listener, secret_key, spawn_handle);
     // run the service
     tokio::spawn(async {
         let (_exit, rx) = oneshot::channel();
@@ -405,17 +466,17 @@ fn spawn_peer(
                 _ = send_ticker.tick() => {
                     counter += 1;
                     // generate random message
-                    let mut filler_size = 0;
-                    if let Some(lmi) = large_message_interval && counter % lmi == 0 {
-                        filler_size = TWICE_MAX_DATA_SIZE;
-                    }
-                    let mut decodes = true;
-                    if let Some(cmi) = corrupted_message_interval && counter % cmi == 0 {
-                        decodes = false;
-                    }
+                    let filler_size = match large_message_interval {
+                        Some(lmi) if counter % lmi == 0 => TWICE_MAX_DATA_SIZE,
+                        _ => 0,
+                    };
+                    let decodes = match corrupted_message_interval {
+                        Some(cmi) if counter % cmi == 0 => false,
+                        _ => true,
+                    };
                     let data: MockData = MockData::new(thread_rng().gen_range(0..n_msg) as u32, filler_size, decodes);
                     // choose a peer
-                    let peer: AuthorityId = peer_ids[thread_rng().gen_range(0..peer_ids.len())].clone();
+                    let peer: MockPublicKey = peer_ids[thread_rng().gen_range(0..peer_ids.len())].clone();
                     // send
                     interface.send(data, peer);
                 },
@@ -447,7 +508,7 @@ pub async fn scenario(
     let spawn_handle = task_manager.spawn_handle();
     // create peer identities
     info!(target: "validator-network", "generating keys...");
-    let keys = random_keys(n_peers).await;
+    let keys = random_keys(n_peers);
     info!(target: "validator-network", "done");
     // prepare and run the manager
     let (mut connection_manager, mut callers, addr) =
@@ -456,17 +517,17 @@ pub async fn scenario(
         connection_manager.run(broken_connection_interval).await;
     });
     // channel for receiving status updates from spawned peers
-    let (tx_report, mut rx_report) = mpsc::unbounded::<(AuthorityId, usize)>();
-    let mut reports: BTreeMap<AuthorityId, usize> =
+    let (tx_report, mut rx_report) = mpsc::unbounded::<(MockPublicKey, usize)>();
+    let mut reports: BTreeMap<MockPublicKey, usize> =
         keys.keys().cloned().map(|id| (id, 0)).collect();
     // spawn peers
-    for (id, pen) in keys.into_iter() {
+    for (id, secret_key) in keys.into_iter() {
         let mut addr = addr.clone();
         // do not connect with itself
-        addr.remove(&pen.authority_id());
+        addr.remove(&secret_key.public_key());
         let (dialer, listener) = callers.remove(&id).expect("should contain all ids");
         spawn_peer(
-            pen,
+            secret_key,
             addr,
             n_msg,
             large_message_interval,
