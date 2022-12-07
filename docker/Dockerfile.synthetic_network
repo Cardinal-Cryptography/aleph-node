@@ -1,11 +1,13 @@
-FROM aleph-node:latest as binary-image
+FROM syntheticnet:latest as synthnet
 
-FROM syntheticnet:latest
+FROM aleph-node:latest
 
+# Linux networking tools and node.js
 RUN apt update && \
-    apt install curl iproute2 iputils-ping net-tools netwox tcpdump gdb gdbserver stress -y
+    apt install nodejs curl iproute2 iputils-ping net-tools netwox tcpdump gdb gdbserver stress -y
 
-COPY --from=binary-image /usr/local/bin/aleph-node /usr/local/bin/
-COPY --from=binary-image /node/docker_entrypoint.sh /node/
-
+COPY --from=synthnet /opt/lib/ /opt/lib/
+WORKDIR /opt/lib
+ENTRYPOINT []
 ENV ENTRY="/node/docker_entrypoint.sh"
+CMD ["/opt/lib/setup.sh"]
