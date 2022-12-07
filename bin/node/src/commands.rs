@@ -303,7 +303,7 @@ pub struct PurgeChainCmd {
 impl PurgeChainCmd {
     pub fn run(&self, database_config: DatabaseSource) -> Result<(), Error> {
         self.purge_chain.run(database_config)?;
-        self.purge_backup.run(self.purge_chain.yes, self.purge_chain.shared_params.base_path().unwrap().unwrap())
+        self.purge_backup.run(self.purge_chain.yes)
     }
 }
 
@@ -319,16 +319,15 @@ impl CliConfiguration for PurgeChainCmd {
 
 #[derive(Debug, Parser)]
 pub struct PurgeBackupCmd {
-    /// Directory under which AlephBFT backup is stored
-    #[arg(long, default_value = DEFAULT_BACKUP_FOLDER)]
-    pub backup_dir: String,
+    #[clap(flatten)]
+    pub node_params: NodeParams,
 }
 
 impl PurgeBackupCmd {
-    pub fn run(&self, skip_prompt: bool, base_path: BasePath) -> Result<(), Error> {
+    pub fn run(&self, skip_prompt: bool) -> Result<(), Error> {
         let backup_path = backup_path(
-            base_path.path(),
-            &self.backup_dir,
+            self.node_params.base_path().path(),
+            self.node_params.backup_dir(),
         );
 
         if !skip_prompt {
