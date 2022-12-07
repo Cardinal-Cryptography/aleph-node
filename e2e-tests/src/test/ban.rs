@@ -11,6 +11,7 @@ use aleph_client::{
     waiting::{BlockStatus, WaitingExt},
     SignedConnection, TxStatus,
 };
+use aleph_client::pallets::staking::StakingUserApi;
 use log::info;
 use primitives::{
     SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
@@ -51,6 +52,13 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
         SignedConnection::new(validator_address.to_string(), controller_key_to_disable).await;
 
     set_invalid_keys_for_validator(&connection_to_disable).await
+}
+
+async fn signed_connection_for_disabled_controller() -> SignedConnection {
+    let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
+    let stash_controller = NodeKeys::from(validator_seed);
+    let controller_key_to_disable = stash_controller.controller;
+    SignedConnection::new(NODE_TO_DISABLE_ADDRESS.to_string(), controller_key_to_disable).await
 }
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
@@ -299,11 +307,10 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     non_reserved_without_banned.remove(VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX as usize);
 
     let ban_period = 2;
-    let test_non_reserved_validators = vec![];
     root_connection
         .change_validators(
             Some(reserved_validators),
-            Some(test_non_reserved_validators),
+            Some(non_reserved_validators.clone()),
             Some(seats),
             TxStatus::InBlock,
         )
@@ -332,9 +339,12 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     );
     assert_eq!(without_banned, non_reserved);
 
+    let signed_connection = signed_connection_for_disabled_controller().await;
+    // validate again
+    signed_connection.validate(0, TxStatus::InBlock).await?;
     root_connection
         .connection
-        .wait_for_n_eras(1, BlockStatus::Finalized)
+        .wait_for_n_eras(2, BlockStatus::Finalized)
         .await;
     let expected_non_reserved = HashSet::<_>::from_iter(non_reserved_validators);
     let non_reserved = HashSet::<_>::from_iter(
