@@ -59,7 +59,6 @@ git checkout $GIT_COMMIT
 cd frontend
 
 log "running .js script"
-cp $SCRIPT_PATH ./script.js
-node script.js
+node $SCRIPT_PATH
 
 exit 0
