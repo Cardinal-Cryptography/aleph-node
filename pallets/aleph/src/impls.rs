@@ -2,7 +2,7 @@ use primitives::SessionIndex;
 use sp_std::vec::Vec;
 
 use crate::{
-    Config, Event, FinalityScheduledVersionChange, FinalityVersion, NextSessionFinalityVersion,
+    Config, Event, FinalityScheduledVersionChange, FinalityVersion,
     Pallet,
 };
 
@@ -24,7 +24,6 @@ where
 
     fn start_session(start_index: SessionIndex) {
         <T as Config>::SessionManager::start_session(start_index);
-        Self::update_next_session_finality_version();
         Self::update_version_change_history();
     }
 }
@@ -50,17 +49,6 @@ where
                 <FinalityScheduledVersionChange<T>>::kill();
 
                 Self::deposit_event(Event::FinalityVersionChange(scheduled_version_change));
-            }
-        }
-    }
-
-    fn update_next_session_finality_version() {
-        let next_session = Self::current_session() + 1;
-        let scheduled_version_change = Self::finality_version_change();
-
-        if let Some(version_change) = scheduled_version_change {
-            if next_session == version_change.session {
-                <NextSessionFinalityVersion<T>>::put(version_change.version_incoming);
             }
         }
     }

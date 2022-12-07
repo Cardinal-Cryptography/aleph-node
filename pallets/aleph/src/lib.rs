@@ -126,12 +126,6 @@ pub mod pallet {
     pub(super) type FinalityVersion<T: Config> =
         StorageValue<_, Version, ValueQuery, DefaultFinalityVersion<T>>;
 
-    /// Next session finality version.
-    #[pallet::storage]
-    #[pallet::getter(fn next_session_finality_version)]
-    pub(super) type NextSessionFinalityVersion<T: Config> =
-        StorageValue<_, Version, ValueQuery, DefaultFinalityVersion<T>>;
-
     /// Scheduled finality version change.
     #[pallet::storage]
     #[pallet::getter(fn finality_version_change)]
@@ -275,7 +269,6 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub finality_version: Version,
-        pub next_session_finality_version: Version,
         pub _marker: PhantomData<T>,
     }
 
@@ -284,7 +277,6 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 finality_version: DEFAULT_FINALITY_VERSION,
-                next_session_finality_version: DEFAULT_FINALITY_VERSION,
                 _marker: Default::default(),
             }
         }
@@ -294,7 +286,6 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <FinalityVersion<T>>::put(&self.finality_version);
-            <NextSessionFinalityVersion<T>>::put(&self.next_session_finality_version);
         }
     }
 }
