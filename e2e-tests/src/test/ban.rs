@@ -7,7 +7,7 @@ use aleph_client::{
         staking::StakingApi,
     },
     primitives::{BanInfo, BanReason, CommitteeSeats, ElectionOpenness},
-    sp_runtime::bounded::bounded_vec::BoundedVec,
+    sp_core::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
     SignedConnection, TxStatus,
 };
@@ -24,9 +24,9 @@ use crate::{
         check_underperformed_count_for_sessions, check_underperformed_validator_reason,
         check_underperformed_validator_session_count, check_validators, setup_test,
     },
+    config,
     rewards::set_invalid_keys_for_validator,
     validators::get_test_validators,
-    Config,
 };
 
 const SESSIONS_TO_CHECK: SessionCount = 5;
@@ -57,7 +57,10 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
 /// validators. Waits for the offending validator to hit the ban threshold of sessions without
 /// producing blocks. Verifies that the offending validator has in fact been banned out for the
 /// appropriate reason.
-pub async fn ban_automatic(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+#[ignore]
+pub async fn ban_automatic() -> anyhow::Result<()> {
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -142,7 +145,9 @@ pub async fn ban_automatic(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, sets up a committee and validators. Manually bans one of the validators
 /// from the committee with a specific reason. Verifies that validator marked for ban has in
 /// fact been banned for the given reason.
-pub async fn ban_manual(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn ban_manual() -> anyhow::Result<()> {
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -225,7 +230,9 @@ pub async fn ban_manual(config: &Config) -> anyhow::Result<()> {
 /// underperformed_session_count_threshold to 3.
 /// Disable one non_reserved validator. Check if the disabled validator is still in the committee
 /// and his underperformed session count is less or equal to 2.
-pub async fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn clearing_session_count() -> anyhow::Result<()> {
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
@@ -272,7 +279,9 @@ pub async fn clearing_session_count(config: &Config) -> anyhow::Result<()> {
 /// Set Openness to Permissionless.
 /// Ban manually one validator. Check if the banned validator is out of the non_reserved and is back
 /// after ban period.
-pub async fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn permissionless_ban() -> anyhow::Result<()> {
+    let config = config::setup_test();
     let root_connection = config.create_root_connection().await;
 
     let validator_keys = get_test_validators(config);
@@ -344,7 +353,9 @@ pub async fn permissionless_ban(config: &Config) -> anyhow::Result<()> {
 /// Runs a chain, sets up a committee and validators. Changes the ban config to require 100%
 /// performance. Checks that each validator has all the sessions in which they were chosen for the
 /// committee marked as ones in which they underperformed.
-pub async fn ban_threshold(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn ban_threshold() -> anyhow::Result<()> {
+    let config = config::setup_test();
     let (root_connection, reserved_validators, non_reserved_validators, seats) =
         setup_test(config).await?;
 

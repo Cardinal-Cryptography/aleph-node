@@ -7,6 +7,7 @@ use crate::{
         sp_core::{ed25519::Public as EdPublic, sr25519::Public as SrPublic},
     },
     pallet_staking::EraRewardPoints,
+    sp_weights::weight_v2::Weight,
 };
 
 impl<AccountId> Default for EraRewardPoints<AccountId> {
@@ -38,5 +39,14 @@ impl TryFrom<String> for SessionKeys {
             Err(_) => return Err(()),
         };
         Ok(SessionKeys::from(bytes))
+    }
+}
+
+impl Weight {
+    pub fn new(ref_time: u64, proof_size: u64) -> Self {
+        Self {
+            ref_time,
+            proof_size,
+        }
     }
 }
