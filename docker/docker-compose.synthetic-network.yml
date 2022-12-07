@@ -1,5 +1,8 @@
 services:
   Node0:
+    extends:
+      file: docker-compose.base.yml
+      service: Node0
     image: aleph-node:syntheticnet
     networks:
       - synthetic-network
@@ -9,10 +12,14 @@ services:
       - SYS_PTRACE
     environment:
       - SYNTHETIC_NETWORK=10.77.0.0/16
+      - PUBLIC_VALIDATOR_ADDRESS=Node0:30343
     ports:
       - 3000:80
 
   Node1:
+    extends:
+      file: docker-compose.base.yml
+      service: Node1
     image: aleph-node:syntheticnet
     networks:
       - synthetic-network
@@ -22,10 +29,15 @@ services:
       - SYS_PTRACE
     environment:
       - SYNTHETIC_NETWORK=10.77.0.0/16
+      - PUBLIC_VALIDATOR_ADDRESS=Node1:30344
+      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
     ports:
       - 3001:80
 
   Node2:
+    extends:
+      file: docker-compose.base.yml
+      service: Node2
     image: aleph-node:syntheticnet
     networks:
       - synthetic-network
@@ -35,10 +47,15 @@ services:
       - SYS_PTRACE
     environment:
       - SYNTHETIC_NETWORK=10.77.0.0/16
+      - PUBLIC_VALIDATOR_ADDRESS=Node2:30345
+      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
     ports:
       - 3002:80
 
   Node3:
+    extends:
+      file: docker-compose.base.yml
+      service: Node3
     image: aleph-node:syntheticnet
     networks:
       - synthetic-network
@@ -48,10 +65,15 @@ services:
       - SYS_PTRACE
     environment:
       - SYNTHETIC_NETWORK=10.77.0.0/16
+      - PUBLIC_VALIDATOR_ADDRESS=Node3:30346
+      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
     ports:
       - 3003:80
 
   Node4:
+    extends:
+      file: docker-compose.base.yml
+      service: Node4
     image: aleph-node:syntheticnet
     networks:
       - synthetic-network
@@ -61,6 +83,8 @@ services:
       - SYS_PTRACE
     environment:
       - SYNTHETIC_NETWORK=10.77.0.0/16
+      - PUBLIC_VALIDATOR_ADDRESS=Node4:30347
+      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
     ports:
       - 3004:80
 

@@ -56,7 +56,7 @@ if [[ "$BUILD_IMAGE" = true ]]; then
 fi
 
 log "running synthetic-network"
-OVERRIDE_DOCKER_COMPOSE=./docker/docker-compose.synthetic-network.yml DOCKER_COMPOSE=./docker/docker-compose.bridged.yml ./.github/scripts/run_consensus.sh
+DOCKER_COMPOSE=./docker/docker-compose.synthetic-network.yml ./.github/scripts/run_consensus.sh
 log "open a web browser at http://localhost:3000 (port 3000 is Node0, 3001 is Node1, ...)"
 xdg-open http://localhost:3000
 
