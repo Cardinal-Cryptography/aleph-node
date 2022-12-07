@@ -4,14 +4,13 @@ use aleph_client::{
     pallets::{
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
-        staking::StakingApi,
+        staking::{StakingApi, StakingUserApi},
     },
     primitives::{BanInfo, BanReason, CommitteeSeats, ElectionOpenness},
     sp_core::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
     SignedConnection, TxStatus,
 };
-use aleph_client::pallets::staking::StakingUserApi;
 use log::info;
 use primitives::{
     SessionCount, DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE, DEFAULT_BAN_SESSION_COUNT_THRESHOLD,
@@ -58,7 +57,11 @@ async fn signed_connection_for_disabled_controller() -> SignedConnection {
     let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
     let stash_controller = NodeKeys::from(validator_seed);
     let controller_key_to_disable = stash_controller.controller;
-    SignedConnection::new(NODE_TO_DISABLE_ADDRESS.to_string(), controller_key_to_disable).await
+    SignedConnection::new(
+        NODE_TO_DISABLE_ADDRESS.to_string(),
+        controller_key_to_disable,
+    )
+    .await
 }
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
