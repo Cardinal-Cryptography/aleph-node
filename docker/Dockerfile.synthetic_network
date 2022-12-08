@@ -11,3 +11,4 @@ WORKDIR /opt/lib
 ENTRYPOINT []
 ENV ENTRY="/node/docker_entrypoint.sh"
 CMD ["/opt/lib/setup.sh"]
+

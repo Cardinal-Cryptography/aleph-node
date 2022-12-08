@@ -11,7 +11,7 @@ Usage:
   This scripts sets network settings for the synthetic-network to some sane defaults.
 
   --node Node0
-    name  of the docker container where this script should be executed, default is 'Node1'
+    name  of the docker container inside which this script should be executed, default is 'Node0'
 EOF
     exit 0
 }
