@@ -13,7 +13,7 @@ arbitrary set of networking and debugging tools. It also consist of files requir
 synthetic-network. Its requirements are: docker, docker-compose, git, `aleph-node:latest` docker-image.
 
 `set_defaults_synthetic-network.sh` allows you to reset settings of the synthetic-network to some sane defaults. You might need
-to use in case you set too restrictive values for some of its parameters, e.g. rate limit that make you unable to further
+to use it when you set too restrictive values for some of its parameters, i.e. rate limit that make you unable to further
 interact with its web-ui.
 
 Additionally, this folder contains an example .js script introducing API of the synthetic-network. You can use it by executing
