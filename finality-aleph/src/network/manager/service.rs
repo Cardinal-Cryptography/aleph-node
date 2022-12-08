@@ -597,7 +597,7 @@ where
     }
 }
 
-/// Input/output interface for the connectiona manager service.
+/// Input/output interface for the connection manager service.
 pub struct IO<
     D: Data,
     M: Data,
