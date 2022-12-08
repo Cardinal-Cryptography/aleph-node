@@ -60,10 +60,13 @@ where
 
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
-    module.merge(Contracts::new(client).into_rpc())?;
+    module.merge(Contracts::new(client.clone()).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
     module.merge(AlephNode::new(import_justification_tx).into_rpc())?;
+
+    use pallet_aleph_rpc::{FinalityVersion, FinalityVersionApiServer};
+    module.merge(FinalityVersion::new(client).into_rpc())?;
 
     Ok(module)
 }
