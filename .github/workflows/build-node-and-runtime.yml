@@ -65,6 +65,7 @@ jobs:
           retention-days: 7
 
       - name: S3 CI | Configure AWS credentials
+        if: secrets.AWS_MAINNET_ACCESS_KEY_ID != '' && secrets.AWS_MAINNET_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v1
         env:
           AWS_REGION: us-east-1
@@ -74,6 +75,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: S3 CI | Copy release binary to S3 bucket
+        if: secrets.AWS_MAINNET_ACCESS_KEY_ID != '' && secrets.AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
           BINARY_DIR: target/production
@@ -85,6 +87,7 @@ jobs:
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: S3 CI | Copy release runtime to S3 bucket
+        if: secrets.AWS_MAINNET_ACCESS_KEY_ID != '' && secrets.AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
           BINARY_DIR: target/production/wbuild/aleph-runtime
@@ -115,6 +118,7 @@ jobs:
           retention-days: 7
 
       - name: S3 CI | Copy test binary to S3 bucket
+        if: secrets.AWS_MAINNET_ACCESS_KEY_ID != '' && secrets.AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
           BINARY_DIR: target/release
@@ -126,6 +130,7 @@ jobs:
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
       - name: S3 CI | Copy test runtime to S3 bucket
+        if: secrets.AWS_MAINNET_ACCESS_KEY_ID != '' && secrets.AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
           BINARY_DIR: target/release/wbuild/aleph-runtime
