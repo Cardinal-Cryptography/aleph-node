@@ -1,0 +1,19 @@
+[package]
+name = "pallet-aleph-rpc"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+license = "Apache-2.0"
+description = "RPC interface for the aleph pallet."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+jsonrpsee = { version = "0.15.1", features = ["server"] }
+
+sp-api = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+sp-blockchain = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.28" }
+
+primitives = { path = "../../../primitives", default-features = false }

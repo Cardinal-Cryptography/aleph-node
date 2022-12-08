@@ -17,8 +17,6 @@ use crate::{
 #[async_trait::async_trait]
 pub trait AlephApi {
     async fn finality_version(&self, at: Option<BlockHash>) -> Version;
-
-    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
 }
 
 #[async_trait::async_trait]
@@ -45,18 +43,14 @@ pub trait AlephRpc {
         hash: BlockHash,
         key_pair: AlephKeyPair,
     ) -> anyhow::Result<()>;
+
+    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
 }
 
 #[async_trait::async_trait]
 impl AlephApi for Connection {
     async fn finality_version(&self, at: Option<BlockHash>) -> Version {
         let addrs = api::storage().aleph().finality_version();
-
-        self.get_storage_entry(&addrs, at).await
-    }
-
-    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version {
-        let addrs = api::storage().aleph().next_session_finality_version();
 
         self.get_storage_entry(&addrs, at).await
     }
@@ -106,5 +100,12 @@ impl AlephRpc for Connection {
         let _: () = self.rpc_call(method.to_string(), params).await?;
 
         Ok(())
+    }
+
+    async fn next_session_finality_version(&self, hash: Option<BlockHash>) -> Version {
+        let method = "finalityVersion_nextSessionFinalityVersion";
+        let params = rpc_params![hash];
+
+        self.rpc_call(method.to_string(), params).await.unwrap()
     }
 }

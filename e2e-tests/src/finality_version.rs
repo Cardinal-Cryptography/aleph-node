@@ -1,4 +1,4 @@
-use aleph_client::{pallets::aleph::AlephApi, utility::BlocksApi, Connection};
+use aleph_client::{pallets::aleph::{AlephApi, AlephRpc}, utility::BlocksApi, Connection};
 use log::info;
 use primitives::{BlockNumber, Version};
 
@@ -26,6 +26,7 @@ pub async fn check_next_session_finality_version_at_block(
         block_number
     );
     let block_hash = connection.get_block_hash(block_number).await;
+    let _api = connection.client.runtime_api();
     let next_finality_version = connection.next_session_finality_version(block_hash).await;
     assert_eq!(next_finality_version, expected_version);
 }

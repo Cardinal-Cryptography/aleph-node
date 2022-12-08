@@ -190,6 +190,19 @@ pub mod pallet {
 
             Ok(())
         }
+
+        pub fn next_session_finality_version() -> Version {
+            let next_session = Self::current_session() + 1;
+            let scheduled_version_change = Self::finality_version_change();
+
+            if let Some(version_change) = scheduled_version_change {
+                if next_session == version_change.session {
+                    return version_change.version_incoming;
+                }
+            }
+
+            Self::finality_version()
+        }
     }
 
     #[pallet::call]
