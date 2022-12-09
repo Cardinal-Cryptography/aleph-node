@@ -68,7 +68,7 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(({{cr.slope}}_u64).saturating_mul({{cr.name}} as u64)))
 			{{/each}}
 			{{#if (ne benchmark.base_writes "0")}}
-			.saturating_add(T::DbWeight::get().writes({{benchmark.base_writes}} as u64))
+			.saturating_add(T::DbWeight::get().writes({{benchmark.base_writes}}_u64))
 			{{/if}}
 			{{#each benchmark.component_writes as |cw|}}
 			.saturating_add(T::DbWeight::get().writes(({{cw.slope}}_u64).saturating_mul({{cw.name}} as u64)))
