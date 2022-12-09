@@ -27,45 +27,45 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_snarcos.
 pub trait WeightInfo {
-        fn store_key(key_length: u32) -> Weight;
-   fn overwrite_key(key_length: u32) -> Weight;
-    fn verify_groth16() -> Weight;
-    fn verify_gm17() -> Weight;
-    fn verify_marlin() -> Weight;
+	fn store_key(key_length: u32) -> Weight;
+	fn overwrite_key(key_length: u32) -> Weight;
+	fn verify_groth16() -> Weight;
+	fn verify_gm17() -> Weight;
+	fn verify_marlin() -> Weight;
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
-        fn store_key(key_length: u32) -> Weight {
-                       <I as BenchmarkInfo>::store_key(key_length)
-                   }
+	fn store_key(key_length: u32) -> Weight {
+		<I as BenchmarkInfo>::store_key(key_length)
+	}
+	
+	fn overwrite_key(key_length: u32) -> Weight {
+		<I as BenchmarkInfo>::overwrite_key(key_length)
+	}
+	
+	fn verify_groth16() -> Weight {
+		<I as BenchmarkInfo>::verify_groth16_xor()
+			.max(<I as BenchmarkInfo>::verify_groth16_linear_equation())
+			.max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_8())
+			.max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_64())
+			.max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_1024())
+	}
                 
-                   fn overwrite_key(key_length: u32) -> Weight {
-                       <I as BenchmarkInfo>::overwrite_key(key_length)
-                   }
-                
-                   fn verify_groth16() -> Weight {
-                       <I as BenchmarkInfo>::verify_groth16_xor()
-                           .max(<I as BenchmarkInfo>::verify_groth16_linear_equation())
-                           .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_8())
-                           .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_64())
-                           .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_1024())
-                   }
-                
-                   fn verify_gm17() -> Weight {
-                       <I as BenchmarkInfo>::verify_gm17_xor()
-                           .max(<I as BenchmarkInfo>::verify_gm17_linear_equation())
-                           .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_8())
-                           .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_64())
-                           .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_1024())
-                   }
-                
-                   fn verify_marlin() -> Weight {
-                       <I as BenchmarkInfo>::verify_marlin_xor()
-                           .max(<I as BenchmarkInfo>::verify_marlin_linear_equation())
-                           .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_8())
-                           .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_64())
-                           .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_1024())
-                   }
+	fn verify_gm17() -> Weight {
+		<I as BenchmarkInfo>::verify_gm17_xor()
+			.max(<I as BenchmarkInfo>::verify_gm17_linear_equation())
+			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_8())
+			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_64())
+			.max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_1024())
+	}
+
+	fn verify_marlin() -> Weight {
+		<I as BenchmarkInfo>::verify_marlin_xor()
+			.max(<I as BenchmarkInfo>::verify_marlin_linear_equation())
+			.max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_8())
+			.max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_64())
+			.max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_1024())
+	}
 }
 
 /// Benchmark results for pallet_snarcos.
@@ -94,94 +94,94 @@ pub struct AlephWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(l: u32, ) -> Weight {
-		(41_764_023 as Weight)
+		(Weight::from_ref_time(41_764_023))
 			// Standard Error: 150
-			.saturating_add((471 as Weight).saturating_mul(l as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+			.saturating_add((Weight::from_ref_time(471)).saturating_mul(l as u64))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn overwrite_key(l: u32, ) -> Weight {
-		(14_789_516 as Weight)
+		(Weight::from_ref_time(14_789_516))
 			// Standard Error: 67
-			.saturating_add((1_678 as Weight).saturating_mul(l as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+			.saturating_add((Weight::from_ref_time(1_678)).saturating_mul(l as u64))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_xor() -> Weight {
-		(86_490_600_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(86_490_600_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_linear_equation() -> Weight {
-		(63_967_700_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(63_967_700_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_8() -> Weight {
-		(84_920_500_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(84_920_500_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_64() -> Weight {
-		(86_701_600_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(86_701_600_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_1024() -> Weight {
-		(84_810_100_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(84_810_100_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_xor() -> Weight {
-		(91_050_400_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(91_050_400_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_linear_equation() -> Weight {
-		(71_078_300_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(71_078_300_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_8() -> Weight {
-		(94_134_500_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(94_134_500_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_64() -> Weight {
-		(91_608_700_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(91_608_700_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_1024() -> Weight {
-		(93_396_200_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(93_396_200_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_xor() -> Weight {
-		(138_432_600_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(138_432_600_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_linear_equation() -> Weight {
-		(140_359_100_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(140_359_100_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_8() -> Weight {
-		(141_418_800_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(141_418_800_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_64() -> Weight {
-		(138_484_700_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(138_484_700_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_1024() -> Weight {
-		(201_875_900_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(201_875_900_000))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 }
 
@@ -189,93 +189,93 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 impl BenchmarkInfo for () {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn store_key(l: u32, ) -> Weight {
-		(41_764_023 as Weight)
+		(Weight::from_ref_time(41_764_023))
 			// Standard Error: 150
-			.saturating_add((471 as Weight).saturating_mul(l as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+			.saturating_add((Weight::from_ref_time(471)).saturating_mul(l as u64))
+			.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	fn overwrite_key(l: u32, ) -> Weight {
-		(14_789_516 as Weight)
+		(Weight::from_ref_time(14_789_516))
 			// Standard Error: 67
-			.saturating_add((1_678 as Weight).saturating_mul(l as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+			.saturating_add((Weight::from_ref_time(1_678)).saturating_mul(l as u64))
+			.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_xor() -> Weight {
-		(86_490_600_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(86_490_600_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_linear_equation() -> Weight {
-		(63_967_700_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(63_967_700_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_8() -> Weight {
-		(84_920_500_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(84_920_500_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_64() -> Weight {
-		(86_701_600_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(86_701_600_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_1024() -> Weight {
-		(84_810_100_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(84_810_100_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_xor() -> Weight {
-		(91_050_400_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(91_050_400_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_linear_equation() -> Weight {
-		(71_078_300_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(71_078_300_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_8() -> Weight {
-		(94_134_500_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(94_134_500_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_64() -> Weight {
-		(91_608_700_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(91_608_700_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_1024() -> Weight {
-		(93_396_200_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(93_396_200_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_xor() -> Weight {
-		(138_432_600_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(138_432_600_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_linear_equation() -> Weight {
-		(140_359_100_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(140_359_100_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_8() -> Weight {
-		(141_418_800_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(141_418_800_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_64() -> Weight {
-		(138_484_700_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(138_484_700_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_1024() -> Weight {
-		(201_875_900_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(Weight::from_ref_time(201_875_900_000))
+			.saturating_add(RocksDbWeight::get().reads(1))
 	}
 }
