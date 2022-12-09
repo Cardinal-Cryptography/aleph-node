@@ -42,7 +42,7 @@ impl AddressingInformation for MockAddressingInformation {
         self.peer_id.clone()
     }
 
-    fn valid(&self) -> bool {
+    fn verify(&self) -> bool {
         self.valid
     }
 }

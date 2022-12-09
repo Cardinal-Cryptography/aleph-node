@@ -92,8 +92,8 @@ pub trait AddressingInformation: Debug + Hash + Codec + Clone + Eq + Send + Sync
     /// Returns the peer id associated with this address.
     fn peer_id(&self) -> Self::PeerId;
 
-    /// Checks whether the information is valid.
-    fn valid(&self) -> bool;
+    /// Verify the information.
+    fn verify(&self) -> bool;
 }
 
 /// The Authentication protocol is used for validator discovery.

@@ -152,7 +152,7 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler
         let (auth_data, signature) = &authentication;
 
         let address = auth_data.address();
-        if !address.valid() {
+        if !address.verify() {
             return None;
         }
         let peer_id = address.peer_id();

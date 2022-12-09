@@ -187,12 +187,7 @@ impl TryFrom<Vec<LegacyTcpMultiaddress>> for SignedTcpAddressingInformation {
     fn try_from(legacy: Vec<LegacyTcpMultiaddress>) -> Result<Self, Self::Error> {
         let addressing_information = legacy.try_into()?;
         // This will never get validated, but that is alright and working as intended.
-        let signature = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
-        ]
-        .into();
+        let signature = [0; 64].into();
         Ok(SignedTcpAddressingInformation {
             addressing_information,
             signature,
@@ -213,7 +208,7 @@ impl AddressingInformation for SignedTcpAddressingInformation {
         self.addressing_information.peer_id()
     }
 
-    fn valid(&self) -> bool {
+    fn verify(&self) -> bool {
         self.peer_id()
             .verify(&self.addressing_information.encode(), &self.signature)
     }
