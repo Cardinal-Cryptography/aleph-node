@@ -24,6 +24,11 @@ pub struct RawKeys {
     pub vk: Vec<u8>,
 }
 
+pub enum Error {
+    UniversalSystemVerificationError,
+    NonUniversalSystemVerificationError,
+}
+
 /// Common API for every proving system.
 pub trait ProvingSystem {
     type Proof: CanonicalSerialize + CanonicalDeserialize;
@@ -35,6 +40,13 @@ pub trait ProvingSystem {
         pk: &Self::ProvingKey,
         circuit: C,
     ) -> Self::Proof;
+
+    // parametrize over Proving System
+    fn verify(
+        vk: &Self::VerifyingKey,
+        proof: &Self::Proof,
+        public_input: Vec<CircuitField>,
+    ) -> Result<bool, Error>;
 }
 
 /// Common API for every universal proving system.
@@ -87,6 +99,15 @@ macro_rules! impl_non_universal_system_for_snark {
                 <$system as SNARK<CircuitField>>::prove(pk, circuit, &mut rng)
                     .expect("Failed to generate keys")
             }
+
+            fn verify(
+                vk: &Self::VerifyingKey,
+                proof: &Self::Proof,
+                public_input: Vec<CircuitField>,
+            ) -> Result<bool, Error> {
+                <$system as SNARK<CircuitField>>::verify(vk, &*public_input, proof)
+                    .map_err(|_why| Error::NonUniversalSystemVerificationError)
+            }
         }
 
         impl NonUniversalSystem for $system {
@@ -115,6 +136,16 @@ impl ProvingSystem for Marlin {
     ) -> Self::Proof {
         let mut rng = dummy_rng();
         Marlin::prove(pk, circuit, &mut rng).expect("Failed to generate proof")
+    }
+
+    fn verify(
+        vk: &Self::VerifyingKey,
+        proof: &Self::Proof,
+        public_input: Vec<CircuitField>,
+    ) -> Result<bool, Error> {
+        let mut rng = dummy_rng();
+        Marlin::verify(vk, public_input.as_slice(), proof, &mut rng)
+            .map_err(|_why| Error::UniversalSystemVerificationError)
     }
 }
 

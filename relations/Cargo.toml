@@ -21,7 +21,7 @@ ark-relations = { version = "^0.3.0", default-features = false }
 ark-serialize = { version = "^0.3.0", default-features = false }
 ark-snark = { version = "^0.3.0", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
-blake2 = "0.9.2"
+blake2 = { version = "0.9.2", default-features = false }
 
 [features]
 default = ["std"]
