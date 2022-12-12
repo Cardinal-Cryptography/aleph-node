@@ -12,6 +12,7 @@ jobs:
   build-new-node:
     name: Build node and runtime artifacts (PR version)
     uses: ./.github/workflows/build-node-and-runtime.yml
+    secrets: inherit
 
   build-test-docker:
     needs: [build-new-node]
@@ -108,7 +109,8 @@ jobs:
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
-          cargo build --release
+          rm -f target/release/deps/aleph_e2e_client*
+          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | grep aleph_e2e_client) target/release/aleph-e2e-client
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
 
