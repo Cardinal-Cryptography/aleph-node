@@ -1,6 +1,5 @@
 use core::iter::Sum;
-use std::sync::mpsc::Receiver;
-use std::ops::Neg;
+use std::{ops::Neg, sync::mpsc::Receiver};
 
 use environment::{CorruptedMode, MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode};
 
