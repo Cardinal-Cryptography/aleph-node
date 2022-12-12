@@ -23,11 +23,11 @@ fn input() -> Vec<u8> {
 }
 
 fn caller() -> OriginFor<TestRuntime> {
-    <TestRuntime as Config>::Origin::signed(0)
+    <TestRuntime as Config>::RuntimeOrigin::signed(0)
 }
 
 fn root() -> OriginFor<TestRuntime> {
-    <TestRuntime as Config>::Origin::root()
+    <TestRuntime as Config>::RuntimeOrigin::root()
 }
 
 fn put_key() {
