@@ -129,6 +129,7 @@ try-runtime = [
     "pallet-authorship/try-runtime",
     "pallet-balances/try-runtime",
     "pallet-elections/try-runtime",
+    "pallet-snarcos/try-runtime",
     "pallet-identity/try-runtime",
     "pallet-randomness-collective-flip/try-runtime",
     "pallet-session/try-runtime",
