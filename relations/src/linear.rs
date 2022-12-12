@@ -32,6 +32,7 @@ impl LinearEquationRelation {
 
 impl<Field: PrimeField> ConstraintSynthesizer<Field> for LinearEquationRelation {
     fn generate_constraints(self, cs: ConstraintSystemRef<Field>) -> Result<(), SynthesisError> {
+        // TODO: migrate from real values to values in the finite field (see FpVar)
         // Watch out for overflows!!!
         let x = UInt32::new_witness(ark_relations::ns!(cs, "x"), || Ok(&self.x))?;
         let b = UInt32::new_constant(ark_relations::ns!(cs, "b"), &self.b)?;

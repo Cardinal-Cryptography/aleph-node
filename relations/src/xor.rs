@@ -32,6 +32,7 @@ impl XorRelation {
 
 impl<Field: PrimeField> ConstraintSynthesizer<Field> for XorRelation {
     fn generate_constraints(self, cs: ConstraintSystemRef<Field>) -> Result<(), SynthesisError> {
+        // TODO: migrate from u8 values to values in the finite field (see FpVar)
         let public_xoree = UInt8::new_input(ark_relations::ns!(cs, "public_xoree"), || {
             Ok(&self.public_xoree)
         })?;
