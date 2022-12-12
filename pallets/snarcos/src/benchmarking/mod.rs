@@ -24,4 +24,5 @@
 //! ```
 
 mod import;
+#[allow(let_unit_value)]
 mod suite;

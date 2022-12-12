@@ -35,6 +35,7 @@ fn put_key() {
 }
 
 #[test]
+#[allow(let_unit_value)]
 fn stores_vk_with_fresh_identifier() {
     new_test_ext().execute_with(|| {
         assert_ok!(Snarcos::store_key(caller(), IDENTIFIER, vk()));
