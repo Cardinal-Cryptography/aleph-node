@@ -187,6 +187,9 @@ impl TryFrom<Vec<LegacyTcpMultiaddress>> for SignedTcpAddressingInformation {
     fn try_from(legacy: Vec<LegacyTcpMultiaddress>) -> Result<Self, Self::Error> {
         let addressing_information = legacy.try_into()?;
         // This will never get validated, but that is alright and working as intended.
+        // We temporarily accept legacy messages and there is no way to verify them completely,
+        // since they were unsigned previously. In the next update we will remove this, and the
+        // problem will be completely gone.
         let signature = [0; 64].into();
         Ok(SignedTcpAddressingInformation {
             addressing_information,
