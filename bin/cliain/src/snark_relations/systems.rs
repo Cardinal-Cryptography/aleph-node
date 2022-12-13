@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use relations::{
-    serialize, CanonicalDeserialize, CircuitField, ConstraintSynthesizer, Marlin, RawKeys,
-    UniversalSystem,
+    serialize, CanonicalDeserialize, CircuitField, ConstraintSynthesizer, Groth16, Marlin,
+    NonUniversalSystem, ProvingSystem, RawKeys, UniversalSystem, GM17,
 };
 
 /// All available non universal proving systems.
@@ -15,6 +15,13 @@ pub enum NonUniversalProvingSystem {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, ValueEnum)]
 pub enum UniversalProvingSystem {
     Marlin,
+}
+
+/// Any proving system.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum SomeProvingSystem {
+    NonUniversal(NonUniversalProvingSystem),
+    Universal(UniversalProvingSystem),
 }
 
 /// API available only for universal proving systems.
@@ -68,5 +75,67 @@ impl UniversalProvingSystem {
             pk: serialize(&pk),
             vk: serialize(&vk),
         }
+    }
+}
+
+/// API available only for non universal proving systems.
+impl NonUniversalProvingSystem {
+    pub fn id(&self) -> String {
+        format!("{:?}", self).to_lowercase()
+    }
+
+    /// Generates proving and verifying key for `circuit`. Returns serialized keys.
+    pub fn generate_keys<C: ConstraintSynthesizer<CircuitField>>(&self, circuit: C) -> RawKeys {
+        match self {
+            NonUniversalProvingSystem::Groth16 => self._generate_keys::<_, Groth16>(circuit),
+            NonUniversalProvingSystem::Gm17 => self._generate_keys::<_, GM17>(circuit),
+        }
+    }
+
+    fn _generate_keys<C: ConstraintSynthesizer<CircuitField>, S: NonUniversalSystem>(
+        &self,
+        circuit: C,
+    ) -> RawKeys {
+        let (pk, vk) = S::generate_keys(circuit);
+        RawKeys {
+            pk: serialize(&pk),
+            vk: serialize(&vk),
+        }
+    }
+}
+
+/// Common API for all systems.
+impl SomeProvingSystem {
+    pub fn id(&self) -> String {
+        match self {
+            SomeProvingSystem::NonUniversal(s) => s.id(),
+            SomeProvingSystem::Universal(s) => s.id(),
+        }
+    }
+
+    /// Generates proof for `circuit` using proving key `pk`. Returns serialized proof.
+    pub fn prove<C: ConstraintSynthesizer<CircuitField>>(
+        &self,
+        circuit: C,
+        pk: Vec<u8>,
+    ) -> Vec<u8> {
+        use SomeProvingSystem::*;
+
+        match self {
+            NonUniversal(NonUniversalProvingSystem::Groth16) => {
+                Self::_prove::<_, Groth16>(circuit, pk)
+            }
+            NonUniversal(NonUniversalProvingSystem::Gm17) => Self::_prove::<_, GM17>(circuit, pk),
+            Universal(UniversalProvingSystem::Marlin) => Self::_prove::<_, Marlin>(circuit, pk),
+        }
+    }
+
+    fn _prove<C: ConstraintSynthesizer<CircuitField>, S: ProvingSystem>(
+        circuit: C,
+        pk: Vec<u8>,
+    ) -> Vec<u8> {
+        let pk = <S::ProvingKey>::deserialize(&*pk).expect("Failed to deserialize proving key");
+        let proof = S::prove(&pk, circuit);
+        serialize(&proof)
     }
 }

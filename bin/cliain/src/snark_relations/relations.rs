@@ -2,7 +2,7 @@ use clap::Subcommand;
 use relations::{
     CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelation, FrontendAccount,
     FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
-    FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, LinearEquationRelation,
+    FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput, LinearEquationRelation,
     MerkleTreeRelation, Result as R1CsResult, WithdrawRelation, XorRelation,
 };
 
@@ -165,6 +165,67 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 recipient,
             )
             .generate_constraints(cs),
+        }
+    }
+}
+
+impl GetPublicInput<CircuitField> for RelationArgs {
+    fn public_input(&self) -> Vec<CircuitField> {
+        // todo: deduplicate casting
+        match self {
+            RelationArgs::Xor {
+                public_xoree,
+                private_xoree,
+                result,
+            } => XorRelation::new(*public_xoree, *private_xoree, *result).public_input(),
+            RelationArgs::LinearEquation { a, x, b, y } => {
+                LinearEquationRelation::new(*a, *x, *b, *y).public_input()
+            }
+            RelationArgs::MerkleTree { seed, leaf, leaves } => {
+                MerkleTreeRelation::new(leaves.clone(), *leaf, seed.clone()).public_input()
+            }
+            RelationArgs::Deposit {
+                note,
+                token_id,
+                token_amount,
+                trapdoor,
+                nullifier,
+            } => DepositRelation::new(*note, *token_id, *token_amount, *trapdoor, *nullifier)
+                .public_input(),
+            RelationArgs::Withdraw {
+                old_nullifier,
+                merkle_root,
+                new_note,
+                token_id,
+                token_amount_out,
+                fee,
+                recipient,
+                old_trapdoor,
+                new_trapdoor,
+                new_nullifier,
+                merkle_path,
+                leaf_index,
+                old_note,
+                whole_token_amount,
+                new_token_amount,
+            } => WithdrawRelation::new(
+                *old_nullifier,
+                *merkle_root,
+                *new_note,
+                *token_id,
+                *token_amount_out,
+                *old_trapdoor,
+                *new_trapdoor,
+                *new_nullifier,
+                merkle_path.clone(),
+                *leaf_index,
+                *old_note,
+                *whole_token_amount,
+                *new_token_amount,
+                *fee,
+                *recipient,
+            )
+            .public_input(),
         }
     }
 }

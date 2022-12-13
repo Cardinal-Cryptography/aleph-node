@@ -1,6 +1,11 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
+use clap::ValueEnum;
 use relations::{
     note_from_bytes, FrontendAccount, FrontendMerklePathNode, FrontendMerkleRoot, FrontendNote,
+};
+
+use crate::{
+    snark_relations::systems::SomeProvingSystem, NonUniversalProvingSystem, UniversalProvingSystem,
 };
 
 pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
@@ -19,4 +24,12 @@ pub fn parse_frontend_merkle_path_single(
     frontend_merkle_path_single: &str,
 ) -> Result<FrontendMerklePathNode> {
     Ok(note_from_bytes(frontend_merkle_path_single.as_bytes()))
+}
+
+pub fn parse_some_system(system: &str) -> Result<SomeProvingSystem> {
+    let maybe_universal =
+        UniversalProvingSystem::from_str(system, true).map(SomeProvingSystem::Universal);
+    let maybe_non_universal =
+        NonUniversalProvingSystem::from_str(system, true).map(SomeProvingSystem::NonUniversal);
+    maybe_universal.or(maybe_non_universal).map_err(Error::msg)
 }

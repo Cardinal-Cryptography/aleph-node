@@ -12,7 +12,10 @@ use primitives::{Balance, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 
-use crate::{snark_relations::RelationArgs, UniversalProvingSystem};
+use crate::{
+    snark_relations::{parsing::parse_some_system, RelationArgs, SomeProvingSystem},
+    NonUniversalProvingSystem, UniversalProvingSystem,
+};
 
 #[derive(Debug, Clone, Args)]
 pub struct ContractOptions {
@@ -229,6 +232,33 @@ pub enum SnarkRelation {
         /// Path to a file containing SRS.
         #[clap(long)]
         srs_file: PathBuf,
+    },
+
+    /// Generate verifying and proving key and save them to separate binary files.
+    GenerateKeys {
+        /// Relation to work with.
+        #[clap(subcommand)]
+        relation: RelationArgs,
+
+        /// Proving system to use.
+        #[clap(long, short, value_enum, default_value = "groth16")]
+        system: NonUniversalProvingSystem,
+    },
+
+    /// Generate proof and public input and save them to separate binary files.
+    GenerateProof {
+        /// Relation to work with.
+        #[clap(subcommand)]
+        relation: RelationArgs,
+        /// Proving system to use.
+        ///
+        /// Accepts either `NonUniversalProvingSystem` or `UniversalProvingSystem`.
+        #[clap(long, short, value_enum, default_value = "groth16", value_parser = parse_some_system)]
+        system: SomeProvingSystem,
+
+        /// Path to a file containing proving key.
+        #[clap(long, short)]
+        proving_key_file: PathBuf,
     },
 }
 
