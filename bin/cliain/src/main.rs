@@ -244,6 +244,10 @@ async fn main() {
             Ok(_) => {}
             Err(why) => error!("Unable to schedule an upgrade {:?}", why),
         },
+        Command::SnarcosStoreKey { .. } => {}
+        Command::SnarcosDeleteKey { .. } => {}
+        Command::SnarcosOverwriteKey { .. } => {}
+        Command::SnarcosVerify { .. } => {}
     }
 }
 
