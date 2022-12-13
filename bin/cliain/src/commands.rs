@@ -215,6 +215,20 @@ pub enum SnarkRelation {
         #[clap(long, default_value = "1000")]
         degree: usize,
     },
+
+    /// Generate verifying and proving key from SRS and save them to separate binary files.
+    GenerateKeysFromSrs {
+        // Relation to work with.
+        // #[clap(subcommand)]
+        // relation: Relation,
+        /// Proving system to use.
+        #[clap(long, short, value_enum, default_value = "marlin")]
+        system: UniversalProvingSystem,
+
+        /// Path to a file containing SRS.
+        #[clap(long)]
+        srs_file: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]

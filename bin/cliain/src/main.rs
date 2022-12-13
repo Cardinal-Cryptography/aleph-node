@@ -300,6 +300,7 @@ async fn main() {
                 num_variables,
                 degree,
             } => generate_srs(system, num_constraints, num_variables, degree),
+            SnarkRelation::GenerateKeysFromSrs { .. } => {}
         },
     }
 }
