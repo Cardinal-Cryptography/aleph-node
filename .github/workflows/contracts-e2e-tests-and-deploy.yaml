@@ -30,50 +30,50 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v3
 
-      # - name: Install binaryen
-      #   run: |
-      #     wget https://github.com/WebAssembly/binaryen/releases/download/version_101/binaryen-version_101-x86_64-linux.tar.gz
-      #     tar xvzf binaryen-version_101-x86_64-linux.tar.gz
-      #     cd binaryen-version_101
-      #     sudo cp -r bin/* /bin
-      #     sudo cp -r include/* /usr/include
-      #     sudo cp -r lib64/* /lib64
+      - name: Install binaryen
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_101/binaryen-version_101-x86_64-linux.tar.gz
+          tar xvzf binaryen-version_101-x86_64-linux.tar.gz
+          cd binaryen-version_101
+          sudo cp -r bin/* /bin
+          sudo cp -r include/* /usr/include
+          sudo cp -r lib64/* /lib64
 
-      # - name: Display binaryen version
-      #   shell: bash
-      #   run: wasm-opt --version
+      - name: Display binaryen version
+        shell: bash
+        run: wasm-opt --version
 
-      # - name: Install Rust Toolchain
-      #   uses: actions-rs/toolchain@v1
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
 
-      # - name: Install WASM target
-      #   run: rustup target add wasm32-unknown-unknown
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
 
-      # - name: Install rust-src
-      #   run: rustup component add rust-src
+      - name: Install rust-src
+        run: rustup component add rust-src
 
-      # - name: Restore cache
-      #   uses: ./.github/actions/restore-cache
-      #   with:
-      #     target-key: e2e-contracts
-      #     cargo-key: e2e-contracts
-      #     cache-version: v3
-      #     cargo-targets: |
-      #       e2e-tests/target/
-      #       contracts/access_control/target/
-      #       contracts/button/target/
-      #       contracts/game_token/target/
-      #       contracts/marketplace/target/
-      #       contracts/simple_dex/target/
-      #       contracts/ticket_token/target/
-      #       contracts/wrapped_azero/target/
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: e2e-contracts
+          cargo-key: e2e-contracts
+          cache-version: v3
+          cargo-targets: |
+            e2e-tests/target/
+            contracts/access_control/target/
+            contracts/button/target/
+            contracts/game_token/target/
+            contracts/marketplace/target/
+            contracts/simple_dex/target/
+            contracts/ticket_token/target/
+            contracts/wrapped_azero/target/
 
       # TODO : this should NOT be built every time
-      # - name: Install cargo-contract
-      #   run: |
-      #         cargo install cargo-dylint dylint-link --force
-      #         # revision merging Hans's PR changes [fix for node URL parsing ]
-      #         cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+      - name: Install cargo-contract
+        run: |
+              cargo install cargo-dylint dylint-link --force
+              # revision merging Hans's PR changes [fix for node URL parsing ]
+              cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
