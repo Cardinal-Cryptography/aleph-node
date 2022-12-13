@@ -11,8 +11,10 @@ use tokio::net::{
 
 use crate::{
     crypto::{verify, AuthorityPen, Signature},
-    network::{AddressingInformation, NetworkIdentity, PeerId},
-    validator_network::{ConnectionInfo, Dialer, Listener, PublicKey, SecretKey, Splittable},
+    network::{
+        clique::{ConnectionInfo, Dialer, Listener, PublicKey, SecretKey, Splittable, LOG_TARGET},
+        AddressingInformation, NetworkIdentity, PeerId,
+    },
 };
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"a0vn");
@@ -62,7 +64,7 @@ impl Listener for TcpListener {
     async fn accept(&mut self) -> Result<Self::Connection, Self::Error> {
         let stream = TcpListener::accept(self).await.map(|(stream, _)| stream)?;
         if stream.set_linger(None).is_err() {
-            info!(target: "validator-network", "stream.set_linger(None) failed.");
+            info!(target: LOG_TARGET, "stream.set_linger(None) failed.");
         };
         Ok(stream)
     }
@@ -269,7 +271,7 @@ impl Dialer<SignedTcpAddressingInformation> for TcpDialer {
             .collect();
         let stream = TcpStream::connect(&parsed_addresses[..]).await?;
         if stream.set_linger(None).is_err() {
-            info!(target: "validator-network", "stream.set_linger(None) failed.");
+            info!(target: LOG_TARGET, "stream.set_linger(None) failed.");
         };
         Ok(stream)
     }
