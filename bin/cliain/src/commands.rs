@@ -12,7 +12,7 @@ use primitives::{Balance, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 
-use crate::UniversalProvingSystem;
+use crate::{snark_relations::RelationArgs, UniversalProvingSystem};
 
 #[derive(Debug, Clone, Args)]
 pub struct ContractOptions {
@@ -218,9 +218,10 @@ pub enum SnarkRelation {
 
     /// Generate verifying and proving key from SRS and save them to separate binary files.
     GenerateKeysFromSrs {
-        // Relation to work with.
-        // #[clap(subcommand)]
-        // relation: Relation,
+        ///Relation to work with.
+        #[clap(subcommand)]
+        relation: RelationArgs,
+
         /// Proving system to use.
         #[clap(long, short, value_enum, default_value = "marlin")]
         system: UniversalProvingSystem,

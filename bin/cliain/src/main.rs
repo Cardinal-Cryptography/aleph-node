@@ -3,12 +3,12 @@ use std::env;
 use aleph_client::{account_from_keypair, aleph_keypair_from_string, keypair_from_string, Pair};
 use clap::Parser;
 use cliain::{
-    bond, call, change_validators, delete_key, finalize, force_new_era, generate_srs, instantiate,
-    instantiate_with_code, next_session_keys, nominate, overwrite_key, owner_info, prepare_keys,
-    prompt_password_hidden, remove_code, rotate_keys, schedule_upgrade, set_emergency_finalizer,
-    set_keys, set_staking_limits, store_key, transfer, treasury_approve, treasury_propose,
-    treasury_reject, update_runtime, upload_code, validate, verify, vest, vest_other,
-    vested_transfer, Command, ConnectionConfig, Snarcos, SnarkRelation,
+    bond, call, change_validators, delete_key, finalize, force_new_era, generate_keys_from_srs,
+    generate_srs, instantiate, instantiate_with_code, next_session_keys, nominate, overwrite_key,
+    owner_info, prepare_keys, prompt_password_hidden, remove_code, rotate_keys, schedule_upgrade,
+    set_emergency_finalizer, set_keys, set_staking_limits, store_key, transfer, treasury_approve,
+    treasury_propose, treasury_reject, update_runtime, upload_code, validate, verify, vest,
+    vest_other, vested_transfer, Command, ConnectionConfig, Snarcos, SnarkRelation,
 };
 use log::{error, info};
 
@@ -300,7 +300,11 @@ async fn main() {
                 num_variables,
                 degree,
             } => generate_srs(system, num_constraints, num_variables, degree),
-            SnarkRelation::GenerateKeysFromSrs { .. } => {}
+            SnarkRelation::GenerateKeysFromSrs {
+                relation,
+                system,
+                srs_file,
+            } => generate_keys_from_srs(relation, system, srs_file),
         },
     }
 }
