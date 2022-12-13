@@ -138,4 +138,30 @@ impl SomeProvingSystem {
         let proof = S::prove(&pk, circuit);
         serialize(&proof)
     }
+
+    /// Verifies proof.
+    pub fn verify(&self, vk: Vec<u8>, proof: Vec<u8>, input: Vec<u8>) -> bool {
+        use SomeProvingSystem::*;
+
+        match self {
+            NonUniversal(NonUniversalProvingSystem::Groth16) => {
+                Self::_verify::<Groth16>(vk, proof, input)
+            }
+            NonUniversal(NonUniversalProvingSystem::Gm17) => {
+                Self::_verify::<GM17>(vk, proof, input)
+            }
+            Universal(UniversalProvingSystem::Marlin) => Self::_verify::<Marlin>(vk, proof, input),
+        }
+    }
+
+    fn _verify<S: ProvingSystem>(vk: Vec<u8>, proof: Vec<u8>, input: Vec<u8>) -> bool {
+        let vk = <S::VerifyingKey>::deserialize(&*vk).expect("Failed to deserialize verifying key");
+        let proof = <S::Proof>::deserialize(&*proof).expect("Failed to deserialize proof");
+        let input =
+            <Vec<CircuitField>>::deserialize(&*input).expect("Failed to deserialize public input");
+
+        S::verify(&vk, &proof, input)
+            .map_err(|_| "Failed to verify proof")
+            .unwrap()
+    }
 }

@@ -250,6 +250,7 @@ pub enum SnarkRelation {
         /// Relation to work with.
         #[clap(subcommand)]
         relation: RelationArgs,
+
         /// Proving system to use.
         ///
         /// Accepts either `NonUniversalProvingSystem` or `UniversalProvingSystem`.
@@ -259,6 +260,27 @@ pub enum SnarkRelation {
         /// Path to a file containing proving key.
         #[clap(long, short)]
         proving_key_file: PathBuf,
+    },
+
+    /// Verify proof.
+    Verify {
+        /// Path to a file containing verifying key.
+        #[clap(long, short)]
+        verifying_key_file: PathBuf,
+
+        /// Path to a file containing proof.
+        #[clap(long, short)]
+        proof_file: PathBuf,
+
+        /// Path to a file containing public input.
+        #[clap(long, short)]
+        public_input_file: PathBuf,
+
+        /// Proving system to use.
+        ///
+        /// Accepts either `NonUniversalProvingSystem` or `UniversalProvingSystem`.
+        #[clap(long, short, value_enum, default_value = "groth16", value_parser = parse_some_system)]
+        system: SomeProvingSystem,
     },
 }
 

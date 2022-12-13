@@ -26,8 +26,8 @@ pub use runtime::update_runtime;
 pub use secret::prompt_password_hidden;
 pub use snarcos::{delete_key, overwrite_key, store_key, verify};
 pub use snark_relations::{
-    generate_keys, generate_keys_from_srs, generate_proof, generate_srs, NonUniversalProvingSystem,
-    UniversalProvingSystem,
+    generate_keys, generate_keys_from_srs, generate_proof, generate_srs, verify as verify_proof,
+    NonUniversalProvingSystem, UniversalProvingSystem,
 };
 pub use staking::{bond, force_new_era, nominate, set_staking_limits, validate};
 pub use transfer::transfer;

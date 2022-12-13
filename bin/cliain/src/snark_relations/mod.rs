@@ -5,7 +5,7 @@ pub use systems::{NonUniversalProvingSystem, SomeProvingSystem, UniversalProving
 
 pub use self::relations::RelationArgs;
 use crate::snark_relations::io::{
-    read_proving_key, read_srs, save_keys, save_proving_artifacts, save_srs,
+    read_key, read_proof, read_public_input, read_srs, save_keys, save_proving_artifacts, save_srs,
 };
 
 mod io;
@@ -43,8 +43,20 @@ pub fn generate_proof(
     system: SomeProvingSystem,
     proving_key_file: PathBuf,
 ) {
-    let proving_key = read_proving_key(proving_key_file);
+    let proving_key = read_key(proving_key_file);
     let proof = system.prove(relation.clone(), proving_key);
     let public_input = serialize(&relation.public_input());
     save_proving_artifacts(&relation.id(), &system.id(), &proof, &public_input);
+}
+
+pub fn verify(
+    verifying_key_file: PathBuf,
+    proof_file: PathBuf,
+    public_input_file: PathBuf,
+    system: SomeProvingSystem,
+) -> bool {
+    let verifying_key = read_key(verifying_key_file);
+    let proof = read_proof(proof_file);
+    let public_input = read_public_input(public_input_file);
+    system.verify(verifying_key, proof, public_input)
 }

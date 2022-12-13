@@ -25,6 +25,14 @@ pub fn read_srs(srs_file: PathBuf) -> Vec<u8> {
     fs::read(srs_file).expect("Failed to read SRS from the provided path")
 }
 
-pub fn read_proving_key(proving_key_file: PathBuf) -> Vec<u8> {
-    fs::read(proving_key_file).expect("Failed to read proving key from the provided path")
+pub fn read_key(key_file: PathBuf) -> Vec<u8> {
+    fs::read(key_file).expect("Failed to read key from the provided path")
+}
+
+pub fn read_proof(proof_file: PathBuf) -> Vec<u8> {
+    fs::read(proof_file).expect("Failed to read proof from the provided path")
+}
+
+pub fn read_public_input(public_input_file: PathBuf) -> Vec<u8> {
+    fs::read(public_input_file).expect("Failed to read public key from the provided path")
 }

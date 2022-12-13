@@ -8,8 +8,8 @@ use cliain::{
     next_session_keys, nominate, overwrite_key, owner_info, prepare_keys, prompt_password_hidden,
     remove_code, rotate_keys, schedule_upgrade, set_emergency_finalizer, set_keys,
     set_staking_limits, store_key, transfer, treasury_approve, treasury_propose, treasury_reject,
-    update_runtime, upload_code, validate, verify, vest, vest_other, vested_transfer, Command,
-    ConnectionConfig, Snarcos, SnarkRelation,
+    update_runtime, upload_code, validate, verify, verify_proof, vest, vest_other, vested_transfer,
+    Command, ConnectionConfig, Snarcos, SnarkRelation,
 };
 use log::{error, info};
 
@@ -312,6 +312,18 @@ async fn main() {
                 system,
                 proving_key_file,
             } => generate_proof(relation, system, proving_key_file),
+            SnarkRelation::Verify {
+                verifying_key_file,
+                proof_file,
+                public_input_file,
+                system,
+            } => {
+                if verify_proof(verifying_key_file, proof_file, public_input_file, system) {
+                    println!("Proof is correct")
+                } else {
+                    error!("Incorrect proof!")
+                }
+            }
         },
     }
 }
