@@ -49,6 +49,7 @@ struct Session<D: Data, M: Data, A: AddressingInformation + TryFrom<Vec<M>> + In
 }
 
 #[derive(Clone)]
+/// Stores all data needed for starting validator session
 struct PreValidatorSession {
     session_id: SessionId,
     verifier: AuthorityVerifier,
@@ -57,24 +58,10 @@ struct PreValidatorSession {
 }
 
 #[derive(Clone)]
+/// Stores all data needed for starting non-validator session
 struct PreNonvalidatorSession {
     session_id: SessionId,
     verifier: AuthorityVerifier,
-}
-
-#[derive(Clone)]
-enum PreSession {
-    Validator(PreValidatorSession),
-    Nonvalidator(PreNonvalidatorSession),
-}
-
-impl PreSession {
-    fn session_id(&self) -> SessionId {
-        match self {
-            Self::Validator(pre_session) => pre_session.session_id,
-            Self::Nonvalidator(pre_session) => pre_session.session_id,
-        }
-    }
 }
 
 /// Configuration for the session manager service. Controls how often the maintenance and
@@ -147,10 +134,6 @@ where
     network_identity: NI,
     connections: Connections<NI::PeerId>,
     sessions: HashMap<SessionId, Session<D, M, NI::AddressingInformation>>,
-    to_retry: Vec<(
-        PreSession,
-        Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
-    )>,
     discovery_cooldown: Duration,
     maintenance_period: Duration,
     initial_delay: Duration,
@@ -178,7 +161,6 @@ where
             network_identity,
             connections: Connections::new(),
             sessions: HashMap::new(),
-            to_retry: Vec::new(),
             discovery_cooldown,
             maintenance_period,
             initial_delay,
@@ -199,8 +181,6 @@ where
         session_id: SessionId,
     ) -> Option<ConnectionCommand<NI::AddressingInformation>> {
         self.sessions.remove(&session_id);
-        self.to_retry
-            .retain(|(pre_session, _)| pre_session.session_id() != session_id);
         Self::delete_reserved(self.connections.remove_session(session_id))
     }
 
@@ -316,21 +296,16 @@ where
         pre_session: PreValidatorSession,
         result_for_user: Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
     ) -> Result<ServiceActions<M, NI::AddressingInformation>, SessionHandlerError> {
-        match self.update_validator_session(pre_session.clone()).await {
-            Ok((actions, data_from_network)) => {
+        self.update_validator_session(pre_session)
+            .await
+            .map(|(actions, data_from_network)| {
                 if let Some(result_for_user) = result_for_user {
                     if result_for_user.send(data_from_network).is_err() {
                         warn!(target: "aleph-network", "Failed to send started session.")
                     }
                 }
-                Ok(actions)
-            }
-            Err(e) => {
-                self.to_retry
-                    .push((PreSession::Validator(pre_session), result_for_user));
-                Err(e)
-            }
-        }
+                actions
+            })
     }
 
     async fn start_nonvalidator_session(
@@ -377,13 +352,7 @@ where
         &mut self,
         pre_session: PreNonvalidatorSession,
     ) -> Result<(), SessionHandlerError> {
-        self.update_nonvalidator_session(pre_session.clone())
-            .await
-            .map_err(|e| {
-                self.to_retry
-                    .push((PreSession::Nonvalidator(pre_session), None));
-                e
-            })
+        self.update_nonvalidator_session(pre_session).await
     }
 
     /// Handle a session command.
@@ -501,28 +470,6 @@ where
                 .unbounded_send(data)
                 .map_err(|_| SendError::UserSend),
             None => Err(SendError::NoSession),
-        }
-    }
-
-    /// Retries starting a validator session the user requested, but which failed to start
-    /// initially. Mostly useful when the network was not yet aware of its own address at time of
-    /// the request.
-    pub async fn retry_session_start(
-        &mut self,
-    ) -> Result<ServiceActions<M, NI::AddressingInformation>, SessionHandlerError> {
-        let (pre_session, result_for_user) = match self.to_retry.pop() {
-            Some(to_retry) => to_retry,
-            None => return Ok(ServiceActions::noop()),
-        };
-        match pre_session {
-            PreSession::Validator(pre_session) => {
-                self.handle_validator_presession(pre_session, result_for_user)
-                    .await
-            }
-            PreSession::Nonvalidator(pre_session) => {
-                self.handle_nonvalidator_presession(pre_session).await?;
-                Ok(ServiceActions::noop())
-            }
         }
     }
 
@@ -774,10 +721,6 @@ where
                 },
                 _ = maintenance.tick() => {
                     debug!(target: "aleph-network", "Manager starts maintenence");
-                    match service.retry_session_start().await {
-                        Ok(to_send) => self.handle_service_actions(to_send)?,
-                        Err(e) => warn!(target: "aleph-network", "Retry failed to update handler: {:?}", e),
-                    }
                     for to_send in service.discovery() {
                         self.send_authentications(to_send.into())?;
                     }
