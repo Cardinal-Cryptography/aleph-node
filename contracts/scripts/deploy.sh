@@ -180,7 +180,6 @@ function deploy_simple_dex {
   eval "$__resultvar='$contract_address'"
 }
 
-# TODO
 function whitelist_swap_pair() {
   local from_address=$1
   local to_address=$2
@@ -316,7 +315,6 @@ deploy_wrapped_azero WRAPPED_AZERO
 echo "Simple Dex"
 deploy_simple_dex SIMPLE_DEX
 
-# TODO : whitelist token pairs
 echo "Whitelisting swap token pairs"
 whitelist_swap_pair $EARLY_BIRD_SPECIAL_TOKEN $BACK_TO_THE_FUTURE_TOKEN
 whitelist_swap_pair $EARLY_BIRD_SPECIAL_TOKEN $THE_PRESSIAH_COMETH_TOKEN
