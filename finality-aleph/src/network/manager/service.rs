@@ -56,7 +56,7 @@ struct PreValidatorSession {
 }
 
 #[derive(Clone)]
-/// Stores all data needed for starting non validator session
+/// Stores all data needed for starting non-validator session
 struct PreNonvalidatorSession {
     session_id: SessionId,
     verifier: AuthorityVerifier,
@@ -287,7 +287,7 @@ where
         pre_session: PreValidatorSession,
         result_for_user: Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
     ) -> Result<ServiceActions<M, NI::AddressingInformation>, SessionHandlerError> {
-        self.update_validator_session(pre_session.clone())
+        self.update_validator_session(pre_session)
             .await
             .map(|(actions, data_from_network)| {
                 if let Some(result_for_user) = result_for_user {
@@ -343,7 +343,7 @@ where
         &mut self,
         pre_session: PreNonvalidatorSession,
     ) -> Result<(), SessionHandlerError> {
-        self.update_nonvalidator_session(pre_session.clone()).await
+        self.update_nonvalidator_session(pre_session).await
     }
 
     /// Handle a session command.
