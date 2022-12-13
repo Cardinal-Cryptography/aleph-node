@@ -204,15 +204,15 @@ pub enum SnarkRelation {
         system: UniversalProvingSystem,
 
         /// Maximum supported number of constraints.
-        #[clap(long, default_value = "1000")]
+        #[clap(long, default_value = "10000")]
         num_constraints: usize,
 
         /// Maximum supported number of variables.
-        #[clap(long, default_value = "1000")]
+        #[clap(long, default_value = "10000")]
         num_variables: usize,
 
         /// Maximum supported polynomial degree.
-        #[clap(long, default_value = "1000")]
+        #[clap(long, default_value = "10000")]
         degree: usize,
     },
 

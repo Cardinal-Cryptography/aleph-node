@@ -6,6 +6,7 @@ pub use self::relations::RelationArgs;
 use crate::snark_relations::io::{read_srs, save_keys, save_srs};
 
 mod io;
+mod parsing;
 mod relations;
 mod systems;
 

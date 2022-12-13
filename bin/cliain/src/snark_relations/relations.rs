@@ -1,6 +1,14 @@
 use clap::Subcommand;
 use relations::{
-    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, Result as R1CsResult, XorRelation,
+    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelation, FrontendAccount,
+    FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
+    FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, LinearEquationRelation,
+    MerkleTreeRelation, Result as R1CsResult, WithdrawRelation, XorRelation,
+};
+
+use crate::snark_relations::parsing::{
+    parse_frontend_account, parse_frontend_merkle_path_single, parse_frontend_merkle_root,
+    parse_frontend_note,
 };
 
 /// All available relations from `relations` crate.
@@ -14,10 +22,77 @@ pub enum RelationArgs {
         #[clap(long, short = 'c', default_value = "1")]
         result: u8,
     },
-    // LinearEquation(LinearEqRelationArgs),
-    // MerkleTree(MerkleTreeRelationArgs),
-    // Deposit(DepositRelationArgs),
-    // Withdraw(WithdrawRelationArgs),
+    LinearEquation {
+        /// constant (a slope)
+        #[clap(long, default_value = "2")]
+        a: u32,
+        /// private witness
+        #[clap(long, default_value = "7")]
+        x: u32,
+        /// constant(an intercept)
+        #[clap(long, default_value = "5")]
+        b: u32,
+        /// constant
+        #[clap(long, default_value = "19")]
+        y: u32,
+    },
+    MerkleTree {
+        /// Seed bytes for rng, the more the merrier
+        #[clap(long)]
+        seed: Option<String>,
+        /// Tree leaves, used to calculate the tree root
+        #[clap(long, value_delimiter = ',')]
+        leaves: Vec<u8>,
+        /// Leaf of which membership is to be proven, must be one of the leaves
+        #[clap(long)]
+        leaf: u8,
+    },
+    Deposit {
+        #[clap(long, value_parser = parse_frontend_note)]
+        note: FrontendNote,
+        #[clap(long)]
+        token_id: FrontendTokenId,
+        #[clap(long)]
+        token_amount: FrontendTokenAmount,
+
+        #[clap(long)]
+        trapdoor: FrontendTrapdoor,
+        #[clap(long)]
+        nullifier: FrontendNullifier,
+    },
+    Withdraw {
+        #[clap(long)]
+        old_nullifier: FrontendNullifier,
+        #[clap(long, value_parser = parse_frontend_merkle_root)]
+        merkle_root: FrontendMerkleRoot,
+        #[clap(long, value_parser = parse_frontend_note)]
+        new_note: FrontendNote,
+        #[clap(long)]
+        token_id: FrontendTokenId,
+        #[clap(long)]
+        token_amount_out: FrontendTokenAmount,
+        #[clap(long)]
+        fee: FrontendTokenAmount,
+        #[clap(long, value_parser = parse_frontend_account)]
+        recipient: FrontendAccount,
+
+        #[clap(long)]
+        old_trapdoor: FrontendTrapdoor,
+        #[clap(long)]
+        new_trapdoor: FrontendTrapdoor,
+        #[clap(long)]
+        new_nullifier: FrontendNullifier,
+        #[clap(long, value_delimiter = ',', value_parser = parse_frontend_merkle_path_single)]
+        merkle_path: FrontendMerklePath,
+        #[clap(long)]
+        leaf_index: FrontendLeafIndex,
+        #[clap(long, value_parser = parse_frontend_note)]
+        old_note: FrontendNote,
+        #[clap(long)]
+        whole_token_amount: FrontendTokenAmount,
+        #[clap(long)]
+        new_token_amount: FrontendTokenAmount,
+    },
 }
 
 impl RelationArgs {
@@ -26,10 +101,10 @@ impl RelationArgs {
     pub fn id(&self) -> String {
         match &self {
             RelationArgs::Xor { .. } => String::from("xor"),
-            // Relation::LinearEquation(_) => String::from("linear_equation"),
-            // Relation::MerkleTree(_) => String::from("merkle_tree"),
-            // Relation::Deposit(_) => String::from("deposit"),
-            // Relation::Withdraw(_) => String::from("withdraw"),
+            RelationArgs::LinearEquation { .. } => String::from("linear_equation"),
+            RelationArgs::MerkleTree { .. } => String::from("merkle_tree"),
+            RelationArgs::Deposit { .. } => String::from("deposit"),
+            RelationArgs::Withdraw { .. } => String::from("withdraw"),
         }
     }
 }
@@ -42,20 +117,54 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 private_xoree,
                 result,
             } => XorRelation::new(public_xoree, private_xoree, result).generate_constraints(cs),
-            // Relation::LinearEquation(relation @ LinearEqRelation { .. }) => {
-            //     relation.generate_constraints(cs)
-            // }
-            // Relation::MerkleTree(args @ MerkleTreeRelationArgs { .. }) => {
-            //     <MerkleTreeRelationArgs as Into<MerkleTreeRelation>>::into(args)
-            //         .generate_constraints(cs)
-            // }
-            // Relation::Deposit(args @ DepositRelationArgs { .. }) => {
-            //     <DepositRelationArgs as Into<DepositRelation>>::into(args).generate_constraints(cs)
-            // }
-            // Relation::Withdraw(args @ WithdrawRelationArgs { .. }) => {
-            //     <WithdrawRelationArgs as Into<WithdrawRelation>>::into(args)
-            //         .generate_constraints(cs)
-            // }
+            RelationArgs::LinearEquation { a, x, b, y } => {
+                LinearEquationRelation::new(a, x, b, y).generate_constraints(cs)
+            }
+            RelationArgs::MerkleTree { seed, leaf, leaves } => {
+                MerkleTreeRelation::new(leaves, leaf, seed).generate_constraints(cs)
+            }
+            RelationArgs::Deposit {
+                note,
+                token_id,
+                token_amount,
+                trapdoor,
+                nullifier,
+            } => DepositRelation::new(note, token_id, token_amount, trapdoor, nullifier)
+                .generate_constraints(cs),
+            RelationArgs::Withdraw {
+                old_nullifier,
+                merkle_root,
+                new_note,
+                token_id,
+                token_amount_out,
+                fee,
+                recipient,
+                old_trapdoor,
+                new_trapdoor,
+                new_nullifier,
+                merkle_path,
+                leaf_index,
+                old_note,
+                whole_token_amount,
+                new_token_amount,
+            } => WithdrawRelation::new(
+                old_nullifier,
+                merkle_root,
+                new_note,
+                token_id,
+                token_amount_out,
+                old_trapdoor,
+                new_trapdoor,
+                new_nullifier,
+                merkle_path,
+                leaf_index,
+                old_note,
+                whole_token_amount,
+                new_token_amount,
+                fee,
+                recipient,
+            )
+            .generate_constraints(cs),
         }
     }
 }
