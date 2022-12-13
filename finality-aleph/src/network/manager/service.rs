@@ -1,7 +1,8 @@
 use std::{
     cmp,
     collections::{HashMap, HashSet},
-    fmt::Debug,
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    marker::PhantomData,
     time::Duration,
 };
 
@@ -20,7 +21,8 @@ use crate::{
             compatibility::PeerAuthentications, Connections, DataInSession, Discovery,
             DiscoveryMessage, SessionHandler, SessionHandlerError, VersionedAuthentication,
         },
-        AddressedData, AddressingInformation, ConnectionCommand, Data, NetworkIdentity, PeerId,
+        AddressedData, AddressingInformation, ConnectionCommand, Data, GossipNetwork,
+        NetworkIdentity, PeerId,
     },
     validator_network::{Network as ValidatorNetwork, PublicKey},
     MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
@@ -47,6 +49,7 @@ struct Session<D: Data, M: Data, A: AddressingInformation + TryFrom<Vec<M>> + In
 }
 
 #[derive(Clone)]
+/// Stores all data needed for starting validator session
 struct PreValidatorSession {
     session_id: SessionId,
     verifier: AuthorityVerifier,
@@ -55,24 +58,10 @@ struct PreValidatorSession {
 }
 
 #[derive(Clone)]
+/// Stores all data needed for starting non-validator session
 struct PreNonvalidatorSession {
     session_id: SessionId,
     verifier: AuthorityVerifier,
-}
-
-#[derive(Clone)]
-enum PreSession {
-    Validator(PreValidatorSession),
-    Nonvalidator(PreNonvalidatorSession),
-}
-
-impl PreSession {
-    fn session_id(&self) -> SessionId {
-        match self {
-            Self::Validator(pre_session) => pre_session.session_id,
-            Self::Nonvalidator(pre_session) => pre_session.session_id,
-        }
-    }
 }
 
 /// Configuration for the session manager service. Controls how often the maintenance and
@@ -145,13 +134,16 @@ where
     network_identity: NI,
     connections: Connections<NI::PeerId>,
     sessions: HashMap<SessionId, Session<D, M, NI::AddressingInformation>>,
-    to_retry: Vec<(
-        PreSession,
-        Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
-    )>,
     discovery_cooldown: Duration,
     maintenance_period: Duration,
     initial_delay: Duration,
+}
+
+/// Error when trying to forward data from the network to the user, should never be fatal.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SendError {
+    UserSend,
+    NoSession,
 }
 
 impl<NI: NetworkIdentity, M: Data + Debug, D: Data> Service<NI, M, D>
@@ -169,7 +161,6 @@ where
             network_identity,
             connections: Connections::new(),
             sessions: HashMap::new(),
-            to_retry: Vec::new(),
             discovery_cooldown,
             maintenance_period,
             initial_delay,
@@ -190,8 +181,6 @@ where
         session_id: SessionId,
     ) -> Option<ConnectionCommand<NI::AddressingInformation>> {
         self.sessions.remove(&session_id);
-        self.to_retry
-            .retain(|(pre_session, _)| pre_session.session_id() != session_id);
         Self::delete_reserved(self.connections.remove_session(session_id))
     }
 
@@ -307,21 +296,16 @@ where
         pre_session: PreValidatorSession,
         result_for_user: Option<oneshot::Sender<mpsc::UnboundedReceiver<D>>>,
     ) -> Result<ServiceActions<M, NI::AddressingInformation>, SessionHandlerError> {
-        match self.update_validator_session(pre_session.clone()).await {
-            Ok((actions, data_from_network)) => {
+        self.update_validator_session(pre_session)
+            .await
+            .map(|(actions, data_from_network)| {
                 if let Some(result_for_user) = result_for_user {
                     if result_for_user.send(data_from_network).is_err() {
                         warn!(target: "aleph-network", "Failed to send started session.")
                     }
                 }
-                Ok(actions)
-            }
-            Err(e) => {
-                self.to_retry
-                    .push((PreSession::Validator(pre_session), result_for_user));
-                Err(e)
-            }
-        }
+                actions
+            })
     }
 
     async fn start_nonvalidator_session(
@@ -368,13 +352,7 @@ where
         &mut self,
         pre_session: PreNonvalidatorSession,
     ) -> Result<(), SessionHandlerError> {
-        self.update_nonvalidator_session(pre_session.clone())
-            .await
-            .map_err(|e| {
-                self.to_retry
-                    .push((PreSession::Nonvalidator(pre_session), None));
-                e
-            })
+        self.update_nonvalidator_session(pre_session).await
     }
 
     /// Handle a session command.
@@ -482,7 +460,7 @@ where
     }
 
     /// Sends the data to the identified session.
-    pub fn send_session_data(&self, session_id: &SessionId, data: D) -> Result<(), Error> {
+    pub fn send_session_data(&self, session_id: &SessionId, data: D) -> Result<(), SendError> {
         match self
             .sessions
             .get(session_id)
@@ -490,30 +468,8 @@ where
         {
             Some(data_for_user) => data_for_user
                 .unbounded_send(data)
-                .map_err(|_| Error::UserSend),
-            None => Err(Error::NoSession),
-        }
-    }
-
-    /// Retries starting a validator session the user requested, but which failed to start
-    /// initially. Mostly useful when the network was not yet aware of its own address at time of
-    /// the request.
-    pub async fn retry_session_start(
-        &mut self,
-    ) -> Result<ServiceActions<M, NI::AddressingInformation>, SessionHandlerError> {
-        let (pre_session, result_for_user) = match self.to_retry.pop() {
-            Some(to_retry) => to_retry,
-            None => return Ok(ServiceActions::noop()),
-        };
-        match pre_session {
-            PreSession::Validator(pre_session) => {
-                self.handle_validator_presession(pre_session, result_for_user)
-                    .await
-            }
-            PreSession::Nonvalidator(pre_session) => {
-                self.handle_nonvalidator_presession(pre_session).await?;
-                Ok(ServiceActions::noop())
-            }
+                .map_err(|_| SendError::UserSend),
+            None => Err(SendError::NoSession),
         }
     }
 
@@ -603,27 +559,36 @@ pub struct IO<
     M: Data,
     A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>,
     VN: ValidatorNetwork<A::PeerId, A, DataInSession<D>>,
+    GN: GossipNetwork<VersionedAuthentication<M, A>>,
 > where
     A::PeerId: PublicKey,
 {
-    authentications_for_network: mpsc::UnboundedSender<VersionedAuthentication<M, A>>,
     commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
     messages_from_user: mpsc::UnboundedReceiver<(D, SessionId, Recipient)>,
-    authentications_from_network: mpsc::UnboundedReceiver<VersionedAuthentication<M, A>>,
     validator_network: VN,
+    gossip_network: GN,
+    _phantom: PhantomData<(M, A)>,
 }
 
 /// Errors that can happen during the network service operations.
 #[derive(Debug, PartialEq, Eq)]
-pub enum Error {
-    NetworkSend,
-    /// Should never be fatal.
-    UserSend,
-    /// Should never be fatal.
-    NoSession,
+pub enum Error<GE: Display> {
     CommandsChannel,
     MessageChannel,
-    NetworkChannel,
+    ValidatorNetwork,
+    GossipNetwork(GE),
+}
+
+impl<GE: Display> Display for Error<GE> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        use Error::*;
+        match self {
+            CommandsChannel => write!(f, "commands channel unexpectedly closed"),
+            MessageChannel => write!(f, "message channel unexpectedly closed"),
+            ValidatorNetwork => write!(f, "validator network unexpectedly done"),
+            GossipNetwork(e) => write!(f, "gossip network unexpectedly done: {}", e),
+        }
+    }
 }
 
 impl<
@@ -631,23 +596,23 @@ impl<
         M: Data + Debug,
         A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>,
         VN: ValidatorNetwork<A::PeerId, A, DataInSession<D>>,
-    > IO<D, M, A, VN>
+        GN: GossipNetwork<VersionedAuthentication<M, A>>,
+    > IO<D, M, A, VN, GN>
 where
     A::PeerId: PublicKey,
 {
     pub fn new(
-        authentications_for_network: mpsc::UnboundedSender<VersionedAuthentication<M, A>>,
         commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
         messages_from_user: mpsc::UnboundedReceiver<(D, SessionId, Recipient)>,
-        authentications_from_network: mpsc::UnboundedReceiver<VersionedAuthentication<M, A>>,
         validator_network: VN,
-    ) -> IO<D, M, A, VN> {
+        gossip_network: GN,
+    ) -> IO<D, M, A, VN, GN> {
         IO {
-            authentications_for_network,
             commands_from_user,
             messages_from_user,
-            authentications_from_network,
             validator_network,
+            gossip_network,
+            _phantom: PhantomData,
         }
     }
 
@@ -656,13 +621,13 @@ where
     }
 
     fn send_authentications(
-        &self,
+        &mut self,
         to_send: Vec<VersionedAuthentication<M, A>>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error<GN::Error>> {
         for auth in to_send {
-            self.authentications_for_network
-                .unbounded_send(auth)
-                .map_err(|_| Error::NetworkSend)?;
+            self.gossip_network
+                .broadcast(auth)
+                .map_err(Error::GossipNetwork)?;
         }
         Ok(())
     }
@@ -689,7 +654,7 @@ where
             maybe_command,
             maybe_message,
         }: ServiceActions<M, A>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error<GN::Error>> {
         if let Some(command) = maybe_command {
             self.handle_connection_command(command);
         }
@@ -703,7 +668,7 @@ where
     pub async fn run<NI: NetworkIdentity<AddressingInformation = A, PeerId = A::PeerId>>(
         mut self,
         mut service: Service<NI, M, D>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error<GN::Error>> {
         // Initial delay is needed so that Network is fully set up and we received some first discovery broadcasts from other nodes.
         // Otherwise this might cause first maintenance never working, as it happens before first broadcasts.
         let mut maintenance = time::interval_at(
@@ -739,30 +704,23 @@ where
                     match maybe_data {
                         Some(DataInSession{data, session_id}) => if let Err(e) = service.send_session_data(&session_id, data) {
                             match e {
-                                Error::UserSend => trace!(target: "aleph-network", "Failed to send to user in session."),
-                                Error::NoSession => trace!(target: "aleph-network", "Received message for unknown session."),
-                                _ => return Err(e),
+                                SendError::UserSend => trace!(target: "aleph-network", "Failed to send to user in session."),
+                                SendError::NoSession => trace!(target: "aleph-network", "Received message for unknown session."),
                             }
                         },
-                        None => return Err(Error::NetworkChannel),
+                        None => return Err(Error::ValidatorNetwork),
                     }
                 },
-                maybe_authentication = self.authentications_from_network.next() => {
+                maybe_authentication = self.gossip_network.next() => {
+                    let authentication = maybe_authentication.map_err(Error::GossipNetwork)?;
                     trace!(target: "aleph-network", "Manager received an authentication from network");
-                    match maybe_authentication {
-                        Some(authentication) => match authentication.try_into() {
-                            Ok(message) => self.handle_service_actions(service.on_discovery_message(message))?,
-                            Err(e) => warn!(target: "aleph-network", "Error casting versioned authentication to discovery message: {:?}", e),
-                        },
-                        None => return Err(Error::NetworkChannel),
+                    match authentication.try_into() {
+                        Ok(message) => self.handle_service_actions(service.on_discovery_message(message))?,
+                        Err(e) => warn!(target: "aleph-network", "Error casting versioned authentication to discovery message: {:?}", e),
                     }
                 },
                 _ = maintenance.tick() => {
                     debug!(target: "aleph-network", "Manager starts maintenence");
-                    match service.retry_session_start().await {
-                        Ok(to_send) => self.handle_service_actions(to_send)?,
-                        Err(e) => warn!(target: "aleph-network", "Retry failed to update handler: {:?}", e),
-                    }
                     for to_send in service.discovery() {
                         self.send_authentications(to_send.into())?;
                     }
@@ -781,7 +739,7 @@ mod tests {
 
     use futures::{channel::oneshot, StreamExt};
 
-    use super::{Config, Error, Service, ServiceActions, SessionCommand};
+    use super::{Config, SendError, Service, ServiceActions, SessionCommand};
     use crate::{
         network::{
             manager::{compatibility::PeerAuthentications, DataInSession, DiscoveryMessage},
@@ -820,7 +778,7 @@ mod tests {
         assert!(maybe_message.is_none());
         assert_eq!(
             service.send_session_data(&session_id, -43),
-            Err(Error::NoSession)
+            Err(SendError::NoSession)
         );
     }
 
@@ -886,7 +844,7 @@ mod tests {
         assert!(maybe_message.is_none());
         assert_eq!(
             service.send_session_data(&session_id, -43),
-            Err(Error::NoSession)
+            Err(SendError::NoSession)
         );
         assert!(data_from_network.next().await.is_none());
     }
