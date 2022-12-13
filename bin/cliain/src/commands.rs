@@ -12,6 +12,8 @@ use primitives::{Balance, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 
+use crate::UniversalProvingSystem;
+
 #[derive(Debug, Clone, Args)]
 pub struct ContractOptions {
     /// balance to transfer from the call origin to the contract
@@ -191,6 +193,27 @@ pub enum Snarcos {
         /// The proving system to be used.
         #[clap(long, value_parser(parsing::parse_system))]
         system: ProvingSystem,
+    },
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum SnarkRelation {
+    GenerateSrs {
+        /// Proving system to use.
+        #[clap(long, short, value_enum, default_value = "marlin")]
+        system: UniversalProvingSystem,
+
+        /// Maximum supported number of constraints.
+        #[clap(long, default_value = "1000")]
+        num_constraints: usize,
+
+        /// Maximum supported number of variables.
+        #[clap(long, default_value = "1000")]
+        num_variables: usize,
+
+        /// Maximum supported polynomial degree.
+        #[clap(long, default_value = "1000")]
+        degree: usize,
     },
 }
 
@@ -419,6 +442,10 @@ pub enum Command {
     /// Interact with `pallet_snarcos`.
     #[clap(subcommand)]
     Snarcos(Snarcos),
+
+    /// Interact with `relations` crate.
+    #[clap(subcommand)]
+    SnarkRelation(SnarkRelation),
 }
 
 mod parsing {
