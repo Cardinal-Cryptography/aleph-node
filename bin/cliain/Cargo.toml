@@ -24,7 +24,6 @@ pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "liminal-v0.9.32", features = ["full_crypto"] }
 
 aleph_client = { path = "../../aleph-client" }
-pallet-snarcos = { path = "../../pallets/snarcos" }
 primitives = { path = "../../primitives" }
 
 [features]

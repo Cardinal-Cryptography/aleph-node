@@ -3,10 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aleph_client::{AccountId, TxStatus};
+use aleph_client::{
+    pallet_snarcos::systems::ProvingSystem, pallets::snarcos::VerificationKeyIdentifier, AccountId,
+    TxStatus,
+};
 use anyhow::anyhow;
 use clap::{clap_derive::ValueEnum, Args, Subcommand};
-use pallet_snarcos::{ProvingSystem, VerificationKeyIdentifier};
 use primitives::{Balance, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
