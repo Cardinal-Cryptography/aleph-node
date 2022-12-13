@@ -27,6 +27,9 @@ jobs:
       RUST_BACKTRACE: full
     steps:
 
+      - name: Checkout Source code
+        uses: actions/checkout@v3
+
       # - name: Install binaryen
       #   run: |
       #     wget https://github.com/WebAssembly/binaryen/releases/download/version_101/binaryen-version_101-x86_64-linux.tar.gz
@@ -39,9 +42,6 @@ jobs:
       # - name: Display binaryen version
       #   shell: bash
       #   run: wasm-opt --version
-
-      # - name: Checkout Source code
-      #   uses: actions/checkout@v3
 
       # - name: Install Rust Toolchain
       #   uses: actions-rs/toolchain@v1
