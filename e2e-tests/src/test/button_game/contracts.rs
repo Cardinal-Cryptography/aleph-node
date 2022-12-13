@@ -55,6 +55,19 @@ impl SimpleDexInstance {
             .contract_exec(conn, "add_swap_pair", &[&from.to_string(), &to.to_string()])
     }
 
+    pub fn remove_swap_pair(
+        &self,
+        conn: &SignedConnection,
+        from: AccountId,
+        to: AccountId,
+    ) -> Result<()> {
+        self.contract.contract_exec(
+            conn,
+            "remove_swap_pair",
+            &[&from.to_string(), &to.to_string()],
+        )
+    }
+
     pub fn deposit(
         &self,
         conn: &SignedConnection,

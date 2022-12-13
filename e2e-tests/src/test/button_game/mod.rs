@@ -115,6 +115,7 @@ pub fn simple_dex(config: &Config) -> Result<()> {
 
     let more_than_liquidity = mega(1_000_000);
     dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
+
     refute_recv_id(&mut events, "Swapped");
 
     let initial_amount = mega(100);
@@ -159,6 +160,12 @@ pub fn simple_dex(config: &Config) -> Result<()> {
 
     dex.swap(account_conn, token1, balance_after, token3, mega(90))?;
     assert_recv_id(&mut events, "Swapped");
+
+    // can't swap a pair not on the whitelist
+
+    dex.remove_swap_pair(authority_conn, token3.into(), token1.into())?;
+    assert_recv_id(&mut events, "SwapPairRemoved");
+
     let balance_token3 = token3.balance_of(&conn, &account.public().into())?;
     token3.approve(account_conn, &dex.into(), balance_token3)?;
     dex.swap(account_conn, token3, balance_token3, token1, mega(90))?;
