@@ -322,6 +322,11 @@ mod simple_dex {
             Ok(())
         }
 
+        #[ink(message)]
+        pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
+            self.swap_pairs.contains(&SwapPair::new(from, to))
+        }
+
         /// Blacklists a token pair from swapping
         ///
         /// Token pair is understood as a swap between tokens in one direction
