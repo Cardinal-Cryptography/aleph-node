@@ -575,7 +575,7 @@ pub struct IO<
 pub enum Error<GE: Display> {
     CommandsChannel,
     MessageChannel,
-    CliqueNetwork,
+    ValidatorNetwork,
     GossipNetwork(GE),
 }
 
@@ -585,7 +585,7 @@ impl<GE: Display> Display for Error<GE> {
         match self {
             CommandsChannel => write!(f, "commands channel unexpectedly closed"),
             MessageChannel => write!(f, "message channel unexpectedly closed"),
-            CliqueNetwork => write!(f, "validator network unexpectedly done"),
+            ValidatorNetwork => write!(f, "validator network unexpectedly done"),
             GossipNetwork(e) => write!(f, "gossip network unexpectedly done: {}", e),
         }
     }
@@ -708,7 +708,7 @@ where
                                 SendError::NoSession => trace!(target: "aleph-network", "Received message for unknown session."),
                             }
                         },
-                        None => return Err(Error::CliqueNetwork),
+                        None => return Err(Error::ValidatorNetwork),
                     }
                 },
                 maybe_authentication = self.gossip_network.next() => {
