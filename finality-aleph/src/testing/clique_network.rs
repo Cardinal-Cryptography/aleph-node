@@ -186,7 +186,7 @@ async fn scenario_with_timeout(
 static INIT: Once = Once::new();
 
 /// Required to capture logs from the tests e.g. by running
-/// `RUST_LOG=info cargo test -- --nocapture testing::validator_network`
+/// `RUST_LOG=info cargo test -- --nocapture testing::clique_network`
 fn setup() {
     // env_logger::init can be called at most once
     INIT.call_once(|| {
