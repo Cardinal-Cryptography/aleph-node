@@ -125,12 +125,12 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            VerificationKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
-                ensure!(
-                    key.len() <= T::MaximumVerificationKeyLength::get() as usize,
-                    Error::<T>::VerificationKeyTooLong
-                );
+            ensure!(
+                key.len() <= T::MaximumVerificationKeyLength::get() as usize,
+                Error::<T>::VerificationKeyTooLong
+            );
 
+            VerificationKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
                 // should never fail, since length is checked above
                 *value = Some(BoundedVec::try_from(key).unwrap());
 
@@ -171,7 +171,7 @@ pub mod pallet {
 
     impl<T: Config> Pallet<T> {
         /// This is the inner logic behind `Self::store_key`, however it is free from account lookup
-        /// or other dispatchable-related overhead. Thus, it is more suited to call directly from
+        /// or other dispatchable-relatsnarkelinged overhead. Thus, it is more suited to call directly from
         /// runtime, like from a chain extension.
         pub fn bare_store_key(
             identifier: VerificationKeyIdentifier,
