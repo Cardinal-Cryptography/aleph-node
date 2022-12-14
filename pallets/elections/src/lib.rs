@@ -64,7 +64,7 @@ pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 #[frame_support::pallet]
 pub mod pallet {
     use frame_election_provider_support::{
-        ElectionDataProvider, ElectionProvider, Support, Supports,
+        ElectionDataProvider, ElectionProvider, ElectionProviderBase, Support, Supports,
     };
     use frame_support::{log, pallet_prelude::*, traits::Get};
     use frame_system::{
@@ -79,7 +79,9 @@ pub mod pallet {
     use sp_runtime::Perbill;
 
     use super::*;
-    use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
+    use crate::traits::{
+        EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler,
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -100,6 +102,8 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<Self>;
         /// Something that handles addition of rewards for validators.
         type ValidatorRewardsHandler: ValidatorRewardsHandler<Self>;
+        /// Something that removes validators from candidates in elections
+        type ValidatorExtractor: ValidatorExtractor<AccountId = Self::AccountId>;
 
         /// Maximum acceptable ban reason length.
         #[pallet::constant]
@@ -371,8 +375,8 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <CommitteeSize<T>>::put(&self.committee_seats);
-            <NextEraCommitteeSize<T>>::put(&self.committee_seats);
+            <CommitteeSize<T>>::put(self.committee_seats);
+            <NextEraCommitteeSize<T>>::put(self.committee_seats);
             <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
             <NextEraReservedValidators<T>>::put(&self.reserved_validators);
             <CurrentEraValidators<T>>::put(&EraValidators {
@@ -462,12 +466,18 @@ pub mod pallet {
         BanReasonTooBig,
     }
 
-    impl<T: Config> ElectionProvider for Pallet<T> {
+    impl<T: Config> ElectionProviderBase for Pallet<T> {
         type AccountId = T::AccountId;
         type BlockNumber = T::BlockNumber;
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
 
+        fn ongoing() -> bool {
+            false
+        }
+    }
+
+    impl<T: Config> ElectionProvider for Pallet<T> {
         /// We calculate the supports for each validator. The external validators are chosen as:
         /// 1) "`NextEraNonReservedValidators` that are staking and are not banned" in case of Permissioned ElectionOpenness
         /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
@@ -540,10 +550,6 @@ pub mod pallet {
             }
 
             Ok(supports.into_iter().collect())
-        }
-
-        fn ongoing() -> bool {
-            false
         }
     }
 }

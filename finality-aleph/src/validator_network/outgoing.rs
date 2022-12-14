@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use futures::channel::mpsc;
 use log::{debug, info};
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, timeout, Duration};
 
 use crate::validator_network::{
     protocols::{
@@ -15,6 +15,7 @@ enum OutgoingError<PK: PublicKey, A: Data, ND: Dialer<A>> {
     Dial(ND::Error),
     ProtocolNegotiation(PeerAddressInfo, ProtocolNegotiationError),
     Protocol(PeerAddressInfo, ProtocolError<PK>),
+    TimedOut,
 }
 
 impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND> {
@@ -32,22 +33,26 @@ impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND>
                 "communication with {} failed, protocol error: {}",
                 addr, e
             ),
+            TimedOut => write!(f, "dial timeout",),
         }
     }
 }
+
+/// Arbitrarily chosen timeout, should be more than enough.
+const DIAL_TIMEOUT: Duration = Duration::from_secs(60);
 
 async fn manage_outgoing<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>>(
     secret_key: SK,
     public_key: SK::PublicKey,
     mut dialer: ND,
-    addresses: Vec<A>,
+    address: A,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), OutgoingError<SK::PublicKey, A, ND>> {
     debug!(target: "validator-network", "Trying to connect to {}.", public_key);
-    let stream = dialer
-        .connect(addresses)
+    let stream = timeout(DIAL_TIMEOUT, dialer.connect(address))
         .await
+        .map_err(|_| OutgoingError::TimedOut)?
         .map_err(OutgoingError::Dial)?;
     let peer_address_info = stream.peer_address_info();
     debug!(target: "validator-network", "Performing outgoing protocol negotiation.");
@@ -76,7 +81,7 @@ pub async fn outgoing<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>>(
     secret_key: SK,
     public_key: SK::PublicKey,
     dialer: ND,
-    addresses: Vec<A>,
+    address: A,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) {
@@ -84,13 +89,13 @@ pub async fn outgoing<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>>(
         secret_key,
         public_key.clone(),
         dialer,
-        addresses.clone(),
+        address.clone(),
         result_for_parent.clone(),
         data_for_user,
     )
     .await
     {
-        info!(target: "validator-network", "Outgoing connection to {} {:?} failed: {}, will retry after {}s.", public_key, addresses, e, RETRY_DELAY.as_secs());
+        info!(target: "validator-network", "Outgoing connection to {} {:?} failed: {}, will retry after {}s.", public_key, address, e, RETRY_DELAY.as_secs());
         sleep(RETRY_DELAY).await;
         // we send the "new" connection type, because we always assume it's new until proven
         // otherwise, and here we did not even get the chance to attempt negotiating a protocol

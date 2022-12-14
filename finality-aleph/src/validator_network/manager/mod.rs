@@ -138,7 +138,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                     write!(
                         f,
                         "have - {:?} [{}]; ",
-                        self.incoming_peers.len(),
+                        self.outgoing_peers.len(),
                         pretty_peer_id_set(&self.outgoing_peers),
                     )?;
                 }
@@ -146,7 +146,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
                     write!(
                         f,
                         "missing - {:?} [{}]; ",
-                        self.missing_incoming.len(),
+                        self.missing_outgoing.len(),
                         pretty_peer_id_set(&self.missing_outgoing),
                     )?;
                 }
@@ -184,17 +184,17 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
     }
 
     /// Add a peer to the list of peers we want to stay connected to, or
-    /// update the list of addresses if the peer was already added.
+    /// update the address if the peer was already added.
     /// Returns whether we should start attempts at connecting with the peer, which depends on the
     /// coorddinated pseudorandom decision on the direction of the connection and whether this was
     /// added for the first time.
-    pub fn add_peer(&mut self, peer_id: PK, addresses: Vec<A>) -> bool {
-        self.wanted.add_peer(peer_id, addresses)
+    pub fn add_peer(&mut self, peer_id: PK, address: A) -> bool {
+        self.wanted.add_peer(peer_id, address)
     }
 
-    /// Return the addresses of the given peer, or None if we shouldn't attempt connecting with the peer.
-    pub fn peer_addresses(&self, peer_id: &PK) -> Option<Vec<A>> {
-        self.wanted.peer_addresses(peer_id)
+    /// Return the address of the given peer, or None if we shouldn't attempt connecting with the peer.
+    pub fn peer_address(&self, peer_id: &PK) -> Option<A> {
+        self.wanted.peer_address(peer_id)
     }
 
     /// Add an established connection with a known peer, but only if the peer is among the peers we want to be connected to.
@@ -239,41 +239,36 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
 
 #[cfg(test)]
 mod tests {
-    use aleph_primitives::AuthorityId;
     use futures::{channel::mpsc, StreamExt};
 
     use super::{AddResult::*, Manager, SendError};
-    use crate::validator_network::mock::key;
+    use crate::validator_network::mock::{key, MockPublicKey};
 
     type Data = String;
     type Address = String;
 
-    #[tokio::test]
-    async fn add_remove() {
-        let (own_id, _) = key().await;
-        let mut manager = Manager::<AuthorityId, Address, Data>::new(own_id);
-        let (peer_id, _) = key().await;
-        let (peer_id_b, _) = key().await;
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+    #[test]
+    fn add_remove() {
+        let (own_id, _) = key();
+        let mut manager = Manager::<MockPublicKey, Address, Data>::new(own_id);
+        let (peer_id, _) = key();
+        let (peer_id_b, _) = key();
+        let address = String::from("43.43.43.43:43000");
         // add new peer - might return either true or false, depending on the ids
-        let attempting_connections = manager.add_peer(peer_id.clone(), addresses.clone());
+        let attempting_connections = manager.add_peer(peer_id.clone(), address.clone());
         // add known peer - always returns false
-        assert!(!manager.add_peer(peer_id.clone(), addresses.clone()));
+        assert!(!manager.add_peer(peer_id.clone(), address.clone()));
         // get address
         match attempting_connections {
-            true => assert_eq!(manager.peer_addresses(&peer_id), Some(addresses)),
-            false => assert_eq!(manager.peer_addresses(&peer_id), None),
+            true => assert_eq!(manager.peer_address(&peer_id), Some(address)),
+            false => assert_eq!(manager.peer_address(&peer_id), None),
         }
         // try to get address of an unknown peer
-        assert_eq!(manager.peer_addresses(&peer_id_b), None);
+        assert_eq!(manager.peer_address(&peer_id_b), None);
         // remove peer
         manager.remove_peer(&peer_id);
         // try to get address of removed peer
-        assert_eq!(manager.peer_addresses(&peer_id), None);
+        assert_eq!(manager.peer_address(&peer_id), None);
         // remove again
         manager.remove_peer(&peer_id);
         // remove unknown peer
@@ -282,18 +277,14 @@ mod tests {
 
     #[tokio::test]
     async fn send_receive() {
-        let (mut connecting_id, _) = key().await;
+        let (mut connecting_id, _) = key();
         let mut connecting_manager =
-            Manager::<AuthorityId, Address, Data>::new(connecting_id.clone());
-        let (mut listening_id, _) = key().await;
+            Manager::<MockPublicKey, Address, Data>::new(connecting_id.clone());
+        let (mut listening_id, _) = key();
         let mut listening_manager =
-            Manager::<AuthorityId, Address, Data>::new(listening_id.clone());
+            Manager::<MockPublicKey, Address, Data>::new(listening_id.clone());
         let data = String::from("DATA");
-        let addresses = vec![
-            String::from(""),
-            String::from("a/b/c"),
-            String::from("43.43.43.43:43000"),
-        ];
+        let address = String::from("43.43.43.43:43000");
         let (tx, _rx) = mpsc::unbounded();
         // try add unknown peer
         assert_eq!(
@@ -306,18 +297,14 @@ mod tests {
             Err(SendError::PeerNotFound)
         );
         // add peer, this time for real
-        if connecting_manager.add_peer(listening_id.clone(), addresses.clone()) {
-            assert!(!listening_manager.add_peer(connecting_id.clone(), addresses.clone()))
+        if connecting_manager.add_peer(listening_id.clone(), address.clone()) {
+            assert!(!listening_manager.add_peer(connecting_id.clone(), address.clone()))
         } else {
             // We need to switch the names around, because the connection was randomly the
             // other way around.
-            let temp_id = connecting_id;
-            connecting_id = listening_id;
-            listening_id = temp_id;
-            let temp_manager = connecting_manager;
-            connecting_manager = listening_manager;
-            listening_manager = temp_manager;
-            assert!(connecting_manager.add_peer(listening_id.clone(), addresses.clone()));
+            std::mem::swap(&mut connecting_id, &mut listening_id);
+            std::mem::swap(&mut connecting_manager, &mut listening_manager);
+            assert!(connecting_manager.add_peer(listening_id.clone(), address.clone()));
         }
         // add outgoing to connecting
         let (tx, mut rx) = mpsc::unbounded();
