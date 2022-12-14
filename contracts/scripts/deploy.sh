@@ -104,7 +104,6 @@ function deploy_button_game {
 
   local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$marketplace" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm)
   local contract_address=$(echo "$contract_address" | grep Contract | tail -1 | cut -c 14-)
-
   echo "$game_type contract instance address: $contract_address"
 
   # --- GRANT PRIVILEGES ON THE CONTRACT
@@ -179,6 +178,15 @@ function deploy_simple_dex {
   cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'LiquidityProvider('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
+}
+
+function whitelist_swap_pair() {
+  local from_address=$1
+  local to_address=$2
+
+  cd "$CONTRACTS_PATH"/simple_dex
+
+  cargo contract call --url "$NODE" --contract "$SIMPLE_DEX" --message add_swap_pair --args "$from_address" "$to_address" --suri "$AUTHORITY_SEED" --skip-confirm
 }
 
 function deploy_wrapped_azero {
@@ -297,15 +305,28 @@ deploy_game_token THE_PRESSIAH_COMETH_TOKEN Lono LON $salt
 deploy_marketplace THE_PRESSIAH_COMETH_MARKETPLACE "$MARKETPLACE_CODE_HASH" the_pressiah_cometh "$salt" "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN"
 deploy_button_game THE_PRESSIAH_COMETH ThePressiahCometh "$THE_PRESSIAH_COMETH_TICKET" "$THE_PRESSIAH_COMETH_TOKEN" "$THE_PRESSIAH_COMETH_MARKETPLACE" "$salt"
 
+# --- DEPLOY WRAPPED AZERO CONTRACT
+
+echo "Wrapped Azero"
+deploy_wrapped_azero WRAPPED_AZERO
+
 # --- DEPLOY DEX CONTRACT
 
 echo "Simple Dex"
 deploy_simple_dex SIMPLE_DEX
 
-# --- DEPLOY WRAPPED AZERO CONTRACT
+echo "Whitelisting swap token pairs"
+whitelist_swap_pair $EARLY_BIRD_SPECIAL_TOKEN $BACK_TO_THE_FUTURE_TOKEN
+whitelist_swap_pair $EARLY_BIRD_SPECIAL_TOKEN $THE_PRESSIAH_COMETH_TOKEN
+whitelist_swap_pair $EARLY_BIRD_SPECIAL_TOKEN $WRAPPED_AZERO
 
-echo "Wrapped Azero"
-deploy_wrapped_azero WRAPPED_AZERO
+whitelist_swap_pair $BACK_TO_THE_FUTURE_TOKEN $EARLY_BIRD_SPECIAL_TOKEN
+whitelist_swap_pair $BACK_TO_THE_FUTURE_TOKEN $THE_PRESSIAH_COMETH_TOKEN
+whitelist_swap_pair $BACK_TO_THE_FUTURE_TOKEN $WRAPPED_AZERO
+
+whitelist_swap_pair $THE_PRESSIAH_COMETH_TOKEN $EARLY_BIRD_SPECIAL_TOKEN
+whitelist_swap_pair $THE_PRESSIAH_COMETH_TOKEN $BACK_TO_THE_FUTURE_TOKEN
+whitelist_swap_pair $THE_PRESSIAH_COMETH_TOKEN $WRAPPED_AZERO
 
 # spit adresses to a JSON file
 cd "$CONTRACTS_PATH"
