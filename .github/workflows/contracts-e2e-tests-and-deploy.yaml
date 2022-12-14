@@ -303,23 +303,55 @@ jobs:
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
 
-      - name: Trigger Indexer deployment workflow
-        run: |
-          curl -X POST 'https://api.github.com/repos/Cardinal-Cryptography/indexer/actions/workflows/build-and-deploy-to-devnet.yml/dispatches' \
-          -H "Accept: application/vnd.github+json" \
-          -H 'Authorization: Bearer ${{ secrets.CI_GH_TOKEN }}' \
-          -d '{ "ref":"master" }'
+      - name: GIT | Checkout aleph-apps repo
+        uses: actions/checkout@master
+        with:
+          repository: Cardinal-Cryptography/aleph-apps
+          token: ${{ secrets.CI_GH_TOKEN }}
+          path: "aleph-apps"
+          ref: main
 
-      - name: Setup kubectl
+      - name: KUSTOMIZE | Init kustomize
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: '3.8.6'
+
+      - name: KUBECTL | Setup kubectl
         uses: azure/setup-kubectl@v2.0
         with:
           version: 'v1.23.6'
 
-      - name: Restart the-button deployment
+      - name: INDEXER | Destroy archive and squid apps
         shell: bash
         run: |
           aws eks --region eu-central-1 update-kubeconfig --name alephzero-devnet-eu-central-1-eks
+          kubectl delete -n indexer-squid --ignore-not-found=true deploy squid-api
+          kubectl delete -n indexer-squid --ignore-not-found=true deploy squid-processor
+          kubectl delete -n indexer-archive --ignore-not-found=true deploy archive-gateway
+          kubectl delete -n indexer-archive --ignore-not-found=true deploy archive-ingest
+
+      - name: INDEXER | Create archive db and archive apps
+        shell: bash
+        run: |
+          cd aleph-apps/indexer/archive/overlays/devnet/eu-central-1
+          kustomize build . | kubectl apply -f -
+          sleep 3
+          kubectl rollout status --watch --timeout=600s -n indexer-archive statefulset/archive-db
+          kubectl rollout status --watch --timeout=600s -n indexer-archive deploy/archive-ingest
+          kubectl rollout status --watch --timeout=600s -n indexer-archive deploy/archive-gateway
+
+      - name: INDEXER | Create squid db and squid apps
+        shell: bash
+        run: |
+          cd aleph-apps/indexer/squid/overlays/devnet/eu-central-1
+          kustomize build . | kubectl apply -f -
+          sleep 3
+          kubectl rollout status --watch --timeout=600s -n indexer-squid statefulset/squid-db
+          kubectl rollout status --watch --timeout=600s -n indexer-squid deploy/squid-processor
+          kubectl rollout status --watch --timeout=600s -n indexer-squid deploy/squid-api
+
+      - name: BUTTON | Restart the-button deployment
+        shell: bash
+        run: |
           kubectl rollout restart deployment the-button -n the-button
           kubectl rollout status --watch --timeout=600s -n the-button deploy/the-button
-
-      # TODO : Here the workflow should wait for a hook that notifies this workflow when the two prior steps have been finished succesfully
