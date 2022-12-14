@@ -322,6 +322,7 @@ mod simple_dex {
             Ok(())
         }
 
+        /// Returns true if a pair of tokens is whitelisted for swapping between
         #[ink(message)]
         pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
             self.swap_pairs.contains(&SwapPair::new(from, to))
