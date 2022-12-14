@@ -333,20 +333,22 @@ jobs:
       - name: INDEXER | Create archive db and archive apps
         shell: bash
         run: |
+          kubectl rollout restart statefulset archive-db -n indexer-archive
+          kubectl rollout status --watch --timeout=600s -n indexer-archive statefulset/archive-db
           cd aleph-apps/indexer/archive/overlays/devnet/eu-central-1
           kustomize build . | kubectl apply -f -
           sleep 3
-          kubectl rollout status --watch --timeout=600s -n indexer-archive statefulset/archive-db
           kubectl rollout status --watch --timeout=600s -n indexer-archive deploy/archive-ingest
           kubectl rollout status --watch --timeout=600s -n indexer-archive deploy/archive-gateway
 
       - name: INDEXER | Create squid db and squid apps
         shell: bash
         run: |
+          kubectl rollout restart statefulset squid-db -n indexer-squid
+          kubectl rollout status --watch --timeout=600s -n indexer-squid statefulset/squid-db
           cd aleph-apps/indexer/squid/overlays/devnet/eu-central-1
           kustomize build . | kubectl apply -f -
           sleep 3
-          kubectl rollout status --watch --timeout=600s -n indexer-squid statefulset/squid-db
           kubectl rollout status --watch --timeout=600s -n indexer-squid deploy/squid-processor
           kubectl rollout status --watch --timeout=600s -n indexer-squid deploy/squid-api
 
