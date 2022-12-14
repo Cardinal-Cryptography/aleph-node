@@ -74,7 +74,7 @@ impl<PK: PublicKey, D: Data, A: Data> Network<PK, A, D> for ServiceInterface<PK,
     }
 }
 
-/// A service that has to be run for the validator network to work.
+/// A service that has to be run for the clique network to work.
 pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener>
 where
     SK::PublicKey: PeerId,
@@ -95,7 +95,7 @@ impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Servi
 where
     SK::PublicKey: PeerId,
 {
-    /// Create a new validator network service plus an interface for interacting with it.
+    /// Create a new clique network service plus an interface for interacting with it.
     pub fn new(
         dialer: ND,
         listener: NL,
@@ -303,8 +303,8 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    info!(target: LOG_TARGET, "Validator Network status: {}", self.manager.status_report());
-                    debug!(target: LOG_TARGET, "Validator Network legacy status: {}", self.legacy_manager.status_report());
+                    info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
+                    debug!(target: LOG_TARGET, "Clique Network legacy status: {}", self.legacy_manager.status_report());
                 }
                 // received exit signal, stop the network
                 // all workers will be killed automatically after the manager gets dropped
