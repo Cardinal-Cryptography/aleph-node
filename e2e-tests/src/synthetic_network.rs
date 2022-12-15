@@ -1,0 +1,27 @@
+use log::info;
+use synthetic_link::{NetworkConfig, NetworkQoS, SyntheticNetworkClient};
+
+pub type Milliseconds = u64;
+
+fn create_client(node_name: impl AsRef<str>) -> SyntheticNetworkClient {
+    let synthetic_network_url = format!("http://{}:80/qos", node_name.as_ref());
+    info!("creating an http client for url {}", synthetic_network_url);
+    SyntheticNetworkClient::new(synthetic_network_url)
+}
+
+pub async fn set_out_latency(milliseconds: Milliseconds, node_name: impl AsRef<str>) {
+    info!(
+        "setting out-latency of node {} to {}ms",
+        node_name.as_ref(),
+        milliseconds
+    );
+    let mut config = NetworkConfig::new();
+    let mut network_qos = NetworkQoS::default();
+    network_qos.latency(milliseconds);
+    config.egress(network_qos);
+    let mut client = create_client(node_name);
+    client
+        .commit_config(&config)
+        .await
+        .expect("unable to commit network configuration");
+}

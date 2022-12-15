@@ -18,6 +18,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
     let upgrade_to_version = get_env("UPGRADE_VERSION");
     let upgrade_session = get_env("UPGRADE_SESSION");
     let upgrade_finalization_wait_sessions = get_env("UPGRADE_FINALIZATION_WAIT_SESSIONS");
+    let out_latency = get_env("OUT_LATENCY").unwrap_or(500);
 
     Config {
         node,
@@ -30,6 +31,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             upgrade_to_version,
             upgrade_session,
             upgrade_finalization_wait_sessions,
+            out_latency,
         },
     }
 });
@@ -87,12 +89,30 @@ impl Config {
             .unwrap()
     }
 
+    pub fn validator_names(&self) -> Vec<String> {
+        ["Node0", "Node1", "Node2", "Node3", "Node4"]
+            .into_iter()
+            .map(|n| n.to_string())
+            .collect()
+    }
+
     /// Get a `SignedConnection` where the signer is the first validator.
     pub async fn get_first_signed_connection(&self) -> SignedConnection {
         let node = &self.node;
         let mut accounts = get_validators_keys(self);
         let sender = accounts.remove(0);
         SignedConnection::new(node.clone(), sender).await
+    }
+
+    pub async fn create_signed_connections(&self) -> Vec<SignedConnection> {
+        let node = &self.node;
+        let accounts = get_validators_keys(self);
+        let mut result = Vec::new();
+        for account in accounts {
+            let connection = SignedConnection::new(node.clone(), account).await;
+            result.push(connection);
+        }
+        result
     }
 }
 
@@ -113,4 +133,7 @@ pub struct TestCaseParams {
 
     /// How many sessions we should wait after upgrade in VersionUpgrade test.
     pub upgrade_finalization_wait_sessions: Option<u32>,
+
+    /// Milliseconds of network latency
+    pub out_latency: u64,
 }
