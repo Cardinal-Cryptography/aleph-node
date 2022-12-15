@@ -277,7 +277,7 @@ impl TestExtBuilder {
 
         let balances: Vec<_> = validators
             .iter()
-            .map(|i| (**i as u64, 10_000_000))
+            .map(|i| (**i, 10_000_000))
             .collect();
 
         pallet_balances::GenesisConfig::<Test> { balances }

@@ -154,6 +154,12 @@ impl<D: Data> MockNetwork<D> {
     }
 }
 
+impl<D: Data> Default for MockNetwork<D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Bidirectional in-memory stream that closes abruptly after a specified
 /// number of poll_write calls.
 #[derive(Debug)]
@@ -484,10 +490,7 @@ fn spawn_peer(
                         Some(lmi) if counter % lmi == 0 => TWICE_MAX_DATA_SIZE,
                         _ => 0,
                     };
-                    let decodes = match corrupted_message_interval {
-                        Some(cmi) if counter % cmi == 0 => false,
-                        _ => true,
-                    };
+                    let decodes = !matches!(corrupted_message_interval, Some(cmi) if counter % cmi == 0);
                     let data: MockData = MockData::new(thread_rng().gen_range(0..n_msg) as u32, filler_size, decodes);
                     // choose a peer
                     let peer: MockPublicKey = peer_ids[thread_rng().gen_range(0..peer_ids.len())].clone();
