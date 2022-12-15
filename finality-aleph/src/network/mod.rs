@@ -4,42 +4,36 @@ use std::{
     hash::Hash,
 };
 
-use async_trait::async_trait;
-use bytes::Bytes;
 use codec::Codec;
 use sp_api::NumberFor;
 use sp_runtime::traits::Block;
 
-use crate::abft::Recipient;
-
-mod component;
+pub mod data;
+mod gossip;
 mod io;
 mod manager;
 #[cfg(test)]
 pub mod mock;
-mod service;
 mod session;
-mod split;
+mod substrate;
 
-pub use component::{
-    Network as ComponentNetwork, NetworkExt as ComponentNetworkExt,
-    NetworkMap as ComponentNetworkMap, Receiver as ReceiverComponent, Sender as SenderComponent,
-    SimpleNetwork,
-};
+pub use gossip::{Network as GossipNetwork, Protocol, Service as GossipService};
 pub use io::setup as setup_io;
 use manager::SessionCommand;
 pub use manager::{
     ConnectionIO as ConnectionManagerIO, ConnectionManager, ConnectionManagerConfig,
 };
-pub use service::{Service, IO as NetworkServiceIO};
-pub use session::{Manager as SessionManager, ManagerError, Sender, IO as SessionManagerIO};
-pub use split::{split, Split};
+pub use session::{Manager as SessionManager, ManagerError, SessionSender, IO as SessionManagerIO};
+pub use substrate::protocol_name;
 #[cfg(test)]
 pub mod testing {
     use super::manager::LegacyAuthentication;
-    pub use super::manager::{
-        Authentication, DataInSession, DiscoveryMessage, LegacyDiscoveryMessage,
-        PeerAuthentications, SessionHandler, VersionedAuthentication,
+    pub use super::{
+        gossip::mock::{MockEvent, MockRawNetwork},
+        manager::{
+            Authentication, DataInSession, DiscoveryMessage, LegacyDiscoveryMessage,
+            PeerAuthentications, SessionHandler, VersionedAuthentication,
+        },
     };
     use crate::testing::mocks::validator_network::MockAddressingInformation;
 
@@ -89,56 +83,11 @@ pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send
 pub trait AddressingInformation: Debug + Hash + Codec + Clone + Eq + Send + Sync + 'static {
     type PeerId: PeerId;
 
-    /// Returns the peer id associated with this multiaddress if it exists and is unique.
+    /// Returns the peer id associated with this address.
     fn peer_id(&self) -> Self::PeerId;
-}
 
-/// The Authentication protocol is used for validator discovery.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub enum Protocol {
-    Authentication,
-}
-
-/// Abstraction over a sender to network.
-#[async_trait]
-pub trait NetworkSender: Send + Sync + 'static {
-    type SenderError: std::error::Error;
-
-    /// A method for sending data. Returns Error if not connected to the peer.
-    async fn send<'a>(
-        &'a self,
-        data: impl Into<Vec<u8>> + Send + Sync + 'static,
-    ) -> Result<(), Self::SenderError>;
-}
-
-#[derive(Clone)]
-pub enum Event<P> {
-    StreamOpened(P, Protocol),
-    StreamClosed(P, Protocol),
-    Messages(Vec<(Protocol, Bytes)>),
-}
-
-#[async_trait]
-pub trait EventStream<P> {
-    async fn next_event(&mut self) -> Option<Event<P>>;
-}
-
-/// Abstraction over a network.
-pub trait Network: Clone + Send + Sync + 'static {
-    type SenderError: std::error::Error;
-    type NetworkSender: NetworkSender;
-    type PeerId: Clone + Debug + Eq + Hash + Send;
-    type EventStream: EventStream<Self::PeerId>;
-
-    /// Returns a stream of events representing what happens on the network.
-    fn event_stream(&self) -> Self::EventStream;
-
-    /// Returns a sender to the given peer using a given protocol. Returns Error if not connected to the peer.
-    fn sender(
-        &self,
-        peer_id: Self::PeerId,
-        protocol: Protocol,
-    ) -> Result<Self::NetworkSender, Self::SenderError>;
+    /// Verify the information.
+    fn verify(&self) -> bool;
 }
 
 /// Abstraction for requesting own network addressing information.
@@ -177,23 +126,10 @@ pub enum ConnectionCommand<A: AddressingInformation> {
     DelReserved(HashSet<A::PeerId>),
 }
 
-/// Returned when something went wrong when sending data using a DataNetwork.
-#[derive(Debug)]
-pub enum SendError {
-    SendFailed,
-}
-
-/// What the data sent using the network has to satisfy.
+/// A basic alias for properties we expect basic data to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
 impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 
 // In practice D: Data and P: PeerId, but we cannot require that in type aliases.
 type AddressedData<D, P> = (D, P);
-
-/// A generic interface for sending and receiving data.
-#[async_trait::async_trait]
-pub trait DataNetwork<D: Data>: Send + Sync {
-    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError>;
-    async fn next(&mut self) -> Option<D>;
-}
