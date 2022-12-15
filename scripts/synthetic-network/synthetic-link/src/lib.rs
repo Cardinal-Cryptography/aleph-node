@@ -96,12 +96,8 @@ impl NetworkConfig {
         }
     }
 
-    pub fn ingress(&mut self, qos: NetworkQoS) -> &mut Self {
-        self.config.default_link.ingress = qos.qos;
-        self
-    }
-    pub fn egress(&mut self, qos: NetworkQoS) -> &mut Self {
-        self.config.default_link.egress = qos.qos;
+    pub fn link(&mut self, link: NetworkLink) -> &mut Self {
+        self.config.default_link = link.link;
         self
     }
 
@@ -112,6 +108,24 @@ impl NetworkConfig {
 
     fn into_synthetic_network(&self) -> &SyntheticNetwork {
         &self.config
+    }
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        NetworkConfig::new()
+    }
+}
+
+impl From<SyntheticNetwork> for NetworkConfig {
+    fn from(synth_net: SyntheticNetwork) -> Self {
+        Self { config: synth_net }
+    }
+}
+
+impl From<SyntheticNetworkJson> for NetworkConfig {
+    fn from(value: SyntheticNetworkJson) -> Self {
+        NetworkConfig::from(value.0)
     }
 }
 
@@ -156,6 +170,19 @@ impl NetworkFlow {
         self.flow.flow.port_max = *port_range.end();
         self
     }
+
+    pub fn link(&mut self, link: NetworkLink) -> &mut Self {
+        self.flow.link = link.link;
+        self
+    }
+}
+
+impl Default for NetworkFlow {
+    fn default() -> Self {
+        Self {
+            flow: DEFAULT_NAMED_FLOW,
+        }
+    }
 }
 
 pub enum IpPattern {
@@ -190,6 +217,12 @@ impl NetworkLink {
     }
 }
 
+impl Default for NetworkLink {
+    fn default() -> Self {
+        Self { link: DEFAULT_LINK }
+    }
+}
+
 pub struct NetworkQoS {
     qos: QoS,
 }
@@ -210,21 +243,9 @@ impl NetworkQoS {
     }
 }
 
-impl Default for NetworkConfig {
+impl Default for NetworkQoS {
     fn default() -> Self {
-        NetworkConfig::new()
-    }
-}
-
-impl From<SyntheticNetwork> for NetworkConfig {
-    fn from(synth_net: SyntheticNetwork) -> Self {
-        Self { config: synth_net }
-    }
-}
-
-impl From<SyntheticNetworkJson> for NetworkConfig {
-    fn from(value: SyntheticNetworkJson) -> Self {
-        NetworkConfig::from(value.0)
+        Self { qos: DEFAULT_QOS }
     }
 }
 
