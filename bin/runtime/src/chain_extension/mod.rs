@@ -182,7 +182,7 @@ impl SnarcosChainExtension {
             // Negative case: Now we inspect how we should adjust weighting. In case pallet provides
             // us with post-dispatch weight, we will use it. Otherwise, we weight the call in the
             // same way as in the positive case.
-            Err((_, Some(actual_weight))) => env.adjust_weight(pre_charge, actual_weight.clone()),
+            Err((_, Some(actual_weight))) => env.adjust_weight(pre_charge, *actual_weight),
             Err((_, None)) => env.adjust_weight(pre_charge, weight_of_verify(Some(args.system))),
         };
 
