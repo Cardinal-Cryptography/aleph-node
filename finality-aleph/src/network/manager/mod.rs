@@ -1,14 +1,26 @@
-use codec::{Decode, Encode, Error, Input, Output};
+//! Managing the validator connections using the gossip network.
+use std::fmt::Display;
+
+use codec::{Decode, Encode};
+use futures::channel::mpsc;
 
 use crate::{
-    crypto::Signature,
-    network::{AddressingInformation, Data},
-    NodeIndex, SessionId,
+    crypto::{AuthorityPen, AuthorityVerifier, Signature},
+    network::{
+        data::{
+            component::{Sender, SimpleNetwork},
+            SendError,
+        },
+        AddressingInformation, Data,
+    },
+    NodeIndex, Recipient, SessionId,
 };
 
 mod compatibility;
 mod connections;
+mod data;
 mod discovery;
+mod manager;
 mod service;
 mod session;
 
@@ -16,11 +28,12 @@ pub use compatibility::{
     DiscoveryMessage, LegacyDiscoveryMessage, PeerAuthentications, VersionedAuthentication,
 };
 use connections::Connections;
+#[cfg(test)]
+pub use data::DataInSession;
 pub use discovery::Discovery;
-pub use service::{
-    Config as ConnectionManagerConfig, Service as ConnectionManager, SessionCommand,
-    IO as ConnectionIO,
-};
+pub use service::{Config as ConnectionManagerConfig, ManagerError, Service as ConnectionManager};
+#[cfg(test)]
+pub use session::tests::{authentication, legacy_authentication};
 pub use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
 
 /// Data validators used to use to authenticate themselves for a single session
@@ -107,33 +120,59 @@ pub type LegacyAuthentication<M> = (LegacyAuthData<M>, Signature);
 /// A full authentication, consisting of a signed AuthData.
 pub type Authentication<A> = (AuthData<A>, Signature);
 
-/// Data inside session, sent to validator network.
-/// Wrapper for data send over network. We need it to ensure compatibility.
-/// The order of the data and session_id is fixed in encode and the decode expects it to be data, session_id.
-/// Since data is versioned, i.e. it's encoding starts with a version number in the standardized way,
-/// this will allow us to retrofit versioning here if we ever need to change this structure.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DataInSession<D: Data> {
-    pub data: D,
-    pub session_id: SessionId,
+/// Sends data within a single session.
+#[derive(Clone)]
+pub struct SessionSender<D: Data> {
+    session_id: SessionId,
+    messages_for_network: mpsc::UnboundedSender<(D, SessionId, Recipient)>,
 }
 
-impl<D: Data> Decode for DataInSession<D> {
-    fn decode<I: Input>(input: &mut I) -> Result<Self, Error> {
-        let data = D::decode(input)?;
-        let session_id = SessionId::decode(input)?;
-
-        Ok(Self { data, session_id })
+impl<D: Data> Sender<D> for SessionSender<D> {
+    fn send(&self, data: D, recipient: Recipient) -> Result<(), SendError> {
+        self.messages_for_network
+            .unbounded_send((data, self.session_id, recipient))
+            .map_err(|_| SendError::SendFailed)
     }
 }
 
-impl<D: Data> Encode for DataInSession<D> {
-    fn size_hint(&self) -> usize {
-        self.data.size_hint() + self.session_id.size_hint()
-    }
+/// Sends and receives data within a single session.
+type Network<D> = SimpleNetwork<D, mpsc::UnboundedReceiver<D>, SessionSender<D>>;
 
-    fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
-        self.data.encode_to(dest);
-        self.session_id.encode_to(dest);
-    }
+/// An interface for managing session networks for validators and nonvalidators.
+#[async_trait::async_trait]
+pub trait SessionManager<D: Data>: Send + Sync + 'static {
+    type Error: Display;
+
+    /// Start participating or update the verifier in the given session where you are not a
+    /// validator.
+    fn start_nonvalidator_session(
+        &self,
+        session_id: SessionId,
+        verifier: AuthorityVerifier,
+    ) -> Result<(), Self::Error>;
+
+    /// Start participating or update the information about the given session where you are a
+    /// validator. Returns a session network to be used for sending and receiving data within the
+    /// session.
+    async fn start_validator_session(
+        &self,
+        session_id: SessionId,
+        verifier: AuthorityVerifier,
+        node_id: NodeIndex,
+        pen: AuthorityPen,
+    ) -> Result<Network<D>, Self::Error>;
+
+    /// Start participating or update the information about the given session where you are a
+    /// validator. Used for early starts when you don't yet need the returned network, but would
+    /// like to start discovery.
+    fn early_start_validator_session(
+        &self,
+        session_id: SessionId,
+        verifier: AuthorityVerifier,
+        node_id: NodeIndex,
+        pen: AuthorityPen,
+    ) -> Result<(), Self::Error>;
+
+    /// Stop participating in the given session.
+    fn stop_session(&self, session_id: SessionId) -> Result<(), Self::Error>;
 }

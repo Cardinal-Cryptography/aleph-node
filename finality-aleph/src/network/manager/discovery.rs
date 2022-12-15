@@ -123,9 +123,11 @@ mod tests {
     use crate::{
         network::{
             clique::mock::{random_address, MockAddressingInformation},
-            manager::{compatibility::PeerAuthentications, SessionHandler},
+            manager::{
+                authentication, compatibility::PeerAuthentications, legacy_authentication,
+                SessionHandler,
+            },
             mock::crypto_basics,
-            testing::{authentication, legacy_authentication},
         },
         SessionId,
     };
