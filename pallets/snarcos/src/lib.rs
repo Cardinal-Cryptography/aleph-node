@@ -202,7 +202,7 @@ pub mod pallet {
 
     impl<T: Config> Pallet<T> {
         /// This is the inner logic behind `Self::store_key`, however it is free from account lookup
-        /// or other dispatchable-relatsnarkelinged overhead. Thus, it is more suited to call directly from
+        /// or other dispatchable-related overhead. Thus, it is more suited to call directly from
         /// runtime, like from a chain extension.
         pub fn bare_store_key(
             identifier: VerificationKeyIdentifier,
