@@ -45,5 +45,6 @@ impl Executor for Runtime {
         system: ProvingSystem,
     ) -> Result<(), Error<Runtime>> {
         Snarcos::<Runtime>::bare_verify(verification_key_identifier, proof, public_input, system)
+            .map_err(|(e, _)| e)
     }
 }

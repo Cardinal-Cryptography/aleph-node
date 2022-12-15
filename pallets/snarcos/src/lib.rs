@@ -254,29 +254,53 @@ pub mod pallet {
             proof: Vec<u8>,
             public_input: Vec<u8>,
         ) -> Result<(), (Error<T>, Option<Weight>)> {
+            let data_length_limit = T::MaximumDataLength::get() as usize;
+            let data_length_excess = proof.len().saturating_sub(data_length_limit)
+                + public_input.len().saturating_sub(data_length_limit);
             ensure!(
-                proof.len() <= T::MaximumDataLength::get() as usize
-                    && public_input.len() <= T::MaximumDataLength::get() as usize,
-                (Error::<T>::DataTooLong, None)
+                data_length_excess == 0,
+                (
+                    Error::<T>::DataTooLong,
+                    Some(T::WeightInfo::verify_data_too_long(
+                        data_length_excess as u32
+                    ))
+                )
             );
 
+            let proof_len = proof.len() as u32;
             let proof: S::Proof = CanonicalDeserialize::deserialize(&*proof).map_err(|e| {
                 log::error!("Deserializing proof failed: {:?}", e);
-                (Error::<T>::DeserializingProofFailed, None)
+                (
+                    Error::<T>::DeserializingProofFailed,
+                    Some(T::WeightInfo::verify_data_decoding_fails(proof_len)),
+                )
             })?;
 
             let public_input: Vec<S::CircuitField> =
                 CanonicalDeserialize::deserialize(&*public_input).map_err(|e| {
                     log::error!("Deserializing public input failed: {:?}", e);
-                    (Error::<T>::DeserializingPublicInputFailed, None)
+                    (
+                        Error::<T>::DeserializingPublicInputFailed,
+                        Some(T::WeightInfo::verify_data_decoding_fails(
+                            proof_len + public_input.len() as u32,
+                        )),
+                    )
                 })?;
 
-            let verification_key = VerificationKeys::<T>::get(verification_key_identifier)
-                .ok_or((Error::<T>::UnknownVerificationKeyIdentifier, None))?;
+            let verification_key =
+                VerificationKeys::<T>::get(verification_key_identifier).ok_or((
+                    Error::<T>::UnknownVerificationKeyIdentifier,
+                    Some(T::WeightInfo::verify_key_decoding_fails(0)),
+                ))?;
             let verification_key: S::VerifyingKey =
                 CanonicalDeserialize::deserialize(&**verification_key).map_err(|e| {
                     log::error!("Deserializing verification key failed: {:?}", e);
-                    (Error::<T>::DeserializingVerificationKeyFailed, None)
+                    (
+                        Error::<T>::DeserializingVerificationKeyFailed,
+                        Some(T::WeightInfo::verify_key_decoding_fails(
+                            verification_key.len() as u32,
+                        )),
+                    )
                 })?;
 
             // At some point we should enhance error type from `S::verify` and be more verbose here.

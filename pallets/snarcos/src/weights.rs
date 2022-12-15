@@ -113,128 +113,130 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	/// The range of component `l` is `[1, 10000]`.
 	fn store_key(l: u32, ) -> Weight {
-		// Minimum execution time: 13_339 nanoseconds.
-		Weight::from_ref_time(14_325_266_u64)
-			// Standard Error: 5
-			.saturating_add(Weight::from_ref_time(447_u64).saturating_mul(l as u64))
+		// Minimum execution time: 13_702 nanoseconds.
+		Weight::from_ref_time(14_276_689_u64)
+			// Standard Error: 61
+			.saturating_add(Weight::from_ref_time(776_u64).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_key(_l: u32, ) -> Weight {
-		// Minimum execution time: 13_052 nanoseconds.
-		Weight::from_ref_time(17_358_333_u64)
+	fn overwrite_key(l: u32, ) -> Weight {
+		// Minimum execution time: 13_361 nanoseconds.
+		Weight::from_ref_time(14_215_084_u64)
+			// Standard Error: 23
+			.saturating_add(Weight::from_ref_time(444_u64).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 39_940_549 nanoseconds.
-		Weight::from_ref_time(42_493_264_000_u64)
+		// Minimum execution time: 43_742_279 nanoseconds.
+		Weight::from_ref_time(44_705_063_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 31_639_198 nanoseconds.
-		Weight::from_ref_time(32_306_346_000_u64)
+		// Minimum execution time: 35_037_193 nanoseconds.
+		Weight::from_ref_time(35_375_435_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 41_828_738 nanoseconds.
-		Weight::from_ref_time(42_100_627_000_u64)
+		// Minimum execution time: 44_184_350 nanoseconds.
+		Weight::from_ref_time(47_400_856_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 41_895_270 nanoseconds.
-		Weight::from_ref_time(42_149_212_000_u64)
+		// Minimum execution time: 46_808_278 nanoseconds.
+		Weight::from_ref_time(51_547_222_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 41_874_845 nanoseconds.
-		Weight::from_ref_time(42_103_629_000_u64)
+		// Minimum execution time: 44_930_280 nanoseconds.
+		Weight::from_ref_time(47_091_222_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_xor() -> Weight {
-		// Minimum execution time: 44_611_925 nanoseconds.
-		Weight::from_ref_time(45_614_670_000_u64)
+		// Minimum execution time: 49_795_587 nanoseconds.
+		Weight::from_ref_time(50_232_591_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_linear_equation() -> Weight {
-		// Minimum execution time: 36_369_304 nanoseconds.
-		Weight::from_ref_time(36_862_685_000_u64)
+		// Minimum execution time: 40_474_990 nanoseconds.
+		Weight::from_ref_time(40_683_031_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_8() -> Weight {
-		// Minimum execution time: 46_572_698 nanoseconds.
-		Weight::from_ref_time(52_386_658_000_u64)
+		// Minimum execution time: 51_849_269 nanoseconds.
+		Weight::from_ref_time(52_054_892_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_64() -> Weight {
-		// Minimum execution time: 46_837_112 nanoseconds.
-		Weight::from_ref_time(47_172_148_000_u64)
+		// Minimum execution time: 51_729_849 nanoseconds.
+		Weight::from_ref_time(52_166_043_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 47_097_757 nanoseconds.
-		Weight::from_ref_time(47_362_665_000_u64)
+		// Minimum execution time: 51_763_220 nanoseconds.
+		Weight::from_ref_time(52_101_122_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_xor() -> Weight {
-		// Minimum execution time: 69_932_264 nanoseconds.
-		Weight::from_ref_time(72_348_152_000_u64)
+		// Minimum execution time: 84_053_079 nanoseconds.
+		Weight::from_ref_time(84_830_335_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_linear_equation() -> Weight {
-		// Minimum execution time: 70_242_257 nanoseconds.
-		Weight::from_ref_time(72_840_577_000_u64)
+		// Minimum execution time: 76_647_993 nanoseconds.
+		Weight::from_ref_time(77_253_709_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_8() -> Weight {
-		// Minimum execution time: 69_459_911 nanoseconds.
-		Weight::from_ref_time(70_503_101_000_u64)
+		// Minimum execution time: 75_382_659 nanoseconds.
+		Weight::from_ref_time(75_803_670_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_64() -> Weight {
-		// Minimum execution time: 69_982_474 nanoseconds.
-		Weight::from_ref_time(71_737_936_000_u64)
+		// Minimum execution time: 75_034_117 nanoseconds.
+		Weight::from_ref_time(76_007_928_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 71_927_536 nanoseconds.
-		Weight::from_ref_time(73_869_145_000_u64)
+		// Minimum execution time: 75_611_360 nanoseconds.
+		Weight::from_ref_time(75_932_244_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
-
-	fn verify_data_too_long(e: u32) -> Weight {
-		todo!()
+	/// The range of component `e` is `[1, 10000000]`.
+	fn verify_data_too_long(_e: u32, ) -> Weight {
+		// Minimum execution time: 3_487 nanoseconds.
+		Weight::from_ref_time(4_934_423_u64)
 	}
-
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_data_decoding_fails(_l: u32, ) -> Weight {
-		// Minimum execution time: 5_645 nanoseconds.
-		Weight::from_ref_time(6_651_822_u64)
+		// Minimum execution time: 6_051 nanoseconds.
+		Weight::from_ref_time(8_121_060_u64)
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_key_decoding_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 5_294_689 nanoseconds.
-		Weight::from_ref_time(5_739_822_904_u64)
-			// Standard Error: 3_601
-			.saturating_add(Weight::from_ref_time(9_476_u64).saturating_mul(l as u64))
+		// Minimum execution time: 5_385_237 nanoseconds.
+		Weight::from_ref_time(5_908_610_209_u64)
+			// Standard Error: 3_877
+			.saturating_add(Weight::from_ref_time(26_606_u64).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 }
@@ -244,128 +246,130 @@ impl BenchmarkInfo for () {
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	/// The range of component `l` is `[1, 10000]`.
 	fn store_key(l: u32, ) -> Weight {
-		// Minimum execution time: 13_339 nanoseconds.
-		Weight::from_ref_time(14_325_266_u64)
-			// Standard Error: 5
-			.saturating_add(Weight::from_ref_time(447_u64).saturating_mul(l as u64))
+		// Minimum execution time: 13_702 nanoseconds.
+		Weight::from_ref_time(14_276_689_u64)
+			// Standard Error: 61
+			.saturating_add(Weight::from_ref_time(776_u64).saturating_mul(l as u64))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:1)
 	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_key(_l: u32, ) -> Weight {
-		// Minimum execution time: 13_052 nanoseconds.
-		Weight::from_ref_time(17_358_333_u64)
+	fn overwrite_key(l: u32, ) -> Weight {
+		// Minimum execution time: 13_361 nanoseconds.
+		Weight::from_ref_time(14_215_084_u64)
+			// Standard Error: 23
+			.saturating_add(Weight::from_ref_time(444_u64).saturating_mul(l as u64))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 39_940_549 nanoseconds.
-		Weight::from_ref_time(42_493_264_000_u64)
+		// Minimum execution time: 43_742_279 nanoseconds.
+		Weight::from_ref_time(44_705_063_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 31_639_198 nanoseconds.
-		Weight::from_ref_time(32_306_346_000_u64)
+		// Minimum execution time: 35_037_193 nanoseconds.
+		Weight::from_ref_time(35_375_435_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 41_828_738 nanoseconds.
-		Weight::from_ref_time(42_100_627_000_u64)
+		// Minimum execution time: 44_184_350 nanoseconds.
+		Weight::from_ref_time(47_400_856_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 41_895_270 nanoseconds.
-		Weight::from_ref_time(42_149_212_000_u64)
+		// Minimum execution time: 46_808_278 nanoseconds.
+		Weight::from_ref_time(51_547_222_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 41_874_845 nanoseconds.
-		Weight::from_ref_time(42_103_629_000_u64)
+		// Minimum execution time: 44_930_280 nanoseconds.
+		Weight::from_ref_time(47_091_222_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_xor() -> Weight {
-		// Minimum execution time: 44_611_925 nanoseconds.
-		Weight::from_ref_time(45_614_670_000_u64)
+		// Minimum execution time: 49_795_587 nanoseconds.
+		Weight::from_ref_time(50_232_591_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_linear_equation() -> Weight {
-		// Minimum execution time: 36_369_304 nanoseconds.
-		Weight::from_ref_time(36_862_685_000_u64)
+		// Minimum execution time: 40_474_990 nanoseconds.
+		Weight::from_ref_time(40_683_031_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_8() -> Weight {
-		// Minimum execution time: 46_572_698 nanoseconds.
-		Weight::from_ref_time(52_386_658_000_u64)
+		// Minimum execution time: 51_849_269 nanoseconds.
+		Weight::from_ref_time(52_054_892_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_64() -> Weight {
-		// Minimum execution time: 46_837_112 nanoseconds.
-		Weight::from_ref_time(47_172_148_000_u64)
+		// Minimum execution time: 51_729_849 nanoseconds.
+		Weight::from_ref_time(52_166_043_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_gm17_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 47_097_757 nanoseconds.
-		Weight::from_ref_time(47_362_665_000_u64)
+		// Minimum execution time: 51_763_220 nanoseconds.
+		Weight::from_ref_time(52_101_122_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_xor() -> Weight {
-		// Minimum execution time: 69_932_264 nanoseconds.
-		Weight::from_ref_time(72_348_152_000_u64)
+		// Minimum execution time: 84_053_079 nanoseconds.
+		Weight::from_ref_time(84_830_335_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_linear_equation() -> Weight {
-		// Minimum execution time: 70_242_257 nanoseconds.
-		Weight::from_ref_time(72_840_577_000_u64)
+		// Minimum execution time: 76_647_993 nanoseconds.
+		Weight::from_ref_time(77_253_709_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_8() -> Weight {
-		// Minimum execution time: 69_459_911 nanoseconds.
-		Weight::from_ref_time(70_503_101_000_u64)
+		// Minimum execution time: 75_382_659 nanoseconds.
+		Weight::from_ref_time(75_803_670_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_64() -> Weight {
-		// Minimum execution time: 69_982_474 nanoseconds.
-		Weight::from_ref_time(71_737_936_000_u64)
+		// Minimum execution time: 75_034_117 nanoseconds.
+		Weight::from_ref_time(76_007_928_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	fn verify_marlin_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 71_927_536 nanoseconds.
-		Weight::from_ref_time(73_869_145_000_u64)
+		// Minimum execution time: 75_611_360 nanoseconds.
+		Weight::from_ref_time(75_932_244_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
-
-	fn verify_data_too_long(e: u32) -> Weight {
-		todo!()
+	/// The range of component `e` is `[1, 10000000]`.
+	fn verify_data_too_long(_e: u32, ) -> Weight {
+		// Minimum execution time: 3_487 nanoseconds.
+		Weight::from_ref_time(4_934_423_u64)
 	}
-
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_data_decoding_fails(_l: u32, ) -> Weight {
-		// Minimum execution time: 5_645 nanoseconds.
-		Weight::from_ref_time(6_651_822_u64)
+		// Minimum execution time: 6_051 nanoseconds.
+		Weight::from_ref_time(8_121_060_u64)
 	}
 	// Storage: Snarcos VerificationKeys (r:1 w:0)
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_key_decoding_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 5_294_689 nanoseconds.
-		Weight::from_ref_time(5_739_822_904_u64)
-			// Standard Error: 3_601
-			.saturating_add(Weight::from_ref_time(9_476_u64).saturating_mul(l as u64))
+		// Minimum execution time: 5_385_237 nanoseconds.
+		Weight::from_ref_time(5_908_610_209_u64)
+			// Standard Error: 3_877
+			.saturating_add(Weight::from_ref_time(26_606_u64).saturating_mul(l as u64))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 }
