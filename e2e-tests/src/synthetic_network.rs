@@ -1,5 +1,5 @@
 use log::info;
-use synthetic_link::{NetworkConfig, NetworkQoS, SyntheticNetworkClient};
+use synthetic_link::{NetworkLink, NetworkQoS, SyntheticNetworkClient};
 
 pub type Milliseconds = u64;
 
@@ -15,11 +15,18 @@ pub async fn set_out_latency(milliseconds: Milliseconds, node_name: impl AsRef<s
         node_name.as_ref(),
         milliseconds
     );
-    let mut config = NetworkConfig::new();
+    let mut client = create_client(node_name);
+    let mut config = client
+        .load_config()
+        .await
+        .expect("we should be able to download synthetic-network's config");
+
     let mut network_qos = NetworkQoS::default();
     network_qos.latency(milliseconds);
-    config.egress(network_qos);
-    let mut client = create_client(node_name);
+    let mut network_link = NetworkLink::default();
+    network_link.egress(network_qos);
+    config.link(network_link);
+
     client
         .commit_config(&config)
         .await
