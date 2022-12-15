@@ -22,7 +22,7 @@ pub trait SessionUserApi {
 }
 
 #[async_trait::async_trait]
-impl SessionApi for Connection {
+impl<C: AsRef<Connection> + Sync + ?Sized> SessionApi for C {
     async fn get_next_session_keys(
         &self,
         account: AccountId,
@@ -30,13 +30,14 @@ impl SessionApi for Connection {
     ) -> Option<SessionKeys> {
         let addrs = api::storage().session().next_keys(account);
 
-        self.get_storage_entry_maybe(&addrs, at).await
+        self.as_ref().get_storage_entry_maybe(&addrs, at).await
     }
 
     async fn get_session(&self, at: Option<BlockHash>) -> SessionIndex {
         let addrs = api::storage().session().current_index();
 
-        self.get_storage_entry_maybe(&addrs, at)
+        self.as_ref()
+            .get_storage_entry_maybe(&addrs, at)
             .await
             .unwrap_or_default()
     }
@@ -44,7 +45,7 @@ impl SessionApi for Connection {
     async fn get_validators(&self, at: Option<BlockHash>) -> Vec<AccountId> {
         let addrs = api::storage().session().validators();
 
-        self.get_storage_entry(&addrs, at).await
+        self.as_ref().get_storage_entry(&addrs, at).await
     }
 }
 

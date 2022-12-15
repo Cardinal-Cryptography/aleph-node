@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{convert::AsRef, thread::sleep, time::Duration};
 
 use anyhow::anyhow;
 use codec::Decode;
@@ -55,6 +55,12 @@ impl SudoCall for RootConnection {
         let sudo = api::tx().sudo().sudo(call);
 
         self.as_signed().send_tx(sudo, status).await
+    }
+}
+
+impl AsRef<Connection> for Connection {
+    fn as_ref(&self) -> &Connection {
+        self
     }
 }
 
@@ -158,6 +164,12 @@ impl SignedConnection {
         info!(target: "aleph-client", "tx included in block {:?}", hash);
 
         Ok(hash)
+    }
+}
+
+impl AsRef<Connection> for SignedConnection {
+    fn as_ref(&self) -> &Connection {
+        &self.connection
     }
 }
 
