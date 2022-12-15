@@ -35,7 +35,6 @@ fn put_key() {
 }
 
 #[test]
-#[allow(let_unit_value)]
 fn stores_vk_with_fresh_identifier() {
     new_test_ext().execute_with(|| {
         assert_ok!(Snarcos::store_key(caller(), IDENTIFIER, vk()));
@@ -117,6 +116,35 @@ fn verifies_proof() {
             input(),
             SYSTEM
         ));
+    });
+}
+
+#[test]
+fn verify_shouts_when_data_is_too_long() {
+    new_test_ext().execute_with(|| {
+        let limit: u32 = <TestRuntime as crate::Config>::MaximumDataLength::get();
+
+        assert_err!(
+            Snarcos::verify(
+                caller(),
+                IDENTIFIER,
+                vec![0; (limit + 1) as usize],
+                input(),
+                SYSTEM
+            ),
+            Error::<TestRuntime>::DataTooLong
+        );
+
+        assert_err!(
+            Snarcos::verify(
+                caller(),
+                IDENTIFIER,
+                proof(),
+                vec![0; (limit + 1) as usize],
+                SYSTEM
+            ),
+            Error::<TestRuntime>::DataTooLong
+        );
     });
 }
 

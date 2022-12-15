@@ -1,3 +1,5 @@
+#![allow(clippy::let_unit_value)]
+
 use frame_benchmarking::{account, benchmarks, vec, Vec};
 use frame_support::{traits::Get, BoundedVec};
 use frame_system::RawOrigin;
@@ -110,6 +112,10 @@ benchmarks! {
         let Artifacts { key, proof, input } = get_artifacts!(Marlin, MerkleTree1024);
         let _ = insert_key::<T>(key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input, Marlin)
+
+    // Partial `verify` execution
+
+
 
     // Benchmarks as unit tests
 
