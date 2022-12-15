@@ -1,4 +1,8 @@
-use aleph_client::{pallets::aleph::{AlephApi, AlephRpc}, utility::BlocksApi, Connection};
+use aleph_client::{
+    pallets::aleph::{AlephApi, AlephRpc},
+    utility::BlocksApi,
+    Connection,
+};
 use log::info;
 use primitives::{BlockNumber, Version};
 

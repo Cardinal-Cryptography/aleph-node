@@ -106,6 +106,6 @@ impl AlephRpc for Connection {
         let method = "finalityVersion_nextSessionFinalityVersion";
         let params = rpc_params![hash];
 
-        self.rpc_call(method.to_string(), params).await.unwrap()
+        self.client.rpc().request(method, params).await.unwrap()
     }
 }

@@ -30,12 +30,12 @@ impl<C, M> FinalityVersion<C, M> {
 }
 
 impl<C, Block> FinalityVersionApiServer<<Block as BlockT>::Hash> for FinalityVersion<C, Block>
-    where
-        Block: BlockT,
-        C: Send + Sync + 'static,
-        C: ProvideRuntimeApi<Block>,
-        C: HeaderBackend<Block>,
-        C::Api: AlephSessionApi<Block>,
+where
+    Block: BlockT,
+    C: Send + Sync + 'static,
+    C: ProvideRuntimeApi<Block>,
+    C: HeaderBackend<Block>,
+    C::Api: AlephSessionApi<Block>,
 {
     fn next_session_finality_version(
         &self,

@@ -1,10 +1,7 @@
 use primitives::SessionIndex;
 use sp_std::vec::Vec;
 
-use crate::{
-    Config, Event, FinalityScheduledVersionChange, FinalityVersion,
-    Pallet,
-};
+use crate::{Config, Event, FinalityScheduledVersionChange, FinalityVersion, Pallet};
 
 impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
 where

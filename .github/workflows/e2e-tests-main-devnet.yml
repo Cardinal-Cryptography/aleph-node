@@ -545,7 +545,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: version_upgrade::schedule_version_change
+          test-case: finality_version::schedule_version_change
         env:
           UPGRADE_VERSION: 1
           UPGRADE_SESSION: 3
@@ -644,7 +644,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: finality_version_change
+          test-case: finality_version::finality_version_change
           follow-up-finalization-check: true
         timeout-minutes: 10
 
