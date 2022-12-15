@@ -150,65 +150,92 @@ fn verify__charges_before_reading() {
     assert_eq!(charged(charging_listener), weight_of_verify(None).into());
 }
 
-fn simulate_verify<Exc: Executor>(expected_ret_val: u32) {
+const ADJUSTED_WEIGHT: u64 = 1729;
+
+fn simulate_verify_failure<
+    const ERROR: Error<()>,
+    const ACTUAL_WEIGHT: Option<u64>,
+    const EXPECTED_RET_VAL: u32,
+>() {
     let (env, charging_listener) =
         MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
 
-    let result = SnarcosChainExtension::snarcos_verify::<_, Exc>(env);
+    let result =
+        SnarcosChainExtension::snarcos_verify::<_, VerifyErrorer<ERROR, ACTUAL_WEIGHT>>(env);
 
-    assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
+    assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == EXPECTED_RET_VAL));
+
+    let expected_charge =
+        ACTUAL_WEIGHT.unwrap_or_else(|| weight_of_verify(Some(SYSTEM)).ref_time());
     assert_eq!(
         charged(charging_listener),
-        weight_of_verify(Some(SYSTEM)).into()
+        Weight::from_ref_time(expected_charge).into()
     );
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_proof_deserialization_failed() {
-    simulate_verify::<VerifyErrorer<{ DeserializingProofFailed }>>(
+    simulate_verify_failure::<
+        { DeserializingProofFailed },
+        { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL,
-    )
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_input_deserialization_failed() {
-    simulate_verify::<VerifyErrorer<{ DeserializingPublicInputFailed }>>(
+    simulate_verify_failure::<
+        { DeserializingPublicInputFailed },
+        { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL,
-    )
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_no_such_vk() {
-    simulate_verify::<VerifyErrorer<{ UnknownVerificationKeyIdentifier }>>(
+    simulate_verify_failure::<
+        { UnknownVerificationKeyIdentifier },
+        { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_UNKNOWN_IDENTIFIER,
-    )
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_vk_deserialization_failed() {
-    simulate_verify::<VerifyErrorer<{ DeserializingVerificationKeyFailed }>>(
+    simulate_verify_failure::<
+        { DeserializingVerificationKeyFailed },
+        { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL,
-    )
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_verification_failed() {
-    simulate_verify::<VerifyErrorer<{ VerificationFailed }>>(SNARCOS_VERIFY_VERIFICATION_FAIL)
+    simulate_verify_failure::<{ VerificationFailed }, { None }, SNARCOS_VERIFY_VERIFICATION_FAIL>()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_incorrect_proof() {
-    simulate_verify::<VerifyErrorer<{ IncorrectProof }>>(SNARCOS_VERIFY_INCORRECT_PROOF)
+    simulate_verify_failure::<{ IncorrectProof }, { None }, SNARCOS_VERIFY_INCORRECT_PROOF>()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__positive_scenario() {
-    simulate_verify::<VerifyOkayer>(SNARCOS_VERIFY_OK)
+    let (env, charging_listener) =
+        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
+
+    let result = SnarcosChainExtension::snarcos_verify::<_, VerifyOkayer>(env);
+
+    assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == SNARCOS_VERIFY_OK));
+    assert_eq!(
+        charged(charging_listener),
+        weight_of_verify(Some(SYSTEM)).into()
+    );
 }
