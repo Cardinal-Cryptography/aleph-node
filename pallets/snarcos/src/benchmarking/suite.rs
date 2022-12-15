@@ -128,14 +128,14 @@ benchmarks! {
         )
     }
 
-    // It shouldn't matter whether decoding of proof fails, but for input it succeeds, or the other
-    // way round. The only thing that is important is that we don't read storage nor run
+    // It shouldn't matter whether deserializing of proof fails, but for input it succeeds, or the
+    // other way round. The only thing that is important is that we don't read storage nor run
     // verification procedure.
-    verify_data_decoding_fails {
+    verify_data_deserializing_fails {
         let l in 1 .. T::MaximumDataLength::get();
         let proof = vec![255u8; l as usize];
-        // System shouldn't have any serious impact on decoding - the data is just some elements
-        // from the field.
+        // System shouldn't have any serious impact on deserializing - the data is just some
+        // elements from the field.
         let Artifacts { key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
     } : {
         assert!(
@@ -143,12 +143,12 @@ benchmarks! {
         )
     }
 
-    verify_key_decoding_fails {
+    verify_key_deserializing_fails {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
         let _ = insert_key::<T>(vec![255u8; l as usize]);
 
-        // System shouldn't have any serious impact on decoding - the data is just some elements
-        // from the field.
+        // System shouldn't have any serious impact on deserializing - the data is just some
+        // elements from the field.
         let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
     } : {
         assert!(

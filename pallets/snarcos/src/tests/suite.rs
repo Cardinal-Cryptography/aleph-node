@@ -159,7 +159,7 @@ fn verify_shouts_when_no_key_was_registered() {
 }
 
 #[test]
-fn verify_shouts_when_key_is_not_decodable() {
+fn verify_shouts_when_key_is_not_deserializable() {
     new_test_ext().execute_with(|| {
         VerificationKeys::<TestRuntime>::insert(
             IDENTIFIER,
@@ -174,7 +174,7 @@ fn verify_shouts_when_key_is_not_decodable() {
 }
 
 #[test]
-fn verify_shouts_when_proof_is_not_decodable() {
+fn verify_shouts_when_proof_is_not_deserializable() {
     new_test_ext().execute_with(|| {
         put_key();
 
@@ -186,7 +186,7 @@ fn verify_shouts_when_proof_is_not_decodable() {
 }
 
 #[test]
-fn verify_shouts_when_input_is_not_decodable() {
+fn verify_shouts_when_input_is_not_deserializable() {
     new_test_ext().execute_with(|| {
         put_key();
 

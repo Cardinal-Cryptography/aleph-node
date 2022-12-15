@@ -272,7 +272,7 @@ pub mod pallet {
                 log::error!("Deserializing proof failed: {:?}", e);
                 (
                     Error::<T>::DeserializingProofFailed,
-                    Some(T::WeightInfo::verify_data_decoding_fails(proof_len)),
+                    Some(T::WeightInfo::verify_data_deserializing_fails(proof_len)),
                 )
             })?;
 
@@ -281,7 +281,7 @@ pub mod pallet {
                     log::error!("Deserializing public input failed: {:?}", e);
                     (
                         Error::<T>::DeserializingPublicInputFailed,
-                        Some(T::WeightInfo::verify_data_decoding_fails(
+                        Some(T::WeightInfo::verify_data_deserializing_fails(
                             proof_len + public_input.len() as u32,
                         )),
                     )
@@ -290,14 +290,14 @@ pub mod pallet {
             let verification_key =
                 VerificationKeys::<T>::get(verification_key_identifier).ok_or((
                     Error::<T>::UnknownVerificationKeyIdentifier,
-                    Some(T::WeightInfo::verify_key_decoding_fails(0)),
+                    Some(T::WeightInfo::verify_key_deserializing_fails(0)),
                 ))?;
             let verification_key: S::VerifyingKey =
                 CanonicalDeserialize::deserialize(&**verification_key).map_err(|e| {
                     log::error!("Deserializing verification key failed: {:?}", e);
                     (
                         Error::<T>::DeserializingVerificationKeyFailed,
-                        Some(T::WeightInfo::verify_key_decoding_fails(
+                        Some(T::WeightInfo::verify_key_deserializing_fails(
                             verification_key.len() as u32,
                         )),
                     )
