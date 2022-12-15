@@ -152,16 +152,13 @@ fn verify__charges_before_reading() {
 
 const ADJUSTED_WEIGHT: u64 = 1729;
 
-fn simulate_verify_failure<
-    const ERROR: Error<()>,
-    const ACTUAL_WEIGHT: Option<u64>,
-    const EXPECTED_RET_VAL: u32,
->() {
+// Unfortunately, due to the `unconstrained generic constant` error, `ACTUAL_WEIGHT` will have to be
+// passed twice for failure tests (once to `VerifyErrorer` and second time as a separate value).
+fn simulate_verify<Exc: Executor, const ACTUAL_WEIGHT: Option<u64>, const EXPECTED_RET_VAL: u32>() {
     let (env, charging_listener) =
         MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
 
-    let result =
-        SnarcosChainExtension::snarcos_verify::<_, VerifyErrorer<ERROR, ACTUAL_WEIGHT>>(env);
+    let result = SnarcosChainExtension::snarcos_verify::<_, Exc>(env);
 
     assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == EXPECTED_RET_VAL));
 
@@ -176,8 +173,8 @@ fn simulate_verify_failure<
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_proof_deserialization_failed() {
-    simulate_verify_failure::<
-        { DeserializingProofFailed },
+    simulate_verify::<
+        VerifyErrorer<{ DeserializingProofFailed }, { Some(ADJUSTED_WEIGHT) }>,
         { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_PROOF_FAIL,
     >()
@@ -186,8 +183,8 @@ fn verify__pallet_says_proof_deserialization_failed() {
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_input_deserialization_failed() {
-    simulate_verify_failure::<
-        { DeserializingPublicInputFailed },
+    simulate_verify::<
+        VerifyErrorer<{ DeserializingPublicInputFailed }, { Some(ADJUSTED_WEIGHT) }>,
         { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_INPUT_FAIL,
     >()
@@ -196,8 +193,8 @@ fn verify__pallet_says_input_deserialization_failed() {
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_no_such_vk() {
-    simulate_verify_failure::<
-        { UnknownVerificationKeyIdentifier },
+    simulate_verify::<
+        VerifyErrorer<{ UnknownVerificationKeyIdentifier }, { Some(ADJUSTED_WEIGHT) }>,
         { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_UNKNOWN_IDENTIFIER,
     >()
@@ -206,8 +203,8 @@ fn verify__pallet_says_no_such_vk() {
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_vk_deserialization_failed() {
-    simulate_verify_failure::<
-        { DeserializingVerificationKeyFailed },
+    simulate_verify::<
+        VerifyErrorer<{ DeserializingVerificationKeyFailed }, { Some(ADJUSTED_WEIGHT) }>,
         { Some(ADJUSTED_WEIGHT) },
         SNARCOS_VERIFY_DESERIALIZING_KEY_FAIL,
     >()
@@ -216,26 +213,25 @@ fn verify__pallet_says_vk_deserialization_failed() {
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_verification_failed() {
-    simulate_verify_failure::<{ VerificationFailed }, { None }, SNARCOS_VERIFY_VERIFICATION_FAIL>()
+    simulate_verify::<
+        VerifyErrorer<{ VerificationFailed }, { None }>,
+        { None },
+        SNARCOS_VERIFY_VERIFICATION_FAIL,
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_incorrect_proof() {
-    simulate_verify_failure::<{ IncorrectProof }, { None }, SNARCOS_VERIFY_INCORRECT_PROOF>()
+    simulate_verify::<
+        VerifyErrorer<{ IncorrectProof }, { None }>,
+        { None },
+        SNARCOS_VERIFY_INCORRECT_PROOF,
+    >()
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn verify__positive_scenario() {
-    let (env, charging_listener) =
-        MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
-
-    let result = SnarcosChainExtension::snarcos_verify::<_, VerifyOkayer>(env);
-
-    assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == SNARCOS_VERIFY_OK));
-    assert_eq!(
-        charged(charging_listener),
-        weight_of_verify(Some(SYSTEM)).into()
-    );
+    simulate_verify::<VerifyOkayer, { None }, SNARCOS_VERIFY_OK>()
 }
