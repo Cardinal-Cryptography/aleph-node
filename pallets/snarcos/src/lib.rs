@@ -22,7 +22,9 @@ pub type VerificationKeyIdentifier = [u8; 4];
 #[frame_support::pallet]
 pub mod pallet {
     use ark_serialize::CanonicalDeserialize;
-    use frame_support::{log, pallet_prelude::*};
+    use frame_support::{
+        dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
+    };
     use frame_system::pallet_prelude::OriginFor;
     use sp_std::prelude::Vec;
 
@@ -185,9 +187,16 @@ pub mod pallet {
             proof: Vec<u8>,
             public_input: Vec<u8>,
             system: ProvingSystem,
-        ) -> DispatchResult {
+        ) -> DispatchResultWithPostInfo {
             Self::bare_verify(verification_key_identifier, proof, public_input, system)
-                .map_err(|e| e.into())
+                .map(|_| ().into())
+                .map_err(|(error, actual_weight)| DispatchErrorWithPostInfo {
+                    post_info: PostDispatchInfo {
+                        pays_fee: Pays::Yes,
+                        actual_weight,
+                    },
+                    error: error.into(),
+                })
         }
     }
 
@@ -226,7 +235,7 @@ pub mod pallet {
             proof: Vec<u8>,
             public_input: Vec<u8>,
             system: ProvingSystem,
-        ) -> Result<(), Error<T>> {
+        ) -> Result<(), (Error<T>, Option<Weight>)> {
             match system {
                 ProvingSystem::Groth16 => {
                     Self::_bare_verify::<Groth16>(verification_key_identifier, proof, public_input)
@@ -244,37 +253,37 @@ pub mod pallet {
             verification_key_identifier: VerificationKeyIdentifier,
             proof: Vec<u8>,
             public_input: Vec<u8>,
-        ) -> Result<(), Error<T>> {
+        ) -> Result<(), (Error<T>, Option<Weight>)> {
             ensure!(
                 proof.len() <= T::MaximumDataLength::get() as usize
                     && public_input.len() <= T::MaximumDataLength::get() as usize,
-                Error::<T>::DataTooLong
+                (Error::<T>::DataTooLong, None)
             );
 
             let proof: S::Proof = CanonicalDeserialize::deserialize(&*proof).map_err(|e| {
                 log::error!("Deserializing proof failed: {:?}", e);
-                Error::<T>::DeserializingProofFailed
+                (Error::<T>::DeserializingProofFailed, None)
             })?;
 
             let public_input: Vec<S::CircuitField> =
                 CanonicalDeserialize::deserialize(&*public_input).map_err(|e| {
                     log::error!("Deserializing public input failed: {:?}", e);
-                    Error::<T>::DeserializingPublicInputFailed
+                    (Error::<T>::DeserializingPublicInputFailed, None)
                 })?;
 
             let verification_key = VerificationKeys::<T>::get(verification_key_identifier)
-                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+                .ok_or((Error::<T>::UnknownVerificationKeyIdentifier, None))?;
             let verification_key: S::VerifyingKey =
                 CanonicalDeserialize::deserialize(&**verification_key).map_err(|e| {
                     log::error!("Deserializing verification key failed: {:?}", e);
-                    Error::<T>::DeserializingVerificationKeyFailed
+                    (Error::<T>::DeserializingVerificationKeyFailed, None)
                 })?;
 
             // At some point we should enhance error type from `S::verify` and be more verbose here.
             let valid_proof = S::verify(&verification_key, &public_input, &proof)
-                .map_err(|_| Error::<T>::VerificationFailed)?;
+                .map_err(|_| (Error::<T>::VerificationFailed, None))?;
 
-            ensure!(valid_proof, Error::<T>::IncorrectProof);
+            ensure!(valid_proof, (Error::<T>::IncorrectProof, None));
 
             Self::deposit_event(Event::VerificationSucceeded);
             Ok(())

@@ -115,9 +115,46 @@ benchmarks! {
 
     // Partial `verify` execution
 
+    verify_data_too_long {
+        // Excess. Unfortunately, anything like
+        // `let e in (T::MaximumDataLength::get() + 1) .. (T::MaximumDataLength::get() * 1_000)`
+        // doesn't compile.
+        let e in 1 .. T::MaximumDataLength::get() * 1_000;
+        let proof = vec![255u8; (T::MaximumDataLength::get() + e) as usize];
+        let Artifacts { key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+    } : {
+        assert!(
+            Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input, Groth16).is_err()
+        )
+    }
 
+    // It shouldn't matter whether decoding of proof fails, but for input it succeeds, or the other
+    // way round. The only thing that is important is that we don't read storage nor run
+    // verification procedure.
+    verify_data_decoding_fails {
+        let l in 1 .. T::MaximumDataLength::get();
+        let proof = vec![255u8; l as usize];
+        // System shouldn't have any serious impact on decoding - the data is just some elements
+        // from the field.
+        let Artifacts { key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+    } : {
+        assert!(
+            Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input, Groth16).is_err()
+        )
+    }
 
-    // Benchmarks as unit tests
+    verify_key_decoding_fails {
+        let l in 1 .. T::MaximumVerificationKeyLength::get();
+        let _ = insert_key::<T>(vec![255u8; l as usize]);
+
+        // System shouldn't have any serious impact on decoding - the data is just some elements
+        // from the field.
+        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+    } : {
+        assert!(
+            Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input, Groth16).is_err()
+        )
+    }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::TestRuntime);
 }
