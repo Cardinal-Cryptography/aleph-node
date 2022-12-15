@@ -1,6 +1,6 @@
 use clap::{arg, Parser};
 use log::info;
-use synthetic_link::{SyntheticNetworkClient, SyntheticNetworkJson};
+use synthetic_link::{SyntheticNetwork, SyntheticNetworkClient};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -17,7 +17,7 @@ async fn main() {
 
     info!("reading SyntheticNetwork configuration from stdin");
     let deserializer = serde_json::Deserializer::from_reader(std::io::stdin());
-    let synth_net_config: SyntheticNetworkJson = deserializer
+    let synth_net_config: SyntheticNetwork = deserializer
         .into_iter()
         .next()
         .unwrap_or_else(|| panic!("no configuration on stdin"))
