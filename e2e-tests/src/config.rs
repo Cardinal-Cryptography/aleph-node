@@ -105,14 +105,12 @@ impl Config {
     }
 
     pub async fn create_signed_connections(&self) -> Vec<SignedConnection> {
-        let node = &self.node;
-        let accounts = get_validators_keys(self);
-        let mut result = Vec::new();
-        for account in accounts {
-            let connection = SignedConnection::new(node.clone(), account).await;
-            result.push(connection);
-        }
-        result
+        futures::future::join_all(
+            get_validators_keys(self)
+                .into_iter()
+                .map(|account| async { SignedConnection::new(self.node.clone(), account).await }),
+        )
+        .await
     }
 }
 
