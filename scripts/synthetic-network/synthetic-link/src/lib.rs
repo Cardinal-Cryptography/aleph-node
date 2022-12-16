@@ -143,11 +143,11 @@ impl From<PortRangeSerde> for PortRange {
     }
 }
 
-impl Into<PortRangeSerde> for PortRange {
-    fn into(self) -> PortRangeSerde {
+impl From<PortRange> for PortRangeSerde {
+    fn from(value: PortRange) -> Self {
         PortRangeSerde {
-            port_min: *self.0.start(),
-            port_max: *self.0.end(),
+            port_min: *value.0.start(),
+            port_max: *value.0.end(),
         }
     }
 }
@@ -171,9 +171,9 @@ impl From<IpPatternSerde> for IpPattern {
     }
 }
 
-impl Into<IpPatternSerde> for IpPattern {
-    fn into(self) -> IpPatternSerde {
-        let ip = match self {
+impl From<IpPattern> for IpPatternSerde {
+    fn from(value: IpPattern) -> Self {
+        let ip = match value {
             IpPattern::All => 0,
             IpPattern::Ip(ip) => ip,
         };
