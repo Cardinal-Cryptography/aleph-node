@@ -116,7 +116,8 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 public_xoree,
                 private_xoree,
                 result,
-            } => XorRelation::new(public_xoree, private_xoree, result).generate_constraints(cs),
+            } => XorRelation::with_full_input(public_xoree, private_xoree, result)
+                .generate_constraints(cs),
             RelationArgs::LinearEquation { a, x, b, y } => {
                 LinearEquationRelation::new(a, x, b, y).generate_constraints(cs)
             }
@@ -175,9 +176,9 @@ impl GetPublicInput<CircuitField> for RelationArgs {
         match self {
             RelationArgs::Xor {
                 public_xoree,
-                private_xoree,
                 result,
-            } => XorRelation::new(*public_xoree, *private_xoree, *result).public_input(),
+                ..
+            } => XorRelation::with_public_input(*public_xoree, *result).public_input(),
             RelationArgs::LinearEquation { a, x, b, y } => {
                 LinearEquationRelation::new(*a, *x, *b, *y).public_input()
             }
