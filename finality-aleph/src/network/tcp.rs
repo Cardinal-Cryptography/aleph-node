@@ -12,10 +12,12 @@ use tokio::net::{
 use crate::{
     crypto::{verify, AuthorityPen, Signature},
     network::{
-        clique::{ConnectionInfo, Dialer, Listener, PublicKey, SecretKey, Splittable, LOG_TARGET},
+        clique::{ConnectionInfo, Dialer, Listener, PublicKey, SecretKey, Splittable},
         AddressingInformation, NetworkIdentity, PeerId,
     },
 };
+
+const LOG_TARGET: &str = "tcp-network";
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"a0vn");
 

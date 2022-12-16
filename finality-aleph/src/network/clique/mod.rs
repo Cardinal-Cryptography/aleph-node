@@ -18,7 +18,7 @@ mod service;
 pub use crypto::{PublicKey, SecretKey};
 pub use service::Service;
 
-pub const LOG_TARGET: &str = "clique-network";
+const LOG_TARGET: &str = "clique-network";
 
 /// Network represents an interface for opening and closing connections with other nodes,
 /// and sending direct messages between them.

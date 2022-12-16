@@ -21,10 +21,12 @@ use crate::network::{
             random_keys, Addresses, MockDialer, MockListener, MockPublicKey, MockSecretKey,
             UnreliableConnectionMaker,
         },
-        Network, SecretKey, Service, LOG_TARGET,
+        Network, SecretKey, Service,
     },
     mock::MockData,
 };
+
+pub const LOG_TARGET: &str = "clique-network-test";
 
 const TWICE_MAX_DATA_SIZE: usize = 32 * 1024 * 1024;
 
