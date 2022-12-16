@@ -7,11 +7,15 @@ use std::{
 };
 
 use codec::{Decode, Encode};
+use futures::channel::mpsc::UnboundedReceiver;
 use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
 use crate::{
     network::PeerId,
-    validator_network::{ConnectionInfo, PeerAddressInfo, PublicKey, SecretKey, Splittable},
+    validator_network::{
+        protocols::ResultForService,
+        ConnectionInfo, PeerAddressInfo, PublicKey, SecretKey, Splittable
+    },
 };
 
 /// A mock secret key that is able to sign messages.
@@ -153,3 +157,17 @@ impl Splittable for MockSplittable {
         (self.outgoing_data, self.incoming_data)
     }
 }
+
+pub struct MockPrelims<D, H>
+{
+    pub id_incoming: MockPublicKey,
+    pub pen_incoming: MockSecretKey,
+    pub id_outgoing: MockPublicKey,
+    pub pen_outgoing: MockSecretKey,
+    pub incoming_handle: H,
+    pub outgoing_handle: H,
+    pub data_from_incoming: UnboundedReceiver<D>,
+    pub result_from_incoming: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
+    pub result_from_outgoing: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
+}
+

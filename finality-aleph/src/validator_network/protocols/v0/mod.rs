@@ -114,28 +114,18 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 #[cfg(test)]
 mod tests {
     use futures::{
-        channel::{mpsc, mpsc::UnboundedReceiver},
-        pin_mut, FutureExt, StreamExt,
+        channel::mpsc,
+        pin_mut, Future, StreamExt,
     };
 
     use super::{incoming, outgoing, ProtocolError};
     use crate::validator_network::{
-        mock::{key, MockPublicKey, MockSecretKey, MockSplittable},
-        protocols::{ConnectionType, ResultForService},
+        mock::{key, MockPublicKey, MockPrelims, MockSplittable},
+        protocols::ConnectionType,
         Data,
     };
 
-    fn prepare<D: Data>() -> (
-        MockPublicKey,
-        MockSecretKey,
-        MockPublicKey,
-        MockSecretKey,
-        impl futures::Future<Output = Result<(), ProtocolError<MockPublicKey>>>,
-        impl futures::Future<Output = Result<(), ProtocolError<MockPublicKey>>>,
-        UnboundedReceiver<D>,
-        UnboundedReceiver<ResultForService<MockPublicKey, D>>,
-        UnboundedReceiver<ResultForService<MockPublicKey, D>>,
-    ) {
+    fn prepare<D: Data, H>() -> MockPrelims<D, H> {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key();
         let (id_outgoing, pen_outgoing) = key();
@@ -155,7 +145,7 @@ mod tests {
             id_incoming.clone(),
             outgoing_result_for_service,
         );
-        (
+        MockPrelims {
             id_incoming,
             pen_incoming,
             id_outgoing,
@@ -165,22 +155,22 @@ mod tests {
             data_from_incoming,
             result_from_incoming,
             result_from_outgoing,
-        )
+        }
     }
 
     #[tokio::test]
     async fn send_data() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             mut data_from_incoming,
-            _result_from_incoming,
+            result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+        } = prepare::<Vec<i32>, dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>;
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
