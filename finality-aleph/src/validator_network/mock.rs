@@ -7,13 +7,13 @@ use std::{
 };
 
 use codec::{Decode, Encode};
-use futures::channel::mpsc::UnboundedReceiver;
+use futures::{Future, channel::mpsc::UnboundedReceiver};
 use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
 use crate::{
     network::PeerId,
     validator_network::{
-        protocols::ResultForService,
+        protocols::{ProtocolError, ResultForService},
         ConnectionInfo, PeerAddressInfo, PublicKey, SecretKey, Splittable
     },
 };
@@ -158,16 +158,14 @@ impl Splittable for MockSplittable {
     }
 }
 
-pub struct MockPrelims<D, H>
-{
+pub struct MockPrelims<D> {
     pub id_incoming: MockPublicKey,
     pub pen_incoming: MockSecretKey,
     pub id_outgoing: MockPublicKey,
     pub pen_outgoing: MockSecretKey,
-    pub incoming_handle: H,
-    pub outgoing_handle: H,
+    pub incoming_handle: Pin<Box<dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>>,
+    pub outgoing_handle: Pin<Box<dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>>,
     pub data_from_incoming: UnboundedReceiver<D>,
     pub result_from_incoming: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
     pub result_from_outgoing: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
 }
-

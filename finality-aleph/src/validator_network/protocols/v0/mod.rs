@@ -115,17 +115,17 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 mod tests {
     use futures::{
         channel::mpsc,
-        pin_mut, Future, StreamExt,
+        pin_mut, FutureExt, StreamExt,
     };
 
     use super::{incoming, outgoing, ProtocolError};
     use crate::validator_network::{
-        mock::{key, MockPublicKey, MockPrelims, MockSplittable},
+        mock::{key, MockPrelims, MockSplittable},
         protocols::ConnectionType,
         Data,
     };
 
-    fn prepare<D: Data, H>() -> MockPrelims<D, H> {
+    fn prepare<D: Data>() -> MockPrelims<D> {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key();
         let (id_outgoing, pen_outgoing) = key();
@@ -133,18 +133,18 @@ mod tests {
         let (incoming_result_for_service, result_from_incoming) = mpsc::unbounded();
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
-        let incoming_handle = incoming(
+        let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
             incoming_result_for_service,
             data_for_user,
-        );
-        let outgoing_handle = outgoing(
+        ));
+        let outgoing_handle = Box::pin(outgoing(
             stream_outgoing,
             pen_outgoing.clone(),
             id_incoming.clone(),
             outgoing_result_for_service,
-        );
+        ));
         MockPrelims {
             id_incoming,
             pen_incoming,
@@ -170,7 +170,7 @@ mod tests {
             mut data_from_incoming,
             result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
-        } = prepare::<Vec<i32>, dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>;
+        } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
@@ -209,18 +209,18 @@ mod tests {
 
     #[tokio::test]
     async fn closed_by_parent_service() {
-        let (
-            _id_incoming,
-            _pen_incoming,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
             id_outgoing,
-            _pen_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
+            data_from_incoming: _data_from_incoming,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
-        let incoming_handle = incoming_handle.fuse();
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
+    let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
         pin_mut!(outgoing_handle);
@@ -241,17 +241,17 @@ mod tests {
 
     #[tokio::test]
     async fn parent_service_dead() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
+            data_from_incoming: _data_from_incoming,
             result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         std::mem::drop(result_from_incoming);
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
