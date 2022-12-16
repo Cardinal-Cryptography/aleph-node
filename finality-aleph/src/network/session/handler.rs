@@ -6,7 +6,7 @@ use crate::{
     abft::NodeCount,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        manager::{
+        session::{
             compatibility::PeerAuthentications, AuthData, Authentication, LegacyAuthData,
             LegacyAuthentication,
         },
@@ -274,8 +274,8 @@ pub mod tests {
     use crate::{
         network::{
             clique::mock::{random_address, random_invalid_address, MockAddressingInformation},
-            manager::{compatibility::PeerAuthentications, Authentication, LegacyAuthentication},
             mock::crypto_basics,
+            session::{compatibility::PeerAuthentications, Authentication, LegacyAuthentication},
             AddressingInformation,
         },
         NodeIndex, SessionId,

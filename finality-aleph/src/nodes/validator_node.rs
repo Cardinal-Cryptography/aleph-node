@@ -13,7 +13,7 @@ use crate::{
     crypto::AuthorityPen,
     network::{
         clique::Service,
-        manager::{ConnectionManager, ConnectionManagerConfig},
+        session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService,
     },

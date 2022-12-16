@@ -11,7 +11,7 @@ use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        manager::{
+        session::{
             compatibility::PeerAuthentications, data::DataInSession, Connections, Discovery,
             DiscoveryMessage, SessionHandler, SessionHandlerError,
         },
@@ -457,8 +457,8 @@ mod tests {
     use crate::{
         network::{
             clique::mock::{random_address, MockAddressingInformation},
-            manager::{compatibility::PeerAuthentications, data::DataInSession, DiscoveryMessage},
             mock::crypto_basics,
+            session::{compatibility::PeerAuthentications, data::DataInSession, DiscoveryMessage},
         },
         Recipient, SessionId,
     };

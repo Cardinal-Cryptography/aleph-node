@@ -10,9 +10,9 @@ use sp_runtime::traits::Block;
 pub mod clique;
 pub mod data;
 mod gossip;
-pub mod manager;
 #[cfg(test)]
 pub mod mock;
+pub mod session;
 mod substrate;
 pub mod tcp;
 

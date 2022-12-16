@@ -17,12 +17,12 @@ use crate::{
             MockPublicKey,
         },
         data::Network,
-        manager::{
+        mock::{crypto_basics, MockData},
+        session::{
             authentication, legacy_authentication, ConnectionManager, ConnectionManagerConfig,
             DataInSession, LegacyDiscoveryMessage, ManagerError, SessionHandler, SessionManager,
             VersionedAuthentication,
         },
-        mock::{crypto_basics, MockData},
         AddressingInformation, GossipService, MockEvent, MockRawNetwork, Protocol,
     },
     MillisecsPerBlock, NodeIndex, Recipient, SessionId, SessionPeriod,

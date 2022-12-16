@@ -1,4 +1,4 @@
-//! Managing the validator connections using the gossip network.
+//! Managing the validator connections in sessions using the gossip network.
 use std::fmt::Display;
 
 use codec::{Decode, Encode};
@@ -20,9 +20,9 @@ mod compatibility;
 mod connections;
 mod data;
 mod discovery;
+mod handler;
 mod manager;
 mod service;
-mod session;
 
 pub use compatibility::{
     DiscoveryMessage, LegacyDiscoveryMessage, PeerAuthentications, VersionedAuthentication,
@@ -31,10 +31,10 @@ use connections::Connections;
 #[cfg(test)]
 pub use data::DataInSession;
 pub use discovery::Discovery;
-pub use service::{Config as ConnectionManagerConfig, ManagerError, Service as ConnectionManager};
 #[cfg(test)]
-pub use session::tests::{authentication, legacy_authentication};
-pub use session::{Handler as SessionHandler, HandlerError as SessionHandlerError};
+pub use handler::tests::{authentication, legacy_authentication};
+pub use handler::{Handler as SessionHandler, HandlerError as SessionHandlerError};
+pub use service::{Config as ConnectionManagerConfig, ManagerError, Service as ConnectionManager};
 
 /// Data validators used to use to authenticate themselves for a single session
 /// and disseminate their addresses.

@@ -25,7 +25,7 @@ use crate::{
             component::{Network, NetworkMap, SimpleNetwork},
             split::split,
         },
-        manager::{SessionManager, SessionSender},
+        session::{SessionManager, SessionSender},
         RequestBlocks,
     },
     party::{

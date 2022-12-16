@@ -16,7 +16,7 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         clique::{Network as CliqueNetwork, PublicKey},
-        manager::{
+        session::{
             data::DataInSession,
             manager::{
                 AddressedData, ConnectionCommand, Manager, ManagerActions, PreNonvalidatorSession,
