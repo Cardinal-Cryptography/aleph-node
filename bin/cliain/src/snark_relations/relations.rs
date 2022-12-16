@@ -97,7 +97,6 @@ pub enum RelationArgs {
 
 impl RelationArgs {
     /// Relation identifier.
-    #[allow(dead_code)]
     pub fn id(&self) -> String {
         match &self {
             RelationArgs::Xor { .. } => String::from("xor"),
@@ -119,7 +118,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
             } => XorRelation::with_full_input(public_xoree, private_xoree, result)
                 .generate_constraints(cs),
             RelationArgs::LinearEquation { a, x, b, y } => {
-                LinearEquationRelation::new(a, x, b, y).generate_constraints(cs)
+                LinearEquationRelation::with_full_input(a, x, b, y).generate_constraints(cs)
             }
             RelationArgs::MerkleTree { seed, leaf, leaves } => {
                 MerkleTreeRelation::new(leaves, leaf, seed).generate_constraints(cs)
@@ -179,8 +178,8 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 result,
                 ..
             } => XorRelation::with_public_input(*public_xoree, *result).public_input(),
-            RelationArgs::LinearEquation { a, x, b, y } => {
-                LinearEquationRelation::new(*a, *x, *b, *y).public_input()
+            RelationArgs::LinearEquation { a, b, y, .. } => {
+                LinearEquationRelation::without_input(*a, *b, *y).public_input()
             }
             RelationArgs::MerkleTree { seed, leaf, leaves } => {
                 MerkleTreeRelation::new(leaves.clone(), *leaf, seed.clone()).public_input()
