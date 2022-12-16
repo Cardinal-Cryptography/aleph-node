@@ -3,17 +3,16 @@ use synthetic_link::SyntheticNetworkClient;
 
 pub type Milliseconds = u64;
 
-fn create_client(node_name: impl AsRef<str>) -> SyntheticNetworkClient {
-    let synthetic_network_url = format!("http://{}:80/qos", node_name.as_ref());
+fn create_client(node_name: &str) -> SyntheticNetworkClient {
+    let synthetic_network_url = format!("http://{}:80/qos", node_name);
     info!("creating an http client for url {}", synthetic_network_url);
     SyntheticNetworkClient::new(synthetic_network_url)
 }
 
-pub async fn set_out_latency(milliseconds: Milliseconds, node_name: impl AsRef<str>) {
+pub async fn set_out_latency(milliseconds: Milliseconds, node_name: &str) {
     info!(
         "setting out-latency of node {} to {}ms",
-        node_name.as_ref(),
-        milliseconds
+        node_name, milliseconds
     );
     let mut client = create_client(node_name);
     let mut config = client

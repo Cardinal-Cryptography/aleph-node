@@ -27,7 +27,7 @@ async fn main() {
     info!("commiting configuration");
     let mut synth_net_client = SyntheticNetworkClient::new(synth_net_url);
     synth_net_client
-        .commit_config(&synth_net_config.into())
+        .commit_config(&synth_net_config)
         .await
         .unwrap_or_else(|e| panic!("failed to commit SyntheticNetwork configuration: {}", e));
     info!("successfully committed new configuration");

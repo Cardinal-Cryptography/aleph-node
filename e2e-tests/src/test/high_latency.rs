@@ -26,7 +26,7 @@ pub async fn high_out_latency() -> anyhow::Result<()> {
             "setting out-latency of node {} to {}",
             validator, config.test_case_params.out_latency
         );
-        set_out_latency(config.test_case_params.out_latency, validator).await;
+        set_out_latency(config.test_case_params.out_latency, &validator).await;
     }
 
     let mut max_session = 0;
@@ -66,7 +66,7 @@ pub async fn no_quorum_without_high_out_latency() -> anyhow::Result<()> {
             "setting out-latency of node {} to {}",
             validator, config.test_case_params.out_latency
         );
-        set_out_latency(config.test_case_params.out_latency, validator).await;
+        set_out_latency(config.test_case_params.out_latency, &validator).await;
     }
 
     let mut max_session = 0;
