@@ -1,8 +1,7 @@
-use std::ops::Deref;
+use std::{ops::Deref, str::FromStr};
 
 use anyhow::{anyhow, bail, Result};
 use contract_transcode::Value;
-use sp_core::crypto::Ss58Codec;
 
 use crate::AccountId;
 
@@ -16,7 +15,9 @@ use crate::AccountId;
 /// # use aleph_client::{AccountId, contract::ConvertibleValue};
 /// use contract_transcode::Value;
 ///
-/// assert_matches!(ConvertibleValue(Value::UInt(42)).try_into(), Ok(42));
+/// assert_matches!(ConvertibleValue(Value::UInt(42)).try_into(), Ok(42u128));
+/// assert_matches!(ConvertibleValue(Value::UInt(42)).try_into(), Ok(42u32));
+/// assert_matches!(ConvertibleValue(Value::UInt(u128::MAX)).try_into(): Result<u32>, Err(_));
 /// assert_matches!(ConvertibleValue(Value::Bool(true)).try_into(), Ok(true));
 /// assert_matches!(
 ///     ConvertibleValue(Value::Literal("5H8cjBBzCJrAvDn9LHZpzzJi2UKvEGC9VeVYzWX5TrwRyVCA".to_string())).
@@ -77,11 +78,8 @@ impl TryFrom<ConvertibleValue> for AccountId {
 
     fn try_from(value: ConvertibleValue) -> Result<AccountId, Self::Error> {
         match value.0 {
-            Value::Literal(value) =>
-            //Ok(AccountId::from_ss58check(value)?),
-            // FIXME
-            {
-                bail!("Got {:?} and don't know how to parse.", value)
+            Value::Literal(value) => {
+                AccountId::from_str(&value).map_err(|_| anyhow!("Invalid account id"))
             }
             _ => bail!("Expected {:?} to be a string", value),
         }

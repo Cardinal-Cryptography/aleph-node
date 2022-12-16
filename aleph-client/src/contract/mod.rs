@@ -24,20 +24,20 @@
 //!         })
 //!     }
 //!
-//!     fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: u128) -> Result<()> {
+//!     async fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: u128) -> Result<()> {
 //!         self.contract.contract_exec(
 //!             conn,
 //!             "PSP22::transfer",
 //!             vec![to.to_string().as_str(), amount.to_string().as_str(), "0x00"].as_slice(),
-//!         )
+//!         ).await
 //!     }
 //!
-//!     fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<u128> {
+//!     async fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<u128> {
 //!         self.contract.contract_read(
 //!             conn,
 //!             "PSP22::balance_of",
 //!             &vec![account.to_string().as_str()],
-//!         )?.try_into()
+//!         ).await?
 //!     }
 //! }
 //! ```
@@ -47,11 +47,8 @@ mod convertible_value;
 use std::fmt::{Debug, Formatter};
 
 use anyhow::{anyhow, Context, Result};
-use codec::{Compact, Decode};
 use contract_transcode::ContractMessageTranscoder;
-use convertible_value::ConvertibleValue;
-use ink_metadata::InkProject;
-use serde_json::{from_reader, from_value};
+pub use convertible_value::ConvertibleValue;
 
 use crate::{
     contract_transcode::Value,
@@ -67,9 +64,7 @@ pub struct ContractInstance {
 }
 
 impl ContractInstance {
-    const MAX_READ_GAS: u64 = 500000000000u64;
     const MAX_GAS: u64 = 10000000000u64;
-    const STORAGE_FEE_LIMIT: Option<u128> = None;
 
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
     pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {

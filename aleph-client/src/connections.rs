@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use subxt::{
