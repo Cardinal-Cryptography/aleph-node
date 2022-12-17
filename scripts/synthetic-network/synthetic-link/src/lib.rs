@@ -24,16 +24,10 @@ const DEFAULT_QOS: QoS = QoS {
     reorder_packets: false,
 };
 
-const DEFAULT_SYNTHETIC_FLOW: SyntheticFlow = SyntheticFlow {
-    label: String::new(),
-    flow: DEFAULT_FLOW,
-    link: DEFAULT_SYNTHETIC_LINK,
-};
-
 const DEFAULT_FLOW: Flow = Flow {
     ip: IpPattern::All,
     protocol: Protocol::All,
-    port_range: PortRange(0..=0),
+    port_range: PortRange(0..=u16::MAX),
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -78,14 +72,33 @@ impl Default for QoS {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SyntheticFlow {
-    pub label: String,
+    label: String,
     pub flow: Flow,
     pub link: SyntheticLink,
 }
 
-impl Default for SyntheticFlow {
-    fn default() -> Self {
-        DEFAULT_SYNTHETIC_FLOW
+impl SyntheticFlow {
+    pub fn new(label: String) -> anyhow::Result<Self> {
+        if label.is_empty() {
+            bail!("`label` can't be an empty string");
+        }
+        Ok(SyntheticFlow {
+            label,
+            flow: DEFAULT_FLOW,
+            link: DEFAULT_SYNTHETIC_LINK,
+        })
+    }
+
+    pub fn label(&self) -> &String {
+        &self.label
+    }
+
+    pub fn set_label(&mut self, label: String) -> anyhow::Result<&mut Self> {
+        if label.is_empty() {
+            bail!("`label` can't be an empty string");
+        }
+        self.label = label;
+        Ok(self)
     }
 }
 
