@@ -17,17 +17,17 @@ const DEFAULT_SYNTHETIC_LINK: SyntheticLink = SyntheticLink {
 
 const DEFAULT_QOS: QoS = QoS {
     rate: 1000000000,
-    loss: 0.0,
+    loss: StrengthParam::zero(),
     latency: 0,
     jitter: 0,
-    jitter_strength: 0.0,
+    jitter_strength: StrengthParam::zero(),
     reorder_packets: false,
 };
 
 const DEFAULT_FLOW: Flow = Flow {
     ip: IpPattern::All,
     protocol: Protocol::All,
-    port_range: PortRange(0..=u16::MAX),
+    port_range: PortRange::all(),
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -57,10 +57,10 @@ impl Default for SyntheticLink {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct QoS {
     pub rate: u64,
-    pub loss: f64,
+    pub loss: StrengthParam,
     pub latency: u64,
     pub jitter: u64,
-    pub jitter_strength: f64,
+    pub jitter_strength: StrengthParam,
     pub reorder_packets: bool,
 }
 
@@ -79,14 +79,13 @@ pub struct SyntheticFlow {
 
 impl SyntheticFlow {
     pub fn new(label: String) -> anyhow::Result<Self> {
-        if label.is_empty() {
-            bail!("`label` can't be an empty string");
-        }
-        Ok(SyntheticFlow {
-            label,
+        let mut result = SyntheticFlow {
+            label: "label".to_string(),
             flow: DEFAULT_FLOW,
             link: DEFAULT_SYNTHETIC_LINK,
-        })
+        };
+        result.set_label(label)?;
+        Ok(result)
     }
 
     pub fn label(&self) -> &String {
@@ -116,6 +115,42 @@ impl Default for Flow {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct StrengthParam(f64);
+
+impl Default for StrengthParam {
+    fn default() -> Self {
+        Self(0.0)
+    }
+}
+
+impl StrengthParam {
+    const fn zero() -> Self {
+        Self(0.0)
+    }
+
+    pub fn new(value: f64) -> anyhow::Result<Self> {
+        let mut result = Self::default();
+        result.set_value(value)?;
+        Ok(result)
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
+    }
+
+    pub fn set_value(&mut self, value: f64) -> anyhow::Result<&mut Self> {
+        if value > 1.0 {
+            bail!("value shouldn't be larger than 1");
+        }
+        if value < 0.0 {
+            bail!("value shouldn't be smaller than 0");
+        }
+        self.0 = value;
+        Ok(self)
+    }
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
 pub enum Protocol {
@@ -130,11 +165,15 @@ pub enum Protocol {
 pub struct PortRange(RangeInclusive<u16>);
 
 impl PortRange {
+    pub const fn all() -> Self {
+        Self(0..=u16::MAX)
+    }
+
     pub fn new(port_min: u16, port_max: u16) -> anyhow::Result<Self> {
         if port_min > port_max {
             bail!("port_min is larger than port_max");
         }
-        Ok(PortRange(port_min..=port_max))
+        Ok(Self(port_min..=port_max))
     }
 }
 
