@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 use anyhow::bail;
 use reqwest::Client;
@@ -15,7 +15,7 @@ const DEFAULT_SYNTHETIC_LINK: SyntheticLink = SyntheticLink {
     egress: DEFAULT_QOS,
 };
 
-const DEFAULT_QOS: QoS = QoS {
+const DEFAULT_QOS: QualityOfService = QualityOfService {
     rate: 1000000000,
     loss: StrengthParam::zero(),
     latency: 0,
@@ -44,8 +44,8 @@ impl Default for SyntheticNetwork {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SyntheticLink {
-    pub ingress: QoS,
-    pub egress: QoS,
+    pub ingress: QualityOfService,
+    pub egress: QualityOfService,
 }
 
 impl Default for SyntheticLink {
@@ -55,7 +55,7 @@ impl Default for SyntheticLink {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct QoS {
+pub struct QualityOfService {
     pub rate: u64,
     pub loss: StrengthParam,
     pub latency: u64,
@@ -64,7 +64,7 @@ pub struct QoS {
     pub reorder_packets: bool,
 }
 
-impl Default for QoS {
+impl Default for QualityOfService {
     fn default() -> Self {
         DEFAULT_QOS
     }
@@ -101,13 +101,15 @@ impl Default for Flow {
     }
 }
 
+/// Simple wrapper for the `String` type representing only non-empty strings.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NonEmptyString(String);
 
 impl NonEmptyString {
+    /// Creates an instance of the NonEmptyString type. Bails if provided value `is_empty`.
     pub fn new(value: String) -> anyhow::Result<Self> {
         if value.is_empty() {
-            bail!("'value' must be non-empty");
+            bail!("`value` must be non-empty");
         }
         Ok(Self(value))
     }
@@ -119,6 +121,7 @@ impl AsRef<String> for NonEmptyString {
     }
 }
 
+/// Simple wrapper for the `f64` type representing number in range 0..=1.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StrengthParam(f64);
 
@@ -129,25 +132,19 @@ impl Default for StrengthParam {
 }
 
 impl StrengthParam {
-    const fn zero() -> Self {
-        Self(0.0)
-    }
-
+    /// Creates an instance of the `StrengthParam` type. Bails if provided value is not withing 0..=1 range.
     pub fn new(value: f64) -> anyhow::Result<Self> {
-        let mut result = Self::default();
-        result.set_value(value)?;
-        Ok(result)
-    }
-
-    fn set_value(&mut self, value: f64) -> anyhow::Result<&mut Self> {
         if value > 1.0 {
             bail!("value shouldn't be larger than 1");
         }
         if value < 0.0 {
             bail!("value shouldn't be smaller than 0");
         }
-        self.0 = value;
-        Ok(self)
+        Ok(Self(value))
+    }
+
+    const fn zero() -> Self {
+        Self(0.0)
     }
 }
 
@@ -166,6 +163,7 @@ pub enum Protocol {
     All = 0,
 }
 
+/// Simple wrapper for the `RangeInclusive<u16` type.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(from = "PortRangeSerde", into = "PortRangeSerde")]
 pub struct PortRange(RangeInclusive<u16>);
@@ -175,6 +173,7 @@ impl PortRange {
         Self(0..=u16::MAX)
     }
 
+    /// Creates an instance of the `PortRange` type. Bails if `port_min > port_max`.
     pub fn new(port_min: u16, port_max: u16) -> anyhow::Result<Self> {
         if port_min > port_max {
             bail!("port_min is larger than port_max");
@@ -183,8 +182,8 @@ impl PortRange {
     }
 }
 
-impl Borrow<RangeInclusive<u16>> for PortRange {
-    fn borrow(&self) -> &RangeInclusive<u16> {
+impl AsRef<RangeInclusive<u16>> for PortRange {
+    fn as_ref(&self) -> &RangeInclusive<u16> {
         &self.0
     }
 }
@@ -210,6 +209,7 @@ impl From<PortRange> for PortRangeSerde {
     }
 }
 
+/// Custom type for representing IP patterns, namely `all addresses` or any other specific value.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(from = "IpPatternSerde", into = "IpPatternSerde")]
 pub enum IpPattern {
