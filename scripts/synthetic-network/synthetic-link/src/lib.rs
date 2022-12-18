@@ -72,32 +72,18 @@ impl Default for QoS {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SyntheticFlow {
-    label: String,
+    pub label: NonEmptyString,
     pub flow: Flow,
     pub link: SyntheticLink,
 }
 
 impl SyntheticFlow {
-    pub fn new(label: String) -> anyhow::Result<Self> {
-        let mut result = SyntheticFlow {
-            label: "label".to_string(),
+    pub fn new(label: NonEmptyString) -> Self {
+        Self {
+            label,
             flow: DEFAULT_FLOW,
             link: DEFAULT_SYNTHETIC_LINK,
-        };
-        result.set_label(label)?;
-        Ok(result)
-    }
-
-    pub fn label(&self) -> &String {
-        &self.label
-    }
-
-    pub fn set_label(&mut self, label: String) -> anyhow::Result<&mut Self> {
-        if label.is_empty() {
-            bail!("`label` can't be an empty string");
         }
-        self.label = label;
-        Ok(self)
     }
 }
 
@@ -112,6 +98,24 @@ pub struct Flow {
 impl Default for Flow {
     fn default() -> Self {
         DEFAULT_FLOW
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NonEmptyString(String);
+
+impl NonEmptyString {
+    pub fn new(value: String) -> anyhow::Result<Self> {
+        if value.is_empty() {
+            bail!("'value' must be non-empty");
+        }
+        Ok(Self(value))
+    }
+}
+
+impl AsRef<String> for NonEmptyString {
+    fn as_ref(&self) -> &String {
+        &self.0
     }
 }
 
@@ -135,11 +139,7 @@ impl StrengthParam {
         Ok(result)
     }
 
-    pub fn value(&self) -> f64 {
-        self.0
-    }
-
-    pub fn set_value(&mut self, value: f64) -> anyhow::Result<&mut Self> {
+    fn set_value(&mut self, value: f64) -> anyhow::Result<&mut Self> {
         if value > 1.0 {
             bail!("value shouldn't be larger than 1");
         }
@@ -148,6 +148,12 @@ impl StrengthParam {
         }
         self.0 = value;
         Ok(self)
+    }
+}
+
+impl AsRef<f64> for StrengthParam {
+    fn as_ref(&self) -> &f64 {
+        &self.0
     }
 }
 
