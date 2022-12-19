@@ -327,7 +327,7 @@ impl pallet_aleph::Config for Runtime {
 }
 
 parameter_types! {
-    // We allow 10kB keys, proofs and public inputs. This is in 100% blind guess.
+    // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
     pub const MaximumDataLength: u32 = 10_000;
 }
