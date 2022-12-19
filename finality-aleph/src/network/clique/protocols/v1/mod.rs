@@ -149,8 +149,8 @@ mod tests {
 
     use super::{incoming, outgoing, ProtocolError};
     use crate::network::clique::{
-        mock::{key, MockPublicKey, MockSecretKey, MockSplittable},
-        protocols::{ConnectionType, ResultForService},
+        mock::{key, MockPrelims, MockSplittable},
+        protocols::ConnectionType,
         Data,
     };
 
