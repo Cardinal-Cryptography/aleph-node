@@ -560,6 +560,12 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v2
 
+      - name: Install cargo-contract
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-contract
+          version: "2.0.0-beta.1"
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
