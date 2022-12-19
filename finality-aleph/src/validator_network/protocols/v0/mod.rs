@@ -113,10 +113,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 
 #[cfg(test)]
 mod tests {
-    use futures::{
-        channel::mpsc,
-        pin_mut, FutureExt, StreamExt,
-    };
+    use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
 
     use super::{incoming, outgoing, ProtocolError};
     use crate::validator_network::{
@@ -153,6 +150,7 @@ mod tests {
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
+            data_from_outgoing: None,
             result_from_incoming,
             result_from_outgoing,
         }
@@ -170,6 +168,7 @@ mod tests {
             mut data_from_incoming,
             result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
@@ -179,7 +178,7 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::LegacyOutgoing);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
@@ -219,8 +218,9 @@ mod tests {
             data_from_incoming: _data_from_incoming,
             mut result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
-    let incoming_handle = incoming_handle.fuse();
+        let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
         pin_mut!(outgoing_handle);
@@ -229,7 +229,7 @@ mod tests {
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             received = result_from_incoming.next() => {
                 // we drop the exit oneshot channel, thus finishing incoming_handle
-                let (received_id, _, connection_type) = received.expect("the chennel shouldn't be dropped");
+                let (received_id, _, connection_type) = received.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::LegacyIncoming);
                 assert_eq!(received_id, id_outgoing);
             },
@@ -251,6 +251,7 @@ mod tests {
             data_from_incoming: _data_from_incoming,
             result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         std::mem::drop(result_from_incoming);
         let incoming_handle = incoming_handle.fuse();
@@ -269,17 +270,18 @@ mod tests {
 
     #[tokio::test]
     async fn parent_user_dead() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
-            _result_from_incoming,
+            result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            ..
+        } = prepare::<Vec<i32>>();
         std::mem::drop(data_from_incoming);
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
@@ -289,7 +291,7 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::LegacyOutgoing);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
@@ -310,17 +312,18 @@ mod tests {
 
     #[tokio::test]
     async fn sender_dead_before_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            data_from_incoming: _data_from_incoming,
+            result_from_incoming: _result_from_incoming,
+            result_from_outgoing: _result_from_outgoing,
+            ..
+        } = prepare::<Vec<i32>>();
         std::mem::drop(outgoing_handle);
         match incoming_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
@@ -331,17 +334,18 @@ mod tests {
 
     #[tokio::test]
     async fn sender_dead_after_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
+            data_from_incoming: _data_from_incoming,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+            ..
+        } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         pin_mut!(incoming_handle);
         let (_, _exit, connection_type) = tokio::select! {
@@ -360,17 +364,18 @@ mod tests {
 
     #[tokio::test]
     async fn receiver_dead_before_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            data_from_incoming: _data_from_incoming,
+            result_from_incoming: _result_from_incoming,
+            result_from_outgoing: _result_from_outgoing,
+            ..
+        } = prepare::<Vec<i32>>();
         std::mem::drop(incoming_handle);
         match outgoing_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
@@ -381,17 +386,18 @@ mod tests {
 
     #[tokio::test]
     async fn receiver_dead_after_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
+            data_from_incoming: _data_from_incoming,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+            ..
+        } = prepare::<Vec<i32>>();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(outgoing_handle);
         let (_, _exit, connection_type) = tokio::select! {
@@ -412,17 +418,18 @@ mod tests {
 
     #[tokio::test]
     async fn receiver_dead_after_handshake_try_send_error() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
+            data_from_incoming: _data_from_incoming,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+            ..
+        } = prepare::<Vec<i32>>();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(outgoing_handle);
         let (_, _exit, connection_type) = tokio::select! {

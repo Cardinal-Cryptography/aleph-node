@@ -7,14 +7,14 @@ use std::{
 };
 
 use codec::{Decode, Encode};
-use futures::{Future, channel::mpsc::UnboundedReceiver};
+use futures::{channel::mpsc::UnboundedReceiver, Future};
 use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
 use crate::{
     network::PeerId,
     validator_network::{
         protocols::{ProtocolError, ResultForService},
-        ConnectionInfo, PeerAddressInfo, PublicKey, SecretKey, Splittable
+        ConnectionInfo, PeerAddressInfo, PublicKey, SecretKey, Splittable,
     },
 };
 
@@ -166,6 +166,7 @@ pub struct MockPrelims<D> {
     pub incoming_handle: Pin<Box<dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>>,
     pub outgoing_handle: Pin<Box<dyn Future<Output = Result<(), ProtocolError<MockPublicKey>>>>>,
     pub data_from_incoming: UnboundedReceiver<D>,
+    pub data_from_outgoing: Option<UnboundedReceiver<D>>,
     pub result_from_incoming: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
     pub result_from_outgoing: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
 }

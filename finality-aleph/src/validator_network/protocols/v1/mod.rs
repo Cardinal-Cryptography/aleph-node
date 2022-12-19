@@ -133,30 +133,16 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 
 #[cfg(test)]
 mod tests {
-    use futures::{
-        channel::{mpsc, mpsc::UnboundedReceiver},
-        pin_mut, FutureExt, StreamExt,
-    };
+    use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
 
     use super::{incoming, outgoing, ProtocolError};
     use crate::validator_network::{
-        mock::{key, MockPublicKey, MockSecretKey, MockSplittable},
-        protocols::{ConnectionType, ResultForService},
+        mock::{key, MockPrelims, MockSplittable},
+        protocols::ConnectionType,
         Data,
     };
 
-    fn prepare<D: Data>() -> (
-        MockPublicKey,
-        MockSecretKey,
-        MockPublicKey,
-        MockSecretKey,
-        impl futures::Future<Output = Result<(), ProtocolError<MockPublicKey>>>,
-        impl futures::Future<Output = Result<(), ProtocolError<MockPublicKey>>>,
-        UnboundedReceiver<D>,
-        UnboundedReceiver<D>,
-        UnboundedReceiver<ResultForService<MockPublicKey, D>>,
-        UnboundedReceiver<ResultForService<MockPublicKey, D>>,
-    ) {
+    fn prepare<D: Data>() -> MockPrelims<D> {
         let (stream_incoming, stream_outgoing) = MockSplittable::new(4096);
         let (id_incoming, pen_incoming) = key();
         let (id_outgoing, pen_outgoing) = key();
@@ -165,20 +151,20 @@ mod tests {
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (incoming_data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
         let (outgoing_data_for_user, data_from_outgoing) = mpsc::unbounded::<D>();
-        let incoming_handle = incoming(
+        let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
             incoming_result_for_service,
             incoming_data_for_user,
-        );
-        let outgoing_handle = outgoing(
+        ));
+        let outgoing_handle = Box::pin(outgoing(
             stream_outgoing,
             pen_outgoing.clone(),
             id_incoming.clone(),
             outgoing_result_for_service,
             outgoing_data_for_user,
-        );
-        (
+        ));
+        MockPrelims {
             id_incoming,
             pen_incoming,
             id_outgoing,
@@ -186,26 +172,27 @@ mod tests {
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
-            data_from_outgoing,
+            data_from_outgoing: Some(data_from_outgoing),
             result_from_incoming,
             result_from_outgoing,
-        )
+        }
     }
 
     #[tokio::test]
     async fn send_data() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             mut data_from_incoming,
-            mut data_from_outgoing,
+            data_from_outgoing,
             mut result_from_incoming,
             mut result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+        } = prepare::<Vec<i32>>();
+        let mut data_from_outgoing = data_from_outgoing.expect("No data from outgoing!");
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
@@ -214,7 +201,7 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::New);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
@@ -230,7 +217,7 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_incoming.next() => {
-                let (_, maybe_data_for_incoming, connection_type) = result.expect("the chennel shouldn't be dropped");
+                let (_, maybe_data_for_incoming, connection_type) = result.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::New);
                 let data_for_incoming = maybe_data_for_incoming.expect("successfully connected");
                 data_for_incoming
@@ -274,18 +261,18 @@ mod tests {
 
     #[tokio::test]
     async fn closed_by_parent_service() {
-        let (
-            _id_incoming,
-            _pen_incoming,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
             id_outgoing,
-            _pen_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _data_from_outgoing,
+            data_from_incoming: _data_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         pin_mut!(incoming_handle);
@@ -295,7 +282,7 @@ mod tests {
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             received = result_from_incoming.next() => {
                 // we drop the data sending channel, thus finishing incoming_handle
-                let (received_id, _, connection_type) = received.expect("the chennel shouldn't be dropped");
+                let (received_id, _, connection_type) = received.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::New);
                 assert_eq!(received_id, id_outgoing);
             },
@@ -307,18 +294,18 @@ mod tests {
 
     #[tokio::test]
     async fn parent_service_dead() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _data_from_outgoing,
+            data_from_incoming: _data_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
             result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         std::mem::drop(result_from_incoming);
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
@@ -336,18 +323,18 @@ mod tests {
 
     #[tokio::test]
     async fn parent_user_dead() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
-            _data_from_outgoing,
-            _result_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
+            result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+        } = prepare::<Vec<i32>>();
         std::mem::drop(data_from_incoming);
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
@@ -357,7 +344,7 @@ mod tests {
             _ = &mut incoming_handle => panic!("incoming process unexpectedly finished"),
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
             result = result_from_outgoing.next() => {
-                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the chennel shouldn't be dropped");
+                let (_, maybe_data_for_outgoing, connection_type) = result.expect("the channel shouldn't be dropped");
                 assert_eq!(connection_type, ConnectionType::New);
                 let data_for_outgoing = maybe_data_for_outgoing.expect("successfully connected");
                 data_for_outgoing
@@ -378,18 +365,18 @@ mod tests {
 
     #[tokio::test]
     async fn sender_dead_before_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _data_from_outgoing,
-            _result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            data_from_incoming: _data_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
+            result_from_incoming: _result_from_incoming,
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         std::mem::drop(outgoing_handle);
         match incoming_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
@@ -400,18 +387,18 @@ mod tests {
 
     #[tokio::test]
     async fn sender_dead_after_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _data_from_outgoing,
+            data_from_incoming: _data_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
             mut result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         pin_mut!(incoming_handle);
         let (_, _exit, connection_type) = tokio::select! {
@@ -430,18 +417,18 @@ mod tests {
 
     #[tokio::test]
     async fn receiver_dead_before_handshake() {
-        let (
-            _id_incoming,
-            _pen_incoming,
-            _id_outgoing,
-            _pen_outgoing,
+        let MockPrelims {
+            id_incoming: _id_incoming,
+            pen_incoming: _pen_incoming,
+            id_outgoing: _id_outgoing,
+            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
-            _data_from_incoming,
-            _data_from_outgoing,
-            _result_from_incoming,
-            _result_from_outgoing,
-        ) = prepare::<Vec<i32>>();
+            data_from_incoming: _data_from_incoming,
+            data_from_outgoing: _data_from_outgoing,
+            result_from_incoming: _result_from_incoming,
+            result_from_outgoing: _result_from_outgoing,
+        } = prepare::<Vec<i32>>();
         std::mem::drop(incoming_handle);
         match outgoing_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
