@@ -674,6 +674,7 @@ jobs:
       run-e2e-ban-threshold,
       run-e2e-version-upgrade,
       run-e2e-permissionless-ban,
+      run-e2e-adder-contract-test,
 #      run-e2e-failing-version-upgrade,
 #      run-e2e-version-upgrade-catchup,
     ]

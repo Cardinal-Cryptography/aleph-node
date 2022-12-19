@@ -61,6 +61,12 @@ runs:
       with:
         name: aleph-e2e-client
 
+    - name: Install cargo-contract
+      uses: baptiste0928/cargo-install@v1
+      with:
+        crate: cargo-contract
+        version: "2.0.0-beta.1"
+
     - name: Load test suite docker image
       shell: bash
       run: docker load -i aleph-e2e-client.tar
