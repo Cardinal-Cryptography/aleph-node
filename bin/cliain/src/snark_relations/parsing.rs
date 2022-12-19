@@ -1,7 +1,10 @@
-use anyhow::{Error, Result};
+use std::str::FromStr;
+
+use anyhow::{anyhow, Error, Result};
 use clap::ValueEnum;
 use relations::{
-    note_from_bytes, FrontendAccount, FrontendMerklePathNode, FrontendMerkleRoot, FrontendNote,
+    note_from_bytes, CircuitField, FrontendAccount, FrontendMerklePathNode, FrontendMerkleRoot,
+    FrontendNote,
 };
 
 use crate::{
@@ -14,6 +17,11 @@ pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
 
 pub fn parse_frontend_merkle_root(frontend_merkle_root: &str) -> Result<FrontendMerkleRoot> {
     Ok(note_from_bytes(frontend_merkle_root.as_bytes()))
+}
+
+// temporary (until we drop all circuit field constructor arguments)
+pub fn parse_circuit_field(as_str: &str) -> Result<CircuitField> {
+    CircuitField::from_str(as_str).map_err(|_| anyhow!("Failed to parse field element"))
 }
 
 pub fn parse_frontend_account(frontend_account: &str) -> Result<FrontendAccount> {
