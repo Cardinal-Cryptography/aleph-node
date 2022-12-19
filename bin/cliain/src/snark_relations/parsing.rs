@@ -12,7 +12,12 @@ use crate::{
 };
 
 pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
-    Ok(note_from_bytes(frontend_note.as_bytes()))
+    frontend_note
+        .split(',')
+        .map(|l| u64::from_str(l).expect("Each limb should be valid `u64`"))
+        .collect::<Vec<_>>()
+        .try_into()
+        .map_err(|e| anyhow!("Note consists of 4 `u64` limbs: {e:?}"))
 }
 
 pub fn parse_frontend_merkle_root(frontend_merkle_root: &str) -> Result<FrontendMerkleRoot> {

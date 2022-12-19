@@ -56,16 +56,16 @@ pub enum RelationArgs {
     },
     Deposit {
         #[clap(long, value_parser = parse_frontend_note)]
-        note: FrontendNote,
+        note: Option<FrontendNote>,
         #[clap(long)]
-        token_id: FrontendTokenId,
+        token_id: Option<FrontendTokenId>,
         #[clap(long)]
-        token_amount: FrontendTokenAmount,
+        token_amount: Option<FrontendTokenAmount>,
 
         #[clap(long)]
-        trapdoor: FrontendTrapdoor,
+        trapdoor: Option<FrontendTrapdoor>,
         #[clap(long)]
-        nullifier: FrontendNullifier,
+        nullifier: Option<FrontendNullifier>,
     },
     Withdraw {
         #[clap(long)]
@@ -124,43 +124,47 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 result,
             } => XorRelation::with_full_input(public_xoree, private_xoree, result)
                 .generate_constraints(cs),
+
             RelationArgs::LinearEquation { a, x, b, y } => {
                 LinearEquationRelation::with_full_input(a, x, b, y).generate_constraints(cs)
             }
+
             RelationArgs::MerkleTree {
-                seed,
-                root,
-                leaf,
-                leaves,
+                seed, leaf, leaves, ..
             } => {
-                if let Some(leaves) = leaves {
-                    MerkleTreeRelation::with_full_input(
-                        leaves,
-                        leaf.expect("You must provide `leaf` input"),
-                        seed,
-                    )
-                    .generate_constraints(cs)
-                } else if let Some(root) = root {
-                    MerkleTreeRelation::with_public_input(
-                        root,
-                        leaf.expect("You must provide `leaf` input"),
-                        seed,
-                    )
-                    .generate_constraints(cs)
-                } else if cs.is_in_setup_mode() {
-                    MerkleTreeRelation::without_input(seed).generate_constraints(cs)
-                } else {
-                    panic!("You must provide full input")
+                if cs.is_in_setup_mode() {
+                    return MerkleTreeRelation::without_input(seed).generate_constraints(cs);
                 }
+
+                MerkleTreeRelation::with_full_input(
+                    leaves.unwrap_or_else(|| panic!("You must provide `leaves`")),
+                    leaf.expect("You must provide `leaf` input"),
+                    seed,
+                )
+                .generate_constraints(cs)
             }
+
             RelationArgs::Deposit {
                 note,
                 token_id,
                 token_amount,
                 trapdoor,
                 nullifier,
-            } => DepositRelation::new(note, token_id, token_amount, trapdoor, nullifier)
-                .generate_constraints(cs),
+            } => {
+                if cs.is_in_setup_mode() {
+                    return DepositRelation::without_input().generate_constraints(cs);
+                }
+
+                DepositRelation::with_full_input(
+                    note.unwrap_or_else(|| panic!("You must provide note")),
+                    token_id.unwrap_or_else(|| panic!("You must provide token id")),
+                    token_amount.unwrap_or_else(|| panic!("You must provide token amount")),
+                    trapdoor.unwrap_or_else(|| panic!("You must provide trapdoor")),
+                    nullifier.unwrap_or_else(|| panic!("You must provide nullifier")),
+                )
+                .generate_constraints(cs)
+            }
+
             RelationArgs::Withdraw {
                 old_nullifier,
                 merkle_root,
@@ -207,9 +211,11 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 result,
                 ..
             } => XorRelation::with_public_input(*public_xoree, *result).public_input(),
+
             RelationArgs::LinearEquation { a, b, y, .. } => {
                 LinearEquationRelation::without_input(*a, *b, *y).public_input()
             }
+
             RelationArgs::MerkleTree {
                 seed,
                 root,
@@ -226,14 +232,35 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                     panic!("You must provide either `root` or `leaves` input")
                 }
             }
+
             RelationArgs::Deposit {
                 note,
                 token_id,
                 token_amount,
                 trapdoor,
                 nullifier,
-            } => DepositRelation::new(*note, *token_id, *token_amount, *trapdoor, *nullifier)
+            } => match (note, token_id, token_amount, trapdoor, nullifier) {
+                (Some(note), Some(token_id), Some(token_amount), None, None) => {
+                    DepositRelation::with_public_input(*note, *token_id, *token_amount)
+                        .public_input()
+                }
+                (
+                    Some(note),
+                    Some(token_id),
+                    Some(token_amount),
+                    Some(trapdoor),
+                    Some(nullifier),
+                ) => DepositRelation::with_full_input(
+                    *note,
+                    *token_id,
+                    *token_amount,
+                    *trapdoor,
+                    *nullifier,
+                )
                 .public_input(),
+                _ => panic!("Provide either only public or full input"),
+            },
+
             RelationArgs::Withdraw {
                 old_nullifier,
                 merkle_root,
