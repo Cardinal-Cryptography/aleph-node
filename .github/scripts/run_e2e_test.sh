@@ -111,6 +111,10 @@ if [[ -n "${ONLY_LEGACY:-}" ]]; then
     ARGS+=(-e ONLY_LEGACY)
 fi
 
+if [[ -n "${ADDER:-}" ]]; then
+    ARGS+=(-e "${ADDER}")
+fi
+
 docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest
 
 exit $?

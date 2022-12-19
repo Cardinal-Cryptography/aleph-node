@@ -1,13 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+//! This is a simple example contract for use with e2e tests of the aleph-client contract interaction.
+
 #[ink::contract]
 mod adder {
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct Adder {
-        /// Stores a single `bool` value on the storage.
         value: u32,
     }
 
@@ -23,17 +21,11 @@ mod adder {
     }
 
     impl Adder {
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
         #[ink(constructor)]
         pub fn new() -> Self {
             Self { value: 0 }
         }
 
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
         #[ink(message)]
         pub fn add(&mut self, value: u32) -> Result<(), Error> {
             self.value = self.value.checked_add(value).ok_or(Error::Overflow)?;
@@ -45,7 +37,6 @@ mod adder {
             Ok(())
         }
 
-        /// Simply returns the current value of our `bool`.
         #[ink(message)]
         pub fn get(&self) -> u32 {
             self.value

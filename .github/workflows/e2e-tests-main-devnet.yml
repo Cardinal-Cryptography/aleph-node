@@ -552,6 +552,21 @@ jobs:
           UPGRADE_FINALIZATION_WAIT_SESSIONS: 2
         timeout-minutes: 10
 
+  run-e2e-adder-contract-test:
+    needs: [build-test-docker, build-test-client]
+    name: Run e2e adder contract test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          deploy-adder: true
+          test-case: adder
+        timeout-minutes: 2
+
 # The tests below were written under the assumption that nonfinalized blocks are being produced, they need a rewrite before being reenabled.
 # TODO(A0-1644): Reenable these tests.
 #  run-e2e-failing-version-upgrade:
