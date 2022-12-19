@@ -165,7 +165,7 @@ pub enum Protocol {
 
 /// Simple wrapper for the `RangeInclusive<u16` type.
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(from = "PortRangeSerde", into = "PortRangeSerde")]
+#[serde(try_from = "PortRangeSerde", into = "PortRangeSerde")]
 pub struct PortRange(RangeInclusive<u16>);
 
 impl PortRange {
@@ -176,7 +176,7 @@ impl PortRange {
     /// Creates an instance of the `PortRange` type. Bails if `port_min > port_max`.
     pub fn new(port_min: u16, port_max: u16) -> anyhow::Result<Self> {
         if port_min > port_max {
-            bail!("port_min is larger than port_max");
+            bail!("`port_min` is larger than `port_max`");
         }
         Ok(Self(port_min..=port_max))
     }
@@ -194,9 +194,11 @@ struct PortRangeSerde {
     port_max: u16,
 }
 
-impl From<PortRangeSerde> for PortRange {
-    fn from(value: PortRangeSerde) -> Self {
-        PortRange(value.port_min..=value.port_max)
+impl TryFrom<PortRangeSerde> for PortRange {
+    type Error = anyhow::Error;
+
+    fn try_from(value: PortRangeSerde) -> Result<Self, Self::Error> {
+        Self::new(value.port_min, value.port_max)
     }
 }
 
