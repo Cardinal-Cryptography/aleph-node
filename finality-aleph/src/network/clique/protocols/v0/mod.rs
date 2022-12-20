@@ -171,10 +171,6 @@ mod tests {
     #[tokio::test]
     async fn send_data() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             mut data_from_incoming,
@@ -221,10 +217,7 @@ mod tests {
     #[tokio::test]
     async fn closed_by_parent_service() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
             id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -254,10 +247,6 @@ mod tests {
     #[tokio::test]
     async fn parent_service_dead() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -283,10 +272,6 @@ mod tests {
     #[tokio::test]
     async fn parent_user_dead() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
@@ -325,10 +310,6 @@ mod tests {
     #[tokio::test]
     async fn sender_dead_before_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -347,10 +328,6 @@ mod tests {
     #[tokio::test]
     async fn sender_dead_after_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -377,10 +354,6 @@ mod tests {
     #[tokio::test]
     async fn receiver_dead_before_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -399,10 +372,6 @@ mod tests {
     #[tokio::test]
     async fn receiver_dead_after_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
@@ -431,10 +400,6 @@ mod tests {
     #[tokio::test]
     async fn receiver_dead_after_handshake_try_send_error() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,

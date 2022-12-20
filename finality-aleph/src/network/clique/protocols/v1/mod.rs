@@ -193,16 +193,13 @@ mod tests {
     #[tokio::test]
     async fn send_data() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             mut data_from_incoming,
             data_from_outgoing,
             mut result_from_incoming,
             mut result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         let mut data_from_outgoing = data_from_outgoing.expect("No data from outgoing!");
         let incoming_handle = incoming_handle.fuse();
@@ -274,16 +271,14 @@ mod tests {
     #[tokio::test]
     async fn closed_by_parent_service() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
             id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             mut result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
@@ -307,16 +302,13 @@ mod tests {
     #[tokio::test]
     async fn parent_service_dead() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         std::mem::drop(result_from_incoming);
         let incoming_handle = incoming_handle.fuse();
@@ -336,16 +328,13 @@ mod tests {
     #[tokio::test]
     async fn parent_user_dead() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             result_from_incoming: _result_from_incoming,
             mut result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         std::mem::drop(data_from_incoming);
         let incoming_handle = incoming_handle.fuse();
@@ -378,16 +367,13 @@ mod tests {
     #[tokio::test]
     async fn sender_dead_before_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             result_from_incoming: _result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         std::mem::drop(outgoing_handle);
         match incoming_handle.await {
@@ -400,16 +386,13 @@ mod tests {
     #[tokio::test]
     async fn sender_dead_after_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             mut result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         let incoming_handle = incoming_handle.fuse();
         pin_mut!(incoming_handle);
@@ -430,16 +413,13 @@ mod tests {
     #[tokio::test]
     async fn receiver_dead_before_handshake() {
         let MockPrelims {
-            id_incoming: _id_incoming,
-            pen_incoming: _pen_incoming,
-            id_outgoing: _id_outgoing,
-            pen_outgoing: _pen_outgoing,
             incoming_handle,
             outgoing_handle,
             data_from_incoming: _data_from_incoming,
             data_from_outgoing: _data_from_outgoing,
             result_from_incoming: _result_from_incoming,
             result_from_outgoing: _result_from_outgoing,
+            ..
         } = prepare::<Vec<i32>>();
         std::mem::drop(incoming_handle);
         match outgoing_handle.await {
