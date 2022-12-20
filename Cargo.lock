@@ -73,11 +73,11 @@ dependencies = [
 
 [[package]]
 name = "aggregator"
-version = "0.2.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-v0.2.0#95c40fb64bfb741266cf2a424554cc454658befa"
+version = "0.2.1"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-v0.2.1#95a6b02ccd2295f9d4c21ece2b0721a4b99e1ee5"
 dependencies = [
  "aleph-bft-rmc 0.5.2",
- "aleph-bft-types 0.6.0",
+ "aleph-bft-types 0.7.2",
  "async-trait",
  "futures",
  "log",
@@ -89,8 +89,8 @@ dependencies = [
 name = "aggregator"
 version = "0.3.0"
 dependencies = [
- "aleph-bft-rmc 0.6.0",
- "aleph-bft-types 0.7.2",
+ "aleph-bft-rmc 0.6.1",
+ "aleph-bft-types 0.8.1",
  "async-trait",
  "futures",
  "log",
@@ -139,12 +139,12 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.20.2"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afe6617ee3f8a1ae3a3829a669a1c1bf104804feb16241cf8ede472b9fb46066"
+checksum = "6b728a1cd327f84c61a3c0cf087f952703237fb6db8bde33284d67827e86e58f"
 dependencies = [
- "aleph-bft-rmc 0.6.0",
- "aleph-bft-types 0.7.2",
+ "aleph-bft-rmc 0.6.1",
+ "aleph-bft-types 0.8.1",
  "async-trait",
  "derivative",
  "futures",
@@ -158,9 +158,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-crypto"
-version = "0.4.0"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba414eaabb61c300a93267e7d07133a960fc417df394086da804b032ead6b715"
+checksum = "fcc63efe80dacbfe53bc008aab6a24e864142198355b1a9a4f31543246e3d63f"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -171,9 +171,9 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-crypto"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc63efe80dacbfe53bc008aab6a24e864142198355b1a9a4f31543246e3d63f"
+checksum = "39ef65bb0b342d411e32789cdf722cbf163667e1656577ef356221c5aebf75c9"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -198,27 +198,15 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-rmc"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2943e65245f82497df76b452b0cb7358687ecfb7cef2d8c0730bfd80ee2e8f42"
+checksum = "e1a34546c3d75df640c0224294be256fd0c17ed3f7191367124ece4d93753061"
 dependencies = [
- "aleph-bft-crypto 0.5.2",
+ "aleph-bft-crypto 0.6.0",
  "async-trait",
  "futures",
  "futures-timer",
  "log",
- "parity-scale-codec",
-]
-
-[[package]]
-name = "aleph-bft-types"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb9f5b8526b63c76102ef1b36400cf62381f6900585a8258511580af917dd580"
-dependencies = [
- "aleph-bft-crypto 0.4.0",
- "async-trait",
- "futures",
  "parity-scale-codec",
 ]
 
@@ -229,6 +217,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c0995c7a6709cec7dc62ef8316426442ea4756b34182c21d6549a1c6bfb904"
 dependencies = [
  "aleph-bft-crypto 0.5.2",
+ "async-trait",
+ "futures",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "aleph-bft-types"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b39893b3cb3670ade7d8fe3cb807f9b032cd2a2937df88a64b53ad927fc1510"
+dependencies = [
+ "aleph-bft-crypto 0.6.0",
  "async-trait",
  "futures",
  "parity-scale-codec",
@@ -1888,13 +1888,13 @@ dependencies = [
 name = "finality-aleph"
 version = "0.5.4"
 dependencies = [
- "aggregator 0.2.0",
+ "aggregator 0.2.1",
  "aggregator 0.3.0",
  "aleph-bft 0.19.3",
- "aleph-bft 0.20.2",
- "aleph-bft-crypto 0.4.0",
+ "aleph-bft 0.20.4",
+ "aleph-bft-crypto 0.5.2",
  "aleph-bft-rmc 0.5.2",
- "aleph-bft-rmc 0.6.0",
+ "aleph-bft-rmc 0.6.1",
  "async-trait",
  "bytes",
  "derive_more",
@@ -2851,9 +2851,9 @@ checksum = "11b0d96e660696543b251e58030cf9787df56da39dab19ad60eae7353040917e"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927609f78c2913a6f6ac3c27a4fe87f43e2a35367c0c4b0f8265e8f49a104330"
+checksum = "28dfb6c8100ccc63462345b67d1bbc3679177c75ee4bf59bf29c8b1d110b8189"
 dependencies = [
  "hermit-abi 0.2.6",
  "io-lifetimes 1.0.3",
@@ -4116,11 +4116,11 @@ dependencies = [
 
 [[package]]
 name = "num_cpus"
-version = "1.14.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6058e64324c71e02bc2b150e4f3bc8286db6c83092132ffa3f6b1eab0f9def5"
+checksum = "0fac9e2da13b5eb447a6ce3d392f23a29d8694bff781bf03a16cd9ac8697593b"
 dependencies = [
- "hermit-abi 0.1.19",
+ "hermit-abi 0.2.6",
  "libc",
 ]
 
@@ -5074,9 +5074,9 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.11.3"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0b18e655c21ff5ac2084a5ad0611e827b3f92badf79f4910b5a5c58f4d87ff0"
+checksum = "c01db6702aa05baa3f57dec92b8eeeeb4cb19e894e73996b32a4093289e54592"
 dependencies = [
  "bytes",
  "prost-derive",
@@ -5084,9 +5084,9 @@ dependencies = [
 
 [[package]]
 name = "prost-build"
-version = "0.11.4"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "276470f7f281b0ed53d2ae42dd52b4a8d08853a3c70e7fe95882acbb98a6ae94"
+checksum = "cb5320c680de74ba083512704acb90fe00f28f79207286a848e730c45dd73ed6"
 dependencies = [
  "bytes",
  "heck",
@@ -5119,9 +5119,9 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.11.2"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "164ae68b6587001ca506d3bf7f1000bfa248d0e1217b618108fba4ec1d0cc306"
+checksum = "c8842bad1a5419bca14eac663ba798f6bc19c413c2fdceb5f3ba3b0932d96720"
 dependencies = [
  "anyhow",
  "itertools",
@@ -5132,9 +5132,9 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
-version = "0.11.2"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "747761bc3dc48f9a34553bf65605cf6cb6288ba219f3450b4275dbd81539551a"
+checksum = "017f79637768cde62820bc2d4fe0e45daaa027755c323ad077767c6c5f173091"
 dependencies = [
  "bytes",
  "prost",
