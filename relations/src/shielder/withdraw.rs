@@ -101,6 +101,7 @@ impl WithdrawRelation<NoInput> {
 }
 
 impl WithdrawRelation<OnlyPublicInput> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_public_input(
         max_path_len: u8,
         fee: FrontendTokenAmount,
@@ -141,6 +142,7 @@ impl WithdrawRelation<OnlyPublicInput> {
 }
 
 impl WithdrawRelation<FullInput> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_full_input(
         max_path_len: u8,
         fee: FrontendTokenAmount,
