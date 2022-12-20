@@ -138,18 +138,12 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
 
             RelationArgs::MerkleTree {
                 seed, leaf, leaves, ..
-            } => {
-                if cs.is_in_setup_mode() {
-                    return MerkleTreeRelation::without_input(seed).generate_constraints(cs);
-                }
-
-                MerkleTreeRelation::with_full_input(
-                    leaves.unwrap_or_else(|| panic!("You must provide `leaves`")),
-                    leaf.expect("You must provide `leaf` input"),
-                    seed,
-                )
-                .generate_constraints(cs)
-            }
+            } => MerkleTreeRelation::with_full_input(
+                leaves.unwrap_or_else(|| panic!("You must provide `leaves`")),
+                leaf.expect("You must provide `leaf` input"),
+                seed,
+            )
+            .generate_constraints(cs),
 
             RelationArgs::Deposit {
                 note,
