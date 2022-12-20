@@ -2,10 +2,7 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Error, Result};
 use clap::ValueEnum;
-use relations::{
-    note_from_bytes, CircuitField, FrontendAccount, FrontendMerklePathNode, FrontendMerkleRoot,
-    FrontendNote,
-};
+use relations::{CircuitField, FrontendAccount, FrontendMerklePath, FrontendNote};
 
 use crate::{
     snark_relations::systems::SomeProvingSystem, NonUniversalProvingSystem, UniversalProvingSystem,
@@ -20,8 +17,11 @@ pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
         .map_err(|e| anyhow!("Note consists of 4 `u64` limbs: {e:?}"))
 }
 
-pub fn parse_frontend_merkle_root(frontend_merkle_root: &str) -> Result<FrontendMerkleRoot> {
-    Ok(note_from_bytes(frontend_merkle_root.as_bytes()))
+pub fn parse_frontend_merkle_path(frontend_merkle_path: &str) -> Result<FrontendMerklePath> {
+    Ok(frontend_merkle_path
+        .split(':')
+        .map(|n| parse_frontend_note(n).expect("Each node should be valid note"))
+        .collect::<Vec<_>>())
 }
 
 // temporary (until we drop all circuit field constructor arguments)
@@ -31,12 +31,6 @@ pub fn parse_circuit_field(as_str: &str) -> Result<CircuitField> {
 
 pub fn parse_frontend_account(frontend_account: &str) -> Result<FrontendAccount> {
     Ok(frontend_account.as_bytes().try_into().unwrap())
-}
-
-pub fn parse_frontend_merkle_path_single(
-    frontend_merkle_path_single: &str,
-) -> Result<FrontendMerklePathNode> {
-    Ok(note_from_bytes(frontend_merkle_path_single.as_bytes()))
 }
 
 pub fn parse_some_system(system: &str) -> Result<SomeProvingSystem> {

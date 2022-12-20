@@ -7,11 +7,11 @@ use relations::{
 };
 
 use crate::snark_relations::parsing::{
-    parse_circuit_field, parse_frontend_account, parse_frontend_merkle_path_single,
-    parse_frontend_merkle_root, parse_frontend_note,
+    parse_circuit_field, parse_frontend_account, parse_frontend_merkle_path, parse_frontend_note,
 };
 
 /// All available relations from `relations` crate.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Subcommand)]
 pub enum RelationArgs {
     Xor {
@@ -22,6 +22,7 @@ pub enum RelationArgs {
         #[clap(long, short = 'c', default_value = "1")]
         result: u8,
     },
+
     LinearEquation {
         /// constant (a slope)
         #[clap(long, default_value = "2")]
@@ -36,6 +37,7 @@ pub enum RelationArgs {
         #[clap(long, default_value = "19")]
         y: u32,
     },
+
     MerkleTree {
         /// Seed bytes for rng, the more the merrier
         #[clap(long)]
@@ -54,6 +56,7 @@ pub enum RelationArgs {
         #[clap(long)]
         leaf: Option<u8>,
     },
+
     Deposit {
         #[clap(long, value_parser = parse_frontend_note)]
         note: Option<FrontendNote>,
@@ -67,38 +70,42 @@ pub enum RelationArgs {
         #[clap(long)]
         nullifier: Option<FrontendNullifier>,
     },
+
     Withdraw {
-        #[clap(long)]
-        old_nullifier: FrontendNullifier,
-        #[clap(long, value_parser = parse_frontend_merkle_root)]
-        merkle_root: FrontendMerkleRoot,
-        #[clap(long, value_parser = parse_frontend_note)]
-        new_note: FrontendNote,
-        #[clap(long)]
-        token_id: FrontendTokenId,
-        #[clap(long)]
-        token_amount_out: FrontendTokenAmount,
-        #[clap(long)]
-        fee: FrontendTokenAmount,
-        #[clap(long, value_parser = parse_frontend_account)]
-        recipient: FrontendAccount,
+        #[clap(long, default_value = "10")]
+        max_path_len: u8,
 
         #[clap(long)]
-        old_trapdoor: FrontendTrapdoor,
-        #[clap(long)]
-        new_trapdoor: FrontendTrapdoor,
-        #[clap(long)]
-        new_nullifier: FrontendNullifier,
-        #[clap(long, value_delimiter = ',', value_parser = parse_frontend_merkle_path_single)]
-        merkle_path: FrontendMerklePath,
-        #[clap(long)]
-        leaf_index: FrontendLeafIndex,
+        old_nullifier: Option<FrontendNullifier>,
         #[clap(long, value_parser = parse_frontend_note)]
-        old_note: FrontendNote,
+        merkle_root: Option<FrontendMerkleRoot>,
+        #[clap(long, value_parser = parse_frontend_note)]
+        new_note: Option<FrontendNote>,
         #[clap(long)]
-        whole_token_amount: FrontendTokenAmount,
+        token_id: Option<FrontendTokenId>,
         #[clap(long)]
-        new_token_amount: FrontendTokenAmount,
+        token_amount_out: Option<FrontendTokenAmount>,
+        #[clap(long)]
+        fee: Option<FrontendTokenAmount>,
+        #[clap(long, value_parser = parse_frontend_account)]
+        recipient: Option<FrontendAccount>,
+
+        #[clap(long)]
+        old_trapdoor: Option<FrontendTrapdoor>,
+        #[clap(long)]
+        new_trapdoor: Option<FrontendTrapdoor>,
+        #[clap(long)]
+        new_nullifier: Option<FrontendNullifier>,
+        #[clap(long, value_delimiter = ':', value_parser = parse_frontend_merkle_path)]
+        merkle_path: Option<FrontendMerklePath>,
+        #[clap(long)]
+        leaf_index: Option<FrontendLeafIndex>,
+        #[clap(long, value_parser = parse_frontend_note)]
+        old_note: Option<FrontendNote>,
+        #[clap(long)]
+        whole_token_amount: Option<FrontendTokenAmount>,
+        #[clap(long)]
+        new_token_amount: Option<FrontendTokenAmount>,
     },
 }
 
@@ -166,6 +173,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
             }
 
             RelationArgs::Withdraw {
+                max_path_len,
                 old_nullifier,
                 merkle_root,
                 new_note,
@@ -181,24 +189,32 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 old_note,
                 whole_token_amount,
                 new_token_amount,
-            } => WithdrawRelation::new(
-                old_nullifier,
-                merkle_root,
-                new_note,
-                token_id,
-                token_amount_out,
-                old_trapdoor,
-                new_trapdoor,
-                new_nullifier,
-                merkle_path,
-                leaf_index,
-                old_note,
-                whole_token_amount,
-                new_token_amount,
-                fee,
-                recipient,
-            )
-            .generate_constraints(cs),
+            } => {
+                if cs.is_in_setup_mode() {
+                    return WithdrawRelation::without_input(max_path_len).generate_constraints(cs);
+                }
+
+                WithdrawRelation::with_full_input(
+                    max_path_len,
+                    fee.unwrap_or_else(|| panic!("You must provide fee")),
+                    recipient.unwrap_or_else(|| panic!("You must provide recipient")),
+                    token_id.unwrap_or_else(|| panic!("You must provide token id")),
+                    old_nullifier.unwrap_or_else(|| panic!("You must provide old nullifier")),
+                    new_note.unwrap_or_else(|| panic!("You must provide new note")),
+                    token_amount_out.unwrap_or_else(|| panic!("You must provide token amount out")),
+                    merkle_root.unwrap_or_else(|| panic!("You must provide merkle root")),
+                    old_trapdoor.unwrap_or_else(|| panic!("You must provide old trapdoor")),
+                    new_trapdoor.unwrap_or_else(|| panic!("You must provide new trapdoor")),
+                    new_nullifier.unwrap_or_else(|| panic!("You must provide new nullifier")),
+                    merkle_path.unwrap_or_else(|| panic!("You must provide merkle path")),
+                    leaf_index.unwrap_or_else(|| panic!("You must provide leaf index")),
+                    old_note.unwrap_or_else(|| panic!("You must provide old note")),
+                    whole_token_amount
+                        .unwrap_or_else(|| panic!("You must provide whole token amount")),
+                    new_token_amount.unwrap_or_else(|| panic!("You must provide new token amount")),
+                )
+                .generate_constraints(cs)
+            }
         }
     }
 }
@@ -237,31 +253,17 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 note,
                 token_id,
                 token_amount,
-                trapdoor,
-                nullifier,
-            } => match (note, token_id, token_amount, trapdoor, nullifier) {
-                (Some(note), Some(token_id), Some(token_amount), None, None) => {
+                ..
+            } => match (note, token_id, token_amount) {
+                (Some(note), Some(token_id), Some(token_amount)) => {
                     DepositRelation::with_public_input(*note, *token_id, *token_amount)
                         .public_input()
                 }
-                (
-                    Some(note),
-                    Some(token_id),
-                    Some(token_amount),
-                    Some(trapdoor),
-                    Some(nullifier),
-                ) => DepositRelation::with_full_input(
-                    *note,
-                    *token_id,
-                    *token_amount,
-                    *trapdoor,
-                    *nullifier,
-                )
-                .public_input(),
-                _ => panic!("Provide either only public or full input"),
+                _ => panic!("Provide at least public"),
             },
 
             RelationArgs::Withdraw {
+                max_path_len,
                 old_nullifier,
                 merkle_root,
                 new_note,
@@ -269,32 +271,39 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 token_amount_out,
                 fee,
                 recipient,
-                old_trapdoor,
-                new_trapdoor,
-                new_nullifier,
-                merkle_path,
-                leaf_index,
-                old_note,
-                whole_token_amount,
-                new_token_amount,
-            } => WithdrawRelation::new(
-                *old_nullifier,
-                *merkle_root,
-                *new_note,
-                *token_id,
-                *token_amount_out,
-                *old_trapdoor,
-                *new_trapdoor,
-                *new_nullifier,
-                merkle_path.clone(),
-                *leaf_index,
-                *old_note,
-                *whole_token_amount,
-                *new_token_amount,
-                *fee,
-                *recipient,
-            )
-            .public_input(),
+                ..
+            } => {
+                match (
+                    fee,
+                    recipient,
+                    token_id,
+                    old_nullifier,
+                    new_note,
+                    token_amount_out,
+                    merkle_root,
+                ) {
+                    (
+                        Some(fee),
+                        Some(recipient),
+                        Some(token_id),
+                        Some(old_nullifier),
+                        Some(new_note),
+                        Some(token_amount_out),
+                        Some(merkle_root),
+                    ) => WithdrawRelation::with_public_input(
+                        *max_path_len,
+                        *fee,
+                        *recipient,
+                        *token_id,
+                        *old_nullifier,
+                        *new_note,
+                        *token_amount_out,
+                        *merkle_root,
+                    )
+                    .public_input(),
+                    _ => panic!("Provide at least public"),
+                }
+            }
         }
     }
 }
