@@ -57,7 +57,6 @@ sp-arithmetic = { git = "https://github.com/Cardinal-Cryptography/substrate.git"
 aleph-runtime = { path = "../runtime" }
 finality-aleph = { path = "../../finality-aleph" }
 aleph-primitives = { package = "primitives", path = "../../primitives" }
-pallet-aleph-rpc = { package = "pallet-aleph-rpc", path = "../../pallets/aleph/rpc"}
 
 # These dependencies are used for the node's RPCs
 jsonrpsee = { version = "0.15.1", features = ["server"] }

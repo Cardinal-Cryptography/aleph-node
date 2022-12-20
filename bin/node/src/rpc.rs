@@ -38,7 +38,6 @@ where
     C: Send + Sync + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-    C::Api: aleph_primitives::AlephSessionApi<Block>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
     B: BlockT,
@@ -56,13 +55,10 @@ where
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
 
-    module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+    module.merge(TransactionPayment::new(client).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
     module.merge(AlephNode::new(import_justification_tx).into_rpc())?;
-
-    use pallet_aleph_rpc::{FinalityVersion, FinalityVersionApiServer};
-    module.merge(FinalityVersion::new(client).into_rpc())?;
 
     Ok(module)
 }
