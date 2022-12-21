@@ -34,19 +34,6 @@ pub fn unit_creation_delay_fn(unit_creation_delay: UnitCreationDelay) -> DelaySc
     })
 }
 
-pub fn coord_request_delay_fn() -> DelaySchedule {
-    Arc::new(|t| match t {
-        0 => Duration::from_millis(0),
-        1 => Duration::from_millis(50),
-        2 => Duration::from_millis(1000),
-        _ => Duration::from_millis(3000 * (t as u64 - 2)),
-    })
-}
-
-pub fn coord_request_recipients_fn() -> RecipientCountSchedule {
-    Arc::new(|t| if t <= 2 { 3 } else { 1 })
-}
-
 pub struct DelayConfig {
     pub tick_interval: Duration,
     pub requests_interval: Duration,

@@ -1,18 +1,10 @@
-use std::{sync::Arc, time::Duration};
-
-use legacy_aleph_bft::{Config, LocalIO, Terminator};
+use legacy_aleph_bft::{default_config, Config, LocalIO, Terminator};
 use log::debug;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 
 use crate::{
-    abft::{
-        common::{
-            coord_request_delay_fn, coord_request_recipients_fn, unit_creation_delay_fn,
-            AlephConfig, DelayConfig,
-        },
-        NetworkWrapper, SpawnHandleT,
-    },
+    abft::{NetworkWrapper, SpawnHandleT},
     data_io::{AlephData, OrderedDataInterpreter},
     network::data::Network,
     oneshot,
@@ -23,8 +15,10 @@ use crate::{
     Keychain, LegacyNetworkData, NodeIndex, SessionId, UnitCreationDelay,
 };
 
+use super::common::unit_creation_delay_fn;
+
 /// Version of the legacy abft
-pub const VERSION: u32 = 0;
+pub const VERSION: u32 = 1;
 
 pub fn run_member<
     B: Block,
@@ -74,18 +68,8 @@ pub fn create_aleph_config(
     session_id: SessionId,
     unit_creation_delay: UnitCreationDelay,
 ) -> Config {
-    let delay_config = DelayConfig {
-        tick_interval: Duration::from_millis(10),
-        requests_interval: Duration::from_millis(3000),
-        unit_rebroadcast_interval_min: Duration::from_millis(15000),
-        unit_rebroadcast_interval_max: Duration::from_millis(20000),
-        unit_creation_delay: unit_creation_delay_fn(unit_creation_delay),
-        coord_request_delay: coord_request_delay_fn(),
-        coord_request_recipients: coord_request_recipients_fn(),
-        parent_request_delay: Arc::new(|_| Duration::from_millis(3000)),
-        parent_request_recipients: Arc::new(|_| 1),
-        newest_request_delay: Arc::new(|_| Duration::from_millis(3000)),
-    };
+    let mut config = default_config(n_members.into(), node_id.into(), session_id.0 as u64);
+    config.delay_config.unit_creation_delay = unit_creation_delay_fn(unit_creation_delay);
 
-    AlephConfig::new(delay_config, n_members, node_id, session_id).into()
+    config
 }
