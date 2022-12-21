@@ -3,6 +3,7 @@ use log::debug;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 
+use super::common::unit_creation_delay_fn;
 use crate::{
     abft::{NetworkWrapper, SpawnHandleT},
     crypto::Signature,
@@ -15,8 +16,6 @@ use crate::{
     },
     CurrentNetworkData, Hasher, Keychain, NodeIndex, SessionId, SignatureSet, UnitCreationDelay,
 };
-
-use super::common::unit_creation_delay_fn;
 
 /// Version of the current abft
 pub const VERSION: u32 = 2;

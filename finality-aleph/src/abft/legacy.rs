@@ -3,6 +3,7 @@ use log::debug;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 
+use super::common::unit_creation_delay_fn;
 use crate::{
     abft::{NetworkWrapper, SpawnHandleT},
     data_io::{AlephData, OrderedDataInterpreter},
@@ -14,8 +15,6 @@ use crate::{
     },
     Keychain, LegacyNetworkData, NodeIndex, SessionId, UnitCreationDelay,
 };
-
-use super::common::unit_creation_delay_fn;
 
 /// Version of the legacy abft
 pub const VERSION: u32 = 1;
