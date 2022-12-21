@@ -276,7 +276,7 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                     DepositRelation::with_public_input(*note, *token_id, *token_amount)
                         .public_input()
                 }
-                _ => panic!("Provide at least public"),
+                _ => panic!("Provide at least public (note, token id and token amount)"),
             },
 
             RelationArgs::Withdraw {
@@ -318,7 +318,7 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                         *merkle_root,
                     )
                     .public_input(),
-                    _ => panic!("Provide at least public"),
+                    _ => panic!("Provide at least public (fee, recipient, token id, old nullifier, new note, token amount out and merkle root)"),
                 }
             }
         }
