@@ -24,7 +24,7 @@ pub trait Network<D: Data>: Send + 'static {
     type PeerId: Clone + Debug + Eq + Hash + Send + 'static;
 
     /// Attempt to send data to a peer. Might silently fail if we are not connected to them.
-    fn send(&mut self, data: D, peer_id: Self::PeerId) -> Result<(), Self::Error>;
+    fn send_to(&mut self, data: D, peer_id: Self::PeerId) -> Result<(), Self::Error>;
 
     /// Send data to a random peer, preferably from a list. It should send the data to a randomly
     /// chosen peer from the provided list, but if it cannot (e.g. because it's not connected) it

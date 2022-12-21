@@ -21,9 +21,9 @@ use crate::{
 };
 
 enum Command<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
-    Send(D, P),
-    SendToRandom(D, HashSet<P>),
-    Broadcast(D),
+    Send(D, P, Protocol),
+    SendToRandom(D, HashSet<P>, Protocol),
+    Broadcast(D, Protocol),
 }
 
 /// A service managing all the direct interaction with the underlying network implementation. It
@@ -68,9 +68,9 @@ impl<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> Network<D> for Serv
     type Error = Error;
     type PeerId = P;
 
-    fn send(&mut self, data: D, peer_id: Self::PeerId) -> Result<(), Self::Error> {
+    fn send_to(&mut self, data: D, peer_id: Self::PeerId) -> Result<(), Self::Error> {
         self.messages_for_service
-            .unbounded_send(Command::Send(data, peer_id))
+            .unbounded_send(Command::Send(data, peer_id, Protocol::Authentication))
             .map_err(|_| Error::ServiceStopped)
     }
 
@@ -80,13 +80,17 @@ impl<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> Network<D> for Serv
         peer_ids: HashSet<Self::PeerId>,
     ) -> Result<(), Self::Error> {
         self.messages_for_service
-            .unbounded_send(Command::SendToRandom(data, peer_ids))
+            .unbounded_send(Command::SendToRandom(
+                data,
+                peer_ids,
+                Protocol::Authentication,
+            ))
             .map_err(|_| Error::ServiceStopped)
     }
 
     fn broadcast(&mut self, data: D) -> Result<(), Self::Error> {
         self.messages_for_service
-            .unbounded_send(Command::Broadcast(data))
+            .unbounded_send(Command::Broadcast(data, Protocol::Authentication))
             .map_err(|_| Error::ServiceStopped)
     }
 
@@ -320,9 +324,9 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
                     }
                 },
                 maybe_message = self.messages_from_user.next() => match maybe_message {
-                    Some(Command::Broadcast(message)) => self.broadcast(message, Protocol::Authentication),
-                    Some(Command::SendToRandom(message, peer_ids)) => self.send_to_random(message, peer_ids, Protocol::Authentication),
-                    Some(Command::Send(message, peer_id)) => self.send(message, peer_id, Protocol::Authentication),
+                    Some(Command::Broadcast(message, protocol)) => self.broadcast(message, protocol),
+                    Some(Command::SendToRandom(message, peer_ids, protocol)) => self.send_to_random(message, peer_ids, protocol),
+                    Some(Command::Send(message, peer_id, protocol)) => self.send(message, peer_id, protocol),
                     None => {
                         error!(target: "aleph-network", "User message stream ended.");
                         return;
@@ -338,7 +342,7 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, iter};
 
     use codec::Encode;
     use futures::channel::oneshot;
@@ -398,8 +402,8 @@ mod tests {
         type Error = Error;
         type PeerId = MockPublicKey;
 
-        fn send(&mut self, data: MockData, peer_id: Self::PeerId) -> Result<(), Self::Error> {
-            self.gossip_network.send(data, peer_id)
+        fn send_to(&mut self, data: MockData, peer_id: Self::PeerId) -> Result<(), Self::Error> {
+            self.gossip_network.send_to(data, peer_id)
         }
 
         fn send_to_random(
@@ -591,16 +595,133 @@ mod tests {
 
         let message = message(1);
 
+        let peer_id = random_peer_id();
         test_data
             .service
             .handle_network_event(MockEvent::Messages(
-                random_peer_id(),
+                peer_id.clone(),
                 vec![(PROTOCOL, message.clone().encode().into())],
             ))
             .expect("Should handle");
 
-        let (received_message, _) = test_data.next().await.expect("Should receive message");
+        let (received_message, received_peer_id) =
+            test_data.next().await.expect("Should receive message");
         assert_eq!(received_message, message);
+        assert_eq!(received_peer_id, peer_id);
+
+        test_data.cleanup().await
+    }
+
+    #[tokio::test]
+    async fn test_send_to_connected() {
+        let mut test_data = TestData::prepare().await;
+
+        let peer_id = random_peer_id();
+
+        let message = message(1);
+
+        test_data
+            .service
+            .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
+            .expect("Should handle");
+
+        test_data
+            .service
+            .send(message.clone(), peer_id.clone(), PROTOCOL);
+
+        let expected = (message.encode(), peer_id, PROTOCOL);
+
+        assert_eq!(
+            test_data
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
+            expected,
+        );
+
+        test_data.cleanup().await
+    }
+
+    #[tokio::test]
+    async fn test_no_send_to_disconnected() {
+        let mut test_data = TestData::prepare().await;
+
+        let peer_id = random_peer_id();
+
+        let message = message(1);
+
+        test_data.service.send(message, peer_id, PROTOCOL);
+
+        test_data.cleanup().await
+    }
+
+    #[tokio::test]
+    async fn test_send_to_random_connected() {
+        let mut test_data = TestData::prepare().await;
+
+        let peer_id = random_peer_id();
+
+        let message = message(1);
+
+        test_data
+            .service
+            .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
+            .expect("Should handle");
+
+        test_data.service.send_to_random(
+            message.clone(),
+            iter::once(peer_id.clone()).collect(),
+            PROTOCOL,
+        );
+
+        let expected = (message.encode(), peer_id, PROTOCOL);
+
+        assert_eq!(
+            test_data
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
+            expected,
+        );
+
+        test_data.cleanup().await
+    }
+
+    #[tokio::test]
+    async fn test_send_to_random_disconnected() {
+        let mut test_data = TestData::prepare().await;
+
+        let peer_id = random_peer_id();
+        let other_peer_id = random_peer_id();
+
+        let message = message(1);
+
+        test_data
+            .service
+            .handle_network_event(MockEvent::StreamOpened(other_peer_id.clone(), PROTOCOL))
+            .expect("Should handle");
+
+        test_data.service.send_to_random(
+            message.clone(),
+            iter::once(peer_id.clone()).collect(),
+            PROTOCOL,
+        );
+
+        let expected = (message.encode(), other_peer_id, PROTOCOL);
+
+        assert_eq!(
+            test_data
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
+            expected,
+        );
 
         test_data.cleanup().await
     }
