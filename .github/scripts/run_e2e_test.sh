@@ -113,9 +113,9 @@ fi
 
 if [[ -n "${ADDER:-}" ]]; then
     ARGS+=(-e "ADDER=${ADDER}")
-    ARGS+=(-e "ADDER_METADATA=${ADDER_METADATA}")
+    ARGS+=(-e "ADDER_METADATA=/contracts/adder/target/ink/metadata.json")
 fi
 
-docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest
+docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" "${ARGS[@]}" aleph-e2e-client:latest
 
 exit $?

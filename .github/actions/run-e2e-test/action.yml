@@ -93,7 +93,6 @@ runs:
         if [[ "${DEPLOY_ADDER}" = "true" ]]; then
           pushd contracts/adder
           export ADDER=$(./deploy.sh)
-          export ADDER_METADATA=$(pwd)/target/ink/metadata.json
           popd
         fi
 
