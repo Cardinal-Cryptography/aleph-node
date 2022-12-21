@@ -112,8 +112,8 @@ if [[ -n "${ONLY_LEGACY:-}" ]]; then
 fi
 
 if [[ -n "${ADDER:-}" ]]; then
-    ARGS+=(-e "${ADDER}")
-    ARGS_METADATA+=(-e "${ADDER_METADATA}")
+    ARGS+=(-e "ADDER=${ADDER}")
+    ARGS+=(-e "ADDER_METADATA=${ADDER_METADATA}")
 fi
 
 docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest
