@@ -575,7 +575,7 @@ jobs:
         with:
           deploy-adder: true
           test-case: adder
-        timeout-minutes: 4
+        timeout-minutes: 10
 
 # The tests below were written under the assumption that nonfinalized blocks are being produced, they need a rewrite before being reenabled.
 # TODO(A0-1644): Reenable these tests.
