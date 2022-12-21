@@ -15,95 +15,118 @@ use crate::snark_relations::parsing::{
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Subcommand)]
 pub enum RelationArgs {
     Xor {
+        /// The first xoree (public input).
         #[clap(long, short = 'a', default_value = "2")]
         public_xoree: u8,
+        /// The second xoree (private input).
         #[clap(long, short = 'b', default_value = "3")]
         private_xoree: u8,
+        /// The xor result (circuit constant).
         #[clap(long, short = 'c', default_value = "1")]
         result: u8,
     },
 
     LinearEquation {
-        /// constant (a slope)
+        /// The equation slope (circuit constant).
         #[clap(long, default_value = "2")]
         a: u32,
-        /// private witness
+        /// The equation variable (private input).
         #[clap(long, default_value = "7")]
         x: u32,
-        /// constant(an intercept)
+        /// The equation intercept (circuit constant).
         #[clap(long, default_value = "5")]
         b: u32,
-        /// constant
+        /// The equation right-hand side (circuit constant).
         #[clap(long, default_value = "19")]
         y: u32,
     },
 
     MerkleTree {
-        /// Seed bytes for rng, the more the merrier
+        /// Seed bytes for rng, the more the merrier.
         #[clap(long)]
         seed: Option<String>,
-        /// Tree leaves.
-        ///
-        /// Notice, that this in fact is private witness.
+        /// Tree leaves (private input).
         #[clap(long, value_delimiter = ',')]
         leaves: Option<Vec<u8>>,
-        /// Tree root. Use this, if you don't know leaves.
+        /// Tree root (public input).
         ///
-        /// Notice, that this is public input.
+        /// If you know the leaves, then don't provide root - it can be computed from the leaves.
         #[clap(long, conflicts_with = "leaves", value_parser = parse_circuit_field)]
         root: Option<Root>,
-        /// Leaf of which membership is to be proven
+        /// The leaf of which membership is to be proven (public input).
         #[clap(long)]
         leaf: Option<u8>,
     },
 
     Deposit {
+        /// The note encoding token id, token amount, trapdoor and nullifier (public input).
         #[clap(long, value_parser = parse_frontend_note)]
         note: Option<FrontendNote>,
+        /// The identifier of the token being shielded (public input).
         #[clap(long)]
         token_id: Option<FrontendTokenId>,
+        /// The amount being shielded (public input).
         #[clap(long)]
         token_amount: Option<FrontendTokenAmount>,
 
+        /// The trapdoor, that keeps the note private even after revealing the nullifier (private
+        /// input).
         #[clap(long)]
         trapdoor: Option<FrontendTrapdoor>,
+        /// The nullifier for invalidating the note in the future (private input).
         #[clap(long)]
         nullifier: Option<FrontendNullifier>,
     },
 
     Withdraw {
+        /// The upper bound for Merkle tree height (circuit constant).
         #[clap(long, default_value = "10")]
         max_path_len: u8,
 
+        /// The nullifier that was used for the old note (public input).
         #[clap(long)]
         old_nullifier: Option<FrontendNullifier>,
+        /// The Merkle root of the tree containing the old note (public input).
         #[clap(long, value_parser = parse_frontend_note)]
         merkle_root: Option<FrontendMerkleRoot>,
+        /// The new note (public input).
         #[clap(long, value_parser = parse_frontend_note)]
         new_note: Option<FrontendNote>,
+        /// The identifier of the token being unshielded (public input).
         #[clap(long)]
         token_id: Option<FrontendTokenId>,
+        /// The amount being unshielded (public input).
         #[clap(long)]
         token_amount_out: Option<FrontendTokenAmount>,
+        /// The fee for the caller (public input).
         #[clap(long)]
         fee: Option<FrontendTokenAmount>,
+        /// The recipient of unshielded tokens, excluding fee (public input).
         #[clap(long, value_parser = parse_frontend_account)]
         recipient: Option<FrontendAccount>,
 
+        /// The trapdoor that was used for the old note (private input).
         #[clap(long)]
         old_trapdoor: Option<FrontendTrapdoor>,
+        /// The trapdoor that was used for the new note (private input).
         #[clap(long)]
         new_trapdoor: Option<FrontendTrapdoor>,
+        /// The nullifier that was used for the new note (private input).
         #[clap(long)]
         new_nullifier: Option<FrontendNullifier>,
-        #[clap(long, value_delimiter = ':', value_parser = parse_frontend_merkle_path)]
+        /// The Merkle path proving that the old note is under `merkle_root` (private input).
+        #[clap(long, value_parser = parse_frontend_merkle_path)]
         merkle_path: Option<FrontendMerklePath>,
+        /// The index of the old note in the Merkle tree (private input).
         #[clap(long)]
         leaf_index: Option<FrontendLeafIndex>,
+        /// The old note (private input).
         #[clap(long, value_parser = parse_frontend_note)]
         old_note: Option<FrontendNote>,
+        /// The token amount that was originally shielded (private input).
         #[clap(long)]
         whole_token_amount: Option<FrontendTokenAmount>,
+        /// The token amount that will still be shielded in the new note (private input).
         #[clap(long)]
         new_token_amount: Option<FrontendTokenAmount>,
     },

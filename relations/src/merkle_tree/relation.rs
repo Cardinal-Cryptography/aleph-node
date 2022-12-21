@@ -36,17 +36,15 @@ pub type SimplePathVar = PathVar<MerkleConfig, LeafHashGadget, TwoToOneHashGadge
 #[derive(Clone)]
 pub struct MerkleTreeRelation<S: State> {
     /// Private witness.
-    pub authentication_path: Option<SimplePath>,
+    pub merkle_path: Option<SimplePath>,
 
     /// Root of the tree (public input).
     pub root: Option<Root>,
-
     /// Leaf which membership is to be proven (public input).
     pub leaf: Option<u8>,
 
     /// Collision-resistant hash function for leafs (constant parameter).
     pub leaf_crh_params: <LeafHash as CRH>::Parameters,
-
     /// Collision-resistant hash function translating child hashes to parent hash
     /// (constant parameter).
     pub two_to_one_crh_params: <TwoToOneHash as TwoToOneCRH>::Parameters,
@@ -60,7 +58,7 @@ impl MerkleTreeRelation<NoInput> {
             tree_parameters(string_to_padded_bytes(seed.unwrap_or_default()));
 
         MerkleTreeRelation {
-            authentication_path: None,
+            merkle_path: None,
             root: None,
             leaf: None,
             leaf_crh_params,
@@ -76,7 +74,7 @@ impl MerkleTreeRelation<OnlyPublicInput> {
             tree_parameters(string_to_padded_bytes(seed.unwrap_or_default()));
 
         MerkleTreeRelation {
-            authentication_path: None,
+            merkle_path: None,
             root: Some(root),
             leaf: Some(leaf),
             leaf_crh_params,
@@ -97,7 +95,7 @@ impl MerkleTreeRelation<FullInput> {
             new_tree(leaves, string_to_padded_bytes(seed.unwrap_or_default()));
 
         MerkleTreeRelation {
-            authentication_path: Some(tree.generate_proof(leaf_idx).unwrap()),
+            merkle_path: Some(tree.generate_proof(leaf_idx).unwrap()),
             root: Some(tree.root()),
             leaf: Some(leaf),
             leaf_crh_params,
@@ -113,7 +111,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for MerkleTreeRelation<S> {
         cs: ConstraintSystemRef<CircuitField>,
     ) -> Result<(), SynthesisError> {
         let path = SimplePathVar::new_witness(ark_relations::ns!(cs, "path"), || {
-            self.authentication_path.ok_or_else(|| {
+            self.merkle_path.ok_or_else(|| {
             if cs.is_in_setup_mode() {
                 eprintln!("Unfortunately, `MerkleTreeRelation` requires path even for keys generation. Blame `arkworks`.");
             }

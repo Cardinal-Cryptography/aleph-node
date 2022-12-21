@@ -9,7 +9,7 @@ use ark_relations::{
     ns,
     r1cs::{
         ConstraintSynthesizer, ConstraintSystemRef, SynthesisError,
-        SynthesisError::AssignmentMissing,
+        SynthesisError::{AssignmentMissing, UnconstrainedVariable},
     },
 };
 
@@ -44,7 +44,7 @@ use crate::{
 /// It also includes two artificial inputs `fee` and `recipient` just to strengthen the application
 /// security by treating them as public inputs (and thus integral part of the SNARK).
 /// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
-/// for the length of the merkle path (which is ~twice the height of the tree).
+/// for the length of the merkle path (which is ~the height of the tree, ±1).
 ///
 /// When providing a public input to proof verification, you should keep the order of variable
 /// declarations in circuit, i.e.: `fee`, `recipient`, `token_id`, `old_nullifier`, `new_note`,
@@ -282,6 +282,10 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for WithdrawRelation<S> {
         let mut current_hash_bytes = old_note.to_bytes()?;
         let mut hash_bytes = vec![current_hash_bytes.clone()];
         let path = self.merkle_path.unwrap_or_default();
+
+        if path.len() > self.max_path_len as usize {
+            return Err(UnconstrainedVariable);
+        }
 
         let zero = CircuitField::zero();
 
