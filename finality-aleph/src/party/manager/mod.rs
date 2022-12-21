@@ -344,7 +344,10 @@ where
             .next_session_finality_version(&BlockId::Number(last_block_of_previous_session))
         {
             #[cfg(feature = "only_legacy")]
-            _ if self.only_legacy() => self.legacy_subtasks(params),
+            _ if self.only_legacy() => {
+                info!(target: "aleph-party", "Running session with legacy-only AlephBFT version.");
+                self.legacy_subtasks(params)
+            }
             Ok(version) if version == CURRENT_VERSION => {
                 info!(target: "aleph-party", "Running session with AlephBFT version {}, which is current.", version);
                 self.current_subtasks(params)
