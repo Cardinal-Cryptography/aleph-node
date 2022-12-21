@@ -11,10 +11,10 @@ use crate::{
 pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
     frontend_note
         .split(',')
-        .map(|l| u64::from_str(l).expect("Each limb should be valid `u64`"))
+        .map(|l| u64::from_str(l).expect("Each element should be valid `u64`"))
         .collect::<Vec<_>>()
         .try_into()
-        .map_err(|e| anyhow!("Note consists of 4 `u64` limbs: {e:?}"))
+        .map_err(|e| anyhow!("Note consists of 4 `u64` elements: {e:?}"))
 }
 
 pub fn parse_frontend_merkle_path(frontend_merkle_path: &str) -> Result<FrontendMerklePath> {
