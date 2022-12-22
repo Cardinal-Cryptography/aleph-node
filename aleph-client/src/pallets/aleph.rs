@@ -105,10 +105,8 @@ impl AlephRpc for Connection {
     async fn next_session_finality_version(&self, hash: Option<BlockHash>) -> Version {
         let method = "state_call";
         let api_method = "AlephSessionApi_next_session_finality_version";
-        let params = rpc_params![api_method, hash];
+        let params = rpc_params![api_method, "0x", hash];
 
-        //self.client.rpc().request(method, params).await.unwrap()
-        println!("Hash: {:?}", hash);
         self.rpc_call(method.to_string(), params).await.unwrap()
 
     }
