@@ -3,9 +3,8 @@ use log::debug;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 
-use super::common::unit_creation_delay_fn;
 use crate::{
-    abft::{NetworkWrapper, SpawnHandleT},
+    abft::{common::unit_creation_delay_fn, NetworkWrapper, SpawnHandleT},
     crypto::Signature,
     data_io::{AlephData, OrderedDataInterpreter},
     network::data::Network,
