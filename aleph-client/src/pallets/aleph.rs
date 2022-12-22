@@ -108,6 +108,5 @@ impl AlephRpc for Connection {
         let params = rpc_params![api_method, "0x", hash];
 
         self.rpc_call(method.to_string(), params).await.unwrap()
-
     }
 }
