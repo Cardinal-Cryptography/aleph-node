@@ -38,7 +38,7 @@ jobs:
           cache-version: v2
 
       - name: Build binary and runtime
-        run: cargo build --profile production -p aleph-node
+        run: cargo build --profile production -p aleph-node --features short_session
 
       - name: Upload release binary
         uses: actions/upload-artifact@v2
