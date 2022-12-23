@@ -234,6 +234,13 @@ fn setup(
             protocol_naming.clone(),
             Protocol::Authentication,
         ));
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(
+            protocol_naming.clone(),
+            Protocol::BlockSync,
+        ));
 
     let (network, system_rpc_tx, tx_handler_controller, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {

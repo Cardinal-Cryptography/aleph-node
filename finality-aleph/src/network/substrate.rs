@@ -79,7 +79,7 @@ impl ProtocolNaming {
         }
         let block_sync_name: ProtocolName =
             format!("{}{}", chain_prefix, BLOCK_SYNC_PROTOCOL_NAME).into();
-        protocols_by_name.insert(block_sync_name.clone(), Protocol::Authentication);
+        protocols_by_name.insert(block_sync_name.clone(), Protocol::BlockSync);
         ProtocolNaming {
             authentication_name,
             authentication_fallback_names,

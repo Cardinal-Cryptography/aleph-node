@@ -337,6 +337,10 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
             "authentication connected peers - {:?}; ",
             self.authentication_connected_peers.len()
         ));
+        status.push_str(&format!(
+            "block sync connected peers - {:?}; ",
+            self.block_sync_connected_peers.len()
+        ));
 
         info!(target: "aleph-network", "{}", status);
     }
