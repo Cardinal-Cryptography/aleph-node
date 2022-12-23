@@ -28,7 +28,8 @@ jobs:
   build-test-docker:
     needs: [build-new-node]
     name: Build docker image with the test node artifact
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -57,7 +58,8 @@ jobs:
 
   build-cliain-image:
     name: Build docker image for cliain
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
@@ -102,7 +104,8 @@ jobs:
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -140,7 +143,8 @@ jobs:
 
   build-test-client:
     name: Build e2e test client suite
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -186,7 +190,8 @@ jobs:
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e finalization test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -201,7 +206,8 @@ jobs:
   run-e2e-rewards-disable-node-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e reward points - disable node test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -217,7 +223,8 @@ jobs:
   run-e2e-token-transfer-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e token transfer test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -232,7 +239,8 @@ jobs:
   run-e2e-channeling-fee-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e channeling fee test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -246,7 +254,8 @@ jobs:
   run-e2e-treasury-access-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e treasury access test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -261,7 +270,8 @@ jobs:
   run-e2e-batch-transactions-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e batch transactions test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -276,7 +286,8 @@ jobs:
   run-e2e-staking-era-payouts-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e staking era payouts test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -292,7 +303,8 @@ jobs:
   run-e2e-staking-new-validator-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e staking new validator test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -308,7 +320,8 @@ jobs:
   run-e2e-change-validators-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e change validators test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -324,7 +337,8 @@ jobs:
   run-e2e-fee-calculation:
     needs: [build-test-docker, build-test-client]
     name: Run e2e fee calculation test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -339,7 +353,8 @@ jobs:
   run-e2e-validators-rotate:
     needs: [build-test-docker, build-test-client]
     name: Run validators rotation test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -354,7 +369,8 @@ jobs:
   run-e2e-era-payout:
     needs: [build-test-docker, build-test-client]
     name: Run era payout test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -369,7 +385,8 @@ jobs:
   run-e2e-era-validators:
     needs: [build-test-docker, build-test-client]
     name: Run era validators test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -384,7 +401,8 @@ jobs:
   run-e2e-rewards-force-new-era:
     needs: [build-test-docker, build-test-client]
     name: Run force new era test to check rewards
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -399,7 +417,8 @@ jobs:
   run-e2e-rewards-stake-change:
     needs: [build-test-docker, build-test-client]
     name: Run reward points with stake changed test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -414,7 +433,8 @@ jobs:
   run-e2e-rewards-change-stake-force-new-era:
     needs: [build-test-docker, build-test-client]
     name: Run reward points with stake changed and new era forced test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -429,7 +449,8 @@ jobs:
   run-e2e-rewards-points-basic:
     needs: [build-test-docker, build-test-client]
     name: Run basic reward points calculation test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -462,7 +483,8 @@ jobs:
   run-e2e-ban-automatic:
     needs: [build-test-docker, build-test-client]
     name: Run ban automatic test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -477,7 +499,8 @@ jobs:
   run-e2e-ban-manual:
     needs: [build-test-docker, build-test-client]
     name: Run ban manual test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -492,7 +515,8 @@ jobs:
   run-e2e-ban-counter-clearing:
     needs: [build-test-docker, build-test-client]
     name: Run ban counter clearing test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -507,7 +531,8 @@ jobs:
   run-e2e-ban-threshold:
     needs: [build-test-docker, build-test-client]
     name: Run ban threshold test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -522,7 +547,8 @@ jobs:
   run-e2e-permissionless-ban:
     needs: [ build-test-docker, build-test-client ]
     name: Run permissionless ban test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -537,7 +563,8 @@ jobs:
   run-e2e-version-upgrade:
     needs: [build-test-docker, build-test-client]
     name: Run basic (positive) version-upgrade test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -663,7 +690,8 @@ jobs:
 #      run-e2e-version-upgrade-catchup,
     ]
     name: Check e2e test suite completion
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
      - name: All e2e tests completed
        run: echo "All e2e tests completed."
@@ -673,7 +701,8 @@ jobs:
     needs: [check-e2e-test-suite-completion]
     name: Push node image to the ECR
     if: github.event_name == 'push'
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: GIT | Checkout Source code
         uses: actions/checkout@v2
@@ -752,7 +781,8 @@ jobs:
 
   test-multiple-restarts:
     name: Test multiple restarts
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: build-new-node
     steps:
       - name: Checkout source code
@@ -777,7 +807,8 @@ jobs:
 
   check-runtime-change:
     name: Inspect whether runtime version has been changed (compared with main)
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     outputs:
       runtime-updated: ${{ steps.inspect.outputs.diff }}
     steps:
@@ -802,7 +833,8 @@ jobs:
     # Disbled check, reenable once we fix the issue with try-runtime test
     # if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     if: ${{ false }}
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -851,7 +883,8 @@ jobs:
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Checkout source code
@@ -884,7 +917,8 @@ jobs:
 
   slack:
     name: Slack notification
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: [push-image]
     if: always()
     steps:
