@@ -9,7 +9,7 @@ use log::{debug, info, trace};
 
 use crate::{
     network::{
-        manager::{
+        session::{
             compatibility::PeerAuthentications, Authentication, LegacyAuthentication,
             SessionHandler,
         },
@@ -122,11 +122,13 @@ mod tests {
     use super::Discovery;
     use crate::{
         network::{
-            manager::{compatibility::PeerAuthentications, SessionHandler},
+            clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            testing::{authentication, legacy_authentication},
+            session::{
+                authentication, compatibility::PeerAuthentications, legacy_authentication,
+                SessionHandler,
+            },
         },
-        testing::mocks::validator_network::{random_address, MockAddressingInformation},
         SessionId,
     };
 

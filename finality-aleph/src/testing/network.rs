@@ -12,20 +12,19 @@ use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        clique::mock::{
+            key, random_address_from, MockAddressingInformation, MockNetwork as MockCliqueNetwork,
+            MockPublicKey,
+        },
         data::Network,
         mock::{crypto_basics, MockData},
-        setup_io,
-        testing::{
-            authentication, legacy_authentication, DataInSession, LegacyDiscoveryMessage,
-            MockEvent, MockRawNetwork, SessionHandler, VersionedAuthentication,
+        session::{
+            authentication, legacy_authentication, ConnectionManager, ConnectionManagerConfig,
+            DataInSession, LegacyDiscoveryMessage, ManagerError, SessionHandler, SessionManager,
+            VersionedAuthentication,
         },
-        AddressingInformation, ConnectionManager, ConnectionManagerConfig, GossipService,
-        NetworkIdentity, Protocol, SessionManager,
+        AddressingInformation, GossipService, MockEvent, MockRawNetwork, Protocol,
     },
-    testing::mocks::validator_network::{
-        random_address_from, MockAddressingInformation, MockNetwork as MockValidatorNetwork,
-    },
-    validator_network::mock::{key, MockPublicKey},
     MillisecsPerBlock, NodeIndex, Recipient, SessionId, SessionPeriod,
 };
 
@@ -60,21 +59,12 @@ impl Authority {
     }
 }
 
-impl NetworkIdentity for Authority {
-    type PeerId = MockPublicKey;
-    type AddressingInformation = MockAddressingInformation;
-
-    fn identity(&self) -> Self::AddressingInformation {
-        self.address.clone()
-    }
-}
-
 struct TestData {
     pub authorities: Vec<Authority>,
     pub authority_verifier: AuthorityVerifier,
-    pub session_manager: SessionManager<MockData>,
+    pub session_manager: Box<dyn SessionManager<MockData, Error = ManagerError>>,
     pub network: MockRawNetwork,
-    pub validator_network: MockValidatorNetwork<DataInSession<MockData>>,
+    pub validator_network: MockCliqueNetwork<DataInSession<MockData>>,
     network_manager_exit_tx: oneshot::Sender<()>,
     gossip_service_exit_tx: oneshot::Sender<()>,
     network_manager_handle: JoinHandle<()>,
@@ -103,24 +93,22 @@ async fn prepare_one_session_test_data() -> TestData {
     let (network_manager_exit_tx, network_manager_exit_rx) = oneshot::channel();
     let (gossip_service_exit_tx, gossip_service_exit_rx) = oneshot::channel();
     let network = MockRawNetwork::new(event_stream_tx);
-    let validator_network = MockValidatorNetwork::new();
+    let validator_network = MockCliqueNetwork::new();
 
     let (gossip_service, gossip_network) =
         GossipService::new(network.clone(), task_manager.spawn_handle());
 
-    let (connection_io, session_io) = setup_io(validator_network.clone(), gossip_network);
-
-    let connection_manager = ConnectionManager::new(
-        authorities[0].clone(),
+    let (connection_manager_service, session_manager) = ConnectionManager::new(
+        authorities[0].address(),
+        validator_network.clone(),
+        gossip_network,
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
-
-    let session_manager = SessionManager::new(session_io);
+    let session_manager = Box::new(session_manager);
 
     let network_manager_task = async move {
         tokio::select! {
-            _ = connection_io
-            .run(connection_manager) => { },
+            _ =connection_manager_service.run() => { },
             _ = network_manager_exit_rx => { },
         };
     };
@@ -161,7 +149,8 @@ impl TestData {
         node_id: usize,
         session_id: u32,
     ) -> impl Network<MockData> {
-        self.session_manager
+        match self
+            .session_manager
             .start_validator_session(
                 SessionId(session_id),
                 self.authority_verifier.clone(),
@@ -169,18 +158,21 @@ impl TestData {
                 self.authorities[node_id].pen(),
             )
             .await
-            .expect("Failed to start validator session!")
+        {
+            Ok(network) => network,
+            Err(e) => panic!("Failed to start validator session: {}", e),
+        }
     }
 
     fn early_start_validator_session(&self, node_id: usize, session_id: u32) {
-        self.session_manager
-            .early_start_validator_session(
-                SessionId(session_id),
-                self.authority_verifier.clone(),
-                NodeIndex(node_id),
-                self.authorities[node_id].pen(),
-            )
-            .expect("Failed to start validator session!");
+        if let Err(e) = self.session_manager.early_start_validator_session(
+            SessionId(session_id),
+            self.authority_verifier.clone(),
+            NodeIndex(node_id),
+            self.authorities[node_id].pen(),
+        ) {
+            panic!("Failed to start validator session: {}", e);
+        }
     }
 
     async fn get_session_handler(
@@ -235,10 +227,13 @@ impl TestData {
             for versioned_authentication in
                 Vec::<VersionedAuthentication<_, _>>::from(handler.authentication().unwrap())
             {
-                self.network.emit_event(MockEvent::Messages(vec![(
-                    Protocol::Authentication,
-                    versioned_authentication.encode().into(),
-                )]));
+                self.network.emit_event(MockEvent::Messages(
+                    authority.auth_peer_id(),
+                    vec![(
+                        Protocol::Authentication,
+                        versioned_authentication.encode().into(),
+                    )],
+                ));
             }
         }
     }
@@ -342,10 +337,13 @@ async fn test_forwards_authentication_broadcast() {
     for versioned_authentication in
         Vec::<VersionedAuthentication<_, _>>::from(sending_peer_handler.authentication().unwrap())
     {
-        test_data.network.emit_event(MockEvent::Messages(vec![(
-            Protocol::Authentication,
-            versioned_authentication.encode().into(),
-        )]));
+        test_data.network.emit_event(MockEvent::Messages(
+            sending_peer.auth_peer_id(),
+            vec![(
+                Protocol::Authentication,
+                versioned_authentication.encode().into(),
+            )],
+        ));
     }
 
     for _ in 0..2 {
@@ -414,7 +412,7 @@ async fn test_connects_to_others() {
     let mut test_data = prepare_one_session_test_data().await;
     let mut data_network = test_data.start_session(session_id).await;
 
-    let data = vec![1, 2, 3];
+    let data = MockData::new(43, 3);
     test_data.validator_network.next.send(DataInSession {
         data: data.clone(),
         session_id: SessionId(session_id),
@@ -439,7 +437,7 @@ async fn test_connects_to_others_early_validator() {
 
     let mut data_network = test_data.start_validator_session(0, session_id).await;
 
-    let data = vec![1, 2, 3];
+    let data = MockData::new(43, 3);
     test_data.validator_network.next.send(DataInSession {
         data: data.clone(),
         session_id: SessionId(session_id),
@@ -497,10 +495,10 @@ async fn test_receives_data_in_correct_session() {
 
     let mut data_network_2 = test_data.start_session(session_id_2).await;
 
-    let data_1_1 = vec![1, 2, 3];
-    let data_1_2 = vec![4, 5, 6];
-    let data_2_1 = vec![7, 8, 9];
-    let data_2_2 = vec![10, 11, 12];
+    let data_1_1 = MockData::new(43, 3);
+    let data_1_2 = MockData::new(44, 3);
+    let data_2_1 = MockData::new(45, 3);
+    let data_2_2 = MockData::new(46, 3);
     test_data.validator_network.next.send(DataInSession {
         data: data_1_1.clone(),
         session_id: SessionId(session_id_1),
@@ -558,8 +556,8 @@ async fn test_sends_data_to_correct_session() {
 
     let mut expected_data = HashSet::new();
     for node_id in 1..NODES_N {
-        let data_1 = vec![2 * node_id as u8 - 1];
-        let data_2 = vec![2 * node_id as u8];
+        let data_1 = MockData::new((node_id - 1) as u32, 1);
+        let data_2 = MockData::new(node_id as u32, 1);
 
         expected_data.insert((
             data_1.clone(),
@@ -610,8 +608,8 @@ async fn test_broadcasts_data_to_correct_session() {
     let mut data_network_1 = test_data.start_session(session_id_1).await;
     let mut data_network_2 = test_data.start_session(session_id_2).await;
 
-    let data_1 = vec![1, 2, 3];
-    let data_2 = vec![4, 5, 6];
+    let data_1 = MockData::new(43, 3);
+    let data_2 = MockData::new(44, 3);
     data_network_1
         .send(data_1.clone(), Recipient::Everyone)
         .expect("Should send");
