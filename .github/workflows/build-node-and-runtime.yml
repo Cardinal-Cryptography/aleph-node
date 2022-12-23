@@ -15,7 +15,8 @@ on:
 jobs:
   build:
     name: Build binary artifacts
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
       SECRETS_AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
