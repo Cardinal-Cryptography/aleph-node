@@ -42,4 +42,10 @@ mod adder {
             self.value
         }
     }
+
+    impl Default for Adder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 }
