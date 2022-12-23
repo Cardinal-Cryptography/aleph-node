@@ -1,8 +1,13 @@
-use std::str::FromStr;
+use std::{fmt::Debug, str::FromStr, sync::Arc};
 
-use aleph_client::{contract::ContractInstance, AccountId, Connection, SignedConnection};
+use aleph_client::{
+    contract::{event::listen_contract_events, ContractInstance},
+    contract_transcode::Value,
+    AccountId, Connection, SignedConnection,
+};
 use anyhow::{Context, Result};
 use assert2::assert;
+use futures::{channel::mpsc::unbounded, StreamExt};
 
 use crate::{config::setup_test, test::helpers::basic_test_context};
 
@@ -13,14 +18,31 @@ pub async fn adder() -> Result<()> {
     let config = setup_test();
 
     let (conn, _authority, account) = basic_test_context(config).await?;
-    let contract = AdderInstance::new(
+
+    let contract = Arc::new(AdderInstance::new(
         &config.test_case_params.adder,
         &config.test_case_params.adder_metadata,
-    )?;
+    )?);
+
+    let listen_conn = conn.clone();
+    let listen_contract = contract.clone();
+    let (tx, mut rx) = unbounded();
+    let listen = || async move {
+        listen_contract_events(&listen_conn, &[listen_contract.as_ref().into()], tx).await?;
+        <Result<(), anyhow::Error>>::Ok(())
+    };
+    let join = tokio::spawn(listen());
 
     let increment = 10;
     let before = contract.get(&conn).await?;
+
     contract.add(&account.sign(&conn), increment).await?;
+
+    let event = rx.next().await.context("No event received")??;
+    assert!(event.ident == Some("ValueChanged".to_string()));
+    assert!(event.contract == *contract.contract.address());
+    assert!(event.data["new_value"] == Value::UInt(before as u128 + 10));
+
     let after = contract.get(&conn).await?;
     assert!(after == before + increment);
 
@@ -32,10 +54,14 @@ pub async fn adder() -> Result<()> {
         .await?;
     assert!(contract.get_name(&conn).await? == Some(new_name.to_string()));
 
+    rx.close();
+    join.await??;
+
     Ok(())
 }
 
-pub(super) struct AdderInstance {
+#[derive(Debug)]
+struct AdderInstance {
     contract: ContractInstance,
 }
 

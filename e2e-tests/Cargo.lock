@@ -55,7 +55,7 @@ dependencies = [
  "anyhow",
  "assert2",
  "clap",
- "env_logger",
+ "env_logger 0.8.4",
  "frame-support",
  "frame-system",
  "futures",
@@ -82,7 +82,7 @@ version = "2.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "contract-metadata",
+ "contract-metadata 2.0.0-beta.1",
  "contract-transcode",
  "frame-support",
  "futures",
@@ -461,6 +461,19 @@ checksum = "e4c78c047431fee22c1a7bb92e00ad095a02a983affe4d8a72e2a2c62c1b94f3"
 
 [[package]]
 name = "contract-metadata"
+version = "2.0.0-beta"
+source = "git+https://github.com/obrok/cargo-contract?branch=send-sync-env-types#c0ade59847f09ef558c8bca0dc2cf8f78b031188"
+dependencies = [
+ "anyhow",
+ "impl-serde",
+ "semver",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "contract-metadata"
 version = "2.0.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bff7703529b16e9d8ba0d54e842b2051691772a822eb9bc130a91183ff9f6a6"
@@ -475,12 +488,12 @@ dependencies = [
 
 [[package]]
 name = "contract-transcode"
-version = "2.0.0-beta.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d25e184ac4c29748e28c026f4c443fb94c002ad0877f0b190dccd624df8f893f"
+version = "2.0.0-beta"
+source = "git+https://github.com/obrok/cargo-contract?branch=send-sync-env-types#c0ade59847f09ef558c8bca0dc2cf8f78b031188"
 dependencies = [
  "anyhow",
- "contract-metadata",
+ "contract-metadata 2.0.0-beta",
+ "env_logger 0.9.3",
  "escape8259",
  "hex",
  "indexmap",
@@ -867,6 +880,19 @@ name = "env_logger"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
 dependencies = [
  "atty",
  "humantime",
