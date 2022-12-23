@@ -44,6 +44,7 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
+mod sync;
 #[cfg(test)]
 pub mod testing;
 
