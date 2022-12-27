@@ -23,6 +23,20 @@ pub trait SessionEraApi {
     async fn get_active_era_for_session(&self, session: SessionIndex) -> anyhow::Result<EraIndex>;
 }
 
+impl Connection {
+    async fn get_block_number_inner(
+        &self,
+        block: Option<BlockHash>,
+    ) -> anyhow::Result<Option<BlockNumber>> {
+        self.client
+            .rpc()
+            .header(block)
+            .await
+            .map(|maybe_header| maybe_header.map(|header| header.number))
+            .map_err(|e| e.into())
+    }
+}
+
 #[async_trait::async_trait]
 impl BlocksApi for Connection {
     async fn first_block_of_session(

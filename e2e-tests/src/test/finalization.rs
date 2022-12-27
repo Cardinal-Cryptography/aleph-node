@@ -17,8 +17,7 @@ pub async fn finalization() -> anyhow::Result<()> {
         .get_block_number(finalized)
         .await?
         .ok_or(anyhow!(
-            "Failed to retrieve block number for hash {:?}",
-            finalized
+            "Failed to retrieve block number for hash {finalized:?}"
         ))?;
     connection
         .connection

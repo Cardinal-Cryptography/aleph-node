@@ -3,7 +3,6 @@ use std::{thread::sleep, time::Duration};
 use anyhow::anyhow;
 use codec::Decode;
 use log::info;
-use primitives::BlockNumber;
 use subxt::{
     ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
@@ -113,18 +112,6 @@ impl Connection {
         let bytes: Bytes = self.client.rpc().request(&func_name, params).await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
-    }
-
-    pub async fn get_block_number_inner(
-        &self,
-        block: Option<BlockHash>,
-    ) -> anyhow::Result<Option<BlockNumber>> {
-        self.client
-            .rpc()
-            .header(block)
-            .await
-            .map(|maybe_header| maybe_header.map(|header| header.number))
-            .map_err(|e| e.into())
     }
 }
 
