@@ -303,7 +303,7 @@ impl MarketplaceInstance {
         let selector_opt_str =
             migration_fn_selector.map_or_else(|| "None".to_string(), |x| format!("Some({})", x));
         self.contract
-            .contract_exec(conn, "set_code", &[code_hash, selector_opt_str.as_str()])
+            .contract_exec(conn, "set_code", &[code_hash, &selector_opt_str])
     }
 
     pub fn migrate(&self, conn: &SignedConnection) -> Result<()> {
