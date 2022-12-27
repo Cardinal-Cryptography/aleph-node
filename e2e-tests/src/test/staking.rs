@@ -63,7 +63,7 @@ pub async fn staking_era_payouts() -> anyhow::Result<()> {
         .into_iter()
         .zip(validator_accounts)
     {
-        let connection = SignedConnection::new(node.clone(), nominator).await;
+        let connection = SignedConnection::new(node, nominator).await;
         let nominee_account_id = AccountId::from(nominee.signer().public());
         connection
             .nominate(nominee_account_id, TxStatus::InBlock)
@@ -86,7 +86,7 @@ pub async fn staking_era_payouts() -> anyhow::Result<()> {
     let (_, validator_accounts) = get_validator_stashes_key_pairs(config);
     for key_pair in validator_accounts {
         let stash_account = AccountId::from(key_pair.signer().public());
-        let stash_connection = SignedConnection::new(node.to_string(), key_pair).await;
+        let stash_connection = SignedConnection::new(node, key_pair).await;
         payout_stakers_and_assert_locked_balance(
             &stash_connection,
             &[stash_account.clone()],
@@ -156,8 +156,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         .transfer(controller_account.clone(), TOKEN, TxStatus::InBlock)
         .await?;
 
-    let stash_connection =
-        SignedConnection::new(node.to_string(), KeyPair::new(stash.signer().clone())).await;
+    let stash_connection = SignedConnection::new(node, KeyPair::new(stash.signer().clone())).await;
 
     stash_connection
         .bond(
@@ -180,7 +179,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
 
     let validator_keys = root_connection.connection.author_rotate_keys().await;
     let controller_connection =
-        SignedConnection::new(node.to_string(), KeyPair::new(controller.signer().clone())).await;
+        SignedConnection::new(node, KeyPair::new(controller.signer().clone())).await;
     controller_connection
         .set_keys(validator_keys, TxStatus::InBlock)
         .await?;
@@ -245,8 +244,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
 pub async fn multi_bond(node: &str, bonders: &[KeyPair], stake: Balance) {
     for bonder in bonders {
         let controller_account = account_from_keypair(bonder.signer());
-        let connection =
-            SignedConnection::new(node.to_string(), KeyPair::new(bonder.signer().clone())).await;
+        let connection = SignedConnection::new(node, KeyPair::new(bonder.signer().clone())).await;
         connection
             .bond(stake, controller_account, TxStatus::InBlock)
             .await

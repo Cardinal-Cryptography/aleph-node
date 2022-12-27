@@ -142,7 +142,7 @@ pub async fn disable_node() -> anyhow::Result<()> {
 
     let root_connection = config.create_root_connection().await;
     let controller_connection =
-        SignedConnection::new(config.node.clone(), config.node_keys().controller).await;
+        SignedConnection::new(&config.node, config.node_keys().controller).await;
 
     // this should `disable` this node by setting invalid session_keys
     set_invalid_keys_for_validator(&controller_connection).await?;

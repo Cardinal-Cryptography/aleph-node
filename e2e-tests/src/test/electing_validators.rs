@@ -125,7 +125,7 @@ fn assert_enough_validators_left_after_chilling(
 async fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
     for validator in chilling.into_iter() {
         info!("Chilling validator {:?}", validator.signer().public());
-        let connection = SignedConnection::new(node.to_string(), validator).await;
+        let connection = SignedConnection::new(node, validator).await;
         connection.chill(TxStatus::InBlock).await.unwrap();
     }
 }

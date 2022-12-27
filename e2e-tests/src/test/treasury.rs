@@ -107,7 +107,7 @@ pub async fn treasury_access() -> anyhow::Result<()> {
     let config = setup_test();
     let proposer = KeyPair::new(get_validators_raw_keys(config)[0].clone());
     let beneficiary = account_from_keypair(proposer.signer());
-    let connection = SignedConnection::new(config.node.clone(), proposer).await;
+    let connection = SignedConnection::new(&config.node, proposer).await;
 
     let proposals_counter_before = connection
         .connection

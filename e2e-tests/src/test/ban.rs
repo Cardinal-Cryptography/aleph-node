@@ -48,7 +48,7 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
 
     // This connection has to be set up with the controller key.
     let connection_to_disable =
-        SignedConnection::new(validator_address.to_string(), controller_key_to_disable).await;
+        SignedConnection::new(validator_address, controller_key_to_disable).await;
 
     set_invalid_keys_for_validator(&connection_to_disable).await
 }
@@ -57,11 +57,7 @@ async fn signed_connection_for_disabled_controller() -> SignedConnection {
     let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
     let stash_controller = NodeKeys::from(validator_seed);
     let controller_key_to_disable = stash_controller.controller;
-    SignedConnection::new(
-        NODE_TO_DISABLE_ADDRESS.to_string(),
-        controller_key_to_disable,
-    )
-    .await
+    SignedConnection::new(NODE_TO_DISABLE_ADDRESS, controller_key_to_disable).await
 }
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the

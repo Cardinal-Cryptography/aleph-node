@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
 
     let sudoer = get_sudoer_keypair(root_seed_file);
 
-    let connection = RootConnection::new(address.clone(), sudoer).await.unwrap();
+    let connection = RootConnection::new(&address, sudoer).await.unwrap();
 
     let validators = match validators_seed_file {
         Some(validators_seed_file) => {
@@ -198,11 +198,8 @@ async fn wait_for_successive_eras(
             current_era - 1
         );
         for (validator, nominators_stashes) in validators_and_nominator_stashes.iter() {
-            let validator_connection = SignedConnection::new(
-                address.to_string(),
-                KeyPair::new(validator.signer().clone()),
-            )
-            .await;
+            let validator_connection =
+                SignedConnection::new(address, KeyPair::new(validator.signer().clone())).await;
             let validator_account = validator.account_id().clone();
             info!("Doing payout_stakers for validator {}", validator_account);
             payout_stakers_and_assert_locked_balance(
@@ -269,7 +266,7 @@ async fn bond_validators_funds_and_choose_controllers(
     for (controller, validator) in controllers.into_iter().zip(validators) {
         let validator_address = address.to_string();
         handles.push(tokio::spawn(async move {
-            let connection = SignedConnection::new(validator_address, validator).await;
+            let connection = SignedConnection::new(&validator_address, validator).await;
             let controller_account_id = controller.account_id().clone();
             connection
                 .bond(MIN_VALIDATOR_BOND, controller_account_id, TxStatus::InBlock)
@@ -290,7 +287,7 @@ async fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
         let prc = rng.gen::<u8>() % 100;
         handles.push(tokio::spawn(async move {
             let connection =
-                SignedConnection::new(node_address, KeyPair::new(controller.signer().clone()))
+                SignedConnection::new(&node_address, KeyPair::new(controller.signer().clone()))
                     .await;
             connection.validate(prc, TxStatus::InBlock).await.unwrap();
         }));

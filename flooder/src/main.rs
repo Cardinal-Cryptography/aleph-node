@@ -72,7 +72,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     for i in 0..n {
         let seed = i.to_string();
         let signer = KeyPair::new(raw_keypair_from_string(&("//".to_string() + &seed)));
-        connections.push(SignedConnection::new(node(i), signer).await);
+        connections.push(SignedConnection::new(&node(i), signer).await);
     }
 
     if skip {
@@ -138,7 +138,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap(),
     };
     let main_connection =
-        SignedConnection::new(config.nodes[0].to_string(), KeyPair::new(account.clone())).await;
+        SignedConnection::new(&config.nodes[0], KeyPair::new(account.clone())).await;
 
     let nodes = config.nodes.clone();
 

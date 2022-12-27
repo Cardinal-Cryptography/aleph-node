@@ -62,11 +62,11 @@ impl Connection {
     const DEFAULT_RETRIES: u32 = 10;
     const RETRY_WAIT_SECS: u64 = 1;
 
-    pub async fn new(address: String) -> Self {
+    pub async fn new(address: &str) -> Self {
         Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
     }
 
-    pub async fn new_with_retries(address: String, mut retries: u32) -> Self {
+    pub async fn new_with_retries(address: &str, mut retries: u32) -> Self {
         loop {
             let client = Client::from_url(&address).await;
             match (retries, client) {
@@ -116,7 +116,7 @@ impl Connection {
 }
 
 impl SignedConnection {
-    pub async fn new(address: String, signer: KeyPair) -> Self {
+    pub async fn new(address: &str, signer: KeyPair) -> Self {
         Self::from_connection(Connection::new(address).await, signer)
     }
 
@@ -162,7 +162,7 @@ impl SignedConnection {
 }
 
 impl RootConnection {
-    pub async fn new(address: String, root: KeyPair) -> anyhow::Result<Self> {
+    pub async fn new(address: &str, root: KeyPair) -> anyhow::Result<Self> {
         RootConnection::try_from_connection(Connection::new(address).await, root).await
     }
 
