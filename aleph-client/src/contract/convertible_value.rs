@@ -1,6 +1,6 @@
-use std::{ops::Deref, str::FromStr};
+use std::{fmt::Debug, ops::Deref, str::FromStr};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use contract_transcode::Value;
 
 use crate::AccountId;
@@ -116,5 +116,80 @@ where
         }
 
         bail!("Expected {:?} to be an Ok(_) or Err(_) tuple.", value);
+    }
+}
+
+impl TryFrom<ConvertibleValue> for String {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> std::result::Result<String, Self::Error> {
+        let seq = match value.0 {
+            Value::Seq(seq) => seq,
+            _ =>  bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Seq(Value::UInt)` but instead got: {:?}", value),
+        };
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(seq.len());
+        for el in seq.elems() {
+            if let Value::UInt(byte) = *el {
+                if byte > u8::MAX as u128 {
+                    bail!("Expected number <= u8::MAX but instead got: {:?}", byte)
+                }
+                bytes.push(byte as u8);
+            } else {
+                bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Value::UInt` but instead got: {:?}", el);
+            }
+        }
+        String::from_utf8(bytes).context("Failed parsing bytes to UTF-8 String.")
+    }
+}
+
+auto trait NotEq {}
+// We're basically telling the compiler that there is no instance of NotEq for `(X,X)` tuple.
+// Or put differently - that you can't implement `NotEq` for `(X,X)`.
+impl<X> !NotEq for (X, X) {}
+
+impl<T> TryFrom<ConvertibleValue> for Option<T>
+where
+    T: TryFrom<ConvertibleValue, Error = anyhow::Error> + Debug,
+    // We will derive this impl only when `T != ConvertibleValue`.
+    // Otherwise we will get a conflict with generic impl in the rust `core` crate.
+    (ConvertibleValue, T): NotEq,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> std::result::Result<Option<T>, Self::Error> {
+        let tuple = match &value.0 {
+            Value::Tuple(tuple) => tuple,
+            _ => bail!("Expected {:?} to be a Some(_) or None Tuple.", &value),
+        };
+
+        match tuple.ident() {
+            Some(x) if x == "Some" => {
+                if tuple.values().count() == 1 {
+                    let item =
+                        ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
+                    Ok(Some(item))
+                } else {
+                    bail!(
+                        "Unexpected number of elements in Some(_) variant: {:?}. Expected one.",
+                        &value
+                    );
+                }
+            }
+            Some(x) if x == "None" => {
+                if tuple.values().count() == 0 {
+                    Ok(None)
+                } else {
+                    bail!(
+                        "Unexpected number of elements in None variant: {:?}. Expected zero.",
+                        &value
+                    );
+                }
+            }
+            _ => bail!(
+                "Expected `.ident()` to be `Some` or `None`, got: {:?}",
+                &tuple
+            ),
+        }
     }
 }

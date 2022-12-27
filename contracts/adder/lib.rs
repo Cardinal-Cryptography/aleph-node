@@ -6,6 +6,7 @@
 mod adder {
     #[ink(storage)]
     pub struct Adder {
+        name: Option<[u8; 20]>,
         value: u32,
     }
 
@@ -23,7 +24,10 @@ mod adder {
     impl Adder {
         #[ink(constructor)]
         pub fn new() -> Self {
-            Self { value: 0 }
+            Self {
+                value: 0,
+                name: None,
+            }
         }
 
         #[ink(message)]
@@ -40,6 +44,16 @@ mod adder {
         #[ink(message)]
         pub fn get(&self) -> u32 {
             self.value
+        }
+
+        #[ink(message)]
+        pub fn set_name(&mut self, name: Option<[u8; 20]>) {
+            self.name = name;
+        }
+
+        #[ink(message)]
+        pub fn get_name(&self) -> Option<[u8; 20]> {
+            self.name
         }
     }
 

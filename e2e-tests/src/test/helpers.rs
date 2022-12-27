@@ -13,6 +13,13 @@ use crate::config::Config;
 /// A wrapper around a KeyPair for purposes of converting to an account id in tests.
 pub struct KeyPairWrapper(KeyPair);
 
+impl KeyPairWrapper {
+    /// Creates a copy of the `connection` signed by `signer`
+    pub fn sign(&self, conn: &Connection) -> SignedConnection {
+        SignedConnection::from_connection(conn.clone(), self.clone().0)
+    }
+}
+
 impl Clone for KeyPairWrapper {
     fn clone(&self) -> Self {
         Self(KeyPair::new(self.0.signer().clone()))
@@ -39,11 +46,6 @@ impl From<KeyPairWrapper> for AccountId {
     }
 }
 
-/// Creates a copy of the `connection` signed by `signer`
-pub fn sign(conn: &Connection, signer: &KeyPairWrapper) -> SignedConnection {
-    SignedConnection::from_connection(conn.clone(), signer.clone().0)
-}
-
 /// Derives a test account based on a randomized string
 pub fn random_account() -> KeyPairWrapper {
     KeyPairWrapper(aleph_client::keypair_from_string(&format!(
@@ -53,12 +55,7 @@ pub fn random_account() -> KeyPairWrapper {
 }
 
 /// Transfer `amount` from `from` to `to`
-pub async fn transfer(
-    conn: &SignedConnection,
-    from: &KeyPair,
-    to: &KeyPair,
-    amount: Balance,
-) -> Result<()> {
+pub async fn transfer(conn: &SignedConnection, to: &KeyPair, amount: Balance) -> Result<()> {
     conn.transfer(to.signer().public().into(), amount, TxStatus::InBlock)
         .await
         .map(|_| ())
@@ -69,11 +66,6 @@ pub fn alephs(basic_unit_amount: Balance) -> Balance {
     basic_unit_amount * 1_000_000_000_000
 }
 
-/// Returns the given number multiplied by 10^6.
-pub fn mega(x: Balance) -> Balance {
-    x * 1_000_000
-}
-
 /// Prepares a `(conn, authority, account)` triple with some money in `account` for fees.
 pub async fn basic_test_context(
     config: &Config,
@@ -82,7 +74,7 @@ pub async fn basic_test_context(
     let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
     let account = random_account();
 
-    transfer(&conn, &authority, &account, alephs(100)).await?;
+    transfer(&conn, &account, alephs(100)).await?;
 
     Ok((conn.connection, authority, account))
 }

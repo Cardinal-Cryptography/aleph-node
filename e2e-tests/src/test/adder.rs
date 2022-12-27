@@ -2,11 +2,9 @@ use std::str::FromStr;
 
 use aleph_client::{contract::ContractInstance, AccountId, Connection, SignedConnection};
 use anyhow::{Context, Result};
+use assert2::assert;
 
-use crate::{
-    config::setup_test,
-    test::helpers::{basic_test_context, sign},
-};
+use crate::{config::setup_test, test::helpers::basic_test_context};
 
 /// This test exercises the aleph-client code for interacting with contracts by testing a simple contract that maintains
 /// some state and publishes some events.
@@ -21,10 +19,16 @@ pub async fn adder() -> Result<()> {
     )?;
 
     let before = contract.get(&conn).await?;
-    contract.add(&sign(&conn, &account), 10).await?;
+    contract.add(&account.sign(&conn), 10).await?;
     let after = contract.get(&conn).await?;
-
     assert!(after == before + 10);
+
+    contract.set_name(&account.sign(&conn), None).await?;
+    assert!(contract.get_name(&conn).await?.is_none());
+    contract
+        .set_name(&account.sign(&conn), Some("test"))
+        .await?;
+    assert!(contract.get_name(&conn).await? == Some("test".to_string()));
 
     Ok(())
 }
@@ -67,5 +71,23 @@ impl AdderInstance {
         self.contract
             .contract_exec(conn, "add", &[value.to_string()])
             .await
+    }
+
+    pub async fn set_name(&self, conn: &SignedConnection, name: Option<&str>) -> Result<()> {
+        let name = name.map_or_else(
+            || "None".to_string(),
+            |name| {
+                let mut bytes = name.bytes().take(20).collect::<Vec<_>>();
+                bytes.extend(std::iter::repeat(0).take(20 - bytes.len()));
+                format!("Some({:?})", bytes)
+            },
+        );
+
+        self.contract.contract_exec(conn, "set_name", &[name]).await
+    }
+
+    pub async fn get_name(&self, conn: &Connection) -> Result<Option<String>> {
+        let res: Option<String> = self.contract.contract_read0(conn, "get_name").await?;
+        Ok(res.map(|name| name.replace("\0", "")))
     }
 }

@@ -1,3 +1,6 @@
+#![feature(auto_traits)]
+#![feature(negative_impls)]
+
 extern crate core;
 
 pub use contract_transcode;

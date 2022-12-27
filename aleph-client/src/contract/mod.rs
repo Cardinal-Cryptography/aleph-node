@@ -173,7 +173,6 @@ impl ContractInstance {
     }
 
     fn decode(&self, message: &str, data: Vec<u8>) -> Result<Value> {
-        println!("Decoding: {:?} from {:?}", data, message);
         self.transcoder.decode_return(message, &mut data.as_slice())
     }
 }
