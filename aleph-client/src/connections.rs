@@ -14,9 +14,34 @@ use subxt::{
 
 use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, TxStatus};
 
-#[derive(Clone)]
-pub struct Connection {
-    pub client: Client,
+pub type Connection = Client;
+
+#[async_trait::async_trait]
+pub trait ConnectionExt {
+    const DEFAULT_RETRIES: u32;
+    const RETRY_WAIT_SECS: u64;
+
+    async fn new(address: &str) -> Self;
+
+    async fn new_with_retries(address: &str, mut retries: u32) -> Self;
+
+    async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
+        &self,
+        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        at: Option<BlockHash>,
+    ) -> T::Target;
+
+    async fn get_storage_entry_maybe<
+        T: DecodeWithMetadata + Sync,
+        Defaultable: Sync,
+        Iterable: Sync,
+    >(
+        &self,
+        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        at: Option<BlockHash>,
+    ) -> Option<T::Target>;
+
+    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
 }
 
 pub struct SignedConnection {
@@ -58,19 +83,20 @@ impl SudoCall for RootConnection {
     }
 }
 
-impl Connection {
+#[async_trait::async_trait]
+impl ConnectionExt for Connection {
     const DEFAULT_RETRIES: u32 = 10;
     const RETRY_WAIT_SECS: u64 = 1;
 
-    pub async fn new(address: &str) -> Self {
+    async fn new(address: &str) -> Self {
         Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
     }
 
-    pub async fn new_with_retries(address: &str, mut retries: u32) -> Self {
+    async fn new_with_retries(address: &str, mut retries: u32) -> Self {
         loop {
             let client = Client::from_url(&address).await;
             match (retries, client) {
-                (_, Ok(client)) => return Self { client },
+                (_, Ok(client)) => return client,
                 (0, Err(e)) => panic!("{:?}", e),
                 _ => {
                     sleep(Duration::from_secs(Self::RETRY_WAIT_SECS));
@@ -80,7 +106,7 @@ impl Connection {
         }
     }
 
-    pub async fn get_storage_entry<T: DecodeWithMetadata, Defaultable, Iterable>(
+    async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
@@ -90,26 +116,25 @@ impl Connection {
             .expect("There should be a value")
     }
 
-    pub async fn get_storage_entry_maybe<T: DecodeWithMetadata, Defaultable, Iterable>(
+    async fn get_storage_entry_maybe<
+        T: DecodeWithMetadata + Sync,
+        Defaultable: Sync,
+        Iterable: Sync,
+    >(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.client
-            .storage()
+        self.storage()
             .fetch(addrs, at)
             .await
             .expect("Should access storage")
     }
 
-    pub async fn rpc_call<R: Decode>(
-        &self,
-        func_name: String,
-        params: RpcParams,
-    ) -> anyhow::Result<R> {
+    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
-        let bytes: Bytes = self.client.rpc().request(&func_name, params).await?;
+        let bytes: Bytes = self.rpc().request(&func_name, params).await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
     }
@@ -117,7 +142,7 @@ impl Connection {
 
 impl SignedConnection {
     pub async fn new(address: &str, signer: KeyPair) -> Self {
-        Self::from_connection(Connection::new(address).await, signer)
+        Self::from_connection(ConnectionExt::new(address).await, signer)
     }
 
     pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
@@ -144,7 +169,6 @@ impl SignedConnection {
         }
         let progress = self
             .connection
-            .client
             .tx()
             .sign_and_submit_then_watch(&tx, &self.signer, params)
             .await?;
@@ -163,7 +187,7 @@ impl SignedConnection {
 
 impl RootConnection {
     pub async fn new(address: &str, root: KeyPair) -> anyhow::Result<Self> {
-        RootConnection::try_from_connection(Connection::new(address).await, root).await
+        RootConnection::try_from_connection(ConnectionExt::new(address).await, root).await
     }
 
     pub async fn try_from_connection(
@@ -172,7 +196,7 @@ impl RootConnection {
     ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
-        let root = match connection.client.storage().fetch(&root_address, None).await {
+        let root = match connection.storage().fetch(&root_address, None).await {
             Ok(Some(account)) => account,
             _ => return Err(anyhow!("Could not read sudo key from chain")),
         };

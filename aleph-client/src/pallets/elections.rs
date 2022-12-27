@@ -6,6 +6,7 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
+    connections::ConnectionExt,
     pallet_elections::pallet::Call::{
         ban_from_committee, change_validators, set_elections_openness,
     },
@@ -167,7 +168,7 @@ impl ElectionsApi for Connection {
     async fn get_session_period(&self) -> u32 {
         let addrs = api::constants().elections().session_period();
 
-        self.client.constants().at(&addrs).unwrap()
+        self.constants().at(&addrs).unwrap()
     }
 }
 

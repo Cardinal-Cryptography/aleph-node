@@ -7,8 +7,8 @@ use subxt::{
 };
 
 use crate::{
-    api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
-    Connection, SignedConnection, TxStatus,
+    api, connections::ConnectionExt, pallet_contracts::wasm::OwnerInfo,
+    sp_weights::weight_v2::Weight, AccountId, BlockHash, Connection, SignedConnection, TxStatus,
 };
 
 #[derive(Encode)]

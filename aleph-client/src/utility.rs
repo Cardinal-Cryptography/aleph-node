@@ -31,30 +31,19 @@ impl BlocksApi for Connection {
 
     async fn get_block_hash(&self, block: BlockNumber) -> Option<BlockHash> {
         info!(target: "aleph-client", "querying block hash for number #{}", block);
-        self.client
-            .rpc()
-            .block_hash(Some(block.into()))
-            .await
-            .unwrap()
+        self.rpc().block_hash(Some(block.into())).await.unwrap()
     }
 
     async fn get_best_block(&self) -> BlockNumber {
-        self.client
-            .rpc()
-            .header(None)
-            .await
-            .unwrap()
-            .unwrap()
-            .number
+        self.rpc().header(None).await.unwrap().unwrap().number
     }
 
     async fn get_finalized_block_hash(&self) -> BlockHash {
-        self.client.rpc().finalized_head().await.unwrap()
+        self.rpc().finalized_head().await.unwrap()
     }
 
     async fn get_block_number(&self, block: BlockHash) -> Option<BlockNumber> {
-        self.client
-            .rpc()
+        self.rpc()
             .header(Some(block))
             .await
             .unwrap()

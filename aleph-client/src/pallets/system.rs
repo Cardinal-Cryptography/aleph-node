@@ -3,6 +3,7 @@ use subxt::ext::sp_runtime::Perbill as SPerbill;
 
 use crate::{
     api,
+    connections::ConnectionExt,
     frame_system::pallet::Call::{fill_block, set_code},
     sp_arithmetic::per_things::Perbill,
     AccountId, BlockHash,

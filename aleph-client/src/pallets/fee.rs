@@ -1,4 +1,4 @@
-use crate::{api, BlockHash, Connection};
+use crate::{api, connections::ConnectionExt, BlockHash, Connection};
 
 pub type FeeMultiplier = u128;
 

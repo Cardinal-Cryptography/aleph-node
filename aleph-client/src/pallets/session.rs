@@ -1,8 +1,8 @@
 use primitives::SessionIndex;
 
 use crate::{
-    api, api::runtime_types::aleph_runtime::SessionKeys, AccountId, BlockHash, Connection,
-    SignedConnection, TxStatus,
+    api, api::runtime_types::aleph_runtime::SessionKeys, connections::ConnectionExt, AccountId,
+    BlockHash, Connection, SignedConnection, TxStatus,
 };
 
 #[async_trait::async_trait]

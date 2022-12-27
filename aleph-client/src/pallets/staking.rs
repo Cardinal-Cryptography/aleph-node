@@ -9,6 +9,7 @@ use subxt::{
 
 use crate::{
     api,
+    connections::ConnectionExt,
     pallet_staking::{
         pallet::pallet::{
             Call::{bond, force_new_era, nominate, set_staking_configs},
@@ -184,7 +185,7 @@ impl StakingApi for Connection {
     async fn get_session_per_era(&self) -> u32 {
         let addrs = api::constants().staking().sessions_per_era();
 
-        self.client.constants().at(&addrs).unwrap()
+        self.constants().at(&addrs).unwrap()
     }
 }
 
@@ -304,11 +305,7 @@ impl StakingRawApi for Connection {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
         StorageMapKey::new(era, StorageHasher::Twox64Concat).to_bytes(&mut key);
-        self.client
-            .storage()
-            .fetch_keys(&key, 10, None, at)
-            .await
-            .unwrap()
+        self.storage().fetch_keys(&key, 10, None, at).await.unwrap()
     }
 
     async fn get_stakers_storage_keys_from_accounts(

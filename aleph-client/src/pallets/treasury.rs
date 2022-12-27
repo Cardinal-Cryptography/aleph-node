@@ -5,6 +5,7 @@ use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     api,
+    connections::ConnectionExt,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{elections::ElectionsApi, staking::StakingApi},
     AccountId, BlockHash,

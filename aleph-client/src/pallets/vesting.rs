@@ -1,8 +1,8 @@
 use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
-    api, pallet_vesting::vesting_info::VestingInfo, AccountId, BlockHash, Connection,
-    SignedConnection, TxStatus,
+    api, connections::ConnectionExt, pallet_vesting::vesting_info::VestingInfo, AccountId,
+    BlockHash, Connection, SignedConnection, TxStatus,
 };
 
 #[async_trait::async_trait]

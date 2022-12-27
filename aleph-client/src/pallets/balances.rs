@@ -3,6 +3,7 @@ use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
+    connections::ConnectionExt,
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
     AccountId, BlockHash,

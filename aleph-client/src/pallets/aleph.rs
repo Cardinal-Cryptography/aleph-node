@@ -7,6 +7,7 @@ use crate::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
     },
+    connections::ConnectionExt,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,

@@ -37,8 +37,8 @@ pub trait WaitingExt {
 impl AlephWaiting for Connection {
     async fn wait_for_block<P: Fn(u32) -> bool + Send>(&self, predicate: P, status: BlockStatus) {
         let mut block_sub = match status {
-            BlockStatus::Best => self.client.blocks().subscribe_best().await.unwrap(),
-            BlockStatus::Finalized => self.client.blocks().subscribe_finalized().await.unwrap(),
+            BlockStatus::Best => self.blocks().subscribe_best().await.unwrap(),
+            BlockStatus::Finalized => self.blocks().subscribe_finalized().await.unwrap(),
         };
 
         while let Some(Ok(block)) = block_sub.next().await {
@@ -54,8 +54,8 @@ impl AlephWaiting for Connection {
         status: BlockStatus,
     ) -> T {
         let mut block_sub = match status {
-            BlockStatus::Best => self.client.blocks().subscribe_best().await.unwrap(),
-            BlockStatus::Finalized => self.client.blocks().subscribe_finalized().await.unwrap(),
+            BlockStatus::Best => self.blocks().subscribe_best().await.unwrap(),
+            BlockStatus::Finalized => self.blocks().subscribe_finalized().await.unwrap(),
         };
 
         info!(target: "aleph-client", "waiting for event {}.{}", T::PALLET, T::EVENT);
@@ -81,7 +81,7 @@ impl AlephWaiting for Connection {
 
     async fn wait_for_era(&self, era: EraIndex, status: BlockStatus) {
         let addrs = aleph_zero::api::constants().staking().sessions_per_era();
-        let sessions_per_era = self.client.constants().at(&addrs).unwrap();
+        let sessions_per_era = self.constants().at(&addrs).unwrap();
         let first_session_in_era = era * sessions_per_era;
 
         self.wait_for_session(first_session_in_era, status).await;
