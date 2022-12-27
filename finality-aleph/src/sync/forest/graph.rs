@@ -81,8 +81,39 @@ impl<K: Key, V> Forest<K, V> {
         &self.root
     }
 
-    pub fn get_parent_key(&mut self, key: &K) -> Option<&K> {
+    pub fn get_parent(&mut self, key: &K) -> Result<Option<&mut V>, Error> {
+        match self.get_parent_key(&key) {
+            Some(parent_key) => {
+                if parent_key == self.get_root() {
+                    return Ok(None);
+                };
+                match self.get_mut(&parent_key.clone()) {
+                    Some(v) => Ok(Some(v)),
+                    None => Err(Error::CriticalBug),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub fn get_parent_key(&self, key: &K) -> Option<&K> {
         self.vertices.get(key).map_or(None, |x| x.parent.as_ref())
+    }
+
+    pub fn get_children_keys(&self, key: &K) -> Option<&HashSet<K>> {
+        if &self.root == key {
+            Some(&self.root_children)
+        } else {
+            self.vertices.get_mut(&key).map(|v| &v.children)
+        }
+    }
+
+    pub fn get_mut_children_keys(&mut self, key: &K) -> Option<&mut HashSet<K>> {
+        if &self.root == key {
+            Some(&mut self.root_children)
+        } else {
+            self.vertices.get_mut(&key).map(|v| &mut v.children)
+        }
     }
 
     pub fn set_parent(&mut self, child: K, parent: K) -> Result<(), Error> {
@@ -99,15 +130,9 @@ impl<K: Key, V> Forest<K, V> {
         }
         v_child.parent = Some(parent.clone());
 
-        let children = if self.root == parent {
-            &mut self.root_children
-        } else {
-            &mut self
-                .vertices
-                .get_mut(&parent)
-                .ok_or(Error::CriticalBug)?
-                .children
-        };
+        let children = self
+            .get_mut_children_keys(&parent)
+            .ok_or(Error::CriticalBug)?;
         if children.contains(&child) {
             return Err(Error::CriticalBug);
         }
@@ -116,11 +141,26 @@ impl<K: Key, V> Forest<K, V> {
         Ok(())
     }
 
-    pub fn prune(&mut self, key: K) -> Result<Vec<(K, V)>, Error> {
+    /// TODO
+    pub fn prune(&mut self, key: K) -> Result<HashSet<K>, Error> {
         // cannot prune the root
         if !self.vertices.contains_key(&key) {
             return Err(Error::MissingKey);
         }
-        Ok(vec![])
+        // TODO
+        Ok(HashSet::new())
+    }
+
+    /// TODO
+    /// check if connected
+    /// prune branches
+    /// returns: trunk, pruned
+    pub fn cut_trunk(&mut self, key: K) -> Result<(Vec<(K, V)>, HashSet<K>), Error> {
+        // must cut something
+        if !self.vertices.contains_key(&key) {
+            return Err(Error::MissingKey);
+        }
+        // TODO
+        Ok((vec![], HashSet::new()))
     }
 }
