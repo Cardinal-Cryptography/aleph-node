@@ -19,8 +19,10 @@ use log::{info, warn};
 use rand::Rng;
 use sp_core::Pair;
 
-use super::contracts::{ButtonInstance, PSP22TokenInstance};
-use crate::{test::button_game::contracts::MarketplaceInstance, Config};
+use super::contracts::{
+    ButtonInstance, MarketplaceInstance, PSP22TokenInstance, SimpleDexInstance, WAzeroInstance,
+};
+use crate::Config;
 
 /// A wrapper around a KeyPair for purposes of converting to an account id in tests.
 pub struct KeyPairWrapper(KeyPair);
@@ -146,6 +148,11 @@ pub fn alephs(basic_unit_amount: Balance) -> Balance {
     basic_unit_amount * 1_000_000_000_000
 }
 
+/// Returns the given number multiplied by 10^6.
+pub fn mega(x: Balance) -> Balance {
+    x * 1_000_000
+}
+
 pub(super) struct ButtonTestContext {
     pub button: Arc<ButtonInstance>,
     pub ticket_token: Arc<PSP22TokenInstance>,
@@ -161,15 +168,116 @@ pub(super) struct ButtonTestContext {
     pub player: KeyPairWrapper,
 }
 
+pub(super) struct DexTestContext {
+    pub conn: Connection,
+    /// An authority with the power to mint tokens and manage the dex.
+    pub authority: KeyPairWrapper,
+    /// A random account with some money for fees.
+    pub account: KeyPairWrapper,
+    pub dex: Arc<SimpleDexInstance>,
+    pub token1: Arc<PSP22TokenInstance>,
+    pub token2: Arc<PSP22TokenInstance>,
+    pub token3: Arc<PSP22TokenInstance>,
+    /// A [BufferedReceiver] preconfigured to listen for events of `dex`, `token1`, `token2`, and `token3`.
+    pub events: BufferedReceiver<Result<ContractEvent>>,
+}
+
+pub(super) struct WAzeroTestContext {
+    pub conn: Connection,
+    /// A random account with some money for fees.
+    pub account: KeyPairWrapper,
+    pub wazero: Arc<WAzeroInstance>,
+    /// A [BufferedReceiver] preconfigured to listen for events of `wazero`.
+    pub events: BufferedReceiver<Result<ContractEvent>>,
+}
+
+pub(super) fn setup_wrapped_azero_test(config: &Config) -> Result<WAzeroTestContext> {
+    let (conn, _authority, account) = basic_test_context(config);
+    let wazero = Arc::new(WAzeroInstance::new(config)?);
+
+    let contract = wazero.clone();
+    let subscription = subscribe_events(&conn)?;
+    let (events_tx, events_rx) = channel();
+
+    thread::spawn(move || {
+        let contract_metadata = vec![contract.as_ref().into()];
+
+        listen_contract_events(subscription, &contract_metadata, None, |event| {
+            let _ = events_tx.send(event);
+        });
+    });
+
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+
+    Ok(WAzeroTestContext {
+        conn,
+        account,
+        wazero,
+        events,
+    })
+}
+
+pub(super) fn setup_dex_test(config: &Config) -> Result<DexTestContext> {
+    let (conn, authority, account) = basic_test_context(config);
+
+    let dex = Arc::new(SimpleDexInstance::new(config)?);
+    let token1 =
+        reward_token_for_button(config, &conn, &config.test_case_params.early_bird_special)?;
+    let token2 =
+        reward_token_for_button(config, &conn, &config.test_case_params.the_pressiah_cometh)?;
+    let token3 =
+        reward_token_for_button(config, &conn, &config.test_case_params.back_to_the_future)?;
+
+    let c1 = dex.clone();
+    let c2 = token1.clone();
+    let c3 = token2.clone();
+    let c4 = token3.clone();
+
+    let subscription = subscribe_events(&conn)?;
+    let (events_tx, events_rx) = channel();
+
+    thread::spawn(move || {
+        let contract_metadata = vec![
+            c1.as_ref().into(),
+            c2.as_ref().into(),
+            c3.as_ref().into(),
+            c4.as_ref().into(),
+        ];
+
+        listen_contract_events(subscription, &contract_metadata, None, |event| {
+            let _ = events_tx.send(event);
+        });
+    });
+
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+
+    Ok(DexTestContext {
+        conn,
+        authority,
+        account,
+        dex,
+        token1,
+        token2,
+        token3,
+        events,
+    })
+}
+
+fn reward_token_for_button(
+    config: &Config,
+    conn: &Connection,
+    button_contract_address: &Option<String>,
+) -> Result<Arc<PSP22TokenInstance>> {
+    let button = ButtonInstance::new(config, button_contract_address)?;
+    Ok(Arc::new(reward_token(conn, &button, config)?))
+}
+
 /// Sets up a number of objects commonly used in button game tests.
 pub(super) fn setup_button_test(
     config: &Config,
     button_contract_address: &Option<String>,
 ) -> Result<ButtonTestContext> {
-    let conn = config.get_first_signed_connection().as_connection();
-
-    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
-    let player = random_account();
+    let (conn, authority, player) = basic_test_context(config);
 
     let button = Arc::new(ButtonInstance::new(config, button_contract_address)?);
     let ticket_token = Arc::new(ticket_token(&conn, &button, config)?);
@@ -199,8 +307,6 @@ pub(super) fn setup_button_test(
 
     let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
 
-    transfer(&conn, &authority, &player, alephs(100));
-
     Ok(ButtonTestContext {
         button,
         ticket_token,
@@ -211,6 +317,17 @@ pub(super) fn setup_button_test(
         authority,
         player,
     })
+}
+
+/// Prepares a `(conn, authority, account)` triple with some money in `account` for fees.
+fn basic_test_context(config: &Config) -> (Connection, KeyPairWrapper, KeyPairWrapper) {
+    let conn = config.get_first_signed_connection().as_connection();
+    let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
+    let account = random_account();
+
+    transfer(&conn, &authority, &account, alephs(100));
+
+    (conn, authority, account)
 }
 
 /// A receiver where it's possible to wait for messages out of order.

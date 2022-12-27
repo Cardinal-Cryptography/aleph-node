@@ -153,6 +153,12 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
+            let balance_token_out = self.balance_of(token_out, this)?;
+            if balance_token_out < min_amount_token_out {
+                // throw early if we cannot support this swap anyway due to liquidity being too low
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
+
             let swap_pair = SwapPair::new(token_in, token_out);
             if !self.swap_pairs.contains(&swap_pair) {
                 return Err(DexError::UnsupportedSwapPair(swap_pair));
@@ -163,12 +169,7 @@ mod simple_dex {
                 return Err(DexError::InsufficientAllowanceOf(token_in));
             }
 
-            let amount_token_out = self.out_given_in(
-                token_in,
-                token_out,
-                amount_token_in,
-                Some(min_amount_token_out),
-            )?;
+            let amount_token_out = self.out_given_in(token_in, token_out, amount_token_in)?;
 
             if amount_token_out < min_amount_token_out {
                 // thrown if too much slippage occured before this tx gets executed
@@ -321,6 +322,12 @@ mod simple_dex {
             Ok(())
         }
 
+        /// Returns true if a pair of tokens is whitelisted for swapping between
+        #[ink(message)]
+        pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
+            self.swap_pairs.contains(&SwapPair::new(from, to))
+        }
+
         /// Blacklists a token pair from swapping
         ///
         /// Token pair is understood as a swap between tokens in one direction
@@ -360,27 +367,36 @@ mod simple_dex {
 
         /// Swap trade output given a curve with equal token weights
         ///
-        /// swap_fee_percentage (integer) is a percentage of the trade that goes towards the pool
-        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) -A_i * fee)
+        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
+        /// where swap_fee (integer) is a percentage of the trade that goes towards the pool
+        /// and is used to pay the liquidity providers
         #[ink(message)]
         pub fn out_given_in(
             &self,
             token_in: AccountId,
             token_out: AccountId,
             amount_token_in: Balance,
-            min_amount_token_out: Option<Balance>,
         ) -> Result<Balance, DexError> {
             let this = self.env().account_id();
             let balance_token_in = self.balance_of(token_in, this)?;
             let balance_token_out = self.balance_of(token_out, this)?;
 
-            if min_amount_token_out.map_or(false, |x| balance_token_out < x) {
-                // throw early if we cannot support this swap anyway due to liquidity being too low
-                return Err(DexError::NotEnoughLiquidityOf(token_out));
-            }
+            Self::_out_given_in(
+                amount_token_in,
+                balance_token_in,
+                balance_token_out,
+                self.swap_fee_percentage,
+            )
+        }
 
+        fn _out_given_in(
+            amount_token_in: Balance,
+            balance_token_in: Balance,
+            balance_token_out: Balance,
+            swap_fee_percentage: Balance,
+        ) -> Result<Balance, DexError> {
             let op0 = amount_token_in
-                .checked_mul(self.swap_fee_percentage)
+                .checked_mul(swap_fee_percentage)
                 .ok_or(DexError::Arithmethic)?;
 
             let op1 = balance_token_in
@@ -399,6 +415,8 @@ mod simple_dex {
 
             balance_token_out
                 .checked_sub(op4)
+                // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
+                .and_then(|result| result.checked_sub(if op3 % op2 > 0 { 1 } else { 0 }))
                 .ok_or(DexError::Arithmethic)
         }
 
@@ -511,6 +529,32 @@ mod simple_dex {
     impl Default for SimpleDex {
         fn default() -> Self {
             SimpleDex::new()
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use proptest::prelude::*;
+
+        use super::*;
+
+        proptest! {
+            #[test]
+            fn rounding_benefits_dex(
+                balance_token_a in 1..1000u128,
+                balance_token_b in 1..1000u128,
+                pay_token_a in 1..1000u128,
+                fee_percentage in 0..10u128
+            ) {
+                let get_token_b =
+                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, fee_percentage).unwrap();
+                let balance_token_a = balance_token_a + pay_token_a;
+                let balance_token_b = balance_token_b - get_token_b;
+                let get_token_a =
+                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, fee_percentage).unwrap();
+
+                assert!(get_token_a <= pay_token_a);
+            }
         }
     }
 }

@@ -16,11 +16,12 @@ use crate::{
         marketplace_update as test_marketplace_update, points_basic as test_points_basic,
         points_stake_change as test_points_stake_change,
         schedule_doomed_version_change_and_verify_finalization_stopped as test_schedule_doomed_version_change_and_verify_finalization_stopped,
-        schedule_version_change as test_schedule_version_change,
+        schedule_version_change as test_schedule_version_change, simple_dex as test_simple_dex,
         staking_era_payouts as test_staking_era_payouts,
         staking_new_validator as test_staking_new_validator,
         the_pressiah_cometh as test_the_pressiah_cometh, token_transfer as test_token_transfer,
         treasury_access as test_treasury_access, validators_rotate as test_validators_rotate,
+        wrapped_azero as test_wrapped_azero,
     },
 };
 
@@ -74,6 +75,8 @@ pub fn possible_test_cases() -> PossibleTestCases {
         ("the_pressiah_cometh", test_the_pressiah_cometh as TestCase),
         ("marketplace", test_marketplace as TestCase),
         ("marketplace_update", test_marketplace_update as TestCase),
+        ("simple_dex", test_simple_dex as TestCase),
+        ("wrapped_azero", test_wrapped_azero as TestCase),
         ("ban_automatic", test_ban_automatic as TestCase),
         ("ban_manual", test_ban_manual as TestCase),
         (

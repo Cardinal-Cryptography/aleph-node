@@ -5,11 +5,13 @@ use anyhow::Result;
 use assert2::{assert, let_assert};
 use helpers::{sign, update_marketplace_metadata_to_v2, update_marketplace_to_v2};
 use log::info;
+use sp_core::Pair;
 
 use crate::{
     test::button_game::helpers::{
-        assert_recv, assert_recv_id, refute_recv_id, setup_button_test, wait_for_death,
-        ButtonTestContext,
+        alephs, assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test,
+        setup_dex_test, setup_wrapped_azero_test, wait_for_death, ButtonTestContext,
+        DexTestContext, WAzeroTestContext,
     },
     Config,
 };
@@ -17,7 +19,162 @@ use crate::{
 mod contracts;
 mod helpers;
 
-/// Tests trading on the marketplace (with update).
+/// Test wrapped azero
+///
+/// The scenario:
+///
+/// 1. Wraps some azero and checks that the PSP22 balance increased accordingly.
+/// 2. Unwraps half of the amount, checks that some wrapped funds remained while the rest has been returned to azero,
+///    minus fees.
+pub fn wrapped_azero(config: &Config) -> Result<()> {
+    let WAzeroTestContext {
+        conn,
+        account,
+        wazero,
+        mut events,
+        ..
+    } = setup_wrapped_azero_test(config)?;
+    let account_conn = &sign(&conn, &account);
+    let account_id: AccountId = account.public().into();
+
+    wazero.wrap(account_conn, alephs(2))?;
+
+    let event = assert_recv_id(&mut events, "Wrapped");
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("caller"));
+    assert!(*acc_id == account_id.to_string());
+    assert!(event.data.get("amount") == Some(&Value::UInt(alephs(2))));
+    assert!(wazero.balance_of(account_conn, account.public().into())? == alephs(2));
+
+    let balance_before = aleph_client::get_free_balance(&conn, &account_id);
+    wazero.unwrap(account_conn, alephs(1))?;
+
+    let event = assert_recv_id(&mut events, "UnWrapped");
+    let balance_after = aleph_client::get_free_balance(&conn, &account_id);
+    let max_fee = alephs(1) / 100;
+    assert!(balance_after - balance_before > alephs(1) - max_fee);
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("caller"));
+    assert!(*acc_id == account_id.to_string());
+    assert!(event.data.get("amount") == Some(&Value::UInt(alephs(1))));
+    assert!(wazero.balance_of(account_conn, account.public().into())? == alephs(1));
+
+    Ok(())
+}
+
+/// Test trading on simple_dex.
+///
+/// The scenario does the following (given 3 tokens A, B, C):
+///
+/// 1. Enables A <-> B, and A -> C swaps.
+/// 2. Adds (A, 2000M), (B, 5000M), (C, 10000M) of liquidity.
+/// 3. Makes a swap A -> B and then B -> A for the amount of B received in the first swap.
+/// 4. Makes a swap A -> B expecting negative slippage (this should fail).
+/// 5. Checks that the price after the two swaps is the same as before (with a dust allowance of 1 for rounding).
+/// 6. Checks that it's possible to make an A -> C swap, but impossible to make a C -> A swap.
+pub fn simple_dex(config: &Config) -> Result<()> {
+    let DexTestContext {
+        conn,
+        authority,
+        account,
+        dex,
+        token1,
+        token2,
+        token3,
+        mut events,
+    } = setup_dex_test(config)?;
+    let authority_conn = &sign(&conn, &authority);
+    let account_conn = &sign(&conn, &account);
+    let token1 = token1.as_ref();
+    let token2 = token2.as_ref();
+    let token3 = token3.as_ref();
+    let dex = dex.as_ref();
+
+    dex.add_swap_pair(authority_conn, token1.into(), token2.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    dex.add_swap_pair(authority_conn, token2.into(), token1.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    dex.add_swap_pair(authority_conn, token1.into(), token3.into())?;
+    assert_recv_id(&mut events, "SwapPairAdded");
+
+    token1.mint(authority_conn, &authority.public().into(), mega(3000))?;
+    token2.mint(authority_conn, &authority.public().into(), mega(5000))?;
+    token3.mint(authority_conn, &authority.public().into(), mega(10000))?;
+
+    token1.approve(authority_conn, &dex.into(), mega(3000))?;
+    token2.approve(authority_conn, &dex.into(), mega(5000))?;
+    token3.approve(authority_conn, &dex.into(), mega(10000))?;
+    dex.deposit(
+        authority_conn,
+        &[
+            (token1, mega(3000)),
+            (token2, mega(5000)),
+            (token3, mega(10000)),
+        ],
+    )?;
+
+    let more_than_liquidity = mega(1_000_000);
+    dex.swap(account_conn, token1, 100, token2, more_than_liquidity)?;
+
+    refute_recv_id(&mut events, "Swapped");
+
+    let initial_amount = mega(100);
+    token1.mint(authority_conn, &account.public().into(), initial_amount)?;
+    let expected_output = dex.out_given_in(account_conn, token1, token2, initial_amount)?;
+    assert!(expected_output > 0);
+
+    let at_most_10_percent_slippage = expected_output * 9 / 10;
+    token1.approve(account_conn, &dex.into(), initial_amount)?;
+    dex.swap(
+        account_conn,
+        token1,
+        initial_amount,
+        token2,
+        at_most_10_percent_slippage,
+    )?;
+    assert_recv_id(&mut events, "Swapped");
+    assert!(token2.balance_of(&conn, &account.public().into())? == expected_output);
+
+    token2.approve(account_conn, &dex.into(), expected_output)?;
+    dex.swap(account_conn, token2, expected_output, token1, mega(90))?;
+    assert_recv_id(&mut events, "Swapped");
+
+    let balance_after = token1.balance_of(&conn, &account.public().into())?;
+    assert!(initial_amount.abs_diff(balance_after) <= 1);
+    assert!(
+        dex.out_given_in(account_conn, token1, token2, initial_amount)?
+            .abs_diff(expected_output)
+            <= 1
+    );
+
+    token1.approve(account_conn, &dex.into(), balance_after)?;
+    let unreasonable_slippage = expected_output * 11 / 10;
+    dex.swap(
+        account_conn,
+        token1,
+        balance_after,
+        token2,
+        unreasonable_slippage,
+    )?;
+    refute_recv_id(&mut events, "Swapped");
+
+    dex.swap(account_conn, token1, balance_after, token3, mega(90))?;
+    assert_recv_id(&mut events, "Swapped");
+
+    // can't swap a pair not on the whitelist
+
+    dex.remove_swap_pair(authority_conn, token3.into(), token1.into())?;
+    assert_recv_id(&mut events, "SwapPairRemoved");
+
+    let balance_token3 = token3.balance_of(&conn, &account.public().into())?;
+    token3.approve(account_conn, &dex.into(), balance_token3)?;
+    dex.swap(account_conn, token3, balance_token3, token1, mega(90))?;
+    refute_recv_id(&mut events, "Swapped");
+
+    Ok(())
+}
+
+/// Tests trading on the marketplace.
 ///
 /// The scenario:
 ///

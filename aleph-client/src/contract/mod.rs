@@ -69,7 +69,6 @@ pub struct ContractInstance {
 impl ContractInstance {
     const MAX_READ_GAS: u64 = 500000000000u64;
     const MAX_GAS: u64 = 100000000000u64;
-    const PAYABLE_VALUE: u64 = 0u64;
     const STORAGE_FEE_LIMIT: Option<u128> = None;
 
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
@@ -96,15 +95,15 @@ impl ContractInstance {
         conn: &C,
         message: &str,
     ) -> Result<ConvertibleValue> {
-        self.contract_read(conn, message, &[])
+        self.contract_read::<C, String>(conn, message, &[])
     }
 
     /// Reads the value of a read-only call via RPC.
-    pub fn contract_read<C: AnyConnection>(
+    pub fn contract_read<C: AnyConnection, S: AsRef<str> + Debug>(
         &self,
         conn: &C,
         message: &str,
-        args: &[&str],
+        args: &[S],
     ) -> Result<ConvertibleValue> {
         let payload = self.encode(message, args)?;
         let request = self.contract_read_request(&payload);
@@ -121,15 +120,36 @@ impl ContractInstance {
 
     /// Executes a 0-argument contract call.
     pub fn contract_exec0(&self, conn: &SignedConnection, message: &str) -> Result<()> {
-        self.contract_exec(conn, message, &[])
+        self.contract_exec_value::<String>(conn, message, &[], 0)
     }
 
     /// Executes a contract call.
-    pub fn contract_exec(
+    pub fn contract_exec<S: AsRef<str> + Debug>(
         &self,
         conn: &SignedConnection,
         message: &str,
-        args: &[&str],
+        args: &[S],
+    ) -> Result<()> {
+        self.contract_exec_value(conn, message, args, 0)
+    }
+
+    /// Executes a 0-argument contract call sending the given amount of value with it.
+    pub fn contract_exec_value0(
+        &self,
+        conn: &SignedConnection,
+        message: &str,
+        value: u128,
+    ) -> Result<()> {
+        self.contract_exec_value::<String>(conn, message, &[], value)
+    }
+
+    /// Executes a contract call sending the given amount of value with it.
+    pub fn contract_exec_value<S: AsRef<str> + Debug>(
+        &self,
+        conn: &SignedConnection,
+        message: &str,
+        args: &[S],
+        value: u128,
     ) -> Result<()> {
         let data = self.encode(message, args)?;
         let xt = compose_extrinsic!(
@@ -137,7 +157,7 @@ impl ContractInstance {
             "Contracts",
             "call",
             GenericAddress::Id(self.address.clone()),
-            Compact(Self::PAYABLE_VALUE),
+            Compact(value),
             Compact(Self::MAX_GAS),
             Self::STORAGE_FEE_LIMIT,
             data
@@ -164,7 +184,7 @@ impl ContractInstance {
         })
     }
 
-    fn encode(&self, message: &str, args: &[&str]) -> Result<Vec<u8>> {
+    fn encode<S: AsRef<str> + Debug>(&self, message: &str, args: &[S]) -> Result<Vec<u8>> {
         ContractMessageTranscoder::new(&self.ink_project).encode(message, args)
     }
 
