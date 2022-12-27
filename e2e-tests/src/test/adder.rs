@@ -18,17 +18,19 @@ pub async fn adder() -> Result<()> {
         &config.test_case_params.adder_metadata,
     )?;
 
+    let increment = 10;
     let before = contract.get(&conn).await?;
-    contract.add(&account.sign(&conn), 10).await?;
+    contract.add(&account.sign(&conn), increment).await?;
     let after = contract.get(&conn).await?;
-    assert!(after == before + 10);
+    assert!(after == before + increment);
 
+    let new_name = "test";
     contract.set_name(&account.sign(&conn), None).await?;
     assert!(contract.get_name(&conn).await?.is_none());
     contract
-        .set_name(&account.sign(&conn), Some("test"))
+        .set_name(&account.sign(&conn), Some(new_name))
         .await?;
-    assert!(contract.get_name(&conn).await? == Some("test".to_string()));
+    assert!(contract.get_name(&conn).await? == Some(new_name.to_string()));
 
     Ok(())
 }
