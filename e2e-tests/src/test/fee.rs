@@ -108,7 +108,7 @@ pub async fn current_fees(
     let actual_multiplier = connection.get_next_fee_multiplier(None).await;
 
     let waiting_connection = connection.as_connection();
-    let signer = connection.signer.account_id().clone();
+    let signer = connection.account_id().clone();
     let event_handle = tokio::spawn(async move {
         waiting_connection
             .wait_for_event(

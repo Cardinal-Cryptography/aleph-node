@@ -95,7 +95,7 @@ pub async fn instantiate(
     debug!("Encoded constructor data {:?}", data);
 
     let connection = signed_connection.as_connection();
-    let signer_id = signed_connection.signer.account_id().clone();
+    let signer_id = signed_connection.account_id().clone();
 
     let event_handler = tokio::spawn(async move {
         connection
@@ -153,7 +153,7 @@ pub async fn instantiate_with_code(
 
     debug!("Encoded constructor data {:?}", data);
 
-    let signer_id = signed_connection.signer.account_id().clone();
+    let signer_id = signed_connection.account_id().clone();
     let connection_0 = signed_connection.as_connection();
     let connection_1 = signed_connection.as_connection();
 

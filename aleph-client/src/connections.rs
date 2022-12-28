@@ -64,12 +64,12 @@ pub trait ConnectionExt: AsConnection {
 
 pub struct SignedConnection {
     connection: Connection,
-    pub signer: KeyPair,
+    signer: KeyPair,
 }
 
 pub struct RootConnection {
     connection: Connection,
-    pub root: KeyPair,
+    root: KeyPair,
 }
 
 #[async_trait::async_trait]
@@ -165,8 +165,12 @@ impl SignedConnection {
         Self::from_connection(create_connection(address).await, signer)
     }
 
-    pub fn from_connection(connection: Client, signer: KeyPair) -> Self {
+    pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
         Self { connection, signer }
+    }
+
+    pub fn account_id(&self) -> &subxt::ext::sp_runtime::AccountId32 {
+        self.signer.account_id()
     }
 
     pub async fn send_tx<Call: TxPayload>(

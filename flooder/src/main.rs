@@ -81,7 +81,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     for conn in connections.iter() {
         connection
             .transfer(
-                conn.signer.account_id().clone(),
+                conn.account_id().clone(),
                 account_balance,
                 TxStatus::Submitted,
             )
@@ -90,11 +90,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     }
 
     connection
-        .transfer(
-            connection.signer.account_id().clone(),
-            1,
-            TxStatus::Finalized,
-        )
+        .transfer(connection.account_id().clone(), 1, TxStatus::Finalized)
         .await
         .unwrap();
 
