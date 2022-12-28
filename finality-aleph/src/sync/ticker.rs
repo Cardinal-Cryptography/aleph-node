@@ -3,7 +3,6 @@ use tokio::time::{sleep, Duration, Instant};
 /// This struct is used for determining when we should broadcast justification so that it does not happen too often.
 pub struct BroadcastTicker {
     last_broadcast: Instant,
-    last_periodic_broadcast: Instant,
     current_periodic_timeout: Duration,
     max_timeout: Duration,
     min_timeout: Duration,
@@ -13,7 +12,6 @@ impl BroadcastTicker {
     pub fn new(max_timeout: Duration, min_timeout: Duration) -> Self {
         Self {
             last_broadcast: Instant::now(),
-            last_periodic_broadcast: Instant::now(),
             current_periodic_timeout: max_timeout,
             max_timeout,
             min_timeout,
@@ -39,12 +37,12 @@ impl BroadcastTicker {
     }
 
     /// Sleeps until next periodic broadcast should happen.
-    /// In case time elapsed, sets last periodic broadcast to now and periodic timeout to `self.max_timeout`.
+    /// In case enough time elapsed, sets last broadcast to now and periodic timeout to `self.max_timeout`.
     pub async fn wait_for_periodic_broadcast(&mut self) {
-        let since_last = Instant::now().saturating_duration_since(self.last_periodic_broadcast);
+        let since_last = Instant::now().saturating_duration_since(self.last_broadcast);
         sleep(self.current_periodic_timeout.saturating_sub(since_last)).await;
         self.current_periodic_timeout = self.max_timeout;
-        self.last_periodic_broadcast = Instant::now();
+        self.last_broadcast = Instant::now();
     }
 }
 
@@ -59,6 +57,7 @@ mod tests {
         let max_timeout = Duration::from_millis(700);
         let min_timeout = Duration::from_millis(100);
         let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+
         assert!(!ticker.try_broadcast());
         sleep(min_timeout).await;
         assert!(ticker.try_broadcast());
@@ -70,6 +69,7 @@ mod tests {
         let max_timeout = Duration::from_millis(700);
         let min_timeout = Duration::from_millis(100);
         let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+
         assert_ne!(
             timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
             Ok(())
@@ -81,11 +81,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn wait_for_periodic_broadcast_after_try_broadcast() {
+    async fn wait_for_periodic_broadcast_after_try_broadcast_true() {
         let max_timeout = Duration::from_millis(700);
         let min_timeout = Duration::from_millis(100);
         let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+
+        sleep(min_timeout).await;
+        assert!(ticker.try_broadcast());
+
+        assert_ne!(
+            timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
+            Ok(())
+        );
+        assert_eq!(
+            timeout(max_timeout, ticker.wait_for_periodic_broadcast()).await,
+            Ok(())
+        );
+    }
+
+    #[tokio::test]
+    async fn wait_for_periodic_broadcast_after_try_broadcast_false() {
+        let max_timeout = Duration::from_millis(700);
+        let min_timeout = Duration::from_millis(100);
+        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+
         assert!(!ticker.try_broadcast());
+
         assert_eq!(
             timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
             Ok(())
@@ -98,5 +119,25 @@ mod tests {
             timeout(max_timeout, ticker.wait_for_periodic_broadcast()).await,
             Ok(())
         );
+    }
+
+    #[tokio::test]
+    async fn try_broadcast_after_wait_for_periodic_broadcast() {
+        let max_timeout = Duration::from_millis(700);
+        let min_timeout = Duration::from_millis(100);
+        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+
+        assert_eq!(
+            timeout(
+                max_timeout + min_timeout,
+                ticker.wait_for_periodic_broadcast()
+            )
+            .await,
+            Ok(())
+        );
+
+        assert!(!ticker.try_broadcast());
+        sleep(min_timeout).await;
+        assert!(ticker.try_broadcast());
     }
 }
