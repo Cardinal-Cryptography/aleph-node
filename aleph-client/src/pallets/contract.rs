@@ -7,8 +7,8 @@ use subxt::{
 };
 
 use crate::{
-    api, connections::ConnectionExt, pallet_contracts::wasm::OwnerInfo,
-    sp_weights::weight_v2::Weight, AccountId, BlockHash, Connection, SignedConnection, TxStatus,
+    api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
+    ConnectionExt, SignedConnection, TxStatus,
 };
 
 #[derive(Encode)]
@@ -82,7 +82,7 @@ pub trait ContractRpc {
 }
 
 #[async_trait::async_trait]
-impl ContractsApi for Connection {
+impl<C: ConnectionExt> ContractsApi for C {
     async fn get_owner_info(
         &self,
         code_hash: BlockHash,
@@ -182,7 +182,7 @@ impl ContractsUserApi for SignedConnection {
 }
 
 #[async_trait::async_trait]
-impl ContractRpc for Connection {
+impl<C: ConnectionExt> ContractRpc for C {
     async fn call_and_get<T: Decode>(&self, args: ContractCallArgs) -> anyhow::Result<T> {
         let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
 

@@ -7,7 +7,7 @@ use aleph_client::{
         treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
     },
     waiting::{AlephWaiting, BlockStatus},
-    Connection, KeyPair, RootConnection, SignedConnection, TxStatus,
+    ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;
@@ -20,7 +20,7 @@ use crate::{
 /// Returns current treasury free funds and total issuance.
 ///
 /// Takes two storage reads.
-async fn balance_info(connection: &Connection) -> (Balance, Balance) {
+async fn balance_info<C: ConnectionExt>(connection: &C) -> (Balance, Balance) {
     let treasury_balance = connection
         .get_free_balance(connection.treasury_account().await, None)
         .await;

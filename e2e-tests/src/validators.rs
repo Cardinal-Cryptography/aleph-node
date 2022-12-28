@@ -134,7 +134,7 @@ pub async fn prepare_validators(connection: &SignedConnection, node: &str, accou
     }
 
     for controller in accounts.controller_raw_keys.iter() {
-        let keys = connection.connection.author_rotate_keys().await;
+        let keys = connection.author_rotate_keys().await;
         let connection = SignedConnection::new(node, KeyPair::new(controller.clone())).await;
         handles.push(tokio::spawn(async move {
             connection

@@ -3,12 +3,11 @@ use subxt::ext::sp_runtime::Perbill as SPerbill;
 
 use crate::{
     api,
-    connections::ConnectionExt,
     frame_system::pallet::Call::{fill_block, set_code},
     sp_arithmetic::per_things::Perbill,
     AccountId, BlockHash,
     Call::System,
-    Connection, RootConnection, SudoCall, TxStatus,
+    ConnectionExt, RootConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -48,7 +47,7 @@ impl SystemSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl SystemApi for Connection {
+impl<C: ConnectionExt> SystemApi for C {
     async fn get_free_balance(&self, account: AccountId, at: Option<BlockHash>) -> Balance {
         let addrs = api::storage().system().account(&account);
 

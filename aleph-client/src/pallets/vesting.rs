@@ -1,8 +1,8 @@
 use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
-    api, connections::ConnectionExt, pallet_vesting::vesting_info::VestingInfo, AccountId,
-    BlockHash, Connection, SignedConnection, TxStatus,
+    api, pallet_vesting::vesting_info::VestingInfo, AccountId, BlockHash, ConnectionExt,
+    SignedConnection, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -33,7 +33,7 @@ pub trait VestingUserApi {
 }
 
 #[async_trait::async_trait]
-impl VestingApi for Connection {
+impl<C: ConnectionExt> VestingApi for C {
     async fn get_vesting(
         &self,
         who: AccountId,

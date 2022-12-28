@@ -6,14 +6,13 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
-    connections::ConnectionExt,
     pallet_elections::pallet::Call::{
         ban_from_committee, change_validators, set_elections_openness,
     },
     primitives::{BanConfig, BanInfo, ElectionOpenness},
     AccountId, BlockHash,
     Call::Elections,
-    Connection, RootConnection, SudoCall, TxStatus,
+    ConnectionExt, RootConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -79,7 +78,7 @@ pub trait ElectionsSudoApi {
 }
 
 #[async_trait::async_trait]
-impl ElectionsApi for Connection {
+impl<C: ConnectionExt> ElectionsApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig {
         let addrs = api::storage().elections().ban_config();
 
@@ -168,7 +167,7 @@ impl ElectionsApi for Connection {
     async fn get_session_period(&self) -> u32 {
         let addrs = api::constants().elections().session_period();
 
-        self.constants().at(&addrs).unwrap()
+        self.as_connection().constants().at(&addrs).unwrap()
     }
 }
 

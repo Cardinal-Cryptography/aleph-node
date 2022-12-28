@@ -16,15 +16,33 @@ use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair
 
 pub type Connection = Client;
 
+const DEFAULT_RETRIES: u32 = 10;
+const RETRY_WAIT_SECS: u64 = 1;
+
+pub async fn create_connection(address: &str) -> Connection {
+    create_connection_with_retries(address, DEFAULT_RETRIES).await
+}
+
+async fn create_connection_with_retries(address: &str, mut retries: u32) -> Connection {
+    loop {
+        let client = Client::from_url(&address).await;
+        match (retries, client) {
+            (_, Ok(client)) => return client,
+            (0, Err(e)) => panic!("{:?}", e),
+            _ => {
+                sleep(Duration::from_secs(RETRY_WAIT_SECS));
+                retries -= 1;
+            }
+        }
+    }
+}
+
+pub trait AsConnection: Sync {
+    fn as_connection(&self) -> Connection;
+}
+
 #[async_trait::async_trait]
-pub trait ConnectionExt {
-    const DEFAULT_RETRIES: u32;
-    const RETRY_WAIT_SECS: u64;
-
-    async fn new(address: &str) -> Self;
-
-    async fn new_with_retries(address: &str, mut retries: u32) -> Self;
-
+pub trait ConnectionExt: AsConnection {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -83,29 +101,26 @@ impl SudoCall for RootConnection {
     }
 }
 
+impl AsConnection for Connection {
+    fn as_connection(&self) -> Connection {
+        self.clone()
+    }
+}
+
+impl AsConnection for SignedConnection {
+    fn as_connection(&self) -> Connection {
+        self.connection.clone()
+    }
+}
+
+impl AsConnection for RootConnection {
+    fn as_connection(&self) -> Connection {
+        self.connection.clone()
+    }
+}
+
 #[async_trait::async_trait]
-impl ConnectionExt for Connection {
-    const DEFAULT_RETRIES: u32 = 10;
-    const RETRY_WAIT_SECS: u64 = 1;
-
-    async fn new(address: &str) -> Self {
-        Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
-    }
-
-    async fn new_with_retries(address: &str, mut retries: u32) -> Self {
-        loop {
-            let client = Client::from_url(&address).await;
-            match (retries, client) {
-                (_, Ok(client)) => return client,
-                (0, Err(e)) => panic!("{:?}", e),
-                _ => {
-                    sleep(Duration::from_secs(Self::RETRY_WAIT_SECS));
-                    retries -= 1;
-                }
-            }
-        }
-    }
-
+impl<C: AsConnection> ConnectionExt for C {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -126,7 +141,8 @@ impl ConnectionExt for Connection {
         at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.storage()
+        self.as_connection()
+            .storage()
             .fetch(addrs, at)
             .await
             .expect("Should access storage")
@@ -134,7 +150,11 @@ impl ConnectionExt for Connection {
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
-        let bytes: Bytes = self.rpc().request(&func_name, params).await?;
+        let bytes: Bytes = self
+            .as_connection()
+            .rpc()
+            .request(&func_name, params)
+            .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
     }
@@ -142,10 +162,10 @@ impl ConnectionExt for Connection {
 
 impl SignedConnection {
     pub async fn new(address: &str, signer: KeyPair) -> Self {
-        Self::from_connection(ConnectionExt::new(address).await, signer)
+        Self::from_connection(create_connection(address).await, signer)
     }
 
-    pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
+    pub fn from_connection(connection: Client, signer: KeyPair) -> Self {
         Self { connection, signer }
     }
 
@@ -187,13 +207,10 @@ impl SignedConnection {
 
 impl RootConnection {
     pub async fn new(address: &str, root: KeyPair) -> anyhow::Result<Self> {
-        RootConnection::try_from_connection(ConnectionExt::new(address).await, root).await
+        RootConnection::try_from_connection(create_connection(address).await, root).await
     }
 
-    pub async fn try_from_connection(
-        connection: Connection,
-        signer: KeyPair,
-    ) -> anyhow::Result<Self> {
+    pub async fn try_from_connection(connection: Client, signer: KeyPair) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
         let root = match connection.storage().fetch(&root_address, None).await {

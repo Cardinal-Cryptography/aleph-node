@@ -3,12 +3,11 @@ use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
-    connections::ConnectionExt,
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
     AccountId, BlockHash,
     Call::Balances,
-    Connection, SignedConnection, TxStatus,
+    ConnectionExt, SignedConnection, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -54,7 +53,7 @@ pub trait BalanceUserBatchExtApi {
 }
 
 #[async_trait::async_trait]
-impl BalanceApi for Connection {
+impl<C: ConnectionExt> BalanceApi for C {
     async fn locks_for_account(
         &self,
         account: AccountId,

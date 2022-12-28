@@ -7,11 +7,10 @@ use crate::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
     },
-    connections::ConnectionExt,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
-    Connection, Pair, RootConnection, SudoCall, TxStatus,
+    ConnectionExt, Pair, RootConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -69,7 +68,7 @@ impl AlephSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl AlephRpc for Connection {
+impl<C: ConnectionExt> AlephRpc for C {
     async fn emergency_finalize(
         &self,
         number: BlockNumber,

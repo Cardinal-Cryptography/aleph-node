@@ -1,8 +1,8 @@
 use primitives::SessionIndex;
 
 use crate::{
-    api, api::runtime_types::aleph_runtime::SessionKeys, connections::ConnectionExt, AccountId,
-    BlockHash, Connection, SignedConnection, TxStatus,
+    api, api::runtime_types::aleph_runtime::SessionKeys, AccountId, BlockHash, ConnectionExt,
+    SignedConnection, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -22,7 +22,7 @@ pub trait SessionUserApi {
 }
 
 #[async_trait::async_trait]
-impl SessionApi for Connection {
+impl<C: ConnectionExt> SessionApi for C {
     async fn get_next_session_keys(
         &self,
         account: AccountId,

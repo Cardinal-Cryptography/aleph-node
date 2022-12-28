@@ -60,7 +60,7 @@ use serde_json::{from_reader, from_value};
 use crate::{
     pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi},
     sp_weights::weight_v2::Weight,
-    AccountId, Connection, SignedConnection, TxStatus,
+    AccountId, ConnectionExt, SignedConnection, TxStatus,
 };
 
 /// Represents a contract instantiated on the chain.
@@ -96,14 +96,18 @@ impl ContractInstance {
     }
 
     /// Reads the value of a read-only, 0-argument call via RPC.
-    pub async fn contract_read0<T: Decode>(&self, conn: &Connection, message: &str) -> Result<T> {
+    pub async fn contract_read0<T: Decode, C: ConnectionExt>(
+        &self,
+        conn: &C,
+        message: &str,
+    ) -> Result<T> {
         self.contract_read(conn, message, &[]).await
     }
 
     /// Reads the value of a read-only call via RPC.
-    pub async fn contract_read<T: Decode>(
+    pub async fn contract_read<T: Decode, C: ConnectionExt>(
         &self,
-        conn: &Connection,
+        conn: &C,
         message: &str,
         args: &[&str],
     ) -> Result<T> {

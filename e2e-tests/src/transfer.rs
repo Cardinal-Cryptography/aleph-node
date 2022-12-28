@@ -1,15 +1,15 @@
-use aleph_client::{AccountId, Connection, ConnectionExt, KeyPair, Pair, SignedConnection};
+use aleph_client::{create_connection, AccountId, Client, KeyPair, Pair, SignedConnection};
 
 use crate::{accounts::get_validators_raw_keys, config::Config};
 
-async fn setup(config: &Config) -> (Connection, KeyPair, AccountId) {
+async fn setup(config: &Config) -> (Client, KeyPair, AccountId) {
     let accounts = get_validators_raw_keys(config);
     let (from, to) = (
         KeyPair::new(accounts[0].clone()),
         KeyPair::new(accounts[1].clone()),
     );
     let to = AccountId::from(to.signer().public());
-    (ConnectionExt::new(&config.node).await, from, to)
+    (create_connection(&config.node).await, from, to)
 }
 
 pub async fn setup_for_transfer(config: &Config) -> (SignedConnection, AccountId) {

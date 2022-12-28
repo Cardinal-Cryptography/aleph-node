@@ -3,7 +3,7 @@ use primitives::{BlockNumber, EraIndex, SessionIndex};
 
 use crate::{
     pallets::{elections::ElectionsApi, staking::StakingApi},
-    BlockHash, Connection,
+    BlockHash, ConnectionExt,
 };
 
 #[async_trait::async_trait]
@@ -21,7 +21,7 @@ pub trait SessionEraApi {
 }
 
 #[async_trait::async_trait]
-impl BlocksApi for Connection {
+impl<C: ConnectionExt> BlocksApi for C {
     async fn first_block_of_session(&self, session: SessionIndex) -> Option<BlockHash> {
         let period = self.get_session_period().await;
         let block_num = period * session;
@@ -31,19 +31,30 @@ impl BlocksApi for Connection {
 
     async fn get_block_hash(&self, block: BlockNumber) -> Option<BlockHash> {
         info!(target: "aleph-client", "querying block hash for number #{}", block);
-        self.rpc().block_hash(Some(block.into())).await.unwrap()
+        self.as_connection()
+            .rpc()
+            .block_hash(Some(block.into()))
+            .await
+            .unwrap()
     }
 
     async fn get_best_block(&self) -> BlockNumber {
-        self.rpc().header(None).await.unwrap().unwrap().number
+        self.as_connection()
+            .rpc()
+            .header(None)
+            .await
+            .unwrap()
+            .unwrap()
+            .number
     }
 
     async fn get_finalized_block_hash(&self) -> BlockHash {
-        self.rpc().finalized_head().await.unwrap()
+        self.as_connection().rpc().finalized_head().await.unwrap()
     }
 
     async fn get_block_number(&self, block: BlockHash) -> Option<BlockNumber> {
-        self.rpc()
+        self.as_connection()
+            .rpc()
             .header(Some(block))
             .await
             .unwrap()
@@ -52,7 +63,7 @@ impl BlocksApi for Connection {
 }
 
 #[async_trait::async_trait]
-impl SessionEraApi for Connection {
+impl<C: ConnectionExt> SessionEraApi for C {
     async fn get_active_era_for_session(&self, session: SessionIndex) -> EraIndex {
         let block = self.first_block_of_session(session).await;
         self.get_active_era(block).await
