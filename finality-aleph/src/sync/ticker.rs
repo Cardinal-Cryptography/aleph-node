@@ -27,6 +27,7 @@ impl Ticker {
         let now = Instant::now();
         if now.saturating_duration_since(self.last_tick) >= self.min_timeout {
             self.last_tick = now;
+            self.current_timeout = self.min_timeout;
             true
         } else {
             self.current_timeout = self.min_timeout;
@@ -82,6 +83,7 @@ mod tests {
     async fn wait_after_try_tick_true() {
         let mut ticker = setup_ticker();
 
+        assert!(!ticker.try_tick());
         sleep(MIN_TIMEOUT).await;
         assert!(ticker.try_tick());
 
