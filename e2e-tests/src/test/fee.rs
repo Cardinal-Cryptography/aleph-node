@@ -107,7 +107,7 @@ pub async fn current_fees(
 ) -> (Balance, u128) {
     let actual_multiplier = connection.get_next_fee_multiplier(None).await;
 
-    let waiting_connection = connection.as_connection();
+    let waiting_connection = connection.as_connection().clone();
     let signer = connection.account_id().clone();
     let event_handle = tokio::spawn(async move {
         waiting_connection

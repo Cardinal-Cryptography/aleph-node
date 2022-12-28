@@ -143,7 +143,7 @@ async fn approve_treasury_proposal(connection: &RootConnection, id: u32) -> anyh
 }
 
 async fn reject_treasury_proposal(connection: &RootConnection, id: u32) -> anyhow::Result<()> {
-    let handle_connection = connection.as_connection();
+    let handle_connection = connection.as_connection().clone();
     let handle = tokio::spawn(async move {
         handle_connection
             .wait_for_event(

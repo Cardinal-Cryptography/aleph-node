@@ -38,7 +38,7 @@ async fn create_connection_with_retries(address: &str, mut retries: u32) -> Conn
 }
 
 pub trait AsConnection: Sync {
-    fn as_connection(&self) -> Connection;
+    fn as_connection(&self) -> &Connection;
 }
 
 #[async_trait::async_trait]
@@ -102,20 +102,20 @@ impl SudoCall for RootConnection {
 }
 
 impl AsConnection for Connection {
-    fn as_connection(&self) -> Connection {
-        self.clone()
+    fn as_connection(&self) -> &Connection {
+        self
     }
 }
 
 impl AsConnection for SignedConnection {
-    fn as_connection(&self) -> Connection {
-        self.connection.clone()
+    fn as_connection(&self) -> &Connection {
+        &self.connection
     }
 }
 
 impl AsConnection for RootConnection {
-    fn as_connection(&self) -> Connection {
-        self.connection.clone()
+    fn as_connection(&self) -> &Connection {
+        &self.connection
     }
 }
 
