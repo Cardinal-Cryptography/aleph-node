@@ -158,9 +158,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
     const NON_RESERVED_SEATS_DEFAULT: u32 = 3;
 
     // `MinimumValidatorCount` from `pallet_staking`, set in chain spec.
-    let min_validator_count = root_connection
-        .get_minimum_validator_count(None)
-        .await;
+    let min_validator_count = root_connection.get_minimum_validator_count(None).await;
 
     let reserved_seats = match config.test_case_params.reserved_seats {
         Some(seats) => seats,
@@ -226,9 +224,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
 
     // We need any signed connection.
     let connection = root_connection.as_signed();
-    connection
-        .wait_for_n_eras(2, BlockStatus::Best)
-        .await;
+    connection.wait_for_n_eras(2, BlockStatus::Best).await;
     let current_era = connection.get_current_era(None).await;
     info!("New validators are in force (era: {})", current_era);
 
@@ -260,9 +256,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
 
     chill_validators(node, vec![chilling_reserved, chilling_non_reserved]).await;
 
-    connection
-        .wait_for_n_eras(2, BlockStatus::Best)
-        .await;
+    connection.wait_for_n_eras(2, BlockStatus::Best).await;
     let current_era = connection.get_current_era(None).await;
     info!(
         "Subset of validators should be in force (era: {})",

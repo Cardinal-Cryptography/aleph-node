@@ -14,7 +14,7 @@ mod version_upgrade;
 mod vesting;
 
 use aleph_client::{
-    keypair_from_string, Connection, ConnectionExt, RootConnection, SignedConnection,
+    create_connection, keypair_from_string, Connection, RootConnection, SignedConnection,
 };
 pub use commands::Command;
 pub use contracts::{
@@ -47,7 +47,7 @@ impl ConnectionConfig {
     }
 
     pub async fn get_connection(&self) -> Connection {
-        ConnectionExt::new(&self.node_endpoint).await
+        create_connection(&self.node_endpoint).await
     }
 
     pub async fn get_signed_connection(&self) -> SignedConnection {

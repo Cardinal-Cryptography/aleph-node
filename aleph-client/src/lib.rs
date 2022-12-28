@@ -29,7 +29,10 @@ pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type Client = OnlineClient<AlephConfig>;
 pub type BlockHash = H256;
 
-pub use connections::{ConnectionExt, RootConnection, SignedConnection, SudoCall, create_connection};
+pub use connections::{
+    create_connection, AsConnection, Connection, ConnectionExt, RootConnection, SignedConnection,
+    SudoCall,
+};
 
 #[derive(Copy, Clone)]
 pub enum TxStatus {

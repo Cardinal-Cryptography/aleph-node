@@ -47,9 +47,7 @@ pub async fn setup_test(
         )
         .await?;
 
-    root_connection
-        .wait_for_n_eras(2, BlockStatus::Best)
-        .await;
+    root_connection.wait_for_n_eras(2, BlockStatus::Best).await;
 
     Ok((
         root_connection,
