@@ -72,11 +72,8 @@ pub async fn staking_era_payouts() -> anyhow::Result<()> {
 
     // All the above calls influence the next era, so we need to wait that it passes.
     // this test can be speeded up by forcing new era twice, and waiting 4 sessions in total instead of almost 10 sessions
-    connection
-        .connection
-        .wait_for_n_eras(2, BlockStatus::Finalized)
-        .await;
-    let current_era = connection.connection.get_current_era(None).await;
+    connection.wait_for_n_eras(2, BlockStatus::Finalized).await;
+    let current_era = connection.get_current_era(None).await;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
@@ -137,7 +134,6 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         .await?;
 
     root_connection
-        .connection
         .wait_for_n_sessions(2, BlockStatus::Best)
         .await;
 
@@ -167,7 +163,6 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         .await?;
 
     let bonded_controller_account = root_connection
-        .connection
         .get_bonded(stash_account.clone(), None)
         .await
         .expect("should be bonded to smth");
@@ -177,7 +172,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = root_connection.connection.author_rotate_keys().await;
+    let validator_keys = root_connection.author_rotate_keys().await;
     let controller_connection =
         SignedConnection::new(node, KeyPair::new(controller.signer().clone())).await;
     controller_connection
@@ -187,7 +182,6 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         .validate(10, TxStatus::InBlock)
         .await?;
     let ledger = controller_connection
-        .connection
         .get_ledger(controller_account, None)
         .await;
     assert_eq!(
@@ -216,14 +210,10 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         )
         .await?;
     root_connection
-        .connection
         .wait_for_n_sessions(2, BlockStatus::Best)
         .await;
-    root_connection
-        .connection
-        .wait_for_n_eras(2, BlockStatus::Best)
-        .await;
-    let current_era = root_connection.connection.get_current_era(None).await;
+    root_connection.wait_for_n_eras(2, BlockStatus::Best).await;
+    let current_era = root_connection.get_current_era(None).await;
     info!(
         "Era {} started, claiming rewards for era {}",
         current_era,
@@ -259,7 +249,6 @@ async fn payout_stakers_and_assert_locked_balance(
     era: BlockNumber,
 ) {
     let locked_stash_balances_before_payout = stash_connection
-        .connection
         .locks(accounts_to_check_balance, None)
         .await;
     stash_connection
@@ -267,7 +256,6 @@ async fn payout_stakers_and_assert_locked_balance(
         .await
         .unwrap();
     let locked_stash_balances_after_payout = stash_connection
-        .connection
         .locks(accounts_to_check_balance, None)
         .await;
     locked_stash_balances_before_payout.iter()

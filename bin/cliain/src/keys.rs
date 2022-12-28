@@ -23,7 +23,7 @@ pub async fn prepare_keys(connection: RootConnection, controller_account_id: Acc
         )
         .await
         .unwrap();
-    let new_keys = connection.connection.author_rotate_keys().await;
+    let new_keys = connection.author_rotate_keys().await;
     connection
         .as_signed()
         .set_keys(new_keys, TxStatus::Finalized)

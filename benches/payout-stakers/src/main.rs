@@ -340,7 +340,6 @@ async fn payout_stakers_and_assert_locked_balance(
     era: EraIndex,
 ) {
     let locked_stash_balances_before_payout = stash_connection
-        .connection
         .locks(accounts_to_check_balance, None)
         .await;
     stash_connection
@@ -348,7 +347,6 @@ async fn payout_stakers_and_assert_locked_balance(
         .await
         .unwrap();
     let locked_stash_balances_after_payout = stash_connection
-        .connection
         .locks(accounts_to_check_balance, None)
         .await;
     locked_stash_balances_before_payout.iter()

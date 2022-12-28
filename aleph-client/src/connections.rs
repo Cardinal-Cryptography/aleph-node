@@ -63,12 +63,12 @@ pub trait ConnectionExt: AsConnection {
 }
 
 pub struct SignedConnection {
-    pub connection: Connection,
+    connection: Connection,
     pub signer: KeyPair,
 }
 
 pub struct RootConnection {
-    pub connection: Connection,
+    connection: Connection,
     pub root: KeyPair,
 }
 

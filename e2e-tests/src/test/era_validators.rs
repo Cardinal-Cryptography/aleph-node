@@ -89,7 +89,6 @@ pub async fn era_validators() -> anyhow::Result<()> {
         )
         .await?;
     root_connection
-        .connection
         .wait_for_n_eras(1, BlockStatus::Finalized)
         .await;
 
@@ -106,13 +105,12 @@ pub async fn era_validators() -> anyhow::Result<()> {
         .await?;
 
     root_connection
-        .connection
         .wait_for_session(1, BlockStatus::Finalized)
         .await;
     let (eras_reserved, stored_reserved) =
-        get_current_and_next_era_reserved_validators(&connection.connection).await;
+        get_current_and_next_era_reserved_validators(&connection).await;
     let (eras_non_reserved, stored_non_reserved) =
-        get_current_and_next_era_non_reserved_validators(&connection.connection).await;
+        get_current_and_next_era_non_reserved_validators(&connection).await;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -132,15 +130,12 @@ pub async fn era_validators() -> anyhow::Result<()> {
         "Non-reserved validators set has been updated too early."
     );
 
-    connection
-        .connection
-        .wait_for_n_eras(1, BlockStatus::Finalized)
-        .await;
+    connection.wait_for_n_eras(1, BlockStatus::Finalized).await;
 
     let (eras_reserved, stored_reserved) =
-        get_current_and_next_era_reserved_validators(&connection.connection).await;
+        get_current_and_next_era_reserved_validators(&connection).await;
     let (eras_non_reserved, stored_non_reserved) =
-        get_current_and_next_era_non_reserved_validators(&connection.connection).await;
+        get_current_and_next_era_non_reserved_validators(&connection).await;
 
     assert_eq!(
         stored_reserved, new_reserved_validators,
@@ -160,9 +155,8 @@ pub async fn era_validators() -> anyhow::Result<()> {
         "Non-reserved validators set is not properly updated in the next era."
     );
 
-    let block_number = connection.connection.get_best_block().await;
+    let block_number = connection.get_best_block().await;
     connection
-        .connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)
         .await;
 
