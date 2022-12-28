@@ -14,24 +14,36 @@ use subxt::{
 
 use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, TxStatus};
 
+/// Capable of communicating with a live Aleph chain.
 #[derive(Clone)]
 pub struct Connection {
+    /// A `subxt` object representing a communication channel to a live chain.
+    /// Requires an url address for creation.
     pub client: Client,
 }
 
+/// Any connection that is signed by some key.
 pub struct SignedConnection {
+    /// Composition of [`Connection`] object.
     pub connection: Connection,
+    /// A key which signs any txes send via this connection.
     pub signer: KeyPair,
 }
 
+/// Specific connection that is singed by the sudo key.
 pub struct RootConnection {
+    /// Composition of [`Connection`] object.
     pub connection: Connection,
+    /// Sudo key pair.
     pub root: KeyPair,
 }
 
+/// API for [sudo pallet](https://paritytech.github.io/substrate/master/pallet_sudo/index.html).
 #[async_trait::async_trait]
 pub trait SudoCall {
+    /// API for [`sudo_unchecked_weight`](https://paritytech.github.io/substrate/master/pallet_sudo/pallet/enum.Call.html#variant.sudo_unchecked_weight) call.
     async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash>;
+    /// API for [`sudo`](https://paritytech.github.io/substrate/master/pallet_sudo/pallet/enum.Call.html#variant.sudo) call.
     async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
@@ -62,10 +74,16 @@ impl Connection {
     const DEFAULT_RETRIES: u32 = 10;
     const RETRY_WAIT_SECS: u64 = 1;
 
+    /// Creates new connection from a given url.
+    /// By default, it tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
     pub async fn new(address: String) -> Self {
         Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
     }
 
+    /// Creates new connection from a given url and given number of connection attempts.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
+    /// * `retries` - number of connection attempts
     pub async fn new_with_retries(address: String, mut retries: u32) -> Self {
         loop {
             let client = Client::from_url(&address).await;
@@ -80,6 +98,13 @@ impl Connection {
         }
     }
 
+    /// Retrieves a decoded storage value stored under given storage key.
+    ///
+    /// # Panic
+    /// This method `panic`s, in case storage key is invalid, or in case value cannot be decoded,
+    /// or there is no such value
+    /// * `addrs` - represents a storage key, see [more info about keys](https://docs.substrate.io/fundamentals/state-transitions-and-storage/#querying-storage)
+    /// * `at` - optional block hash to query state from
     pub async fn get_storage_entry<T: DecodeWithMetadata, Defaultable, Iterable>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -90,6 +115,19 @@ impl Connection {
             .expect("There should be a value")
     }
 
+    /// Retrieves a decoded storage value stored under given storage key.
+    ///
+    /// # Panic
+    /// This method `panic`s, in case storage key is invalid, or in case value cannot be decoded,
+    /// but does _not_ `panic` if there is no such value
+    /// * `addrs` - represents a storage key, see [more info about keys](https://docs.substrate.io/fundamentals/state-transitions-and-storage/#querying-storage)
+    /// * `at` - optional block hash to query state from
+    ///
+    /// # Examples
+    /// ```rust
+    ///     let addrs = api::storage().treasury().proposal_count();
+    ///     get_storage_entry_maybe(&addrs, None).await
+    /// ```
     pub async fn get_storage_entry_maybe<T: DecodeWithMetadata, Defaultable, Iterable>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -103,6 +141,21 @@ impl Connection {
             .expect("Should access storage")
     }
 
+    /// Submit a RPC call.
+    ///
+    /// * `func_name` - name of a RPC call
+    /// * `params` - result of calling `rpc_params!` macro, that's `Vec<u8>` of encoded data
+    /// to this rpc call
+    ///
+    /// # Examples
+    /// ```rust
+    /// let func_name = "alephNode_emergencyFinalize";
+    /// let hash = BlockHash::from_str("0x37841c5a09db7d9f985f2306866f196365f1bb9372efc76086e07b882296e1cc").expect("Hash is properly hex encoded");
+    /// let signature = key_pair.sign(&hash.encode());
+    /// let raw_signature: &[u8] = signature.as_ref();
+    /// let params = rpc_params![raw_signature, hash, number];
+    /// let _: () = rpc_call(func_name.to_string(), params).await?;
+    /// ```
     pub async fn rpc_call<R: Decode>(
         &self,
         func_name: String,
@@ -116,14 +169,31 @@ impl Connection {
 }
 
 impl SignedConnection {
+    /// Creates new signed connection from a given url.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
+    /// * `signer` - a [`KeyPair`] of signing account
     pub async fn new(address: String, signer: KeyPair) -> Self {
         Self::from_connection(Connection::new(address).await, signer)
     }
 
+    /// Creates new signed connection from existing [`Connection]` object.
+    /// * `connection` - existing connection
+    /// * `signer` - a [`KeyPair`] of signing account
     pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
         Self { connection, signer }
     }
-
+    /// Send a transaction to a chain. It waits for a given tx `status`.
+    /// * `tx` - encoded transaction payload
+    /// * `status` - tx status
+    /// # Returns
+    /// Block hash of block where transaction was put or error
+    /// # Examples
+    /// ```rust
+    ///      let tx = api::tx()
+    ///             .balances()
+    ///             .transfer(MultiAddress::Id(dest), amount);
+    ///         send_tx(tx, status).await
+    /// ```
     pub async fn send_tx<Call: TxPayload>(
         &self,
         tx: Call,
@@ -133,6 +203,12 @@ impl SignedConnection {
             .await
     }
 
+    /// Send a transaction to a chain. It waits for a given tx `status`.
+    /// * `tx` - encoded transaction payload
+    /// * `params` - optional tx params e.g. tip
+    /// * `status` - tx status
+    /// # Returns
+    /// Block hash of block where transaction was put or error
     pub async fn send_tx_with_params<Call: TxPayload>(
         &self,
         tx: Call,
@@ -162,10 +238,18 @@ impl SignedConnection {
 }
 
 impl RootConnection {
+    /// Creates new root connection from a given url.
+    /// By default, it tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
+    /// * `root` - a [`KeyPair`] of the Sudo account
     pub async fn new(address: String, root: KeyPair) -> anyhow::Result<Self> {
         RootConnection::try_from_connection(Connection::new(address).await, root).await
     }
 
+    /// Creates new root connection from a given [`Connection`] object. It validates whether given
+    /// key is really a sudo account
+    /// * `connection` - existing connection
+    /// * `signer` - a [`KeyPair`] of the Sudo account
     pub async fn try_from_connection(
         connection: Connection,
         signer: KeyPair,
@@ -191,6 +275,7 @@ impl RootConnection {
         })
     }
 
+    /// Converts [`RootConnection`] to [`SignedConnection`]
     pub fn as_signed(&self) -> SignedConnection {
         SignedConnection {
             connection: self.connection.clone(),
