@@ -48,94 +48,66 @@ impl Ticker {
 mod tests {
     use tokio::time::{sleep, timeout, Duration};
 
-    use super::BroadcastTicker;
+    use super::Ticker;
 
-    #[tokio::test]
-    async fn try_broadcast() {
-        let max_timeout = Duration::from_millis(700);
-        let min_timeout = Duration::from_millis(100);
-        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
+    const MAX_TIMEOUT: Duration = Duration::from_millis(700);
+    const MIN_TIMEOUT: Duration = Duration::from_millis(100);
 
-        assert!(!ticker.try_broadcast());
-        sleep(min_timeout).await;
-        assert!(ticker.try_broadcast());
-        assert!(!ticker.try_broadcast());
+    const MAX_TIMEOUT_PLUS: Duration = Duration::from_millis(800);
+    const MIN_TIMEOUT_PLUS: Duration = Duration::from_millis(200);
+
+    fn setup_ticker() -> Ticker {
+        Ticker::new(MAX_TIMEOUT, MIN_TIMEOUT)
     }
 
     #[tokio::test]
-    async fn wait_for_periodic_broadcast() {
-        let max_timeout = Duration::from_millis(700);
-        let min_timeout = Duration::from_millis(100);
-        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
-
-        assert_ne!(
-            timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-        assert_eq!(
-            timeout(max_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-    }
-
-    #[tokio::test]
-    async fn wait_for_periodic_broadcast_after_try_broadcast_true() {
-        let max_timeout = Duration::from_millis(700);
-        let min_timeout = Duration::from_millis(100);
-        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
-
-        sleep(min_timeout).await;
-        assert!(ticker.try_broadcast());
-
-        assert_ne!(
-            timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-        assert_eq!(
-            timeout(max_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-    }
-
-    #[tokio::test]
-    async fn wait_for_periodic_broadcast_after_try_broadcast_false() {
-        let max_timeout = Duration::from_millis(700);
-        let min_timeout = Duration::from_millis(100);
-        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
-
-        assert!(!ticker.try_broadcast());
-
-        assert_eq!(
-            timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-        assert_ne!(
-            timeout(2 * min_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-        assert_eq!(
-            timeout(max_timeout, ticker.wait_for_periodic_broadcast()).await,
-            Ok(())
-        );
-    }
-
-    #[tokio::test]
-    async fn try_broadcast_after_wait_for_periodic_broadcast() {
-        let max_timeout = Duration::from_millis(700);
-        let min_timeout = Duration::from_millis(100);
-        let mut ticker = BroadcastTicker::new(max_timeout, min_timeout);
-
-        assert_eq!(
-            timeout(
-                max_timeout + min_timeout,
-                ticker.wait_for_periodic_broadcast()
-            )
-            .await,
-            Ok(())
-        );
+    async fn try_tick() {
+        let mut ticker = setup_ticker();
 
         assert!(!ticker.try_tick());
-        sleep(min_timeout).await;
+        sleep(MIN_TIMEOUT).await;
+        assert!(ticker.try_tick());
+        assert!(!ticker.try_tick());
+    }
+
+    #[tokio::test]
+    async fn wait() {
+        let mut ticker = setup_ticker();
+
+        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn wait_after_try_tick_true() {
+        let mut ticker = setup_ticker();
+
+        sleep(MIN_TIMEOUT).await;
+        assert!(ticker.try_tick());
+
+        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn wait_after_try_tick_false() {
+        let mut ticker = setup_ticker();
+
+        assert!(!ticker.try_tick());
+
+        assert_eq!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn try_tick_after_wait() {
+        let mut ticker = setup_ticker();
+
+        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+
+        assert!(!ticker.try_tick());
+        sleep(MIN_TIMEOUT).await;
         assert!(ticker.try_tick());
     }
 }
