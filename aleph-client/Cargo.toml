@@ -1,5 +1,6 @@
 [package]
 name = "aleph_client"
+# TODO bump major version when API stablize
 version = "2.5.0"
 edition = "2021"
 license = "Apache 2.0"
