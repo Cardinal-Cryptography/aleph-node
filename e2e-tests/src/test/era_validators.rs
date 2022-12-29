@@ -5,6 +5,7 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, ConnectionExt, KeyPair, TxStatus,
 };
+use anyhow::anyhow;
 
 use crate::{
     accounts::{account_ids_from_keys, get_validators_raw_keys},
@@ -155,7 +156,10 @@ pub async fn era_validators() -> anyhow::Result<()> {
         "Non-reserved validators set is not properly updated in the next era."
     );
 
-    let block_number = connection.get_best_block().await;
+    let block_number = connection
+        .get_best_block()
+        .await?
+        .ok_or(anyhow!("Failed to retrieve best block number!"))?;
     connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)
         .await;

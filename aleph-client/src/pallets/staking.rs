@@ -44,7 +44,7 @@ pub trait StakingApi {
         at: Option<BlockHash>,
     ) -> Option<EraRewardPoints<AccountId>>;
     async fn get_minimum_validator_count(&self, at: Option<BlockHash>) -> u32;
-    async fn get_session_per_era(&self) -> u32;
+    async fn get_session_per_era(&self) -> anyhow::Result<u32>;
 }
 
 #[async_trait::async_trait]
@@ -113,7 +113,7 @@ pub trait StakingRawApi {
         &self,
         era: EraIndex,
         at: Option<BlockHash>,
-    ) -> Vec<StorageKey>;
+    ) -> anyhow::Result<Vec<StorageKey>>;
     async fn get_stakers_storage_keys_from_accounts(
         &self,
         era: EraIndex,
@@ -181,10 +181,12 @@ impl<C: ConnectionExt> StakingApi for C {
         self.get_storage_entry(&addrs, at).await
     }
 
-    async fn get_session_per_era(&self) -> u32 {
+    async fn get_session_per_era(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().staking().sessions_per_era();
-
-        self.as_connection().constants().at(&addrs).unwrap()
+        self.as_connection()
+            .constants()
+            .at(&addrs)
+            .map_err(|e| e.into())
     }
 }
 
@@ -300,7 +302,7 @@ impl<C: ConnectionExt> StakingRawApi for C {
         &self,
         era: EraIndex,
         at: Option<BlockHash>,
-    ) -> Vec<StorageKey> {
+    ) -> anyhow::Result<Vec<StorageKey>> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
         StorageMapKey::new(era, StorageHasher::Twox64Concat).to_bytes(&mut key);
@@ -308,7 +310,7 @@ impl<C: ConnectionExt> StakingRawApi for C {
             .storage()
             .fetch_keys(&key, 10, None, at)
             .await
-            .unwrap()
+            .map_err(|e| e.into())
     }
 
     async fn get_stakers_storage_keys_from_accounts(

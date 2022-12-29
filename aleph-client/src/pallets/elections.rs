@@ -43,7 +43,7 @@ pub trait ElectionsApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
-    async fn get_session_period(&self) -> u32;
+    async fn get_session_period(&self) -> anyhow::Result<u32>;
 }
 
 #[async_trait::async_trait]
@@ -164,10 +164,12 @@ impl<C: ConnectionExt> ElectionsApi for C {
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
-    async fn get_session_period(&self) -> u32 {
+    async fn get_session_period(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().elections().session_period();
-
-        self.as_connection().constants().at(&addrs).unwrap()
+        self.as_connection()
+            .constants()
+            .at(&addrs)
+            .map_err(|e| e.into())
     }
 }
 

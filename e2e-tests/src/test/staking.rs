@@ -172,7 +172,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = root_connection.author_rotate_keys().await;
+    let validator_keys = root_connection.author_rotate_keys().await?;
     let controller_connection =
         SignedConnection::new(node, KeyPair::new(controller.signer().clone())).await;
     controller_connection

@@ -42,14 +42,14 @@ pub async fn points_basic() -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let era = connection.get_active_era_for_session(session).await;
+        let era = connection.get_active_era_for_session(session).await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &connection,
@@ -97,14 +97,14 @@ pub async fn points_stake_change() -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let era = connection.get_active_era_for_session(session).await;
+        let era = connection.get_active_era_for_session(session).await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &connection,
@@ -147,14 +147,14 @@ pub async fn disable_node() -> anyhow::Result<()> {
     );
 
     for session in start_session..end_session {
-        let era = root_connection.get_active_era_for_session(session).await;
+        let era = root_connection.get_active_era_for_session(session).await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &controller_connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &controller_connection,
@@ -182,7 +182,7 @@ pub async fn force_new_era() -> anyhow::Result<()> {
 
     let connection = config.get_first_signed_connection().await;
     let root_connection = config.create_root_connection().await;
-    let start_era = connection.get_active_era_for_session(start_session).await;
+    let start_era = connection.get_active_era_for_session(start_session).await?;
 
     info!("Start | era: {}, session: {}", start_era, start_session);
 
@@ -223,7 +223,7 @@ pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
     let connection = config.get_first_signed_connection().await;
     let root_connection = config.create_root_connection().await;
 
-    let start_era = connection.get_active_era_for_session(start_session).await;
+    let start_era = connection.get_active_era_for_session(start_session).await?;
     info!("Start | era: {}, session: {}", start_era, start_session);
 
     validators_bond_extra_stakes(
@@ -290,7 +290,7 @@ async fn check_points_after_force_new_era(
             era_validators,
             session_to_check,
         )
-        .await;
+        .await?;
 
         check_points(
             connection,
