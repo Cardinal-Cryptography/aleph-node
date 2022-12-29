@@ -69,6 +69,7 @@ dependencies = [
  "sp-runtime 6.0.0",
  "subxt",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

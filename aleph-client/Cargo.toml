@@ -25,3 +25,6 @@ sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", bran
 sp-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.32" }
 pallet-contracts-primitives = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.32" }
 primitives = { path = "../primitives" }
+
+[dev-dependencies]
+tokio = "1.21"
