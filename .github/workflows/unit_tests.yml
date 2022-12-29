@@ -28,10 +28,15 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: install missing stuff
+        runs: |
+          sudo yum install -y unzip
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
           version: '3.6.1'        
+          repo-token: "${{ secrets.CI_GH_TOKEN }}"
 
       - name: Install clippy and fmt
         run: rustup component add clippy rustfmt
