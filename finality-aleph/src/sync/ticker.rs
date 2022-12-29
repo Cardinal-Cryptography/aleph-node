@@ -44,7 +44,7 @@ impl Ticker {
 
     /// Sleeps until next tick should happen.
     /// When enough time elapsed, returns and records a tick.
-    pub async fn wait(&mut self) {
+    pub async fn wait_and_tick(&mut self) {
         let since_last = Instant::now().saturating_duration_since(self.last_tick);
         sleep(self.current_timeout.saturating_sub(since_last)).await;
         self.current_timeout = self.max_timeout;
@@ -82,8 +82,11 @@ mod tests {
     async fn wait() {
         let mut ticker = setup_ticker();
 
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert_ne!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(())
+        );
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(()));
     }
 
     #[tokio::test]
@@ -94,8 +97,11 @@ mod tests {
         sleep(MIN_TIMEOUT).await;
         assert!(ticker.try_tick());
 
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert_ne!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(())
+        );
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(()));
     }
 
     #[tokio::test]
@@ -104,16 +110,25 @@ mod tests {
 
         assert!(!ticker.try_tick());
 
-        assert_eq!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(())
+        );
+        assert_ne!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(())
+        );
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(()));
     }
 
     #[tokio::test]
     async fn try_tick_after_wait() {
         let mut ticker = setup_ticker();
 
-        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(())
+        );
 
         assert!(!ticker.try_tick());
         sleep(MIN_TIMEOUT).await;
