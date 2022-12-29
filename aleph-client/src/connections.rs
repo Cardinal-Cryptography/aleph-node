@@ -8,11 +8,13 @@ use subxt::{
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
-    tx::{BaseExtrinsicParamsBuilder, PlainTip, TxPayload},
-    SubstrateConfig,
+    tx::TxPayload,
 };
 
-use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, TxStatus};
+use crate::{
+    api, sp_weights::weight_v2::Weight, ParamsBuilder, BlockHash, Call, Client,
+    KeyPair, TxStatus,
+};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -136,7 +138,7 @@ impl SignedConnection {
     pub async fn send_tx_with_params<Call: TxPayload>(
         &self,
         tx: Call,
-        params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
+        params: ParamsBuilder,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash> {
         if let Some(details) = tx.validation_details() {

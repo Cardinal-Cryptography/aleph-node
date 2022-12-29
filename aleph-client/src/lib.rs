@@ -4,7 +4,7 @@ pub use subxt::ext::sp_core::Pair;
 use subxt::{
     ext::sp_core::{ed25519, sr25519, H256},
     tx::PairSigner,
-    OnlineClient, PolkadotConfig,
+    OnlineClient, PolkadotConfig, SubstrateConfig,
 };
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
@@ -29,6 +29,8 @@ pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type Client = OnlineClient<AlephConfig>;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
+
+pub type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 
 pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
 
