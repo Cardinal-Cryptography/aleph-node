@@ -71,12 +71,7 @@ impl<T: Eq> TaskQueue<T> {
             .scheduled_time
             .saturating_duration_since(Instant::now());
         if !duration.is_zero() {
-            sleep(
-                scheduled_task
-                    .scheduled_time
-                    .saturating_duration_since(Instant::now()),
-            )
-            .await;
+            sleep(duration).await;
         }
         Some(PeekMut::pop(scheduled_task).task)
     }
