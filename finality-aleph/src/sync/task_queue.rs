@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{binary_heap::PeekMut, BinaryHeap},
+    collections::BinaryHeap,
     fmt::{Debug, Formatter},
 };
 
@@ -65,7 +65,7 @@ impl<T: Eq> TaskQueue<T> {
 
     /// Awaits for the first and most overdue task and returns it. Returns `None` if there are no tasks.
     pub async fn pop(&mut self) -> Option<T> {
-        let scheduled_task = self.queue.peek_mut()?;
+        let scheduled_task = self.queue.peek()?;
 
         let duration = scheduled_task
             .scheduled_time
@@ -73,7 +73,7 @@ impl<T: Eq> TaskQueue<T> {
         if !duration.is_zero() {
             sleep(duration).await;
         }
-        Some(PeekMut::pop(scheduled_task).task)
+        self.queue.pop().map(|t| t.task)
     }
 }
 
