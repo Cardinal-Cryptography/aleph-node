@@ -12,8 +12,7 @@ use subxt::{
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, ParamsBuilder, BlockHash, Call, Client,
-    KeyPair, TxStatus,
+    api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, ParamsBuilder, TxStatus,
 };
 
 #[derive(Clone)]
