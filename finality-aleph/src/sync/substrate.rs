@@ -1,16 +1,17 @@
 use std::hash::{Hash, Hasher};
 
-use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One, UniqueSaturatedInto};
+use aleph_primitives::BlockNumber;
+use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::sync::{BlockIdentifier, Header};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BlockId<H: SubstrateHeader> {
+pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
     hash: H::Hash,
     number: H::Number,
 }
 
-impl<SH: SubstrateHeader> Hash for BlockId<SH> {
+impl<SH: SubstrateHeader<Number = BlockNumber>> Hash for BlockId<SH> {
     fn hash<H>(&self, state: &mut H)
     where
         H: Hasher,
@@ -20,13 +21,13 @@ impl<SH: SubstrateHeader> Hash for BlockId<SH> {
     }
 }
 
-impl<H: SubstrateHeader> BlockIdentifier for BlockId<H> {
+impl<H: SubstrateHeader<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
     fn number(&self) -> u32 {
-        self.number.unique_saturated_into()
+        self.number
     }
 }
 
-impl<H: SubstrateHeader> Header for H {
+impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
     type Identifier = BlockId<H>;
 
     fn id(&self) -> Self::Identifier {
