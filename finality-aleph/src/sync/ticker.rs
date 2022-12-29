@@ -2,6 +2,8 @@ use tokio::time::{sleep, Duration, Instant};
 
 /// This struct is used for rate limiting as an on-demand ticker. It can be used for ticking
 /// at least once `max_timeout` but not more than once every `min_timeout`.
+/// Example usage would be to use `wait` method in main select loop and `try_tick` whenever
+/// you would like to tick sooner in another branch of select.
 pub struct Ticker {
     last_tick: Instant,
     current_timeout: Duration,
@@ -10,6 +12,8 @@ pub struct Ticker {
 }
 
 impl Ticker {
+    /// Retruns new Ticker struct. Behaves as if last tick happened during creation of TIcker.
+    /// Requires `max_timeout` >= `min_timeout`.
     pub fn new(max_timeout: Duration, min_timeout: Duration) -> Self {
         Self {
             last_tick: Instant::now(),
@@ -20,9 +24,9 @@ impl Ticker {
     }
 
     /// Returns whether at least `min_timeout` time elapsed since last tick.
-    /// If `min_timeout` elapsed since last tick, returns true, sets last tick to now,
-    /// current timout to `max_timeout` and will Return true again if called after `min_timeout`.
-    /// If not, returns false and sets current timeout to `min_timeout`.
+    /// If `min_timeout` elapsed since last tick, returns true and records a tick.
+    /// If not, returns false and calls to `wait` will return when `min_timeout`
+    /// elapses until the next tick.
     pub fn try_tick(&mut self) -> bool {
         let now = Instant::now();
         if now.saturating_duration_since(self.last_tick) >= self.min_timeout {
@@ -35,8 +39,8 @@ impl Ticker {
         }
     }
 
-    /// Sleeps until next tick should happen. In case enough time elapsed,
-    /// sets last tick to now and current timeout to `max_timeout`.
+    /// Sleeps until next tick should happen.
+    /// When enough time elapsed, returns and records a tick.
     pub async fn wait(&mut self) {
         let since_last = Instant::now().saturating_duration_since(self.last_tick);
         sleep(self.current_timeout.saturating_sub(since_last)).await;
