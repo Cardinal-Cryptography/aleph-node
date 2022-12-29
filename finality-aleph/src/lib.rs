@@ -44,6 +44,8 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
+#[allow(dead_code)]
+mod sync;
 #[cfg(test)]
 pub mod testing;
 
