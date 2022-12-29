@@ -26,8 +26,8 @@ impl Ticker {
         }
     }
 
-    /// Returns whether at least `min_timeout` time elapsed since last tick.
-    /// If `min_timeout` elapsed since last tick, returns true and records a tick.
+    /// Returns whether at least `min_timeout` time elapsed since the last tick.
+    /// If `min_timeout` elapsed since the last tick, returns true and records a tick.
     /// If not, returns false and calls to `wait` will return when `min_timeout`
     /// elapses until the next tick.
     pub fn try_tick(&mut self) -> bool {
