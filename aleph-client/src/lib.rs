@@ -28,6 +28,7 @@ pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type Client = OnlineClient<AlephConfig>;
 pub type BlockHash = H256;
+pub type CodeHash = H256;
 
 pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
 

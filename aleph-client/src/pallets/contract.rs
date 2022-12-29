@@ -8,7 +8,7 @@ use subxt::{
 
 use crate::{
     api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
-    Connection, SignedConnection, TxStatus,
+    CodeHash, Connection, SignedConnection, TxStatus,
 };
 
 #[derive(Encode)]
@@ -23,11 +23,8 @@ pub struct ContractCallArgs {
 
 #[async_trait::async_trait]
 pub trait ContractsApi {
-    async fn get_owner_info(
-        &self,
-        code_hash: BlockHash,
-        at: Option<BlockHash>,
-    ) -> Option<OwnerInfo>;
+    async fn get_owner_info(&self, code_hash: CodeHash, at: Option<BlockHash>)
+        -> Option<OwnerInfo>;
 }
 
 #[async_trait::async_trait]
@@ -41,7 +38,7 @@ pub trait ContractsUserApi {
     #[allow(clippy::too_many_arguments)]
     async fn instantiate(
         &self,
-        code_hash: BlockHash,
+        code_hash: CodeHash,
         balance: Balance,
         gas_limit: Weight,
         storage_limit: Option<Compact<u128>>,
@@ -69,11 +66,8 @@ pub trait ContractsUserApi {
         data: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
-    async fn remove_code(
-        &self,
-        code_hash: BlockHash,
-        status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    async fn remove_code(&self, code_hash: CodeHash, status: TxStatus)
+        -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -85,7 +79,7 @@ pub trait ContractRpc {
 impl ContractsApi for Connection {
     async fn get_owner_info(
         &self,
-        code_hash: BlockHash,
+        code_hash: CodeHash,
         at: Option<BlockHash>,
     ) -> Option<OwnerInfo> {
         let addrs = api::storage().contracts().owner_info_of(code_hash);
@@ -109,7 +103,7 @@ impl ContractsUserApi for SignedConnection {
 
     async fn instantiate(
         &self,
-        code_hash: BlockHash,
+        code_hash: CodeHash,
         balance: Balance,
         gas_limit: Weight,
         storage_limit: Option<Compact<u128>>,
@@ -172,7 +166,7 @@ impl ContractsUserApi for SignedConnection {
 
     async fn remove_code(
         &self,
-        code_hash: BlockHash,
+        code_hash: CodeHash,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().remove_code(code_hash);
