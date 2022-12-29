@@ -67,12 +67,17 @@ impl<T: Eq> TaskQueue<T> {
     pub async fn pop(&mut self) -> Option<T> {
         let scheduled_task = self.queue.peek_mut()?;
 
-        sleep(
-            scheduled_task
-                .scheduled_time
-                .saturating_duration_since(Instant::now()),
-        )
-        .await;
+        let duration = scheduled_task
+            .scheduled_time
+            .saturating_duration_since(Instant::now());
+        if !duration.is_zero() {
+            sleep(
+                scheduled_task
+                    .scheduled_time
+                    .saturating_duration_since(Instant::now()),
+            )
+            .await;
+        }
         Some(PeekMut::pop(scheduled_task).task)
     }
 }
