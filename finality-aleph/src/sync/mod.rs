@@ -28,21 +28,25 @@ pub trait Header: Clone {
     fn parent_id(&self) -> Option<Self::Identifier>;
 }
 
-/// The justification of a block, including a header.
+/// The verified justification of a block, including a header.
 pub trait Justification: Clone {
     type Header: Header;
+    type Unverified;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;
+
+    /// Return an unverified version of this, for sending over the network.
+    fn into_unverified(self) -> Self::Unverified;
 }
 
 /// A verifier of justifications.
-pub trait Verifier<RJ, J: Justification> {
+pub trait Verifier<J: Justification> {
     type Error: Display;
 
     /// Verifies the raw justification and returns a full justification if successful, otherwise an
     /// error.
-    fn verify(&self, header: J::Header, raw_justification: RJ) -> Result<J, Self::Error>;
+    fn verify(&self, justification: J::Unverified) -> Result<J, Self::Error>;
 }
 
 /// A facility for finalizing blocks using justifications.
