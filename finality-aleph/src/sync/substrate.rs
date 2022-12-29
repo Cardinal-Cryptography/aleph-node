@@ -39,7 +39,7 @@ impl<H: SubstrateHeader> Header for H {
     fn parent_id(&self) -> Option<Self::Identifier> {
         let number = self.number().checked_sub(&One::one())?;
         Some(BlockId {
-            hash: self.parent_hash().clone(),
+            hash: *self.parent_hash(),
             number,
         })
     }
