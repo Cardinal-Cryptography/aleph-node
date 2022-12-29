@@ -31,10 +31,6 @@ jobs:
         id: get_branch
         uses: ./.github/actions/get-branch
 
-      - name: install missing stuff
-        runs: |
-          sudo yum install -y unzip
-
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 

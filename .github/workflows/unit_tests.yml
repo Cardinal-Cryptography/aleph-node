@@ -28,10 +28,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: install missing stuff
-        runs: |
-          sudo yum install -y unzip
-
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:

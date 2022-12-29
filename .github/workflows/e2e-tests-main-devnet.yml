@@ -585,7 +585,8 @@ jobs:
   run-e2e-adder-contract-test:
     needs: [build-test-docker, build-test-client]
     name: Run e2e adder contract test
-    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
