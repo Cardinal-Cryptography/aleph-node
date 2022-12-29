@@ -15,6 +15,12 @@ impl Ticker {
     /// Retruns new Ticker struct. Behaves as if last tick happened during creation of TIcker.
     /// Requires `max_timeout` >= `min_timeout`.
     pub fn new(max_timeout: Duration, min_timeout: Duration) -> Self {
+        assert!(
+            max_timeout >= min_timeout,
+            "Max timoeut ({:?}) must be bigger then min timeout ({:?}) in Ticker",
+            max_timeout,
+            min_timeout
+        );
         Self {
             last_tick: Instant::now(),
             current_timeout: max_timeout,
