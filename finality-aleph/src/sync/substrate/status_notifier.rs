@@ -6,9 +6,9 @@ use sc_client_api::client::{FinalityNotifications, ImportNotifications};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 use tokio::select;
 
-use crate::sync::{substrate::BlockId, ChainStateNotification, ChainStateNotifier, Header};
+use crate::sync::{substrate::BlockId, ChainStatusNotification, ChainStatusNotifier, Header};
 
-/// What can go wrong when waiting for next chain state notification.
+/// What can go wrong when waiting for next chain status notification.
 #[derive(Debug)]
 pub enum Error {
     JustificationStream,
@@ -29,8 +29,8 @@ impl Display for Error {
     }
 }
 
-/// Substrate specific implementation of `ChainStateNotifier`.
-pub struct SubstrateChainStateNotifier<H, B>
+/// Substrate specific implementation of `ChainStatusNotifier`.
+pub struct SubstrateChainStatusNotifier<H, B>
 where
     H: SubstrateHeader<Number = BlockNumber>,
     B: BlockT<Header = H>,
@@ -39,7 +39,7 @@ where
     import_notifications: ImportNotifications<B>,
 }
 
-impl<H, B> SubstrateChainStateNotifier<H, B>
+impl<H, B> SubstrateChainStatusNotifier<H, B>
 where
     H: SubstrateHeader<Number = BlockNumber>,
     B: BlockT<Header = H>,
@@ -56,24 +56,24 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, B> ChainStateNotifier<BlockId<H>> for SubstrateChainStateNotifier<H, B>
+impl<H, B> ChainStatusNotifier<BlockId<H>> for SubstrateChainStatusNotifier<H, B>
 where
     H: SubstrateHeader<Number = BlockNumber>,
     B: BlockT<Header = H>,
 {
     type Error = Error;
 
-    /// Returns next chain state notification.
-    async fn next(&mut self) -> Result<ChainStateNotification<BlockId<H>>, Self::Error> {
+    /// Returns next chain status notification.
+    async fn next(&mut self) -> Result<ChainStatusNotification<BlockId<H>>, Self::Error> {
         select! {
             maybe_block = self.finality_notifications.next() => {
                 maybe_block
-                    .map(|block| ChainStateNotification::BlockFinalized(block.header.id()))
+                    .map(|block| ChainStatusNotification::BlockFinalized(block.header.id()))
                     .ok_or(Error::JustificationStream)
             },
             maybe_block = self.import_notifications.next() => {
                 maybe_block
-                .map(|block| ChainStateNotification::BlockImported(block.header.id()))
+                .map(|block| ChainStatusNotification::BlockImported(block.header.id()))
                 .ok_or(Error::ImportStream)
             }
         }
