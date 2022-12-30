@@ -12,18 +12,7 @@ use subxt::{
     SubstrateConfig,
 };
 
-use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, TxStatus};
-
-#[derive(Clone)]
-pub struct Connection {
-    client: Client,
-}
-
-impl Connection {
-    pub(crate) fn as_client(&self) -> &Client {
-        &self.client
-    }
-}
+use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, KeyPair, SubxtClient, TxStatus};
 
 const DEFAULT_RETRIES: u32 = 10;
 const RETRY_WAIT_SECS: u64 = 1;
@@ -34,7 +23,7 @@ pub async fn create_connection(address: &str) -> Connection {
 
 async fn create_connection_with_retries(address: &str, mut retries: u32) -> Connection {
     loop {
-        let client = Client::from_url(&address).await;
+        let client = SubxtClient::from_url(&address).await;
         match (retries, client) {
             (_, Ok(client)) => return Connection { client },
             (0, Err(e)) => panic!("{:?}", e),
@@ -69,6 +58,11 @@ pub trait ConnectionExt: AsConnection {
     ) -> Option<T::Target>;
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
+}
+
+#[derive(Clone)]
+pub struct Connection {
+    client: SubxtClient,
 }
 
 pub struct SignedConnection {
@@ -168,6 +162,12 @@ impl<C: AsConnection> ConnectionExt for C {
             .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
+    }
+}
+
+impl Connection {
+    pub(crate) fn as_client(&self) -> &SubxtClient {
+        &self.client
     }
 }
 

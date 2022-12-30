@@ -28,7 +28,7 @@ pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type BlockHash = H256;
 
-pub(crate) type Client = OnlineClient<AlephConfig>;
+pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
 
 pub use connections::{
     create_connection, AsConnection, Connection, ConnectionExt, RootConnection, SignedConnection,
