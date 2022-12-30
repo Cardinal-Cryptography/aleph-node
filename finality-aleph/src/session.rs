@@ -1,5 +1,5 @@
 use codec::{Decode, Encode};
-use sp_runtime::{traits::Block, SaturatedConversion};
+use sp_runtime::traits::{Block, UniqueSaturatedInto};
 
 use crate::NumberFor;
 
@@ -40,8 +40,15 @@ pub fn last_block_of_session<B: Block>(
     ((session_id.0 + 1) * period.0 - 1).into()
 }
 
+pub fn session_id_from_num<N: UniqueSaturatedInto<u32>>(
+    num: N,
+    period: SessionPeriod,
+) -> SessionId {
+    SessionId(num.unique_saturated_into() / period.0)
+}
+
 pub fn session_id_from_block_num<B: Block>(num: NumberFor<B>, period: SessionPeriod) -> SessionId {
-    SessionId(num.saturated_into::<u32>() / period.0)
+    session_id_from_num(num, period)
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]

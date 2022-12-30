@@ -6,6 +6,8 @@ use std::{
 mod substrate;
 mod ticker;
 
+pub use substrate::SessionVerifier;
+
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {
     /// The block number, useful when reasoning about hopeless forks.
@@ -42,12 +44,13 @@ pub trait Justification: Clone {
 }
 
 /// A verifier of justifications.
+#[async_trait::async_trait]
 pub trait Verifier<J: Justification> {
     type Error: Display;
 
     /// Verifies the raw justification and returns a full justification if successful, otherwise an
     /// error.
-    fn verify(&self, justification: J::Unverified) -> Result<J, Self::Error>;
+    async fn verify(&self, justification: J::Unverified) -> Result<J, Self::Error>;
 }
 
 /// A facility for finalizing blocks using justifications.

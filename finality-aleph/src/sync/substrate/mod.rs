@@ -5,6 +5,12 @@ use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::sync::{BlockIdentifier, Header};
 
+mod justification;
+
+// Probably can be removed after removal of legacy justification sync.
+pub use justification::SessionVerifier;
+
+/// An identifier uniquely specifying a block and its height.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
     hash: H::Hash,
