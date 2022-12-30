@@ -9,19 +9,27 @@ use tokio::time::{sleep, Duration, Instant};
 
 use crate::sync::LOG_TARGET;
 
-#[derive(Clone, Eq, PartialEq)]
-struct ScheduledTask<T: Eq> {
+#[derive(Clone)]
+struct ScheduledTask<T> {
     task: T,
     scheduled_time: Instant,
 }
 
-impl<T: Eq> PartialOrd for ScheduledTask<T> {
+impl<T> Eq for ScheduledTask<T> {}
+
+impl<T> PartialEq for ScheduledTask<T> {
+    fn eq(&self, other: &Self) -> bool {
+        other.scheduled_time.eq(&self.scheduled_time)
+    }
+}
+
+impl<T> PartialOrd for ScheduledTask<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Eq> Ord for ScheduledTask<T> {
+impl<T> Ord for ScheduledTask<T> {
     /// Compare tasks so that earlier times come first in a max-heap.
     fn cmp(&self, other: &Self) -> Ordering {
         other.scheduled_time.cmp(&self.scheduled_time)
@@ -29,11 +37,11 @@ impl<T: Eq> Ord for ScheduledTask<T> {
 }
 
 #[derive(Clone, Default)]
-pub struct TaskQueue<T: Eq + PartialEq> {
+pub struct TaskQueue<T> {
     queue: BinaryHeap<ScheduledTask<T>>,
 }
 
-impl<T: Eq + PartialEq> Debug for TaskQueue<T> {
+impl<T> Debug for TaskQueue<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskQueue")
             .field("task count", &self.queue.len())
@@ -42,7 +50,8 @@ impl<T: Eq + PartialEq> Debug for TaskQueue<T> {
 }
 
 /// Implements a queue allowing for scheduling tasks for some time in the future.
-impl<T: Eq> TaskQueue<T> {
+/// Does not actually execute any tasks, is used for ordering in time only.
+impl<T> TaskQueue<T> {
     /// Creates an empty queue.
     pub fn new() -> Self {
         Self {
